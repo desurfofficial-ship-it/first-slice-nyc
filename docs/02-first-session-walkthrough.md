@@ -3,6 +3,8 @@
 
 *A minute-by-minute script of the opening experience, with dialogue samples, wonder-beat placement, and design rationale. The first session's job: install the fantasy, the loop, the ritual, and the return trigger — while making the player feel the city being kind to them.*
 
+> **v2.0 note:** This script now includes **Map** (the co-newbie companion, GDD §4.0) in the arrival, Subway University, and the first **gold window** of the Skyline of Lit Windows (GDD §6.4).
+
 ---
 
 ## Design Goals for Session One
@@ -32,7 +34,11 @@ The bus pulls into the terminal. Title card over the doors opening:
 
 You step out with **$87**, a duffel bag, and a face full of city. Six starter characters to pick from (30 seconds, all delightful — skateboard-toting, paint-splattered, grandmotherly, etc.). Movement tutorial is diegetic: walk toward the light.
 
-> **Design note:** The skyline tease is *wonder beat #0* — a promise. The driver's line sets the game's voice: warm, wry, unhurried. The response choice establishes immediately that dialogue is light, short, and never penalizes.
+In your other hand: **Map**. It unfolds itself — impatient paper. Almost nothing is marked. One star in the middle, in patient handwriting:
+
+> *"You are here. That's enough."*
+
+> **Design note:** The skyline tease is *wonder beat #0* — a promise. Map's first note sets the game's whole teaching contract in five words. The driver's line sets the voice: warm, wry, unhurried. The response choice establishes immediately that dialogue is light, short, and never penalizes.
 
 ---
 
@@ -119,7 +125,7 @@ Priya walks you to the platform.
 
 > **PRIYA:** *(smiles)* Then you get out, look around, and get on the other one. This isn't a test, kid. It's a subway.
 
-One guided ride. Windows flicker with tunnel light. She teaches you to read the map — "See? You already can." — and the doors open on a **busker** playing saxophone under the tile echo. A small crowd sways. You drop a coin *(your first kindness — the "I Got You" system's invisible counter starts here, unmarked)*.
+One guided ride. Windows flicker with tunnel light. Priya draws two lines on the window in two swipes of her glove — "one goes under the river, one stays with the lights." **Map copies them badly.** She tells Map that's fine. Then she taps Map's crooked copy: "See? You already can read it." — and the doors open on a **busker** playing saxophone under the tile echo. A small crowd sways. You drop a coin *(your first kindness — the "I Got You" system's invisible counter starts here, unmarked)*.
 
 Exiting one stop early "just to see" seeds **Happy Accident #1**: a hidden record shop, closed, with a hand-written sign: *"Back soon. The city knows when."* (It matters at Week 3. Everything matters at Week 3.)
 
@@ -169,6 +175,10 @@ The sky goes amber, then plum. You climb the fire escape of the building next to
 </div>
 
 A soft glow around the share button. Never a prompt. Never a nudge. Just an option, glowing, like a streetlight.
+
+Then — across the skyline, one dark window flickers. Flickers again. Then holds, gold.
+
+> **ROSA (quieter, following your eyes):** That one's the kid who ordered "whatever's cold." *(beat)* You were their first warm thing today.
 
 > **ROSA (from below, calling up):** Lights out, rookie! Big day tomorrow. They're gonna want the usual.
 

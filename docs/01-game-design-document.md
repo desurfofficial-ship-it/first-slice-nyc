@@ -1,5 +1,5 @@
 # FIRST SLICE: A New York Story
-## Complete Game Design Document — v1.0
+## Complete Game Design Document — v2.0
 
 <div align="center">
 
@@ -8,6 +8,9 @@
 *An original mobile life-simulation game for people who have never been to New York City.*
 
 </div>
+
+> **v2.0 changelog — four systems adopted from our companion concept *Saved You a Seat* are now canon:**
+> **Map**, the co-newbie companion (§4.0) · the **Three-Layer Landmark** (§4.2) · the **Skyline of Lit Windows** (§6.4) · the **Inverted Loop** — *Someone's First New York* + the Welcome Bench (§6.5).
 
 ---
 
@@ -103,7 +106,8 @@ The loop is built for the **5–8 minute session**: the commute, the lunch break
   🌙 NIGHT — "City Wind-Down"                         │
   A slow, atmospheric scene: the subway ride home,    │
   the fire escape, the skyline. One random            │
-  "New York Moment" vignette plays (see §5).          │
+  "New York Moment" vignette plays (see §5) — and     │
+  one far window turns gold: someone felt kept (§6.4).│
         │                                             │
         ▼                                             │
   📮 THE POSTCARD — Session End                       │
@@ -140,6 +144,20 @@ Layered around the daily loop, each independently motivating:
 
 There are no encyclopedia popups, no walls of text, no quizzes. Every piece of New York knowledge is delivered *at the moment it's useful*, by a *character*, inside a *small delightful interaction*. Knowledge is never tested; it's *celebrated*. The design target: the player should feel like the city is being kind to them.
 
+### System 4.0 — Map *(the co-newbie companion — the game's soul made paper)*
+
+Map is a folded paper sheet the player carries from minute one. Map is not a wise guide, not a minigame hub, not a menu with a face. **Map is new here too.** When a local explains something, Map writes it down — in ordinary words, in patient handwriting, in the margins. The player can open Map anytime, and there is never a test on its contents.
+
+**Map's rules:**
+
+- **Feelings first, names second.** Early notes describe moods ("the island of tall evenings," "where the kitchens never end"); names arrive only after the feeling has landed. Map is the delivery vehicle for §4.2's three-layer structure.
+- **Map is allowed to be wrong or messy.** It copies the subway lines badly; Priya tells it that's fine. The player should *love* Map, not study it.
+- **Curiosity is a button, not a confession.** Glowable moments offer "Tell me" — tapping it makes the explainer *light up with delight*. Wanting to know is always treated as lovely, never as ignorance.
+- **Map holds the collections.** The New York-ese dictionary, Story Cards, and caption drafts live "in Map's margins" — one warm paper object instead of six dashboard screens.
+- **Map never sighs.** There is no local-who-is-tired-of-tourists in this game. There is a city that likes being someone's first time.
+
+> Implementation note: Map is one reusable paper UI surface, a note-content database, and ~10 trigger types (taught, overheard, tasted, witnessed, offered). v1 spec lives in the Vertical Slice doc (VS-F01).
+
 ### System 4.1 — The Regulars *(characters as cultural ambassadors)*
 
 12–16 handcrafted NPCs, each permanently tied to a neighborhood, a food, a sound, and a value. Becoming friends with a Regular *is* a curriculum. Each Regular has a 6–10 beat story arc delivered one beat per session or two.
@@ -170,6 +188,16 @@ Every landmark has a small quest chain that ends with a **postcard** — the gam
 > Postcard caption: *"Times Square — 300,000 people cross here every day. Today, so did you."*
 
 Postcards are **the knowledge delivery system disguised as a reward system**. One gentle fact per card. No card is longer than two sentences. Facts are chosen for "wait, REALLY?" value rather than encyclopedic coverage.
+
+#### The Three-Layer Landmark *(adopted v2.0)*
+
+Every famous place reveals in the same three layers — never all at once:
+
+1. **The Postcard** — what the movies promised. The frame everyone already recognizes.
+2. **The Tuesday** — a person who uses it as an ordinary day. Same place, someone locking up, a kid with a balloon.
+3. **The Kindness** — the human-scale secret: the good bench, the nurse's deli around the corner, the musician's usual spot.
+
+The Empire State Building arrives as *"the building with the colored crown that changes its mood."* Only after the player has watched the crown change from their own corner does Map add the name. The Statue of Liberty arrives as *"the green friend in the harbor who welcomes people before the city does"* — seen properly from the ferry, not from a checklist. Landmarks are not trivia gates; they are friendships with a skyline.
 
 ### System 4.3 — Subway University *(transit as a cozy mechanic)*
 
@@ -286,16 +314,26 @@ Five boroughs, unlocked roughly one per month, each with a Welcome Quest, local 
 - **Story Cards:** every dish, mural, bridge, and band
 - **The Regulars' arcs:** 12–16 stories, each with a designed emotional payoff event
 
-### 6.4 "Your New York" (the endgame metric)
+### 6.4 The Skyline of Lit Windows *(the visible soul — adopted v2.0)*
 
-The game never shows a "score." But it quietly tracks **how much of the city you have truly met** — people known, foods tasted, corners discovered, kindness done. At full completion, the game's final event plays:
+The game never shows a "score." But from day one, the far skyline shows a scatter of dark windows — and **when someone feels kept — a regular warmed, a kindness landed, a first-timer hosted — a window turns gold.** The player never opens a menu to check progress: they can see it from their cart. Players begin filming their skyline the way people film plants they didn't kill.
 
-> **The Block Party.** The city closes *your* street. Every Regular you've ever met shows up — even Mr. Idris, who orders "the usual" one more time. Rosa hands you something small: a key. *"You kept the door open. Now it's yours."*
-> Postcard: *"Day 365. You came here knowing nobody. Look around."*
+- **Every lit window belongs to a person.** The postcard screen occasionally tells you whose it is: *"That one's for the kid who ordered 'whatever's cold.' You were their first warm thing."*
+- **It behaves like weather, not a bar.** Windows can flicker before they hold. They never decrement. Dark windows are not failure — they are invitations.
+- **The skyline is the share.** Late-game screenshots show a skyline the player can name window by window. The game's deepest flex is *tenderness*.
 
-That is the emotional thesis of the entire game, delivered in one scene. The endgame isn't wealth — it's *belonging*.
+### 6.5 The Finale Chain & the Inverted Loop *(adopted v2.0)*
 
-### 6.5 Live-game hooks (post-launch)
+Completion still ends with **The Block Party**: the city closes your street, every Regular you've ever met shows up — even Mr. Idris, who orders "the usual" one more time. Rosa hands you something small: a key. *"You kept the door open. Now it's yours."* Postcard: *"Day 365. You came here knowing nobody. Look around."*
+
+But v2 adds what happens *after* belonging — because the thesis was never "you arrived." It's "you keep the light on":
+
+1. **Someone's First New York.** On some evenings after the finale, your corner becomes another newcomer's first magical stop. You watch a fresh player-character hesitate at your counter exactly the way you once did — and you get to be Rosa. You read their postcard about *you*. The loop turns outward: the guest becomes the host.
+2. **The Welcome Bench.** The long horizon goal, not a grind wall: a bench facing the green friend in the harbor. You don't write an essay — you choose **three words the city gave you**. New arrivals in the living simulation sit there first, and your three words are the first kind thing they read.
+
+That is the emotional thesis of the entire game, delivered twice: the endgame isn't wealth, and now it isn't even belonging — it's *hospitality*. The long promise, rememberable on a lock screen: **You arrived as a rumor of a person. You leave the light on, so the next stranger can sit.**
+
+### 6.6 Live-game hooks (post-launch)
 
 - **City Whisper:** one new micro-fact daily, read aloud by a rotating Regular
 - **Seasonal borough events** tied loosely to real NYC calendar moments

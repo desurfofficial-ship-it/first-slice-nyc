@@ -56,6 +56,19 @@ An interactive one-page pitch deck presenting this concept was built alongside t
 
 ---
 
+## 🆕 What's new in v2.0
+
+Four systems adopted from our companion concept **Saved You a Seat** are now canon:
+
+- **Map** — the co-newbie paper companion who learns alongside you *(GDD §4.0)*
+- **The Three-Layer Landmark** — Postcard → Tuesday → Kindness *(GDD §4.2)*
+- **The Skyline of Lit Windows** — progress you can film, never a menu *(GDD §6.4)*
+- **The Inverted Loop** — *Someone's First New York* + the Welcome Bench: the endgame of hospitality *(GDD §6.5)*
+
+And two new working documents: the full **Production Roadmap** ([06](docs/06-production-roadmap.md)) and the **Vertical Slice Design** ([07](docs/07-vertical-slice-design.md)) — plus **[AGENTS.md](AGENTS.md)**, an operations manual with a skills library for AI agents contributing to the project.
+
+---
+
 ## 📚 Documentation
 
 | Document | Contents |
@@ -65,6 +78,9 @@ An interactive one-page pitch deck presenting this concept was built alongside t
 | **[03 — NYC Events & Systems Compendium](docs/03-events-compendium.md)** | 25+ original NYC-flavored events and systems — from Pizza Rat to Manhattanhenge — each with the "wonder beat" identified. |
 | **[04 — Art Direction Bible](docs/04-art-direction-bible.md)** | The Postcard Warm palette, camera language, lighting rules, UI motifs, and the "1-second screenshot" readability law. |
 | **[05 — Viral & Growth Playbook](docs/05-viral-growth-playbook.md)** | UGC engine design, share-card system, TikTok-native moments, K-factor mechanics, and market analysis. |
+| **[06 — Production Roadmap](docs/06-production-roadmap.md)** | Phases 0–6 with epic/task breakdown, team shape, engine decision, KPI gates, risk register, and definitions of done. |
+| **[07 — Vertical Slice Design](docs/07-vertical-slice-design.md)** | The first 30 minutes at shippable quality: scope in/out, feature specs VS-F01→F10, content inventory, perf budgets, exit criteria. *(v0.1 — work in progress.)* |
+| **[AGENTS.md](AGENTS.md)** | Operations manual for AI agents: the seven design Laws, voice guide, workflow protocol, and a 9-skill library (system-spec, content-pipeline, slice-guardian, implement-epic, visual-qa, playtest-analysis, art-brief…). |
 
 ---
 
