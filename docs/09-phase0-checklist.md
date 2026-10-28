@@ -11,12 +11,13 @@
 - [ ] Map UX paper prototype (folding, writing animation, margins) tested
 - [ ] Three-layer landmark sequencing tested on paper
 - [ ] Result notes appended to worklog
+- [x] Paper prototype scripts written → see [Doc 11](11-paper-prototypes.md)
 
 ## P0-2 Greybox Block
 - [ ] One street + Rosa's bodega interior + corner cart greyboxed
 - [ ] Walk → serve 3 orders → one short ride → receive 1 postcard possible in ≤15 min
 - [ ] Internal playtest: 5/5 smile at the postcard moment
-- [ ] Layout spec written → see [Doc 10](10-day1-greybox-layout.md)
+- [x] Layout spec written → see [Doc 10](10-day1-greybox-layout.md)
 
 ## P0-3 Art Lock
 - [x] 3 styleframe candidates generated and reviewed
@@ -51,4 +52,4 @@ If the postcard lands in grey, the game works.
 
 ---
 
-*Updated after styleframe review and greybox layout spec. Keep it honest.*
+*Updated with paper prototype scripts. Keep it honest.*
