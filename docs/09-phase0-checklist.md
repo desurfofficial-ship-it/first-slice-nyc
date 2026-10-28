@@ -38,7 +38,7 @@
 ## P0-5 Design Lock
 - [ ] GDD v2.1 sign-off (or confirm v2.0 is locked)
 - [x] Doc 07 Vertical Slice advanced to v0.2 (TBDs have recommendations)
-- [ ] Risk register baselined
+- [x] Risk register baselined → see [Doc 16](16-risk-register.md)
 - [ ] Audio partner conversation started (key jingle sketch)
 
 ## Content Ready for Slice
@@ -53,4 +53,4 @@ If the postcard lands in grey, the game works.
 
 ---
 
-*Tech spike definitions added. Engineering risk is now documented.*
+*Major Phase 0 design documentation is now complete. Remaining work is execution.*
