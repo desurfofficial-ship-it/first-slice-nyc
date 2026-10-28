@@ -21,11 +21,11 @@
 
 ## P0-3 Art Lock
 - [x] 3 styleframe candidates generated and reviewed
-  - [x] Golden-hour corner with cart — [styleframe A](../assets/styleframes/styleframe-a-golden-hour-corner.jpg) *(strong keeper)*
-  - [x] Dusk fire-escape / skyline with one gold window — [styleframe B](../assets/styleframes/styleframe-b-dusk-fire-escape.jpg) *(strongest emotional hit)*
-  - [x] First postcard composition — [styleframe C](../assets/styleframes/styleframe-c-first-postcard.jpg) *(border perfect; cart language needs later unification with A)*
-- [ ] Final approval / lock of the three frames
-- [x] Silhouette sheet of 20 hero props at 64px readability → see [Doc 13](13-silhouette-sheet.md)
+- [x] **Formal styleframe lock completed** → see [Doc 14](14-styleframe-lock.md)
+  - A (Golden-Hour Corner) — Locked as primary daytime/cart reference
+  - B (Dusk Fire Escape) — Locked as emotional dusk + gold window reference
+  - C (First Postcard) — Locked for framing/border (cart must match A later)
+- [x] Silhouette sheet of 20 hero props → see [Doc 13](13-silhouette-sheet.md)
 - [ ] Palette conformance check vs Doc 04
 
 ## P0-4 Tech Spikes
@@ -52,4 +52,4 @@ If the postcard lands in grey, the game works.
 
 ---
 
-*Updated with silhouette sheet. Keep it honest.*
+*Styleframes formally locked. Art direction has official visual targets.*
