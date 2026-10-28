@@ -54,6 +54,14 @@ An interactive one-page pitch deck presenting this concept was built alongside t
 ![Mobile layout](assets/pitch-site-mobile.png)
 *Mobile-first — the game is designed vertical-first too (the TikTok law).*
 
+### Phase 0 styleframes (candidates)
+
+| A — Golden-hour corner | B — Dusk fire escape | C — First postcard |
+|---|---|---|
+| ![Styleframe A](assets/styleframes/styleframe-a-golden-hour-corner.jpg) | ![Styleframe B](assets/styleframes/styleframe-b-dusk-fire-escape.jpg) | ![Styleframe C](assets/styleframes/styleframe-c-first-postcard.jpg) |
+
+Pending approval. Briefs in [Doc 04 §8](docs/04-art-direction-bible.md).
+
 ---
 
 ## 🆕 What's new

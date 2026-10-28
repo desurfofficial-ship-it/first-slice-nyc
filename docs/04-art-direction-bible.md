@@ -101,11 +101,15 @@ If any answer is no, the scene ships again.
 
 These three frames must be produced and approved before Phase 1 art production begins.
 
+**Candidates (2026-10-28), pending art-lock approval.** Prompts live in [`assets/styleframes/PROMPTS.md`](../assets/styleframes/PROMPTS.md). Do not check P0-3 until a human signs these off.
+
 ### Styleframe A — Golden-Hour Corner
 **Subject:** The player's cart on its first afternoon.  
 **Composition:** Vertical 9:16. Cart is the hero prop (slightly oversized). String lights just starting to glow. One yellow cab mid-frame as a moving lantern. Brick warm, sky peach-to-amber. Steam rising from a manhole and from the coffee urn.  
 **Feeling:** "I could stand here forever."  
 **Must read at 1 second:** cart + yellow cab + brick + warm light = New York.
+
+![Styleframe A — golden-hour corner, coffee cart, yellow taxi](../assets/styleframes/styleframe-a-golden-hour-corner.jpg)
 
 ### Styleframe B — Dusk Fire Escape + Gold Window
 **Subject:** Player on the fire escape with a cup, looking across the street.  
@@ -113,11 +117,15 @@ These three frames must be produced and approved before Phase 1 art production b
 **Feeling:** "Someone felt kept because of me."  
 **Must read at 1 second:** fire escape + single gold window + skyline = New York at magic hour.
 
+![Styleframe B — dusk fire escape, one gold window](../assets/styleframes/styleframe-b-dusk-fire-escape.jpg)
+
 ### Styleframe C — First Postcard Composition
 **Subject:** The exact framing the game will use for Postcard Mode.  
 **Composition:** 3:4 vertical with paper deckled border already visible in the mock. Times Square or the named cart at golden hour. Soft letterbox feel. Caption space at bottom.  
 **Feeling:** "I would send this to someone."  
 **Must read at 1 second:** instantly recognizable as a keepsake from New York.
+
+![Styleframe C — first postcard composition, deckled border, caption space](../assets/styleframes/styleframe-c-first-postcard.jpg)
 
 ---
 

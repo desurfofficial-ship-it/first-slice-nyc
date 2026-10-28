@@ -18,10 +18,10 @@
 - [ ] Internal playtest: 5/5 smile at the postcard moment
 
 ## P0-3 Art Lock
-- [ ] 3 styleframes approved (see Art Bible § new styleframe briefs)
-  - [ ] Golden-hour corner with cart
-  - [ ] Dusk fire-escape / skyline with one gold window
-  - [ ] First postcard composition
+- [ ] 3 styleframes approved (see Art Bible §8)
+  - [ ] Golden-hour corner with cart — candidate in [styleframe A](../assets/styleframes/styleframe-a-golden-hour-corner.jpg)
+  - [ ] Dusk fire-escape / skyline with one gold window — candidate in [styleframe B](../assets/styleframes/styleframe-b-dusk-fire-escape.jpg)
+  - [ ] First postcard composition — candidate in [styleframe C](../assets/styleframes/styleframe-c-first-postcard.jpg)
 - [ ] Silhouette sheet of 20 hero props at 64px readability
 - [ ] Palette conformance check vs Doc 04
 
