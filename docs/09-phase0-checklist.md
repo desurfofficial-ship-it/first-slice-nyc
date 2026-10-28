@@ -29,10 +29,11 @@
 - [ ] Palette conformance check vs Doc 04
 
 ## P0-4 Tech Spikes
-- [ ] Postcard capture spike (render texture → PNG → native share) on iOS + Android
-- [ ] Vertical-first camera rig proven
-- [ ] Baked GI performance check on iPhone 11 / Galaxy A14 class device
-- [ ] Yarn → Map notes content pipeline spike
+- [x] Spike definitions written → see [Doc 15](15-tech-spikes.md)
+- [ ] TS-01 Postcard Capture Pipeline (3–4 days)
+- [ ] TS-02 Vertical-First Camera Rig (2 days)
+- [ ] TS-03 Baked GI + Performance Budget (2–3 days)
+- [ ] TS-04 Yarn → Map Notes Pipeline (1–2 days)
 
 ## P0-5 Design Lock
 - [ ] GDD v2.1 sign-off (or confirm v2.0 is locked)
@@ -52,4 +53,4 @@ If the postcard lands in grey, the game works.
 
 ---
 
-*Styleframes formally locked. Art direction has official visual targets.*
+*Tech spike definitions added. Engineering risk is now documented.*
