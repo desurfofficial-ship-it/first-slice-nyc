@@ -1,7 +1,7 @@
 # FIRST SLICE: A New York Story
-## Document 07 — Vertical Slice Design (v0.1 — work in progress)
+## Document 07 — Vertical Slice Design (v0.2)
 
-> **Status:** Started. Structure complete; core feature specs drafted (VS-F01 → VS-F10); sections marked **[TBD]** await team input at Phase 0 exit. This document is the contract for Roadmap Phase 1 (weeks 7–16).
+> **Status:** Advanced in Phase 0. Core feature specs solid. Day-1 content pack complete (see Doc 08). Remaining TBDs have clear owners and recommendations. This document is the contract for Roadmap Phase 1 (weeks 7–16).
 
 ---
 
@@ -57,10 +57,9 @@ Everything in this document serves that proof. If a feature doesn't make the 30 
 
 | Aspect | Spec |
 |---|---|
-| Surface | Full-screen paper sheet; deckled edge; two-column fold; handwriting font (license **[TBD]**); page 1 = city (star only), page 2 = margins (collections) |
+| Surface | Full-screen paper sheet; deckled edge; two-column fold; handwriting font (license **[TBD-4]**); page 1 = city (star only), page 2 = margins (collections) |
 | States | `folded` (corner peek in HUD) → `unfolding` (haptic tick) → `reading` → `writing` (new note animates in stroke-by-stroke) |
-| Notes v1 (12) | ① "You are here. That's enough." ② regular coffee = milk, 2 sugars ③ "regular means small" ④ the Shuffle ⑤ two subway lines (drawn crooked) ⑥ "trains are stubborn in a loyal way" ⑦ wooden hats (water towers) ⑧ folding is part of the recipe ⑨ stoop = outdoor living room ⑩ the usual = a tiny love letter ⑪ your corner, your name ⑫ [TBD — reserved for playtest surprise] |
-| Triggers (6) | `taught` (character explains) · `overheard` (ambient) · `tasted` (first food) · `witnessed` (wonder beat) · `offered` (kindness) · `bought` (naming cart) |
+| Notes v1 (12) | See **[Doc 08](08-day1-content-pack.md)** for final text. Triggers: taught · overheard · tasted · witnessed · offered · bought |
 | Collections | 4 slang cards (regular / bodega / hero / on line) + 1 Story Card (bacon-egg-and-cheese) |
 | Hard rules | Never gates progress · never opens by itself more than once per scene · no counters, no badges · "Tell me" always delighted |
 
@@ -84,7 +83,7 @@ The product inside the product. Pipeline: `moment flag` → `camera rig` → `re
 |---|---|
 | Capture | 3:4 vertical crop from a 3/4 isometric rig; letterbox bars animate in; game world keeps animating (Rule of Steam) |
 | Compose | Paper frame, deckled edge, stamp corner with cart name, "Day N" tag; palette conformance enforced by lighting, not filters |
-| Captions | 6 authored v1 (one per postcard moment) + template slots: `{person}`, `{place}`, `{learned}` — writer-owned, two-sentence max |
+| Captions | 6 authored v1 in **[Doc 08](08-day1-content-pack.md)** + template slots: `{person}`, `{place}`, `{learned}` — writer-owned, two-sentence max |
 | Album | Grid of cards; tap → enlarge → "Send" / "Keep"; no share prompt > 1 per session |
 | Share | Native share sheet (iOS/Android) with OG-tagged web preview image; share is optional, always available, never rewarded |
 
@@ -92,7 +91,7 @@ The product inside the product. Pipeline: `moment flag` → `camera rig` → `re
 
 ### VS-F08 — Skyline of Lit Windows v1
 
-One window only (the kid's). Technique: emissive map swap + bloom pulse; **flicker ×3 → hold** behavior; visible from the cart, the fire escape, and the final rooftop-adjacent framing. The line belongs to Rosa, not to UI. acceptance: testers spontaneously ask "did I light that?" — if they ask "how many windows are there?", the fantasy has leaked.
+One window only (the kid's). Technique: emissive map swap + bloom pulse; **flicker ×3 → hold** behavior; visible from the cart, the fire escape, and the final rooftop-adjacent framing. The line belongs to Rosa, not to UI. Acceptance: testers spontaneously ask "did I light that?" — if they ask "how many windows are there?", the fantasy has leaked.
 
 ### VS-F10 — Performance & Device Targets
 
@@ -115,8 +114,8 @@ One window only (the kid's). Technique: emissive map swap + bloom pulse; **flick
 | Environment block | 1 street + 1 bodega interior + 1 subway platform + 1 Times Square vista + 1 fire-escape vignette | Greybox → art pass 1 |
 | Characters | 5 (Rosa, Priya, Idris, the kid, the usher) + crowd library (12 variants) | Mitten-simple hands per Doc 04 |
 | Props | ~60 | From Doc 04 object canon |
-| Postcards | 6 | Times Square, first rush, water towers, slice fold, your corner, Day 1 |
-| Map notes | 12 + 4 slang cards + 1 Story Card | See VS-F01 |
+| Postcards | 6 | Full final text in Doc 08 |
+| Map notes | 12 + 4 slang cards + 1 Story Card | Full final text in Doc 08 |
 | Dialogue | ~180 lines | Yarn; VO decision pending TBD-1 |
 | Music | 4 stems (arrival, rush, wow swell, dusk) | Key jingle required |
 | SFX | ~40 | Coffee hiss-pour-thunk set required |
@@ -160,15 +159,15 @@ Palette per Doc 04 (Taxi Yellow `#F7B32B`, Brick `#B23A48`, Fire-Escape Green `#
 
 ---
 
-## 10. Open Questions — [TBD]
+## 10. Open Questions — Updated
 
-| # | Question | Owner | Needed by |
-|---|---|---|---|
-| TBD-1 | VO vs text-first (cost/charm tradeoff). Current lean: text-first, VO for 5 signature lines only | GD + Audio | End of Phase 0 |
-| TBD-2 | Cart-name input moderation approach (allowlist? client filter + report?) | TE | VS-F05 build |
-| TBD-3 | Is the Shuffle skippable without feeling like a failure? | GD | First playtest |
-| TBD-4 | Handwriting font licensing (needs to support ~6 scripts for Phase 4 loc) | ND | Phase 0 |
-| TBD-5 | Does Map get a voice? (paper sounds vs literal whisper) | AU | Phase 0 |
-| TBD-6 | Native share deep-link architecture per platform | TE | VS-F05 build |
+| # | Question | Recommendation / Status | Owner | Needed by |
+|---|---|---|---|---|
+| TBD-1 | VO vs text-first | **Recommendation: text-first for VS.** VO only for 5 signature lines (Rosa apron moment, Priya "this isn't a test", Idris nod, gold-window line, key jingle). Keeps cost and iteration speed high. | GD + Audio | End of Phase 0 |
+| TBD-2 | Cart-name input moderation | **Recommendation:** Client-side allowlist of positive/neutral words + length limit + report button. No server for VS. Revisit in Phase 4. | TE | VS-F05 build |
+| TBD-3 | Is the Shuffle skippable? | **Recommendation: Yes, soft skip.** After 20 seconds of standing still, a gentle "The city will wait" prompt appears. Skipping still grants the Times Square postcard. Never feels like failure. | GD | First playtest |
+| TBD-4 | Handwriting font licensing | **Action:** Shortlist 3 fonts that support Latin + basic diacritics and have commercial mobile licenses. Prefer ones with a slightly imperfect, human quality. | ND | Phase 0 |
+| TBD-5 | Does Map get a voice? | **Recommendation: Paper sounds only** (unfold, pencil scratch, soft page turn). No literal whisper. Keeps Map feeling like an object, not a character that competes with Rosa/Priya. | AU | Phase 0 |
+| TBD-6 | Native share deep-link architecture | **Recommendation for VS:** Native share sheet only + static OG image. Deep links and web preview pages move to Phase 4 (Beta). | TE | VS-F05 build |
 
-*This document is intentionally unfinished — it is the slice's contract, not its obituary. Update v0.x after every Phase 0 decision.*
+*Document advanced to v0.2 after Phase 0 content and TBD work. Continue updating as decisions lock.*

@@ -97,7 +97,60 @@ If any answer is no, the scene ships again.
 
 ---
 
-## 8. Audio Direction (the invisible half of art)
+## 8. Styleframe Briefs (Phase 0 Lock)
+
+These three frames must be produced and approved before Phase 1 art production begins.
+
+### Styleframe A — Golden-Hour Corner
+**Subject:** The player's cart on its first afternoon.  
+**Composition:** Vertical 9:16. Cart is the hero prop (slightly oversized). String lights just starting to glow. One yellow cab mid-frame as a moving lantern. Brick warm, sky peach-to-amber. Steam rising from a manhole and from the coffee urn.  
+**Feeling:** "I could stand here forever."  
+**Must read at 1 second:** cart + yellow cab + brick + warm light = New York.
+
+### Styleframe B — Dusk Fire Escape + Gold Window
+**Subject:** Player on the fire escape with a cup, looking across the street.  
+**Composition:** Vertical. Fire-escape railing in foreground (green). One window across the way flickers then holds gold. Skyline soft silhouette behind. Dusk plum shadows, amber practical light on the player.  
+**Feeling:** "Someone felt kept because of me."  
+**Must read at 1 second:** fire escape + single gold window + skyline = New York at magic hour.
+
+### Styleframe C — First Postcard Composition
+**Subject:** The exact framing the game will use for Postcard Mode.  
+**Composition:** 3:4 vertical with paper deckled border already visible in the mock. Times Square or the named cart at golden hour. Soft letterbox feel. Caption space at bottom.  
+**Feeling:** "I would send this to someone."  
+**Must read at 1 second:** instantly recognizable as a keepsake from New York.
+
+---
+
+## 9. Hero Prop Silhouette Sheet (20)
+
+All must be identifiable as solid black shapes at 64×64 px.
+
+1. Coffee / food cart (awning + wheels)  
+2. Yellow taxi (classic crown shape)  
+3. Water tower (wooden tank on legs)  
+4. Fire escape (zigzag stairs + landing)  
+5. Bodega awning (scalloped edge)  
+6. Neon OPEN sign  
+7. Produce crate stack  
+8. Oversized bagel  
+9. Pizza slice (folded)  
+10. Halal cart umbrella  
+11. Brownstone stoop (steps + rail)  
+12. Pigeon (round, attitude)  
+13. Subway entrance (staircase down + globe lights)  
+14. MTA roundel (simplified)  
+15. Steam column (soft vertical)  
+16. String lights on railing  
+17. Folding chair  
+18. Paper coffee cup with sleeve  
+19. Map (folded paper with star)  
+20. Single lit window (gold rectangle in dark facade)
+
+**Test method:** Render pure black silhouette on mid-grey. Show to someone who has never seen the game. If they cannot name the object in under 2 seconds, revise the proportions.
+
+---
+
+## 10. Audio Direction (the invisible half of art)
 
 - **Subway-rumble bass** under everything — the city's heartbeat
 - **Neighborhood scoring:** jazz uptown, dembow in the Heights, indie across the bridge, strings in Chinatown — crossing a border is an audible event
@@ -108,6 +161,10 @@ If any answer is no, the scene ships again.
 
 ---
 
-## 9. Screenshot Direction (for the marketing team)
+## 11. Screenshot Direction (for the marketing team)
 
 The game must *contain* its own marketing. Per-season "postcard key art" is generated from actual gameplay Postcard Mode frames — no renders that the game can't reproduce. The store page, the ads, and the player's own album should be **indistinguishable in beauty**. If a player's screenshot can be mistaken for official key art, the art direction has succeeded.
+
+---
+
+*Art direction advanced with Phase 0 styleframe briefs and silhouette sheet. Lock these before production modeling begins.*
