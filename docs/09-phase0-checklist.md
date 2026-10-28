@@ -16,12 +16,14 @@
 - [ ] One street + Rosa's bodega interior + corner cart greyboxed
 - [ ] Walk → serve 3 orders → one short ride → receive 1 postcard possible in ≤15 min
 - [ ] Internal playtest: 5/5 smile at the postcard moment
+- [ ] Layout spec written → see [Doc 10](10-day1-greybox-layout.md)
 
 ## P0-3 Art Lock
-- [ ] 3 styleframes approved (see Art Bible §8)
-  - [ ] Golden-hour corner with cart — candidate in [styleframe A](../assets/styleframes/styleframe-a-golden-hour-corner.jpg)
-  - [ ] Dusk fire-escape / skyline with one gold window — candidate in [styleframe B](../assets/styleframes/styleframe-b-dusk-fire-escape.jpg)
-  - [ ] First postcard composition — candidate in [styleframe C](../assets/styleframes/styleframe-c-first-postcard.jpg)
+- [x] 3 styleframe candidates generated and reviewed
+  - [x] Golden-hour corner with cart — [styleframe A](../assets/styleframes/styleframe-a-golden-hour-corner.jpg) *(strong keeper)*
+  - [x] Dusk fire-escape / skyline with one gold window — [styleframe B](../assets/styleframes/styleframe-b-dusk-fire-escape.jpg) *(strongest emotional hit)*
+  - [x] First postcard composition — [styleframe C](../assets/styleframes/styleframe-c-first-postcard.jpg) *(border perfect; cart language needs later unification with A)*
+- [ ] Final approval / lock of the three frames
 - [ ] Silhouette sheet of 20 hero props at 64px readability
 - [ ] Palette conformance check vs Doc 04
 
@@ -33,7 +35,7 @@
 
 ## P0-5 Design Lock
 - [ ] GDD v2.1 sign-off (or confirm v2.0 is locked)
-- [ ] Doc 07 Vertical Slice v1.0 complete (TBDs resolved or owned)
+- [x] Doc 07 Vertical Slice advanced to v0.2 (TBDs have recommendations)
 - [ ] Risk register baselined
 - [ ] Audio partner conversation started (key jingle sketch)
 
@@ -49,4 +51,4 @@ If the postcard lands in grey, the game works.
 
 ---
 
-*Update this checklist as items close. Keep it honest.*
+*Updated after styleframe review and greybox layout spec. Keep it honest.*
