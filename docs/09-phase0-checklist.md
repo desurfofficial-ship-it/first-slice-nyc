@@ -7,11 +7,11 @@
 ---
 
 ## P0-1 Feel Prototype (Paper)
-- [ ] Order-conversation card game playtested with ≥5 people
-- [ ] Map UX paper prototype (folding, writing animation, margins) tested
+- [ ] Order-conversation card game playtested with ≥5 people *(skipped for now)*
+- [ ] Map UX paper prototype tested *(skipped for now)*
 - [ ] Three-layer landmark sequencing tested on paper
 - [ ] Result notes appended to worklog
-- [x] Paper prototype scripts written → see [Doc 11](11-paper-prototypes.md)
+- [x] Paper prototype scripts written → see [Doc 11](11-paper-prototypes.md) + [Doc 12](12-paper-prototype-kit.md)
 
 ## P0-2 Greybox Block
 - [ ] One street + Rosa's bodega interior + corner cart greyboxed
@@ -25,7 +25,7 @@
   - [x] Dusk fire-escape / skyline with one gold window — [styleframe B](../assets/styleframes/styleframe-b-dusk-fire-escape.jpg) *(strongest emotional hit)*
   - [x] First postcard composition — [styleframe C](../assets/styleframes/styleframe-c-first-postcard.jpg) *(border perfect; cart language needs later unification with A)*
 - [ ] Final approval / lock of the three frames
-- [ ] Silhouette sheet of 20 hero props at 64px readability
+- [x] Silhouette sheet of 20 hero props at 64px readability → see [Doc 13](13-silhouette-sheet.md)
 - [ ] Palette conformance check vs Doc 04
 
 ## P0-4 Tech Spikes
@@ -52,4 +52,4 @@ If the postcard lands in grey, the game works.
 
 ---
 
-*Updated with paper prototype scripts. Keep it honest.*
+*Updated with silhouette sheet. Keep it honest.*
