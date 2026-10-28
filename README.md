@@ -130,6 +130,22 @@ It celebrates the *myth* of New York — opportunity, energy, diversity, late-ni
 
 ---
 
+## 🏗️ Day 1 Greybox — Playable
+
+The Day 1 greybox ([Doc 10](docs/10-day1-greybox-layout.md), [first-build guide](docs/19-greybox-first-build.md)) is now standing. Built in **Godot 4.7** — the whole level is code in [`greybox-godot/scripts/main.gd`](greybox-godot/scripts/main.gd), so every change shows up as a readable diff.
+
+Walk it yourself: Terminal → Rosa → the bodega rush → your own named cart → three serves (the last one is Mr. Idris) → the fire escape at dusk → the gold window. End on a Postcard.
+
+Headless check (no display needed):
+
+```
+godot --headless --path greybox-godot -- --autotest
+```
+
+Walks the full path with real physics and input. Last run: **0 failures, 32.8s sim time**.
+
+---
+
 ## 📄 License & Status
 
 Concept documentation © 2025 First Slice Team. All names, systems, and content are original to this document. Game concept available for development partnership discussions.
