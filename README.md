@@ -42,6 +42,20 @@ Every session ends with a **postcard** — a beautiful, auto-composed, captioned
 
 ---
 
+## 🖼️ Pitch Site Preview
+
+An interactive one-page pitch deck presenting this concept was built alongside these docs (screenshots below):
+
+| | |
+|---|---|
+| ![Pitch site hero — postcard-framed lowpoly NYC corner](assets/pitch-site-hero.png) | ![Events gallery — Manhattanhenge, Pizza Rat, Bodega Cat](assets/pitch-site-events.png) |
+| *Hero: postcard-framed key art* | *Events: the wonder-beat gallery* |
+
+![Mobile layout](assets/pitch-site-mobile.png)
+*Mobile-first — the game is designed vertical-first too (the TikTok law).*
+
+---
+
 ## 📚 Documentation
 
 | Document | Contents |
