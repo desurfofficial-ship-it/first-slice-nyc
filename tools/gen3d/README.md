@@ -92,8 +92,10 @@ Every 3D Space listed runs on **ZeroGPU**: calls are free but quota-metered.
 4. If a mesh is too heavy for the web build, lower `--octree-resolution`
    (Hunyuan), raise `--mesh-simplify` (TRELLIS), or lower `--decimation-target`
    (TRELLIS.2).
-5. Generated GLBs are dropped into `web-three/src/assets/` and loaded with
-   Three.js `GLTFLoader` — integration is a separate step in the game repo.
+5. Copy finished GLBs into `web-three/public/models/` named after a prop id —
+   `hydrant.glb`, `mailbox.glb`, `trashcan.glb`, `streetlamp.glb` (see
+   `docs/28-glb-asset-seam.md`). The game swaps them in automatically at boot;
+   missing files just keep the procedural placeholder.
 
 ## Relation to `tools3d/`
 

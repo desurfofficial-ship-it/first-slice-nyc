@@ -7,6 +7,7 @@
  */
 
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PAL } from '../core/palette';
 import { ITEM_LABELS } from '../core/content';
 import { boxFromCenter, type AABB } from '../engine/collide';
@@ -52,6 +53,13 @@ export class World {
   private steamPoints: THREE.Points;
   private steamSeed: Float32Array;
   private steamLife: Float32Array;
+
+  /** Decorative props a generated .glb (public/models/<id>.glb) may replace. */
+  private glbProps = new Map<string, THREE.Object3D>();
+  /** Null after a failed load — one broken loader shouldn't retry all game long. */
+  private glbLoader: GLTFLoader | null = new GLTFLoader();
+  /** Which props ended up wearing a generated .glb, and from which file. */
+  readonly glbUpgrades = new Map<string, string>();
 
   constructor() {
     const scene = this.scene;
@@ -180,6 +188,20 @@ export class World {
     hydrant.position.set(-0.6, 0.45, -4.6);
     hydrant.castShadow = true;
     this.scene.add(hydrant);
+
+    // Street life — the object canon's quiet furniture. Each is a procedural
+    // placeholder that a generated .glb can replace at runtime: drop
+    // <id>.glb into public/models/ and it wears the mesh on next boot
+    // (tools3d/spaces_manifest.json generates exactly these ids). No
+    // colliders, no triggers — decoration, not gameplay.
+    this.scene.add(this.makeMailbox(-3.2, -5.7));
+    this.scene.add(this.makeTrashcan(10.5, -5.6));
+    this.scene.add(this.makeStreetlamp(13.5, -5.9));
+    this.registerGlbProp('hydrant', hydrant);
+    void this.upgradePropWithGLB('hydrant');
+    void this.upgradePropWithGLB('mailbox');
+    void this.upgradePropWithGLB('trashcan');
+    void this.upgradePropWithGLB('streetlamp');
 
     // Taxi (rebuilt from the car builder). It used to be a collider-free
     // lantern, and it DRACULA'D straight through the player (playtest: "the
@@ -450,6 +472,151 @@ export class World {
     m.position.set(x, y, z);
     this.scene.add(m);
     return m;
+  }
+
+  // ------------------------------------------------- generated .glb upgrades
+  // The Spaces pipeline (tools/gen3d, tools3d/spaces_glb.py) writes textured
+  // .glb files into public/models/. This seam lets a generated mesh replace a
+  // placeholder's visuals at boot — and silently keeps the placeholder when
+  // the file is missing or malformed, so the game never depends on it.
+
+  registerGlbProp(id: string, obj: THREE.Object3D): void {
+    this.glbProps.set(id, obj);
+  }
+
+  async upgradePropWithGLB(id: string, file = `models/${id}.glb`): Promise<boolean> {
+    const placeholder = this.glbProps.get(id);
+    const loader = this.glbLoader;
+    if (!placeholder || !loader) return false;
+    const url = new URL(file, document.baseURI).href;
+    try {
+      const gltf = await loader.loadAsync(url);
+      const gltfScene = gltf.scene;
+      let hasMesh = false;
+      const stray: THREE.Object3D[] = [];
+      gltfScene.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh) hasMesh = true;
+        if ((o as THREE.Light).isLight || (o as THREE.Camera).isCamera) stray.push(o);
+      });
+      if (!hasMesh) throw new Error('no meshes in file');
+      for (const o of stray) o.parent?.remove(o);
+
+      placeholder.updateWorldMatrix(true, false);
+      const phBox = new THREE.Box3().setFromObject(placeholder);
+      const phSize = phBox.getSize(new THREE.Vector3());
+      const box = new THREE.Box3().setFromObject(gltfScene);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      if (!(size.y > 0) || !Number.isFinite(size.y)) throw new Error('degenerate bounds');
+
+      const worldPos = placeholder.getWorldPosition(new THREE.Vector3());
+      const worldQuat = placeholder.getWorldQuaternion(new THREE.Quaternion());
+      const worldScale = placeholder.getWorldScale(new THREE.Vector3());
+      if (Math.abs(worldScale.x - worldScale.y) > 1e-3 || Math.abs(worldScale.y - worldScale.z) > 1e-3) {
+        throw new Error('placeholder is non-uniformly scaled');
+      }
+
+      // Uniform scale so the generated mesh stands exactly as tall as the
+      // placeholder it replaces, feet on the same ground, XZ centered on it.
+      const s = phSize.y / size.y;
+      gltfScene.scale.setScalar(s);
+      gltfScene.position.set(-center.x * s, -box.min.y * s, -center.z * s);
+
+      const wrapper = new THREE.Group();
+      wrapper.name = `${placeholder.name || id}_glb`;
+      wrapper.position.copy(worldPos);
+      wrapper.quaternion.copy(worldQuat);
+      wrapper.scale.copy(worldScale);
+      wrapper.add(gltfScene);
+      gltfScene.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.receiveShadow = true; }
+      });
+
+      const parent = placeholder.parent;
+      if (!parent) throw new Error('placeholder was removed from the scene');
+      parent.add(wrapper);
+      parent.remove(placeholder);
+      this.disposeTree(placeholder);
+      this.glbProps.set(id, wrapper); // re-register so the upgrade is re-runnable
+      this.glbUpgrades.set(id, file);
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.info(`[glb] ${id} keeps its procedural look (${msg})`);
+      if (/404|fetch|network|Failed to load/i.test(msg)) {
+        this.glbLoader = null; // no models shipped — stop asking for the rest
+      }
+      return false;
+    }
+  }
+
+  private disposeTree(root: THREE.Object3D): void {
+    root.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh) {
+        mesh.geometry?.dispose();
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const m of mats) m?.dispose();
+      }
+    });
+  }
+
+  private makeMailbox(x: number, z: number): THREE.Group {
+    const g = new THREE.Group();
+    g.name = 'Mailbox';
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.62, 0.5), this.mat(PAL.teal));
+    body.position.y = 0.55;
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.55, 12, 1, false, 0, Math.PI), this.mat(PAL.teal));
+    top.rotation.z = Math.PI / 2;
+    top.rotation.y = Math.PI / 2;
+    top.position.y = 0.86;
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.26, 0.36), this.mat(PAL.ink));
+    leg.position.y = 0.13;
+    const slot = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.05, 0.03), this.mat(PAL.ink));
+    slot.position.set(0, 0.74, 0.26);
+    for (const m of [body, top, leg, slot]) { m.castShadow = true; g.add(m); }
+    g.position.set(x, 0, z);
+    this.registerGlbProp('mailbox', g);
+    return g;
+  }
+
+  private makeTrashcan(x: number, z: number): THREE.Group {
+    const g = new THREE.Group();
+    g.name = 'Trashcan';
+    const can = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.24, 0.82, 10), this.mat(PAL.bldg2));
+    can.position.y = 0.41;
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.03, 6, 14), this.mat(PAL.ink));
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = 0.82;
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.02, 6, 14), this.mat(PAL.ink));
+    band.rotation.x = Math.PI / 2;
+    band.position.y = 0.5;
+    for (const m of [can, rim, band]) { m.castShadow = true; g.add(m); }
+    g.position.set(x, 0, z);
+    this.registerGlbProp('trashcan', g);
+    return g;
+  }
+
+  private makeStreetlamp(x: number, z: number): THREE.Group {
+    const g = new THREE.Group();
+    g.name = 'Streetlamp';
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.075, 4.4, 8), this.mat(PAL.ink));
+    pole.position.y = 2.2;
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.07, 0.07), this.mat(PAL.ink));
+    arm.position.set(0.33, 4.36, 0);
+    const bulb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.14, 10, 10),
+      this.mat(PAL.amber, { emissive: PAL.amber, emissiveIntensity: 0.9 }),
+    );
+    bulb.position.set(0.66, 4.28, 0);
+    const glow = this.makeGlow(1.6);
+    glow.material.opacity = 0.4;
+    glow.position.copy(bulb.position);
+    for (const m of [pole, arm, bulb, glow]) g.add(m);
+    pole.castShadow = true;
+    g.position.set(x, 0, z);
+    this.registerGlbProp('streetlamp', g);
+    return g;
   }
 
   private waterTower(x: number, roofY: number, z: number, r: number) {
