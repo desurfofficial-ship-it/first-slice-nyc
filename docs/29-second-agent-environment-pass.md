@@ -82,8 +82,14 @@ in small bills. The leaf system is one instanced draw call for all 48.
 
 - `tsc --noEmit` clean · `vitest` 79/79 · `vite build` clean
 - Full E2E battery (real input, real physics, Day 1+2+3): **0 failures,
-  184 s**, zero console/page errors — run twice (after the env pass, and
-  again after the hydrant.glb landed)
+  ~185 s**, zero console/page errors — three green runs (after the env
+  pass, after the hydrant.glb landed, and on the final rebased tree).
+  One early run right after rebasing onto the lead agent's new commits
+  reported 6 failures, then the identical tree went green twice in a row
+  with nothing changed between runs — a cold SwiftShader timing flake in
+  the poll-based waits, not a deterministic break. The failing run's log
+  was not captured; if it reproduces, capture `e2e.mjs` output and match
+  the failing check before touching game code.
 - Visual probes (committed): `probe-env.mjs`, `probe-env2.mjs`,
   `probe-env3.mjs` (frozen-camera close-ups), `probe-perf.mjs`,
   `probe-glb-hydrant.mjs`. Shots in `web-three/shots/env*.png`.
