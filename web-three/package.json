@@ -1,0 +1,25 @@
+{
+  "name": "first-slice-web-three",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "FIRST SLICE: A New York Story — Three.js implementation of the Day 1 greybox (migration from greybox-godot/, behavior oracle: scripts/main.gd)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.186.0",
+    "playwright": "^1.64.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}

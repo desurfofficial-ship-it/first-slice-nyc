@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#1A1420" />
+  <meta name="description" content="FIRST SLICE: A New York Story — fall in love with New York, one slice at a time. A cozy lowpoly life-sim." />
+  <title>FIRST SLICE — A New York Story</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23F7B32B'/%3E%3Ctext x='16' y='23' font-size='18' text-anchor='middle' font-family='Georgia'%3E%F0%9F%97%BD%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- HUD -->
+  <div id="hud" hidden>
+    <div id="hud-top-left">
+      <div id="objective" aria-live="polite"></div>
+      <div id="note" aria-live="polite" hidden></div>
+    </div>
+    <div id="hud-top-right">
+      <div id="money">$87</div>
+      <div id="timer">0:00</div>
+    </div>
+    <div id="prompt" hidden></div>
+  </div>
+
+  <!-- Name-your-cart -->
+  <div id="name-box" class="panel" hidden role="dialog" aria-modal="true" aria-label="Name your cart">
+    <label for="cart-name-input">Name your cart, then press Enter.</label>
+    <input id="cart-name-input" type="text" maxlength="24" placeholder="First Slice" autocomplete="off" spellcheck="false" />
+    <button id="cart-name-ok" type="button">Name it</button>
+  </div>
+
+  <!-- Postcard -->
+  <div id="postcard-panel" hidden role="dialog" aria-modal="true" aria-label="Your postcard">
+    <div id="postcard-card">
+      <img id="postcard-img" alt="Your Day 1 postcard — the gold window at dusk" />
+      <div id="postcard-caption"></div>
+    </div>
+    <div id="postcard-actions">
+      <button id="postcard-keep" type="button">Keep this postcard</button>
+      <button id="postcard-stay" type="button">Stay a while</button>
+    </div>
+  </div>
+
+  <!-- Touch controls -->
+  <div id="touch-ui" hidden>
+    <div id="joy-zone"><div id="joy-base" hidden><div id="joy-stick"></div></div></div>
+    <div id="touch-right">
+      <div id="turn-btns">
+        <button id="turn-left" type="button" aria-label="Turn camera left">⟲</button>
+        <button id="turn-right" type="button" aria-label="Turn camera right">⟳</button>
+      </div>
+      <button id="btn-interact" type="button" aria-label="Interact">●</button>
+    </div>
+  </div>
+
+  <!-- Title card + fade -->
+  <div id="title-card" hidden></div>
+  <div id="fade"></div>
+
+  <!-- Loading -->
+  <div id="loading">
+    <div class="load-title">FIRST SLICE</div>
+    <div class="load-sub">A NEW YORK STORY</div>
+    <div class="load-status">warming up the griddle…</div>
+  </div>
+
+  <!-- Errors -->
+  <div id="error-banner" hidden></div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
