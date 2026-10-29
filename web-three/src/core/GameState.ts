@@ -7,7 +7,9 @@
 import { MAX_DAY, type SaveData } from './Save';
 import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
-  D4_WAKE_NOTE, D4_STRANGER_GREET_NOTE, D4_RUSH_DONE_NOTE, D4_MAP_NOTE } from './content';
+  D4_WAKE_NOTE, D4_STRANGER_GREET_NOTE, D4_RUSH_DONE_NOTE, D4_MAP_NOTE,
+  D4_SAL_MEET_NOTE, D4_SAL_CHAT_NOTE, D4_PERMIT_OFFER_NOTE, D4_PERMIT_FILED_NOTE,
+  D4_PERMIT_ALREADY_NOTE } from './content';
 
 export const Step = {
   MEET_ROSA: 0,
@@ -35,14 +37,16 @@ export const Step = {
   D3_POSTER: 21,
   D3_CLIMB3: 22,
   D3_POSTCARD: 23,
-  // ---- Day 4 — "Say Hi" (docs/29) ----
+  // ---- Day 4 — "Say Hi" (docs/29) + "The Block Opens Up" (docs/30) ----
   D4_WAKE: 24,
   D4_STRANGER: 25,
   D4_RUSH: 26,
   D4_MAP: 27,
-  D4_CLIMB4: 28,
-  D4_POSTCARD: 29,
-  DONE: 30,
+  D4_LAUNDRY: 28,
+  D4_PERMIT: 29,
+  D4_CLIMB4: 30,
+  D4_POSTCARD: 31,
+  DONE: 32,
 } as const;
 export type Step = (typeof Step)[keyof typeof Step];
 
@@ -86,6 +90,10 @@ export type Effect =
   | { kind: 'stranger-to-cart' }
   | { kind: 'stranger-departs' }
   | { kind: 'map-given' }
+  | { kind: 'wash-start' }
+  | { kind: 'apron-clean' }
+  | { kind: 'permit-offer' }
+  | { kind: 'permit-filed' }
   | { kind: 'persist' };
 
 export class GameState {
@@ -122,6 +130,11 @@ export class GameState {
   mapGiven = false;       // the Map changed hands
   strangerMet = false;    // you said the thing Rosa said
   strangerAtCart = false; // she finished walking your first walk
+  // ---- Day 4 afternoon — the block opens up (docs/30) ----
+  apronWashing = false;   // the apron is in the machine
+  apronClean = false;     // the wash finished on the Game's clock
+  permitFiled = false;    // the application went in — permanent, like the stool
+  permitConfirm = false;  // the awning-style confirm gate
 
   get isDay2(): boolean {
     return this.day >= 2;
@@ -176,6 +189,10 @@ export class GameState {
       case 'stranger':
         return this.step === Step.D4_STRANGER
           || (this.step === Step.D4_MAP && this.strangerAtCart);
+      case 'laundry':
+        return this.step === Step.D4_LAUNDRY || this.step === Step.D4_PERMIT;
+      case 'permit':
+        return this.step === Step.D4_PERMIT;
       case 'counter':
         return this.step === Step.RUSH;
       case 'idris':
@@ -482,16 +499,71 @@ export class GameState {
 
   /** The Map changes hands — the one thing you own that isn't the cart.
    *  She leaves with it, walking your first walk in reverse (Game stages
-   *  the send-off line once she's under way). */
+   *  the send-off line once she's under way). The afternoon then opens:
+   *  the kid flags the apron, and the block opens up (docs/30). */
   giveMap(): Effect[] {
     if (this.step !== Step.D4_MAP || !this.strangerAtCart || this.mapGiven) return [];
     this.mapGiven = true;
     return [
       { kind: 'note', text: D4_MAP_NOTE },
       { kind: 'stranger-departs' },
+      ...this.setStep(Step.D4_LAUNDRY),
+      { kind: 'persist' },
+    ];
+  }
+
+  // -------------------------------------------- Day 4 afternoon (docs/30) ----
+
+  /** Sal takes the apron — the first wash is on the house. The wash runs
+   *  on the Game's clock (the drum spins until completeWash). */
+  handApron(): Effect[] {
+    if (this.step !== Step.D4_LAUNDRY || this.apronWashing) return [];
+    this.apronWashing = true;
+    return [
+      { kind: 'note', text: D4_SAL_MEET_NOTE },
+      { kind: 'wash-start' },
+      ...this.setStep(Step.D4_PERMIT),
+    ];
+  }
+
+  /** Chat at the counter while the washers run. */
+  laundryChat(): Effect[] {
+    if (this.step !== Step.D4_PERMIT) return [];
+    return [{ kind: 'note', text: D4_SAL_CHAT_NOTE }];
+  }
+
+  /** The A-frame by the crosswalk. First press reads; the second press
+   *  files — $10, confirm-gated exactly like the awning and the stool.
+   *  A replay of a kept day never pays twice. */
+  readPermit(): Effect[] {
+    if (this.step !== Step.D4_PERMIT) return [];
+    if (!this.permitConfirm) {
+      this.permitConfirm = true;
+      return [{ kind: 'note', text: D4_PERMIT_OFFER_NOTE }];
+    }
+    this.permitConfirm = false;
+    if (this.permitFiled) {
+      return [
+        { kind: 'note', text: D4_PERMIT_ALREADY_NOTE },
+        ...this.setStep(Step.D4_CLIMB4),
+      ];
+    }
+    this.permitFiled = true;
+    return [
+      { kind: 'note', text: D4_PERMIT_FILED_NOTE },
+      { kind: 'permit-filed' },
+      ...this.spend(10),
       ...this.setStep(Step.D4_CLIMB4),
       { kind: 'persist' },
     ];
+  }
+
+  /** The wash timer ran out (Game owns the clock). The drum stops. */
+  completeWash(): Effect[] {
+    if (!this.apronWashing) return [];
+    this.apronWashing = false;
+    this.apronClean = true;
+    return [{ kind: 'apron-clean' }];
   }
 
   serveIdris(): Effect[] {
@@ -568,6 +640,7 @@ export class GameState {
       day_start_money: this.dayStartMoney,
       stool: this.stoolUp,
       map_given: this.mapGiven,
+      permit: this.permitFiled,
     };
   }
 }
@@ -583,8 +656,9 @@ function rosaChatLineOf(s: GameState): { text: string; nextChatIndex: number } {
     const lines4 = [
       'Rosa: \u201CFour windows now. FOUR. I counted twice.\u201D',
       'Rosa: \u201CShe\u2019ll be back Tuesday. They always come back Tuesday.\u201D',
+      'Rosa: \u201CSal washed your apron? First one\u2019s always free. His soap is a rumor.\u201D',
     ];
-    return { text: lines4[s.rosaChatI % 2], nextChatIndex: (s.rosaChatI + 1) % 2 };
+    return { text: lines4[s.rosaChatI % 3], nextChatIndex: (s.rosaChatI + 1) % 3 };
   }
   if (s.isDay3) {
     if (!s.kidAtCorner) {

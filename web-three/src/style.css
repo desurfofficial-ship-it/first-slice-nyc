@@ -82,6 +82,25 @@ html, body {
 #money.pulse { transform: scale(1.18); color: var(--gold); }
 #timer { font-size: clamp(12px, 1.9vmin, 16px); opacity: 0.85; font-family: var(--mono-font); }
 
+/* the sound toggle — small, real, thumb-friendly (44px target on touch) */
+#btn-audio {
+  display: inline-block;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0 0 6px;
+  padding: 6px 10px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--cream);
+  background: rgba(26, 20, 32, 0.55);
+  border: 1px solid rgba(255, 248, 240, 0.35);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+#btn-audio:hover { background: rgba(26, 20, 32, 0.8); }
+#btn-audio:active { transform: scale(0.94); }
+
 #prompt {
   position: absolute;
   left: 50%; bottom: calc(max(96px, 14vh) + env(safe-area-inset-bottom));

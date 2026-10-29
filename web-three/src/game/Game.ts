@@ -11,7 +11,8 @@ import { GameState, Step, INTERACT_RANGE, START_MONEY, type Effect } from '../co
 import { composeCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE_OBJECTIVE,
   D3_ORDERS, D4_ORDERS, BREWING_NOTE, STOOL_OFFER_NOTE, STOOL_UP_NOTE, D3_GOLDEN_NOTE,
   D3_CLIMB_NOTE, DAY3_BEGIN_NOTE, D4_GOLDEN_NOTE, D4_CLIMB_NOTE, DAY4_BEGIN_NOTE,
-  D4_STRANGER_ONHOUSE_NOTE, D4_STRANGER_WATCH_NOTE, D4_STRANGER_DEPART_NOTE } from '../core/content';
+  D4_STRANGER_ONHOUSE_NOTE, D4_STRANGER_WATCH_NOTE, D4_STRANGER_DEPART_NOTE,
+  D4_KID_APRON_NOTE, D4_APRON_CLEAN_NOTE } from '../core/content';
 import { loadSave, writeSave, type SaveData } from '../core/Save';
 import { PAL } from '../core/palette';
 import { World, phys } from '../world/World';
@@ -23,6 +24,7 @@ import { capsuleInBox } from '../engine/collide';
 import { UI } from '../ui/UI';
 import { capturePostcard, downloadPostcard } from '../postcard/PostcardCapture';
 import { updatePersonAnim, type PersonRig } from '../world/personRig';
+import { gameAudio } from './audio';
 
 interface Interactable {
   id: string;
@@ -73,6 +75,7 @@ export class Game {
   private goldDebugFired = false;
   private brewTimer = 0;
   private brewingNoteShown = false;
+  private washTimer = 0;
 
   // postcard rig tween targets (mutated by tweens, read by the camera)
   private rigPos = { x: 0, y: 0, z: 0 };
@@ -138,6 +141,7 @@ export class Game {
 
     // the rest of the cast joins the animator (walk/idle/breathe)
     this.cast.push(this.world.rosa, this.world.idris, this.world.kidSil, this.world.kidGround, this.world.stranger);
+    this.cast.push(this.world.sal); // Sal breathes at his counter, every day
 
     // ---------------- interactables (main.gd `_build_interactables`) --------
     this.interactables = [
@@ -153,6 +157,8 @@ export class Game {
       { id: 'kid', pos: () => this.world.kidGround.position },
       { id: 'poster', pos: () => ({ x: -37.6, y: 1.5, z: 7.4 }) },
       { id: 'stranger', pos: () => this.world.stranger.position },
+      { id: 'laundry', pos: () => ({ x: -7.0, y: 1.05, z: 7.3 }) },
+      { id: 'permit', pos: () => ({ x: -4.0, y: 1.0, z: 5.8 }) },
     ];
     this.world.addItem('mango', -18, 2.25, 19.2, PAL.amber);
     this.world.addItem('coffee', -16, 2.25, 19.2, PAL.teal);
@@ -279,6 +285,13 @@ export class Game {
       this.brewTimer -= dt;
       if (this.brewTimer <= 0) {
         for (const e of s.completeBrew()) this.applyEffect(e);
+      }
+    }
+    // Day 4 afternoon: so does the washer
+    if (s.apronWashing) {
+      this.washTimer -= dt;
+      if (this.washTimer <= 0) {
+        for (const e of s.completeWash()) this.applyEffect(e);
       }
     }
     if (s.isDay3 && s.step === Step.D3_KIDDOWN && s.kidDown && !s.kidAtCorner) {
@@ -526,6 +539,16 @@ export class Game {
           for (const e of s.giveMap()) this.applyEffect(e);
         }
         break;
+      case 'laundry':
+        if (s.step === Step.D4_LAUNDRY) {
+          for (const e of s.handApron()) this.applyEffect(e);
+        } else if (s.step === Step.D4_PERMIT) {
+          for (const e of s.laundryChat()) this.applyEffect(e);
+        }
+        break;
+      case 'permit':
+        for (const e of s.readPermit()) this.applyEffect(e);
+        break;
       case 'poster':
         for (const e of s.seePoster()) this.applyEffect(e);
         break;
@@ -619,6 +642,7 @@ export class Game {
         break;
       case 'brew-start':
         this.brewTimer = 1.15;
+        gameAudio.brew();
         if (!this.brewingNoteShown) {
           this.brewingNoteShown = true;
           this.ui.showNote(BREWING_NOTE);
@@ -654,14 +678,35 @@ export class Game {
         this.startStrangerWalkToCart();
         break;
       case 'stranger-departs':
+        // the send-off rides on her walk, then the kid flags the apron —
+        // one note at a time, like the street would tell it
         this.tweens.sequence(
           this.tweens.wait(2.4),
           this.tweens.call(() => this.ui.showNote(D4_STRANGER_DEPART_NOTE)),
+          this.tweens.wait(3.2),
+          this.tweens.call(() => this.ui.showNote(D4_KID_APRON_NOTE)),
         );
         this.startStrangerDepartWalk();
         break;
       case 'map-given':
         this.persist(); // the Map changed hands — it stays given
+        break;
+      case 'wash-start':
+        this.washTimer = 2.4;
+        this.world.setWasherRunning(true);
+        gameAudio.wash();
+        break;
+      case 'apron-clean':
+        this.world.setWasherRunning(false);
+        gameAudio.washStop();
+        this.ui.showNote(D4_APRON_CLEAN_NOTE);
+        break;
+      case 'permit-offer':
+        break; // the note rode along in the effect list
+      case 'permit-filed':
+        this.world.setPermitReceiptVisible(true);
+        gameAudio.stamp();
+        this.persist(); // filed money is spent money — save it the moment it happens
         break;
       case 'awning-offer':
         this.ui.showNote('An awning kit leans against the cart, teal like Rosa\u2019s. $15, cash. [Space] again to put it up.');
@@ -854,7 +899,7 @@ export class Game {
       t.wait(1.0),
       t.call(() => {
         this.lightGoldWindow();
-        if (day4) this.goldenBeat4();
+        if (day4) { this.goldenBeat4(); gameAudio.bell(); }
         else if (day3) this.goldenBeat3();
         else if (day2) this.kidDuskWave();
       }),
@@ -1029,6 +1074,10 @@ export class Game {
     cupVisible: () => this.cupProp.visible,
     caption: () => document.getElementById('postcard-caption')?.textContent ?? '',
     objective: () => this.ui.objectiveText,
+    receiptVisible: () => this.world.permitReceipt.visible,
+    washerRunning: () => this.world.isWasherRunning(),
+    permitConfirm: () => this.state.permitConfirm,
+    permitFiled: () => this.state.permitFiled,
   };
 
   private applyCartIdentity(name: string): void {
@@ -1193,6 +1242,7 @@ export class Game {
       s.kidKept = sd.kid_kept;
       s.stoolUp = sd.stool ?? false;
       s.mapGiven = sd.map_given ?? false;
+      s.permitFiled = sd.permit ?? false;
     }
     // sd === null (a rail "Tomorrow"): the live state carries the wallet, the
     // name, the awning — and the STOOL. The stool is bought, the Map is
@@ -1213,11 +1263,19 @@ export class Game {
     s.posterSeen = false;
     s.strangerMet = false;
     s.strangerAtCart = false;
+    // the afternoon resets too — but a FILED permit never un-files (the
+    // stool rule: no morning un-buys progress; only a parsed save may set it)
+    s.apronWashing = false;
+    s.apronClean = false;
+    s.permitConfirm = false;
+    this.washTimer = 0;
+    this.world.setWasherRunning(false);
     this.world.stranger.visible = false;
     this.ui.setMoneyQuiet(s.money);
     if (s.cartName) this.applyCartIdentity(s.cartName);
     this.world.cartAwning.visible = s.awningUp; // rebuild the world to match the save
     this.world.stool.visible = s.stoolUp;
+    this.world.setPermitReceiptVisible(s.permitFiled); // the receipt survives the night
     this.world.kidGround.visible = false;
     this.world.setFlyerText(s.cartName || 'YOUR CORNER'); // the flyer learns your name
     this.toMorningLight();

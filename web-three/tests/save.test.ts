@@ -58,11 +58,17 @@ describe('save v1 — field clamping (resume exact, nothing out of range)', () =
 describe('save v1 — write/read roundtrip', () => {
   it('writes and reads the same fields', () => {
     const store = memoryStore();
-    const data = { day: 2, day_complete: true, replay: false, cart_name: "Wade's Spot", money: 111, awning: true, kid_kept: true, idris_served: true, lunch_served: 3, stool: false, map_given: false };
+    const data = { day: 2, day_complete: true, replay: false, cart_name: "Wade's Spot", money: 111, awning: true, kid_kept: true, idris_served: true, lunch_served: 3, stool: false, map_given: false, permit: false };
     expect(writeSave(data, store)).toBe(true);
     const loaded = loadSave(store);
     // day_start_money defaults to the saved money when absent (web v1 extension)
     expect(loaded).toEqual({ ...data, day_start_money: 111 });
+  });
+
+  it('the permit field round-trips (Day 4 afternoon \u2014 docs/30)', () => {
+    const store = memoryStore();
+    writeSave({ ...defaultSave(), day: 4, permit: true, money: 123 }, store);
+    expect(loadSave(store).permit).toBe(true);
   });
 
   it('the stool field round-trips (Day 3 purchase)', () => {

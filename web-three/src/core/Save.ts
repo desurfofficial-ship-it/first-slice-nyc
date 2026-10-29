@@ -33,6 +33,10 @@ export interface SaveData {
   /** Day 4 beat — the Map changed hands (the stranger carries it now).
    *  Optional so a pre-Day-4 save parses unchanged; missing reads as false. */
   map_given?: boolean;
+  /** Day 4 afternoon — the vending-permit application is FILED (docs/30).
+   *  Permanent progression, like the stool: once true it stays true.
+   *  Optional so pre-existing saves parse unchanged; missing reads as false. */
+  permit?: boolean;
 }
 
 export function defaultSave(): SaveData {
@@ -48,6 +52,7 @@ export function defaultSave(): SaveData {
     lunch_served: 0,
     stool: false,
     map_given: false,
+    permit: false,
   };
 }
 
@@ -86,6 +91,7 @@ export function parseSave(raw: string | null): SaveData {
     awning: bool('awning', false),
     stool: bool('stool', false),
     map_given: bool('map_given', false),
+    permit: bool('permit', false),
     kid_kept: bool('kid_kept', false),
     idris_served: bool('idris_served', false),
     lunch_served: clamp(Math.trunc(num('lunch_served', 0)), 0, 3),

@@ -136,7 +136,8 @@ describe('Day 4 — the Map changes hands', () => {
     expect(s.mapGiven).toBe(true);
     expect(effects.some((e) => e.kind === 'stranger-departs')).toBe(true);
     expect(effects.some((e) => e.kind === 'persist')).toBe(true);
-    expect(s.step).toBe(Step.D4_CLIMB4);
+    // the afternoon opens — the kid flags the apron (docs/30)
+    expect(s.step).toBe(Step.D4_LAUNDRY);
   });
 
   it('the Map is given exactly once (repeat presses are dead)', () => {
@@ -145,6 +146,118 @@ describe('Day 4 — the Map changes hands', () => {
     s.strangerAtCart = true;
     s.giveMap();
     expect(s.giveMap()).toEqual([]);
+  });
+});
+
+describe('Day 4 afternoon — the block opens up (docs/30)', () => {
+  /** $122 at the handoff (Rosa's $2 in) → the rush pays $11 → $133. */
+  function day4MapGiven(): GameState {
+    const s = day4ToRush(122);
+    for (let i = 0; i < D4_ORDERS.length; i++) { s.startBrew(); s.completeBrew(); }
+    s.strangerAtCart = true;
+    s.giveMap(); // → D4_LAUNDRY
+    expect(s.money).toBe(133);
+    return s;
+  }
+
+  it('Sal takes the apron once: the wash starts and the permit beat opens', () => {
+    const s = day4MapGiven();
+    const effects = s.handApron();
+    expect(s.apronWashing).toBe(true);
+    expect(effects.some((e) => e.kind === 'wash-start')).toBe(true);
+    expect(effects.some((e) => e.kind === 'note')).toBe(true);
+    expect(s.step).toBe(Step.D4_PERMIT);
+  });
+
+  it('a second press at the counter hands nothing (repeat input is dead)', () => {
+    const s = day4MapGiven();
+    s.handApron();
+    s.setStep(Step.D4_LAUNDRY); // even if something walked the step back
+    expect(s.handApron()).toEqual([]);
+    expect(s.apronWashing).toBe(true);
+  });
+
+  it('the wash completes exactly once on the Game\u2019s clock', () => {
+    const s = day4MapGiven();
+    s.handApron();
+    const effects = s.completeWash();
+    expect(s.apronClean).toBe(true);
+    expect(effects.some((e) => e.kind === 'apron-clean')).toBe(true);
+    expect(s.completeWash()).toEqual([]);
+  });
+
+  it('the A-frame reads first, files second — the confirm gate holds', () => {
+    const s = day4MapGiven();
+    s.handApron();
+    const read = s.readPermit();
+    expect(s.permitConfirm).toBe(true);
+    expect(read.some((e) => e.kind === 'note')).toBe(true);
+    expect(s.money).toBe(133); // reading is free
+    const file = s.readPermit();
+    expect(s.permitFiled).toBe(true);
+    expect(file.some((e) => e.kind === 'money')).toBe(true); // the wallet moved
+    expect(file.some((e) => e.kind === 'persist')).toBe(true);
+    expect(s.money).toBe(123);
+    expect(s.step).toBe(Step.D4_CLIMB4);
+  });
+
+  it('a third press at the A-frame is dead input \u2014 no double spend, ever', () => {
+    const s = day4MapGiven();
+    s.handApron();
+    s.readPermit();
+    s.readPermit();
+    expect(s.readPermit()).toEqual([]);
+    expect(s.money).toBe(123);
+  });
+
+  it('a replay of a kept day never pays twice \u2014 the permit carries forward', () => {
+    const s = day4MapGiven();
+    s.permitFiled = true; // a save where Day 4 was already lived
+    s.handApron();
+    s.readPermit();
+    const file = s.readPermit();
+    expect(file.some((e) => e.kind === 'spend')).toBe(false);
+    expect(s.money).toBe(133);
+    expect(s.step).toBe(Step.D4_CLIMB4);
+  });
+
+  it('relevance: Sal answers in his two steps, the A-frame only while filing', () => {
+    const s = day4MapGiven();
+    expect(s.isRelevant('laundry')).toBe(true);
+    expect(s.isRelevant('permit')).toBe(false); // not until the wash starts
+    s.handApron();
+    expect(s.isRelevant('permit')).toBe(true);
+    s.readPermit();
+    s.readPermit();
+    expect(s.isRelevant('permit')).toBe(false);
+    expect(s.isRelevant('laundry')).toBe(false);
+  });
+
+  it('snapshot carries permit; parse reads it back; old saves parse clean', () => {
+    const s = day4MapGiven();
+    s.permitFiled = true;
+    const snap = s.snapshotForSave();
+    expect(snap?.permit).toBe(true);
+    const parsed = parseSave(JSON.stringify(snap));
+    expect(parsed.permit).toBe(true);
+    const pre = parseSave(JSON.stringify({ day: 3, day_complete: true, money: 120 }));
+    expect(pre.permit).toBe(false);
+    expect(pre.map_given).toBe(false);
+  });
+
+  it('the Day 4 caption now carries the permit line and the honest math', () => {
+    const cap = composeCaption({ day: 4, replay: false, dayStartMoney: 120, money: 123, cartName: "Wade's Spot" });
+    expect(cap).toContain('Day 4. $120 \u2192 $123.');
+    expect(cap).toContain('The Map changed hands.');
+    expect(cap).toContain('Filed: the permit.');
+    expect(cap).toContain('The light stays.');
+  });
+
+  it('the replay caption keeps its warmth and gains the receipt', () => {
+    const cap = composeCaption({ day: 4, replay: true, dayStartMoney: 120, money: 123, cartName: "Wade's Spot" });
+    expect(cap).toContain('Day 4, again.');
+    expect(cap).toContain('upside down');
+    expect(cap).toContain('The receipt is still on the cart.');
   });
 });
 

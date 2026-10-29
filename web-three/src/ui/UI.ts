@@ -5,6 +5,7 @@
  */
 
 import { promptVerb } from '../core/content';
+import { gameAudio } from '../game/audio';
 import type { GameState } from '../core/GameState';
 
 function el<T extends HTMLElement>(id: string): T {
@@ -21,6 +22,7 @@ export class UI {
   private timer = el<HTMLDivElement>('timer');
   private prompt = el<HTMLDivElement>('prompt');
   private interactBtn = el<HTMLButtonElement>('btn-interact');
+  private audioBtn = el<HTMLButtonElement>('btn-audio');
   readonly nameBox = el<HTMLDivElement>('name-box');
   readonly nameInput = el<HTMLInputElement>('cart-name-input');
   private nameOk = el<HTMLButtonElement>('cart-name-ok');
@@ -42,8 +44,20 @@ export class UI {
     this.nameInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); this.onNameSubmit?.(); }
     });
+    // the mute button is real: it flips the master gain and says so (aria)
+    this.syncAudioButton();
+    this.audioBtn.addEventListener('click', () => {
+      gameAudio.setMuted(!gameAudio.isMuted());
+      this.syncAudioButton();
+    });
     this.detectTouch();
     window.addEventListener('resize', () => this.detectTouch());
+  }
+
+  private syncAudioButton() {
+    const muted = gameAudio.isMuted();
+    this.audioBtn.setAttribute('aria-pressed', String(muted));
+    this.audioBtn.textContent = muted ? '\u{1F507}' : '\u266B';
   }
 
   onNameSubmit: (() => void) | null = null;
