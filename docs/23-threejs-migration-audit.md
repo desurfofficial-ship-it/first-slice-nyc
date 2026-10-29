@@ -210,7 +210,7 @@ Must all pass before calling migration of Day 1 “done”:
 | Stage | Deliverable | Exit check |
 |-------|-------------|------------|
 | **M0** | This audit (done) | Plan reviewed |
-| **M1** | `web-three/` Vite + Three.js + TS boot, empty scene, resize | `npm run dev` works |
+| **M1** | `web-three/` Vite + Three.js + TS boot, empty scene, resize — **DONE 2026-10-29**: `npm run build` clean (131 KB gzip), dev server browser-verified desktop + 390×844, zero console errors/page errors; boot-beacon render in both viewports | `npm run dev` works |
 | **M2** | Day 1 world blockout + lights + palette | Recognizable street / bodega / corner / fire escape |
 | **M3** | Player movement + camera + collision | Walk block without falling through; vertical framing |
 | **M4** | Interact system + step machine (no full content) | Can trigger sequence of steps with debug UI |
