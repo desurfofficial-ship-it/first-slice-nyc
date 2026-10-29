@@ -69,9 +69,15 @@ export class InputManager {
       this.joyId = e.pointerId;
       this.joyZone.setPointerCapture(e.pointerId);
       this.joyOrigin = { x: e.clientX, y: e.clientY };
+      // The base is positioned INSIDE #joy-zone (anchored to the bottom-left
+      // corner of the screen) — clientX/Y are viewport coordinates, so they
+      // must be converted into the zone's local space. The old code wrote
+      // raw viewport Y into a zone-relative `top`, throwing the joystick
+      // 477 px below the screen on a phone: you touched, and nothing appeared.
+      const r = this.joyZone.getBoundingClientRect();
       this.joyBase.hidden = false;
-      this.joyBase.style.left = `${e.clientX}px`;
-      this.joyBase.style.top = `${e.clientY}px`;
+      this.joyBase.style.left = `${e.clientX - r.left}px`;
+      this.joyBase.style.top = `${e.clientY - r.top}px`;
       this.moveStick(e.clientX, e.clientY);
     });
     this.joyZone.addEventListener('pointermove', (e) => {
@@ -95,10 +101,11 @@ export class InputManager {
 
     // ---- camera turn buttons (held) ----
     const hold = (el: HTMLElement, set: (v: boolean) => void) => {
-      el.addEventListener('pointerdown', (e) => { e.preventDefault(); set(true); });
-      el.addEventListener('pointerup', () => set(false));
-      el.addEventListener('pointercancel', () => set(false));
-      el.addEventListener('pointerleave', () => set(false));
+      el.addEventListener('pointerdown', (e) => { e.preventDefault(); set(true); el.classList.add('held'); });
+      const off = () => { set(false); el.classList.remove('held'); };
+      el.addEventListener('pointerup', off);
+      el.addEventListener('pointercancel', off);
+      el.addEventListener('pointerleave', off);
     };
     hold(this.turnL, (v) => { this.turnLHeld = v; });
     hold(this.turnR, (v) => { this.turnRHeld = v; });

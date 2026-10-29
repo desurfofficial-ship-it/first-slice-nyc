@@ -20,6 +20,7 @@ export class UI {
   private money = el<HTMLDivElement>('money');
   private timer = el<HTMLDivElement>('timer');
   private prompt = el<HTMLDivElement>('prompt');
+  private interactBtn = el<HTMLButtonElement>('btn-interact');
   readonly nameBox = el<HTMLDivElement>('name-box');
   readonly nameInput = el<HTMLInputElement>('cart-name-input');
   private nameOk = el<HTMLButtonElement>('cart-name-ok');
@@ -98,12 +99,16 @@ export class UI {
   setPrompt(id: string | null, s?: GameState) {
     if (id === null || !this.nameBox.hidden || !this.postcardPanel.hidden || !s) {
       this.prompt.hidden = true;
+      this.interactBtn.classList.remove('occupied');
       return;
     }
     const verb = promptVerb(id, s);
     const keyHint = this.isTouch ? '' : '<span class="key">Space</span>';
     this.prompt.innerHTML = `${keyHint}${escapeHtml(verb)}`;
     this.prompt.hidden = false;
+    // the touch interact button glows while something is actually in range —
+    // the CSS hook existed but nothing ever wired it
+    this.interactBtn.classList.add('occupied');
   }
 
   // ---------------- name box ----------------

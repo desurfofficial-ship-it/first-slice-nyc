@@ -56,8 +56,13 @@ export class Player {
       // sideways step-off could embed the capsule in the fire-escape wall.
       depenetrate(this.boxes, this.capsule, STEP_UP);
       this.capsule.y += this.vy * dt;
-      if (this.capsule.y >= this.ladder.top && this.vy > 0) {
-        this.vy = 0;
+      // HARD cap at the rail: the oracle zeroes velocity BEFORE move_and_slide,
+      // so it never creeps past the top. This port moved first, capped after —
+      // every frame holding W crept ~4cm past the top until the area edge let
+      // go mid-air (playtest: "bugs in climbing the ladder"). Clamp the position.
+      if (this.capsule.y > this.ladder.top) {
+        this.capsule.y = this.ladder.top;
+        if (this.vy > 0) this.vy = 0;
       }
       this.onGround = false;
       return;

@@ -45,10 +45,15 @@ export class Game {
   private readonly cast: THREE.Group[] = [];
 
   private dayFading = false;
+  /** The save's day at boot — 1 for a fresh start. Read-once, never mutated:
+   *  lets the E2E driver know the session resumed, even while beginDay's
+   *  fade is still holding s.day at its default. */
+  readonly bootedFromDay: number;
   private duskStarted = false;
   private postcardRig = false;
   private rosaWalking = false;
   private roofHidden = false;
+  private climbLean = 0;
   private checkpoint = { x: -30, y: 0.05, z: 6.2 };
   private lastPostcardUrl: string | null = null;
 
@@ -82,7 +87,7 @@ export class Game {
 
     // ---------------- systems ----------------
     this.player = new Player(this.world.colliders);
-    this.cam = new GameCamera(window.innerWidth / window.innerHeight);
+    this.cam = new GameCamera(window.innerWidth / window.innerHeight, this.world.colliders);
     this.ui = new UI();
     this.input = new InputManager({
       joyZone: document.getElementById('joy-zone')!,
@@ -143,6 +148,7 @@ export class Game {
 
     // ---------------- boot (main.gd `_ready`) ----------------
     const save = loadSave();
+    this.bootedFromDay = save.day;
     if (save.day >= 2) {
       void this.beginDay(save.day, save, save.day_complete || save.replay);
     } else {
@@ -228,12 +234,14 @@ export class Game {
     }
 
     // visual sync — on a ladder the body leans to the wall (visual-only
-    // offset; the capsule stays authoritative for step-offs)
+    // offset; the capsule stays authoritative for step-offs). The lean LERPS
+    // now — the old hard ±0.42 snap on grab/release read as a glitch.
     const climbing = this.player.ladder !== null;
+    this.climbLean += ((climbing ? -0.42 : 0) - this.climbLean) * Math.min(1, dt * 10);
     this.playerVisual.position.set(
       this.player.capsule.x,
       this.player.capsule.y,
-      this.player.capsule.z + (climbing ? -0.42 : 0),
+      this.player.capsule.z + this.climbLean,
     );
     this.playerVisual.rotation.y = this.player.rotationY;
 
@@ -251,10 +259,15 @@ export class Game {
     this.syncGlows();
 
     // the cast animates: walk when their position moved, climb on ladders,
-    // sweep when Rosa's on broom duty, breathe when parked
+    // sweep when Rosa's on broom duty, breathe when parked. The PLAYER's mode
+    // is explicit EVERY frame — it used to only ever be set to 'climb' and
+    // never reset, so one ladder ride left the arms overhead for the rest of
+    // the day (playtest: "the hand was still raised up after climbing the
+    // ladder"). The rest of the cast own their modes (Rosa sweeps, the kid
+    // waves — a tween flips those back).
     for (const actor of this.cast) {
       if (!actor.visible) continue;
-      updatePersonAnim(actor, dt, actor === this.playerVisual && climbing ? { mode: 'climb' } : undefined);
+      updatePersonAnim(actor, dt, actor === this.playerVisual ? { mode: climbing ? 'climb' : 'auto' } : undefined);
     }
 
     // HUD
@@ -358,8 +371,11 @@ export class Game {
       for (const e of s.cross(Math.abs(c.x + 5.0) < 2.6)) this.applyEffect(e);
     }
 
-    // Seam 2: stepped off mid-climb and touched the ground — Rosa calls you back
-    if (this.ladderHintPending && this.player.ladder === null && this.player.onGround) {
+    // Seam 2: stepped off mid-climb and touched the GROUND — Rosa calls you
+    // back. The y < 1.0 gate matters: stepping onto the LANDING is success,
+    // not a stumble — the old check fired her callback while you stood on
+    // the fire escape you had just correctly climbed.
+    if (this.ladderHintPending && this.player.ladder === null && this.player.onGround && this.player.capsule.y < 1.0) {
       this.ladderHintPending = false;
       if (s.step === Step.CLIMB || s.step === Step.D2_CLIMB2) {
         this.ui.setObjective('The fire escape, around the corner. Rosa will not let this go.');

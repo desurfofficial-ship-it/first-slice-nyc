@@ -186,9 +186,21 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 #postcard-stay { background: rgba(26, 20, 32, 0.78); border: 1px solid rgba(255, 248, 240, 0.3); }
 
 /* ---------------- Touch controls ---------------- */
+/* Playtest 2026-10-29: "the control buttons look weirder." The old set was a
+   bare "●" on a gold disc, two thin glyphs, and a joystick that spawned off
+   screen. This is the rebuilt set: labeled buttons with pressed states, an
+   interact ring that lights when something is in range, and a joystick that
+   appears under your thumb. */
 
 #touch-ui { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
 #touch-ui.hidden-when-panel { display: none; }
+#touch-ui button {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(2px);
+}
 
 #joy-zone {
   position: absolute;
@@ -199,18 +211,21 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 
 #joy-base {
   position: absolute;
-  width: 108px; height: 108px;
+  width: 112px; height: 112px;
   border-radius: 50%;
-  background: rgba(255, 248, 240, 0.10);
+  background: rgba(255, 248, 240, 0.08);
   border: 2px solid rgba(255, 248, 240, 0.35);
+  box-shadow: inset 0 0 18px rgba(26, 20, 32, 0.25), 0 4px 14px rgba(26, 20, 32, 0.25);
   transform: translate(-50%, -50%);
 }
 #joy-stick {
   position: absolute;
   left: 50%; top: 50%;
-  width: 46px; height: 46px;
+  width: 48px; height: 48px;
   border-radius: 50%;
-  background: rgba(255, 248, 240, 0.55);
+  background: rgba(255, 248, 240, 0.82);
+  border: 2px solid rgba(26, 20, 32, 0.25);
+  box-shadow: 0 3px 10px rgba(26, 20, 32, 0.35);
   transform: translate(-50%, -50%);
 }
 
@@ -224,24 +239,44 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 
 #turn-btns { display: flex; gap: 10px; }
 #turn-btns button {
-  width: 52px; height: 52px;
+  width: 54px; height: 54px;
   border-radius: 50%;
-  background: rgba(26, 20, 32, 0.55);
-  border: 1px solid rgba(255, 248, 240, 0.3);
-  font-size: 22px;
+  background: rgba(26, 20, 32, 0.62);
+  border: 1.5px solid rgba(255, 248, 240, 0.35);
+  font-size: 24px;
+  line-height: 1;
   color: var(--cream);
+  padding: 0;
+  box-shadow: 0 3px 10px rgba(26, 20, 32, 0.3);
+}
+#turn-btns button:active,
+#turn-btns button.held {
+  background: rgba(255, 248, 240, 0.28);
+  border-color: rgba(255, 248, 240, 0.6);
+  transform: scale(0.94);
 }
 
 #btn-interact {
   width: 78px; height: 78px;
   border-radius: 50%;
-  background: rgba(247, 179, 43, 0.92);
-  border: 2px solid rgba(26, 20, 32, 0.35);
+  background: rgba(247, 179, 43, 0.95);
+  border: 2px solid rgba(26, 20, 32, 0.4);
   color: var(--ink);
-  font-size: 30px;
-  box-shadow: 0 6px 18px rgba(26, 20, 32, 0.4);
+  padding: 0;
+  box-shadow: 0 6px 18px rgba(26, 20, 32, 0.45);
 }
-#btn-interact.occupied { animation: pulse-dot 1.4s ease-in-out infinite; }
+#btn-interact span {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-indent: 0.12em; /* recenters the tracked text */
+}
+#btn-interact:active { transform: scale(0.92); filter: brightness(1.08); }
+#btn-interact.occupied {
+  animation: pulse-dot 1.4s ease-in-out infinite;
+  border-color: var(--cream);
+  box-shadow: 0 0 0 3px rgba(255, 248, 240, 0.35), 0 6px 18px rgba(26, 20, 32, 0.45);
+}
 @keyframes pulse-dot { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
 
 /* ---------------- Fade / title / loading ---------------- */

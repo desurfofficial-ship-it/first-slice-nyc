@@ -41,6 +41,8 @@ export class World {
   readonly cartAwning: THREE.Group;
   readonly stringLights: THREE.Group;
   readonly taxi: THREE.Group;
+  /** The cab's collider — boxFromCenter once, then moved every frame. */
+  readonly taxiCollider: AABB;
   readonly rosa: THREE.Group;
   readonly idris: THREE.Group;
   readonly kidSil: THREE.Group;
@@ -179,12 +181,17 @@ export class World {
     hydrant.castShadow = true;
     this.scene.add(hydrant);
 
-    // Taxi (no collider in the reference — a moving lantern, not a wall).
-    // Rebuilt from the car builder: window band, wheels with hubs, bumpers,
-    // lights, roof sign — the two-box cab read as “not a car”.
+    // Taxi (rebuilt from the car builder). It used to be a collider-free
+    // lantern, and it DRACULA'D straight through the player (playtest: "the
+    // player passed through a car"). Now it carries its own collider — moved
+    // every frame — and a city-cab yield: it holds at the crosswalk stop line
+    // while the crosswalk is occupied, and brakes for anyone in the road
+    // ahead of it. A cab you can ghost through read as broken.
     this.taxi = this.buildCar('taxi');
     this.taxi.position.set(-45, 0, -2);
     this.scene.add(this.taxi);
+    this.taxiCollider = boxFromCenter(-45, 0.75, -2, 4.4, 1.5, 1.95);
+    this.colliders.push(this.taxiCollider);
 
     // A parked sedan on the south curb (street life; collides — it's a car).
     const sedan = this.buildCar('sedan');
@@ -322,7 +329,13 @@ export class World {
     this.rosa = this.spawnActor('Rosa', -27, 0.05, 6.8, { jacket: 0xff6b6b, pants: PAL.ink, skin: 0xe8b08e, hair: 0x9a938c, style: 'bun' });
     this.idris = this.spawnActor('Idris', -2, 0.05, -4.6, { jacket: PAL.plum, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x241f1c, style: 'cap' });
     this.idris.visible = false;
-    this.kidSil = this.spawnActor('TheKid', 13.5, 8.6, 7.86, { jacket: 0x514659, pants: 0x473e50, skin: 0x514659, hair: 0x453b4c, style: 'flat' });
+    // The kid, at the glass — a small shape against the light. The web port
+    // had him at the oracle's z (7.86), but the articulated kid is shallower
+    // than the oracle capsule: his front face sat BEHIND the emissive window
+    // box (front at 7.90), so the lit window rendered over him and he was
+    // invisible from the street (playtest: "I didnt see any kid in day 2").
+    // z=7.78 puts his silhouette in front of the glass, against the light.
+    this.kidSil = this.spawnActor('TheKid', 13.5, 8.6, 7.78, { jacket: 0x514659, pants: 0x473e50, skin: 0x514659, hair: 0x453b4c, style: 'flat' });
     this.kidSil.scale.setScalar(0.5);
     this.kidSil.visible = false;
 
@@ -711,20 +724,29 @@ export class World {
 
   update(dt: number, player?: { x: number; y: number; z: number }) {
     // taxi loops the street (main.gd `_process`: x += 9*dt, wraps at ±46).
-    // NYC rule added after playtest: the cab stops for pedestrians on the
-    // crosswalk instead of driving through them.
+    // NYC rules after playtest — the cab never drives through you:
+    //   1. crosswalk occupied → hold at the stop line (nose at x ≈ -10.7)
+    //      until it's clear, creeping up if it's still far;
+    //   2. anyone in the road ahead → brake to a stop ~4.5 m short.
     const road = this.taxi.position;
     let speed = 9.0;
     if (player) {
       const onCrosswalk = player.x > -8.5 && player.x < -1.5 && player.z > -4.6 && player.z < 4.6;
-      const approaching = road.x > -12.5 && road.x < -4.6;
-      if (onCrosswalk && approaching) {
-        if (road.x > -7.6) speed = 0; // hold at the stop line
-        else speed = Math.min(speed, 2.0); // creep up, then wait
+      if (onCrosswalk && road.x < -4.2) {
+        // cab nose = road.x + 2.2; hold it west of the crosswalk's west edge
+        speed = road.x > -10.7 ? 0 : Math.min(speed, 3.0);
+      } else {
+        const inRoad = Math.abs(player.z) < 4.2;
+        const gap = player.x - road.x; // cab travels +x; gap > 0 = player ahead
+        if (inRoad && gap > -2.3 && gap < 10) {
+          speed = gap < 4.5 ? 0 : Math.min(speed, 2.0);
+        }
       }
     }
     road.x += dt * speed;
     if (road.x > 46) road.x = -46;
+    this.taxiCollider.minX = road.x - 2.2;
+    this.taxiCollider.maxX = road.x + 2.2;
 
     // steam rises and wobbles — the Rule of Steam
     const posAttr = this.steamPoints.geometry.getAttribute('position') as THREE.BufferAttribute;

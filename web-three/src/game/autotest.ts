@@ -103,9 +103,13 @@ export function runAutotest(game: Game): void {
     const p = () => game.player.capsule;
     const dbg = game.debug;
     try {
-      // fresh Day 1 for the test run
+      // fresh Day 1 for the test run. The decision reads bootedFromDay (the
+      // save at boot), NOT s.day — beginDay holds s.day at its default until
+      // its 700 ms fade ends, and a Day-2 resume would race this check and
+      // run the whole suite against a replay session (money $111, every
+      // interaction "dead").
       wipeSave();
-      if (s.day >= 2) location.reload();
+      if (game.bootedFromDay >= 2) location.reload();
 
       await waitFrames(30);
       check(game.player.onGround && p().y < 0.2, `player stands on the sidewalk (y=${p().y.toFixed(2)})`);
@@ -138,6 +142,15 @@ export function runAutotest(game: Game): void {
       for (let i = 0; i < 5; i++) await interact();
       check(s.step === Step.CROSS && s.rushServed === 5, '5-order rush served');
       check(s.money === 112, `day 1 rush pays $87 \u2192 $112 (Doc 08) (got $${s.money})`);
+      // the cab now REALLY yields (collider + stop line) — a pedestrian waits
+      // for the car to clear the crossing before stepping off the curb
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < 14000) {
+          if (game.world.taxi.position.x > 2) break;
+          await nextFrame();
+        }
+      }
       await walkTo(-16, 6.0);
       await walkTo(-5, 5.0);
       await walkTo(-5, -5.0);
@@ -182,10 +195,18 @@ export function runAutotest(game: Game): void {
       await walkTo(16.2, -7.2, 8, true);
       check(game.player.ladder !== null, `grabbed ladder 2 (pos=${p().x.toFixed(1)},${p().z.toFixed(1)})`);
       await hold('KeyW', 2.2);
+      check(p().y <= 8.36, `ladder caps at the rail — no overshoot (y=${p().y.toFixed(2)})`);
       await hold('KeyA', 0.9);
       await waitFrames(20);
       check(p().y > 7.9, `reached landing 2 (y=${p().y.toFixed(2)})`);
-      await waitMs(7200);
+      const rigAfterClimb = (game.playerVisual.userData as { rig?: { mode: string } }).rig;
+      check(!!rigAfterClimb && rigAfterClimb.mode === 'auto', 'climb pose released after stepping off (hands down)');
+      // poll, don't sleep: sim time lags real time under software rendering,
+      // so a fixed wait can sample mid-flick (the dip is the POINT of the beat)
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < 30000 && !(s.step === Step.DONE && !game.ui.postcardPanel.hidden)) await nextFrame();
+      }
       check(s.step === Step.DONE && !game.ui.postcardPanel.hidden, 'gold window + Postcard compose');
       check(dbg.goldIntensity() > 3.0, 'gold window holds lit');
       check(s.money === 112, 'money label reads $112');
@@ -196,7 +217,10 @@ export function runAutotest(game: Game): void {
       await walkTo(12.5, -6.8, 8);
       await interact();
       check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight beat');
-      await waitMs(1500);
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < 30000 && dbg.rosaIntensity() <= 1.5) await nextFrame();
+      }
       check(dbg.rosaIntensity() > 1.5, 'Rosa\u2019s window warms');
       await interact();
       check(dbg.dayFading(), 'rail: tomorrow begins');
@@ -223,6 +247,7 @@ export function runAutotest(game: Game): void {
       await walkTo(15, 6.9);
       await interact();
       check(s.kidKept && s.money === 117 && game.world.kidSil.visible, `kid kept: +$3, kid at the glass ($${s.money})`);
+      check(game.world.kidSil.position.z < 7.9, 'kid silhouette stands IN FRONT of the window glass');
       await walkTo(4, -5.2);
       await interact();
       check(s.awningConfirm, 'awning offer asks for a confirm press');
@@ -243,10 +268,16 @@ export function runAutotest(game: Game): void {
       await walkTo(16.2, -7.2, 8, true);
       await hold('KeyW', 2.2);
       await hold('KeyA', 0.9);
-      await waitMs(5000);
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < 30000 && dbg.secondIntensity() <= 2.5) await nextFrame();
+      }
       check(dbg.secondIntensity() > 2.5, 'second window lights');
       check(game.world.kidSil.visible, 'the kid is at the glass');
-      await waitMs(3200);
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < 30000 && !(s.step === Step.D2_POSTCARD && !game.ui.postcardPanel.hidden)) await nextFrame();
+      }
       check(s.step === Step.D2_POSTCARD && !game.ui.postcardPanel.hidden, 'day 2 postcard composes');
       check(dbg.caption().includes('Day 2'), 'postcard says Day 2');
       await interact();
