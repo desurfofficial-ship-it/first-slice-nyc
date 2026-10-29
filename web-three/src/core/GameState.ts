@@ -74,15 +74,15 @@ export class GameState {
   lunchServed = 0;
   replayDay = false;
   replayNoteShown = false;
-  lingerStage = 0;            // 0 postcard up · 1 lingering · 2 Rosa said goodnight
+  lingerStage = 0;
   awningConfirm = false;
   rosaChatI = 0;
   cartName = '';
   itemsLeft = new Set<string>(['mango', 'coffee', 'bread']);
   rushServed = 0;
   soloServed = 0;
-  elapsed = 0;                // day clock (pause when step >= POSTCARD-style DONE states)
-  onDay2 = false;             // day >= 2 shorthand kept in sync by beginDay
+  elapsed = 0;
+  onDay2 = false;
 
   get isDay2(): boolean {
     return this.day >= 2;
@@ -97,8 +97,6 @@ export class GameState {
     this.step = s;
     return [{ kind: 'step', step: s }];
   }
-
-  // ---------------- money (main.gd `_earn` / `_set_money`) ----------------
 
   earn(n: number): Effect[] {
     if (n <= 0) return [];
@@ -118,8 +116,6 @@ export class GameState {
     return [{ kind: 'money' }];
   }
 
-  // ---------------- interaction relevance (main.gd `_is_relevant`) ----------------
-
   isRelevant(id: string): boolean {
     switch (id) {
       case 'rosa':
@@ -134,15 +130,12 @@ export class GameState {
         return this.step === Step.POSTCARD || this.step === Step.D2_POSTCARD
           || (this.step === Step.DONE && this.lingerStage >= 1);
       case 'cart':
-        if (this.step === Step.CLAIM_CART || this.step === Step.SOLO) return true;
-        return this.isDay2 && this.step >= Step.D2_WAKE && this.step <= Step.D2_CLIMB2;
+        if (this.step === Step.CLAIM_CART || this.step === Step.SOLO || this.step === Step.D2_LUNCH) return true;
+        return this.isDay2 && this.step >= Step.D2_WAKE && this.step < Step.D2_POSTCARD;
       default:
         return id.startsWith('item_') && this.step === Step.COLLECT;
     }
   }
-
-  // ---------------- interactions (main.gd `_try_interact`) ----------------
-  // Positions live with the orchestrator; this returns the resulting effects.
 
   tryRosa(): Effect[] {
     if (this.step === Step.MEET_ROSA) {
@@ -152,7 +145,7 @@ export class GameState {
         ...this.setStep(Step.ENTER_BODEGA),
       ];
     }
-    return []; // Day 2 chat/favor is routed through rosaTask()
+    return [];
   }
 
   enterBodega(): Effect[] {
@@ -192,14 +185,13 @@ export class GameState {
 
   cross(atStrip: boolean): Effect[] {
     if (this.step !== Step.CROSS) return [];
-    const out: Effect[] = [
+    return [
       { kind: 'note', text: atStrip
         ? 'The Shuffle: walk toward the gaps. Brushing someone is correct. They say \u201Cscuse me.\u201D That is the dance.'
         : 'You found your own way across. The crosswalk still likes you.' },
       { kind: 'crossed', atStrip, checkpoint: { x: 4, z: -4.5 } },
       ...this.setStep(Step.CLAIM_CART),
     ];
-    return out;
   }
 
   claimCart(): Effect[] {
@@ -207,7 +199,6 @@ export class GameState {
     return [{ kind: 'name-cart-open' }, ...this.setStep(Step.NAME_CART)];
   }
 
-  /** main.gd `_confirm_name` — empty names fall back to "First Slice". */
   confirmName(raw: string): Effect[] {
     if (this.step !== Step.NAME_CART) return [];
     const name = raw.trim() === '' ? DEFAULT_CART_NAME : raw.trim();
@@ -220,7 +211,6 @@ export class GameState {
     ];
   }
 
-  /** Who the current solo customer is: third one is Mr. Idris (spawn index 2). */
   spawnSoloCustomer(): Effect[] {
     const isIdris = this.soloServed === 2;
     const out: Effect[] = [{ kind: 'spawn-customer', who: isIdris ? 'idris' : 'solo', x: 4, z: -4.6 }];
@@ -257,7 +247,6 @@ export class GameState {
     return [];
   }
 
-  /** Day 2 awning purchase at the cart (main.gd `_awning_offer`). */
   cartAwningInteraction(): Effect[] {
     if (!this.awningConfirm) {
       this.awningConfirm = true;
@@ -267,8 +256,6 @@ export class GameState {
     this.awningUp = true;
     return [{ kind: 'awning-up' }, ...this.spend(15), ...this.advanceDay2()];
   }
-
-  // ---------------- day 2 flow (main.gd `_advance_day2`) ----------------
 
   advanceDay2(): Effect[] {
     if (this.day < 2 || this.step >= Step.D2_POSTCARD) return [];
@@ -303,14 +290,14 @@ export class GameState {
 
   rosaTask(): { effects: Effect[]; chat?: string } {
     if (this.step === Step.D2_TASK) {
-      const effects: Effect[] = [
-        { kind: 'note', text: 'Rosa: \u201CThe kid in the gold window watches your corner all day. Take him a regular? Milk, two sugars \u2014 you know the words now.\u201D' },
-        { kind: 'cup-given' },
-        ...this.setStep(Step.D2_DELIVER),
-      ];
-      return { effects };
+      return {
+        effects: [
+          { kind: 'note', text: 'Rosa: \u201CThe kid in the gold window watches your corner all day. Take him a regular? Milk, two sugars \u2014 you know the words now.\u201D' },
+          { kind: 'cup-given' },
+          ...this.setStep(Step.D2_DELIVER),
+        ],
+      };
     }
-    // Stateful chat lines
     const { text, nextChatIndex } = rosaChatLineOf(this);
     this.rosaChatI = nextChatIndex;
     return { effects: [{ kind: 'note', text }], chat: text };
@@ -345,9 +332,6 @@ export class GameState {
     return [{ kind: 'note', text: 'Stay a while. The window is in no rush.' }];
   }
 
-  // ---------------- save snapshots (main.gd `_persist` / `_begin_day`) ----------------
-
-  /** Day 1 never writes (save.gd rule). */
   snapshotForSave(): SaveData | null {
     if (this.day < 2) return null;
     return {

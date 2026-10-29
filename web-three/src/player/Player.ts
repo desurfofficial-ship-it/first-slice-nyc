@@ -49,6 +49,9 @@ export class Player {
       // lateral step-off moves in XZ and releases when outside the ladder volume
       this.capsule.x += rightX * lateral * dt;
       this.capsule.z += rightZ * lateral * dt;
+      // Still collide with the building while on the ladder — without this,
+      // sideways step-off could embed the capsule in the fire-escape wall.
+      depenetrate(this.boxes, this.capsule, STEP_UP);
       this.capsule.y += this.vy * dt;
       if (this.capsule.y >= this.ladder.top && this.vy > 0) {
         this.vy = 0;
