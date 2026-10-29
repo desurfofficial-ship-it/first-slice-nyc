@@ -37,6 +37,15 @@ export const OBJECTIVES: Record<number, string> = {
   21: 'Rosa says a flyer went up by the subway stairs. Go see.',         // D3_POSTER
   22: 'Fire escape at dusk. The best seat is yours by habit now.',       // D3_CLIMB3
   23: '',                                                                // D3_POSTCARD
+  // ---- Day 4 — "Say Hi" (docs/29) + "The Block Opens Up" (docs/30) ----
+  24: 'Rosa is at your cart. She has that look again.',                  // D4_WAKE
+  25: 'Someone new is standing by the terminal. You know that spot. Go say hi.', // D4_STRANGER
+  26: 'The morning rush. Serve at your cart — she\u2019s watching from the sidewalk. That\u2019s how the city teaches.', // D4_RUSH
+  27: 'She\u2019s walking your first walk \u2014 meet her at the cart. There\u2019s something you can give her that isn\u2019t coffee.', // D4_MAP
+  28: 'The kid has a point. Sunrise Laundry is two doors from Rosa\u2019s — the open bay with the washers.', // D4_LAUNDRY
+  29: 'The washers are going. There\u2019s a notice by the crosswalk — the city posts things where you\u2019ll read them.', // D4_PERMIT
+  30: 'Fire escape at dusk. The best seat is yours by habit now.',       // D4_CLIMB4
+  31: '',                                                                // D4_POSTCARD
 };
 
 export const MAP_NOTE_BOOT = 'You are here. That\u2019s enough.'; // Doc 08 note #1
@@ -45,6 +54,22 @@ export const MAP_NOTE_BOOT = 'You are here. That\u2019s enough.'; // Doc 08 note
 export function composeCaption(s: {
   day: number; replay: boolean; dayStartMoney: number; money: number; cartName: string;
 }): string {
+  if (s.day >= 4) {
+    if (s.replay) {
+      return (
+        'Day 4, again. The Map works better upside down. Ask anyone.\n' +
+        'The receipt is still on the cart.\n\n' +
+        `\u2014 ${s.cartName}, Day 4`
+      );
+    }
+    return (
+      `Day 4. $${s.dayStartMoney} \u2192 $${s.money}.\n` +
+      'Met: her. The Map changed hands.\n' +
+      'Filed: the permit. The corner is a business now.\n' +
+      'The light stays.\n\n' +
+      `\u2014 ${s.cartName}, Day 4`
+    );
+  }
   if (s.day >= 3) {
     if (s.replay) {
       return (
@@ -197,11 +222,18 @@ export function promptVerb(id: string, s: GameState): string {
     case 'stoop': return 'Deliver';
     case 'kid': return 'Walk with him';
     case 'poster': return 'Read the flyer';
+    case 'stranger': return 'Say hi';
+    case 'laundry':
+      return s.step === 28 /* D4_LAUNDRY */ ? 'Hand the apron'
+        : s.step === 29 /* D4_PERMIT */ ? 'Ask Sal'
+        : 'Say hi';
+    case 'permit':
+      return s.permitConfirm ? 'File \u2014 $10' : 'Read the notice';
     case 'rail': return s.lingerStage <= 1 ? 'Stay a while' : 'Tomorrow';
     case 'cart':
       if (s.step === 5 /* CLAIM_CART */) return 'Claim corner';
       if (s.step === 7 /* SOLO */ || s.step === 14 /* D2_LUNCH */) return 'Serve';
-      if (s.step === 18 /* D3_RUSH */) return s.d3Brewing ? BREWING_PROMPT : 'Serve';
+      if (s.step === 18 /* D3_RUSH */ || s.step === 26 /* D4_RUSH */) return s.brewing ? BREWING_PROMPT : 'Serve';
       if (s.step === 20 /* D3_STOOL */) return 'Stool \u2014 $10';
       if (s.day >= 2 && !s.awningUp && s.money >= 15) return 'Awning \u2014 $15';
       return 'Serve';
@@ -278,3 +310,90 @@ export const D3_ORDERS: D3Order[] = [
 
 export const BREWING_NOTE = 'The urn hisses. Steam does the talking.';
 export const BREWING_PROMPT = 'Brewing\u2026';
+
+// ---------------------------------------------------------------- Day 4 ----
+// "Say Hi" (docs/29) — the Hospitality Law chapter. A new stranger with a
+// duffel bag stands where Rosa waved on Day 1. Today you are Rosa.
+
+export const DAY4_BEGIN_NOTE = 'Day 4. The cart is still yours. That part stopped needing to be said.';
+
+export const D4_WAKE_NOTE =
+  'Rosa: \u201CSomeone\u2019s by the terminal. Been there since early. Duffel bag, paper Map, that look.\u201D She taps the counter twice. \u201CYou looked like that once. Go say hi. You know the words now.\u201D';
+export const D4_WAKE_ACCEPTED_NOTE =
+  'Morning four. You know the way from here. You\u2019ve walked it twice \u2014 once as you, once as her.';
+
+export const D4_STRANGER_GREET_NOTE =
+  'She just got here. Twelve dollars, a duffel bag, and a Map she holds like it might change its mind. You make her a regular \u2014 milk, two sugars \u2014 and hand it over. On the house.';
+export const D4_STRANGER_ONHOUSE_NOTE =
+  'Rosa, from across the street, calls it the rule: \u201COn the house means YOU don\u2019t charge. It doesn\u2019t mean it\u2019s free.\u201D She slides two dollars down your counter when nobody\u2019s looking.';
+export const D4_STRANGER_WATCH_NOTE =
+  'You say the thing Rosa said. It works. It still works.';
+
+export const D4_RUSH_DONE_NOTE =
+  'Three orders. The stranger never took her eyes off the counter \u2014 not your hands, the order. That\u2019s how the city teaches. It was never Rosa\u2019s trick. It\u2019s the watching.';
+
+export const D4_MAP_NOTE =
+  'You give her the Map. It\u2019s upside down. \u201CIt works better that way,\u201D you tell her. That part is true. The kid, from his stool: \u201CF and M both work. Don\u2019t overthink it.\u201D She writes it down.';
+export const D4_STRANGER_DEPART_NOTE =
+  'She walks your first walk \u2014 crosswalk, gaps, the other side \u2014 and the street takes over. You watch until the corner of your eye gives up. The Map knows the way. Upside down and all.';
+
+export const D4_CLIMB_NOTE = 'Same stairs. Same seat. Today the whole day climbs with you.';
+export const D4_GOLDEN_NOTE =
+  'Somewhere out there, someone new is reading a Map upside down and laughing at it. The lamp next door flickers \u2014 thinks about it \u2014 and stays on. The light stays. That\u2019s the whole job.';
+
+/** The Day-4 morning rush — Idris opens, like every day. Three orders,
+ *  $11 honest. The stranger watches from the sidewalk between serves. */
+export const D4_ORDERS: D3Order[] = [
+  {
+    who: 'idris',
+    bubble: 'THE USUAL',
+    pay: 3,
+    reaction: 'Mr. Idris: \u201CFourth day.\u201D He doesn\u2019t explain further. The cup explains it.',
+  },
+  {
+    who: 'rush',
+    bubble: 'REGULAR \u00B7 2 SUGARS',
+    pay: 4,
+    reaction: 'The stranger, from the sidewalk: \u201CIs it always like this?\u201D It is not. You say: \u201CYes.\u201D She keeps the answer.',
+  },
+  {
+    who: 'rush',
+    bubble: 'LARGE \u00B7 BLACK',
+    pay: 4,
+    reaction: 'The early shift: \u201CLarge black. You\u2019re part of the commute now.\u201D The city decided. That\u2019s how it happens.',
+  },
+];
+
+// ------------------------------------------- Day 4 afternoon (docs/30) ----
+// "The Block Opens Up" — the block was always this big. You just hadn't
+// walked it. Sal, Sunrise Laundry, and the first page of the paperwork
+// that turns a cart into a corner.
+
+export const D4_KID_APRON_NOTE =
+  'The kid, from his stool: \u201CYour apron has a MANGO on it. I can see the mango from here.\u201D He points. He\u2019s right. Four days is four days.';
+export const D4_SAL_MEET_NOTE =
+  'Sal, from behind the counter: \u201CRosa\u2019s cart. The window-lighter. I heard about you twice before I ever saw you once.\u201D He takes the apron like it\u2019s evidence. \u201CFirst wash is on the house. The aprons are advertising.\u201D';
+export const D4_SAL_CHAT_NOTE =
+  'Sal: \u201CThirty years at this counter. The permits change. The socks don\u2019t.\u201D';
+export const D4_PERMIT_OFFER_NOTE =
+  'A white card in an A-frame, city letters: MOBILE FOOD VENDING PERMIT \u2014 APPLICATION. One page. $10 to file. The window opens Monday. [Space] again to file it.';
+export const D4_PERMIT_FILED_NOTE =
+  'You sign. Sal witnesses, because that\u2019s a thing he does now. \u201CFiled,\u201D he says. \u201CThe receipt goes on the cart. Don\u2019t lose it \u2014 it\u2019s the whole future, on a card.\u201D';
+export const D4_PERMIT_ALREADY_NOTE =
+  'The permit\u2019s already filed. Sal laminated the receipt. \u201CFor a card, that\u2019s living right.\u201D';
+export const D4_APRON_CLEAN_NOTE =
+  'Warm from the dryer: the apron, clean. The mango had a good run.';
+export const D4_LAUNDRY_BEGIN_NOTE =
+  'The block was always this big. You just hadn\u2019t walked it.';
+
+/** Canvas-sign text for the Sunrise Laundry build (World). */
+export const D4_LAUNDRY_SIGN = 'SUNRISE LAUNDRY';
+export const D4_NOTICE_TITLE = 'CITY NOTICE';
+export const D4_NOTICE_LINES: string[] = [
+  'MOBILE FOOD',
+  'VENDING PERMIT',
+  'APPLICATION',
+  '$10 to file',
+  'Window opens Monday',
+];
+export const D4_RECEIPT_TEXT = 'FILED';

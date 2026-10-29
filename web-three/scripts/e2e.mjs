@@ -49,7 +49,11 @@ page.on('pageerror', (err) => consoleErrors.push(`PAGEERROR: ${err.message}`));
 await page.goto(`http://localhost:${PORT}/?autotest=1`, { waitUntil: 'load' });
 
 try {
-  await page.waitForFunction(() => window.__AUTOTEST__?.done === true, null, { timeout: 340000 });
+  // The four-day journey is longer now (Day 4 afternoon included) and this
+  // suite must survive a LOADED machine — the 340 s ceiling once cut Day 4
+  // off mid-walk while Days 1-3 were still being honest. 600 s with a
+  // condition-based driver: quiet machines finish in ~4 minutes anyway.
+  await page.waitForFunction(() => window.__AUTOTEST__?.done === true, null, { timeout: 600000 });
 } catch {
   console.error('TIMEOUT waiting for the autotest driver');
 }

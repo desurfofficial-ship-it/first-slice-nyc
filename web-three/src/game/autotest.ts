@@ -118,6 +118,19 @@ export function runAutotest(game: Game): void {
     await waitFrames(2);
   };
 
+  /** Wait for the cab to be east of the crosswalk and moving away. Road
+   *  crossings in this suite cross at the crosswalk (x=-5), and a cab that
+   *  parked on the diagonal under load is the one real flake this suite
+   *  ever had — wait it out instead of walking into its door (14 s cap: the
+   *  cab loops the block in ~10 s, so east always comes). */
+  const cabClear = async (timeout = 16) => {
+    const t0 = performance.now();
+    while (performance.now() - t0 < timeout * 1000) {
+      if (game.world.taxi.position.x > 2) break;
+      await nextFrame();
+    }
+  };
+
   /** Hold a key until a condition lands (or timeout). The world grew a
    *  neighborhood — software-rendered sim time runs slower than real time
    *  now, so fixed holds under-climb. Conditions don't. */
@@ -136,6 +149,17 @@ export function runAutotest(game: Game): void {
     const s = game.state;
     const p = () => game.player.capsule;
     const dbg = game.debug;
+    /** Compact game-state snapshot for check messages — makes a failing dusk
+     *  beat diagnosable from the log alone (where the walker is, what the
+     *  director thinks is happening, what the light is doing). */
+    const snap = () => {
+      const c = p();
+      return ` [step=${s.step} day=${s.day} pos=(${c.x.toFixed(1)},${c.y.toFixed(2)},${c.z.toFixed(1)})`
+        + ` ladder=${game.player.ladder !== null} ground=${game.player.onGround}`
+        + ` frozen=${game.player.frozen} dusk=${dbg.duskStarted()} rig=${dbg.postcardRig()}`
+        + ` linger=${s.lingerStage} panelHidden=${game.ui.postcardPanel.hidden}`
+        + ` w2=${dbg.secondIntensity().toFixed(1)} w3=${dbg.thirdIntensity().toFixed(1)}]`;
+    };
     try {
       // fresh Day 1 for the test run. The decision reads bootedFromDay (the
       // save at boot), NOT s.day — beginDay holds s.day at its default until
@@ -344,10 +368,10 @@ export function runAutotest(game: Game): void {
         await walkTo(4, -5.2, 10);
         await interact();
         const brewT0 = performance.now();
-        while (s.d3Brewing && performance.now() - brewT0 < 9000) await nextFrame();
+        while (s.brewing && performance.now() - brewT0 < 9000) await nextFrame();
         await waitFrames(4);
       }
-      check(!s.d3Brewing && s.step === Step.D3_KIDDOWN, 'four orders brewed and served');
+      check(!s.brewing && s.step === Step.D3_KIDDOWN, 'four orders brewed and served');
       check(s.money === 130, `morning rush pays $19 (got $${s.money})`);
       check(game.world.kidGround.visible, 'the kid is waiting at the stoop');
 
@@ -379,47 +403,170 @@ export function runAutotest(game: Game): void {
       check(s.stoolUp && s.money === 120 && game.world.stool.visible, `stool up: -$10 (got $${s.money})`);
       check(s.step === Step.D3_POSTER, 'the flyer objective is up');
 
-      // the west end in two sidewalk legs — the 43 m diagonal against the
-      // full sim load (leaves, signals, two flocks) outran a single 48 s
-      // budget under software rendering
-      await walkTo(-20, 6.5, 40);
-      await walkTo(-37.6, 6.9, 40);
+      // the flyer is across the street — routed like a person: crosswalk,
+      // then west along the north sidewalk. (A diagonal road crossing can
+      // meet a cab that parked mid-crosswalk; the crosswalk itself can't.)
+      // Budgets are generous: the 43 m hauls outran single 48 s budgets
+      // under the full sim load (leaves, signal, two flocks).
+      await walkTo(-5, -5.0, 24);
+      await cabClear();
+      await walkTo(-5, 5.4, 24);
+      await walkTo(-37.6, 6.9, 60);
       await interact();
       check(s.step === Step.D3_CLIMB3, 'flyer read \u2014 the block knows your name');
 
-      // east along the north sidewalk in two legs, then step south to the
-      // ladder — the single 47 m diagonal outran its budget under the full
-      // sim load, same as the flyer walk did
-      await walkTo(-16, 6.5, 30);
-      await walkTo(9.4, -4.8, 60);
-      await walkTo(9.4, -7.2, 20, true);
-      check(game.player.ladder !== null, 'day 3: grabbed ladder 1');
+      await walkTo(-5, 5.4, 24);
+      await cabClear();
+      await walkTo(-5, -5.0, 24);
+      await walkTo(9.4, -7.2, 24, true);
+      check(game.player.ladder !== null, 'day 3: grabbed ladder 1' + snap());
       await holdUntil('KeyW', () => p().y > 3.6, 10);
       await holdUntil('KeyD', () => game.player.ladder === null, 4);
       await waitFrames(20);
-      await walkTo(16.2, -7.2, 8, true);
-      await holdUntil('KeyW', () => p().y >= 8.34, 10);
+      await walkTo(16.2, -7.2, 12, true);
+      check(game.player.ladder !== null, `day 3: grabbed ladder 2 (pos=${p().x.toFixed(1)},${p().z.toFixed(1)})` + snap());
+      await holdUntil('KeyW', () => p().y >= 8.34, 14);
+      check(p().y <= 8.36, `day 3: ladder caps at the rail (y=${p().y.toFixed(2)})` + snap());
       await holdUntil('KeyA', () => game.player.ladder === null, 4);
       {
         const t0 = performance.now();
         while (performance.now() - t0 < 30000 && !(s.step === Step.D3_POSTCARD && !game.ui.postcardPanel.hidden)) await nextFrame();
       }
-      check(s.step === Step.D3_POSTCARD && !game.ui.postcardPanel.hidden, 'day 3 postcard composes');
-      check(dbg.caption().includes('Day 3'), 'postcard says Day 3');
-      check(dbg.thirdIntensity() > 2.5, 'the third window lights \u2014 golden-hour payoff');
+      check(s.step === Step.D3_POSTCARD && !game.ui.postcardPanel.hidden, 'day 3 postcard composes' + snap());
+      check(dbg.caption().includes('Day 3'), 'postcard says Day 3' + snap());
+      check(dbg.thirdIntensity() > 2.5, 'the third window lights \u2014 golden-hour payoff' + snap());
       check(game.world.kidGround.visible, 'the kid is at the corner below, on his stool');
       await interact();
-      check(!game.player.frozen, 'day 3 end lingers too');
+      check(!game.player.frozen, 'day 3 end lingers too' + snap());
 
       await walkTo(12.5, -6.8, 8);
       await interact();
-      check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight (day 3)');
-      await interact();
-      await waitMs(500);
-      check(s.day === 3 && !dbg.dayFading(), 'day 4 does not begin \u2014 the light stays a little longer');
+      check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight (day 3)' + snap());
       const save3 = loadSave();
       check(save3.day === 3 && save3.day_complete === true && save3.stool === true && save3.money === 120,
         `save holds day 3 complete: $${save3.money}, stool=${save3.stool}`);
+
+      // ============================================================ Day 4
+      // "Say Hi" (docs/29) — the Hospitality Law chapter. The rail's second
+      // press used to hit the wall ("still being written"); Day 4 EXISTS now,
+      // so the same press begins it. The kid lives on the stool; a stranger
+      // with a duffel bag stands where this whole story started.
+      await interact();
+      await waitMs(2400);
+      check(s.day === 4 && s.step === Step.D4_WAKE, 'day 4 begins \u2014 the light stayed because someone keeps it');
+      check(loadSave().day === 4, 'day-4 snapshot written');
+      check(game.world.kidGround.visible && !game.world.kidSil.visible,
+        'the kid is on his stool at sunrise, not in the window');
+
+      await interact();
+      check(s.step === Step.D4_STRANGER, 'Rosa points at the terminal');
+      check(game.world.stranger.visible, 'the stranger is standing by the terminal');
+
+      // the Day-1 mirror walk — out to the terminal, now habitual. Routed
+      // like a person: south sidewalk, the crosswalk (the cab waits), then
+      // the north sidewalk west. Diagonal road crossings were the one flake
+      // this suite had under load — a cab can park on any diagonal.
+      await walkTo(-5, -5.0, 24);
+      await cabClear();
+      await walkTo(-5, 5.4, 24);
+      await walkTo(-36.0, 5.0, 60);
+      await interact();
+      check(s.strangerMet && s.money === 122 && s.step === Step.D4_RUSH,
+        `the greeting pays Rosa\u2019s $2 (got $${s.money})`);
+      check(!!game.customer, 'Idris opens the rush behind you \u2014 like every day');
+
+      // the rush — three real orders, $11, while she walks your first walk
+      // (the first walk is the long one: terminal → cart is ~41 m, and
+      // sim time lags real time under software rendering). The return trip
+      // is routed like a person too: east along the north sidewalk, then
+      // back over the crosswalk.
+      for (let i = 0; i < 3; i++) {
+        if (i === 0) {
+          await walkTo(-5, 5.4, 24);
+          await cabClear();
+          await walkTo(-5, -5.0, 24);
+        }
+        await walkTo(4, -5.2, i === 0 ? 30 : 10);
+        await interact();
+        const brewT0 = performance.now();
+        while (s.brewing && performance.now() - brewT0 < 9000) await nextFrame();
+        await waitFrames(4);
+      }
+      check(!s.brewing && s.step === Step.D4_MAP, 'three orders brewed and served');
+      check(s.money === 133, `day 4 pays $13 all in (got $${s.money})`);
+
+      // the Map beat gates on her arrival — poll, never sample
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < 60000 && !s.strangerAtCart) await nextFrame();
+      }
+      check(s.strangerAtCart, 'the stranger reached the cart on her own two feet');
+      await walkTo(2.6, -4.6, 12);
+      await interact();
+      check(s.mapGiven && s.step === Step.D4_LAUNDRY,
+        'the Map changed hands — and the kid flags the apron (the afternoon opens)');
+      check(s.mapGiven && game.world.stranger.visible, 'she is walking west with the Map');
+
+      // ============================================= Day 4 afternoon (docs/30)
+      // "The Block Opens Up" — Sal, Sunrise Laundry, and the first page of
+      // the paperwork. Routed like a person again: crosswalk, then west.
+      await walkTo(-5, -5.0, 24);
+      await cabClear();
+      await walkTo(-5, 5.4, 24);
+      await walkTo(-6.8, 6.4, 24);
+      await interact();
+      check(s.step === Step.D4_PERMIT && s.apronWashing,
+        `Sal takes the apron — the washers start (step=${s.step}, $${s.money})`);
+      check(game.world.isWasherRunning(), 'the washer drum is actually spinning');
+      {
+        // the wash runs on the game's clock — poll for the drum to stop
+        const t0 = performance.now();
+        while (performance.now() - t0 < 20000 && s.apronWashing) await nextFrame();
+      }
+      check(!s.apronWashing && s.apronClean, 'the wash finished — warm from the dryer');
+
+      await walkTo(-4.0, 5.4, 20);
+      await interact();
+      check(s.permitConfirm, 'the permit asks for a confirm press');
+      await interact();
+      check(s.permitFiled && s.money === 123 && s.step === Step.D4_CLIMB4,
+        `permit filed: -$10, honest money (got $${s.money})`);
+      check(game.world.permitReceipt.visible, 'the receipt sits on the cart');
+      // filing is once-forever: a third press is dead input
+      await interact();
+      check(s.permitFiled && s.money === 123, 'a repeat press at the A-frame spends nothing');
+
+      await cabClear(); // the receipt is on the cart — now the dusk climb, no diagonals into a parked cab
+      await walkTo(9.4, -7.2, 60, true);
+      check(game.player.ladder !== null, 'day 4: grabbed ladder 1' + snap());
+      await holdUntil('KeyW', () => p().y > 3.6, 10);
+      await holdUntil('KeyD', () => game.player.ladder === null, 4);
+      await waitFrames(20);
+      await walkTo(16.2, -7.2, 12, true);
+      check(game.player.ladder !== null, `day 4: grabbed ladder 2 (pos=${p().x.toFixed(1)},${p().z.toFixed(1)})` + snap());
+      await holdUntil('KeyW', () => p().y >= 8.34, 14);
+      check(p().y <= 8.36, `day 4: ladder caps at the rail (y=${p().y.toFixed(2)})` + snap());
+      await holdUntil('KeyA', () => game.player.ladder === null, 4);
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < 45000 && !(s.step === Step.D4_POSTCARD && !game.ui.postcardPanel.hidden)) await nextFrame();
+      }
+      check(s.step === Step.D4_POSTCARD && !game.ui.postcardPanel.hidden, 'day 4 postcard composes' + snap());
+      check(dbg.caption().includes('Day 4'), 'postcard says Day 4' + snap());
+      check(dbg.fourthIntensity() > 2.5, 'the lamp next door stays on \u2014 the light stays' + snap());
+      check(game.world.kidGround.visible, 'the kid is at the corner below, on his stool');
+      await interact();
+      check(!game.player.frozen, 'day 4 end lingers too' + snap());
+
+      await walkTo(12.5, -6.8, 8);
+      await interact();
+      check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight (day 4)' + snap());
+      await interact();
+      await waitMs(500);
+      check(s.day === 4 && !dbg.dayFading(), 'day 5 does not begin \u2014 the wall holds, honestly');
+      const save4 = loadSave();
+      check(save4.day === 4 && save4.day_complete === true && save4.stool === true && save4.map_given === true && save4.permit === true && save4.money === 123,
+        `save holds day 4 complete: $${save4.money}, map=${save4.map_given}, permit=${save4.permit}, stool=${save4.stool}`);
     } catch (err) {
       check(false, `driver exception: ${(err as Error).message}`);
       console.error(err);

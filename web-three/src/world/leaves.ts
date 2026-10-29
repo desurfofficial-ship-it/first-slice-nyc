@@ -12,7 +12,12 @@
 
 import * as THREE from 'three';
 
-interface LeafSpot { x: number; z: number; r: number; top: number; }
+interface LeafSpot {
+  x: number; z: number; r: number; top: number;
+  /** the tints THIS tree drops — a turning tree sheds gold, a green one
+   *  green; a gold leaf under a green canopy read as a props mistake. */
+  tints?: number[];
+}
 
 interface Leaf {
   spot: number;
@@ -31,7 +36,7 @@ const REST_MIN = 4;
 const REST_RANGE = 7;
 const SIDEWALK_Y = 0.1;        // sidewalk slab top (World.ts Sidewalk_N/S)
 const ROAD_Y = 0.02;           // asphalt top + a hair, never z-fighting
-const PIT_Y = 0.05;            // tree-pit soil top (makeTreePit)
+const PIT_Y = 0.11;            // tree-pit soil top (makeTreePit, raised above the slab)
 
 export class LeafDrift {
   readonly mesh: THREE.InstancedMesh;
@@ -56,15 +61,17 @@ export class LeafDrift {
     this.mesh.castShadow = false;
     this.mesh.receiveShadow = false;
 
-    // palette-anchored tints: the two canopy greens + a golden-hour amber
-    const tints = [0x5d7d4a, 0x516e42, 0x516e42, 0xffb85c];
+    // palette-anchored default tints: the two canopy greens + a golden-hour
+    // amber (spots may override with their tree's own palette)
+    const defaultTints = [0x5d7d4a, 0x516e42, 0x516e42, 0xffb85c];
 
     let i = 0;
     for (let s = 0; s < spots.length; s++) {
+      const tints = spots[s].tints ?? defaultTints;
       for (let k = 0; k < perTree; k++) {
         const leaf = this.spawn(i, s, true);
         this.leaves.push(leaf);
-        this.color.setHex(tints[(i + s) % tints.length]);
+        this.color.setHex(tints[(i + k) % tints.length]);
         this.mesh.setColorAt(i, this.color);
         i++;
       }

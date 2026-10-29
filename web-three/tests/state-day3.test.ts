@@ -54,7 +54,7 @@ describe('Day 3 — the rush: brewing, order states, money', () => {
     const s = day3ToRush();
     const effects = s.startBrew();
     expect(effects).toEqual([{ kind: 'brew-start' }]);
-    expect(s.d3Brewing).toBe(true);
+    expect(s.brewing).toBe(true);
   });
 
   it('repeated input while brewing does nothing (no double-serve)', () => {
@@ -62,7 +62,7 @@ describe('Day 3 — the rush: brewing, order states, money', () => {
     s.startBrew();
     expect(s.startBrew()).toEqual([]);
     expect(s.completeBrew().length).toBeGreaterThan(0); // the ONE completion pays
-    expect(s.d3Brewing).toBe(false);
+    expect(s.brewing).toBe(false);
     expect(s.money).toBe(111 + D3_ORDERS[0].pay);
   });
 
@@ -76,7 +76,7 @@ describe('Day 3 — the rush: brewing, order states, money', () => {
 
   it('serving with nobody at the cart does nothing', () => {
     const s = day3ToRush();
-    s.d3Index = D3_ORDERS.length; // the queue is empty
+    s.rushIndex = D3_ORDERS.length; // the queue is empty
     expect(s.startBrew()).toEqual([]);
   });
 
@@ -90,7 +90,7 @@ describe('Day 3 — the rush: brewing, order states, money', () => {
     }
     expect(s.money).toBe(111 + 19);
     expect(s.step).toBe(Step.D3_KIDDOWN);
-    expect(s.d3Brewing).toBe(false);
+    expect(s.brewing).toBe(false);
   });
 
   it('every order has a readable bubble and a reaction line', () => {
@@ -224,9 +224,9 @@ describe('Day 3 — the save round-trip', () => {
     expect(parseSave(null)).toEqual(defaultSave());
   });
 
-  it('day is clamped to MAX_DAY = 3 (day 4 does not exist yet)', () => {
+  it('day is clamped to MAX_DAY = 4 (day 5 does not exist yet)', () => {
     const parsed = parseSave(JSON.stringify({ day: 9, money: 5 }));
-    expect(parsed.day).toBe(3);
+    expect(parsed.day).toBe(4);
   });
 
   it('the key is unchanged \u2014 existing players keep their corner', () => {

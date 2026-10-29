@@ -118,7 +118,7 @@
 
     .grid-2 {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
       gap: 1.5rem;
     }
 
@@ -221,7 +221,8 @@
       <p class="tagline">
         A cozy lowpoly life-sim for the billions of people who have never been to New York — but have always felt it.
       </p>
-      <a class="btn" href="https://github.com/desurfofficial-ship-it/first-slice-nyc">View on GitHub</a>
+      <a class="btn" href="https://desurfofficial-ship-it.github.io/first-slice-nyc/" style="margin-right:0.6rem;">▶ Play in the browser</a>
+      <a class="btn" href="https://github.com/desurfofficial-ship-it/first-slice-nyc" style="background:rgba(255,255,255,0.18);color:white;">View on GitHub</a>
     </div>
   </header>
 
@@ -284,45 +285,50 @@
   </section>
 
   <section>
-    <h2>Day 1 greybox is alive</h2>
+    <h2>Four days are alive — in your browser</h2>
     <p class="lead">
-      The first 30 minutes are playable in Godot 4.7. You can walk from the terminal to the gold window and receive a real postcard.
+      Day 1 through Day 4 play end to end at
+      <a href="https://desurfofficial-ship-it.github.io/first-slice-nyc/">the live build</a>.
+      One block of Manhattan, grown by hand: brownstones with stoops, a bodega,
+      a subway plaza, street trees, pigeons with opinions. Day 4 even has an
+      afternoon now. And the block has a sound — a quiet city, synthesized
+      from scratch, with a mute button that means it.
     </p>
 
     <div class="grid-2">
       <div class="card">
-        <img src="https://raw.githubusercontent.com/desurfofficial-ship-it/first-slice-nyc/main/assets/greybox-day1/frames/portrait_05_bodega_inside.png" alt="Inside Rosa’s bodega" />
+        <img src="https://raw.githubusercontent.com/desurfofficial-ship-it/first-slice-nyc/main/web-three/assets/web-three/frames/d3_kid_on_stool_portrait.png" alt="Your named cart with the awning up and the kid on his stool" />
         <div class="body">
-          <h3>Rosa’s Bodega</h3>
-          <p>First rush. First lessons. First kindness.</p>
+          <h3>Day 3 — A Place at the Corner</h3>
+          <p>Rosa brings the news to YOUR cart. Four real orders. The kid comes down from his window — and takes the stool.</p>
         </div>
       </div>
       <div class="card">
-        <img src="https://raw.githubusercontent.com/desurfofficial-ship-it/first-slice-nyc/main/assets/greybox-day1/frames/portrait_16_cart_named.png" alt="Player’s named cart" />
+        <img src="https://raw.githubusercontent.com/desurfofficial-ship-it/first-slice-nyc/main/web-three/assets/web-three/frames/d4_laundry_bay_portrait.png" alt="Sunrise Laundry's open bay at golden hour, washers spinning while the apron washes" />
         <div class="body">
-          <h3>Your Corner</h3>
-          <p>You name the cart. The city writes it down with you.</p>
+          <h3>Day 4, afternoon — The Block Opens Up</h3>
+          <p>Sunrise Laundry pulls its shutter up. Sal washes the mango-stained apron — first wash free. A city notice by the crosswalk sells you the Mobile Food Vending Permit ($10, and it asks twice), and a receipt goes up on the cart.</p>
         </div>
       </div>
       <div class="card">
-        <img src="https://raw.githubusercontent.com/desurfofficial-ship-it/first-slice-nyc/main/assets/greybox-day1/frames/portrait_21_gold_window_lit.png" alt="Gold window at dusk" />
+        <img src="https://raw.githubusercontent.com/desurfofficial-ship-it/first-slice-nyc/main/web-three/assets/web-three/frames/d3_brownstones_portrait.png" alt="Brownstone row with painted doors and stoops" />
         <div class="body">
-          <h3>The Gold Window</h3>
-          <p>One window turns gold. Someone felt kept because of you.</p>
+          <h3>The block, grown by hand</h3>
+          <p>Coral, teal, plum doors. Stoops with railings. Tree pits. The street reads as a street, not a grid.</p>
         </div>
       </div>
       <div class="card">
-        <img src="https://raw.githubusercontent.com/desurfofficial-ship-it/first-slice-nyc/main/assets/greybox-day1/frames/portrait_01_spawn.png" alt="Arrival / spawn" />
+        <img src="https://raw.githubusercontent.com/desurfofficial-ship-it/first-slice-nyc/main/web-three/assets/web-three/frames/d4_four_windows_dusk_portrait.png" alt="Four golden windows at dusk — the Skyline of Lit Windows after Day 4" />
         <div class="body">
-          <h3>Arrival</h3>
-          <p>You are here. That’s enough.</p>
+          <h3>Day 4 — Say Hi</h3>
+          <p>A stranger with a duffel bag stands where the story started. You make her a regular — on the house — and the Map changes hands. The lamp next door finally stays on.</p>
         </div>
       </div>
     </div>
 
     <div class="postcard-wrap">
       <img src="https://raw.githubusercontent.com/desurfofficial-ship-it/first-slice-nyc/main/assets/greybox-day1/postcard_day1.png" alt="First generated Day 1 postcard" />
-      <p style="margin-top: 1rem; color: #555;">First real postcard generated by the game (TS-01 proven)</p>
+      <p style="margin-top: 1rem; color: #555;">Every session ends with a postcard the game composes itself — real capture, real caption</p>
     </div>
   </section>
 
@@ -330,16 +336,20 @@
     <div class="status">
       <h3>Current status</h3>
       <ul>
-        <li>Full design documentation & Vertical Slice locked</li>
-        <li>Styleframes officially locked</li>
-        <li>Day 1 greybox playable in Godot</li>
-        <li>Postcard capture pipeline proven</li>
-        <li>Vertical camera system proven</li>
+        <li>Day 1 through Day 4 playable in the browser — one continuous story</li>
+        <li>Day 4 afternoon: Sunrise Laundry opens, Sal washes the apron, the Mobile Food Vending Permit gets filed, the receipt goes up on the cart</li>
+        <li>A living block: brownstones, storefronts, subway plaza, street trees, pigeons, a squirrel</li>
+        <li>An ambient sound layer, synthesized from scratch — city bed, far traffic, pigeon coos, the washer drum, a bell at dusk. Mute is one tap and it stays muted</li>
+        <li>Coffee-cart economy with real change-making — every dollar honest, every gift paid back</li>
+        <li>Quit any time, resume exactly — your corner persists (furniture included)</li>
+        <li>Touch controls for phones, keyboard for desks</li>
+        <li>Postcard capture pipeline proven — every day ends with a keepsake</li>
+        <li>112 unit tests + a full-journey browser test that plays all four days with real input</li>
       </ul>
     </div>
 
     <p class="lead" style="margin-top: 2rem;">
-      The city is still teaching us. We’re building the plane ticket that doesn’t cost flight money.
+      Day 5 is being written. The light stays.
     </p>
 
     <p>

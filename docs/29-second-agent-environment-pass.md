@@ -67,6 +67,94 @@ baseline is a stash, not the old table): boot +10, mid-street +16,
 plaza +10 draw calls — the signal (4 consolidated meshes), four curb
 segments, nothing else. Triangles well under 1k more per view.
 
+## Round four — autumn arrives on the block (2026-10-30)
+
+"Keep polishing visuals", round two. Four changes, plus one real bug the
+new work exposed:
+
+1. **Four of the twelve trees are turning.** The two plaza park trees
+   (the first thing you meet off the subway stairs) plus one tree each
+   side of the street wear an autumn gradient: honey-gold crown
+   (`PAL.gold`), lighter amber mid-blob (`PAL.amber`), lowest blob still
+   green — the tree holds on from the bottom, the way real street trees
+   do. Read as species, not weather: the honey locusts stay October-green.
+   The first draft rolled dice per blob and kept collapsing into a
+   uniform gold lollipop (both golds adjacent, the green blob buried
+   between them) — a turning tree must show its turning, so the gradient
+   is deterministic now.
+2. **The leaf drift sheds its tree's own palette.** `LeafSpot` carries
+   tints; turning trees drop gold/amber (+one green), green trees drop
+   greens. A gold leaf under a green canopy read as a props mistake.
+3. **The flock is not twelve clones.** Pigeons now take one of three
+   plumage morphs (skyline grey / ink dark / warm rufous — all bank stock,
+   zero new materials), tails match their own body, and roughly a quarter
+   wear a cream nape blaze. Verified live: 3 distinct morphs and 4 blazed
+   birds in the plaza flock.
+4. **The lamp faces are lit.** The sun never leaves golden hour here, and
+   city lamps switch on before sundown; four dead heads read as props, not
+   as a block people walk home under. One shared emissive material, owned
+   by World, handed to `makeStreetlight`.
+5. **Tree pits wear granite rims — and the rims exposed a buried bug.**
+   Each pit gained a low rim in the round-three curb grey (four bars
+   merged into ONE geometry per pit; a 12-pit block must not spend 48
+   draw calls on edges). The first screenshot caught the truth: the rim
+   framed TAN PAVING — the pit soil (top y 0.065) had been buried inside
+   the sidewalk slab (top y 0.1) since the first env pass. Every "tree
+   pit" on the block was a phantom under the pavement. The pit now rides
+   the slab (group y 0.07): soil top 0.105, rim lip 0.155, and
+   `LeafDrift`'s `PIT_Y` moved 0.05 → 0.11 to rest on visible dirt.
+
+Perf, same stash method as round three (baseline 382/523/742 =
+round-three HEAD incl. hydrant.glb): boot +2, mid-street +5, plaza +4
+draw calls — rims and blazes are mostly frustum-culled out of these
+views, and plumage variety costs nothing (shared materials).
+
+Verified: `probe-autumn.mjs` (new) — 9 amber + 39 green leaves, 3 plumage
+morphs, 4 blazes, zero console errors (`shots/env6-*.png`);
+`probe-leaves.mjs` re-run against the raised pit — 48 leaves, 37 grounded
+on the correct surface, 0 buried, 0 hovering; full battery 0 failures
+(193 s); tsc clean, vitest 79/79, build clean.
+
+## Round five — the audit's findings, cross-checked and owned (2026-10-30)
+
+Round four landed; then the lead agent's Doc 31 audited every evidence
+frame. Two of its findings turned out to live in env-pass code, so this
+round is the doc-31 cross-check: diagnose in geometry, fix in the owned
+blocks, verify live. (The other Doc-31 findings belong to AGENT-A's own
+files — see "For the lead agent" below.)
+
+1. **The birds stood knee-deep in the sidewalk.** `Sidewalk_N` tops out at
+   y = 0.1, and both pigeon flocks plus the squirrel were rooted at y = 0
+   — a tenth of a metre into the paving. At the curb seam the birds read
+   half-buried, exactly as Doc 31 flagged in `d3_plaza_pigeons_portrait`.
+   `PigeonFlock` and `Squirrel` now take a `groundY` (default 0, so no
+   other callsite changes behavior) and every grounding uses it: rest,
+   the walk-bob, the hop parabola, the flush arc, the landing. Both flocks
+   and the squirrel stand at 0.1; their zBands stay inside the slab
+   (z 4..8), so one height covers every spot they can reach.
+2. **Three lamps were spearing tree canopies.** Lamp 1 shared its x with
+   tree 0 (−34): the pole vanished into the crown and the gold lamp head
+   poked out the far side — that is Doc 31's "small dark rectangle above
+   the canopy" and "small yellow object in the tree reads unattached" in
+   two frames, one object. Lamps 3/4 sat 2.0 m from trunks whose worst
+   seeded canopy reach is 1.85 m — legal by luck, not by margin. Lamps
+   moved −34 → −31, −18 → −19.5, 30 → 31.5; every pole now clears a
+   trunk by ≥ 3.0 m, asserted live. No tree, pit, or leaf spot moved.
+3. **Named nodes.** The flocks, squirrel, and streetlights now carry
+   scene-graph names (`Flock_Plaza`, `Flock_East`, `Squirrel`,
+   `Streetlight_0..3`) so probes assert on identity, not geometry
+   shape-matching. Zero runtime cost, no behavior change.
+
+Verified: `probe-env5.mjs` (new) — 9/9 plaza + 4/4 east birds resting at
+y ≈ 0.1 (0 sunk), squirrel at y = 0.100, all four lamps ≥ 3.01 m from the
+nearest trunk, zero console errors; five eyeball frames (`shots/env5-
+plaza-birds / -lamp-north / -lamp-south / -east-birds / -squirrel.png`)
+confirm the reads: bodies sit ON the slab at the curb seam, lamp poles
+own their own silhouettes, the turning ginkgo keeps its gold to itself.
+Regression: `probe-leaves.mjs` 48/37/0/0 unchanged; tsc clean, vitest
+112/112 (the lead agent's Day 4 suite grew it), build clean, full E2E
+battery 0 failures (315 s, Day 1–4 route), zero console errors.
+
 ## What the block got
 
 Seven missing pieces, chosen because the block asked for them — not
@@ -154,11 +242,20 @@ in small bills. The leaf system is one instanced draw call for all 48.
 - Visual probes (committed): `probe-env.mjs`, `probe-env2.mjs`,
   `probe-env3.mjs` (frozen-camera close-ups), `probe-perf.mjs`,
   `probe-glb-hydrant.mjs`. Shots in `web-three/shots/env*.png`.
-- Round two: `probe-leaves.mjs` — 48 leaves live-sampled, 35 grounded on
-  the correct surface, 0 buried, 0 hovering, zero console errors
-  (`shots/env4-pit-north.png`, `env4-pit-south.png`). Pre-fix baseline
-  battery was green (0 failures, 193 s); the post-fix battery result is
-  recorded in the round-two commit message.
+- Round three: `probe-polish.mjs` — signal / curb / steam / flock shots +
+  live sidewalk-band check (`shots/env5-*.png`). Battery after: 0 failures
+  (196 s).
+- Round four: `probe-autumn.mjs` — turning-tree / plumage / lamp / pit-rim
+  shots + data checks read from the live scene: 9 amber + 39 green leaf
+  tints, 3 plumage morphs, 4 blaze birds (`shots/env6-*.png`).
+  `probe-leaves.mjs` re-run against the raised pit (PIT_Y 0.05 → 0.11):
+  37 grounded / 0 buried / 0 hovering. Battery after: 0 failures (193 s).
+  Perf (stash method): boot +2, mid-street +5, plaza +4 draw calls.
+- Round five: `probe-env5.mjs` — named-node live asserts (both flocks +
+  squirrel at groundY, lamp-to-trunk clearance) + five frozen-camera
+  frames (`shots/env5-plaza-birds.png`, `env5-lamp-north.png`,
+  `env5-lamp-south.png`, `env5-east-birds.png`, `env5-squirrel.png`).
+  Battery after: 0 failures (315 s, Day 1–4).
 - Disposal: `World.dispose()` traverses and disposes everything the pass
   added (InstancedMesh included — it is a Mesh); LeafDrift allocates one
   geometry + one material, both reachable from the scene graph.
@@ -176,9 +273,15 @@ in small bills. The leaf system is one instanced draw call for all 48.
   block, east flock, leaf field + update calls (round two: real canopy
   tops handed to the drift)
 - `web-three/src/world/props.ts` — additive only: `Tree.top` reported by
-  `makeTree` (round two)
+  `makeTree` (round two); round four: `makeTree(bank, rng, autumn)`
+  gradient turning, `makeTreePit` granite rim (one merged geometry),
+  `makeStreetlight` optional lit lamp face
 - `web-three/src/world/ambient.ts` — round two: pigeon head unwinds after
-  a walk, never freezes mid-bob
+  a walk, never freezes mid-bob; round four: plumage morphs + cream blaze;
+  round five: `groundY` for flocks + squirrel (rest, walk-bob, hop,
+  flush arc, landing all honor it)
+- `web-three/src/world/leaves.ts` — round four: per-spot tints (a turning
+  tree sheds gold), PIT_Y 0.11 on the raised pit
 - `web-three/public/models/hydrant.glb` — new: Blender-generated
 - `web-three/scripts/probe-env.mjs`, `probe-env2.mjs`, `probe-env3.mjs`,
   `probe-perf.mjs`, `probe-glb-hydrant.mjs` — probes
@@ -186,6 +289,10 @@ in small bills. The leaf system is one instanced draw call for all 48.
   grounded-leaf assertions + pit close-ups (`shots/env4-*.png`)
 - `web-three/scripts/probe-polish.mjs` — new (round three): signal /
   curb / steam / flock shots + live sidewalk-band check
+- `web-three/scripts/probe-autumn.mjs` — new (round four): turning tree /
+  plumage / lamp / pit-rim evidence + leaf-tint & plumage data checks
+- `web-three/scripts/probe-env5.mjs` — new (round five): named-node
+  asserts + the five ground/clearance frames
 - `tools3d/blender_hydrant.py` — new: the hydrant generator
 
 ## Known limitations
@@ -208,3 +315,26 @@ touched: `World.update` (already called every frame), `World.colliders`
 (one more file in `public/models/`). If you would rather the poles not
 collide, delete the three `boxFromCenter` lines in the utility-pole block
 and the E2E stays green.
+
+**Doc-31 cross-check handoff (round five).** The env-owned findings are
+fixed and verified above (birds at groundY; lamps clear of canopies —
+that resolves Doc 31's "dark rectangle above the canopy", "yellow object
+in the tree", and "half-submerged pigeons" reads). Two audit findings
+live in YOUR files; diagnosed from here, not touched:
+
+- **`d4_four_windows_dusk_portrait`: the detached white line above the
+  tallest backdrop tower is the `Spire` deco.** It stands at x = 11,
+  y 80..104 (World.ts skyline card, commit e0a6d60); tower 3 at x = 11
+  is 80 tall, so the spire's base exactly kisses the roof with zero
+  overlap — any camera off dead-center reads it as floating. One-line
+  fix in your block: drop the spire's center to overlap the tower (e.g.
+  center y 92 → 88), or parent it to the tower.
+- **`Plaza_Deck` is buried.** The stone plaza pad (top y = 0.03,
+  x −45..−38, z 4.1..7.7) sits fully inside `Sidewalk_N` (top y = 0.1,
+  z 4..8) — it renders nowhere; the plaza ground you see is the plain
+  slab. Harmless (the birds now stand on the slab, correctly), but if
+  the deck was meant to read as different paving, its top needs to come
+  up past 0.1 — or cut the slab for it.
+
+Everything else Doc 31 raises is composition and evidence hygiene in
+your probe scripts and frames — not touched from this side.

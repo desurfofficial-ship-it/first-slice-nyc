@@ -9,9 +9,10 @@
  */
 
 export const SAVE_KEY = 'first_slice_save_v1';
-// Day 3 "A Place at the Corner" is live (docs/28-day3-a-place-at-the-corner.md).
-// Day 4+ is still being written — the rail's goodnight holds the light instead.
-export const MAX_DAY = 3;
+// Day 4 "Say Hi" is live (docs/29-day4-say-hi.md): a new stranger with a
+// duffel bag, and the lamp next door. Day 5+ is still being written —
+// the rail's goodnight holds the light instead.
+export const MAX_DAY = 4;
 
 export interface SaveData {
   day: number;
@@ -29,6 +30,13 @@ export interface SaveData {
   /** Day 3 purchase — the stool by the cart (the kid's seat). Optional so a
    *  pre-Day-3 save parses unchanged; missing reads as false. */
   stool?: boolean;
+  /** Day 4 beat — the Map changed hands (the stranger carries it now).
+   *  Optional so a pre-Day-4 save parses unchanged; missing reads as false. */
+  map_given?: boolean;
+  /** Day 4 afternoon — the vending-permit application is FILED (docs/30).
+   *  Permanent progression, like the stool: once true it stays true.
+   *  Optional so pre-existing saves parse unchanged; missing reads as false. */
+  permit?: boolean;
 }
 
 export function defaultSave(): SaveData {
@@ -43,6 +51,8 @@ export function defaultSave(): SaveData {
     idris_served: false,
     lunch_served: 0,
     stool: false,
+    map_given: false,
+    permit: false,
   };
 }
 
@@ -80,6 +90,8 @@ export function parseSave(raw: string | null): SaveData {
     money: Math.max(0, Math.trunc(num('money', 87))),
     awning: bool('awning', false),
     stool: bool('stool', false),
+    map_given: bool('map_given', false),
+    permit: bool('permit', false),
     kid_kept: bool('kid_kept', false),
     idris_served: bool('idris_served', false),
     lunch_served: clamp(Math.trunc(num('lunch_served', 0)), 0, 3),

@@ -18,6 +18,7 @@ import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecy
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
+import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT } from '../core/content';
 
 export interface LadderInfo { area: AABB; top: number; }
 
@@ -79,6 +80,15 @@ export class World {
   readonly kidGround: THREE.Group;   // the kid at ground level (Day 3)
   readonly stool: THREE.Group;       // the Day 3 purchase, hidden until bought
   readonly flyerMat: THREE.MeshLambertMaterial;
+  // ---- Day 4 — "Say Hi" (docs/29) ----
+  readonly stranger: THREE.Group;    // the new arrival — the player's Day-1 mirror
+  readonly fourthWindowMat!: THREE.MeshLambertMaterial; // the lamp next door
+  readonly fourthGlow: THREE.Sprite;
+  // ---- Day 4 afternoon — the block opens up (docs/30) ----
+  readonly sal: THREE.Group;         // Sunrise Laundry, thirty years at the counter
+  readonly permitReceipt: THREE.Group; // propped on the cart once the permit is filed
+  private washerLoad: THREE.Mesh | null = null;
+  private washerRunning = false;
   private readonly bank: MatBank;
   private readonly trees: Array<{ canopy: THREE.Group; phase: number }> = [];
   private readonly pigeonFlock: PigeonFlock;
@@ -366,6 +376,11 @@ export class World {
           // the third window — Day 3's golden-hour payoff (docs/28 §E)
           this.thirdWindowMat = this.mat(dim, { emissive: PAL.gold, emissiveIntensity: 0 });
           this.decoMesh('ThirdWindow', new THREE.BoxGeometry(1.2, 1.6, 0.08), this.thirdWindowMat, p[0], p[1], p[2]);
+        } else if (row === 2 && col === 3) {
+          // the lamp next door — Day 2's wave note promised it ("flickers,
+          // thinks about it, and stays on too"). Day 4 keeps that promise.
+          this.fourthWindowMat = this.mat(dim, { emissive: PAL.gold, emissiveIntensity: 0 });
+          this.decoMesh('FourthWindow', new THREE.BoxGeometry(1.2, 1.6, 0.08), this.fourthWindowMat, p[0], p[1], p[2]);
         } else {
           this.decoMesh(`Window_${row}_${col}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), dimMat, p[0], p[1], p[2]);
         }
@@ -380,6 +395,9 @@ export class World {
     this.thirdGlow = this.makeGlow(2.6);
     this.thirdGlow.position.set(16.5, 9, 7.6);
     this.scene.add(this.thirdGlow);
+    this.fourthGlow = this.makeGlow(2.2);
+    this.fourthGlow.position.set(19.5, 9, 7.6);
+    this.scene.add(this.fourthGlow);
 
     // ---------------- skyline card (far north-east, above the low building) -
     const heights = [38, 62, 45, 80, 52, 70, 40, 58];
@@ -493,9 +511,10 @@ export class World {
     }
 
     // ---- storefronts (north face): named shops with awnings ----
-    const laundry = makeStorefront(this.bank, this.signMaterials.bind(this), 'SUNRISE LAUNDRY', PAL.teal, 6);
-    laundry.position.set(-5, 0.05, 8.02);
-    this.scene.add(laundry);
+    // Sunrise Laundry is not a flat prop anymore — Day 4 opens the block
+    // (docs/30): a real recessed bay, Sal behind the counter, two washers
+    // (one spins when a wash is running), shirts on the sidewalk rack.
+    this.buildLaundromat();
     const pizza = makeStorefront(this.bank, this.signMaterials.bind(this), 'CORNER SLICE PIZZA', PAL.coral, 6);
     pizza.position.set(27, 0.05, 8.02);
     this.scene.add(pizza);
@@ -535,14 +554,27 @@ export class World {
     this.scene.add(busBench);
 
     // ---- street furniture: lights, cans, hydrant, one honest barrier ----
+    // The lamp faces are lit: the sun never leaves golden hour here, and
+    // city lamps switch on before sundown — four dead heads read as props,
+    // not as a block people walk home under. One shared emissive material.
+    const lampFace = this.mat(PAL.taxi, { emissive: PAL.taxi, emissiveIntensity: 0.35 });
+    // x-spots clear of the tree canopies: a pole sharing its block-face with
+    // a tree spears the crown, and the gold lamp head pokes out the far side
+    // as a floating yellow chip (Doc 31 read exactly that in two frames).
+    // Worst canopy reach is 1.85 m from the trunk; every lamp now clears a
+    // tree by >= 3 m. Lamp 1 moved -34 -> -31 (tree 0 sat at the same x),
+    // lamp 3 -18 -> -19.5 and lamp 4 30 -> 31.5 (a metre of margin is not
+    // margin when a seeded canopy blob can grow another half-metre).
     const lights: Array<[number, number, number]> = [
-      [-34, 7.35, Math.PI / 2], [8, 7.35, Math.PI / 2],
-      [-18, -7.35, -Math.PI / 2], [30, -7.35, -Math.PI / 2],
+      [-31, 7.35, Math.PI / 2], [8, 7.35, Math.PI / 2],
+      [-19.5, -7.35, -Math.PI / 2], [31.5, -7.35, -Math.PI / 2],
     ];
-    for (const [lx, lz, lyaw] of lights) {
-      const lamp = makeStreetlight(this.bank);
+    for (let li = 0; li < lights.length; li++) {
+      const [lx, lz, lyaw] = lights[li];
+      const lamp = makeStreetlight(this.bank, lampFace);
       lamp.position.set(lx, 0.05, lz);
       lamp.rotation.y = lyaw; // arm reaches over the street
+      lamp.name = `Streetlight_${li}`; // probes assert on these
       this.scene.add(lamp);
     }
     const can1 = makeTrashCan(this.bank); can1.position.set(-19, 0.05, 7.45); this.scene.add(can1);
@@ -552,18 +584,29 @@ export class World {
     const barrier = makeBarrier(this.bank); barrier.position.set(-9.7, 0.05, 7.5); barrier.rotation.y = 0.35; this.scene.add(barrier);
 
     // ---- street trees in tree pits (seeded; never in front of a door) ----
+    // (-4, 7.15) moved to (-1.2, 7.15): the laundromat bay is there now, and
+    // a tree growing through the washers read exactly as broken.
     const treeSpots: Array<[number, number]> = [
-      [-34, 7.15], [-22, 7.15], [-4, 7.15], [20, 7.15], [32, 7.15],       // north
+      [-34, 7.15], [-22, 7.15], [-1.2, 7.15], [20, 7.15], [32, 7.15],     // north
       [-44, -7.0], [-30, -7.0], [-16, -7.0], [28, -7.0], [38, -7.0],      // south
       [-45, 4.7], [-38.6, 4.5],                                            // plaza park trees
     ];
+    // Four of the twelve are turning — the two plaza park trees (you meet
+    // them first, off the subway stairs) plus one tree each side of the
+    // street. Read as species, not as weather: honey locusts hold green,
+    // the ginkgos went gold. The rest of the block stays October-green.
+    const autumnTrees = new Set([2, 8, 10, 11]);
     const treeTops: number[] = []; // real canopy tops — leaf drift spawns under them
     for (let i = 0; i < treeSpots.length; i++) {
       const [tx, tz] = treeSpots[i];
+      // y=0.07: the pit rides ON the slab — soil top (0.105) and rim lip
+      // (0.155) both stand proud of the sidewalk (0.1). The first draft sat
+      // at 0.03 and the slab swallowed the soil whole: the "pit" showed tan
+      // paving inside a tan frame. A pit you can't see is not a pit.
       const pit = makeTreePit(this.bank);
-      pit.position.set(tx, 0.03, tz);
+      pit.position.set(tx, 0.07, tz);
       this.scene.add(pit);
-      const t = makeTree(this.bank, rng);
+      const t = makeTree(this.bank, rng, autumnTrees.has(i));
       t.group.position.set(tx, 0.05, tz);
       t.group.rotation.y = rng() * Math.PI * 2;
       this.scene.add(t.group);
@@ -645,28 +688,50 @@ export class World {
     // ---- pigeons + squirrel (seeded; behaviors in ambient.ts) ----
     // zBand keeps every bird and the squirrel on the sidewalk paving —
     // the road is for the cab, not for standing in.
+    // Plumage morphs: a real sidewalk flock is three greys, not twelve
+    // clones (skyline / ink / warm rufous), and some birds wear a cream
+    // nape blaze. All bank stock — variety costs zero extra materials.
+    const pigeonMats = {
+      body: this.bank.get(PAL.skyline), head: this.bank.get(PAL.ink), beak: this.bank.get(PAL.amber),
+      bodies: [this.bank.get(PAL.skyline), this.bank.get(PAL.ink), this.bank.get(PAL.bldg2)],
+      patch: this.bank.get(PAL.cream),
+    };
+    // groundY = 0.1: the north sidewalk slab tops out there, and a flock
+    // rooted at y = 0 stands knee-deep in the paving — at the curb seam the
+    // birds read half-buried (Doc 31, d3_plaza_pigeons_portrait). Every
+    // zBand below stays within the slab (z 4..8), so one height covers all.
     this.pigeonFlock = new PigeonFlock(
       this.scene,
-      { body: this.bank.get(PAL.skyline), head: this.bank.get(PAL.ink), beak: this.bank.get(PAL.amber) },
-      90210, { x: -40, z: 5 }, 2.4, 9, { min: 4.35, max: 7.2 },
+      pigeonMats,
+      90210, { x: -40, z: 5 }, 2.4, 9, { min: 4.35, max: 7.2 }, 0.1,
     );
+    this.pigeonFlock.group.name = 'Flock_Plaza'; // probes assert on these
     this.squirrel = new Squirrel(
       this.scene,
       { fur: this.bank.get(0x8a6a4a), tail: this.bank.get(0x7a5c48) },
-      7, { x: -36.4, z: 4.8 }, { min: 4.2, max: 7.4 },
+      7, { x: -36.4, z: 4.8 }, { min: 4.2, max: 7.4 }, 0.1,
     );
+    this.squirrel.group.name = 'Squirrel';
     // a small east-end flock — the plaza flock shouldn't own all the birds
     this.pigeonFlockEast = new PigeonFlock(
       this.scene,
-      { body: this.bank.get(PAL.skyline), head: this.bank.get(PAL.ink), beak: this.bank.get(PAL.amber) },
-      2718, { x: 30, z: 5 }, 1.8, 4, { min: 4.35, max: 6.2 },
+      pigeonMats,
+      2718, { x: 30, z: 5 }, 1.8, 4, { min: 4.35, max: 6.2 }, 0.1,
     );
+    this.pigeonFlockEast.group.name = 'Flock_East';
 
     // ---- leaf drift (early autumn; one instanced mesh, one draw call) ----
     // tops come from the trees we just grew (2.9..4.5 m), so leaves are born
     // inside a canopy, not mid-air below it; ground heights are derived per
-    // leaf inside LeafDrift (pit soil / sidewalk slab / asphalt).
-    const leafSpots = treeSpots.map(([lx, lz], i) => ({ x: lx, z: lz, r: 1.3, top: treeTops[i] }));
+    // leaf inside LeafDrift (pit soil / sidewalk slab / asphalt). Each tree
+    // sheds its OWN palette — the turning trees drop gold, the green ones
+    // green — a gold leaf under a green canopy reads as a mistake.
+    const GREEN_TINTS = [0x5d7d4a, 0x516e42, 0x516e42];
+    const TURNING_TINTS = [0xffb85c, 0xf7b32b, 0x516e42];
+    const leafSpots = treeSpots.map(([lx, lz], i) => ({
+      x: lx, z: lz, r: 1.3, top: treeTops[i],
+      tints: autumnTrees.has(i) ? TURNING_TINTS : GREEN_TINTS,
+    }));
     this.leaves = new LeafDrift(this.scene, leafSpots, 4);
 
     // ---- the stool (Day 3 purchase) + the kid at ground level ----
@@ -683,6 +748,33 @@ export class World {
     this.kidGround.rotation.y = Math.PI; // faces the street
     this.kidGround.visible = false;
     this.scene.add(this.kidGround);
+
+    // ---- the stranger (Day 4): the player's Day-1 mirror. Duffel bag,
+    // paper Map, that look. She stands where the story started. ----
+    this.stranger = this.spawnActor('TheStranger', -36.4, 0.05, 4.8, {
+      jacket: 0x4a6b5a, pants: 0x3d4a55, skin: 0xe8b08e, hair: 0x2b2730, style: 'bun',
+    });
+    this.stranger.rotation.y = Math.PI; // faces the street, like you did
+    this.stranger.visible = false;
+    // the duffel — a soft slab slung on her back, the whole biography
+    const duffel = new THREE.Group();
+    const bag = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.26, 0.2), this.mat(0x8a3b32));
+    bag.castShadow = true;
+    bag.position.set(0, 0.15, 0);
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.02), this.mat(0x6e2f28));
+    strap.position.set(0, 0.32, 0);
+    duffel.add(bag, strap);
+    duffel.position.set(0.05, 1.15, -0.24); // between the shoulders, on the back (model faces local +Z)
+    this.stranger.add(duffel);
+
+    // ---------------- Sal + Sunrise Laundry + the permit (docs/30) ---------
+    this.sal = this.spawnActor('Sal', -7.0, 0.05, 7.85, {
+      jacket: PAL.teal, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x9a938c, style: 'flat',
+    });
+    this.sal.rotation.y = Math.PI; // faces the street, chest-up behind his counter
+    this.permitReceipt = this.buildPermitReceipt();
+    this.permitReceipt.visible = false;
+    this.scene.add(this.permitReceipt);
 
     // ---------------- steam (manhole, animating) ----------------------------
     const steamCount = 24;
@@ -948,6 +1040,226 @@ export class World {
     g.position.set(x, 0, z);
     this.registerGlbProp('streetlamp', g);
     return g;
+  }
+
+  // ------------------------------------------------- Sunrise Laundry (docs/30)
+
+  /** Sunrise Laundry, opened up. A recessed open-front bay against the
+   *  building face: side piers, warm interior, two washers (the near one
+   *  spins while a wash runs), Sal's service counter, a teal awning and a
+   *  real sign. Colliders on everything solid — an open storefront you can
+   *  still walk into reads as broken, so the bay is furnished, not hollow. */
+  private buildLaundromat(): void {
+    const CX = -5; // bay center — same bay the flat prop occupied
+    // SIDEWALK LAW: the north walking lane (z ≈ 4–7.2) stays open. The bay
+    // lives between z=7.4 and the building face (z=8.0) — a recess one step
+    // deep, piers flush with the face. The first bay sat 0.4 m too proud and
+    // shoulder-checked everyone walking to the stoop; the E2E caught it.
+    // side piers (embedded into the building face at z=8.0)
+    this.solid('Laundry_Wall_W', CX - 2.925, 1.4, 7.7, 0.15, 2.8, 0.6, PAL.brick);
+    this.solid('Laundry_Wall_E', CX + 2.925, 1.4, 7.7, 0.15, 2.8, 0.6, PAL.brick);
+    this.deco('Laundry_Lintel', CX, 2.9, 7.7, 6.0, 0.5, 0.6, PAL.brick);
+    // the interior — a warm back wall just proud of the building face
+    const backMat = this.mat(PAL.interior, { emissive: PAL.amber, emissiveIntensity: 0.42 });
+    this.decoMesh('Laundry_Back', new THREE.BoxGeometry(5.85, 2.8, 0.06), backMat, CX, 1.4, 7.93);
+    this.deco('Laundry_Floor', CX, 0.12, 7.7, 5.85, 0.05, 0.6, 0xb9b1a6);
+    // two front-loaders, portholes to the street; the near drum spins on wash day
+    for (const [i, wx] of [[0, CX - 0.9], [1, CX + 0.3]] as const) {
+      const body = this.deco(`Laundry_Washer_${i}`, wx, 0.9, 7.75, 0.95, 1.5, 0.5, 0x9a938c);
+      body.castShadow = true;
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.045, 8, 18), this.mat(PAL.ink));
+      ring.position.set(wx, 0.85, 7.485);
+      this.scene.add(ring);
+      const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.03, 16), this.mat(0x2b2730));
+      glass.rotation.x = Math.PI / 2;
+      glass.position.set(wx, 0.85, 7.485);
+      this.scene.add(glass);
+      const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.04, 14), this.mat(PAL.cream));
+      drum.rotation.x = Math.PI / 2;
+      drum.position.set(wx, 0.85, 7.51);
+      this.scene.add(drum);
+      const load = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.05), this.mat(i === 0 ? PAL.coral : PAL.teal));
+      load.position.set(0.15, 0, 0.03); // rides the drum's radius — orbits when it spins
+      drum.add(load);
+      if (i === 0) this.washerLoad = drum;
+      this.colliders.push(boxFromCenter(wx, 0.9, 7.75, 0.95, 1.5, 0.5));
+    }
+    // a folded stack rides the far washer — the laundromat is working, even now
+    const stack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 0.4), this.mat(PAL.cream));
+    stack.position.set(CX + 0.3, 1.8, 7.75);
+    stack.castShadow = true;
+    this.scene.add(stack);
+    // Sal's service counter — waist-high (a real service counter), at the
+    // bay's mouth; Sal reads chest-up behind it. The first counter was
+    // chest-high and from the street it swallowed him whole — a head on a
+    // box is not a person. (Probe: sight-line over a 1.35 m counter hides
+    // everything below his chin at his depth.)
+    this.solid('Laundry_Counter', CX - 2.0, 0.525, 7.55, 1.5, 1.05, 0.4, PAL.teal);
+    // teal awning + real sign
+    const awn = this.deco('Laundry_Awning', CX, 2.5, 7.1, 6.0, 0.09, 1.3, PAL.teal);
+    awn.rotation.x = 0.3;
+    awn.castShadow = true;
+    this.decoMesh(
+      'Laundry_Sign',
+      new THREE.BoxGeometry(5.4, 0.8, 0.12),
+      this.signMaterials(D4_LAUNDRY_SIGN, 768, 128, PAL.teal, PAL.cream, 56),
+      CX, 3.42, 7.7,
+    );
+    // shirts on the sidewalk rack — west of the bay, tucked by the barrier
+    const rack = this.makeShirtRack();
+    rack.position.set(-8.55, 0.05, 7.55);
+    this.scene.add(rack);
+    this.colliders.push(boxFromCenter(-8.55, 0.6, 7.55, 0.6, 1.2, 0.3));
+    // the city's A-frame by the crosswalk — where you'll read it, clear of
+    // the crossing line (x=-5) by more than a shoulder
+    const notice = this.makePermitNotice();
+    notice.position.set(-4.0, 0.05, 5.8);
+    notice.rotation.y = 0.12;
+    this.scene.add(notice);
+    this.colliders.push(boxFromCenter(-4.0, 0.5, 5.8, 0.65, 1.0, 0.3));
+  }
+
+  /** Rolling shirt rack — two uprights, a bar, four honest shirts. The
+   *  frame is chunky on purpose: hairline posts read as floating shirts
+   *  from an oblique angle (the visual audit caught it). */
+  private makeShirtRack(): THREE.Group {
+    const iron = this.mat(PAL.ink);
+    const g = new THREE.Group();
+    for (const sx of [-0.26, 0.26]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 1.5, 8), iron);
+      post.position.set(sx, 0.75, 0);
+      post.castShadow = true;
+      g.add(post);
+      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.07, 0.6), iron);
+      foot.position.set(sx, 0.035, 0);
+      foot.castShadow = true;
+      g.add(foot);
+    }
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.56, 8), iron);
+    bar.rotation.z = Math.PI / 2;
+    bar.position.y = 1.48;
+    g.add(bar);
+    // a lower rail — rolling racks have one, and it keeps the silhouette
+    // grounded from any angle
+    const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.52, 8), iron);
+    rail.rotation.z = Math.PI / 2;
+    rail.position.y = 0.42;
+    g.add(rail);
+    for (const rz of [-0.24, 0.24]) {
+      const brace = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.34, 6), iron);
+      brace.position.set(0, 0.95, rz);
+      g.add(brace);
+    }
+    const shirts = [PAL.cream, PAL.coral, 0x9a938c, PAL.gold];
+    for (let i = 0; i < shirts.length; i++) {
+      const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.52, 0.06), this.mat(shirts[i]));
+      shirt.position.set(-0.19 + i * 0.127, 1.2, 0);
+      shirt.castShadow = true;
+      g.add(shirt);
+    }
+    return g;
+  }
+
+  /** The A-frame permit notice — a white city card where the crosswalk
+   *  drops you. The sign is small on purpose; the note carries the words. */
+  private makePermitNotice(): THREE.Group {
+    const g = new THREE.Group();
+    const face = new THREE.Mesh(
+      new THREE.BoxGeometry(0.62, 0.92, 0.04),
+      this.noticeTexture(),
+    );
+    face.position.set(0, 0.62, 0.1);
+    face.rotation.x = -0.18;
+    face.castShadow = true;
+    g.add(face);
+    const backBoard = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.92, 0.04), this.mat(0x9a938c));
+    backBoard.position.set(0, 0.62, -0.12);
+    backBoard.rotation.x = 0.18;
+    g.add(backBoard);
+    const hinge = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.05, 0.3), this.mat(PAL.ink));
+    hinge.position.y = 0.03;
+    g.add(hinge);
+    return g;
+  }
+
+  private noticeTexture(): THREE.MeshLambertMaterial {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 384;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = '#FFF8F0';
+    ctx.fillRect(0, 0, 256, 384);
+    ctx.strokeStyle = '#3A3440';
+    ctx.lineWidth = 8;
+    ctx.strokeRect(8, 8, 240, 368);
+    ctx.fillStyle = '#3A3440';
+    ctx.fillRect(8, 8, 240, 56);
+    ctx.fillStyle = '#FFF8F0';
+    ctx.font = '800 26px "Trebuchet MS", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(D4_NOTICE_TITLE, 128, 45, 220);
+    ctx.fillStyle = '#3A3440';
+    ctx.font = '800 22px "Trebuchet MS", sans-serif';
+    let y = 110;
+    for (const line of D4_NOTICE_LINES) {
+      ctx.fillText(line, 128, y, 220);
+      y += 40;
+    }
+    ctx.font = '400 15px "Trebuchet MS", sans-serif';
+    ctx.fillText('Room 102 — bring exact change', 128, 330, 220);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return new THREE.MeshLambertMaterial({ map: tex });
+  }
+
+  /** The receipt — propped against the urn the moment the permit files.
+   *  "The whole future, on a card." */
+  private buildPermitReceipt(): THREE.Group {
+    const g = new THREE.Group();
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 160;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = '#FFF8F0';
+    ctx.fillRect(0, 0, 128, 160);
+    ctx.strokeStyle = '#3A3440';
+    ctx.lineWidth = 5;
+    ctx.strokeRect(4, 4, 120, 152);
+    ctx.fillStyle = '#3A3440';
+    ctx.font = '800 22px "Trebuchet MS", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(D4_RECEIPT_TEXT, 64, 40, 108);
+    for (const ly of [70, 88, 106]) {
+      ctx.fillRect(20, ly, 88, 4);
+    }
+    ctx.font = '400 13px "Trebuchet MS", sans-serif';
+    ctx.fillText('keep this card', 64, 138, 104);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const card = new THREE.Mesh(
+      new THREE.BoxGeometry(0.3, 0.4, 0.02),
+      new THREE.MeshLambertMaterial({ map: tex }),
+    );
+    card.castShadow = true;
+    g.add(card);
+    // taped to the cart's street-side face — the way the city makes you
+    // display your papers. (The counter top sits under the awning's
+    // overhang: from the street the first spot was invisible, and the
+    // second read as a tan box in shade. This one faces you at the window.)
+    g.position.set(4.5, 0.8, -6.04);
+    g.rotation.set(0.05, Math.PI, 0);
+    return g;
+  }
+
+  /** Wash-day state — the near drum spins while the apron is in the machine. */
+  setWasherRunning(run: boolean): void {
+    this.washerRunning = run;
+  }
+
+  isWasherRunning(): boolean {
+    return this.washerRunning;
+  }
+
+  setPermitReceiptVisible(v: boolean): void {
+    this.permitReceipt.visible = v;
   }
 
   private waterTower(x: number, roofY: number, z: number, r: number) {
@@ -1397,6 +1709,10 @@ export class World {
     for (const t of this.trees) {
       t.canopy.rotation.z = Math.sin(this.ambientTime * 0.9 + t.phase) * 0.022;
       t.canopy.rotation.x = Math.cos(this.ambientTime * 0.7 + t.phase) * 0.016;
+    }
+    // the near washer spins while the apron is in the machine (Rule of Steam)
+    if (this.washerRunning && this.washerLoad) {
+      this.washerLoad.rotation.y += dt * 5.2;
     }
     const pp = player ? { x: player.x, z: player.z } : undefined;
     this.pigeonFlock.update(dt, pp, dusk);
