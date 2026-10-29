@@ -67,6 +67,10 @@ export class World {
   readonly kidGround: THREE.Group;   // the kid at ground level (Day 3)
   readonly stool: THREE.Group;       // the Day 3 purchase, hidden until bought
   readonly flyerMat: THREE.MeshLambertMaterial;
+  // ---- Day 4 — "Say Hi" (docs/29) ----
+  readonly stranger: THREE.Group;    // the new arrival — the player's Day-1 mirror
+  readonly fourthWindowMat!: THREE.MeshLambertMaterial; // the lamp next door
+  readonly fourthGlow: THREE.Sprite;
   private readonly bank: MatBank;
   private readonly trees: Array<{ canopy: THREE.Group; phase: number }> = [];
   private readonly pigeonFlock: PigeonFlock;
@@ -348,6 +352,11 @@ export class World {
           // the third window — Day 3's golden-hour payoff (docs/28 §E)
           this.thirdWindowMat = this.mat(dim, { emissive: PAL.gold, emissiveIntensity: 0 });
           this.decoMesh('ThirdWindow', new THREE.BoxGeometry(1.2, 1.6, 0.08), this.thirdWindowMat, p[0], p[1], p[2]);
+        } else if (row === 2 && col === 3) {
+          // the lamp next door — Day 2's wave note promised it ("flickers,
+          // thinks about it, and stays on too"). Day 4 keeps that promise.
+          this.fourthWindowMat = this.mat(dim, { emissive: PAL.gold, emissiveIntensity: 0 });
+          this.decoMesh('FourthWindow', new THREE.BoxGeometry(1.2, 1.6, 0.08), this.fourthWindowMat, p[0], p[1], p[2]);
         } else {
           this.decoMesh(`Window_${row}_${col}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), dimMat, p[0], p[1], p[2]);
         }
@@ -362,6 +371,9 @@ export class World {
     this.thirdGlow = this.makeGlow(2.6);
     this.thirdGlow.position.set(16.5, 9, 7.6);
     this.scene.add(this.thirdGlow);
+    this.fourthGlow = this.makeGlow(2.2);
+    this.fourthGlow.position.set(19.5, 9, 7.6);
+    this.scene.add(this.fourthGlow);
 
     // ---------------- skyline card (far north-east, above the low building) -
     const heights = [38, 62, 45, 80, 52, 70, 40, 58];
@@ -685,6 +697,24 @@ export class World {
     this.kidGround.rotation.y = Math.PI; // faces the street
     this.kidGround.visible = false;
     this.scene.add(this.kidGround);
+
+    // ---- the stranger (Day 4): the player's Day-1 mirror. Duffel bag,
+    // paper Map, that look. She stands where the story started. ----
+    this.stranger = this.spawnActor('TheStranger', -36.4, 0.05, 4.8, {
+      jacket: 0x4a6b5a, pants: 0x3d4a55, skin: 0xe8b08e, hair: 0x2b2730, style: 'bun',
+    });
+    this.stranger.rotation.y = Math.PI; // faces the street, like you did
+    this.stranger.visible = false;
+    // the duffel — a soft slab slung on her back, the whole biography
+    const duffel = new THREE.Group();
+    const bag = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.26, 0.2), this.mat(0x8a3b32));
+    bag.castShadow = true;
+    bag.position.set(0, 0.15, 0);
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.02), this.mat(0x6e2f28));
+    strap.position.set(0, 0.32, 0);
+    duffel.add(bag, strap);
+    duffel.position.set(0.05, 1.15, -0.24); // between the shoulders, on the back (model faces local +Z)
+    this.stranger.add(duffel);
 
     // ---------------- steam (manhole, animating) ----------------------------
     const steamCount = 24;

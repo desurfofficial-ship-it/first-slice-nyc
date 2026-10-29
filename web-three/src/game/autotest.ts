@@ -331,10 +331,10 @@ export function runAutotest(game: Game): void {
         await walkTo(4, -5.2, 10);
         await interact();
         const brewT0 = performance.now();
-        while (s.d3Brewing && performance.now() - brewT0 < 9000) await nextFrame();
+        while (s.brewing && performance.now() - brewT0 < 9000) await nextFrame();
         await waitFrames(4);
       }
-      check(!s.d3Brewing && s.step === Step.D3_KIDDOWN, 'four orders brewed and served');
+      check(!s.brewing && s.step === Step.D3_KIDDOWN, 'four orders brewed and served');
       check(s.money === 130, `morning rush pays $19 (got $${s.money})`);
       check(game.world.kidGround.visible, 'the kid is waiting at the stoop');
 
@@ -389,12 +389,87 @@ export function runAutotest(game: Game): void {
       await walkTo(12.5, -6.8, 8);
       await interact();
       check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight (day 3)' + snap());
-      await interact();
-      await waitMs(500);
-      check(s.day === 3 && !dbg.dayFading(), 'day 4 does not begin \u2014 the light stays a little longer');
       const save3 = loadSave();
       check(save3.day === 3 && save3.day_complete === true && save3.stool === true && save3.money === 120,
         `save holds day 3 complete: $${save3.money}, stool=${save3.stool}`);
+
+      // ============================================================ Day 4
+      // "Say Hi" (docs/29) — the Hospitality Law chapter. The rail's second
+      // press used to hit the wall ("still being written"); Day 4 EXISTS now,
+      // so the same press begins it. The kid lives on the stool; a stranger
+      // with a duffel bag stands where this whole story started.
+      await interact();
+      await waitMs(2400);
+      check(s.day === 4 && s.step === Step.D4_WAKE, 'day 4 begins \u2014 the light stayed because someone keeps it');
+      check(loadSave().day === 4, 'day-4 snapshot written');
+      check(game.world.kidGround.visible && !game.world.kidSil.visible,
+        'the kid is on his stool at sunrise, not in the window');
+
+      await interact();
+      check(s.step === Step.D4_STRANGER, 'Rosa points at the terminal');
+      check(game.world.stranger.visible, 'the stranger is standing by the terminal');
+
+      // the Day-1 mirror walk — out to the terminal, now habitual
+      await walkTo(-36.0, 5.0, 48);
+      await interact();
+      check(s.strangerMet && s.money === 122 && s.step === Step.D4_RUSH,
+        `the greeting pays Rosa\u2019s $2 (got $${s.money})`);
+      check(!!game.customer, 'Idris opens the rush behind you \u2014 like every day');
+
+      // the rush — three real orders, $11, while she walks your first walk
+      // (the first walk is the long one: terminal → cart is ~41 m, and
+      // sim time lags real time under software rendering)
+      for (let i = 0; i < 3; i++) {
+        await walkTo(4, -5.2, i === 0 ? 48 : 10);
+        await interact();
+        const brewT0 = performance.now();
+        while (s.brewing && performance.now() - brewT0 < 9000) await nextFrame();
+        await waitFrames(4);
+      }
+      check(!s.brewing && s.step === Step.D4_MAP, 'three orders brewed and served');
+      check(s.money === 133, `day 4 pays $13 all in (got $${s.money})`);
+
+      // the Map beat gates on her arrival — poll, never sample
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < 60000 && !s.strangerAtCart) await nextFrame();
+      }
+      check(s.strangerAtCart, 'the stranger reached the cart on her own two feet');
+      await walkTo(2.6, -4.6, 12);
+      await interact();
+      check(s.mapGiven && s.step === Step.D4_CLIMB4, 'the Map changed hands');
+      check(game.world.stranger.visible, 'she is walking west with the Map');
+
+      await walkTo(9.4, -7.2, 48, true);
+      check(game.player.ladder !== null, 'day 4: grabbed ladder 1' + snap());
+      await holdUntil('KeyW', () => p().y > 3.6, 10);
+      await holdUntil('KeyD', () => game.player.ladder === null, 4);
+      await waitFrames(20);
+      await walkTo(16.2, -7.2, 12, true);
+      check(game.player.ladder !== null, `day 4: grabbed ladder 2 (pos=${p().x.toFixed(1)},${p().z.toFixed(1)})` + snap());
+      await holdUntil('KeyW', () => p().y >= 8.34, 14);
+      check(p().y <= 8.36, `day 4: ladder caps at the rail (y=${p().y.toFixed(2)})` + snap());
+      await holdUntil('KeyA', () => game.player.ladder === null, 4);
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < 30000 && !(s.step === Step.D4_POSTCARD && !game.ui.postcardPanel.hidden)) await nextFrame();
+      }
+      check(s.step === Step.D4_POSTCARD && !game.ui.postcardPanel.hidden, 'day 4 postcard composes' + snap());
+      check(dbg.caption().includes('Day 4'), 'postcard says Day 4' + snap());
+      check(dbg.fourthIntensity() > 2.5, 'the lamp next door stays on \u2014 the light stays' + snap());
+      check(game.world.kidGround.visible, 'the kid is at the corner below, on his stool');
+      await interact();
+      check(!game.player.frozen, 'day 4 end lingers too' + snap());
+
+      await walkTo(12.5, -6.8, 8);
+      await interact();
+      check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight (day 4)' + snap());
+      await interact();
+      await waitMs(500);
+      check(s.day === 4 && !dbg.dayFading(), 'day 5 does not begin \u2014 the wall holds, honestly');
+      const save4 = loadSave();
+      check(save4.day === 4 && save4.day_complete === true && save4.stool === true && save4.map_given === true && save4.money === 133,
+        `save holds day 4 complete: $${save4.money}, map=${save4.map_given}, stool=${save4.stool}`);
     } catch (err) {
       check(false, `driver exception: ${(err as Error).message}`);
       console.error(err);

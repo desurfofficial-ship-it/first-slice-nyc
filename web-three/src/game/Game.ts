@@ -9,8 +9,9 @@
 import * as THREE from 'three';
 import { GameState, Step, INTERACT_RANGE, START_MONEY, type Effect } from '../core/GameState';
 import { composeCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE_OBJECTIVE,
-  D3_ORDERS, BREWING_NOTE, STOOL_OFFER_NOTE, STOOL_UP_NOTE, D3_GOLDEN_NOTE,
-  D3_CLIMB_NOTE, DAY3_BEGIN_NOTE } from '../core/content';
+  D3_ORDERS, D4_ORDERS, BREWING_NOTE, STOOL_OFFER_NOTE, STOOL_UP_NOTE, D3_GOLDEN_NOTE,
+  D3_CLIMB_NOTE, DAY3_BEGIN_NOTE, D4_GOLDEN_NOTE, D4_CLIMB_NOTE, DAY4_BEGIN_NOTE,
+  D4_STRANGER_ONHOUSE_NOTE, D4_STRANGER_WATCH_NOTE, D4_STRANGER_DEPART_NOTE } from '../core/content';
 import { loadSave, writeSave, type SaveData } from '../core/Save';
 import { PAL } from '../core/palette';
 import { World, phys } from '../world/World';
@@ -136,7 +137,7 @@ export class Game {
     this.world.scene.add(this.playerVisual);
 
     // the rest of the cast joins the animator (walk/idle/breathe)
-    this.cast.push(this.world.rosa, this.world.idris, this.world.kidSil, this.world.kidGround);
+    this.cast.push(this.world.rosa, this.world.idris, this.world.kidSil, this.world.kidGround, this.world.stranger);
 
     // ---------------- interactables (main.gd `_build_interactables`) --------
     this.interactables = [
@@ -151,6 +152,7 @@ export class Game {
       { id: 'rail', pos: () => ({ x: 12.5, y: 8.0, z: -6.8 }) },
       { id: 'kid', pos: () => this.world.kidGround.position },
       { id: 'poster', pos: () => ({ x: -37.6, y: 1.5, z: 7.4 }) },
+      { id: 'stranger', pos: () => this.world.stranger.position },
     ];
     this.world.addItem('mango', -18, 2.25, 19.2, PAL.amber);
     this.world.addItem('coffee', -16, 2.25, 19.2, PAL.teal);
@@ -265,15 +267,15 @@ export class Game {
     this.player.camYaw = this.cam.camYaw;
 
     // world life (Rule of Steam) — the taxi yields to the pedestrian AND the
-    // kid; trees breathe, pigeons worry about your shoes
-    this.world.update(
-      dt, this.player.capsule, this.duskStarted,
-      this.world.kidGround.visible ? [{ x: this.world.kidGround.position.x, z: this.world.kidGround.position.z }] : undefined,
-    );
+    // kid AND the stranger; trees breathe, pigeons worry about your shoes
+    const peds: Array<{ x: number; z: number }> = [];
+    if (this.world.kidGround.visible) peds.push({ x: this.world.kidGround.position.x, z: this.world.kidGround.position.z });
+    if (this.world.stranger.visible) peds.push({ x: this.world.stranger.position.x, z: this.world.stranger.position.z });
+    this.world.update(dt, this.player.capsule, this.duskStarted, peds);
     this.syncGlows();
 
-    // Day 3: the urn runs on its own clock; the kid walks at your hip
-    if (s.d3Brewing) {
+    // Day 3+4: the urn runs on its own clock; the kid walks at your hip
+    if (s.brewing) {
       this.brewTimer -= dt;
       if (this.brewTimer <= 0) {
         for (const e of s.completeBrew()) this.applyEffect(e);
@@ -332,6 +334,8 @@ export class Game {
     (this.world.secondGlow.material as THREE.SpriteMaterial).opacity = g2 * 0.8;
     const g3 = clamp01((this.world.thirdWindowMat.emissiveIntensity ?? 0) / 3.2);
     (this.world.thirdGlow.material as THREE.SpriteMaterial).opacity = g3 * 0.8;
+    const g4 = clamp01((this.world.fourthWindowMat.emissiveIntensity ?? 0) / 3.2);
+    (this.world.fourthGlow.material as THREE.SpriteMaterial).opacity = g4 * 0.8;
   }
 
   // ------------------------------------------------------------------ zones
@@ -381,7 +385,7 @@ export class Game {
 
     // top landing (main.gd `_reach_top`)
     if (!this.reachedTopFired && capsuleInBox(c, this.world.topLandingZone)) {
-      if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3) {
+      if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4) {
         this.reachedTopFired = true;
         this.reachTop();
       }
@@ -396,13 +400,13 @@ export class Game {
       this.checkpoint = { x: 9.4, y: 0.05, z: -5.5 };
       this.startDusk();
     }
-    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3) {
+    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4) {
       this.ui.setObjective('Climb.');
     }
   }
 
   private onLadderLeave(): void {
-    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3) {
+    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4) {
       this.ladderHintPending = true;
     }
   }
@@ -424,7 +428,7 @@ export class Game {
     // the fire escape you had just correctly climbed.
     if (this.ladderHintPending && this.player.ladder === null && this.player.onGround && this.player.capsule.y < 1.0) {
       this.ladderHintPending = false;
-      if (s.step === Step.CLIMB || s.step === Step.D2_CLIMB2 || s.step === Step.D3_CLIMB3) {
+      if (s.step === Step.CLIMB || s.step === Step.D2_CLIMB2 || s.step === Step.D3_CLIMB3 || s.step === Step.D4_CLIMB4) {
         this.ui.setObjective('The fire escape, around the corner. Rosa will not let this go.');
         this.ui.showNote('Rosa, from somewhere behind you: \u201CFire escape! Around the corner! You found it once!\u201D');
       }
@@ -478,6 +482,9 @@ export class Game {
           // isDay2 chat branch (day 3 is also day >= 2, and the chat would
           // swallow the wake beat whole).
           for (const e of s.rosaD3Wake()) this.applyEffect(e);
+        } else if (s.step === Step.D4_WAKE) {
+          // Day 4 morning, same law: the wake beat first, chat second.
+          for (const e of s.rosaD4Wake()) this.applyEffect(e);
         } else if (s.isDay2) {
           const { effects } = s.rosaTask();
           for (const e of effects) this.applyEffect(e);
@@ -495,7 +502,7 @@ export class Game {
           if (this.customer) {
             for (const e of s.serveCart()) this.applyEffect(e);
           }
-        } else if (s.step === Step.D3_RUSH) {
+        } else if (s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) {
           if (this.customer) {
             for (const e of s.startBrew()) this.applyEffect(e);
           }
@@ -511,6 +518,13 @@ export class Game {
         break;
       case 'kid':
         for (const e of s.kidJoins()) this.applyEffect(e);
+        break;
+      case 'stranger':
+        if (s.step === Step.D4_STRANGER) {
+          for (const e of s.greetStranger()) this.applyEffect(e);
+        } else if (s.step === Step.D4_MAP) {
+          for (const e of s.giveMap()) this.applyEffect(e);
+        }
         break;
       case 'poster':
         for (const e of s.seePoster()) this.applyEffect(e);
@@ -626,6 +640,29 @@ export class Game {
         this.ui.showNote(STOOL_UP_NOTE);
         this.persist(); // the stool is bought money — save it the moment it happens
         break;
+      case 'stranger-arrive':
+        this.showStranger();
+        break;
+      case 'stranger-to-cart':
+        // the follow-up lines ride on her walk — one note at a time, like
+        // the street would tell it
+        this.tweens.sequence(
+          this.tweens.call(() => this.ui.showNote(D4_STRANGER_ONHOUSE_NOTE)),
+          this.tweens.wait(3.2),
+          this.tweens.call(() => this.ui.showNote(D4_STRANGER_WATCH_NOTE)),
+        );
+        this.startStrangerWalkToCart();
+        break;
+      case 'stranger-departs':
+        this.tweens.sequence(
+          this.tweens.wait(2.4),
+          this.tweens.call(() => this.ui.showNote(D4_STRANGER_DEPART_NOTE)),
+        );
+        this.startStrangerDepartWalk();
+        break;
+      case 'map-given':
+        this.persist(); // the Map changed hands — it stays given
+        break;
       case 'awning-offer':
         this.ui.showNote('An awning kit leans against the cart, teal like Rosa\u2019s. $15, cash. [Space] again to put it up.');
         break;
@@ -676,6 +713,78 @@ export class Game {
     t.sequence(...seq);
   }
 
+  /** Day 4: the stranger appears at the terminal — the spot where the whole
+   *  story started, facing the street like you did. */
+  private showStranger(): void {
+    const she = this.world.stranger;
+    she.position.set(-36.4, 0.05, 4.8);
+    she.rotation.y = Math.PI;
+    she.visible = true;
+  }
+
+  /** Multi-leg scripted walk for the persistent cast (the Rosa-walk pattern:
+   *  ~2 m/s, faces her direction of travel every leg). */
+  private walkActor(
+    actor: THREE.Group, legs: Array<[number, number]>, speed: number, done?: () => void,
+  ): void {
+    const t = this.tweens;
+    const seq: Tween[] = [];
+    for (let i = 1; i < legs.length; i++) {
+      const [x0, z0] = legs[i - 1];
+      const [x1, z1] = legs[i];
+      const dur = Math.max(0.2, Math.hypot(x1 - x0, z1 - z0) / speed);
+      seq.push(t.call(() => { actor.rotation.y = Math.atan2(x1 - x0, z1 - z0); }));
+      seq.push(t.parallel(
+        t.num(() => actor.position.x, (v) => { actor.position.x = v; }, x1, dur),
+        t.num(() => actor.position.z, (v) => { actor.position.z = v; }, z1, dur),
+      ));
+    }
+    if (done) seq.push(t.call(done));
+    t.sequence(...seq);
+  }
+
+  /** She walks YOUR first walk — terminal, north sidewalk, the crosswalk
+   *  (the only place the cab waits), then the last meters to your cart.
+   *  The Map beat gates on her arrival, never on a timer. */
+  private startStrangerWalkToCart(): void {
+    const she = this.world.stranger;
+    this.walkActor(she, [
+      [-36.4, 4.8],  // the terminal — where Rosa found you
+      [-30, 5.5],    // north sidewalk, east
+      [-16, 5.5],
+      [-8, 5.4],
+      [-5, 4.4],     // crosswalk north edge
+      [-5, -3.4],    // the Shuffle (the cab yields — she's on the pedestrian list)
+      [-5, -4.5],    // south curb
+      [0.8, -4.6],
+      [2.6, -4.6],   // the cart's west flank, a customer's distance
+    ], 2.0, () => {
+      she.rotation.y = Math.atan2(4 - 2.6, -6.6 + 4.6); // faces the cart
+      this.state.strangerAtCart = true;
+      if (this.state.step === Step.D4_MAP) {
+        this.ui.setObjective('She\u2019s at the cart. There\u2019s something you can give her that isn\u2019t coffee.');
+      }
+    });
+  }
+
+  /** And she leaves the way you would — the crosswalk, the north sidewalk,
+   *  the city. Gone means gone: the corner does not own her. */
+  private startStrangerDepartWalk(): void {
+    const she = this.world.stranger;
+    this.walkActor(she, [
+      [2.6, -4.6],
+      [-2.5, -4.6],
+      [-5, -4.5],    // back to the crosswalk
+      [-5, 4.4],
+      [-5, 5.5],     // north side
+      [-16, 5.5],
+      [-30, 5.5],
+      [-35.5, 5.2],  // the terminal, going in
+    ], 2.0, () => {
+      she.visible = false;
+    });
+  }
+
   private startDusk(): void {
     if (this.duskStarted) return;
     this.duskStarted = true;
@@ -707,13 +816,16 @@ export class Game {
 
   private reachTop(): void {
     const s = this.state;
+    const day4 = s.step === Step.D4_CLIMB4;
     const day3 = s.step === Step.D3_CLIMB3;
     const day2 = s.step === Step.D2_CLIMB2;
-    s.setStep(day3 ? Step.D3_POSTCARD : (day2 ? Step.D2_POSTCARD : Step.POSTCARD));
+    s.setStep(day4 ? Step.D4_POSTCARD : (day3 ? Step.D3_POSTCARD : (day2 ? Step.D2_POSTCARD : Step.POSTCARD)));
     this.ui.setObjective('');
     this.startDusk();
     this.player.frozen = true;
-    this.ui.showNote(day3
+    this.ui.showNote(day4
+      ? D4_CLIMB_NOTE
+      : day3
       ? D3_CLIMB_NOTE
       : (day2
         ? 'Same seat. The city kept it warm for you.'
@@ -742,7 +854,8 @@ export class Game {
       t.wait(1.0),
       t.call(() => {
         this.lightGoldWindow();
-        if (day3) this.goldenBeat3();
+        if (day4) this.goldenBeat4();
+        else if (day3) this.goldenBeat3();
         else if (day2) this.kidDuskWave();
       }),
       t.wait(2.6),
@@ -777,6 +890,36 @@ export class Game {
       }
     }
     this.ui.showNote(D3_GOLDEN_NOTE);
+  }
+
+  /** Day 4's golden-hour payoff: the lamp next door — the one that flickered
+   *  and hesitated on Day 2 — finally stays on. Somewhere out there, someone
+   *  new is reading a Map upside down. The kid waves from his stool. */
+  private goldenBeat4(): void {
+    const t = this.tweens;
+    const flick: ReturnType<Tweens['num']>[] = [];
+    for (const e of [1.2, 0.1, 2.0, 0.0, 0.6, 0.0, 1.6]) {
+      flick.push(t.num(() => this.world.fourthWindowMat.emissiveIntensity, (v) => { this.world.fourthWindowMat.emissiveIntensity = v; }, e, 0.16, (x) => x));
+    }
+    flick.push(t.num(() => this.world.fourthWindowMat.emissiveIntensity, (v) => { this.world.fourthWindowMat.emissiveIntensity = v; }, 2.8, 0.9));
+    t.sequence(...flick);
+    // the kid, down on his stool, waves without looking away from the cart
+    if (this.world.kidGround.visible) {
+      const rig = this.world.kidGround.userData.rig as PersonRig | undefined;
+      if (rig) {
+        rig.mode = 'wave';
+        t.sequence(
+          t.num(() => rig.armR.rotation.x, (v) => { rig.armR.rotation.x = v; }, -2.6, 0.3),
+          t.num(() => rig.armR.rotation.z, (v) => { rig.armR.rotation.z = v; }, 0.5, 0.25),
+          t.num(() => rig.armR.rotation.z, (v) => { rig.armR.rotation.z = v; }, -0.3, 0.5),
+          t.call(() => {
+            rig.armR.rotation.x = -0.38; rig.armR.rotation.z = -0.14;
+            rig.mode = this.state.kidAtCorner ? 'sit' : 'auto';
+          }),
+        );
+      }
+    }
+    this.ui.showNote(D4_GOLDEN_NOTE);
   }
 
   /** Flicker, then hold (main.gd `_light_gold_window`). */
@@ -830,7 +973,7 @@ export class Game {
       day: s.day, replay: s.replayDay, dayStartMoney: s.dayStartMoney, money: s.money, cartName: s.cartName,
     });
     if (s.day > 1) s.dayComplete = true;
-    s.setStep(s.day >= 3 ? Step.D3_POSTCARD : (s.day > 1 ? Step.D2_POSTCARD : Step.DONE));
+    s.setStep(s.day >= 4 ? Step.D4_POSTCARD : (s.day === 3 ? Step.D3_POSTCARD : (s.day > 1 ? Step.D2_POSTCARD : Step.DONE)));
     this.ui.setObjective('');
 
     let url: string;
@@ -861,7 +1004,7 @@ export class Game {
     this.cam.pose = 'follow';
     const effects = this.state.dismissPostcard();
     for (const e of effects) this.applyEffect(e);
-    if (this.state.step === Step.POSTCARD || this.state.step === Step.D2_POSTCARD || this.state.step === Step.D3_POSTCARD) {
+    if (this.state.step === Step.POSTCARD || this.state.step === Step.D2_POSTCARD || this.state.step === Step.D3_POSTCARD || this.state.step === Step.D4_POSTCARD) {
       this.ui.setObjective(LINGER_OBJECTIVE);
     }
   }
@@ -882,6 +1025,7 @@ export class Game {
     rosaIntensity: () => this.world.rosaWindowMat.emissiveIntensity,
     secondIntensity: () => this.world.secondWindowMat.emissiveIntensity,
     thirdIntensity: () => this.world.thirdWindowMat.emissiveIntensity,
+    fourthIntensity: () => this.world.fourthWindowMat.emissiveIntensity,
     cupVisible: () => this.cupProp.visible,
     caption: () => document.getElementById('postcard-caption')?.textContent ?? '',
     objective: () => this.ui.objectiveText,
@@ -912,10 +1056,11 @@ export class Game {
       : this.world.makeCustomerVisual(color, skin, hair);
     g.position.set(x, 0.05, z);
     g.name = isIdris ? 'MrIdris' : 'Customer';
-    // Day 3 rush: every order is a real order — the bubble says what's wanted
+    // Day 3+4 rush: every order is a real order — the bubble says what's wanted
     const s = this.state;
-    const order = D3_ORDERS[s.d3Index];
-    if (s.isDay3 && s.step === Step.D3_RUSH && order) {
+    const queue = s.step === Step.D4_RUSH ? D4_ORDERS : D3_ORDERS;
+    const order = queue[s.rushIndex];
+    if ((s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) && order) {
       const bubble = this.world.makeOrderBubble(order.bubble);
       bubble.position.set(0, 2.35, 0);
       g.add(bubble);
@@ -955,10 +1100,13 @@ export class Game {
 
   // ------------------------------------------------------------------ day 3
 
-  /** The kid, at the bottom of the stoop — ground level, first time ever. */
+  /** The kid, at the bottom of the stoop — ground level, first time ever.
+   *  The window silhouette goes dark: he can't be at the glass and on the
+   *  street at the same time (canon — continuity of one kid). */
   private showKidGround(): void {
     const kid = this.world.kidGround;
     kid.visible = true;
+    this.world.kidSil.visible = false;
     kid.position.set(15, 0.05, 6.35);
     kid.rotation.y = Math.PI;
   }
@@ -1044,21 +1192,28 @@ export class Game {
       s.awningUp = sd.awning;
       s.kidKept = sd.kid_kept;
       s.stoolUp = sd.stool ?? false;
-    } else {
-      s.stoolUp = false;
+      s.mapGiven = sd.map_given ?? false;
     }
+    // sd === null (a rail "Tomorrow"): the live state carries the wallet, the
+    // name, the awning — and the STOOL. The stool is bought, the Map is
+    // given; no morning un-buys a chair. (The old code reset the stool here —
+    // harmless while only Day 3 followed the rail, a continuity bug the
+    // moment Day 4 began expecting its furniture.)
     // day-start money snapshot (Doc 22's "$112 → $111" math; the reference
     // never updates day_start_money on Day 2 — fixed here as intended behavior).
     s.dayStartMoney = (sd !== null && sd.day_start_money !== undefined) ? sd.day_start_money : s.money;
-    // day-3 morning state resets fresh each begin (mid-day saves resume at the morning)
-    s.d3Index = 0;
-    s.d3Brewing = false;
+    // day-3/4 morning state resets fresh each begin (mid-day saves resume at the morning)
+    s.rushIndex = 0;
+    s.brewing = false;
     this.brewTimer = 0;
     this.brewingNoteShown = false;
     s.kidDown = false;
     s.kidAtCorner = false;
     s.stoolConfirm = false;
     s.posterSeen = false;
+    s.strangerMet = false;
+    s.strangerAtCart = false;
+    this.world.stranger.visible = false;
     this.ui.setMoneyQuiet(s.money);
     if (s.cartName) this.applyCartIdentity(s.cartName);
     this.world.cartAwning.visible = s.awningUp; // rebuild the world to match the save
@@ -1066,7 +1221,8 @@ export class Game {
     this.world.kidGround.visible = false;
     this.world.setFlyerText(s.cartName || 'YOUR CORNER'); // the flyer learns your name
     this.toMorningLight();
-    if (n >= 3) this.placeDay3Cast();
+    if (n >= 4) this.placeDay4Cast();
+    else if (n === 3) this.placeDay3Cast();
     else this.placeDay2Cast();
     this.player.capsule.x = 3; this.player.capsule.y = 0.05; this.player.capsule.z = -5.4;
     this.player.vy = 0;
@@ -1076,9 +1232,20 @@ export class Game {
     this.world.goldWindowMat.emissiveIntensity = 4.0; // the kid's window stays lit — Day 1 happened
     this.world.secondWindowMat.emissiveIntensity = 0;
     this.world.thirdWindowMat.emissiveIntensity = 0;
-    if (s.kidKept) this.showKid();
+    this.world.fourthWindowMat.emissiveIntensity = 0;
+    if (s.kidKept && n < 4) this.showKid(); // in the glass until Day 4 — down here, he lives at the corner
 
-    if (n >= 3) {
+    if (n >= 4) {
+      // the kid LIVES at the corner now — he takes his stool at sunrise
+      if (s.stoolUp) {
+        this.sitKid();
+        s.kidDown = true;
+        s.kidAtCorner = true;
+      }
+      s.setStep(Step.D4_WAKE);
+      this.ui.setObjective(s.objectiveText());
+      this.ui.showNote(DAY4_BEGIN_NOTE);
+    } else if (n === 3) {
       s.setStep(Step.D3_WAKE);
       this.ui.setObjective(s.objectiveText());
       this.ui.showNote(DAY3_BEGIN_NOTE);
@@ -1143,6 +1310,13 @@ export class Game {
     if (this.rosaBroom) this.rosaBroom.visible = false; // off duty today
     // Idris starts the rush as a customer — spawned by rosaD3Wake, hidden here
     this.world.idris.visible = false;
+  }
+
+  /** Day 4 morning cast — same corner, one chair warmer. The stranger stays
+   *  hidden until Rosa's news says her name out loud. */
+  private placeDay4Cast(): void {
+    this.placeDay3Cast(); // Rosa at the cart, Idris waiting to spawn, broom off duty
+    this.world.stranger.visible = false; // she arrives with the news
   }
 
   /** main.gd `_persist` — day 1 never writes. */

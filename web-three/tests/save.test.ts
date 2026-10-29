@@ -58,7 +58,7 @@ describe('save v1 — field clamping (resume exact, nothing out of range)', () =
 describe('save v1 — write/read roundtrip', () => {
   it('writes and reads the same fields', () => {
     const store = memoryStore();
-    const data = { day: 2, day_complete: true, replay: false, cart_name: "Wade's Spot", money: 111, awning: true, kid_kept: true, idris_served: true, lunch_served: 3, stool: false };
+    const data = { day: 2, day_complete: true, replay: false, cart_name: "Wade's Spot", money: 111, awning: true, kid_kept: true, idris_served: true, lunch_served: 3, stool: false, map_given: false };
     expect(writeSave(data, store)).toBe(true);
     const loaded = loadSave(store);
     // day_start_money defaults to the saved money when absent (web v1 extension)

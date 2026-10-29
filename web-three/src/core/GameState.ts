@@ -5,8 +5,9 @@
  */
 
 import { MAX_DAY, type SaveData } from './Save';
-import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, D3_ORDERS,
-  D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE } from './content';
+import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, D3_ORDERS, D4_ORDERS,
+  D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
+  D4_WAKE_NOTE, D4_STRANGER_GREET_NOTE, D4_RUSH_DONE_NOTE, D4_MAP_NOTE } from './content';
 
 export const Step = {
   MEET_ROSA: 0,
@@ -34,7 +35,14 @@ export const Step = {
   D3_POSTER: 21,
   D3_CLIMB3: 22,
   D3_POSTCARD: 23,
-  DONE: 24,
+  // ---- Day 4 — "Say Hi" (docs/29) ----
+  D4_WAKE: 24,
+  D4_STRANGER: 25,
+  D4_RUSH: 26,
+  D4_MAP: 27,
+  D4_CLIMB4: 28,
+  D4_POSTCARD: 29,
+  DONE: 30,
 } as const;
 export type Step = (typeof Step)[keyof typeof Step];
 
@@ -74,6 +82,10 @@ export type Effect =
   | { kind: 'kid-sits' }
   | { kind: 'stool-offer' }
   | { kind: 'stool-up' }
+  | { kind: 'stranger-arrive' }
+  | { kind: 'stranger-to-cart' }
+  | { kind: 'stranger-departs' }
+  | { kind: 'map-given' }
   | { kind: 'persist' };
 
 export class GameState {
@@ -99,13 +111,17 @@ export class GameState {
   elapsed = 0;
   onDay2 = false;
   // ---- Day 3 ----
-  d3Index = 0;          // which order in the morning queue is at the cart
-  d3Brewing = false;    // an order is being made — repeat presses do nothing
+  rushIndex = 0;        // which order in the morning queue is at the cart (Day 3 + 4)
+  brewing = false;      // an order is being made — repeat presses do nothing
   kidDown = false;      // the kid has come down and joined you
   kidAtCorner = false;  // he reached the cart on his own two feet
   stoolUp = false;      // the Day 3 purchase
   stoolConfirm = false; // the awning-style confirm gate
   posterSeen = false;
+  // ---- Day 4 ----
+  mapGiven = false;       // the Map changed hands
+  strangerMet = false;    // you said the thing Rosa said
+  strangerAtCart = false; // she finished walking your first walk
 
   get isDay2(): boolean {
     return this.day >= 2;
@@ -113,6 +129,10 @@ export class GameState {
 
   get isDay3(): boolean {
     return this.day >= 3;
+  }
+
+  get isDay4(): boolean {
+    return this.day >= 4;
   }
 
   objectiveText(): string {
@@ -147,11 +167,15 @@ export class GameState {
     switch (id) {
       case 'rosa':
         return this.step === Step.MEET_ROSA || (this.isDay2 && this.step <= Step.D2_CLIMB2)
-          || (this.isDay3 && this.step >= Step.D3_WAKE && this.step <= Step.D3_CLIMB3);
+          || (this.isDay3 && this.step >= Step.D3_WAKE && this.step <= Step.D3_CLIMB3)
+          || (this.isDay4 && this.step >= Step.D4_WAKE && this.step <= Step.D4_MAP);
       case 'kid':
         return this.step === Step.D3_KIDDOWN && !this.kidDown;
       case 'poster':
         return this.step === Step.D3_POSTER;
+      case 'stranger':
+        return this.step === Step.D4_STRANGER
+          || (this.step === Step.D4_MAP && this.strangerAtCart);
       case 'counter':
         return this.step === Step.RUSH;
       case 'idris':
@@ -160,12 +184,15 @@ export class GameState {
         return this.step === Step.D2_DELIVER;
       case 'rail':
         return this.step === Step.POSTCARD || this.step === Step.D2_POSTCARD || this.step === Step.D3_POSTCARD
+          || this.step === Step.D4_POSTCARD
           || (this.step === Step.DONE && this.lingerStage >= 1);
       case 'cart':
         if (this.step === Step.CLAIM_CART || this.step === Step.SOLO || this.step === Step.D2_LUNCH
-          || this.step === Step.D3_RUSH || this.step === Step.D3_STOOL) return true;
+          || this.step === Step.D3_RUSH || this.step === Step.D3_STOOL
+          || this.step === Step.D4_RUSH) return true;
         return (this.isDay2 && this.step >= Step.D2_WAKE && this.step < Step.D2_POSTCARD)
-          || (this.isDay3 && this.step >= Step.D3_WAKE && this.step < Step.D3_POSTCARD);
+          || (this.isDay3 && this.step >= Step.D3_WAKE && this.step < Step.D3_POSTCARD)
+          || (this.isDay4 && this.step >= Step.D4_WAKE && this.step < Step.D4_POSTCARD);
       default:
         return id.startsWith('item_') && this.step === Step.COLLECT;
     }
@@ -321,30 +348,39 @@ export class GameState {
     return out;
   }
 
-  /** A serve press at the cart during the Day 3 rush. Starts a brew — no
-   *  instant cups. Returns [] when nothing should happen (no customer, or a
+  /** A serve press at the cart during a morning rush. Starts a brew — no
+   *  instant cups. Returns [] when nothing should happen (no order, or a
    *  brew already running: repeated input can never double-serve). */
   startBrew(): Effect[] {
-    if (this.step !== Step.D3_RUSH || this.d3Brewing) return [];
-    const order = D3_ORDERS[this.d3Index];
+    if (this.brewing) return [];
+    if (this.step !== Step.D3_RUSH && this.step !== Step.D4_RUSH) return [];
+    const queue = this.step === Step.D3_RUSH ? D3_ORDERS : D4_ORDERS;
+    const order = queue[this.rushIndex];
     if (!order) return [];
-    this.d3Brewing = true;
+    this.brewing = true;
     return [{ kind: 'brew-start' }];
   }
 
   /** The brew timer ran out (Game owns the clock). Pays, reacts, queues the
-   *  next order — or sends the kid down when the rush is done. */
+   *  next order — or sends the kid down / opens the Map beat when done. */
   completeBrew(): Effect[] {
-    if (!this.d3Brewing) return [];
-    this.d3Brewing = false;
-    const order = D3_ORDERS[this.d3Index];
+    if (!this.brewing) return [];
+    this.brewing = false;
+    const day4 = this.step === Step.D4_RUSH;
+    const queue = day4 ? D4_ORDERS : D3_ORDERS;
+    const order = queue[this.rushIndex];
     if (!order) return [];
-    this.d3Index += 1;
+    this.rushIndex += 1;
     const out: Effect[] = [{ kind: 'serve-customer' }, ...this.earn(order.pay)];
-    if (this.d3Index >= D3_ORDERS.length) {
-      out.push({ kind: 'note', text: 'Four orders. The urn is warm, the stool fund is real, and the corner is starting to say so back.' });
-      out.push(...this.setStep(Step.D3_KIDDOWN));
-      out.push({ kind: 'kid-down' });
+    if (this.rushIndex >= queue.length) {
+      if (day4) {
+        out.push({ kind: 'note', text: D4_RUSH_DONE_NOTE });
+        out.push(...this.setStep(Step.D4_MAP));
+      } else {
+        out.push({ kind: 'note', text: 'Four orders. The urn is warm, the stool fund is real, and the corner is starting to say so back.' });
+        out.push(...this.setStep(Step.D3_KIDDOWN));
+        out.push({ kind: 'kid-down' });
+      }
     } else {
       out.push({ kind: 'note', text: order.reaction });
       out.push({ kind: 'spawn-customer', who: order.who === 'idris' ? 'rush' : 'rush', x: 4, z: -4.6 });
@@ -409,6 +445,52 @@ export class GameState {
     return [
       { kind: 'note', text: D3_POSTER_NOTE },
       ...this.setStep(Step.D3_CLIMB3),
+    ];
+  }
+
+  // ---------------------------------------------------------------- Day 4 ----
+
+  /** Rosa's morning-four news, at the cart: someone new by the terminal.
+   *  The stranger appears the moment she says it — the terminal beat comes
+   *  FIRST (you can't serve coffee and greet a newcomer with the same hands);
+   *  the rush opens when the greeting lands. */
+  rosaD4Wake(): Effect[] {
+    if (this.step !== Step.D4_WAKE) return [];
+    return [
+      { kind: 'note', text: D4_WAKE_NOTE },
+      { kind: 'stranger-arrive' },
+      ...this.setStep(Step.D4_STRANGER),
+    ];
+  }
+
+  /** The terminal beat — the Day-1 mirror. You make her a regular, on the
+   *  house. Rosa's rule keeps the money honest: she pays YOU back. The
+   *  stranger then walks your first walk to the cart on her own feet, and
+   *  the rush opens behind you (Idris first, like every day). The follow-up
+   *  lines are staged by Game while she walks (one note at a time). */
+  greetStranger(): Effect[] {
+    if (this.step !== Step.D4_STRANGER || this.strangerMet) return [];
+    this.strangerMet = true;
+    return [
+      { kind: 'note', text: D4_STRANGER_GREET_NOTE },
+      ...this.earn(2), // Rosa's rule: on the house for HER is not free
+      { kind: 'stranger-to-cart' },
+      ...this.setStep(Step.D4_RUSH),
+      { kind: 'spawn-customer', who: 'idris', x: 4, z: -4.6 },
+    ];
+  }
+
+  /** The Map changes hands — the one thing you own that isn't the cart.
+   *  She leaves with it, walking your first walk in reverse (Game stages
+   *  the send-off line once she's under way). */
+  giveMap(): Effect[] {
+    if (this.step !== Step.D4_MAP || !this.strangerAtCart || this.mapGiven) return [];
+    this.mapGiven = true;
+    return [
+      { kind: 'note', text: D4_MAP_NOTE },
+      { kind: 'stranger-departs' },
+      ...this.setStep(Step.D4_CLIMB4),
+      { kind: 'persist' },
     ];
   }
 
@@ -485,11 +567,25 @@ export class GameState {
       lunch_served: this.lunchServed,
       day_start_money: this.dayStartMoney,
       stool: this.stoolUp,
+      map_given: this.mapGiven,
     };
   }
 }
 
 function rosaChatLineOf(s: GameState): { text: string; nextChatIndex: number } {
+  if (s.isDay4) {
+    if (!s.strangerMet) {
+      return { text: 'Rosa: \u201CTerminal. Duffel bag. That look. You know the words now \u2014 go use them.\u201D', nextChatIndex: s.rosaChatI };
+    }
+    if (!s.mapGiven) {
+      return { text: 'Rosa: \u201CYour old Map\u2019s behind the counter. It always pointed home, even upside down.\u201D', nextChatIndex: s.rosaChatI };
+    }
+    const lines4 = [
+      'Rosa: \u201CFour windows now. FOUR. I counted twice.\u201D',
+      'Rosa: \u201CShe\u2019ll be back Tuesday. They always come back Tuesday.\u201D',
+    ];
+    return { text: lines4[s.rosaChatI % 2], nextChatIndex: (s.rosaChatI + 1) % 2 };
+  }
   if (s.isDay3) {
     if (!s.kidAtCorner) {
       return { text: 'Rosa: \u201CHe\u2019s at the stoop. Take your time \u2014 first times are slow on purpose.\u201D', nextChatIndex: s.rosaChatI };
