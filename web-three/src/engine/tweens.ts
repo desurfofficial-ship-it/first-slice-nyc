@@ -23,7 +23,7 @@ interface WaitTween { kind: 'wait'; duration: number; elapsed: number; }
 interface CallTween { kind: 'call'; fn: () => void; fired: boolean; }
 interface GroupTween { kind: 'parallel' | 'sequence'; children: Tween[]; index: number; }
 
-type Tween = NumTween | RgbTween | WaitTween | CallTween | GroupTween;
+export type Tween = NumTween | RgbTween | WaitTween | CallTween | GroupTween;
 
 export class Tweens {
   private roots: Tween[] = [];

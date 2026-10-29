@@ -5,7 +5,7 @@
  */
 
 import { MAX_DAY, type SaveData } from './Save';
-import { OBJECTIVES, DEFAULT_CART_NAME } from './content';
+import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote } from './content';
 
 export const Step = {
   MEET_ROSA: 0,
@@ -163,7 +163,11 @@ export class GameState {
   collect(id: string): Effect[] {
     if (this.step !== Step.COLLECT || !this.itemsLeft.has(id)) return [];
     this.itemsLeft.delete(id);
-    const out: Effect[] = [{ kind: 'collect', id }];
+    const out: Effect[] = [
+      { kind: 'collect', id },
+      // playtest 2026-10-29: picking used to be silent — say what was taken
+      { kind: 'note', text: itemPickNote(id, this.itemsLeft.size) },
+    ];
     if (this.itemsLeft.size === 0) {
       out.push(...this.setStep(Step.RUSH));
       out.push({ kind: 'spawn-customer', who: 'rush', x: -18.0, z: 11.0 });

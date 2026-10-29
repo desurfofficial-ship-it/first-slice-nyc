@@ -2,6 +2,10 @@
  * All game text — verbatim from the reference implementation (greybox-godot/scripts/main.gd)
  * and the design docs (Doc 02 first-session walkthrough, Doc 08 Day 1 content pack,
  * Doc 22 Day 2). Text is content: it does not get paraphrased during a migration.
+ *
+ * Recorded additions beyond the reference (playtest 2026-10-29, Doc 24 §5):
+ * the shelf items are named on screen and in the objective, and picking one
+ * says what you picked. The reference was silent on all three counts.
  */
 
 import type { GameState } from './GameState';
@@ -9,8 +13,8 @@ import type { GameState } from './GameState';
 /** Objective line per step (main.gd `_set_step`). */
 export const OBJECTIVES: Record<number, string> = {
   0:  'Someone by the terminal is waving at you.',                       // MEET_ROSA
-  1:  'Follow Rosa into the bodega with the warm window.',               // ENTER_BODEGA
-  2:  'Rosa needs three things from the back shelf.',                    // COLLECT
+  1:  'Follow Rosa — she\u2019s heading for the bodega with the warm window.',  // ENTER_BODEGA
+  2:  'Rosa needs three things from the back shelf: a mango, coffee, and bread.', // COLLECT
   3:  'The rush is here. Serve at the counter.',                         // RUSH
   4:  'Your corner is across the street. Use the crosswalk.',            // CROSS
   5:  'That empty corner is waiting. Walk up to it.',                    // CLAIM_CART
@@ -140,6 +144,29 @@ export const DAY_BEYOND_NOTE = (n: number) =>
 export const ROSA_GREET_NOTE =
   'Rosa: \u201CHoney, your Map is upside down. Come on, I\u2019ll show you.\u201D';
 
+/** Shelf items, named — the shelf stopped being three anonymous cubes. */
+export const ITEM_LABELS: Record<string, string> = {
+  mango: 'Mango',
+  coffee: 'Coffee',
+  bread: 'Bread',
+};
+
+/** One flavor line per item, order-independent (the shelf is picked in any order). */
+const ITEM_FLAVOR: Record<string, string> = {
+  mango: 'Heavy for its size — that\'s how you know it\'s a good one.',
+  coffee: 'The tin with the faded label — the one the regulars ask for.',
+  bread: 'Still warm from the morning tray.',
+};
+
+/** What picking something says out loud — nobody wonders what they just took. */
+export function itemPickNote(id: string, leftAfter: number): string {
+  const label = (ITEM_LABELS[id] ?? id).toLowerCase();
+  const flavor = ITEM_FLAVOR[id] ?? '';
+  if (leftAfter === 2) return `The ${label}. ${flavor} Two more to find.`;
+  if (leftAfter === 1) return `The ${label}. ${flavor} One more.`;
+  return `The ${label}. ${flavor} That's three — “Perfect,” Rosa says, and the bell over the door rings.`;
+}
+
 /** Prompt verbs (main.gd `_update_prompt`). */
 export function promptVerb(id: string, s: GameState): string {
   switch (id) {
@@ -153,7 +180,10 @@ export function promptVerb(id: string, s: GameState): string {
       if (s.step === 7 /* SOLO */ || s.step === 14 /* D2_LUNCH */) return 'Serve';
       if (s.day >= 2 && !s.awningUp && s.money >= 15) return 'Awning \u2014 $15';
       return 'Serve';
-    default: return 'Take'; // shelf items
+    case 'item_mango': return 'Take the mango';
+    case 'item_coffee': return 'Take the coffee';
+    case 'item_bread': return 'Take the bread';
+    default: return 'Take'; // anything else on a shelf
   }
 }
 

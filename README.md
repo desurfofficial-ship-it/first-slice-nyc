@@ -171,6 +171,8 @@ first-slice-nyc/
 │   ├── styleframes/      # Locked visual targets
 │   └── greybox-day1/     # Real captures + first postcard
 ├── greybox-godot/        # Playable Day 1 greybox (Godot 4.7)
+├── web-three/            # The browser game (Three.js) — live on Pages
+├── tools3d/              # Local .glb generation pipeline (TRELLIS + parametric)
 └── AGENTS.md             # Agent operating rules & skills
 ```
 

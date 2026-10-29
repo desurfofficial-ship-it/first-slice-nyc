@@ -7,7 +7,9 @@
  */
 
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PAL } from '../core/palette';
+import { ITEM_LABELS } from '../core/content';
 import { boxFromCenter, type AABB } from '../engine/collide';
 
 export interface LadderInfo { area: AABB; top: number; }
@@ -44,6 +46,9 @@ export class World {
   readonly kidSil: THREE.Group;
   readonly goldGlow: THREE.Sprite;
   readonly secondGlow: THREE.Sprite;
+
+  private readonly gltfLoader = new GLTFLoader();
+  private readonly gltfCache = new Map<string, Promise<THREE.Group | null>>();
 
   private steamPoints: THREE.Points;
   private steamSeed: Float32Array;
@@ -105,7 +110,8 @@ export class World {
     this.sun.shadow.camera.near = 1;
     this.sun.shadow.camera.far = 160;
     this.sun.shadow.camera.updateProjectionMatrix();
-    this.sun.shadow.bias = -0.0006;
+    this.sun.shadow.bias = -0.0002;
+    this.sun.shadow.normalBias = 0.03; // large flat walls — kill shadow acne crawl
     scene.add(this.sun);
     scene.add(this.sun.target);
 
@@ -114,7 +120,8 @@ export class World {
     this.solid('Sidewalk_N', 0, -0.05, 6, 100, 0.3, 4, PAL.walk, { receive: true, cast: false });
     this.solid('Sidewalk_S', 0, -0.05, -6, 100, 0.3, 4, PAL.walk, { receive: true, cast: false });
     for (let i = 0; i < 6; i++) {
-      this.deco('Crosswalk', -5, 0.01, -3.3 + i * 1.3, 3, 0.02, 0.6, PAL.cream);
+      // lifted clear of the road top (coplanar bottoms shimmered at grazing angles)
+      this.deco('Crosswalk', -5, 0.03, -3.3 + i * 1.3, 3, 0.02, 0.6, PAL.cream);
     }
 
     // ---------------- buildings ----------------
@@ -122,9 +129,15 @@ export class World {
     this.solid('Bldg_N_East_A', -1, 9, 14, 20, 18, 12, PAL.bldg2);
     this.solid('Bldg_N_GoldWindow', 15, 5.5, 14, 12, 11, 12, PAL.brick);
     this.solid('Bldg_N_East_B', 35, 8, 14, 28, 16, 12, PAL.bldg);
-    // Terminal door + sign (west building, faces the street)
+    // Terminal door + sign (west building, faces the street). The sign gets a
+    // real label — the block stopped being a maze of anonymous boxes.
     this.deco('Terminal_Door', -30, 1.4, 7.95, 3, 2.8, 0.15, PAL.teal);
-    this.deco('Terminal_Sign', -30, 3.4, 7.95, 5, 0.8, 0.15, PAL.stone);
+    this.decoMesh(
+      'Terminal_Sign',
+      new THREE.BoxGeometry(5, 0.8, 0.15),
+      this.signMaterials('BUS TERMINAL', 640, 96, PAL.stone, PAL.ink, 56),
+      -30, 3.4, 7.95,
+    );
 
     this.solid('Bldg_S_West', -25, 8, -14, 50, 16, 12, PAL.bldg2);
     this.solid('Bldg_S_FireEscape', 13, 7, -14, 26, 14, 12, PAL.brick);
@@ -144,16 +157,23 @@ export class World {
     this.solid('Bodega_Front_L', -19.25, h / 2, 8.2, 3.5, h, 0.4, PAL.brick);
     this.solid('Bodega_Front_R', -12.75, h / 2, 8.2, 3.5, h, 0.4, PAL.brick);
     this.solid('Bodega_Front_Lintel', -16, 3.8, 8.2, 3, 1.4, 0.4, PAL.brick);
+    // "ROSA'S" — the building has a name now (playtest: nobody knew whose store it was).
+    this.decoMesh(
+      'Bodega_Sign',
+      new THREE.BoxGeometry(5.8, 1.05, 0.12),
+      this.signMaterials("ROSA'S BODEGA", 768, 128, PAL.gold, PAL.ink, 72),
+      -16, 3.82, 7.94,
+    );
     // The warm window (emission 0.55 — main.gd comment: "the warm window, actually warm")
     this.rosaWindowMat = this.mat(PAL.amber, { emissive: PAL.amber, emissiveIntensity: 0.55 });
-    this.decoMesh('Bodega_Window', new THREE.BoxGeometry(2.6, 1.6, 0.05), this.rosaWindowMat, -19.25, 1.8, 7.98);
-    this.deco('Bodega_Awning', -16, 3.2, 7.4, 10, 0.15, 1.4, PAL.teal);
+    this.decoMesh('Bodega_Window', new THREE.BoxGeometry(2.6, 1.6, 0.05), this.rosaWindowMat, -19.25, 1.8, 7.97);
+    this.deco('Bodega_Awning', -16, 3.2, 7.6, 10, 0.15, 1.2, PAL.teal);
     this.roof = this.solid('Bodega_Roof', -16, h + 0.15, 14, 10, 0.3, 12, PAL.bldg);
     this.solid('Bodega_Counter', -19.6, 0.55, 13.5, 1.2, 1.1, 6, PAL.teal);
     this.solid('Bodega_BackShelf', -16, 1.0, 19.3, 6, 2.0, 0.6, PAL.bldg2);
 
     // ---------------- props (Rule of Steam: something is always moving) ----
-    this.deco('Manhole', -10, 0.01, 0.5, 1.2, 0.02, 1.2, PAL.manhole);
+    this.deco('Manhole', -10, 0.025, 0.5, 1.2, 0.02, 1.2, PAL.manhole);
     const hydrant = new THREE.Mesh(
       new THREE.CylinderGeometry(0.18, 0.18, 0.9, 10),
       this.mat(PAL.coral),
@@ -162,25 +182,27 @@ export class World {
     hydrant.castShadow = true;
     this.scene.add(hydrant);
 
-    // Taxi (no collider in the reference — a moving lantern, not a wall)
-    this.taxi = new THREE.Group();
-    const taxiBody = new THREE.Mesh(new THREE.BoxGeometry(4, 1.0, 1.9), this.mat(PAL.taxi));
-    taxiBody.position.y = 0.55;
-    const taxiCab = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.7, 1.7), this.mat(PAL.taxi));
-    taxiCab.position.set(-0.2, 1.35, 0);
-    this.taxi.add(taxiBody, taxiCab);
-    const wheelMat = this.mat(PAL.manhole);
-    for (const [wx, wz] of [[-1.3, 0.95], [1.3, 0.95], [-1.3, -0.95], [1.3, -0.95]]) {
-      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.22, 12), wheelMat);
-      w.rotation.x = Math.PI / 2;
-      w.position.set(wx, 0.32, wz);
-      this.taxi.add(w);
-    }
+    // Taxi (no collider in the reference — a moving lantern, not a wall).
+    // Rebuilt from the car builder: window band, wheels with hubs, bumpers,
+    // lights, roof sign — the two-box cab read as “not a car”.
+    this.taxi = this.buildCar('taxi');
     this.taxi.position.set(-45, 0, -2);
     this.scene.add(this.taxi);
 
+    // A parked sedan on the south curb (street life; collides — it's a car).
+    const sedan = this.buildCar('sedan');
+    sedan.position.set(24, 0, -3.05);
+    sedan.rotation.y = Math.PI;
+    this.scene.add(sedan);
+    this.colliders.push(boxFromCenter(24, 0.75, -3.05, 4.4, 1.5, 1.95));
+
     // Player corner — "a waiting rectangle of different paving"
-    this.deco('PlayerCorner', 4, 0.11, -6, 8, 0.02, 3.6, PAL.stone);
+    this.deco('PlayerCorner', 4, 0.12, -6, 8, 0.02, 3.6, PAL.stone);
+
+    // The teal door (Day 2's delivery target — the objective says "the teal
+    // door across the street"; now there is one, under the gold window).
+    this.decoMesh('Stoop_Door', new THREE.BoxGeometry(1.4, 2.6, 0.12), this.mat(PAL.teal), 15, 1.3, 7.92);
+    this.decoMesh('Stoop_Knob', new THREE.SphereGeometry(0.05, 8, 8), this.mat(PAL.gold), 15.45, 1.3, 7.84);
 
     // ---------------- fire escape (main.gd `_build_fire_escape`) ------------
     const railCol = PAL.ink;
@@ -284,11 +306,11 @@ export class World {
     this.scene.add(this.cartAwning);
 
     // ---------------- cast (Rosa, Idris, the kid) ---------------------------
-    this.rosa = this.npc('Rosa', -27, 0.05, 6.8, PAL.coral);
-    this.idris = this.npc('Idris', -2, 0.05, -4.6, PAL.plum);
+    this.rosa = this.spawnActor('Rosa', -27, 0.05, 6.8, { jacket: 0xff6b6b, pants: PAL.ink, skin: 0xe8b08e, hair: 0x9a938c, style: 'bun' }, 'rosa.glb');
+    this.idris = this.spawnActor('Idris', -2, 0.05, -4.6, { jacket: PAL.plum, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x241f1c, style: 'cap' }, 'idris.glb');
     this.idris.visible = false;
-    this.kidSil = this.npc('TheKid', 13.5, 8.6, 7.86, 0x514659);
-    this.kidSil.scale.setScalar(0.42);
+    this.kidSil = this.spawnActor('TheKid', 13.5, 8.6, 7.86, { jacket: 0x514659, pants: 0x473e50, skin: 0x514659, hair: 0x453b4c, style: 'flat' }, 'kid.glb');
+    this.kidSil.scale.setScalar(0.5);
     this.kidSil.visible = false;
 
     // ---------------- steam (manhole, animating) ----------------------------
@@ -313,24 +335,55 @@ export class World {
   // ------------------------------------------------------------------ helpers
 
   /** The three bodega shelf items (mango / coffee / bread) — non-colliding deco. */
-  readonly itemMeshes = new Map<string, THREE.Mesh>();
+  readonly itemMeshes = new Map<string, THREE.Group>();
 
-  addItem(id: string, x: number, y: number, z: number, color: number): THREE.Mesh {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), this.mat(color, { emissive: color, emissiveIntensity: 0.25 }));
-    m.name = `Item_${id}`;
-    m.position.set(x, y, z);
-    m.castShadow = true;
-    this.scene.add(m);
-    this.itemMeshes.set(id, m);
-    return m;
+  addItem(id: string, x: number, y: number, z: number, _color: number): THREE.Group {
+    void _color; // shape + label now carry the identity; palette stays on the item itself
+    const g = new THREE.Group();
+    g.name = `Item_${id}`;
+    g.position.set(x, y - 0.25, z); // anchor sits on the shelf top (y=2.0)
+    const add = (m: THREE.Mesh) => { m.castShadow = true; g.add(m); };
+    if (id === 'mango') {
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 10), this.mat(0xf7a83b, { emissive: 0xf7a83b, emissiveIntensity: 0.18 }));
+      body.scale.y = 0.88;
+      body.position.y = 0.24;
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.08, 6), this.mat(0x4a3a30));
+      stem.position.y = 0.5;
+      add(body); add(stem);
+    } else if (id === 'coffee') {
+      const tin = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.42, 12), this.mat(PAL.teal, { emissive: PAL.teal, emissiveIntensity: 0.18 }));
+      tin.position.y = 0.21;
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.165, 0.165, 0.15, 12), this.mat(PAL.cream));
+      band.position.y = 0.21;
+      add(tin); add(band);
+    } else {
+      // bread
+      const loaf = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.2, 0.26), this.mat(0xd9a05b, { emissive: 0xd9a05b, emissiveIntensity: 0.14 }));
+      loaf.position.y = 0.1;
+      const crust = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.07, 0.28), this.mat(0xb3773f));
+      crust.position.y = 0.21;
+      add(loaf); add(crust);
+    }
+    // the name floats above the shelf — nobody picks a mystery box
+    const label = this.makeLabel(ITEM_LABELS[id] ?? id);
+    label.position.y = 0.95;
+    g.add(label);
+    this.scene.add(g);
+    this.itemMeshes.set(id, g);
+    return g;
   }
 
   removeItem(id: string): boolean {
-    const m = this.itemMeshes.get(id);
-    if (!m) return false;
-    this.scene.remove(m);
-    m.geometry.dispose();
-    (m.material as THREE.Material).dispose();
+    const g = this.itemMeshes.get(id);
+    if (!g) return false;
+    this.scene.remove(g);
+    g.traverse((o) => {
+      if (o instanceof THREE.Mesh || o instanceof THREE.Sprite) {
+        (o as THREE.Mesh).geometry?.dispose?.();
+        const m = o.material as THREE.Material;
+        m?.dispose?.();
+      }
+    });
     this.itemMeshes.delete(id);
     return true;
   }
@@ -365,7 +418,7 @@ export class World {
     return m;
   }
 
-  private decoMesh(name: string, geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number): THREE.Mesh {
+  private decoMesh(name: string, geo: THREE.BufferGeometry, mat: THREE.Material | THREE.Material[], x: number, y: number, z: number): THREE.Mesh {
     const m = new THREE.Mesh(geo, mat);
     m.name = name;
     m.position.set(x, y, z);
@@ -375,6 +428,7 @@ export class World {
 
   private waterTower(x: number, roofY: number, z: number, r: number) {
     const g = new THREE.Group();
+    roofY += 0.04; // sit a hair proud of the roof plane — coplanar rims shimmered
     const tank = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.05, r * 1.6, 10), this.mat(0x7a5c48));
     tank.position.y = r * 0.8;
     const cone = new THREE.Mesh(new THREE.ConeGeometry(r * 1.15, r * 0.7, 10), this.mat(0x5d4536));
@@ -390,16 +444,173 @@ export class World {
     this.scene.add(g);
   }
 
-  private npc(name: string, x: number, y: number, z: number, color: number): THREE.Group {
+  /**
+   * A person who reads as a person — boots, legs, torso, arms, hands, head
+   * with hair (bun / cap / flat). ~1.72 m, feet at y=0, faces +Z. This is the
+   * fallback visual; the generated .glb from tools3d/procedural_glb.py
+   * replaces it when it loads (same numbers, same look).
+   */
+  buildPerson(o: { jacket: number; pants: number; skin: number; hair: number; style?: 'bun' | 'cap' | 'flat' }): THREE.Group {
     const g = new THREE.Group();
+    const mk = (geo: THREE.BufferGeometry, color: number, x: number, y: number, z: number, rz = 0) => {
+      const m = new THREE.Mesh(geo, this.mat(color));
+      m.position.set(x, y, z);
+      m.rotation.z = rz;
+      m.castShadow = true;
+      g.add(m);
+      return m;
+    };
+    for (const sx of [-0.11, 0.11]) {
+      mk(new THREE.BoxGeometry(0.16, 0.1, 0.28), PAL.ink, sx, 0.05, 0.03);
+      mk(new THREE.BoxGeometry(0.13, 0.62, 0.16), o.pants, sx, 0.41, 0);
+    }
+    mk(new THREE.BoxGeometry(0.5, 0.62, 0.3), o.jacket, 0, 1.03, 0);
+    for (const [sx, rz] of [[-0.325, 0.09], [0.325, -0.09]] as const) {
+      mk(new THREE.BoxGeometry(0.11, 0.52, 0.13), o.jacket, sx, 1.06, 0, rz);
+      mk(new THREE.BoxGeometry(0.09, 0.09, 0.09), o.skin, sx * 1.06, 0.78, 0.01);
+    }
+    mk(new THREE.BoxGeometry(0.3, 0.32, 0.28), o.skin, 0, 1.5, 0.01);
+    mk(new THREE.BoxGeometry(0.32, 0.13, 0.3), o.hair, 0, 1.7, -0.015);
+    mk(new THREE.BoxGeometry(0.32, 0.2, 0.07), o.hair, 0, 1.58, -0.135);
+    if (o.style === 'bun') {
+      const bun = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), this.mat(o.hair));
+      bun.position.set(0, 1.76, -0.14);
+      bun.castShadow = true;
+      g.add(bun);
+    } else if (o.style === 'cap') {
+      mk(new THREE.BoxGeometry(0.3, 0.03, 0.16), o.hair, 0, 1.635, 0.15);
+      mk(new THREE.BoxGeometry(0.32, 0.1, 0.31), o.hair, 0, 1.695, -0.01);
+    }
+    return g;
+  }
+
+  /** Persistent cast member: built-in person now, generated .glb when it lands. */
+  private spawnActor(name: string, x: number, y: number, z: number, look: Parameters<World['buildPerson']>[0], glbFile: string): THREE.Group {
+    const g = this.buildPerson(look);
     g.name = name;
-    const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 1.7 - 0.64, 6, 14), this.mat(color));
-    mesh.position.y = 0.85;
-    mesh.castShadow = true;
-    g.add(mesh);
     g.position.set(x, y, z);
     this.scene.add(g);
+    void this.applyGlb(g, glbFile);
     return g;
+  }
+
+  /** Loads public/models/<file> and swaps it in for the fallback geometry. */
+  async applyGlb(target: THREE.Group, file: string): Promise<void> {
+    const loaded = await this.loadModel(file);
+    if (!loaded || !target.parent) return; // fallback stays if the file is missing
+    target.clear();
+    target.add(loaded);
+  }
+
+  private loadModel(file: string): Promise<THREE.Group | null> {
+    let p = this.gltfCache.get(file);
+    if (!p) {
+      const url = `${import.meta.env.BASE_URL}models/${file}`;
+      p = this.gltfLoader.loadAsync(url)
+        .then((gltf) => {
+          const root = gltf.scene as THREE.Group;
+          root.traverse((o) => {
+            if (o instanceof THREE.Mesh) {
+              o.castShadow = true;
+              // harmonize with the game's Lambert look (GLB arrives PBR)
+              const src = o.material as THREE.MeshStandardMaterial;
+              const lam = new THREE.MeshLambertMaterial({ color: src?.color?.clone() ?? 0xffffff });
+              o.material = lam;
+            }
+          });
+          return root;
+        })
+        .catch(() => null); // offline/missing file → built-in geometry is the visual
+      this.gltfCache.set(file, p);
+    }
+    return p;
+  }
+
+  /** Shared customer builder (transient — no GLB fetch per spawn). */
+  makeCustomerVisual(color: number, skin: number, hair: number): THREE.Group {
+    return this.buildPerson({ jacket: color, pants: 0x54495e, skin, hair, style: Math.random() < 0.5 ? 'bun' : 'flat' });
+  }
+
+  /** Lowpoly car — nose at +X, axle along Z. Mirrors tools3d/procedural_glb.py. */
+  buildCar(kind: 'taxi' | 'sedan'): THREE.Group {
+    const bodyCol = kind === 'taxi' ? PAL.taxi : PAL.teal;
+    const g = new THREE.Group();
+    const mk = (geo: THREE.BufferGeometry, color: number, x: number, y: number, z: number) => {
+      const m = new THREE.Mesh(geo, this.mat(color));
+      m.position.set(x, y, z);
+      m.castShadow = true;
+      g.add(m);
+    };
+    mk(new THREE.BoxGeometry(4.15, 0.52, 1.86), bodyCol, 0, 0.56, 0);
+    mk(new THREE.BoxGeometry(2.05, 0.52, 1.7), PAL.windowDim, -0.1, 1.08, 0);
+    mk(new THREE.BoxGeometry(2.25, 0.09, 1.76), bodyCol, -0.1, 1.38, 0);
+    for (const sx of [-1.32, 1.32]) {
+      for (const sz of [-0.85, 0.85]) {
+        const w = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.22, 14), this.mat(PAL.manhole));
+        w.rotation.x = Math.PI / 2;
+        w.position.set(sx, 0.33, sz);
+        w.castShadow = true;
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.24, 10), this.mat(PAL.stone));
+        hub.rotation.x = Math.PI / 2;
+        hub.position.set(sx, 0.33, sz);
+        g.add(w, hub);
+      }
+    }
+    for (const sx of [-2.13, 2.13]) mk(new THREE.BoxGeometry(0.12, 0.16, 1.88), PAL.stone, sx, 0.42, 0);
+    for (const sz of [-0.55, 0.55]) {
+      mk(new THREE.BoxGeometry(0.07, 0.14, 0.28), PAL.cream, 2.09, 0.62, sz);
+      mk(new THREE.BoxGeometry(0.07, 0.12, 0.24), PAL.coral, -2.09, 0.62, sz);
+    }
+    if (kind === 'taxi') mk(new THREE.BoxGeometry(0.52, 0.17, 0.24), PAL.amber, -0.1, 1.51, 0);
+    return g;
+  }
+
+  /** Wall-mounted sign: text on the two big faces, plain edges elsewhere
+   *  (a bare box map mirrors the text across the top face). */
+  private signMaterials(text: string, w: number, h: number, bg: number, fg: number, px: number): THREE.MeshLambertMaterial[] {
+    const face = new THREE.MeshLambertMaterial({ map: this.textTexture(text, w, h, bg, fg, px) });
+    const plain = new THREE.MeshLambertMaterial({ color: bg });
+    return [plain, plain, plain, plain, face, face]; // +x, -x, +y, -y, +z, -z
+  }
+
+  /** Wall-mounted sign texture (block signs stopped being anonymous boxes). */
+  private textTexture(text: string, w: number, h: number, bg: number, fg: number, px: number): THREE.CanvasTexture {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = '#' + bg.toString(16).padStart(6, '0');
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#' + fg.toString(16).padStart(6, '0');
+    ctx.lineWidth = 8;
+    ctx.strokeRect(6, 6, w - 12, h - 12);
+    ctx.fillStyle = '#' + fg.toString(16).padStart(6, '0');
+    ctx.font = `800 ${px}px "Trebuchet MS", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, w / 2, h / 2 + 2, w - 40);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  private makeLabel(text: string): THREE.Sprite {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 80;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = 'rgba(58, 52, 64, 0.92)';
+    ctx.beginPath();
+    ctx.roundRect(4, 4, 248, 72, 16);
+    ctx.fill();
+    ctx.fillStyle = '#FFF8F0';
+    ctx.font = '700 40px "Trebuchet MS", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 42, 230);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    sp.scale.set(1.15, 0.36, 1);
+    return sp;
   }
 
   private makeGlow(size: number): THREE.Sprite {
@@ -492,10 +703,22 @@ export class World {
     this.roof.visible = !hidden;
   }
 
-  update(dt: number) {
-    // taxi loops the street (main.gd `_process`: x += 9*dt, wraps at ±46)
-    this.taxi.position.x += dt * 9.0;
-    if (this.taxi.position.x > 46) this.taxi.position.x = -46;
+  update(dt: number, player?: { x: number; y: number; z: number }) {
+    // taxi loops the street (main.gd `_process`: x += 9*dt, wraps at ±46).
+    // NYC rule added after playtest: the cab stops for pedestrians on the
+    // crosswalk instead of driving through them.
+    const road = this.taxi.position;
+    let speed = 9.0;
+    if (player) {
+      const onCrosswalk = player.x > -8.5 && player.x < -1.5 && player.z > -4.6 && player.z < 4.6;
+      const approaching = road.x > -12.5 && road.x < -4.6;
+      if (onCrosswalk && approaching) {
+        if (road.x > -7.6) speed = 0; // hold at the stop line
+        else speed = Math.min(speed, 2.0); // creep up, then wait
+      }
+    }
+    road.x += dt * speed;
+    if (road.x > 46) road.x = -46;
 
     // steam rises and wobbles — the Rule of Steam
     const posAttr = this.steamPoints.geometry.getAttribute('position') as THREE.BufferAttribute;

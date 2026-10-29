@@ -15,7 +15,7 @@ import { World, phys } from '../world/World';
 import { Player } from '../player/Player';
 import { GameCamera } from '../camera/GameCamera';
 import { InputManager } from '../engine/Input';
-import { Tweens } from '../engine/tweens';
+import { Tweens, type Tween } from '../engine/tweens';
 import { capsuleInBox } from '../engine/collide';
 import { UI } from '../ui/UI';
 import { capturePostcard, downloadPostcard } from '../postcard/PostcardCapture';
@@ -42,6 +42,8 @@ export class Game {
   private dayFading = false;
   private duskStarted = false;
   private postcardRig = false;
+  private rosaWalking = false;
+  private roofHidden = false;
   private checkpoint = { x: -30, y: 0.05, z: 6.2 };
   private lastPostcardUrl: string | null = null;
 
@@ -86,19 +88,13 @@ export class Game {
       turnR: document.getElementById('turn-right')!,
     });
 
-    // ---------------- player visual (capsule + nose + cup) ----------------
-    this.playerVisual = new THREE.Group();
-    const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.35, 1.75 - 0.7, 6, 14),
-      new THREE.MeshLambertMaterial({ color: PAL.gold }),
-    );
-    body.position.y = 0.9;
-    body.castShadow = true;
-    const nose = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 0.2, 0.3),
-      new THREE.MeshLambertMaterial({ color: PAL.plum }),
-    );
-    nose.position.set(0, 1.4, 0.35);
+    // ---------------- player visual (a person, not a capsule) --------------
+    // Playtest 2026-10-29: capsule + floating "nose" box read as Plankton.
+    // Same builder as the cast; the generated player.glb swaps in when loaded.
+    this.playerVisual = this.world.buildPerson({
+      jacket: PAL.gold, pants: PAL.ink, skin: 0xd9a06b, hair: PAL.ink, style: 'flat',
+    });
+    this.playerVisual.name = 'Player';
     const cupBody = new THREE.Mesh(
       new THREE.CylinderGeometry(0.075, 0.06, 0.17, 10),
       new THREE.MeshLambertMaterial({ color: PAL.cream }),
@@ -110,11 +106,12 @@ export class Game {
     cupLid.position.y = 0.1;
     const cup = new THREE.Group();
     cup.add(cupBody, cupLid);
-    cup.position.set(0.46, 1.02, 0.3);
+    cup.position.set(0.44, 0.9, 0.22); // in the right hand
     cup.visible = false;
     this.cupProp = cup;
-    this.playerVisual.add(body, nose, cup);
+    this.playerVisual.add(cup);
     this.world.scene.add(this.playerVisual);
+    void this.world.applyGlb(this.playerVisual, 'player.glb');
 
     // ---------------- interactables (main.gd `_build_interactables`) --------
     this.interactables = [
@@ -231,8 +228,8 @@ export class Game {
     this.cam.update(dt, this.player.capsule, inp.camTurn, rig?.pos, rig?.look);
     this.player.camYaw = this.cam.camYaw;
 
-    // world life (Rule of Steam)
-    this.world.update(dt);
+    // world life (Rule of Steam) — the taxi yields to the pedestrian
+    this.world.update(dt, this.player.capsule);
     this.syncGlows();
 
     // HUD
@@ -257,14 +254,21 @@ export class Game {
   private checkZones(): void {
     const c = this.player.capsule;
 
-    // bodega interior: hide the cozy roof, advance ENTER_BODEGA → COLLECT
+    // bodega interior: advance ENTER_BODEGA → COLLECT (once, zone semantics)
     const inside = capsuleInBox(c, this.world.insideBodegaZone);
-    if (inside !== this.wasInsideBodega) {
-      this.wasInsideBodega = inside;
-      this.world.setRoofHidden(inside);
-      if (inside) {
-        for (const e of this.state.enterBodega()) this.applyEffect(e);
-      }
+    if (inside && !this.wasInsideBodega) {
+      for (const e of this.state.enterBodega()) this.applyEffect(e);
+    }
+    this.wasInsideBodega = inside;
+
+    // cozy roof hides with HYSTERESIS — the zone edge used to toggle the roof
+    // on/off frame-by-frame when idling at the door line (the "glitching")
+    if (!this.roofHidden && c.z > 9.4 && c.y < 6) {
+      this.roofHidden = true;
+      this.world.setRoofHidden(true);
+    } else if (this.roofHidden && (c.z < 8.6 || c.y >= 6)) {
+      this.roofHidden = false;
+      this.world.setRoofHidden(false);
     }
 
     // ladders — Area3D body_entered/exited edge semantics (grab on entry,
@@ -439,7 +443,10 @@ export class Game {
         this.ui.setMoney(this.state.money);
         break;
       case 'rosa-moved-behind-counter':
-        this.world.rosa.position.set(-20.4, 0.1, 13.5);
+        // playtest 2026-10-29: she used to TELEPORT behind the counter —
+        // "I pressed one key and Rosa vanished." Now she walks there, out
+        // loud, and the player follows her through the door.
+        this.startRosaWalk();
         break;
       case 'collect':
         this.world.removeItem(e.id);
@@ -505,6 +512,41 @@ export class Game {
   }
 
   // ------------------------------------------------------------------ sequences
+
+  /** Rosa walks the route to her counter — visible the whole way, so "follow
+   *  Rosa" is a thing you can literally do. ~2 m/s, faces her direction. */
+  private startRosaWalk(): void {
+    if (this.rosaWalking) return;
+    this.rosaWalking = true;
+    const rosa = this.world.rosa;
+    const legs: Array<[number, number]> = [
+      [-27, 6.8],    // she meets you by the terminal
+      [-24.5, 6.9],
+      [-18.0, 6.9],  // along the north sidewalk
+      [-16.0, 7.35], // front of her door
+      [-16.0, 9.2],  // through the door gap
+      [-17.5, 12.6],
+      [-20.4, 13.5], // behind the counter
+    ];
+    const SPEED = 2.0;
+    const t = this.tweens;
+    const seq: Tween[] = [];
+    for (let i = 1; i < legs.length; i++) {
+      const [x0, z0] = legs[i - 1];
+      const [x1, z1] = legs[i];
+      const dur = Math.max(0.2, Math.hypot(x1 - x0, z1 - z0) / SPEED);
+      seq.push(t.call(() => { rosa.rotation.y = Math.atan2(x1 - x0, z1 - z0); }));
+      seq.push(t.parallel(
+        t.num(() => rosa.position.x, (v) => { rosa.position.x = v; }, x1, dur),
+        t.num(() => rosa.position.z, (v) => { rosa.position.z = v; }, z1, dur),
+      ));
+    }
+    seq.push(t.call(() => {
+      rosa.rotation.y = Math.PI / 2; // faces her counter
+      this.rosaWalking = false;
+    }));
+    t.sequence(...seq);
+  }
 
   private startDusk(): void {
     if (this.duskStarted) return;
@@ -692,17 +734,14 @@ export class Game {
 
   private spawnCustomer(who: 'rush' | 'solo' | 'idris' | 'lunch', x: number, z: number): void {
     this.removeCustomer();
-    const color = who === 'idris' ? PAL.plum : lighten(PAL.teal, Math.random() * 0.3);
-    const g = new THREE.Group();
-    const mesh = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.32, 1.7 - 0.64, 6, 14),
-      new THREE.MeshLambertMaterial({ color }),
-    );
-    mesh.position.y = 0.85;
-    mesh.castShadow = true;
-    g.add(mesh);
+    const isIdris = who === 'idris';
+    const color = isIdris ? PAL.plum : lighten(PAL.teal, Math.random() * 0.3);
+    const skin = isIdris ? 0x8a5a3b : [0xe8b08e, 0xd9a06b, 0x8a5a3b, 0xc98d68][Math.floor(Math.random() * 4)];
+    const hair = isIdris ? 0x241f1c : [0x3a3440, 0x4a3a30, 0x2b2730, 0x9a938c][Math.floor(Math.random() * 4)];
+    const g = isIdris ? this.world.buildPerson({ jacket: color, pants: PAL.ink, skin, hair, style: 'cap' })
+      : this.world.makeCustomerVisual(color, skin, hair);
     g.position.set(x, 0.05, z);
-    g.name = who === 'idris' ? 'MrIdris' : 'Customer';
+    g.name = isIdris ? 'MrIdris' : 'Customer';
     this.world.scene.add(g);
     this.customer = g;
   }
