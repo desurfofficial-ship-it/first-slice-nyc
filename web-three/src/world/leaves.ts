@@ -23,12 +23,15 @@ interface Leaf {
   rot: THREE.Euler;   // current tumble
   spin: { x: number; y: number; z: number };
   grounded: number;   // seconds since landing; <0 while falling
+  groundY: number;    // where THIS leaf may rest (set at landing/spawn)
 }
 
 const FALL_SPEED = 0.55;       // m/s average — a leaf, not a brick
 const REST_MIN = 4;
 const REST_RANGE = 7;
-const GROUND_Y = 0.05;
+const SIDEWALK_Y = 0.1;        // sidewalk slab top (World.ts Sidewalk_N/S)
+const ROAD_Y = 0.02;           // asphalt top + a hair, never z-fighting
+const PIT_Y = 0.05;            // tree-pit soil top (makeTreePit)
 
 export class LeafDrift {
   readonly mesh: THREE.InstancedMesh;
@@ -71,17 +74,31 @@ export class LeafDrift {
     scene.add(this.mesh);
   }
 
+  /** The rest height under (x,z): pit soil inside the pit, slab on the
+   *  sidewalk, asphalt on the road. A leaf lands on what is beneath it —
+   *  the first draft parked everything at one height and the sidewalk
+   *  swallowed every grounded leaf whole. */
+  private groundAt(spot: number, x: number, z: number): number {
+    const s = this.spots[spot];
+    if (Math.abs(x - s.x) < 0.58 && Math.abs(z - s.z) < 0.58) return PIT_Y;
+    return Math.abs(z) > 4.0 ? SIDEWALK_Y : ROAD_Y;
+  }
+
   /** Place leaf i at its tree's canopy (or already falling/grounded). */
   private spawn(i: number, spot: number, startScattered: boolean): Leaf {
     const s = this.spots[spot];
     const a = (i * 2.399) % (Math.PI * 2); // golden-angle spread, no clumping
     const r = Math.sqrt(((i * 0.618) % 1)) * s.r;
     const grounded = startScattered && i % 3 === 0 ? 1 + (i % 5) : -0.001;
+    const x = s.x + Math.cos(a) * r;
+    const z = s.z + Math.sin(a) * r * 0.8;
+    const groundY = this.groundAt(spot, x, z);
     return {
       spot,
-      x: s.x + Math.cos(a) * r,
-      z: s.z + Math.sin(a) * r * 0.8,
-      y: grounded >= 0 ? GROUND_Y : s.top * (0.8 + ((i * 0.37) % 0.2)),
+      x,
+      z,
+      y: grounded >= 0 ? groundY : s.top * (0.8 + ((i * 0.37) % 0.2)),
+      groundY,
       vy: FALL_SPEED * (0.8 + ((i * 0.29) % 0.4)),
       phase: i * 1.7,
       swayAmp: 0.25 + ((i * 0.41) % 0.3),
@@ -98,8 +115,9 @@ export class LeafDrift {
       const L = this.leaves[i];
       if (L.grounded >= 0) {
         L.grounded += dt;
-        // a grounded leaf skitters a few centimetres on a gust, then rests
-        L.x += windX * dt * 0.35 * Math.max(0, gust);
+        // a grounded leaf skitters a few centimetres on a GUST SPIKE, then
+        // rests again — not a continuous crawl across the pavement
+        if (gust > 0.45) L.x += (gust - 0.45) * 1.2 * dt;
         if (L.grounded > REST_MIN + (i % 5) + (L.phase % REST_RANGE)) {
           this.leaves[i] = this.spawn(i, L.spot, false);
         }
@@ -110,8 +128,10 @@ export class LeafDrift {
         L.rot.x += L.spin.x * dt;
         L.rot.y += L.spin.y * dt;
         L.rot.z += L.spin.z * dt;
-        if (L.y <= GROUND_Y) {
-          L.y = GROUND_Y;
+        const ground = this.groundAt(L.spot, L.x, L.z);
+        if (L.y <= ground) {
+          L.y = ground;
+          L.groundY = ground;
           L.rot.set(Math.PI / 2 + (L.phase % 0.6) - 0.3, L.phase, 0); // rests flat-ish
           L.grounded = 0;
         }

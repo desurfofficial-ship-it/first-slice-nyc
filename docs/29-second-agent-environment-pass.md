@@ -6,6 +6,67 @@
 > story, UI, and shared configs were not touched. No behavior the E2E
 > depends on changed — full battery passed after the work.
 
+## Round two — bugs found by living with the street (2026-10-30)
+
+Re-walking the block with the assignment's checklist found three real
+defects in the ambience layer. All three are fixed at the root and pinned
+by a new probe (`scripts/probe-leaves.mjs`), not by hope:
+
+1. **Grounded leaves were buried under the sidewalk.** Every tree stands on
+   a sidewalk slab whose top is y 0.1 — but `LeafDrift` parked every resting
+   leaf at one global height (0.05), so all 48 rested *inside* the pavement:
+   invisible on the slab, floating over asphalt. Leaves now ask what surface
+   is beneath them when they land — tree-pit soil (0.05), sidewalk slab
+   (0.1), or asphalt (0.02) — and rest on it. The probe samples the live
+   instanced matrices twice, a second apart, so a leaf caught mid-fall
+   between frames is not mistaken for a stuck one. First run after the fix:
+   48 leaves, 35 grounded on the correct surface, 0 buried, 0 hovering.
+2. **Leaves were born below short canopies and above tall ones.** Spawn
+   height was a hardcoded 3.3 m while seeded canopy tops actually range
+   ~2.9–4.5 m. `makeTree` now reports its real canopy top (`Tree.top`,
+   additive — nothing else consumed the interface), and the drift spawns
+   inside each tree's own canopy.
+3. **Resting leaves crawled.** The old skitter applied a continuous
+   forward drift for the whole rest — up to a metre of silent sliding.
+   Now a leaf only skitters during gust *spikes* (gust > 0.45), a few
+   centimetres each, the way a dry leaf actually behaves.
+4. **A pigeon could freeze mid-bob.** The walk cycle stretched the head
+   forward each stride; a bird that stopped mid-stride kept the stretched
+   neck forever while idling or pecking. The head now unwinds to rest on
+   idle/peck entries and resets on landing from a flush flight.
+
+## Round three — the polish pass (2026-10-30)
+
+"Keep polishing visuals" produced four changes, each chosen from looking at
+the running block, not from a checklist:
+
+1. **A traffic signal at the crosswalk.** The intersection was the only
+   place on the block with no traffic control at all. Now the SE corner
+   carries an ink mast pole, an arm reaching over the cab lane, and a
+   three-lamp head facing the oncoming cab — coral / gold / teal, the
+   palette's answer to red / amber / green, with the teal lamp lit. The
+   game's sun never leaves golden hour and the cab always yields to
+   whoever is crossing, so "go, carefully" is the one honest thing for
+   the light to say. Deco only; the pole is a solid like every other pole.
+2. **Granite curbs.** The road/sidewalk seam was a soft color edge; now a
+   13 cm curb line runs both sides, with a curb-cut gap at the crosswalk
+   (x −8..−1) because that is where people step across. Visual only —
+   13 cm is a step, not a wall, and the player steps it freely.
+3. **The birds finally obey the doc.** "Pigeons do not jaywalk" was the
+   behavior engine's comment, but the wander radius let birds stand in
+   the traffic lane (visible in the plaza probe). Flocks and the squirrel
+   now take a sidewalk band and never leave it — verified live by the
+   probe reading every bird's position, not just by eye.
+4. **The manhole was a patio.** 1.2 m across; a real one is ~0.95. Same
+   spot, same steam, believable size.
+
+Steam and leaf drift re-shot and re-verified (`probe-polish.mjs`,
+`shots/env5-*.png`). Perf, measured against the same tree with the round
+stashed (the doc-29 table above predates the hydrant.glb, so the honest
+baseline is a stash, not the old table): boot +10, mid-street +16,
+plaza +10 draw calls — the signal (4 consolidated meshes), four curb
+segments, nothing else. Triangles well under 1k more per view.
+
 ## What the block got
 
 Seven missing pieces, chosen because the block asked for them — not
@@ -93,6 +154,11 @@ in small bills. The leaf system is one instanced draw call for all 48.
 - Visual probes (committed): `probe-env.mjs`, `probe-env2.mjs`,
   `probe-env3.mjs` (frozen-camera close-ups), `probe-perf.mjs`,
   `probe-glb-hydrant.mjs`. Shots in `web-three/shots/env*.png`.
+- Round two: `probe-leaves.mjs` — 48 leaves live-sampled, 35 grounded on
+  the correct surface, 0 buried, 0 hovering, zero console errors
+  (`shots/env4-pit-north.png`, `env4-pit-south.png`). Pre-fix baseline
+  battery was green (0 failures, 193 s); the post-fix battery result is
+  recorded in the round-two commit message.
 - Disposal: `World.dispose()` traverses and disposes everything the pass
   added (InstancedMesh included — it is a Mesh); LeafDrift allocates one
   geometry + one material, both reachable from the scene graph.
@@ -104,12 +170,22 @@ in small bills. The leaf system is one instanced draw call for all 48.
 
 - `web-three/src/world/streetAssets.ts` — new: poles, wires, signs,
   planters, fire-escape silhouette, `consolidate()`
-- `web-three/src/world/leaves.ts` — new: LeafDrift
+- `web-three/src/world/leaves.ts` — new: LeafDrift (round two: per-surface
+  rest heights, canopy-true spawns, gust-spike skitter)
 - `web-three/src/world/World.ts` — additive only: imports, one placement
-  block, east flock, leaf field + update calls
+  block, east flock, leaf field + update calls (round two: real canopy
+  tops handed to the drift)
+- `web-three/src/world/props.ts` — additive only: `Tree.top` reported by
+  `makeTree` (round two)
+- `web-three/src/world/ambient.ts` — round two: pigeon head unwinds after
+  a walk, never freezes mid-bob
 - `web-three/public/models/hydrant.glb` — new: Blender-generated
 - `web-three/scripts/probe-env.mjs`, `probe-env2.mjs`, `probe-env3.mjs`,
-  `probe-perf.mjs`, `probe-glb-hydrant.mjs` — new probes
+  `probe-perf.mjs`, `probe-glb-hydrant.mjs` — probes
+- `web-three/scripts/probe-leaves.mjs` — new (round two): live-sampled
+  grounded-leaf assertions + pit close-ups (`shots/env4-*.png`)
+- `web-three/scripts/probe-polish.mjs` — new (round three): signal /
+  curb / steam / flock shots + live sidewalk-band check
 - `tools3d/blender_hydrant.py` — new: the hydrant generator
 
 ## Known limitations

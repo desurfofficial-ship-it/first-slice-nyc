@@ -54,11 +54,15 @@ export class PigeonFlock {
   private time = 0;
   private radius: number;
   private home: { x: number; z: number };
+  private zBand?: { min: number; max: number };
 
   /**
    * @param seed deterministic placement seed
    * @param center plaza the flock calls home
    * @param radius wander radius around the center
+   * @param zBand optional sidewalk band — birds never stand in the traffic
+   *   lane (the doc says pigeons do not jaywalk; the first draft let the
+   *   wander radius drift them into the road anyway)
    */
   constructor(
     scene: THREE.Scene,
@@ -67,10 +71,12 @@ export class PigeonFlock {
     center: { x: number; z: number },
     radius: number,
     count = 9,
+    zBand?: { min: number; max: number },
   ) {
     const rng = seededRng(seed);
     this.radius = radius;
     this.home = { ...center };
+    this.zBand = zBand;
     for (let i = 0; i < count; i++) {
       const g = new THREE.Group();
       const body = new THREE.Mesh(pigeonBodyGeo, mats.body);
@@ -95,6 +101,7 @@ export class PigeonFlock {
       for (let tries = 0; tries < 20 && !ok; tries++) {
         x = center.x + (rng() - 0.5) * 2 * radius;
         z = center.z + (rng() - 0.5) * 2 * radius * 0.7;
+        if (zBand) z = Math.min(zBand.max, Math.max(zBand.min, z));
         ok = this.birds.every((b) => Math.hypot(b.pos.x - x, b.pos.z - z) > 0.55);
       }
       const bird: PigeonState = {
@@ -117,7 +124,8 @@ export class PigeonFlock {
     scene.add(this.group);
   }
 
-  /** Keep a wander/flight target on the plaza — pigeons do not jaywalk. */
+  /** Keep a wander/flight target on the plaza — pigeons do not jaywalk,
+   *  and they do not stand in the traffic lane either. */
   private clampToPlaza(t: { x: number; z: number }): void {
     const dx = t.x - this.home.x;
     const dz = t.z - this.home.z;
@@ -127,6 +135,7 @@ export class PigeonFlock {
       t.x = this.home.x + (dx / d) * max;
       t.z = this.home.z + (dz / d) * max;
     }
+    if (this.zBand) t.z = Math.min(this.zBand.max, Math.max(this.zBand.min, t.z));
   }
 
   update(dt: number, player: { x: number; z: number } | undefined, dusk: boolean): void {
@@ -162,6 +171,7 @@ export class PigeonFlock {
           if (k >= 1) {
             b.group.position.y = 0;
             b.tail.rotation.x = 0.28;
+            b.head.position.z = 0.13; // never land mid-bob
             b.mode = 'idle';
             b.timer = 0.6 + (b.phase % 0.9);
           }
@@ -171,6 +181,8 @@ export class PigeonFlock {
           b.timer -= dt;
           b.head.rotation.x = Math.sin(b.phase * 1.3) * 0.16; // glancing about
           b.head.rotation.y = Math.sin(b.phase * 0.7) * 0.4;
+          // unwind the walk-bob: the head eases back to rest, mid-stride or not
+          b.head.position.z += (0.13 - b.head.position.z) * Math.min(1, dt * 12);
           if (b.timer <= 0) {
             const roll = (b.phase * 7.13) % 1;
             if (roll < 0.45) {
@@ -212,6 +224,7 @@ export class PigeonFlock {
           b.timer -= dt;
           b.head.rotation.x = 0.55 + Math.sin(b.phase * 6.5) * 0.28; // dabbing the pavement
           b.head.rotation.y = 0;
+          b.head.position.z += (0.13 - b.head.position.z) * Math.min(1, dt * 12);
           if (b.timer <= 0) {
             b.mode = 'idle';
             b.timer = 0.7 + (b.phase % 1.4);
@@ -253,8 +266,15 @@ const SQ_HOP_LEN = 0.62;
 export class Squirrel {
   readonly group: THREE.Group;
   private s: SquirrelState;
+  private zBand?: { min: number; max: number };
 
-  constructor(scene: THREE.Scene, mats: { fur: THREE.Material; tail: THREE.Material }, seed: number, home: { x: number; z: number }) {
+  constructor(
+    scene: THREE.Scene,
+    mats: { fur: THREE.Material; tail: THREE.Material },
+    seed: number,
+    home: { x: number; z: number },
+    zBand?: { min: number; max: number },
+  ) {
     const rng = seededRng(seed);
     const g = new THREE.Group();
     const body = new THREE.Mesh(sqBodyGeo, mats.fur);
@@ -272,6 +292,7 @@ export class Squirrel {
     tailPivot.add(tailMesh);
     g.add(body, head, tailPivot);
     const pos = { x: home.x + (rng() - 0.5), z: home.z + (rng() - 0.5) };
+    if (zBand) pos.z = Math.min(zBand.max, Math.max(zBand.min, pos.z));
     g.position.set(pos.x, 0, pos.z);
     this.s = {
       group: g, tail: tailPivot, pos,
@@ -281,7 +302,14 @@ export class Squirrel {
       phase: rng() * 10,
     };
     this.group = g;
+    this.zBand = zBand;
     scene.add(g);
+  }
+
+  /** A hop target that respects the sidewalk band (squirrels chase acorns,
+   *  not taxis). */
+  private clampZ(t: { x: number; z: number }): void {
+    if (this.zBand) t.z = Math.min(this.zBand.max, Math.max(this.zBand.min, t.z));
   }
 
   update(dt: number, player: { x: number; z: number } | undefined, dusk: boolean): void {
@@ -293,6 +321,7 @@ export class Squirrel {
       if (d < SQ_FLUSH_R) {
         const away = Math.atan2(s.pos.x - player.x, s.pos.z - player.z);
         s.to = { x: s.pos.x + Math.sin(away) * SQ_HOP_LEN * 2.2, z: s.pos.z + Math.cos(away) * SQ_HOP_LEN * 2.2 };
+        this.clampZ(s.to);
         s.from = { ...s.pos };
         s.hopAge = 0;
         s.hopsLeft = 3;
@@ -307,6 +336,7 @@ export class Squirrel {
       if (s.timer <= 0) {
         const a = (s.phase * 2.9) % (Math.PI * 2);
         s.to = { x: s.pos.x + Math.sin(a) * SQ_HOP_LEN, z: s.pos.z + Math.cos(a) * SQ_HOP_LEN };
+        this.clampZ(s.to);
         s.from = { ...s.pos };
         s.hopAge = 0;
         s.hopsLeft = 1 + Math.floor(s.phase % 2);
@@ -333,6 +363,7 @@ export class Squirrel {
           const len = Math.hypot(dx, dz) || 1;
           s.from = { ...s.to };
           s.to = { x: s.to.x + (dx / len) * SQ_HOP_LEN, z: s.to.z + (dz / len) * SQ_HOP_LEN };
+          this.clampZ(s.to);
           s.hopAge = 0;
         }
       }
