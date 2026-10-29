@@ -7,8 +7,9 @@ extends Node3D
 ##           R restart day · G force gold window (debug) · P save Postcard view.
 
 const PlayerScript := preload("res://scripts/player.gd")
+const SaveGame := preload("res://scripts/save.gd")
 
-enum Step { MEET_ROSA, ENTER_BODEGA, COLLECT, RUSH, CROSS, CLAIM_CART, NAME_CART, SOLO, CLIMB, POSTCARD, DONE }
+enum Step { MEET_ROSA, ENTER_BODEGA, COLLECT, RUSH, CROSS, CLAIM_CART, NAME_CART, SOLO, CLIMB, POSTCARD, D2_WAKE, D2_IDRIS, D2_TASK, D2_DELIVER, D2_LUNCH, D2_CLIMB2, D2_POSTCARD, DONE }
 
 # Palette from Doc 04.
 const C_GOLD := Color("F7B32B")
@@ -57,6 +58,27 @@ var solo_served := 0
 var dusk_started := false
 var checkpoint := START_POS
 
+# Day + persistence (Day 2 — docs/22-day2-greybox.md)
+static var autotest_done := false
+var day := 1
+var day_complete := false
+var day_start_money := 87
+var money := 87
+var awning_up := false
+var kid_kept := false
+var idris_served := false
+var idris_arrived := false
+var idris_walk_started := false
+var lunch_served := 0
+var replay_day := false       # replaying a kept day: rewards rest, warmth doesn't
+var replay_note_shown := false
+var day_fading := false
+var linger_stage := 0         # 0 postcard up · 1 lingering · 2 Rosa said goodnight
+var ladder_hint_pending := false
+var awning_confirm := false
+var rosa_chat_i := 0
+var save_data: RefCounted
+
 # UI
 var ui: CanvasLayer
 var objective_lbl: Label
@@ -67,20 +89,50 @@ var name_box: PanelContainer
 var name_edit: LineEdit
 var postcard_panel: PanelContainer
 var postcard_lbl: Label
+var money_lbl: Label
+var fade_rect: ColorRect
+var title_lbl: Label
+
+# Day 2 nodes
+var idris: Node3D
+var kid_sil: Node3D
+var cup_prop: Node3D
+var awning_mesh: Node3D
+var second_mat: StandardMaterial3D
+var rosa_window_mat: StandardMaterial3D
 
 # interactables: Array of {node: Node3D, id: String}
 var interactables: Array = []
 
 func _ready() -> void:
-	autotest = "--autotest" in OS.get_cmdline_user_args()
+	autotest = ("--autotest" in OS.get_cmdline_user_args()
+		or "--autotest-load" in OS.get_cmdline_user_args()
+		or "--autotest-corrupt" in OS.get_cmdline_user_args()
+		or "--autotest-corrupt-boot" in OS.get_cmdline_user_args())
 	_setup_input()
 	_build_world()
 	_build_ui()
 	_spawn_player()
-	_set_step(Step.MEET_ROSA)
-	_show_note("You are here. That's enough.")
-	if autotest:
-		_run_autotest.call_deferred()
+	save_data = SaveGame.load_or_default()
+	if save_data.day >= 2:
+		# A saved run resumes — or replays, if the day was kept. Never from scratch.
+		_begin_day(save_data.day, save_data, save_data.day_complete or save_data.replay)
+	else:
+		money = 87
+		day_start_money = 87
+		_set_step(Step.MEET_ROSA)
+		_show_note("You are here. That's enough.")
+	if autotest and not autotest_done:
+		autotest_done = true
+		var args := OS.get_cmdline_user_args()
+		if "--autotest-corrupt" in args:
+			_run_autotest_corrupt_prep()
+		elif "--autotest-corrupt-boot" in args:
+			_run_autotest_corrupt_boot()
+		elif "--autotest-load" in args:
+			_run_autotest_load()
+		else:
+			_run_autotest.call_deferred()
 
 # ---------------------------------------------------------------- input
 func _setup_input() -> void:
@@ -101,7 +153,7 @@ func _setup_input() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	# _unhandled_input: a focused LineEdit eats its keys first, so typing a cart
 	# name never triggers movement or interact (lesson from Last One Laughing).
-	if name_box.visible:
+	if day_fading or name_box.visible:
 		return
 	if event.is_action_pressed("interact"):
 		_try_interact()
@@ -293,6 +345,7 @@ func _build_world() -> void:
 	_area(bounds, "KillFloor", Vector3(0, -12, 0), Vector3(200, 2, 200), func(_a): _respawn())
 
 	_build_interactables()
+	_build_day2_props()
 
 func _inv_wall(parent: Node, center: Vector3, size: Vector3) -> void:
 	var body := StaticBody3D.new()
@@ -316,7 +369,11 @@ func _build_bodega(lvl: Node3D) -> void:
 	_box(b, "Front_L", Vector3(-19.25, h / 2, 8.2), Vector3(3.5, h, 0.4), C_BRICK)   # holds the window
 	_box(b, "Front_R", Vector3(-12.75, h / 2, 8.2), Vector3(3.5, h, 0.4), C_BRICK)
 	_box(b, "Front_Lintel", Vector3(-16, 3.8, 8.2), Vector3(3, 1.4, 0.4), C_BRICK)
-	_box(b, "Window_Front", Vector3(-19.25, 1.8, 7.98), Vector3(2.6, 1.6, 0.05), C_AMBER, false)
+	var wf := _box(b, "Window_Front", Vector3(-19.25, 1.8, 7.98), Vector3(2.6, 1.6, 0.05), C_AMBER, false)
+	rosa_window_mat = (wf.get_child(0) as MeshInstance3D).material_override as StandardMaterial3D
+	rosa_window_mat.emission_enabled = true
+	rosa_window_mat.emission = C_AMBER
+	rosa_window_mat.emission_energy_multiplier = 0.55   # the warm window, actually warm
 	_box(b, "Awning", Vector3(-16, 3.2, 7.4), Vector3(10, 0.15, 1.4), C_TEAL, false)
 	bodega_roof = _box(b, "Roof", Vector3(-16, h + 0.15, 14), Vector3(10, 0.3, 12), C_BLDG)
 	_box(b, "Counter", Vector3(-19.6, 0.55, 13.5), Vector3(1.2, 1.1, 6), C_TEAL)
@@ -357,10 +414,14 @@ func _grab_ladder(area: Area3D) -> void:
 	if step >= Step.CLIMB:
 		checkpoint = Vector3(9.4, 0.05, -5.5)
 		_start_dusk()
+	if step == Step.CLIMB or step == Step.D2_CLIMB2:
+		objective_lbl.text = "Climb."
 
 func _leave_ladder(area: Area3D) -> void:
 	if player.ladder == area:
 		player.ladder = null
+		if step == Step.CLIMB or step == Step.D2_CLIMB2:
+			ladder_hint_pending = true
 
 func _build_windows(lvl: Node3D) -> void:
 	# Dark windows on the gold-window building's street face; one of them is the one.
@@ -381,6 +442,20 @@ func _build_windows(lvl: Node3D) -> void:
 				gold_window.material_override = gold_mat
 				gold_window.position = p
 				lvl.add_child(gold_window)
+			elif row == 2 and col == 0:
+				# The lamp next door: dark until someone else feels kept.
+				var w2 := MeshInstance3D.new()
+				w2.name = "SecondWindow"
+				var bm2 := BoxMesh.new()
+				bm2.size = Vector3(1.2, 1.6, 0.08)
+				w2.mesh = bm2
+				second_mat = _mat(dim)
+				second_mat.emission_enabled = true
+				second_mat.emission = C_GOLD
+				second_mat.emission_energy_multiplier = 0.0
+				w2.material_override = second_mat
+				w2.position = p
+				lvl.add_child(w2)
 			else:
 				_box(lvl, "Window_%d_%d" % [row, col], p, Vector3(1.2, 1.6, 0.08), dim, false)
 
@@ -419,6 +494,45 @@ func _build_interactables() -> void:
 		cart_root.add_child(mi)
 	interactables.append({"node": cart_root, "id": "cart"})
 
+func _build_day2_props() -> void:
+	var d2 := _group("Day2")
+	# The kid's teal door and stoop on the gold-window building (delivery point).
+	_box(d2, "KidDoor", Vector3(15, 1.4, 7.9), Vector3(1.6, 2.8, 0.12), C_TEAL, false)
+	_box(d2, "KidStoop", Vector3(15, 0.16, 7.35), Vector3(2.2, 0.28, 1.1), C_STONE, false)
+	var stoop_pt := Node3D.new()
+	stoop_pt.name = "DeliverPoint"
+	stoop_pt.position = Vector3(15, 0.05, 6.9)
+	d2.add_child(stoop_pt)
+	interactables.append({"node": stoop_pt, "id": "stoop"})
+	# The awning — teal, like Rosa's. Hidden until bought.
+	awning_mesh = Node3D.new()
+	awning_mesh.name = "CartAwning"
+	awning_mesh.position = cart_root.position + Vector3(0, 2.35, 0)
+	for part in [[Vector3(0, 0, 0.1), Vector3(2.6, 0.1, 1.7)], [Vector3(0, -0.15, 0.98), Vector3(2.6, 0.02, 0.24)]]:
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = part[1]
+		mi.mesh = bm
+		mi.position = part[0]
+		mi.material_override = _mat(C_TEAL)
+		awning_mesh.add_child(mi)
+	awning_mesh.visible = false
+	d2.add_child(awning_mesh)
+	# The kid, at the glass — a small shape against the light.
+	kid_sil = _npc(d2, "TheKid", Vector3(13.5, 8.6, 7.86), Color("514659"))
+	kid_sil.scale = Vector3(0.42, 0.42, 0.42)
+	kid_sil.visible = false
+	# Idris comes back. He said he would.
+	idris = _npc(d2, "Idris", Vector3(-2, 0.05, -4.6), C_PLUM)
+	idris.visible = false
+	interactables.append({"node": idris, "id": "idris"})
+	# The rail — where lingering happens (Seam 3).
+	var rail_pt := Node3D.new()
+	rail_pt.name = "RailPoint"
+	rail_pt.position = Vector3(12.5, 8.0, -6.8)
+	add_child(rail_pt)
+	interactables.append({"node": rail_pt, "id": "rail"})
+
 # ---------------------------------------------------------------- player + camera
 func _spawn_player() -> void:
 	var grp := _group("--PLAYER--")
@@ -447,6 +561,7 @@ func _spawn_player() -> void:
 	nose.position = Vector3(0, 1.4, 0.35)
 	nose.material_override = _mat(C_PLUM)
 	player.add_child(nose)
+	player.add_child(_build_cup())
 	player.position = START_POS
 	grp.add_child(player)
 	cam = Camera3D.new()
@@ -458,7 +573,7 @@ func _spawn_player() -> void:
 	_update_camera(1.0)
 
 func _process(delta: float) -> void:
-	if step < Step.DONE:
+	if step != Step.DONE and not day_fading:
 		elapsed += delta
 	timer_lbl.text = "%d:%02d" % [int(elapsed) / 60, int(elapsed) % 60]
 	taxi_x += delta * 9.0
@@ -468,6 +583,18 @@ func _process(delta: float) -> void:
 	cam_turn = Input.get_axis("cam_left", "cam_right") if not name_box.visible else 0.0
 	_update_camera(delta)
 	_update_prompt()
+	# Seam 1 (Doc 21): the goal is the far sidewalk, not one painted stripe.
+	if step == Step.CROSS and player.global_position.z < -4.1:
+		_crossed(absf(player.global_position.x + 5.0) < 2.6)
+	# Seam 2: left the ladder and touched the ground? Rosa calls you back, once.
+	if ladder_hint_pending and player.ladder == null and player.is_on_floor():
+		ladder_hint_pending = false
+		if step == Step.CLIMB or step == Step.D2_CLIMB2:
+			objective_lbl.text = "The fire escape, around the corner. Rosa will not let this go."
+			_show_note("Rosa, from somewhere behind you: \"Fire escape! Around the corner! You found it once!\"")
+	# Ladders now let you all the way down (climb-speed descent, floor release).
+	if player.ladder != null and player.velocity.y < -1.2 and player.global_position.y < 0.45:
+		player.ladder = null
 
 func _update_camera(delta: float) -> void:
 	if postcard_rig:
@@ -495,11 +622,23 @@ func _set_step(s: int) -> void:
 		Step.SOLO: "Your first customers. Serve at your cart.",
 		Step.CLIMB: "Rosa says the fire escape has the best seat. Climb.",
 		Step.POSTCARD: "",
-		Step.DONE: "Day 1 is done. R to begin again.",
+		Step.D2_WAKE: "Morning. The regulars are waiting.",
+		Step.D2_IDRIS: "Mr. Idris is on his way. The usual.",
+		Step.D2_TASK: "Rosa is out front with a favor to ask.",
+		Step.D2_DELIVER: "Take the kid his regular. The teal door across the street.",
+		Step.D2_LUNCH: "Lunch. The shade is working — three at the cart.",
+		Step.D2_CLIMB2: "Fire escape at dusk. You know the way now.",
+		Step.D2_POSTCARD: "",
+		Step.DONE: "Day %d is done." % day,
 	}
 	objective_lbl.text = text.get(s, "")
 
 func _try_interact() -> void:
+	if day_fading:
+		return
+	if postcard_panel.visible:
+		_dismiss_postcard()
+		return
 	var best = _nearest_interactable()
 	if best == null:
 		return
@@ -509,9 +648,20 @@ func _try_interact() -> void:
 				_show_note("Rosa: \"Honey, your Map is upside down. Come on, I'll show you.\"")
 				rosa.position = Vector3(-20.4, 0.1, 13.5)  # behind the counter now
 				_set_step(Step.ENTER_BODEGA)
+			elif day >= 2:
+				_rosa_chat()
+		"idris":
+			if step == Step.D2_IDRIS and idris_arrived:
+				_serve_idris()
+		"stoop":
+			if step == Step.D2_DELIVER:
+				_deliver_to_kid()
+		"rail":
+			_rail()
 		"counter":
 			if step == Step.RUSH and customer:
 				rush_served += 1
+				_earn(5)   # Day 1: five orders, $87 → $112 (Doc 08)
 				customer.queue_free()
 				customer = null
 				if rush_served == 1:
@@ -535,6 +685,24 @@ func _try_interact() -> void:
 					_set_step(Step.CLIMB)
 				else:
 					_spawn_solo_customer()
+			elif step == Step.D2_LUNCH and customer:
+				lunch_served += 1
+				_earn(3)   # $2 for the cup + $1 tip under the awning
+				customer.queue_free()
+				customer = null
+				if lunch_served == 1:
+					_show_note("Lunch crowd: \"One regular. And whatever the awning is doing — keep doing it.\"")
+				elif lunch_served == 2:
+					_show_note("Lunch crowd: \"You're the one lighting windows, right? My kid talks about your corner.\"")
+				if lunch_served >= 3:
+					_show_note("Three more orders. The corner is starting to know you back.")
+					_persist()
+					_advance_day2()
+				else:
+					_spawn_customer(Vector3(4, 0.05, -4.6))
+			elif day >= 2 and not awning_up and money >= 15 and customer == null \
+					and step >= Step.D2_WAKE and step <= Step.D2_CLIMB2:
+				_awning_offer()
 		_:
 			if best.id.begins_with("item_") and step == Step.COLLECT:
 				var id: String = best.id.substr(5)
@@ -563,9 +731,15 @@ func _nearest_interactable():
 
 func _is_relevant(id: String) -> bool:
 	match id:
-		"rosa": return step == Step.MEET_ROSA
+		"rosa": return step == Step.MEET_ROSA or (day >= 2 and step <= Step.D2_CLIMB2)
 		"counter": return step == Step.RUSH
-		"cart": return step == Step.CLAIM_CART or step == Step.SOLO
+		"idris": return step == Step.D2_IDRIS and idris_arrived
+		"stoop": return step == Step.D2_DELIVER
+		"rail": return step == Step.POSTCARD or step == Step.D2_POSTCARD or (step == Step.DONE and linger_stage >= 1)
+		"cart":
+			if step == Step.CLAIM_CART or step == Step.SOLO:
+				return true
+			return day >= 2 and step >= Step.D2_WAKE and step <= Step.D2_CLIMB2
 	return id.begins_with("item_") and step == Step.COLLECT
 
 func _remove_interactable(n: Node) -> void:
@@ -573,10 +747,20 @@ func _remove_interactable(n: Node) -> void:
 
 func _update_prompt() -> void:
 	var best = _nearest_interactable()
-	if best == null or name_box.visible:
+	if best == null or name_box.visible or postcard_panel.visible:
 		prompt_lbl.text = ""
 		return
-	var verbs := {"rosa": "Say hi", "counter": "Serve", "cart": "Claim corner" if step == Step.CLAIM_CART else "Serve"}
+	var verbs := {"rosa": "Say hi", "counter": "Serve", "idris": "Serve the usual",
+		"stoop": "Deliver", "rail": "Stay a while" if linger_stage <= 1 else "Tomorrow"}
+	if best.id == "cart":
+		if step == Step.CLAIM_CART:
+			verbs["cart"] = "Claim corner"
+		elif step == Step.SOLO or step == Step.D2_LUNCH:
+			verbs["cart"] = "Serve"
+		elif day >= 2 and not awning_up and money >= 15:
+			verbs["cart"] = "Awning — $15"
+		else:
+			verbs["cart"] = "Serve"
 	prompt_lbl.text = "[Space] " + verbs.get(best.id, "Take")
 
 func _spawn_customer(pos: Vector3) -> void:
@@ -593,8 +777,13 @@ func _cross_zone(_a: Area3D) -> void:
 	if step == Step.CROSS:
 		_crossed()
 
-func _crossed() -> void:
-	_show_note("The Shuffle: walk toward the gaps. Brushing someone is correct. They say \"scuse me.\" That is the dance.")
+func _crossed(at_strip := true) -> void:
+	if step != Step.CROSS:
+		return
+	if at_strip:
+		_show_note("The Shuffle: walk toward the gaps. Brushing someone is correct. They say \"scuse me.\" That is the dance.")
+	else:
+		_show_note("You found your own way across. The crosswalk still likes you.")
 	checkpoint = Vector3(4, 0.05, -4.5)
 	_set_step(Step.CLAIM_CART)
 
@@ -611,15 +800,7 @@ func _confirm_name(text: String) -> void:
 		cart_name = "First Slice"
 	name_box.visible = false
 	player.frozen = false
-	cart_mat.albedo_color = C_GOLD
-	cart_mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-	var sign := Label3D.new()
-	sign.name = "CartSign"
-	sign.text = cart_name
-	sign.font_size = 64
-	sign.position = Vector3(0, 2.3, 0)
-	sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	cart_root.add_child(sign)
+	_apply_cart_identity()
 	_show_note("Your corner. Your name. The city wrote it down with you.")
 	_set_step(Step.SOLO)
 	_spawn_solo_customer()
@@ -637,12 +818,16 @@ func _start_dusk() -> void:
 	tw.tween_property(env, "ambient_light_energy", 0.45, 6.0)
 
 func _reach_top() -> void:
-	if step != Step.CLIMB:
+	if step != Step.CLIMB and step != Step.D2_CLIMB2:
 		return
-	_set_step(Step.POSTCARD)
+	var day2 := step == Step.D2_CLIMB2
+	_set_step(Step.D2_POSTCARD if day2 else Step.POSTCARD)
 	_start_dusk()
 	player.frozen = true
-	_show_note("Stoop = outdoor living room. You're invited. That's the important part.")
+	if day2:
+		_show_note("Same seat. The city kept it warm for you.")
+	else:
+		_show_note("Stoop = outdoor living room. You're invited. That's the important part.")
 	# Authored rig: over your shoulder, across the street, at the one window.
 	postcard_rig = true
 	var tw := create_tween()
@@ -650,6 +835,8 @@ func _reach_top() -> void:
 	tw.parallel().tween_method(func(t): cam.look_at(gold_window.global_position.lerp(Vector3(12, 30, 90), 0.08 * t), Vector3.UP), 0.0, 1.0, 2.0)
 	tw.tween_interval(1.0)
 	tw.tween_callback(_light_gold_window)
+	if day2:
+		tw.tween_callback(_kid_dusk_wave)
 	tw.tween_interval(2.6)
 	tw.tween_callback(_compose_postcard)
 
@@ -661,10 +848,18 @@ func _light_gold_window() -> void:
 	tw.tween_property(gold_mat, "emission_energy_multiplier", 4.0, 0.6)
 
 func _compose_postcard() -> void:
-	postcard_lbl.text = "Met: Rosa. Idris. Learned: the usual is a tiny love letter.\nThe regulars are waiting.\n\n— %s, Day 1" % cart_name
+	if day <= 1:
+		postcard_lbl.text = "Day 1. $%d → $%d.\nMet: Rosa. Idris. Learned: the usual is a tiny love letter.\nThe regulars are waiting.\n\n— %s, Day 1" % [day_start_money, money, cart_name]
+	elif replay_day:
+		postcard_lbl.text = "Day 2, again. Some days you don't earn — you just get to keep.\n\n— %s, Day 2" % cart_name
+	else:
+		postcard_lbl.text = "Day 2. $%d → $%d.\nMet: the kid. The corner knows you back now.\nThe regulars are waiting.\n\n— %s, Day 2" % [day_start_money, money, cart_name]
+	if day > 1:
+		day_complete = true
+	_set_step(Step.D2_POSTCARD if day > 1 else Step.DONE)
 	postcard_panel.visible = true
 	_save_postcard()
-	_set_step(Step.DONE)
+	_persist()
 
 func _save_postcard() -> void:
 	var img: Image = null
@@ -674,7 +869,7 @@ func _save_postcard() -> void:
 		print("Postcard: no framebuffer (headless). Skipped image save.")
 		return
 	DirAccess.make_dir_recursive_absolute("user://postcards")
-	var path := "user://postcards/day1_%d.png" % Time.get_unix_time_from_system()
+	var path := "user://postcards/day%d_%d.png" % [day, Time.get_unix_time_from_system()]
 	img.save_png(path)
 	print("Postcard saved: ", ProjectSettings.globalize_path(path))
 
@@ -687,6 +882,290 @@ func _show_note(t: String) -> void:
 	note_lbl.text = t
 	print("MAP NOTE: ", t)
 
+# ---------------------------------------------------------------- day 2 (docs/22)
+func _build_cup() -> Node3D:
+	cup_prop = Node3D.new()
+	cup_prop.name = "CupProp"
+	var mi := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.075
+	cm.bottom_radius = 0.06
+	cm.height = 0.17
+	mi.mesh = cm
+	mi.material_override = _mat(C_CREAM)
+	cup_prop.add_child(mi)
+	var lid := MeshInstance3D.new()
+	var lm := CylinderMesh.new()
+	lm.top_radius = 0.078
+	lm.bottom_radius = 0.078
+	lm.height = 0.03
+	lid.mesh = lm
+	lid.material_override = _mat(C_TEAL)
+	lid.position = Vector3(0, 0.1, 0)
+	cup_prop.add_child(lid)
+	cup_prop.position = Vector3(0.46, 1.02, 0.3)
+	cup_prop.visible = false
+	return cup_prop
+
+func _set_money(v: int) -> void:
+	money = maxi(v, 0)
+	money_lbl.text = "$%d" % money
+	money_lbl.modulate = Color(1.7, 1.5, 1.0)
+	var tw := create_tween()
+	tw.tween_property(money_lbl, "modulate", Color.WHITE, 0.4)
+
+func _earn(n: int) -> void:
+	if n <= 0:
+		return
+	if replay_day:
+		if not replay_note_shown:
+			replay_note_shown = true
+			_show_note("Replaying a day you kept. The coffee's on the house today.")
+		return
+	_set_money(money + n)
+
+func _persist() -> void:
+	if day < 2 or save_data == null:
+		return
+	save_data.day = day
+	save_data.day_complete = day_complete
+	save_data.replay = replay_day
+	save_data.cart_name = cart_name
+	save_data.money = money
+	save_data.awning = awning_up
+	save_data.kid_kept = kid_kept
+	save_data.idris_served = idris_served
+	save_data.lunch_served = lunch_served
+	save_data.write()
+
+func _apply_cart_identity() -> void:
+	if cart_name == "":
+		return
+	cart_mat.albedo_color = C_GOLD
+	cart_mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+	if cart_root.has_node("CartSign"):
+		return
+	var sign := Label3D.new()
+	sign.name = "CartSign"
+	sign.text = cart_name
+	sign.font_size = 64
+	sign.position = Vector3(0, 2.3, 0)
+	sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	cart_root.add_child(sign)
+
+func _to_morning_light() -> void:
+	sky_mat.sky_top_color = Color("8FB8CF")
+	sky_mat.sky_horizon_color = Color("FFD9A0")
+	sky_mat.ground_horizon_color = Color("E8C9A0")
+	sun.light_color = C_AMBER
+	sun.light_energy = 1.25
+	sun.rotation_degrees = Vector3(-38, -55, 0)
+	env.ambient_light_energy = 0.85
+
+func _place_day2_cast() -> void:
+	rosa.position = Vector3(-16, 0.05, 7.6)   # out front, sweeping
+	rosa.visible = true
+	var sw := create_tween().set_loops()
+	sw.tween_property(rosa, "rotation:z", 0.05, 1.4).set_trans(Tween.TRANS_SINE)
+	sw.tween_property(rosa, "rotation:z", -0.05, 1.4).set_trans(Tween.TRANS_SINE)
+	idris.visible = true
+	idris.position = Vector3(-2, 0.05, -4.6)
+	if idris_served:
+		idris.position = Vector3(-24, 0.05, 6.4)   # already walked home
+
+func _advance_day2() -> void:
+	if day < 2 or step >= Step.D2_POSTCARD:
+		return
+	if not idris_served:
+		_set_step(Step.D2_IDRIS)
+		if not idris_walk_started:
+			idris_walk_started = true
+			var tw := create_tween()
+			tw.tween_property(idris, "position", Vector3(4.4, 0.05, -4.6), 5.0).set_trans(Tween.TRANS_SINE)
+			tw.tween_callback(func(): idris_arrived = true)
+	elif not kid_kept:
+		_set_step(Step.D2_TASK)
+	elif awning_up and lunch_served < 3:
+		_set_step(Step.D2_LUNCH)
+		if customer == null or not is_instance_valid(customer):
+			_spawn_customer(Vector3(4, 0.05, -4.6))
+	else:
+		_set_step(Step.D2_CLIMB2)
+
+func _rosa_chat() -> void:
+	if step == Step.D2_TASK:
+		rosa.position = Vector3(-16, 0.05, 7.6)
+		cup_prop.visible = true
+		_show_note("Rosa: \"The kid in the gold window watches your corner all day. Take him a regular? Milk, two sugars — you know the words now.\"")
+		_set_step(Step.D2_DELIVER)
+		return
+	if not idris_served:
+		_show_note("Rosa: \"%s. It's ugly. So was mine, once. Good.\" She means the cart. It's a compliment." % cart_name)
+	elif not kid_kept:
+		_show_note("Rosa: \"He's shy before noon. The regular's on me — carry it over when you get a minute.\"")
+	elif not awning_up:
+		_show_note("Rosa: \"An awning. One summer in and you're already fancier than me.\"")
+	else:
+		rosa_chat_i = (rosa_chat_i + 1) % 2
+		_show_note(["Rosa: \"The tomatoes are still salted wrong. Don't you dare change it.\"",
+			"Rosa: \"Two windows now. Two. I saw it from the counter.\""][rosa_chat_i])
+
+func _serve_idris() -> void:
+	idris_served = true
+	_earn(3 if awning_up else 2)
+	if awning_up:
+		_show_note("Mr. Idris: \"Told you I'd be back. The usual.\" He leaves a dollar extra under the cup. Shade is service.")
+	else:
+		_show_note("Mr. Idris: \"Told you I'd be back. The usual.\" It tastes the same as yesterday. That's the point.")
+	var tw := create_tween()
+	tw.tween_property(idris, "position", Vector3(-24, 0.05, 6.4), 8.0).set_trans(Tween.TRANS_SINE)
+	_persist()
+	_advance_day2()
+
+func _deliver_to_kid() -> void:
+	kid_kept = true
+	cup_prop.visible = false
+	_show_kid()
+	_earn(3)
+	_show_note("The kid: \"You're the cart. I watch the cart.\" Exact change, and one fact about the trains. The kid pays in both.")
+	_persist()
+	_advance_day2()
+
+func _show_kid() -> void:
+	kid_sil.visible = true
+	var tw := create_tween().set_loops()
+	tw.tween_property(kid_sil, "position:y", 8.66, 1.1).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(kid_sil, "position:y", 8.6, 1.1).set_trans(Tween.TRANS_SINE)
+
+func _kid_dusk_wave() -> void:
+	if kid_sil == null or not kid_sil.visible:
+		return
+	var tw := create_tween()
+	tw.tween_property(kid_sil, "rotation:z", 0.55, 0.25).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(kid_sil, "rotation:z", -0.55, 0.5).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(kid_sil, "rotation:z", 0.0, 0.35).set_trans(Tween.TRANS_SINE)
+	var tw2 := create_tween()
+	for e in [1.5, 0.3, 2.2, 0.2, 1.8]:
+		tw2.tween_property(second_mat, "emission_energy_multiplier", e, 0.14)
+	tw2.tween_property(second_mat, "emission_energy_multiplier", 3.2, 0.6)
+	_show_note("The kid waves from the window you lit. The lamp next door flickers, thinks about it, and stays on too.")
+
+func _awning_offer() -> void:
+	if not awning_confirm:
+		awning_confirm = true
+		_show_note("An awning kit leans against the cart, teal like Rosa's. $15, cash. [Space] again to put it up.")
+		return
+	awning_confirm = false
+	awning_up = true
+	_set_money(money - 15)
+	awning_mesh.visible = true
+	_show_note("The awning goes up with a sound like a sail. Shade. People linger. Lingering people order a second cup.")
+	_persist()
+	_advance_day2()
+
+func _rail() -> void:
+	if linger_stage <= 1:
+		linger_stage = 2
+		var tw := create_tween()
+		tw.tween_property(rosa_window_mat, "emission_energy_multiplier", 2.4, 1.2).set_trans(Tween.TRANS_SINE)
+		tw.tween_interval(1.6)
+		tw.tween_property(rosa_window_mat, "emission_energy_multiplier", 1.1, 2.0)
+		_show_note("Across the street, Rosa's window warms. \"Good night, coffee,\" she says — to you or the city, hard to tell.")
+	elif day < SaveGame.MAX_DAY:
+		_begin_next_day()
+	else:
+		_show_note("Day %d is still being written. The light stays a little longer." % (day + 1))
+
+func _dismiss_postcard() -> void:
+	postcard_panel.visible = false
+	player.frozen = false
+	postcard_rig = false
+	linger_stage = 1
+	if step == Step.POSTCARD or step == Step.D2_POSTCARD:
+		objective_lbl.text = "Stay as long as you like. The rail is a good spot. [Space] there when you're ready for tomorrow."
+	_show_note("Stay a while. The window is in no rush.")
+
+func _begin_next_day() -> void:
+	if day >= SaveGame.MAX_DAY:
+		_show_note("Day %d is still being written. The light stays a little longer." % (day + 1))
+		return
+	_begin_day(day + 1, null, false)
+
+func _begin_day(n: int, sd = null, completed := false) -> void:
+	day_fading = true
+	replay_day = completed
+	replay_note_shown = false
+	fade_rect.visible = true
+	var tw := create_tween()
+	tw.tween_property(fade_rect, "modulate:a", 1.0, 0.7)
+	await tw.finished
+	# -- morning --
+	day = n
+	day_complete = false
+	elapsed = 0.0
+	dusk_started = false
+	postcard_rig = false
+	linger_stage = 0
+	awning_confirm = false
+	ladder_hint_pending = false
+	if replay_day:
+		idris_served = false
+		lunch_served = 0
+	elif sd != null:
+		idris_served = sd.idris_served
+		lunch_served = sd.lunch_served
+	else:
+		idris_served = false
+		lunch_served = 0
+	idris_arrived = false
+	idris_walk_started = false
+	if customer != null and is_instance_valid(customer):
+		customer.queue_free()
+	customer = null
+	if n == 2 and sd != null:
+		cart_name = sd.cart_name
+		money = sd.money
+		awning_up = sd.awning
+		kid_kept = sd.kid_kept
+	money_lbl.text = "$%d" % money
+	_apply_cart_identity()
+	awning_mesh.visible = awning_up   # rebuild the world to match the save
+	_to_morning_light()
+	_place_day2_cast()
+	player.global_position = Vector3(3, 0.05, -5.4)
+	player.velocity = Vector3.ZERO
+	player.ladder = null
+	player.frozen = false
+	checkpoint = player.global_position
+	gold_mat.emission_energy_multiplier = 4.0   # the kid's window stays lit — Day 1 happened
+	second_mat.emission_energy_multiplier = 0.0
+	if kid_kept:
+		_show_kid()
+	_set_step(Step.D2_WAKE)
+	_show_note("Day %d. The cart is still yours. That part never resets." % n)
+	# day-start snapshot — this is what a restart (R) or a quit comes back to
+	save_data.day = n
+	save_data.day_complete = false
+	save_data.replay = replay_day
+	save_data.cart_name = cart_name
+	save_data.money = money
+	save_data.awning = awning_up
+	save_data.kid_kept = kid_kept
+	save_data.idris_served = idris_served
+	save_data.lunch_served = lunch_served
+	save_data.write()
+	_advance_day2()
+	title_lbl.text = "DAY %d" % n
+	title_lbl.visible = true
+	var t2 := create_tween()
+	t2.tween_interval(1.6)
+	t2.tween_callback(func(): title_lbl.visible = false)
+	var tw2 := create_tween()
+	tw2.tween_property(fade_rect, "modulate:a", 0.0, 0.9)
+	await tw2.finished
+	fade_rect.visible = false
+	day_fading = false
+
 # ---------------------------------------------------------------- UI
 func _build_ui() -> void:
 	ui = CanvasLayer.new()
@@ -697,6 +1176,9 @@ func _build_ui() -> void:
 	top.offset_right = -24
 	top.offset_top = 24
 	ui.add_child(top)
+	money_lbl = _label(top, 30, C_CREAM)
+	money_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	money_lbl.text = "$%d" % money
 	timer_lbl = _label(top, 22, C_CREAM)
 	timer_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	objective_lbl = _label(top, 30, C_CREAM)
@@ -744,6 +1226,19 @@ func _build_ui() -> void:
 	postcard_panel.visible = false
 	ui.add_child(postcard_panel)
 
+	fade_rect = ColorRect.new()
+	fade_rect.color = Color("1A1420")
+	fade_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	fade_rect.modulate.a = 0.0
+	fade_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fade_rect.visible = false
+	ui.add_child(fade_rect)
+	title_lbl = _label(ui, 60, C_CREAM)
+	title_lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title_lbl.visible = false
+
 func _label(parent: Node, size: int, color: Color) -> Label:
 	var l := Label.new()
 	l.add_theme_font_size_override("font_size", size)
@@ -779,6 +1274,7 @@ func _run_autotest() -> void:
 		_try_interact()
 		await _frames(2)
 	check.call(step == Step.CROSS and rush_served == 5, "5-order rush served")
+	check.call(money == 112, "day 1 rush pays $87 → $112 (Doc 08)")
 	await _walk_to(Vector3(-16, 0, 6.0))
 	await _walk_to(Vector3(-5, 0, 5.0))
 	await _walk_to(Vector3(-5, 0, -5.0))
@@ -812,6 +1308,15 @@ func _run_autotest() -> void:
 	await _walk_to(Vector3(9.4, 0, -7.2))
 	check.call(player.ladder != null, "grabbed ladder 1")
 	check.call(dusk_started, "dusk starts at the fire escape")
+		# -- seam 2: step off partway; Rosa must call you back --
+	await _hold("move_fwd", 1.2)
+	await _hold("move_left", 0.8)
+	await _frames(40)
+	check.call(player.ladder == null and player.global_position.y < 0.4,
+			"stepped off ladder 1 (y=%.2f)" % player.global_position.y)
+	check.call("fire escape" in objective_lbl.text.to_lower(), "stepping off calls Rosa's hint")
+	await _walk_to(Vector3(9.4, 0, -7.2))
+	check.call(player.ladder != null, "re-grabbed ladder 1")
 	await _hold("move_fwd", 2.2)
 	await _hold("move_right", 0.6)   # camera faces south here, so right = +x
 	await _frames(20)
@@ -825,8 +1330,134 @@ func _run_autotest() -> void:
 	await get_tree().create_timer(6.5).timeout
 	check.call(step == Step.DONE and postcard_panel.visible, "gold window + Postcard compose")
 	check.call(gold_mat.emission_energy_multiplier > 3.0, "gold window holds lit")
+	# -- day 2: the neighborhood comes alive (docs/22) --
+	check.call(money_lbl.text == "$112", "money label reads $112")
+	# Seam 3: the end breathes — postcard closes, lingering is allowed.
+	_try_interact()
+	check.call(not postcard_panel.visible and not player.frozen and not postcard_rig,
+			"postcard dismisses — the end lingers")
+	await _walk_to(Vector3(12.5, 8.0, -6.8))
+	_try_interact()
+	check.call(linger_stage == 2, "rail: Rosa's goodnight beat")
+	await get_tree().create_timer(1.4).timeout
+	check.call(rosa_window_mat.emission_energy_multiplier > 1.5, "Rosa's window warms")
+	_try_interact()
+	check.call(day_fading, "rail: tomorrow begins")
+	await _fade_settled()
+	check.call(day == 2 and step == Step.D2_IDRIS, "day 2 begins — Idris is on his way")
+	check.call(money == 112 and cart_name == "Wade's Spot", "day 2 keeps name and money")
+	check.call(FileAccess.file_exists(SaveGame.PATH), "day-start snapshot written")
+	await _idris_ready()
+	await _walk_to(Vector3(4.4, 0, -4.6))
+	_try_interact()
+	check.call(idris_served and money == 114, "Idris served: +$2 (got $%d)" % money)
+	if OS.get_environment("AUTOTEST_STOP") == "idris":
+		print("AUTOTEST OK: %d failures, stopped at idris (resume prep)" % fails.size())
+		get_tree().quit(0 if fails.is_empty() else 1)
+		return
+	await _walk_to(Vector3(-16, 0, 6.8))
+	_try_interact()
+	check.call(step == Step.D2_DELIVER and cup_prop.visible, "Rosa's favor accepted: cup in hand")
+	await _walk_to(Vector3(15, 0, 6.9))
+	_try_interact()
+	check.call(kid_kept and money == 117 and kid_sil.visible, "kid kept: +$3, kid at the glass")
+	await _walk_to(Vector3(4, 0, -5.2))
+	_try_interact()
+	check.call(awning_confirm, "awning offer asks for a confirm press")
+	_try_interact()
+	check.call(awning_up and money == 102 and awning_mesh.visible, "awning up: -$15 (got $%d)" % money)
+	for i in 3:
+		await _walk_to(Vector3(4, 0, -5.2))
+		_try_interact()
+		await _frames(2)
+	check.call(lunch_served == 3 and money == 111, "lunch rush with awning tips: $%d" % money)
+	check.call(step == Step.D2_CLIMB2, "dusk climb offered")
+	await _walk_to(Vector3(9.4, 0, -7.2))
+	await _hold("move_fwd", 2.2)
+	await _hold("move_right", 0.6)
+	await _frames(20)
+	await _walk_to(Vector3(15.8, player.global_position.y, -7.2))
+	await _hold("move_fwd", 2.2)
+	await _hold("move_left", 0.9)
+	await get_tree().create_timer(4.5).timeout
+	check.call(second_mat.emission_energy_multiplier > 2.5, "second window lights")
+	check.call(kid_sil.visible, "the kid is at the glass")
+	await get_tree().create_timer(2.5).timeout
+	check.call(step == Step.D2_POSTCARD and postcard_panel.visible, "day 2 postcard composes")
+	check.call("Day 2" in postcard_lbl.text, "postcard says Day 2")
+	_try_interact()
+	check.call(not player.frozen, "day 2 end lingers too")
+	var sf := FileAccess.open(SaveGame.PATH, FileAccess.READ)
+	check.call(sf != null, "save file readable")
+	if sf != null:
+		var raw := sf.get_as_text()
+		print("SAVE FILE: ", raw.strip_edges())
+		var saved: Variant = JSON.parse_string(raw)
+		check.call(typeof(saved) == TYPE_DICTIONARY and int(saved.get("day", 0)) == 2
+				and bool(saved.get("day_complete", false)) and bool(saved.get("awning", false))
+				and bool(saved.get("kid_kept", false)) and int(saved.get("money", 0)) == 111,
+				"save holds day 2 complete: $111, awning, kid")
 	print("AUTOTEST %s: %d failures, sim time %.1fs" % ["OK" if fails.is_empty() else "FAILED", fails.size(), elapsed])
 	get_tree().quit(0 if fails.is_empty() else 1)
+
+# -- persistence / corruption autotest modes -----------------------------------
+func _run_autotest_load() -> void:
+	var fails := []
+	var check := func(ok: bool, what: String):
+		print(("PASS " if ok else "FAIL ") + what)
+		if not ok: fails.append(what)
+	await _fade_settled()   # boot fades in before the day state lands
+	await _frames(10)
+	check.call(day == 2, "boot resumed day 2 (got day=%d)" % day)
+	check.call(cart_name == "Wade's Spot", "cart name persisted ('%s')" % cart_name)
+	if replay_day:
+		check.call(awning_up and awning_mesh.visible, "awning persisted")
+		check.call(kid_kept and kid_sil.visible, "kid kept persisted")
+		check.call(money == 111, "replay keeps the kept money ($%d)" % money)
+		await _idris_ready()
+		await _walk_to(Vector3(4.4, 0, -4.6))
+		_try_interact()
+		await _frames(5)
+		check.call(money == 111 and idris_served, "replay serves for love, not money")
+	else:
+		check.call(money == 114, "resume money exact ($%d)" % money)
+		check.call(idris_served, "Idris state restored — no re-serve")
+		check.call(step == Step.D2_TASK, "flow routed past finished work (step=%s)" % Step.keys()[step])
+		check.call(not awning_up and not kid_kept, "mid-day resume: undone work is not pre-done")
+		var m0 := money
+		await _frames(60)
+		check.call(money == m0, "idle resume pays nothing extra")
+	print("AUTOTEST-LOAD %s: %d failures" % ["OK" if fails.is_empty() else "FAILED", fails.size()])
+	get_tree().quit(0 if fails.is_empty() else 1)
+
+func _run_autotest_corrupt_prep() -> void:
+	SaveGame.wipe()
+	var f := FileAccess.open(SaveGame.PATH, FileAccess.WRITE)
+	f.store_string("{not json at all{{{")
+	f.close()
+	print("AUTOTEST-CORRUPT: garbage written")
+	get_tree().quit(0)
+
+func _run_autotest_corrupt_boot() -> void:
+	var fails := []
+	var check := func(ok: bool, what: String):
+		print(("PASS " if ok else "FAIL ") + what)
+		if not ok: fails.append(what)
+	await _frames(30)
+	check.call(day == 1 and money == 87 and step == Step.MEET_ROSA, "corrupt save → safe fresh Day 1")
+	SaveGame.wipe()
+	print("AUTOTEST-CORRUPT-BOOT %s: %d failures" % ["OK" if fails.is_empty() else "FAILED", fails.size()])
+	get_tree().quit(0 if fails.is_empty() else 1)
+
+func _fade_settled(timeout := 8.0) -> void:
+	var t0 := Time.get_ticks_msec()
+	while day_fading and Time.get_ticks_msec() - t0 < timeout * 1000.0:
+		await get_tree().process_frame
+
+func _idris_ready(timeout := 9.0) -> void:
+	var t0 := Time.get_ticks_msec()
+	while not idris_arrived and Time.get_ticks_msec() - t0 < timeout * 1000.0:
+		await get_tree().process_frame
 
 func _frames(n: int) -> void:
 	for i in n:

@@ -120,12 +120,27 @@ func _persona_cutter() -> void:
                 _try_interact()
                 await _frames(10)
                 _log({"ev": "cart_attempt", "step": Step.keys()[step], "prompt_visible": prompt_lbl.text != ""})
-                var t0 := elapsed
-                await _pause(STALL_LIMIT)
                 if step == Step.CROSS:
-                        _log({"ev": "stall", "s": snappedf(elapsed - t0, 0.01),
-                                "note": "standing where the corner is; the flow never noticed the crossing"})
-                        _finish("stuck", "crossed outside the crosswalk; step stayed CROSS with no prompt, no trigger, no way forward")
+                        var t0 := elapsed
+                        await _pause(STALL_LIMIT)
+                        if step == Step.CROSS:
+                                _log({"ev": "stall", "s": snappedf(elapsed - t0, 0.01),
+                                    "note": "standing where the corner is; the flow never noticed the crossing"})
+                                _finish("stuck", "crossed outside the crosswalk; step stayed CROSS with no prompt, no trigger, no way forward")
+                                return
+        _log({"ev": "game_noticed", "step": Step.keys()[step],
+                "note": "the flow moved off CROSS — the far sidewalk is the door now, not one stripe"})
+        await _walk_to(Vector3(4, 0, -5.2))
+        _try_interact()
+        await _frames(10)
+        if name_box.visible:
+                await _type_name("Wade's Spot")
+        for i in 3:
+                _try_interact()
+                await _frames(4)
+        await _route_climb()
+        if step == Step.DONE:
+                _finish("completed_day", "jaywalked, still finished the day in %.1f s sim — the city noticed and let it go" % elapsed)
 
 ## Follows the route loosely, curious about side streets. Leaves the ladder
 ## halfway up. Nothing tells it how to come back.
@@ -190,6 +205,7 @@ func _persona_gazer() -> void:
                 _finish("incomplete", "never reached the top; gaze postponed")
                 return
         await _pause(1.0)   # let the flicker settle; only real responses count
+        var answered := 0
         for attempt in 8:
                 var before := _gaze_state()
                 match attempt:
@@ -207,10 +223,12 @@ func _persona_gazer() -> void:
                         4:
                                 await _hold("move_fwd", 1.0)   # frozen — the walker won't move
                 var after := _gaze_state()
+                if before != after:
+                    answered += 1
                 _log({"ev": "linger_attempt", "n": attempt + 1, "what": _linger_name(attempt),
                         "responded": before != after, "frozen": player.frozen, "step": Step.keys()[step]})
         await _pause(2.0)
-        _finish("completed_day", "reached the end; 8 linger attempts, 0 responses — the tableau is frozen")
+        _finish("completed_day", "reached the end; %d/8 linger attempts answered — the tableau breathes" % answered)
 
 # ---------------------------------------------------------------- routes
 func _route_to_cart() -> void:
