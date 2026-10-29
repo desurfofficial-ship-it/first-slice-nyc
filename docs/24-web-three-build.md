@@ -13,6 +13,12 @@ same Day 2, same seams closed, same text, same money. The Godot greybox is
 untouched and stays the behavior oracle. Where the two disagree, the docs and
 the oracle win — except for two recorded fixes (§5).
 
+**History note (2026-10-29):** an independent partial M1–M3 port was pushed to
+`main` in parallel with this one (different file layout, no tests). The merge
+commit `18bfb09` kept the verified implementation for every overlapping path
+and dropped the draft's orphaned sources — they remain recoverable in git
+history under `origin/main`.
+
 ## 2. Stack
 
 | Choice | Why |
