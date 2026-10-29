@@ -42,3 +42,10 @@ in-code fallback are interchangeable; the game harmonizes materials to its Lambe
 
 `web-three/public/models/*.glb` → loaded at runtime by `World.loadInto()` (GLTFLoader) with the
 built-in geometry as fallback. Regenerate any time; keep names identical.
+
+## No CUDA on this machine?
+
+See `tools/gen3d/generate_glb.py` — the same text/image -> `.glb` flow, but the
+GPU work happens on free Hugging Face Spaces (TRELLIS / Hunyuan3D) via
+`gradio_client`, so it runs anywhere. It complements this folder: Track A for
+CUDA boxes, `tools/gen3d/` for GPU-less machines and quick one-off assets.
