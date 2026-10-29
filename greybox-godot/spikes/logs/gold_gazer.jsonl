@@ -1,0 +1,33 @@
+{"ev":"step_change","from":"-","persona":"gold_gazer","t":0.0,"to":"MEET_ROSA"}
+{"budget_s":120.0,"ev":"start","persona":"gold_gazer","t":0.51}
+{"ev":"harness_note","note":"scripted waypoint walker, no pathfinding; 'lost' models a player with no guidance","persona":"gold_gazer","t":0.51}
+{"ev":"step_change","from":"MEET_ROSA","persona":"gold_gazer","t":1.03,"to":"ENTER_BODEGA"}
+{"arrived":true,"ev":"leg","persona":"gold_gazer","s":0.58,"t":1.1,"what":"rosa"}
+{"arrived":true,"ev":"leg","persona":"gold_gazer","s":2.86,"t":3.96,"what":"bodega_door"}
+{"ev":"step_change","from":"ENTER_BODEGA","persona":"gold_gazer","t":4.23,"to":"COLLECT"}
+{"arrived":true,"ev":"leg","persona":"gold_gazer","s":1.2,"t":5.16,"what":"inside"}
+{"arrived":true,"ev":"leg","persona":"gold_gazer","s":1.68,"t":6.84,"what":"mango"}
+{"arrived":true,"ev":"leg","persona":"gold_gazer","s":0.5,"t":7.35,"what":"coffee"}
+{"ev":"step_change","from":"COLLECT","persona":"gold_gazer","t":7.88,"to":"RUSH"}
+{"arrived":true,"ev":"leg","persona":"gold_gazer","s":0.6,"t":7.95,"what":"bread"}
+{"arrived":true,"ev":"leg","persona":"gold_gazer","s":1.5,"t":9.44,"what":"counter"}
+{"arrived":true,"ev":"leg","persona":"gold_gazer","s":1.75,"t":11.2,"what":"exit_bodega"}
+{"arrived":true,"ev":"leg","persona":"gold_gazer","s":2.67,"t":13.86,"what":"crosswalk_n"}
+{"arrived":true,"ev":"leg","persona":"gold_gazer","s":2.4,"t":16.26,"what":"cross_street"}
+{"arrived":true,"ev":"leg","persona":"gold_gazer","s":2.2,"t":18.46,"what":"cart"}
+{"ev":"step_change","from":"RUSH","persona":"gold_gazer","t":19.36,"to":"SOLO"}
+{"ev":"step_change","from":"SOLO","persona":"gold_gazer","t":19.5,"to":"CLIMB"}
+{"arrived":true,"ev":"leg","persona":"gold_gazer","s":1.42,"t":20.98,"what":"ladder_1"}
+{"arrived":true,"ev":"leg","persona":"gold_gazer","s":0.97,"t":25.08,"what":"ladder_2"}
+{"ev":"step_change","from":"CLIMB","persona":"gold_gazer","t":27.7,"to":"POSTCARD"}
+{"ev":"step_change","from":"POSTCARD","persona":"gold_gazer","t":33.3,"to":"DONE"}
+{"ev":"top_reached","persona":"gold_gazer","sim_t":33.3,"t":33.3}
+{"ev":"linger_attempt","frozen":true,"n":1,"persona":"gold_gazer","responded":false,"step":"DONE","t":33.3,"what":"interact"}
+{"ev":"linger_attempt","frozen":true,"n":2,"persona":"gold_gazer","responded":false,"step":"DONE","t":33.3,"what":"cam_left"}
+{"ev":"linger_attempt","frozen":true,"n":3,"persona":"gold_gazer","responded":false,"step":"DONE","t":33.3,"what":"cam_right"}
+{"ev":"linger_attempt","frozen":true,"n":4,"persona":"gold_gazer","responded":false,"step":"DONE","t":33.3,"what":"stand_still"}
+{"ev":"linger_attempt","frozen":true,"n":5,"persona":"gold_gazer","responded":false,"step":"DONE","t":33.3,"what":"try_to_walk"}
+{"ev":"linger_attempt","frozen":true,"n":6,"persona":"gold_gazer","responded":false,"step":"DONE","t":33.3,"what":"interact_again"}
+{"ev":"linger_attempt","frozen":true,"n":7,"persona":"gold_gazer","responded":false,"step":"DONE","t":33.3,"what":"stand_longer"}
+{"ev":"linger_attempt","frozen":true,"n":8,"persona":"gold_gazer","responded":false,"step":"DONE","t":33.3,"what":"interact_last"}
+{"ev":"result","final_step":"DONE","persona":"gold_gazer","reason":"reached the end; 8 linger attempts, 0 responses — the tableau is frozen","result":"completed_day","sim_t":33.3,"t":33.3}

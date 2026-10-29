@@ -1,0 +1,25 @@
+{"ev":"step_change","from":"-","persona":"sprinter","t":0.0,"to":"MEET_ROSA"}
+{"budget_s":120.0,"ev":"start","persona":"sprinter","t":0.51}
+{"ev":"harness_note","note":"scripted waypoint walker, no pathfinding; 'lost' models a player with no guidance","persona":"sprinter","t":0.51}
+{"ev":"step_change","from":"MEET_ROSA","persona":"sprinter","t":1.03,"to":"ENTER_BODEGA"}
+{"arrived":true,"ev":"leg","persona":"sprinter","s":0.58,"t":1.09,"what":"rosa"}
+{"arrived":true,"ev":"leg","persona":"sprinter","s":2.87,"t":3.96,"what":"bodega_door"}
+{"ev":"step_change","from":"ENTER_BODEGA","persona":"sprinter","t":4.23,"to":"COLLECT"}
+{"arrived":true,"ev":"leg","persona":"sprinter","s":1.2,"t":5.16,"what":"inside"}
+{"arrived":true,"ev":"leg","persona":"sprinter","s":1.68,"t":6.85,"what":"mango"}
+{"arrived":true,"ev":"leg","persona":"sprinter","s":0.5,"t":7.34,"what":"coffee"}
+{"ev":"step_change","from":"COLLECT","persona":"sprinter","t":7.88,"to":"RUSH"}
+{"arrived":true,"ev":"leg","persona":"sprinter","s":0.6,"t":7.94,"what":"bread"}
+{"arrived":true,"ev":"leg","persona":"sprinter","s":1.5,"t":9.45,"what":"counter"}
+{"arrived":true,"ev":"leg","persona":"sprinter","s":1.75,"t":11.2,"what":"exit_bodega"}
+{"arrived":true,"ev":"leg","persona":"sprinter","s":2.66,"t":13.86,"what":"crosswalk_n"}
+{"arrived":true,"ev":"leg","persona":"sprinter","s":2.4,"t":16.26,"what":"cross_street"}
+{"arrived":true,"ev":"leg","persona":"sprinter","s":2.21,"t":18.47,"what":"cart"}
+{"ev":"step_change","from":"RUSH","persona":"sprinter","t":19.36,"to":"SOLO"}
+{"ev":"step_change","from":"SOLO","persona":"sprinter","t":19.5,"to":"CLIMB"}
+{"arrived":true,"ev":"leg","persona":"sprinter","s":1.41,"t":20.98,"what":"ladder_1"}
+{"arrived":true,"ev":"leg","persona":"sprinter","s":0.97,"t":25.08,"what":"ladder_2"}
+{"ev":"step_change","from":"CLIMB","persona":"sprinter","t":27.69,"to":"POSTCARD"}
+{"ev":"step_change","from":"POSTCARD","persona":"sprinter","t":33.3,"to":"DONE"}
+{"ev":"top_reached","persona":"sprinter","sim_t":33.3,"t":33.3}
+{"ev":"result","final_step":"DONE","persona":"sprinter","reason":"day complete in 33.3 s sim","result":"completed_day","sim_t":33.3,"t":33.3}

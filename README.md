@@ -89,6 +89,7 @@ Full lock notes: [Doc 14](docs/14-styleframe-lock.md)
 |-------|--------|
 | **TS-01 · Postcard Capture** | Full pipeline working. Day → glide → offscreen render → paper frame + caption → shareable PNG. |
 | **TS-02 · Vertical Camera** | One camera, three poses, smooth blends. Safe margins confirmed in portrait. |
+| **Synthetic Playtest (n=5)** | Five scripted walkers found three real seams: one-door crosswalk, one-way ladder, frozen ending. Logs committed. [Doc 21](docs/21-synthetic-playtest-01.md). |
 
 Details and numbers live in [Doc 15](docs/15-tech-spikes.md).
 
@@ -118,6 +119,8 @@ Details and numbers live in [Doc 15](docs/15-tech-spikes.md).
 | [16 – Risk Register](docs/16-risk-register.md) | What can still break the feeling |
 | [17 – Greybox Tasks](docs/17-greybox-tasks.md) | Concrete build checklist |
 | [19 – First-Build Guide](docs/19-greybox-first-build.md) | How to open the project and start |
+| [20 – Day 1 Render Notes](docs/20-day1-greybox-render-notes.md) | First played pass — six camera findings, with evidence frames |
+| [21 – Synthetic Playtest 01](docs/21-synthetic-playtest-01.md) | Five scripted walkers, one day — three real seams |
 | [AGENTS.md](AGENTS.md) | Operating manual for AI agents |
 
 ---

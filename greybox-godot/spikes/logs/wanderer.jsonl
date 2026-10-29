@@ -1,0 +1,33 @@
+{"ev":"step_change","from":"-","persona":"wanderer","t":0.0,"to":"MEET_ROSA"}
+{"budget_s":120.0,"ev":"start","persona":"wanderer","t":0.51}
+{"ev":"harness_note","note":"scripted waypoint walker, no pathfinding; 'lost' models a player with no guidance","persona":"wanderer","t":0.51}
+{"ev":"step_change","from":"MEET_ROSA","persona":"wanderer","t":1.03,"to":"ENTER_BODEGA"}
+{"ev":"excursion","persona":"wanderer","s":2.6,"step":"ENTER_BODEGA","t":3.63}
+{"ev":"step_change","from":"ENTER_BODEGA","persona":"wanderer","t":6.11,"to":"COLLECT"}
+{"ev":"excursion","persona":"wanderer","s":13.34,"step":"COLLECT","t":20.38}
+{"ev":"excursion","persona":"wanderer","s":13.35,"step":"COLLECT","t":36.26}
+{"ev":"excursion","persona":"wanderer","s":13.35,"step":"COLLECT","t":51.96}
+{"ev":"step_change","from":"COLLECT","persona":"wanderer","t":54.25,"to":"RUSH"}
+{"ev":"excursion","persona":"wanderer","s":13.33,"step":"RUSH","t":67.58}
+{"ev":"step_change","from":"RUSH","persona":"wanderer","t":69.25,"to":"CROSS"}
+{"ev":"excursion","persona":"wanderer","s":2.57,"step":"CROSS","t":71.85}
+{"ev":"step_change","from":"CROSS","persona":"wanderer","t":76.36,"to":"CLAIM_CART"}
+{"ev":"excursion","persona":"wanderer","s":2.3,"step":"CLAIM_CART","t":80.81}
+{"ev":"step_change","from":"CLAIM_CART","persona":"wanderer","t":82.07,"to":"NAME_CART"}
+{"ev":"step_change","from":"NAME_CART","persona":"wanderer","t":82.53,"to":"SOLO"}
+{"ev":"step_change","from":"SOLO","persona":"wanderer","t":82.6,"to":"CLIMB"}
+{"ev":"out_of_time_warning","persona":"wanderer","s":82.63,"t":82.63}
+{"ev":"grab_ladder","persona":"wanderer","t":84.01}
+{"ev":"left_ladder","objective":"still says CLIMB; no waypoint, no ping, no arrow","persona":"wanderer","t":86.12,"y":0.88}
+{"ev":"excursion","persona":"wanderer","s":3.03,"step":"CLIMB","t":89.15}
+{"ev":"excursion","persona":"wanderer","s":2.78,"step":"CLIMB","t":91.93}
+{"ev":"excursion","persona":"wanderer","s":3.5,"step":"CLIMB","t":95.43}
+{"ev":"excursion","persona":"wanderer","s":2.68,"step":"CLIMB","t":98.11}
+{"ev":"excursion","persona":"wanderer","s":2.25,"step":"CLIMB","t":100.36}
+{"ev":"excursion","persona":"wanderer","s":2.79,"step":"CLIMB","t":103.15}
+{"ev":"excursion","persona":"wanderer","s":2.55,"step":"CLIMB","t":105.7}
+{"ev":"excursion","persona":"wanderer","s":2.8,"step":"CLIMB","t":108.5}
+{"ev":"excursion","persona":"wanderer","s":3.5,"step":"CLIMB","t":111.99}
+{"ev":"excursion","persona":"wanderer","s":2.65,"step":"CLIMB","t":114.65}
+{"ev":"excursion","persona":"wanderer","s":2.25,"step":"CLIMB","t":116.9}
+{"ev":"result","final_step":"CLIMB","persona":"wanderer","reason":"budget ran out at CLIMB","result":"incomplete","sim_t":116.9,"t":116.9}

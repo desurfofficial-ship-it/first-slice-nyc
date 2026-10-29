@@ -1,0 +1,12 @@
+{"ev":"step_change","from":"-","persona":"corner_cutter","t":0.0,"to":"MEET_ROSA"}
+{"budget_s":120.0,"ev":"start","persona":"corner_cutter","t":0.51}
+{"ev":"harness_note","note":"scripted waypoint walker, no pathfinding; 'lost' models a player with no guidance","persona":"corner_cutter","t":0.51}
+{"ev":"step_change","from":"MEET_ROSA","persona":"corner_cutter","t":1.03,"to":"ENTER_BODEGA"}
+{"ev":"step_change","from":"ENTER_BODEGA","persona":"corner_cutter","t":4.16,"to":"COLLECT"}
+{"ev":"step_change","from":"COLLECT","persona":"corner_cutter","t":7.68,"to":"RUSH"}
+{"ev":"step_change","from":"RUSH","persona":"corner_cutter","t":9.32,"to":"CROSS"}
+{"ev":"cut_start","note":"heading east along the north walk, then straight across to the corner","persona":"corner_cutter","t":11.1}
+{"ev":"cut_done","on_south_side":true,"persona":"corner_cutter","pos":[1.9,-5.2],"step":"CROSS","t":17.2}
+{"ev":"cart_attempt","persona":"corner_cutter","prompt_visible":false,"step":"CROSS","t":17.85}
+{"ev":"stall","note":"standing where the corner is; the flow never noticed the crossing","persona":"corner_cutter","s":20.0,"t":37.85}
+{"ev":"result","final_step":"CROSS","persona":"corner_cutter","reason":"crossed outside the crosswalk; step stayed CROSS with no prompt, no trigger, no way forward","result":"stuck","sim_t":37.85,"t":37.85}
