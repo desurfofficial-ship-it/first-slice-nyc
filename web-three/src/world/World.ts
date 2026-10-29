@@ -532,14 +532,23 @@ export class World {
     // city lamps switch on before sundown — four dead heads read as props,
     // not as a block people walk home under. One shared emissive material.
     const lampFace = this.mat(PAL.taxi, { emissive: PAL.taxi, emissiveIntensity: 0.35 });
+    // x-spots clear of the tree canopies: a pole sharing its block-face with
+    // a tree spears the crown, and the gold lamp head pokes out the far side
+    // as a floating yellow chip (Doc 31 read exactly that in two frames).
+    // Worst canopy reach is 1.85 m from the trunk; every lamp now clears a
+    // tree by >= 3 m. Lamp 1 moved -34 -> -31 (tree 0 sat at the same x),
+    // lamp 3 -18 -> -19.5 and lamp 4 30 -> 31.5 (a metre of margin is not
+    // margin when a seeded canopy blob can grow another half-metre).
     const lights: Array<[number, number, number]> = [
-      [-34, 7.35, Math.PI / 2], [8, 7.35, Math.PI / 2],
-      [-18, -7.35, -Math.PI / 2], [30, -7.35, -Math.PI / 2],
+      [-31, 7.35, Math.PI / 2], [8, 7.35, Math.PI / 2],
+      [-19.5, -7.35, -Math.PI / 2], [31.5, -7.35, -Math.PI / 2],
     ];
-    for (const [lx, lz, lyaw] of lights) {
+    for (let li = 0; li < lights.length; li++) {
+      const [lx, lz, lyaw] = lights[li];
       const lamp = makeStreetlight(this.bank, lampFace);
       lamp.position.set(lx, 0.05, lz);
       lamp.rotation.y = lyaw; // arm reaches over the street
+      lamp.name = `Streetlight_${li}`; // probes assert on these
       this.scene.add(lamp);
     }
     const can1 = makeTrashCan(this.bank); can1.position.set(-19, 0.05, 7.45); this.scene.add(can1);
@@ -661,22 +670,29 @@ export class World {
       bodies: [this.bank.get(PAL.skyline), this.bank.get(PAL.ink), this.bank.get(PAL.bldg2)],
       patch: this.bank.get(PAL.cream),
     };
+    // groundY = 0.1: the north sidewalk slab tops out there, and a flock
+    // rooted at y = 0 stands knee-deep in the paving — at the curb seam the
+    // birds read half-buried (Doc 31, d3_plaza_pigeons_portrait). Every
+    // zBand below stays within the slab (z 4..8), so one height covers all.
     this.pigeonFlock = new PigeonFlock(
       this.scene,
       pigeonMats,
-      90210, { x: -40, z: 5 }, 2.4, 9, { min: 4.35, max: 7.2 },
+      90210, { x: -40, z: 5 }, 2.4, 9, { min: 4.35, max: 7.2 }, 0.1,
     );
+    this.pigeonFlock.group.name = 'Flock_Plaza'; // probes assert on these
     this.squirrel = new Squirrel(
       this.scene,
       { fur: this.bank.get(0x8a6a4a), tail: this.bank.get(0x7a5c48) },
-      7, { x: -36.4, z: 4.8 }, { min: 4.2, max: 7.4 },
+      7, { x: -36.4, z: 4.8 }, { min: 4.2, max: 7.4 }, 0.1,
     );
+    this.squirrel.group.name = 'Squirrel';
     // a small east-end flock — the plaza flock shouldn't own all the birds
     this.pigeonFlockEast = new PigeonFlock(
       this.scene,
       pigeonMats,
-      2718, { x: 30, z: 5 }, 1.8, 4, { min: 4.35, max: 6.2 },
+      2718, { x: 30, z: 5 }, 1.8, 4, { min: 4.35, max: 6.2 }, 0.1,
     );
+    this.pigeonFlockEast.group.name = 'Flock_East';
 
     // ---- leaf drift (early autumn; one instanced mesh, one draw call) ----
     // tops come from the trees we just grew (2.9..4.5 m), so leaves are born

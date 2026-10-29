@@ -55,6 +55,10 @@ export class PigeonFlock {
   private radius: number;
   private home: { x: number; z: number };
   private zBand?: { min: number; max: number };
+  /** the paving these birds stand on — the north sidewalk slab tops out at
+   *  y = 0.1, and a flock rooted at y = 0 sinks a tenth of a metre into it:
+   *  at the curb seam the birds read half-buried (Doc 31 caught it). */
+  private groundY: number;
 
   /**
    * @param seed deterministic placement seed
@@ -63,6 +67,7 @@ export class PigeonFlock {
    * @param zBand optional sidewalk band — birds never stand in the traffic
    *   lane (the doc says pigeons do not jaywalk; the first draft let the
    *   wander radius drift them into the road anyway)
+   * @param groundY the top of the paving under the flock (slab = 0.1)
    */
   constructor(
     scene: THREE.Scene,
@@ -78,11 +83,13 @@ export class PigeonFlock {
     radius: number,
     count = 9,
     zBand?: { min: number; max: number },
+    groundY = 0,
   ) {
     const rng = seededRng(seed);
     this.radius = radius;
     this.home = { ...center };
     this.zBand = zBand;
+    this.groundY = groundY;
     for (let i = 0; i < count; i++) {
       // this bird's plumage — one of the flock's morphs (or the plain body)
       const bodies = mats.bodies ?? [mats.body];
@@ -132,7 +139,7 @@ export class PigeonFlock {
         flyFrom: { x, z }, flyTo: { x, z },
         phase: rng() * Math.PI * 2,
       };
-      g.position.set(x, 0, z);
+      g.position.set(x, this.groundY, z);
       g.rotation.y = bird.facing;
       this.birds.push(bird);
       this.group.add(g);
@@ -180,12 +187,12 @@ export class PigeonFlock {
           const ease = k * k * (3 - 2 * k); // smoothstep — leaves and lands soft
           b.pos.x = b.flyFrom.x + (b.flyTo.x - b.flyFrom.x) * ease;
           b.pos.z = b.flyFrom.z + (b.flyTo.z - b.flyFrom.z) * ease;
-          b.group.position.y = Math.sin(Math.PI * k) * 1.15;
+          b.group.position.y = this.groundY + Math.sin(Math.PI * k) * 1.15;
           b.group.rotation.y = Math.atan2(b.flyTo.x - b.flyFrom.x, b.flyTo.z - b.flyFrom.z);
           // two flap beats over the arc
           b.tail.rotation.x = 0.28 + Math.sin(b.flyAge * 26) * 0.35;
           if (k >= 1) {
-            b.group.position.y = 0;
+            b.group.position.y = this.groundY;
             b.tail.rotation.x = 0.28;
             b.head.position.z = 0.13; // never land mid-bob
             b.mode = 'idle';
@@ -231,7 +238,7 @@ export class PigeonFlock {
             b.pos.z += (dz / d) * step;
             b.group.rotation.y = Math.atan2(dx, dz);
             // the head-bob walk: body dips at stride frequency
-            b.group.position.y = Math.abs(Math.sin(b.phase * 9)) * 0.015;
+            b.group.position.y = this.groundY + Math.abs(Math.sin(b.phase * 9)) * 0.015;
             b.head.position.z = 0.13 + Math.sin(b.phase * 9) * 0.03;
           }
           break;
@@ -249,7 +256,7 @@ export class PigeonFlock {
         }
       }
 
-      if (b.mode !== 'fly') b.group.position.y = b.mode === 'walk' ? b.group.position.y : 0;
+      if (b.mode !== 'fly') b.group.position.y = b.mode === 'walk' ? b.group.position.y : this.groundY;
       b.group.position.x = b.pos.x;
       b.group.position.z = b.pos.z;
     }
@@ -284,6 +291,7 @@ export class Squirrel {
   readonly group: THREE.Group;
   private s: SquirrelState;
   private zBand?: { min: number; max: number };
+  private groundY: number;
 
   constructor(
     scene: THREE.Scene,
@@ -291,8 +299,10 @@ export class Squirrel {
     seed: number,
     home: { x: number; z: number },
     zBand?: { min: number; max: number },
+    groundY = 0,
   ) {
     const rng = seededRng(seed);
+    this.groundY = groundY;
     const g = new THREE.Group();
     const body = new THREE.Mesh(sqBodyGeo, mats.fur);
     body.scale.set(0.1, 0.1, 0.16);
@@ -310,7 +320,7 @@ export class Squirrel {
     g.add(body, head, tailPivot);
     const pos = { x: home.x + (rng() - 0.5), z: home.z + (rng() - 0.5) };
     if (zBand) pos.z = Math.min(zBand.max, Math.max(zBand.min, pos.z));
-    g.position.set(pos.x, 0, pos.z);
+    g.position.set(pos.x, groundY, pos.z);
     this.s = {
       group: g, tail: tailPivot, pos,
       mode: 'rest', timer: 1 + rng() * 3,
@@ -364,11 +374,11 @@ export class Squirrel {
       const k = Math.min(1, s.hopAge / s.hopDur);
       s.pos.x = s.from.x + (s.to.x - s.from.x) * k;
       s.pos.z = s.from.z + (s.to.z - s.from.z) * k;
-      s.group.position.y = Math.sin(Math.PI * k) * 0.14;
+      s.group.position.y = this.groundY + Math.sin(Math.PI * k) * 0.14;
       s.group.rotation.y = Math.atan2(s.to.x - s.from.x, s.to.z - s.from.z);
       s.tail.rotation.z = Math.sin(s.hopAge * 18) * 0.3;
       if (k >= 1) {
-        s.group.position.y = 0;
+        s.group.position.y = this.groundY;
         s.hopsLeft -= 1;
         if (s.hopsLeft <= 0) {
           s.mode = 'rest';
