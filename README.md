@@ -7,148 +7,142 @@
 
 *A cozy lowpoly life-simulation game for the billions of people who have never set foot in New York City — but have dreamed about it their whole lives.*
 
+[Game Design Document](docs/01-game-design-document.md) · [Vertical Slice](docs/07-vertical-slice-design.md) · [Greybox](greybox-godot/) · [AGENTS.md](AGENTS.md)
+
 </div>
 
 ---
 
-## 🍕 What is this?
+## What is this?
 
-**FIRST SLICE** is an original mobile simulation game where you arrive in a stylized, postcard-beautiful New York City as a complete outsider — with **$87 in your pocket**, a duffel bag, and a dream. The city itself becomes your patient, hilarious, magical teacher.
+**FIRST SLICE** is an original mobile simulation game where you arrive in a stylized, postcard-beautiful New York as a complete outsider — with **$87**, a duffel bag, and a dream. The city itself becomes your patient, funny, magical teacher.
 
-You start with a humble coffee cart on a quiet corner. Through short, satisfying daily sessions you learn the city's ways — how to make a proper bacon-egg-and-cheese, how to say *"on line"* instead of *"in line,"* how to read the subway without fear — and slowly build your own piece of the Big Apple:
+You start with a humble coffee cart on a quiet corner. Through short daily sessions you learn the city’s ways and slowly build your own piece of it:
 
-**Coffee Cart → Corner Bodega → Neighborhood Café → Beloved Food Spot → Rooftop Hangout**
+**Coffee Cart → Bodega → Café → Food Spot → Rooftop**
 
-Every session ends with a **postcard** — a beautiful, auto-composed, captioned snapshot of something you discovered — and your album slowly fills with a New York that is uniquely *yours*. By the end, you've never been to Manhattan, but you swear you could navigate it.
+Every session ends with a **postcard** — a beautiful, auto-composed, captioned snapshot of something you discovered. By the end you’ve never been to Manhattan, but you swear you could navigate it.
 
-<div align="center">
-
-> *"I cried at Rosa's bodega anniversary party. I have never even been to New York."*
+> *“I cried at Rosa’s bodega anniversary party. I have never even been to New York.”*  
 > — the exact player reaction this game is designed to produce
 
-</div>
-
 ---
 
-## 🎯 The Design Promise
+## Design Promise
 
 | Pillar | Commitment |
-|---|---|
-| **For never-visitors** | Every system assumes zero NYC knowledge. The city is the tutorial — never a popup. |
-| **Wonder first** | Every session contains a guaranteed "wonder beat" — a moment designed to make you say *I wish I could see that.* |
-| **Postcard beauty** | Lowpoly, golden-hour, bold silhouettes. Every frame readable in a 9:16 screenshot at 1-second scroll speed. |
-| **Short & satisfying** | One in-game day = 5–8 minutes. The perfect commute game, with a natural stopping point every session. |
-| **Meme-native** | Pizza Rat moments, Bodega Cats, Manhattanhenge. Systems designed to be screenshotted and shared. |
+|--------|------------|
+| **For never-visitors** | Zero NYC knowledge assumed. The city is the tutorial. |
+| **Wonder first** | Every session has a designed “I wish I could see that” moment. |
+| **Postcard beauty** | Lowpoly, golden-hour, vertical-first. Readable in one second. |
+| **Short & satisfying** | One in-game day ≈ 5–8 minutes. Natural stopping point every session. |
+| **Share-native** | Postcards and skyline moments are built to be sent to friends. |
 
 ---
 
-## 🖼️ Pitch Site Preview
+## Current Status — Greybox is Alive
 
-An interactive one-page pitch deck presenting this concept was built alongside these docs (screenshots below):
+The Day 1 greybox is playable in **Godot 4.7**.
 
-| | |
-|---|---|
-| ![Pitch site hero — postcard-framed lowpoly NYC corner](assets/pitch-site-hero.png) | ![Events gallery — Manhattanhenge, Pizza Rat, Bodega Cat](assets/pitch-site-events.png) |
-| *Hero: postcard-framed key art* | *Events: the wonder-beat gallery* |
+**Path you can walk right now:**  
+Terminal → Rosa’s bodega → first rush → name your cart → serve Mr. Idris → climb the fire escape at dusk → watch one window turn gold → receive your first postcard.
 
-![Mobile layout](assets/pitch-site-mobile.png)
-*Mobile-first — the game is designed vertical-first too (the TikTok law).*
-
-### Phase 0 styleframes (candidates)
-
-| A — Golden-hour corner | B — Dusk fire escape | C — First postcard |
-|---|---|---|
-| ![Styleframe A](assets/styleframes/styleframe-a-golden-hour-corner.jpg) | ![Styleframe B](assets/styleframes/styleframe-b-dusk-fire-escape.jpg) | ![Styleframe C](assets/styleframes/styleframe-c-first-postcard.jpg) |
-
-Pending approval. Briefs in [Doc 04 §8](docs/04-art-direction-bible.md).
-
----
-
-## 🆕 What's new
-
-**Phase 0 content drop (this commit):**
-- Full Day-1 content pack (12 Map notes + 6 postcards) — [Doc 08](docs/08-day1-content-pack.md)
-- Vertical Slice hardened to v0.2 with TBD recommendations — [Doc 07](docs/07-vertical-slice-design.md)
-- Art Direction expanded with styleframe briefs + 20-prop silhouette sheet — [Doc 04](docs/04-art-direction-bible.md)
-- Phase 0 checklist — [Doc 09](docs/09-phase0-checklist.md)
-
-Four systems from the companion concept **Saved You a Seat** remain canon:
-
-- **Map** — the co-newbie paper companion who learns alongside you
-- **The Three-Layer Landmark** — Postcard → Tuesday → Kindness
-- **The Skyline of Lit Windows** — progress you can film, never a menu
-- **The Inverted Loop** — *Someone's First New York* + the Welcome Bench
-
----
-
-## 📚 Documentation
-
-| Document | Contents |
-|---|---|
-| **[01 — Game Design Document](docs/01-game-design-document.md)** | The complete concept: title, pitch, core loop, teaching systems, events, progression, art direction, first-session script, and the full viral case. *(The source of truth.)* |
-| **[02 — First Session Walkthrough](docs/02-first-session-walkthrough.md)** | A minute-by-minute script of the first 30 minutes, with dialogue samples and wonder-beat placement. |
-| **[03 — NYC Events & Systems Compendium](docs/03-events-compendium.md)** | 25+ original NYC-flavored events and systems — from Pizza Rat to Manhattanhenge — each with the "wonder beat" identified. |
-| **[04 — Art Direction Bible](docs/04-art-direction-bible.md)** | The Postcard Warm palette, camera language, lighting rules, UI motifs, styleframe briefs, and the 20-prop silhouette sheet. |
-| **[05 — Viral & Growth Playbook](docs/05-viral-growth-playbook.md)** | UGC engine design, share-card system, TikTok-native moments, K-factor mechanics, and market analysis. |
-| **[06 — Production Roadmap](docs/06-production-roadmap.md)** | Phases 0–6 with epic/task breakdown, team shape, engine decision, KPI gates, risk register, and definitions of done. |
-| **[07 — Vertical Slice Design](docs/07-vertical-slice-design.md)** | The first 30 minutes at shippable quality: scope in/out, feature specs VS-F01→F10, content inventory, perf budgets, exit criteria. *(v0.2)* |
-| **[08 — Day 1 Content Pack](docs/08-day1-content-pack.md)** | Final-voice Map notes (12) + Day-1 postcards (6). Ready for implementation. |
-| **[09 — Phase 0 Checklist](docs/09-phase0-checklist.md)** | Concrete exit criteria and task tracking for pre-production. |
-| **[AGENTS.md](AGENTS.md)** | Operations manual for AI agents: the seven design Laws, voice guide, workflow protocol, and a 9-skill library. |
-
----
-
-## 🌆 The Fantasy
-
-> **"Experience the dream of New York without ever leaving your phone."**
-
-New York is the world's most *imagined* city. Billions of people carry a parasocial relationship with it — from movies, from TikTok, from hip-hop, from sitcoms. They know the yellow cabs, the steam curling from manholes, the pizza slices bigger than their face. They've never been. They've always wanted to.
-
-**FIRST SLICE is the plane ticket that doesn't cost flight money.**
-
-It celebrates the *myth* of New York — opportunity, energy, diversity, late-night food, street life — while treating it with enough authenticity to make real New Yorkers smile and say *"that's so us."*
-
----
-
-## 🕹️ Core Loop in 10 Seconds
-
-1. ☕ **Morning — Open Up.** Serve a rush of customers; every order is a little culture lesson.
-2. 🚶 **Midday — Go Explore.** Walk a living block. Meet people. Trigger discoveries. Take postcards.
-3. 🛠️ **Evening — Build Your Slice.** Upgrade your spot. Advance a regular's story.
-4. 🌙 **Night — City Wind-Down.** A slow, atmospheric moment + one random "New York Moment."
-5. 📮 **End — The Postcard.** Your session gets auto-composed into a shareable memory. Day complete.
-
----
-
-## 👥 Who It's For
-
-- **The Armchair New Yorkers** — billions worldwide who know NYC only through screens
-- **Cozy game fans** — Animal Crossing, Townscaper, A Little to the Left players
-- **Life-sim lovers** — Stardew, Dave the Diver, Coffee Talk audiences
-- **The NYC diaspora** — former New Yorkers who miss it
-- **Future visitors** — the game becomes their trip-planning dream board
-
----
-
-## 🏗️ Day 1 Greybox — Playable
-
-The Day 1 greybox ([Doc 10](docs/10-day1-greybox-layout.md), [first-build guide](docs/19-greybox-first-build.md)) is now standing. Built in **Godot 4.7** — the whole level is code in [`greybox-godot/scripts/main.gd`](greybox-godot/scripts/main.gd), so every change shows up as a readable diff.
-
-Walk it yourself: Terminal → Rosa → the bodega rush → your own named cart → three serves (the last one is Mr. Idris) → the fire escape at dusk → the gold window. End on a Postcard.
-
-Headless check (no display needed):
-
-```
+```bash
 godot --headless --path greybox-godot -- --autotest
 ```
 
-Walks the full path with real physics and input. Last run: **0 failures, 32.8s sim time**.
+Last headless run: **0 failures**.
+
+### Real captures from the greybox
+
+| Spawn | Bodega | Named Cart | Gold Window |
+|-------|--------|------------|-------------|
+| ![Spawn](assets/greybox-day1/frames/portrait_01_spawn.png) | ![Bodega](assets/greybox-day1/frames/portrait_05_bodega_inside.png) | ![Cart](assets/greybox-day1/frames/portrait_16_cart_named.png) | ![Gold Window](assets/greybox-day1/frames/portrait_21_gold_window_lit.png) |
+
+### First generated postcard
+
+<div align="center">
+
+![Day 1 Postcard](assets/greybox-day1/postcard_day1.png)
+
+*TS-01 proven: real scene → composed postcard → PNG*
+
+</div>
 
 ---
 
-## 📄 License & Status
+## Locked Styleframes
 
-Concept documentation © 2025 First Slice Team. All names, systems, and content are original to this document. Game concept available for development partnership discussions.
+These are the official visual targets for production.
+
+| A — Golden-Hour Corner | B — Dusk Fire Escape | C — First Postcard Framing |
+|------------------------|----------------------|----------------------------|
+| ![A](assets/styleframes/styleframe-a-golden-hour-corner.jpg) | ![B](assets/styleframes/styleframe-b-dusk-fire-escape.jpg) | ![C](assets/styleframes/styleframe-c-first-postcard.jpg) |
+
+Full lock notes: [Doc 14](docs/14-styleframe-lock.md)
+
+---
+
+## Proven Tech Spikes
+
+| Spike | Result |
+|-------|--------|
+| **TS-01 · Postcard Capture** | Full pipeline working. Day → glide → offscreen render → paper frame + caption → shareable PNG. |
+| **TS-02 · Vertical Camera** | One camera, three poses, smooth blends. Safe margins confirmed in portrait. |
+
+Details and numbers live in [Doc 15](docs/15-tech-spikes.md).
+
+---
+
+## Core Loop (10 seconds)
+
+1. **Morning — Open Up** → Serve the rush. Every order teaches a little culture.
+2. **Midday — Go Explore** → Walk the block. Discover. Take postcards.
+3. **Evening — Build Your Slice** → Upgrade your spot. Advance a regular’s story.
+4. **Night — City Wind-Down** → Slow moment + one New York Moment.
+5. **The Postcard** → Your day becomes a shareable memory. Session complete.
+
+---
+
+## Documentation
+
+| Doc | What it is |
+|-----|------------|
+| [01 – Game Design Document](docs/01-game-design-document.md) | Full vision & systems (source of truth) |
+| [02 – First Session Walkthrough](docs/02-first-session-walkthrough.md) | Minute-by-minute Day 1 script |
+| [07 – Vertical Slice Design](docs/07-vertical-slice-design.md) | What must ship in the first 30 minutes |
+| [08 – Day 1 Content Pack](docs/08-day1-content-pack.md) | Final Map notes + postcards |
+| [10 – Greybox Layout](docs/10-day1-greybox-layout.md) | Spatial design of the block |
+| [14 – Styleframe Lock](docs/14-styleframe-lock.md) | Official visual targets |
+| [15 – Tech Spikes](docs/15-tech-spikes.md) | Camera + Postcard results |
+| [16 – Risk Register](docs/16-risk-register.md) | What can still break the feeling |
+| [17 – Greybox Tasks](docs/17-greybox-tasks.md) | Concrete build checklist |
+| [19 – First-Build Guide](docs/19-greybox-first-build.md) | How to open the project and start |
+| [AGENTS.md](AGENTS.md) | Operating manual for AI agents |
+
+---
+
+## Who it’s for
+
+- People who have never been to New York but have always felt it
+- Cozy game fans (Animal Crossing, Townscaper, Coffee Talk, Dave the Diver)
+- Anyone who wants a short, warm, shareable daily ritual
+
+---
+
+## Project Structure
+
+```
+first-slice-nyc/
+├── docs/                 # Full design documentation
+├── assets/
+│   ├── styleframes/      # Locked visual targets
+│   └── greybox-day1/     # Real captures + first postcard
+├── greybox-godot/        # Playable Day 1 greybox (Godot 4.7)
+└── AGENTS.md             # Agent operating rules & skills
+```
+
+---
 
 <div align="center">
 
