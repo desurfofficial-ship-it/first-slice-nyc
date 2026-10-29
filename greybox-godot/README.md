@@ -33,11 +33,16 @@ Map notes and captions are the exact text from Doc 08 (Day 1) and Doc 22 (Day 2)
 
 ## Headless check
     godot --headless --path greybox-godot -- --autotest
-Walks the full Day 1 **and Day 2** with real physics and input — 44 checks,
-including the three Doc 21 seams, the awning money math, and the save file.
+Walks the full Day 1 **and Day 2** with real physics and input — 46 checks,
+including the three Doc 21 seams, the awning money math, the day-start money
+arc, and the save file.
 Also: `--autotest-load` (resume/replay from save), `--autotest-corrupt-boot`
 (garbage save boots safe), and `PERSONA=<name> res://spikes/playtest.tscn -- --playtest`
 for the five synthetic walkers.
+
+Day 2 has been **seen** now too — [Doc 24](../docs/25-day2-render-notes.md),
+frames in `../assets/greybox-day2/`, postcard pipeline proven on the second
+day (`spikes/spectator_d2.tscn -- --spectator2`).
 
 ## Not in yet
 - Subway spur (Doc 10 marks it optional).

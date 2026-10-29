@@ -15,6 +15,7 @@ var day_complete := false
 var replay := false
 var cart_name := ""
 var money := 87
+var day_start_money := 87   # the arc a postcard tells: day-start → now
 var awning := false
 var kid_kept := false
 var idris_served := false
@@ -36,6 +37,7 @@ static func load_or_default() -> RefCounted:
 	s.replay = bool(data.get("replay", false))
 	s.cart_name = str(data.get("cart_name", ""))
 	s.money = maxi(int(data.get("money", 87)), 0)
+	s.day_start_money = maxi(int(data.get("day_start_money", s.money)), 0)
 	s.awning = bool(data.get("awning", false))
 	s.kid_kept = bool(data.get("kid_kept", false))
 	s.idris_served = bool(data.get("idris_served", false))
@@ -52,6 +54,7 @@ func write() -> bool:
 		"replay": replay,
 		"cart_name": cart_name,
 		"money": money,
+		"day_start_money": day_start_money,
 		"awning": awning,
 		"kid_kept": kid_kept,
 		"idris_served": idris_served,

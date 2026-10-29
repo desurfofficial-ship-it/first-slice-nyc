@@ -322,7 +322,7 @@ func _build_world() -> void:
 	(sm.material as StandardMaterial3D).transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	steam.mesh = sm
 	lvl.add_child(steam)
-	_cyl(lvl, "Hydrant", Vector3(-0.6, 0.45, -4.6), 0.18, 0.9, C_CORAL)
+	_cyl(lvl, "Hydrant", Vector3(-0.6, 0.45, -5.6), 0.18, 0.9, C_CORAL)  # RN-6: off Idris's walk line, still on the curb
 	taxi = _box(lvl, "Taxi", Vector3(taxi_x, 0.7, -2), Vector3(4, 1.3, 1.9), C_TAXI, false)
 
 	# Player corner: a waiting rectangle of different paving.
@@ -831,7 +831,7 @@ func _reach_top() -> void:
 	# Authored rig: over your shoulder, across the street, at the one window.
 	postcard_rig = true
 	var tw := create_tween()
-	tw.tween_property(cam, "global_position", Vector3(15.0, 10.0, -9.2), 2.0).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(cam, "global_position", Vector3(11.5, 10.0, -5.2), 2.0).set_trans(Tween.TRANS_SINE)  # RN-2: was (15,10,-9.2), inside the wall
 	tw.parallel().tween_method(func(t): cam.look_at(gold_window.global_position.lerp(Vector3(12, 30, 90), 0.08 * t), Vector3.UP), 0.0, 1.0, 2.0)
 	tw.tween_interval(1.0)
 	tw.tween_callback(_light_gold_window)
@@ -1128,11 +1128,12 @@ func _begin_day(n: int, sd = null, completed := false) -> void:
 		awning_up = sd.awning
 		kid_kept = sd.kid_kept
 	money_lbl.text = "$%d" % money
+	day_start_money = sd.day_start_money if sd != null else money
 	_apply_cart_identity()
 	awning_mesh.visible = awning_up   # rebuild the world to match the save
 	_to_morning_light()
 	_place_day2_cast()
-	player.global_position = Vector3(3, 0.05, -5.4)
+	player.global_position = Vector3(2.4, 0.05, -5.4)  # RN-5: a step west, so the cart doesn't wear you
 	player.velocity = Vector3.ZERO
 	player.ladder = null
 	player.frozen = false
@@ -1149,6 +1150,7 @@ func _begin_day(n: int, sd = null, completed := false) -> void:
 	save_data.replay = replay_day
 	save_data.cart_name = cart_name
 	save_data.money = money
+	save_data.day_start_money = day_start_money
 	save_data.awning = awning_up
 	save_data.kid_kept = kid_kept
 	save_data.idris_served = idris_served
@@ -1234,7 +1236,7 @@ func _build_ui() -> void:
 	fade_rect.visible = false
 	ui.add_child(fade_rect)
 	title_lbl = _label(ui, 60, C_CREAM)
-	title_lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	title_lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)  # RN-1: anchors alone stacked the letters
 	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	title_lbl.visible = false
@@ -1385,6 +1387,7 @@ func _run_autotest() -> void:
 	await get_tree().create_timer(2.5).timeout
 	check.call(step == Step.D2_POSTCARD and postcard_panel.visible, "day 2 postcard composes")
 	check.call("Day 2" in postcard_lbl.text, "postcard says Day 2")
+	check.call("$112 → $111" in postcard_lbl.text, "postcard tells the $112 → $111 arc")
 	_try_interact()
 	check.call(not player.frozen, "day 2 end lingers too")
 	var sf := FileAccess.open(SaveGame.PATH, FileAccess.READ)
@@ -1395,8 +1398,9 @@ func _run_autotest() -> void:
 		var saved: Variant = JSON.parse_string(raw)
 		check.call(typeof(saved) == TYPE_DICTIONARY and int(saved.get("day", 0)) == 2
 				and bool(saved.get("day_complete", false)) and bool(saved.get("awning", false))
-				and bool(saved.get("kid_kept", false)) and int(saved.get("money", 0)) == 111,
-				"save holds day 2 complete: $111, awning, kid")
+				and bool(saved.get("kid_kept", false)) and int(saved.get("money", 0)) == 111
+				and int(saved.get("day_start_money", 0)) == 112,
+				"save holds day 2 complete: $111, awning, kid, day-start $112")
 	print("AUTOTEST %s: %d failures, sim time %.1fs" % ["OK" if fails.is_empty() else "FAILED", fails.size(), elapsed])
 	get_tree().quit(0 if fails.is_empty() else 1)
 
@@ -1413,6 +1417,7 @@ func _run_autotest_load() -> void:
 	if replay_day:
 		check.call(awning_up and awning_mesh.visible, "awning persisted")
 		check.call(kid_kept and kid_sil.visible, "kid kept persisted")
+		check.call(day_start_money == 112, "day-start money restored ($%d)" % day_start_money)
 		check.call(money == 111, "replay keeps the kept money ($%d)" % money)
 		await _idris_ready()
 		await _walk_to(Vector3(4.4, 0, -4.6))
