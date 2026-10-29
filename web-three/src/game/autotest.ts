@@ -359,12 +359,17 @@ export function runAutotest(game: Game): void {
         await walkTo(9, 2, 6);
         check(kid.position.x < x0 - 2, `the kid is actually walking (x ${x0.toFixed(1)} \u2192 ${kid.position.x.toFixed(1)})`);
       }
-      await walkTo(4, -5.2, 20);
+      // walk TO the corner — the cart is solid now, so a player naturally
+      // bumps to its edge (~1.05 m out) and the kid's 1.0 m hip distance puts
+      // him inside the 2.6 m corner radius. Stopping 1.7 m short with the kid
+      // trailing on the far side misses the trigger by centimeters (the flaky
+      // e2e found it); a person walks up to the counter.
+      await walkTo(4, -5.45, 20);
       {
         // he closes the last meter at his own pace (sim time lags real time
         // under software rendering — poll, don't sample)
         const t0 = performance.now();
-        while (performance.now() - t0 < 20000 && !s.kidAtCorner) await nextFrame();
+        while (performance.now() - t0 < 12000 && !s.kidAtCorner) await nextFrame();
       }
       check(s.kidAtCorner && s.step === Step.D3_STOOL, 'the kid reached the corner on his own feet');
       await interact();
@@ -376,7 +381,12 @@ export function runAutotest(game: Game): void {
       await interact();
       check(s.step === Step.D3_CLIMB3, 'flyer read \u2014 the block knows your name');
 
-      await walkTo(9.4, -7.2, 48, true);
+      // cross to the ladder the way a person would — north of the cart. The
+      // cart is solid now (playtest: "passed through the cart"), so the old
+      // straight diagonal from the west end pushed into its west face and the
+      // 48 s budget expired mid-slide along it.
+      await walkTo(9.4, -4.8, 40);
+      await walkTo(9.4, -7.2, 20, true);
       check(game.player.ladder !== null, 'day 3: grabbed ladder 1');
       await holdUntil('KeyW', () => p().y > 3.6, 10);
       await holdUntil('KeyD', () => game.player.ladder === null, 4);
