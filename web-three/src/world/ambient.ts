@@ -66,7 +66,13 @@ export class PigeonFlock {
    */
   constructor(
     scene: THREE.Scene,
-    mats: { body: THREE.Material; head: THREE.Material; beak: THREE.Material },
+    mats: { body: THREE.Material; head: THREE.Material; beak: THREE.Material;
+      /** plumage morphs — a real sidewalk flock is three greys, not twelve
+       *  clones; every material here is shared bank stock, so variety costs
+       *  zero extra materials. */
+      bodies?: THREE.Material[];
+      /** a cream nape patch on some birds (city pigeons wear blazes). */
+      patch?: THREE.Material; },
     seed: number,
     center: { x: number; z: number },
     radius: number,
@@ -78,8 +84,11 @@ export class PigeonFlock {
     this.home = { ...center };
     this.zBand = zBand;
     for (let i = 0; i < count; i++) {
+      // this bird's plumage — one of the flock's morphs (or the plain body)
+      const bodies = mats.bodies ?? [mats.body];
+      const plumage = bodies[Math.floor(rng() * bodies.length)];
       const g = new THREE.Group();
-      const body = new THREE.Mesh(pigeonBodyGeo, mats.body);
+      const body = new THREE.Mesh(pigeonBodyGeo, plumage);
       body.scale.set(0.13, 0.1, 0.17);
       body.position.y = 0.12;
       const head = new THREE.Group();
@@ -91,11 +100,18 @@ export class PigeonFlock {
       beak.scale.set(0.03, 0.024, 0.07);
       beak.position.set(0, -0.005, 0.07);
       head.add(beak);
-      const tail = new THREE.Mesh(pigeonTailGeo, mats.body);
+      const tail = new THREE.Mesh(pigeonTailGeo, plumage); // tail matches its own body
       tail.scale.set(0.09, 0.02, 0.14);
       tail.position.set(0, 0.13, -0.16);
       tail.rotation.x = 0.28;
       g.add(body, head, tail);
+      if (mats.patch && rng() < 0.28) {
+        // the blaze: a small cream nape chip, squashed against the neck
+        const blaze = new THREE.Mesh(pigeonBlazeGeo, mats.patch);
+        blaze.scale.set(0.055, 0.045, 0.03);
+        blaze.position.set(0, 0.185, 0.085);
+        g.add(blaze);
+      }
       // seeded scatter, never on top of each other (min spacing via rejection)
       let x = 0, z = 0, ok = false;
       for (let tries = 0; tries < 20 && !ok; tries++) {
@@ -245,6 +261,7 @@ const pigeonBodyGeo = new THREE.SphereGeometry(1, 8, 6);
 const pigeonHeadGeo = new THREE.SphereGeometry(1, 7, 5);
 const pigeonBeakGeo = new THREE.ConeGeometry(1, 2, 5);
 const pigeonTailGeo = new THREE.BoxGeometry(1, 1, 1);
+const pigeonBlazeGeo = new THREE.SphereGeometry(1, 6, 4);
 
 interface SquirrelState {
   group: THREE.Group;

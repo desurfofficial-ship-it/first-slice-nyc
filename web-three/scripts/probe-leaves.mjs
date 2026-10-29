@@ -66,7 +66,7 @@ const sample = () => page.evaluate(() => {
   for (let i = 0; i < n; i++) {
     pos.push({ x: arr[i * 16 + 12], y: arr[i * 16 + 13], z: arr[i * 16 + 14] });
   }
-  const SIDEWALK_Y = 0.1, ROAD_Y = 0.02, PIT_Y = 0.05;
+  const SIDEWALK_Y = 0.1, ROAD_Y = 0.02, PIT_Y = 0.11;
   const SPOTS = [
     [-34, 7.15], [-22, 7.15], [-4, 7.15], [20, 7.15], [32, 7.15],
     [-44, -7.0], [-30, -7.0], [-16, -7.0], [28, -7.0], [38, -7.0],

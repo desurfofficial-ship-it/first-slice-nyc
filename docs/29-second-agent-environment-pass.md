@@ -67,6 +67,54 @@ baseline is a stash, not the old table): boot +10, mid-street +16,
 plaza +10 draw calls — the signal (4 consolidated meshes), four curb
 segments, nothing else. Triangles well under 1k more per view.
 
+## Round four — autumn arrives on the block (2026-10-30)
+
+"Keep polishing visuals", round two. Four changes, plus one real bug the
+new work exposed:
+
+1. **Four of the twelve trees are turning.** The two plaza park trees
+   (the first thing you meet off the subway stairs) plus one tree each
+   side of the street wear an autumn gradient: honey-gold crown
+   (`PAL.gold`), lighter amber mid-blob (`PAL.amber`), lowest blob still
+   green — the tree holds on from the bottom, the way real street trees
+   do. Read as species, not weather: the honey locusts stay October-green.
+   The first draft rolled dice per blob and kept collapsing into a
+   uniform gold lollipop (both golds adjacent, the green blob buried
+   between them) — a turning tree must show its turning, so the gradient
+   is deterministic now.
+2. **The leaf drift sheds its tree's own palette.** `LeafSpot` carries
+   tints; turning trees drop gold/amber (+one green), green trees drop
+   greens. A gold leaf under a green canopy read as a props mistake.
+3. **The flock is not twelve clones.** Pigeons now take one of three
+   plumage morphs (skyline grey / ink dark / warm rufous — all bank stock,
+   zero new materials), tails match their own body, and roughly a quarter
+   wear a cream nape blaze. Verified live: 3 distinct morphs and 4 blazed
+   birds in the plaza flock.
+4. **The lamp faces are lit.** The sun never leaves golden hour here, and
+   city lamps switch on before sundown; four dead heads read as props, not
+   as a block people walk home under. One shared emissive material, owned
+   by World, handed to `makeStreetlight`.
+5. **Tree pits wear granite rims — and the rims exposed a buried bug.**
+   Each pit gained a low rim in the round-three curb grey (four bars
+   merged into ONE geometry per pit; a 12-pit block must not spend 48
+   draw calls on edges). The first screenshot caught the truth: the rim
+   framed TAN PAVING — the pit soil (top y 0.065) had been buried inside
+   the sidewalk slab (top y 0.1) since the first env pass. Every "tree
+   pit" on the block was a phantom under the pavement. The pit now rides
+   the slab (group y 0.07): soil top 0.105, rim lip 0.155, and
+   `LeafDrift`'s `PIT_Y` moved 0.05 → 0.11 to rest on visible dirt.
+
+Perf, same stash method as round three (baseline 382/523/742 =
+round-three HEAD incl. hydrant.glb): boot +2, mid-street +5, plaza +4
+draw calls — rims and blazes are mostly frustum-culled out of these
+views, and plumage variety costs nothing (shared materials).
+
+Verified: `probe-autumn.mjs` (new) — 9 amber + 39 green leaves, 3 plumage
+morphs, 4 blazes, zero console errors (`shots/env6-*.png`);
+`probe-leaves.mjs` re-run against the raised pit — 48 leaves, 37 grounded
+on the correct surface, 0 buried, 0 hovering; full battery 0 failures
+(193 s); tsc clean, vitest 79/79, build clean.
+
 ## What the block got
 
 Seven missing pieces, chosen because the block asked for them — not
@@ -154,11 +202,15 @@ in small bills. The leaf system is one instanced draw call for all 48.
 - Visual probes (committed): `probe-env.mjs`, `probe-env2.mjs`,
   `probe-env3.mjs` (frozen-camera close-ups), `probe-perf.mjs`,
   `probe-glb-hydrant.mjs`. Shots in `web-three/shots/env*.png`.
-- Round two: `probe-leaves.mjs` — 48 leaves live-sampled, 35 grounded on
-  the correct surface, 0 buried, 0 hovering, zero console errors
-  (`shots/env4-pit-north.png`, `env4-pit-south.png`). Pre-fix baseline
-  battery was green (0 failures, 193 s); the post-fix battery result is
-  recorded in the round-two commit message.
+- Round three: `probe-polish.mjs` — signal / curb / steam / flock shots +
+  live sidewalk-band check (`shots/env5-*.png`). Battery after: 0 failures
+  (196 s).
+- Round four: `probe-autumn.mjs` — turning-tree / plumage / lamp / pit-rim
+  shots + data checks read from the live scene: 9 amber + 39 green leaf
+  tints, 3 plumage morphs, 4 blaze birds (`shots/env6-*.png`).
+  `probe-leaves.mjs` re-run against the raised pit (PIT_Y 0.05 → 0.11):
+  37 grounded / 0 buried / 0 hovering. Battery after: 0 failures (193 s).
+  Perf (stash method): boot +2, mid-street +5, plaza +4 draw calls.
 - Disposal: `World.dispose()` traverses and disposes everything the pass
   added (InstancedMesh included — it is a Mesh); LeafDrift allocates one
   geometry + one material, both reachable from the scene graph.
@@ -176,9 +228,13 @@ in small bills. The leaf system is one instanced draw call for all 48.
   block, east flock, leaf field + update calls (round two: real canopy
   tops handed to the drift)
 - `web-three/src/world/props.ts` — additive only: `Tree.top` reported by
-  `makeTree` (round two)
+  `makeTree` (round two); round four: `makeTree(bank, rng, autumn)`
+  gradient turning, `makeTreePit` granite rim (one merged geometry),
+  `makeStreetlight` optional lit lamp face
 - `web-three/src/world/ambient.ts` — round two: pigeon head unwinds after
-  a walk, never freezes mid-bob
+  a walk, never freezes mid-bob; round four: plumage morphs + cream blaze
+- `web-three/src/world/leaves.ts` — round four: per-spot tints (a turning
+  tree sheds gold), PIT_Y 0.11 on the raised pit
 - `web-three/public/models/hydrant.glb` — new: Blender-generated
 - `web-three/scripts/probe-env.mjs`, `probe-env2.mjs`, `probe-env3.mjs`,
   `probe-perf.mjs`, `probe-glb-hydrant.mjs` — probes
@@ -186,6 +242,8 @@ in small bills. The leaf system is one instanced draw call for all 48.
   grounded-leaf assertions + pit close-ups (`shots/env4-*.png`)
 - `web-three/scripts/probe-polish.mjs` — new (round three): signal /
   curb / steam / flock shots + live sidewalk-band check
+- `web-three/scripts/probe-autumn.mjs` — new (round four): turning tree /
+  plumage / lamp / pit-rim evidence + leaf-tint & plumage data checks
 - `tools3d/blender_hydrant.py` — new: the hydrant generator
 
 ## Known limitations

@@ -15,6 +15,7 @@
  */
 
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // ---- palette anchors (Doc 04) ------------------------------------------
 const PAL_GOLD = 0xf7b32b;
@@ -72,11 +73,17 @@ export interface Tree {
 }
 
 /** A street tree with believable low-poly structure: trunk, root flare,
- *  and three canopy blobs with a real silhouette (never a perfect ball). */
-export function makeTree(bank: MatBank, rng: () => number): Tree {
+ *  and three canopy blobs with a real silhouette (never a perfect ball).
+ *  `autumn` trees are turning: the gold climbs from the top down and the
+ *  outside in — an uneven, ginkgo-in-October mix, never a dipped-in-paint
+ *  gold ball. One blob stays green on every turning tree; full gold belongs
+ *  to November and this game's sun never leaves October. */
+export function makeTree(bank: MatBank, rng: () => number, autumn = false): Tree {
   const bark = bank.get(0x6d5344);
   const leafA = bank.get(0x5d7d4a);
   const leafB = bank.get(0x516e42);
+  const goldA = bank.get(0xf7b32b); // PAL.gold — Taxi Yellow, at leaf scale it reads honey
+  const goldB = bank.get(0xffb85c); // golden-hour amber — the turning edge
   const g = new THREE.Group();
   const h = 2.1 + rng() * 1.3;
   const trunk = mesh(geo.trunk, bark, 0, h / 2, 0);
@@ -91,10 +98,20 @@ export function makeTree(bank: MatBank, rng: () => number): Tree {
   canopy.position.y = h;
   const blobs = 3;
   let top = h;
+  // blob 0 is the crown (highest); blobs 1-2 hang lower on the flanks.
+  // Turning reads as a GRADIENT, never a coin flip: crown honey-gold, mid
+  // blob lighter amber, lowest blob still green — the tree holds on from
+  // the bottom, the way real street trees do. Random per-blob picks kept
+  // collapsing into a uniform gold lollipop (both golds adjacent, the green
+  // blob buried between them); a turning tree must show its turning.
+  const leafFor = (i: number): THREE.MeshLambertMaterial => {
+    if (!autumn) return i === 0 ? leafA : (rng() < 0.5 ? leafA : leafB);
+    return i === 0 ? goldA : (i === 1 ? goldB : leafB);
+  };
   for (let i = 0; i < blobs; i++) {
     const r = 0.85 + rng() * 0.55;
     const cy = r * 0.45 + rng() * 0.5;
-    const b = mesh(geo.sphere, i === 0 ? leafA : (rng() < 0.5 ? leafA : leafB),
+    const b = mesh(geo.sphere, leafFor(i),
       (rng() - 0.5) * 0.9, cy, (rng() - 0.5) * 0.9);
     b.scale.setScalar(r);
     b.castShadow = true;
@@ -105,22 +122,48 @@ export function makeTree(bank: MatBank, rng: () => number): Tree {
   return { group: g, canopy, top };
 }
 
-/** Sidewalk tree pit: dark soil + a low guard rim (NYC plant-beding). */
-export function makeTreePit(bank: MatBank): THREE.Mesh {
+/** Sidewalk tree pit: dark soil inside a low granite rim — the same grey
+ *  the round-three curbs wear, so pit and curb read as one material system
+ *  (NYC plant-beding). The rim is four bars merged into ONE geometry: a
+ *  12-pit block must not spend 48 draw calls on its edges. Rim top (0.085)
+ *  stays below the sidewalk slab (0.1) and above the soil (0.035), so
+ *  drifting leaves ride over it and grounded ones sit inside it. */
+export function makeTreePit(bank: MatBank): THREE.Group {
   const soil = unitBox(bank.get(0x4a3a30), 1.15, 0.03, 1.15, 0, 0.02, 0);
   soil.receiveShadow = true;
-  return soil;
+  const rimMat = bank.get(0x8f8a82);
+  const barY = 0.04;
+  const bars = [
+    unitBox(rimMat, 1.44, 0.09, 0.09, 0, barY, 0.675),
+    unitBox(rimMat, 1.44, 0.09, 0.09, 0, barY, -0.675),
+    unitBox(rimMat, 0.09, 0.09, 1.26, 0.675, barY, 0),
+    unitBox(rimMat, 0.09, 0.09, 1.26, -0.675, barY, 0),
+  ];
+  const rimGeo = mergeGeometries(bars.map((b) => {
+    b.updateMatrix(); // fresh meshes: compose position+scale into .matrix before baking
+    return b.geometry.clone().applyMatrix4(b.matrix);
+  }), false);
+  for (const b of bars) b.geometry.dispose();
+  const rim = new THREE.Mesh(rimGeo, rimMat);
+  const g = new THREE.Group();
+  g.add(soil, rim);
+  return g;
 }
 
-/** Cobra-head streetlight: pole, curved arm, lamp head with a warm face. */
-export function makeStreetlight(bank: MatBank): THREE.Group {
+/** Cobra-head streetlight: pole, curved arm, lamp head with a warm face.
+ *  `lampFace` optionally lights that face: the game's sun never leaves
+ *  golden hour, and city lamps switch on before sundown — a dead lamp face
+ *  at 5:45 PM read as props, not as a block where someone has to walk home
+ *  under light. Caller owns the emissive material (World's mat() does it).
+ */
+export function makeStreetlight(bank: MatBank, lampFace?: THREE.Material): THREE.Group {
   const iron = bank.get(PAL_INK);
   const g = new THREE.Group();
   const pole = unitCyl(iron, 0.055, 5.2, 0, 2.6, 0);
   pole.castShadow = true;
   g.add(pole);
   g.add(unitBox(iron, 1.3, 0.07, 0.07, 0.6, 5.18, 0));
-  const head = unitBox(bank.get(0xf2c230), 0.5, 0.12, 0.22, 1.18, 5.08, 0);
+  const head = unitBox(lampFace ?? bank.get(0xf2c230), 0.5, 0.12, 0.22, 1.18, 5.08, 0);
   g.add(head);
   // a small base collar so the pole meets the sidewalk with weight
   g.add(unitCyl(iron, 0.1, 0.22, 0, 0.11, 0));

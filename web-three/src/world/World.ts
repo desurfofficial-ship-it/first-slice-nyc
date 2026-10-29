@@ -509,12 +509,16 @@ export class World {
     this.scene.add(busBench);
 
     // ---- street furniture: lights, cans, hydrant, one honest barrier ----
+    // The lamp faces are lit: the sun never leaves golden hour here, and
+    // city lamps switch on before sundown — four dead heads read as props,
+    // not as a block people walk home under. One shared emissive material.
+    const lampFace = this.mat(PAL.taxi, { emissive: PAL.taxi, emissiveIntensity: 0.35 });
     const lights: Array<[number, number, number]> = [
       [-34, 7.35, Math.PI / 2], [8, 7.35, Math.PI / 2],
       [-18, -7.35, -Math.PI / 2], [30, -7.35, -Math.PI / 2],
     ];
     for (const [lx, lz, lyaw] of lights) {
-      const lamp = makeStreetlight(this.bank);
+      const lamp = makeStreetlight(this.bank, lampFace);
       lamp.position.set(lx, 0.05, lz);
       lamp.rotation.y = lyaw; // arm reaches over the street
       this.scene.add(lamp);
@@ -531,13 +535,22 @@ export class World {
       [-44, -7.0], [-30, -7.0], [-16, -7.0], [28, -7.0], [38, -7.0],      // south
       [-45, 4.7], [-38.6, 4.5],                                            // plaza park trees
     ];
+    // Four of the twelve are turning — the two plaza park trees (you meet
+    // them first, off the subway stairs) plus one tree each side of the
+    // street. Read as species, not as weather: honey locusts hold green,
+    // the ginkgos went gold. The rest of the block stays October-green.
+    const autumnTrees = new Set([2, 8, 10, 11]);
     const treeTops: number[] = []; // real canopy tops — leaf drift spawns under them
     for (let i = 0; i < treeSpots.length; i++) {
       const [tx, tz] = treeSpots[i];
+      // y=0.07: the pit rides ON the slab — soil top (0.105) and rim lip
+      // (0.155) both stand proud of the sidewalk (0.1). The first draft sat
+      // at 0.03 and the slab swallowed the soil whole: the "pit" showed tan
+      // paving inside a tan frame. A pit you can't see is not a pit.
       const pit = makeTreePit(this.bank);
-      pit.position.set(tx, 0.03, tz);
+      pit.position.set(tx, 0.07, tz);
       this.scene.add(pit);
-      const t = makeTree(this.bank, rng);
+      const t = makeTree(this.bank, rng, autumnTrees.has(i));
       t.group.position.set(tx, 0.05, tz);
       t.group.rotation.y = rng() * Math.PI * 2;
       this.scene.add(t.group);
@@ -619,9 +632,17 @@ export class World {
     // ---- pigeons + squirrel (seeded; behaviors in ambient.ts) ----
     // zBand keeps every bird and the squirrel on the sidewalk paving —
     // the road is for the cab, not for standing in.
+    // Plumage morphs: a real sidewalk flock is three greys, not twelve
+    // clones (skyline / ink / warm rufous), and some birds wear a cream
+    // nape blaze. All bank stock — variety costs zero extra materials.
+    const pigeonMats = {
+      body: this.bank.get(PAL.skyline), head: this.bank.get(PAL.ink), beak: this.bank.get(PAL.amber),
+      bodies: [this.bank.get(PAL.skyline), this.bank.get(PAL.ink), this.bank.get(PAL.bldg2)],
+      patch: this.bank.get(PAL.cream),
+    };
     this.pigeonFlock = new PigeonFlock(
       this.scene,
-      { body: this.bank.get(PAL.skyline), head: this.bank.get(PAL.ink), beak: this.bank.get(PAL.amber) },
+      pigeonMats,
       90210, { x: -40, z: 5 }, 2.4, 9, { min: 4.35, max: 7.2 },
     );
     this.squirrel = new Squirrel(
@@ -632,15 +653,22 @@ export class World {
     // a small east-end flock — the plaza flock shouldn't own all the birds
     this.pigeonFlockEast = new PigeonFlock(
       this.scene,
-      { body: this.bank.get(PAL.skyline), head: this.bank.get(PAL.ink), beak: this.bank.get(PAL.amber) },
+      pigeonMats,
       2718, { x: 30, z: 5 }, 1.8, 4, { min: 4.35, max: 6.2 },
     );
 
     // ---- leaf drift (early autumn; one instanced mesh, one draw call) ----
     // tops come from the trees we just grew (2.9..4.5 m), so leaves are born
     // inside a canopy, not mid-air below it; ground heights are derived per
-    // leaf inside LeafDrift (pit soil / sidewalk slab / asphalt).
-    const leafSpots = treeSpots.map(([lx, lz], i) => ({ x: lx, z: lz, r: 1.3, top: treeTops[i] }));
+    // leaf inside LeafDrift (pit soil / sidewalk slab / asphalt). Each tree
+    // sheds its OWN palette — the turning trees drop gold, the green ones
+    // green — a gold leaf under a green canopy reads as a mistake.
+    const GREEN_TINTS = [0x5d7d4a, 0x516e42, 0x516e42];
+    const TURNING_TINTS = [0xffb85c, 0xf7b32b, 0x516e42];
+    const leafSpots = treeSpots.map(([lx, lz], i) => ({
+      x: lx, z: lz, r: 1.3, top: treeTops[i],
+      tints: autumnTrees.has(i) ? TURNING_TINTS : GREEN_TINTS,
+    }));
     this.leaves = new LeafDrift(this.scene, leafSpots, 4);
 
     // ---- the stool (Day 3 purchase) + the kid at ground level ----
