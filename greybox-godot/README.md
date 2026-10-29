@@ -15,18 +15,31 @@ built in code (`scripts/main.gd`), so changes show up as readable diffs.
 - G: force dusk + gold window (debug). P: save the current view as a Postcard PNG.
 
 ## The path
-Terminal → Rosa → bodega (3 shelf items, 5-order rush) → crosswalk →
+Day 1: Terminal → Rosa → bodega (3 shelf items, 5-order rush) → crosswalk →
 claim and name the cart → 3 serves (the third is Mr. Idris) → fire escape
 (dusk starts) → top landing → gold window flickers, then holds → Postcard
 composes and saves to `user://postcards/`.
 
-Map notes and captions are the exact text from Doc 08.
+Then the day ends like a day should: the postcard closes, you can linger at
+the rail (Rosa's window says goodnight), and tomorrow is one press away.
+
+Day 2 — [Doc 22](../docs/22-day2-greybox.md) — the neighborhood comes alive:
+Idris comes back for the usual, Rosa asks a favor (the kid in the gold window),
+the awning goes up ($15, real tips, the lunch rush follows), and at dusk a
+second window lights. Save v1 (`scripts/save.gd`) persists the corner:
+quit any time, resume exact; a kept day replays with rewards resting.
+
+Map notes and captions are the exact text from Doc 08 (Day 1) and Doc 22 (Day 2).
 
 ## Headless check
     godot --headless --path greybox-godot -- --autotest
-Walks the full path with real physics and input. It checks every beat,
-including that typing W/A/S/D/Space in the cart name leaks nothing.
+Walks the full Day 1 **and Day 2** with real physics and input — 44 checks,
+including the three Doc 21 seams, the awning money math, and the save file.
+Also: `--autotest-load` (resume/replay from save), `--autotest-corrupt-boot`
+(garbage save boots safe), and `PERSONA=<name> res://spikes/playtest.tscn -- --playtest`
+for the five synthetic walkers.
 
 ## Not in yet
 - Subway spur (Doc 10 marks it optional).
 - Audio stubs, the Times Square / water-tower Postcard rigs, touch controls.
+- Day 3 (it is still being written).

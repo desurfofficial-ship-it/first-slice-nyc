@@ -54,6 +54,20 @@ The two straight-line walkers finished 1.7× apart. That spread is the design wo
 2. Seam 2 and 3 are design calls, not bug calls — take them to the next design review with this file.
 3. First human playtest should watch for these three seams by name and everything else besides.
 
+## Seam re-test (Day 2 build)
+
+The three seams were fixed in the greybox and re-run through this same harness:
+
+| Persona | Before | After |
+|---|---|---|
+| sprinter | completed_day, 33.3 s | completed_day, 33.3 s (unchanged) |
+| hesitant | completed_day, 55.5 s | completed_day, 55.5 s (unchanged) |
+| corner_cutter | **stuck** | **completed_day, 32.5 s** |
+| wanderer | incomplete | incomplete (by script design — see below) |
+| gold_gazer | completed_day, 8 ignores, frozen | completed_day, 1/8 answered, never frozen |
+
+Wanderer note, kept honest: the harness models a player who never reads hints, so it still walks out its budget. The game-level fix — Rosa calling you back to the fire escape by name, and ladders that let you all the way down — is asserted in the headless autotest instead (`stepped off ladder 1` → `stepping off calls Rosa's hint` → `re-grabbed ladder 1`). Full detail and the Day 2 build: [Doc 22](22-day2-greybox.md).
+
 ---
 
 *Provenance: harness = `greybox-godot/spikes/playtest.gd` (subclasses main.gd, zero game edits), Godot 4.7.2-stable headless, 2025 session. Five runs, five JSONL files, committed as-is.*

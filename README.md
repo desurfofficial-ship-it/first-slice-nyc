@@ -40,18 +40,21 @@ Every session ends with a **postcard** — a beautiful, auto-composed, captioned
 
 ---
 
-## Current Status — Greybox is Alive
+## Current Status — Two Days Are Alive
 
-The Day 1 greybox is playable in **Godot 4.7**.
+The Day 1 greybox **and Day 2** are playable in **Godot 4.7**.
 
-**Path you can walk right now:**  
-Terminal → Rosa’s bodega → first rush → name your cart → serve Mr. Idris → climb the fire escape at dusk → watch one window turn gold → receive your first postcard.
+**Day 1 path:**  
+Terminal → Rosa's bodega → first rush → name your cart → serve Mr. Idris → climb the fire escape at dusk → watch one window turn gold → receive your first postcard.
+
+**Then Day 2 — [the neighborhood comes alive](docs/22-day2-greybox.md):**  
+The postcard closes, you can linger at the rail, and tomorrow begins: Idris comes back for the usual, Rosa asks you to keep the kid in the gold window, the awning goes up ($15, real tips, the lunch rush follows), and at dusk a second window lights. Your corner persists — quit any time, resume exact.
 
 ```bash
 godot --headless --path greybox-godot -- --autotest
 ```
 
-Last headless run: **0 failures**.
+Last headless run: **0 failures, 44 checks — full Day 1 + Day 2 + the three Doc 21 seams closed**.
 
 ### Real captures from the greybox
 
@@ -89,7 +92,8 @@ Full lock notes: [Doc 14](docs/14-styleframe-lock.md)
 |-------|--------|
 | **TS-01 · Postcard Capture** | Full pipeline working. Day → glide → offscreen render → paper frame + caption → shareable PNG. |
 | **TS-02 · Vertical Camera** | One camera, three poses, smooth blends. Safe margins confirmed in portrait. |
-| **Synthetic Playtest (n=5)** | Five scripted walkers found three real seams: one-door crosswalk, one-way ladder, frozen ending. Logs committed. [Doc 21](docs/21-synthetic-playtest-01.md). |
+| **Synthetic Playtest (n=5)** | Five scripted walkers found three real seams: one-door crosswalk, one-way ladder, frozen ending. **All three now fixed and re-verified** — corner_cutter: stuck → completed. Logs committed. [Doc 21](docs/21-synthetic-playtest-01.md). |
+| **Day 2 · The Neighborhood Comes Alive** | Day progression, save v1 (resume exact, no duplicate rewards), returning Rosa/Idris, the kid's regular, the awning, the second window. [Doc 22](docs/22-day2-greybox.md). |
 
 Details and numbers live in [Doc 15](docs/15-tech-spikes.md).
 
@@ -120,7 +124,8 @@ Details and numbers live in [Doc 15](docs/15-tech-spikes.md).
 | [17 – Greybox Tasks](docs/17-greybox-tasks.md) | Concrete build checklist |
 | [19 – First-Build Guide](docs/19-greybox-first-build.md) | How to open the project and start |
 | [20 – Day 1 Render Notes](docs/20-day1-greybox-render-notes.md) | First played pass — six camera findings, with evidence frames |
-| [21 – Synthetic Playtest 01](docs/21-synthetic-playtest-01.md) | Five scripted walkers, one day — three real seams |
+| [21 – Synthetic Playtest 01](docs/21-synthetic-playtest-01.md) | Five scripted walkers, one day — three real seams, now closed |
+| [22 – Day 2 Greybox](docs/22-day2-greybox.md) | The neighborhood comes alive — seams fixed, save v1, the second window |
 | [AGENTS.md](AGENTS.md) | Operating manual for AI agents |
 
 ---
