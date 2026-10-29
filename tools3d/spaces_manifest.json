@@ -1,0 +1,25 @@
+{
+  "_readme": "FIRST SLICE text inputs for tools3d/spaces_glb.py — the game's prop list, one entry per mesh. Run from the repo root: python tools3d/spaces_glb.py --manifest tools3d/spaces_manifest.json. Each entry becomes <out-dir>/<name>.glb + <name>.concept.png + <name>.meta.json. Optional per-entry keys: 'space' (hunyuan3d | hunyuan3d-21 | hunyuan3d-mv | trellis-community | trellis-2 — omit to walk the auto fallback chain), 'image' (path to a reference image instead of 'text'), 'seed'. Prompts follow the Art Bible: cozy lowpoly, warm palette, clean background so server-side background removal can find the object.",
+  "entries": [
+    {
+      "name": "cart",
+      "text": "lowpoly yellow coffee cart with a red and white striped awning, New York street food cart, stylized cozy game asset, three-quarter view, plain light grey background, product shot"
+    },
+    {
+      "name": "hydrant",
+      "text": "lowpoly red fire hydrant, New York City style, stylized cozy game asset, three-quarter view, plain light grey background"
+    },
+    {
+      "name": "mailbox",
+      "text": "lowpoly blue USPS mailbox with rounded top, stylized cozy game asset, three-quarter view, plain light grey background"
+    },
+    {
+      "name": "trashcan",
+      "text": "lowpoly green wire mesh street trash can, New York City sidewalk, stylized cozy game asset, plain light grey background"
+    },
+    {
+      "name": "streetlamp",
+      "text": "lowpoly vintage New York street lamp post with a warm glowing bulb, stylized cozy game asset, plain light grey background"
+    }
+  ]
+}
