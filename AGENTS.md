@@ -18,6 +18,34 @@ You do not "follow preferences" here. You uphold laws. Every output — doc, cod
 6. **The No-FOMO Law.** No energy systems, no live-service pressure, no paywalled lessons. Monetization is string lights and chair styles — never a borough, never knowledge.
 7. **The Hospitality Law.** The endgame is not wealth or even belonging — it's keeping the light on for the next stranger. When unsure between two options, choose the one where someone gets kept.
 
+## 1b. Anti-Slop Quality Gate (non-negotiable build quality)
+
+Before accepting any new environment, gameplay system, or UI change, **inspect it in the running game**.
+
+Reject:
+
+- generic filler buildings
+- repetitive props
+- randomly scattered objects
+- floating assets
+- nonsensical collisions
+- fake NPC interactions
+- placeholder buttons
+- decorative systems that have no coherent purpose
+
+Every new feature must have:
+
+1. a **clear owner**
+2. **defined behavior**
+3. a **consistent visual style**
+4. a **verification method**
+
+Maintain a **living build checklist** so future agents know what is complete, what is broken, and what remains. Do not repeatedly rebuild completed systems or replace working assets with inferior generated alternatives.
+
+Prefer a **smaller number of distinctive, well-integrated New York details** over hundreds of repetitive objects.
+
+**Do not call the build finished merely because it compiles.** It must be playable, visually inspected, and regression-tested.
+
 ## 2. Voice & Terminology
 
 **Writing voice (all docs, dialogue, captions, commit messages):** short sentences. Plain words. Warm, wry, unhurried — like Rosa, not like a wiki. Concrete nouns over abstractions. Humor is dry and kind, never sarcastic. Never "users," "players" where "you" will do.
@@ -85,6 +113,7 @@ git status && git log --oneline -5     # orient first, always
 
 **PR / change checklist:**
 - [ ] Laws §1 respected (which ones apply? name them in the description)
+- [ ] Anti-Slop Quality Gate §1b respected (inspected in-game; no filler; owner + behavior + style + verification)
 - [ ] Voice guide §2 respected
 - [ ] Terminology consistent with §2 table
 - [ ] No secrets, no fabricated data, TBDs marked `[TBD]` with owner + date
@@ -136,9 +165,9 @@ A **skill** is a packaged procedure an agent loads when a task matches its trigg
 **Inputs:** an epic from Doc 06 §4 (Phase 1+).
 1. Read the mapped Doc 07 feature spec; write a task list (≤ 8 tasks) with estimates.
 2. Scaffold → implement → unit-test the pure logic (order flow, caption composer, note triggers) → device smoke test.
-3. Run the Laws audit on anything visual; run `visual-qa`.
+3. Run the Laws audit on anything visual; run `visual-qa` **and** the Anti-Slop Quality Gate (§1b).
 4. PR with: what, which law it serves, screenshots, open questions.
-**DoD:** feature DoD from Doc 06 §7 fully checked.
+**DoD:** feature DoD from Doc 06 §7 fully checked; Anti-Slop Gate passed.
 **Pitfall:** optimizing code before the moment works in greybox. Feel first, performance second, elegance last.
 
 ### skill: visual-qa
@@ -147,6 +176,7 @@ A **skill** is a packaged procedure an agent loads when a task matches its trigg
 2. Click through the golden path (primary buttons, anchors, forms). Confirm data/content actually appears — not skeletons.
 3. Check `errors` + `console`; check all images load (`naturalWidth > 0`).
 4. Footer sticky-bottom check; 1-Second Law spot-check on 3 paused frames.
+5. Run the Anti-Slop Quality Gate (§1b): no filler buildings, no floating assets, no placeholder buttons, no fake interactions.
 **DoD:** pass/fail table with evidence screenshots; failures converted to tasks.
 **Pitfall:** "it compiles" is never evidence. Only browser-verified counts.
 
