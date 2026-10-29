@@ -112,6 +112,17 @@ export function runAutotest(game: Game): void {
     const s = game.state;
     const p = () => game.player.capsule;
     const dbg = game.debug;
+    /** Compact game-state snapshot for check messages — makes a failing dusk
+     *  beat diagnosable from the log alone (where the walker is, what the
+     *  director thinks is happening, what the light is doing). */
+    const snap = () => {
+      const c = p();
+      return ` [step=${s.step} day=${s.day} pos=(${c.x.toFixed(1)},${c.y.toFixed(2)},${c.z.toFixed(1)})`
+        + ` ladder=${game.player.ladder !== null} ground=${game.player.onGround}`
+        + ` frozen=${game.player.frozen} dusk=${dbg.duskStarted()} rig=${dbg.postcardRig()}`
+        + ` linger=${s.lingerStage} panelHidden=${game.ui.postcardPanel.hidden}`
+        + ` w2=${dbg.secondIntensity().toFixed(1)} w3=${dbg.thirdIntensity().toFixed(1)}]`;
+    };
     try {
       // fresh Day 1 for the test run. The decision reads bootedFromDay (the
       // save at boot), NOT s.day — beginDay holds s.day at its default until
@@ -355,27 +366,29 @@ export function runAutotest(game: Game): void {
       check(s.step === Step.D3_CLIMB3, 'flyer read \u2014 the block knows your name');
 
       await walkTo(9.4, -7.2, 48, true);
-      check(game.player.ladder !== null, 'day 3: grabbed ladder 1');
+      check(game.player.ladder !== null, 'day 3: grabbed ladder 1' + snap());
       await holdUntil('KeyW', () => p().y > 3.6, 10);
       await holdUntil('KeyD', () => game.player.ladder === null, 4);
       await waitFrames(20);
-      await walkTo(16.2, -7.2, 8, true);
-      await holdUntil('KeyW', () => p().y >= 8.34, 10);
+      await walkTo(16.2, -7.2, 12, true);
+      check(game.player.ladder !== null, `day 3: grabbed ladder 2 (pos=${p().x.toFixed(1)},${p().z.toFixed(1)})` + snap());
+      await holdUntil('KeyW', () => p().y >= 8.34, 14);
+      check(p().y <= 8.36, `day 3: ladder caps at the rail (y=${p().y.toFixed(2)})` + snap());
       await holdUntil('KeyA', () => game.player.ladder === null, 4);
       {
         const t0 = performance.now();
         while (performance.now() - t0 < 30000 && !(s.step === Step.D3_POSTCARD && !game.ui.postcardPanel.hidden)) await nextFrame();
       }
-      check(s.step === Step.D3_POSTCARD && !game.ui.postcardPanel.hidden, 'day 3 postcard composes');
-      check(dbg.caption().includes('Day 3'), 'postcard says Day 3');
-      check(dbg.thirdIntensity() > 2.5, 'the third window lights \u2014 golden-hour payoff');
+      check(s.step === Step.D3_POSTCARD && !game.ui.postcardPanel.hidden, 'day 3 postcard composes' + snap());
+      check(dbg.caption().includes('Day 3'), 'postcard says Day 3' + snap());
+      check(dbg.thirdIntensity() > 2.5, 'the third window lights \u2014 golden-hour payoff' + snap());
       check(game.world.kidGround.visible, 'the kid is at the corner below, on his stool');
       await interact();
-      check(!game.player.frozen, 'day 3 end lingers too');
+      check(!game.player.frozen, 'day 3 end lingers too' + snap());
 
       await walkTo(12.5, -6.8, 8);
       await interact();
-      check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight (day 3)');
+      check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight (day 3)' + snap());
       await interact();
       await waitMs(500);
       check(s.day === 3 && !dbg.dayFading(), 'day 4 does not begin \u2014 the light stays a little longer');
