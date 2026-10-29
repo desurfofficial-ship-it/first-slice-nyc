@@ -216,13 +216,13 @@ export class World {
     // of the way exactly when the roof does (player steps inside).
     const bb = new THREE.Group();
     bb.name = 'Bodega_RoofSign';
-    const board = new THREE.Mesh(
+    const signBoard = new THREE.Mesh(
       new THREE.BoxGeometry(7.4, 1.4, 0.16),
       this.signMaterials("ROSA'S\nDELI & GROCERY", 896, 176, PAL.gold, PAL.ink, 62),
     );
-    board.position.y = 1.75;
-    board.castShadow = true;
-    bb.add(board);
+    signBoard.position.y = 1.75;
+    signBoard.castShadow = true;
+    bb.add(signBoard);
     for (const px of [-3.1, 3.1]) {
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.15, 6), this.mat(PAL.ink));
       pole.position.set(px, 0.55, 0);
