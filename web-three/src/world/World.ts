@@ -16,6 +16,8 @@ import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecy
   makeSubwayEntrance, makeBulletinBoard, makeBench, makeBusStop, makeNewspaperBoxes, makeBarrier,
   makeACUnit, makeBrownstoneStoop, makeStorefront, makeStool, makeVan } from './props';
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
+import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco } from './streetAssets';
+import { LeafDrift } from './leaves';
 
 export interface LadderInfo { area: AABB; top: number; }
 
@@ -80,7 +82,9 @@ export class World {
   private readonly bank: MatBank;
   private readonly trees: Array<{ canopy: THREE.Group; phase: number }> = [];
   private readonly pigeonFlock: PigeonFlock;
+  private readonly pigeonFlockEast: PigeonFlock; // the east end gets its own small knot of birds
   private readonly squirrel: Squirrel;
+  private leaves!: LeafDrift;
   private ambientTime = 0;
 
   private steamPoints: THREE.Points;
@@ -563,6 +567,59 @@ export class World {
     this.scene.add(van);
     this.colliders.push(boxFromCenter(-14, 0.75, 3.05, 4.4, 1.5, 1.95));
 
+    // ---- utility poles + overhead wires (second-agent env pass) ----------
+    // Three wooden poles on the south sidewalk, wires sagging between them
+    // and a service drop to the wall behind each one. Signs bolt to the
+    // poles — the city never gives a sign its own post if a pole is there.
+    // Poles collide (they are wood); wires do not (they are air).
+    const poleSpots = [-8.5, 20, 44.5];
+    for (const px of poleSpots) {
+      const pole = makeUtilityPole(this.bank);
+      pole.position.set(px, 0.05, -7.35);
+      this.scene.add(pole);
+      this.colliders.push(boxFromCenter(px, 3.4, -7.35, 0.3, 6.8, 0.3));
+    }
+    const wireMat = this.mat(PAL.ink);
+    const armZ = -7.35 + 0.62; // the crossarm reaches toward the street
+    for (let i = 0; i < poleSpots.length - 1; i++) {
+      this.scene.add(makeSpanWires(wireMat,
+        { x: poleSpots[i], y: 6.2, z: armZ },
+        { x: poleSpots[i + 1], y: 6.2, z: armZ },
+        { sag: 0.5, offsets: [-0.7, 0, 0.7] },
+      ));
+    }
+    for (const px of poleSpots) {
+      this.scene.add(makeSpanWires(wireMat,
+        { x: px, y: 6.05, z: armZ },
+        { x: px, y: 6.05, z: armZ },
+        { offsets: [], dropTo: { x: px, y: 4.3, z: -7.93 } }, // service drop only
+      ));
+    }
+    const oneWay = makePoleSign(this.bank, this.signMaterials.bind(this), 'ONE WAY',
+      { y: 3.0, facing: 'traffic', arrow: true });
+    oneWay.position.set(-8.5, 0.05, -7.35);
+    this.scene.add(oneWay);
+    const noStanding = makePoleSign(this.bank, this.signMaterials.bind(this), 'NO STANDING',
+      { w: 1.05, h: 0.4, y: 3.0, bg: PAL.coral, fg: PAL.cream, facing: 'street' });
+    noStanding.position.set(20, 0.05, -7.35);
+    this.scene.add(noStanding);
+
+    // ---- planters (two, where someone actually carries water) -------------
+    const planterEast = makePlanter(this.bank, rng);
+    planterEast.position.set(37, 0.05, 7.45);
+    this.scene.add(planterEast);
+    const planterPlaza = makePlanter(this.bank, rng);
+    planterPlaza.position.set(-46.6, 0.05, 4.4);
+    planterPlaza.rotation.y = Math.PI / 2;
+    this.scene.add(planterPlaza);
+
+    // ---- one cast-iron fire-escape silhouette on the brownstone row ------
+    // Decorative only — no colliders, no triggers. The climbable escape on
+    // the fire-escape building stays the lead agent's greybox geometry.
+    const escape = makeFireEscapeDeco(this.bank, 4.4, 8.2);
+    escape.position.set(-21.5, 0, -7.98);
+    this.scene.add(escape);
+
     // ---- pigeons + squirrel (seeded; behaviors in ambient.ts) ----
     this.pigeonFlock = new PigeonFlock(
       this.scene,
@@ -574,6 +631,16 @@ export class World {
       { fur: this.bank.get(0x8a6a4a), tail: this.bank.get(0x7a5c48) },
       7, { x: -36.4, z: 4.8 },
     );
+    // a small east-end flock — the plaza flock shouldn't own all the birds
+    this.pigeonFlockEast = new PigeonFlock(
+      this.scene,
+      { body: this.bank.get(PAL.skyline), head: this.bank.get(PAL.ink), beak: this.bank.get(PAL.amber) },
+      2718, { x: 30, z: 5 }, 1.8, 4,
+    );
+
+    // ---- leaf drift (early autumn; one instanced mesh, one draw call) ----
+    const leafSpots = treeSpots.map(([lx, lz]) => ({ x: lx, z: lz, r: 1.3, top: 3.3 }));
+    this.leaves = new LeafDrift(this.scene, leafSpots, 4);
 
     // ---- the stool (Day 3 purchase) + the kid at ground level ----
     this.stool = makeStool(this.bank);
@@ -1306,7 +1373,9 @@ export class World {
     }
     const pp = player ? { x: player.x, z: player.z } : undefined;
     this.pigeonFlock.update(dt, pp, dusk);
+    this.pigeonFlockEast.update(dt, pp, dusk);
     this.squirrel.update(dt, pp, dusk);
+    this.leaves.update(dt, this.ambientTime);
   }
 
   dispose() {
