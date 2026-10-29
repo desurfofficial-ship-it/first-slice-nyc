@@ -42,13 +42,13 @@ Every session ends with a **postcard** — a beautiful, auto-composed, captioned
 
 ## Current Status — Four Days Are Alive, in Two Engines
 
-Day 1, Day 2, **Day 3, and Day 4** are playable in **Godot 4.7** (Days 1–2) — and in **the browser** ([`web-three/`](web-three/), the Three.js migration, [Doc 24](docs/24-web-three-build.md)), which is now the leading build: the block has brownstones, storefronts, a subway plaza, street trees, pigeons, a squirrel — and four full days.
+Day 1, Day 2, **Day 3, and Day 4 (morning + afternoon)** are playable in **Godot 4.7** (Days 1–2) — and in **the browser** ([`web-three/`](web-three/), the Three.js migration, [Doc 24](docs/24-web-three-build.md)), which is now the leading build: the block has brownstones, storefronts, a subway plaza, street trees, pigeons, a squirrel, Sunrise Laundry, a filed permit on the cart — and four full days.
 
 <div align="center">
 
 **▶ [Play in the browser](https://desurfofficial-ship-it.github.io/first-slice-nyc/) ◀**
 
-*WASD walk · Space interact · Z/C turn camera · touch controls on mobile*
+*WASD walk · Space interact · Z/C turn camera · touch controls on mobile · ♫ sound on/off*
 
 </div>
 
@@ -70,14 +70,15 @@ The postcard closes, you can linger at the rail, and tomorrow begins: Idris come
 Rosa brings the news at YOUR cart. The morning rush is four real orders — bubbles up, urn hissing, money honest. Then the kid comes down from the window for the first time, walks to your corner at your hip, and takes the stool ($10). A flyer by the subway stairs says the block knows your name. At dusk a third window lights, and the kid waves from his stool below.
 
 **Then Day 4 — [say hi](docs/29-day4-say-hi.md) (web build):**  
-The Hospitality Law chapter. A stranger with a duffel bag stands where the story started. Rosa: "You looked like that once. Go say hi." One free regular, Rosa's two dollars, three honest orders — and the Map changes hands. She walks your first walk; the corner does not own her. At dusk the lamp next door flickers, thinks about it, and stays on. Four windows. Day 5 is still being written — the light stays.
+The Hospitality Law chapter. A stranger with a duffel bag stands where the story started. Rosa: "You looked like that once. Go say hi." One free regular, Rosa's two dollars, three honest orders — and the Map changes hands. She walks your first walk; the corner does not own her. **And Day 4 afternoon — [the block opens up](docs/30-day4-the-block-opens-up.md):**  
+The block was always this big. Sunrise Laundry is a real place now — Sal, two washers, one mango-stained apron (first wash free: "the aprons are advertising") — and by the crosswalk, a city notice: MOBILE FOOD VENDING PERMIT — APPLICATION. $10 to file, confirm-gated, spent once. The receipt goes on the cart. At dusk the lamp next door flickers, thinks about it, and stays on. Four windows, one filed application, and Day 5 is still being written — the light stays.
 
 ```bash
 godot --headless --path greybox-godot -- --autotest          # the oracle: Day 1 + 2
 cd web-three && npm test && node scripts/e2e.mjs            # the web build: Day 1 + 2 + 3 + 4
 ```
 
-Last runs: **Godot oracle 0 failures** · **web E2E 0 failures ×2 (full Day 1 → Day 4, real input, 245–247 s)** · **101/101 unit tests** · typecheck clean.
+Last runs: **Godot oracle 0 failures** · **web E2E 0 failures (full Day 1 → Day 4 afternoon, real input, 304 s)** · **112/112 unit tests** · typecheck clean.
 
 ### Real captures from the greybox
 
@@ -97,11 +98,11 @@ Last runs: **Godot oracle 0 failures** · **web E2E 0 failures ×2 (full Day 1 �
 |------------------|----------------|-----------------|---------------|
 | ![Plaza](assets/web-three/frames/d3_plaza_pigeons_portrait.png) | ![Brownstones](assets/web-three/frames/d3_brownstones_portrait.png) | ![Stool](assets/web-three/frames/d3_kid_on_stool_portrait.png) | ![Dusk](assets/web-three/frames/d3_three_windows_dusk_portrait.png) |
 
-### Day 4, seen — [Doc 29](docs/29-day4-say-hi.md)
+### Day 4, seen — [Doc 29](docs/29-day4-say-hi.md) + [Doc 30](docs/30-day4-the-block-opens-up.md)
 
-| The Stranger, At the Terminal | She Walks Your First Walk | Four Windows |
-|-------------------------------|---------------------------|--------------|
-| ![Terminal](assets/web-three/frames/d4_stranger_terminal_portrait.png) | ![The Walk](assets/web-three/frames/d4_she_walks_your_first_walk.png) | ![Dusk](assets/web-three/frames/d4_four_windows_dusk_portrait.png) |
+| The Stranger, At the Terminal | She Walks Your First Walk | The Block Opens Up | Four Windows |
+|-------------------------------|---------------------------|--------------------|--------------|
+| ![Terminal](assets/web-three/frames/d4_stranger_terminal_portrait.png) | ![The Walk](assets/web-three/frames/d4_she_walks_your_first_walk.png) | ![The Laundry](assets/web-three/frames/d4_laundry_bay_portrait.png) | ![Dusk](assets/web-three/frames/d4_four_windows_dusk_portrait.png) |
 
 ### First generated postcard
 
@@ -172,7 +173,10 @@ Details and numbers live in [Doc 15](docs/15-tech-spikes.md).
 | [26 – Walk-Cycle & Fire-Escape Notes](docs/26-walk-cycle-fire-escape.md) | The cast finally walks — the rig, the rebuilt fire escape, the GLB verdict |
 | [27 – Field Bugs, Round Two](docs/27-field-bugs-round-two.md) | The six phone complaints — kid at the glass, the raised hand, the ladder, the ghost cab, the camera, the touch controls — all closed |
 | [28 – Day 3: A Place at the Corner](docs/28-day3-a-place-at-the-corner.md) | Day 3 — the living street (brownstones, trees, pigeons), the brewed morning rush, the kid's walk down, the stool, the flyer, the third window |
-| [29 – Day 4: Say Hi](docs/29-day4-say-hi.md) | Day 4 — the Hospitality Law chapter: the stranger at the terminal, the free regular, Rosa's rule, the Map handoff, her walk, the lamp next door |
+| [29 – Day 4: Say Hi](docs/29-day4-say-hi.md) | Day 4 morning — the Hospitality Law chapter: the stranger at the terminal, the free regular, Rosa's rule, the Map handoff, her walk, the lamp next door |
+| [30 – Day 4 Afternoon: The Block Opens Up](docs/30-day4-the-block-opens-up.md) | Sunrise Laundry opens: Sal, the washers, the apron run, the vending-permit application, the receipt on the cart, and the ambient sound layer |
+| [31 – Visual Audit](docs/31-visual-audit.md) | The second agent's frame-by-frame review — evidence integrity, defects, fixes |
+| [32 – Audio Notes](docs/32-audio-notes.md) | The synthesized ambient layer — voices, house rules, integration, honest limits |
 | [AGENTS.md](AGENTS.md) | Operating manual for AI agents |
 
 ---

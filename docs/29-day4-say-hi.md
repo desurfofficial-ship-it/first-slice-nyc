@@ -1,7 +1,8 @@
 # Doc 29 — Day 4: "Say Hi"
 
 *The Hospitality Law chapter. The endgame is not wealth or even belonging —
-it's keeping the light on for the next stranger.*
+it's keeping the light on for the next stranger. Day 4 continues in
+[Doc 30](30-day4-the-block-opens-up.md) — the afternoon opens the block.*
 
 ---
 
@@ -35,12 +36,13 @@ now a skyline of people someone kept.
 | The Map | `D4_MAP` | Gated on her **arrival** — she walks your first walk on her own feet (~48 m, crosswalk, the cab yields). Then the handoff, the kid's train fact, and she's gone west. Gone means gone: the corner does not own her. |
 | Dusk | `D4_CLIMB4` | Same stairs, same seat, by habit. |
 | Golden beat | `D4_POSTCARD` | The lamp next door flickers — *thinks about it* — and stays on. The kid waves from the stool. |
-| Postcard | — | *"Day 4. $120 → $133. Met: her. The Map changed hands. The light stays."* |
+| Postcard | — | *"Day 4. $120 → $123. Met: her. The Map changed hands. Filed: the permit. The light stays."* |
 | The wall | rail, 2nd press | Honest: *"Day 5 is still being written. The light stays a little longer."* |
 
 **Money math (all honest, replay-resting):** $120 + Rosa's $2 + $11 rush
-($3 + $4 + $4) = **$133**. No purchase today — Day 4 gives instead of takes;
-that's the chapter.
+($3 + $4 + $4) = **$133 earned**. The afternoon (docs/30) then files the
+vending-permit application — $10, confirm-gated, spent once — so the day
+banks **$123**. The morning gives; the city takes its cut; both are true.
 
 ## 2. Continuity repair (found while building)
 
@@ -83,21 +85,12 @@ that's the chapter.
 
 ## 4. QA
 
-- **Unit: 101/101** (79 → 101: +22 Day-4 tests, 2 updated for MAX_DAY).
-  Gates: wake fires once; the greeting pays exactly once and opens the rush;
-  the brew gate holds on its second day; giveMap is dead until she has
-  *actually arrived* (no teleport shortcuts); the wall moved with MAX_DAY
-  (day 3's rail now says tomorrow; day 4 is the wall); captions; save
-  round-trip; back-compat.
-- **E2E: AUTOTEST OK, 0 failures, twice in a row (247 s / 245 s), console
-  clean** — the full Day 1 → Day 4 journey with real input: the mirror walk,
-  Rosa's $2 ($122), three brews ($133), her arrival poll, the Map handoff,
-  both ladders with rail-cap checks, the fourth window at 2.8, the goodnight,
-  and the save ($133, map=true, stool=true).
-- The E2E caught two real defects before they shipped: the skipped
-  `D4_STRANGER` step (the wake leapfrogged the terminal beat — she stood
-  there while you served coffee, and the Map beat was unreachable), and the
-  stool reset above. Both fixed at the root, both now pinned by tests.
+The morning chapter's gates are pinned by unit tests and the full E2E;
+current totals live in Doc 30 §QA (the afternoon shares the same suite).
+The E2E caught two real defects before they shipped: the skipped
+`D4_STRANGER` step (the wake leapfrogged the terminal beat — she stood
+there while you served coffee, and the Map beat was unreachable), and the
+stool reset above. Both fixed at the root, both now pinned by tests.
 
 ## 5. Honest limits
 
@@ -112,5 +105,9 @@ that's the chapter.
   SwiftShader + headless Chromium at 900×700 / 720×1280.
 - Day 5+ remains "still being written" by design — the wall says so, and now
   it says so from Day 4.
+- The four morning evidence frames were staged by the chapter's original
+  build and wear Day-1's HUD ($87, the Day-1 objective); the afternoon
+  frames (Doc 30) stage the real HUD. Re-staging the morning set is owed
+  (Doc 31, fix #1).
 
 *You say the thing Rosa said. It works. It still works.*

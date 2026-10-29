@@ -118,7 +118,7 @@
 
     .grid-2 {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
       gap: 1.5rem;
     }
 
@@ -290,15 +290,24 @@
       Day 1 through Day 4 play end to end at
       <a href="https://desurfofficial-ship-it.github.io/first-slice-nyc/">the live build</a>.
       One block of Manhattan, grown by hand: brownstones with stoops, a bodega,
-      a subway plaza, street trees, pigeons with opinions.
+      a subway plaza, street trees, pigeons with opinions. Day 4 even has an
+      afternoon now. And the block has a sound — a quiet city, synthesized
+      from scratch, with a mute button that means it.
     </p>
 
-    <div class="grid-3">
+    <div class="grid-2">
       <div class="card">
         <img src="https://raw.githubusercontent.com/desurfofficial-ship-it/first-slice-nyc/main/web-three/assets/web-three/frames/d3_kid_on_stool_portrait.png" alt="Your named cart with the awning up and the kid on his stool" />
         <div class="body">
           <h3>Day 3 — A Place at the Corner</h3>
           <p>Rosa brings the news to YOUR cart. Four real orders. The kid comes down from his window — and takes the stool.</p>
+        </div>
+      </div>
+      <div class="card">
+        <img src="https://raw.githubusercontent.com/desurfofficial-ship-it/first-slice-nyc/main/web-three/assets/web-three/frames/d4_laundry_bay_portrait.png" alt="Sunrise Laundry's open bay at golden hour, washers spinning while the apron washes" />
+        <div class="body">
+          <h3>Day 4, afternoon — The Block Opens Up</h3>
+          <p>Sunrise Laundry pulls its shutter up. Sal washes the mango-stained apron — first wash free. A city notice by the crosswalk sells you the Mobile Food Vending Permit ($10, and it asks twice), and a receipt goes up on the cart.</p>
         </div>
       </div>
       <div class="card">
@@ -328,12 +337,14 @@
       <h3>Current status</h3>
       <ul>
         <li>Day 1 through Day 4 playable in the browser — one continuous story</li>
+        <li>Day 4 afternoon: Sunrise Laundry opens, Sal washes the apron, the Mobile Food Vending Permit gets filed, the receipt goes up on the cart</li>
         <li>A living block: brownstones, storefronts, subway plaza, street trees, pigeons, a squirrel</li>
+        <li>An ambient sound layer, synthesized from scratch — city bed, far traffic, pigeon coos, the washer drum, a bell at dusk. Mute is one tap and it stays muted</li>
         <li>Coffee-cart economy with real change-making — every dollar honest, every gift paid back</li>
         <li>Quit any time, resume exactly — your corner persists (furniture included)</li>
         <li>Touch controls for phones, keyboard for desks</li>
         <li>Postcard capture pipeline proven — every day ends with a keepsake</li>
-        <li>101 unit tests + a full-journey browser test that plays all four days with real input</li>
+        <li>112 unit tests + a full-journey browser test that plays all four days with real input</li>
       </ul>
     </div>
 
