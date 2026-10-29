@@ -69,11 +69,6 @@ export class InputManager {
       this.joyId = e.pointerId;
       this.joyZone.setPointerCapture(e.pointerId);
       this.joyOrigin = { x: e.clientX, y: e.clientY };
-      // The base is positioned INSIDE #joy-zone (anchored to the bottom-left
-      // corner of the screen) — clientX/Y are viewport coordinates, so they
-      // must be converted into the zone's local space. The old code wrote
-      // raw viewport Y into a zone-relative `top`, throwing the joystick
-      // 477 px below the screen on a phone: you touched, and nothing appeared.
       const r = this.joyZone.getBoundingClientRect();
       this.joyBase.hidden = false;
       this.joyBase.style.left = `${e.clientX - r.left}px`;
@@ -143,7 +138,9 @@ export class InputManager {
     const len = Math.hypot(mx, my);
     if (len > 1) { mx /= len; my /= len; }
 
-    const camTurn = (this.keys.has('KeyC') ? 1 : 0) - (this.keys.has('KeyZ') ? 1 : 0)
+    // Z/C or Q/E or on-screen turn buttons — free camera orbit
+    const camTurn = (this.keys.has('KeyC') || this.keys.has('KeyE') ? 1 : 0)
+      - (this.keys.has('KeyZ') || this.keys.has('KeyQ') ? 1 : 0)
       + (this.turnRHeld ? 1 : 0) - (this.turnLHeld ? 1 : 0);
 
     const interact = this.interactQueued || this.touchInteractQueued;

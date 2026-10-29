@@ -21,6 +21,8 @@
  *   climb  — arms up the ladder, legs alternate slowly (visual only)
  *   sweep  — Day-2 Rosa: broom arm swings, feet stay planted
  *   wave   — tween-owned right arm (kid's window wave); animator stands by
+ *   sit    — Day 3: the kid on his stool (hips bent, boots forward, root sunk
+ *            to seat height; the stool is 0.56 m so the sink is 0.34 m)
  */
 
 import * as THREE from 'three';
@@ -41,7 +43,7 @@ export interface PersonRig {
   prevZ: number;
   hasPrev: boolean;
   time: number;
-  mode: 'auto' | 'climb' | 'sweep' | 'wave';
+  mode: 'auto' | 'climb' | 'sweep' | 'wave' | 'sit';
 }
 
 /** Stride frequency (rad/s) at full speed — ~1.8 steps/s at SPEED 4.2. */
@@ -142,7 +144,7 @@ export function buildArticulatedPerson(
 export function updatePersonAnim(
   group: THREE.Group,
   dt: number,
-  opts: { mode?: 'auto' | 'climb' | 'sweep' | 'wave' } = {},
+  opts: { mode?: 'auto' | 'climb' | 'sweep' | 'wave' | 'sit' } = {},
 ): void {
   const rig = group.userData.rig as PersonRig | undefined;
   if (!rig) return;
@@ -195,6 +197,22 @@ export function updatePersonAnim(
     rig.root.position.y = 0;
     rig.body.rotation.x = 0.04;
     rig.head.rotation.y = Math.sin(t * 0.7) * 0.25;
+    return;
+  }
+
+  if (rig.mode === 'sit') {
+    // seated: hips bent, boots out, root sunk to seat height. Everything
+    // else stays hands-off so a tween can wave the arm without a fight.
+    rig.root.position.y = -0.34;
+    rig.root.rotation.x = 0;
+    rig.body.rotation.x = 0;
+    rig.hipL.rotation.x = -1.5;
+    rig.hipR.rotation.x = -1.5;
+    rig.armL.rotation.x = -0.38;
+    rig.armR.rotation.x = -0.38;
+    rig.armL.rotation.z = 0.14;
+    rig.armR.rotation.z = -0.14;
+    rig.head.rotation.y = Math.sin(t * 0.5) * 0.35; // watching the street
     return;
   }
 
