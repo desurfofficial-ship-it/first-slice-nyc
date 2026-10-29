@@ -41,14 +41,14 @@ describe('walls block, curbs do not', () => {
     const c = capsule(0, 0, 6);
     // walk north (z+) by 10 — should stop at z = 8 - 0.35
     moveAxisZ(boxes, c, 10, 0.35);
-    expect(c.z).toBeCloseTo(8 - 0.35, 3);
+    expect(c.z).toBeCloseTo(8 - 0.35 - 0.001, 3); // parked with the 1mm air gap
   });
 
   it('walking east into an invisible bound is stopped', () => {
     const wall = boxFromCenter(48, 5, 0, 1, 20, 40);
     const c = capsule(40, 0, 0);
     moveAxisX([wall], c, 20, 0.35);
-    expect(c.x).toBeCloseTo(48 - 0.5 - 0.35, 3);
+    expect(c.x).toBeCloseTo(48 - 0.5 - 0.35 - 0.001, 3);
   });
 
   it('a 0.1 curb does not block horizontal movement', () => {
@@ -69,7 +69,7 @@ describe('walls block, curbs do not', () => {
     // the left front wall blocks (box minZ face at 8.0, minus the capsule radius)
     const c2 = capsule(-19.25, 0, 6);
     moveAxisZ(boxes, c2, 8, 0.35);
-    expect(c2.z).toBeCloseTo(8.0 - 0.35, 3);
+    expect(c2.z).toBeCloseTo(8.0 - 0.35 - 0.001, 3);
   });
 
   it('tall boxes do not block a capsule fully above them', () => {

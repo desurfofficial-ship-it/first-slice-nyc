@@ -512,7 +512,14 @@ export class Game {
         for (const e of s.serveIdris()) this.applyEffect(e);
         break;
       case 'kid':
-        for (const e of s.kidJoins()) this.applyEffect(e);
+        // At the stool beat the kid is AT your hip — often nearer than the
+        // cart — so facing him must offer the stool too (a player walks up
+        // and presses Space at the pair of them, not at a specific prop).
+        if (s.step === Step.D3_STOOL) {
+          for (const e of s.stoolInteraction()) this.applyEffect(e);
+        } else {
+          for (const e of s.kidJoins()) this.applyEffect(e);
+        }
         break;
       case 'poster':
         for (const e of s.seePoster()) this.applyEffect(e);

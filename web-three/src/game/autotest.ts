@@ -67,26 +67,22 @@ export function runAutotest(game: Game): void {
       const dx = x - p.x;
       const dz = z - p.z;
       if (Math.hypot(dx, dz) < 0.35) break;
+      // stuck tracking runs EVERY frame — the sidestep logic depends on it
+      const posKey = `${p.x.toFixed(2)},${p.z.toFixed(2)}`;
+      if (posKey === lastPos) stuckCount++;
+      else { stuckCount = 0; lastPos = posKey; }
       if (walkLog && frames % 90 === 0) {
         console.info(`[walk] t=${((performance.now() - t0) / 1000).toFixed(1)} pos=(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}) yaw=${game.player.camYaw.toFixed(2)} ladder=${game.player.ladder !== null} ground=${game.player.onGround}`);
       }
-      if (walkLog && frames > 0 && frames % 30 === 0) {
-        const key = `${p.x.toFixed(2)},${p.z.toFixed(2)}`;
-        if (key === lastPos) {
-          stuckCount++;
-          if (stuckCount === 2 || stuckCount === 20) {
-            const near: Array<{ d: number; box: number[] }> = [];
-            game.world.colliders.forEach((b) => {
-              const nx = Math.max(b.minX, Math.min(p.x, b.maxX));
-              const nz = Math.max(b.minZ, Math.min(p.z, b.maxZ));
-              const d = Math.hypot(p.x - nx, p.z - nz);
-              if (d < 0.6) near.push({ d: +d.toFixed(3), box: [b.minX, b.maxX, b.minY, b.maxY, b.minZ, b.maxZ].map((v) => +v.toFixed(2)) });
-            });
-            console.info(`[stuck] frames=${frames} pos=(${p.x.toFixed(3)},${p.z.toFixed(3)}) near=${JSON.stringify(near)} rosa=(${game.world.rosa.position.x.toFixed(2)},${game.world.rosa.position.z.toFixed(2)})`);
-            const inp = game.input.sample();
-            console.info(`[stuck2] move=(${inp.move.x.toFixed(2)},${inp.move.y.toFixed(2)}) camYaw=${game.cam.camYaw.toFixed(3)} moveYaw=${game.cam.moveYaw.toFixed(3)} rotY=${game.player.rotationY.toFixed(3)} frozen=${game.player.frozen} nameBoxHidden=${game.ui.nameBox.hidden} ladder=${game.player.ladder !== null} vy=${game.player.vy.toFixed(2)} onGround=${game.player.onGround}`);
-          }
-        } else { stuckCount = 0; lastPos = key; }
+      if (walkLog && stuckCount === 2) {
+        const near: Array<{ d: number; box: number[] }> = [];
+        game.world.colliders.forEach((b) => {
+          const nx2 = Math.max(b.minX, Math.min(p.x, b.maxX));
+          const nz2 = Math.max(b.minZ, Math.min(p.z, b.maxZ));
+          const d = Math.hypot(p.x - nx2, p.z - nz2);
+          if (d < 0.6) near.push({ d: +d.toFixed(3), box: [b.minX, b.maxX, b.minY, b.maxY, b.minZ, b.maxZ].map((v) => +v.toFixed(2)) });
+        });
+        console.info(`[stuck] frames=${frames} pos=(${p.x.toFixed(3)},${p.z.toFixed(3)}) near=${JSON.stringify(near)} rosa=(${game.world.rosa.position.x.toFixed(2)},${game.world.rosa.position.z.toFixed(2)})`);
       }
       frames++;
       // steer by the MOVEMENT basis, not the boom yaw — during a street-side
@@ -97,11 +93,17 @@ export function runAutotest(game: Game): void {
       const len = Math.hypot(dx, dz) || 1;
       const nx = dx / len, nz = dz / len;
       const f = nx * fwdX + nz * fwdZ;
-      const r = nx * rightX + nz * rightZ;
+      let r = nx * rightX + nz * rightZ;
+      // Blocked head-on (the cab yields and stands in the path, the cart, a
+      // pole): pure pushes have no lateral component (|r| < 0.2) and weld to
+      // the box forever. Sidestep ON TOP of the steer keys, alternating every
+      // ~45 frames, until position moves again — how a person edges around.
+      let slide = 0;
+      if (stuckCount > 12) slide = Math.floor(stuckCount / 45) % 2 === 0 ? -1 : 1;
       game.input.injectKey('KeyW', f > 0.2);
       game.input.injectKey('KeyS', f < -0.2);
-      game.input.injectKey('KeyD', r > 0.2);
-      game.input.injectKey('KeyA', r < -0.2);
+      game.input.injectKey('KeyD', r > 0.2 || slide > 0);
+      game.input.injectKey('KeyA', r < -0.2 || slide < 0);
       await nextFrame();
     }
     game.input.injectKey('KeyW', false);
@@ -377,15 +379,19 @@ export function runAutotest(game: Game): void {
       check(s.stoolUp && s.money === 120 && game.world.stool.visible, `stool up: -$10 (got $${s.money})`);
       check(s.step === Step.D3_POSTER, 'the flyer objective is up');
 
-      await walkTo(-37.6, 6.9, 48);
+      // the west end in two sidewalk legs — the 43 m diagonal against the
+      // full sim load (leaves, signals, two flocks) outran a single 48 s
+      // budget under software rendering
+      await walkTo(-20, 6.5, 40);
+      await walkTo(-37.6, 6.9, 40);
       await interact();
       check(s.step === Step.D3_CLIMB3, 'flyer read \u2014 the block knows your name');
 
-      // cross to the ladder the way a person would — north of the cart. The
-      // cart is solid now (playtest: "passed through the cart"), so the old
-      // straight diagonal from the west end pushed into its west face and the
-      // 48 s budget expired mid-slide along it.
-      await walkTo(9.4, -4.8, 40);
+      // east along the north sidewalk in two legs, then step south to the
+      // ladder — the single 47 m diagonal outran its budget under the full
+      // sim load, same as the flyer walk did
+      await walkTo(-16, 6.5, 30);
+      await walkTo(9.4, -4.8, 60);
       await walkTo(9.4, -7.2, 20, true);
       check(game.player.ladder !== null, 'day 3: grabbed ladder 1');
       await holdUntil('KeyW', () => p().y > 3.6, 10);

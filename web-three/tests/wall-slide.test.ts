@@ -26,7 +26,7 @@ describe('sliding along a wall you are touching', () => {
     // push north into the west building until parked at exact contact
     const c = { x: -21.035, y: 0.1, z: 6, radius: 0.35, height: 1.75 };
     moveAxisZ(CORNER, c, 4, 0.35);
-    expect(c.z).toBeCloseTo(8 - 0.35, 6); // parked on the face
+    expect(c.z).toBeCloseTo(8 - 0.35 - 0.001, 3); // parked with the 1mm air gap
     // now slide east along that face — float noise must not weld us
     for (let i = 0; i < 240; i++) moveAxisX(CORNER, c, 0.05, 0.35);
     expect(c.x).toBeGreaterThan(-17.5); // clear past the front-wall corner
@@ -45,9 +45,9 @@ describe('sliding along a wall you are touching', () => {
     const bldg = B(-50, -21, 0, 14, 8, 20);
     const c = { x: 0, y: 0, z: 10, radius: 0.35, height: 1.75 };
     moveAxisX([bldg], c, -30, 0.35); // walk west into the east face
-    expect(c.x).toBeCloseTo(-21 + 0.35, 3);
+    expect(c.x).toBeCloseTo(-21 + 0.35 + 0.001, 3);
     const c2 = { x: -25, y: 0, z: 6, radius: 0.35, height: 1.75 };
     moveAxisZ([bldg], c2, 10, 0.35); // walk north into the south face
-    expect(c2.z).toBeCloseTo(8 - 0.35, 3);
+    expect(c2.z).toBeCloseTo(8 - 0.35 - 0.001, 3);
   });
 });

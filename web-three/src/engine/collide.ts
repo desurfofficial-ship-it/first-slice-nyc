@@ -50,8 +50,9 @@ const MAX_SUBSTEP = 0.2; // never sweep further than this per collision probe
  *  face − radius; the next lateral slide re-tested that face and float noise
  *  (d = 0.349999…97 < 0.35) read it as overlap — the move clamped to where it
  *  already was, and the player WELDED to every corner until they stepped
- *  back. The move-block tests ignore contacts within 1 mm of exact; genuine
- *  embedment is still depenetrate's job. */
+ *  back. Clamps and depenetrate now park with a 1 mm air gap and the
+ *  move-block tests ignore contacts within it — walls slide cleanly, and
+ *  genuine embedment still can't happen (1 mm is invisible at this scale). */
 const SKIN = 0.001;
 
 /**
@@ -75,7 +76,7 @@ export function moveAxisX(boxes: AABB[], c: Capsule, dx: number, stepUp: number)
       if (b.maxY <= c.y + stepUp) continue;        // steppable curb
       if (c.y + c.height <= b.minY) continue;      // fully above the head
       if (!circleOverlapsRectXZ({ ...c, x: target, radius: c.radius - SKIN }, b, 0)) continue;
-      c.x = d > 0 ? Math.max(c.x, b.minX - c.radius) : Math.min(c.x, b.maxX + c.radius);
+      c.x = d > 0 ? Math.max(c.x, b.minX - c.radius - SKIN) : Math.min(c.x, b.maxX + c.radius + SKIN);
       hit = true;
       break;
     }
@@ -98,7 +99,7 @@ export function moveAxisZ(boxes: AABB[], c: Capsule, dz: number, stepUp: number)
       if (b.maxY <= c.y + stepUp) continue;
       if (c.y + c.height <= b.minY) continue;
       if (!circleOverlapsRectXZ({ ...c, z: target, radius: c.radius - SKIN }, b, 0)) continue;
-      c.z = d > 0 ? Math.max(c.z, b.minZ - c.radius) : Math.min(c.z, b.maxZ + c.radius);
+      c.z = d > 0 ? Math.max(c.z, b.minZ - c.radius - SKIN) : Math.min(c.z, b.maxZ + c.radius + SKIN);
       hit = true;
       break;
     }
@@ -133,9 +134,12 @@ export function depenetrate(boxes: AABB[], c: Capsule, stepUp: number): void {
     const dz = c.z - nz;
     const d2 = dx * dx + dz * dz;
     if (d2 >= c.radius * c.radius) continue;
+    // push to radius + SKIN — a 1 mm air gap, so the next move's face test
+    // (radius − SKIN) always reads free with 2 mm of margin. Parking at exact
+    // contact made every wall slide a coin flip on float noise.
+    const push = c.radius + SKIN - Math.sqrt(d2);
     if (d2 > 1e-9) {
       const d = Math.sqrt(d2);
-      const push = c.radius - d;
       c.x += (dx / d) * push;
       c.z += (dz / d) * push;
     } else {
@@ -143,10 +147,10 @@ export function depenetrate(boxes: AABB[], c: Capsule, stepUp: number): void {
       const left = c.x - b.minX, right = b.maxX - c.x;
       const front = c.z - b.minZ, back = b.maxZ - c.z;
       const m = Math.min(left, right, front, back);
-      if (m === left) c.x = b.minX - c.radius;
-      else if (m === right) c.x = b.maxX + c.radius;
-      else if (m === front) c.z = b.minZ - c.radius;
-      else c.z = b.maxZ + c.radius;
+      if (m === left) c.x = b.minX - c.radius - SKIN;
+      else if (m === right) c.x = b.maxX + c.radius + SKIN;
+      else if (m === front) c.z = b.minZ - c.radius - SKIN;
+      else c.z = b.maxZ + c.radius + SKIN;
     }
   }
 }
