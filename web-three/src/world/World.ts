@@ -41,7 +41,13 @@ export class World {
   readonly cartSign: THREE.Sprite;
   readonly cartAwning: THREE.Group;
   readonly stringLights: THREE.Group;
-  readonly taxi: THREE.Group;
+  /** The street cab. After a successful car_taxi.glb upgrade this getter
+   *  returns the WRAPPER that now wears the generated mesh — so update()'s
+   *  lane logic keeps moving the visible car, never a detached ghost. */
+  get taxi(): THREE.Group {
+    return (this.glbProps.get('car_taxi') as THREE.Group | undefined) ?? this.taxiBase;
+  }
+  private taxiBase: THREE.Group;
   /** The cab's collider — boxFromCenter once, then moved every frame. */
   readonly taxiCollider: AABB;
   readonly rosa: THREE.Group;
@@ -164,18 +170,52 @@ export class World {
     this.solid('Bodega_Front_L', -19.25, h / 2, 8.2, 3.5, h, 0.4, PAL.brick);
     this.solid('Bodega_Front_R', -12.75, h / 2, 8.2, 3.5, h, 0.4, PAL.brick);
     this.solid('Bodega_Front_Lintel', -16, 3.8, 8.2, 3, 1.4, 0.4, PAL.brick);
-    // "ROSA'S" — the building has a name now (playtest: nobody knew whose store it was).
+    // "ROSA'S / DELI & GROCERY" — the building has a name now, and it says it
+    // three ways (playtest: nobody knew whose store it was, and the chase cam
+    // crops a low facade sign when you stand at the door):
+    //   1. this two-deck facade board over the awning,
+    //   2. a blade sign projecting over the sidewalk (readable walking up,
+    //      when the facade board is above the frame),
+    //   3. a rooftop billboard (readable from anywhere on the block).
     this.decoMesh(
       'Bodega_Sign',
-      new THREE.BoxGeometry(5.8, 1.05, 0.12),
-      this.signMaterials("ROSA'S BODEGA", 768, 128, PAL.gold, PAL.ink, 72),
-      -16, 3.82, 7.94,
+      new THREE.BoxGeometry(6.2, 1.35, 0.14),
+      this.signMaterials("ROSA'S\nDELI & GROCERY", 832, 176, PAL.gold, PAL.ink, 62),
+      -16, 4.0, 7.93,
+    );
+    // blade sign: perpendicular board over the door gap, text on the ±x faces
+    this.decoMesh('Bodega_BladeBracket', new THREE.BoxGeometry(0.07, 0.5, 0.9), this.mat(PAL.ink), -14.9, 3.55, 7.55);
+    this.decoMesh(
+      'Bodega_BladeSign',
+      new THREE.BoxGeometry(0.12, 0.95, 1.7),
+      this.signMaterials("ROSA'S", 384, 192, PAL.gold, PAL.ink, 74, 'x'),
+      -14.9, 2.95, 7.1,
     );
     // The warm window (emission 0.55 — main.gd comment: "the warm window, actually warm")
     this.rosaWindowMat = this.mat(PAL.amber, { emissive: PAL.amber, emissiveIntensity: 0.55 });
-    this.decoMesh('Bodega_Window', new THREE.BoxGeometry(2.6, 1.6, 0.05), this.rosaWindowMat, -19.25, 1.8, 7.97);
+    this.decoMesh('Bodega_Window', new THREE.BoxGeometry(2.6, 1.6, 0.06), this.rosaWindowMat, -19.25, 1.8, 7.92);
     this.deco('Bodega_Awning', -16, 3.2, 7.6, 10, 0.15, 1.2, PAL.teal);
     this.roof = this.solid('Bodega_Roof', -16, h + 0.15, 14, 10, 0.3, 12, PAL.bldg);
+    // Rooftop billboard — the store's name over the block, readable from the
+    // chase cam anywhere on the street. Childed to the roof so it ducks out
+    // of the way exactly when the roof does (player steps inside).
+    const bb = new THREE.Group();
+    bb.name = 'Bodega_RoofSign';
+    const board = new THREE.Mesh(
+      new THREE.BoxGeometry(7.4, 1.4, 0.16),
+      this.signMaterials("ROSA'S\nDELI & GROCERY", 896, 176, PAL.gold, PAL.ink, 62),
+    );
+    board.position.y = 1.75;
+    board.castShadow = true;
+    bb.add(board);
+    for (const px of [-3.1, 3.1]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.15, 6), this.mat(PAL.ink));
+      pole.position.set(px, 0.55, 0);
+      pole.castShadow = true;
+      bb.add(pole);
+    }
+    bb.position.set(0, 0.15, -4.6); // roof-local: near the front edge, over the sidewalk
+    this.roof.add(bb);
     this.solid('Bodega_Counter', -19.6, 0.55, 13.5, 1.2, 1.1, 6, PAL.teal);
     this.solid('Bodega_BackShelf', -16, 1.0, 19.3, 6, 2.0, 0.6, PAL.bldg2);
 
@@ -209,7 +249,9 @@ export class World {
     // every frame — and a city-cab yield: it holds at the crosswalk stop line
     // while the crosswalk is occupied, and brakes for anyone in the road
     // ahead of it. A cab you can ghost through read as broken.
-    this.taxi = this.buildCar('taxi');
+    this.taxiBase = this.buildCar('taxi');
+    this.registerGlbProp('car_taxi', this.taxiBase); // generated mesh may wear it (public/models/car_taxi.glb)
+    void this.upgradePropWithGLB('car_taxi');
     this.taxi.position.set(-45, 0, -2);
     this.scene.add(this.taxi);
     this.taxiCollider = boxFromCenter(-45, 0.75, -2, 4.4, 1.5, 1.95);
@@ -219,6 +261,8 @@ export class World {
     const sedan = this.buildCar('sedan');
     sedan.position.set(24, 0, -3.05);
     sedan.rotation.y = Math.PI;
+    this.registerGlbProp('car_sedan', sedan); // same seam, parked car
+    void this.upgradePropWithGLB('car_sedan');
     this.scene.add(sedan);
     this.colliders.push(boxFromCenter(24, 0.75, -3.05, 4.4, 1.5, 1.95));
 
@@ -519,6 +563,14 @@ export class World {
       // Uniform scale so the generated mesh stands exactly as tall as the
       // placeholder it replaces, feet on the same ground, XZ centered on it.
       const s = phSize.y / size.y;
+      // Footprint guard: a car scaled to the placeholder's height must also
+      // occupy a similar street width, or its collider (sized for the
+      // placeholder) stops matching what you see. 0.5×–1.9× is the sane band.
+      const scaledX = size.x * s, scaledZ = size.z * s;
+      if (scaledX < phSize.x * 0.5 || scaledX > phSize.x * 1.9
+        || scaledZ < phSize.z * 0.5 || scaledZ > phSize.z * 1.9) {
+        throw new Error(`footprint mismatch (${scaledX.toFixed(2)}×${scaledZ.toFixed(2)} vs ${phSize.x.toFixed(2)}×${phSize.z.toFixed(2)})`);
+      }
       gltfScene.scale.setScalar(s);
       gltfScene.position.set(-center.x * s, -box.min.y * s, -center.z * s);
 
@@ -752,14 +804,20 @@ export class World {
   }
 
   /** Wall-mounted sign: text on the two big faces, plain edges elsewhere
-   *  (a bare box map mirrors the text across the top face). */
-  private signMaterials(text: string, w: number, h: number, bg: number, fg: number, px: number): THREE.MeshLambertMaterial[] {
+   *  (a bare box map mirrors the text across the top face).
+   *  faces: 'z' = the ±z faces carry the text (wall sign), 'x' = the ±x faces
+   *  (blade sign read while walking along the street). */
+  private signMaterials(text: string, w: number, h: number, bg: number, fg: number, px: number, faces: 'z' | 'x' = 'z'): THREE.MeshLambertMaterial[] {
     const face = new THREE.MeshLambertMaterial({ map: this.textTexture(text, w, h, bg, fg, px) });
     const plain = new THREE.MeshLambertMaterial({ color: bg });
-    return [plain, plain, plain, plain, face, face]; // +x, -x, +y, -y, +z, -z
+    return faces === 'z'
+      ? [plain, plain, plain, plain, face, face] // +x, -x, +y, -y, +z, -z
+      : [face, face, plain, plain, plain, plain];
   }
 
-  /** Wall-mounted sign texture (block signs stopped being anonymous boxes). */
+  /** Wall-mounted sign texture (block signs stopped being anonymous boxes).
+   *  '\n' splits lines: line 1 renders at full size, following lines smaller
+   *  beneath it — "ROSA'S / DELI & GROCERY", the classic two-deck bodega sign. */
   private textTexture(text: string, w: number, h: number, bg: number, fg: number, px: number): THREE.CanvasTexture {
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
@@ -770,10 +828,18 @@ export class World {
     ctx.lineWidth = 8;
     ctx.strokeRect(6, 6, w - 12, h - 12);
     ctx.fillStyle = '#' + fg.toString(16).padStart(6, '0');
-    ctx.font = `800 ${px}px "Trebuchet MS", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, w / 2, h / 2 + 2, w - 40);
+    const lines = text.split('\n');
+    if (lines.length === 1) {
+      ctx.font = `800 ${px}px "Trebuchet MS", sans-serif`;
+      ctx.fillText(text, w / 2, h / 2 + 2, w - 40);
+    } else {
+      ctx.font = `800 ${px}px "Trebuchet MS", sans-serif`;
+      ctx.fillText(lines[0], w / 2, h * 0.32, w - 40);
+      ctx.font = `700 ${Math.round(px * 0.58)}px "Trebuchet MS", sans-serif`;
+      ctx.fillText(lines.slice(1).join(' '), w / 2, h * 0.70, w - 40);
+    }
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     return tex;
@@ -814,6 +880,36 @@ export class World {
       map: tex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending,
     }));
     sp.scale.setScalar(size);
+    return sp;
+  }
+
+  /** Gold waypoint chevron — the "follow me" marker floating over whoever the
+   *  objective says to tail (Rosa to the bodega, Idris to the corner). Playtest:
+   *  "the prompt said follow her and she vanish." A guide you can lose behind
+   *  a wall is not a guide, so the sprite draws through everything
+   *  (depthTest off) and the Game loop bobs it over the walker's head. */
+  makeWaypoint(): THREE.Sprite {
+    const c = document.createElement('canvas');
+    c.width = 96; c.height = 96;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = '#F7B32B';
+    ctx.strokeStyle = '#3A3440';
+    ctx.lineWidth = 7;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(48, 84);
+    ctx.lineTo(15, 26);
+    ctx.lineTo(81, 26);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: tex, transparent: true, depthWrite: false, depthTest: false,
+    }));
+    sp.scale.set(0.55, 0.55, 1);
+    sp.renderOrder = 20;
     return sp;
   }
 

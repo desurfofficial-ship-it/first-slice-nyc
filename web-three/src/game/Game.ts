@@ -52,6 +52,9 @@ export class Game {
   private duskStarted = false;
   private postcardRig = false;
   private rosaWalking = false;
+  private idrisWalking = false;
+  /** Gold chevron floating over whoever the objective says to follow. */
+  private waypoint: THREE.Sprite | null = null;
   private roofHidden = false;
   private climbLean = 0;
   private checkpoint = { x: -30, y: 0.05, z: 6.2 };
@@ -268,6 +271,26 @@ export class Game {
     for (const actor of this.cast) {
       if (!actor.visible) continue;
       updatePersonAnim(actor, dt, actor === this.playerVisual ? { mode: climbing ? 'climb' : 'auto' } : undefined);
+    }
+
+    // the follow beacon — a gold chevron bobbing over whoever the objective
+    // says to tail (playtest: "the prompt said follow her and she vanish").
+    // Drawn through walls (depthTest off), so following is never a guessing
+    // game even when the walker is already inside the bodega.
+    if (this.rosaWalking || this.idrisWalking) {
+      const who = this.rosaWalking ? this.world.rosa : this.world.idris;
+      if (!this.waypoint) {
+        this.waypoint = this.world.makeWaypoint();
+        this.world.scene.add(this.waypoint);
+      }
+      this.waypoint.visible = true;
+      this.waypoint.position.set(
+        who.position.x,
+        who.position.y + 2.3 + Math.sin(performance.now() / 250) * 0.08,
+        who.position.z,
+      );
+    } else if (this.waypoint) {
+      this.waypoint.visible = false;
     }
 
     // HUD
@@ -935,11 +958,12 @@ export class Game {
   startIdrisWalk(): void {
     if (this.idrisWalkStarted || this.state.step !== Step.D2_IDRIS) return;
     this.idrisWalkStarted = true;
+    this.idrisWalking = true; // the follow beacon rides with him too
     const idris = this.world.idris;
     idris.rotation.y = Math.PI / 2; // face +X, where he's headed
     this.tweens.sequence(
       this.tweens.num(() => this.world.idris.position.x, (v) => { this.world.idris.position.x = v; }, 4.4, 5),
-      this.tweens.call(() => { this.state.idrisArrived = true; }),
+      this.tweens.call(() => { this.state.idrisArrived = true; this.idrisWalking = false; }),
     );
   }
 }

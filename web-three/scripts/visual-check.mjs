@@ -79,6 +79,28 @@ await page.evaluate(() => {
 await wait(700);
 await shot('01d-stoop.png');
 
+// 1e. the bodega's name, up close — two-deck facade board + blade sign must
+// both read at door distance (playtest: "no name on the building")
+await page.evaluate(() => {
+  const g = window.__game;
+  g.player.capsule.x = -16; g.player.capsule.y = 0.1; g.player.capsule.z = 4.6;
+  g.cam.snapBehind(g.player.capsule);
+});
+await wait(700);
+await shot('01e-bodega-sign.png');
+
+// 1f. the rooftop billboard from mid-block — the store's name must read from
+// anywhere on the street, not just at the door. Player stands in the road
+// north-half so the yaw stays 0 and the camera (south of the player) looks
+// north straight at the bodega frontage.
+await page.evaluate(() => {
+  const g = window.__game;
+  g.player.capsule.x = -10; g.player.capsule.y = 0.1; g.player.capsule.z = 2;
+  g.cam.snapBehind(g.player.capsule);
+});
+await wait(700);
+await shot('01f-bodega-billboard.png');
+
 // 2. bodega interior (roof hides)
 await page.evaluate(() => {
   const g = window.__game;
@@ -168,6 +190,18 @@ const touchVisible = await mobile.evaluate(() => {
 });
 console.log('TOUCH UI VISIBLE (mobile):', touchVisible);
 await mobile.screenshot({ path: join(OUT, '07-mobile-portrait-spawn.png') });
+
+// 7b. rooftop billboard in PORTRAIT — the vertical-first framing is the only
+// one tall enough to carry a rooftop sign (landscape's 40° down-pitch keeps
+// the frame below ~4 m at wall distance; portrait sees the whole skyline).
+// The billboard must read from mid-block on the primary orientation.
+await mobile.evaluate(() => {
+  const g = window.__game;
+  g.player.capsule.x = -10; g.player.capsule.y = 0.1; g.player.capsule.z = 2;
+  g.cam.snapBehind(g.player.capsule);
+});
+await wait(700);
+await mobile.screenshot({ path: join(OUT, '07b-mobile-billboard.png') });
 
 await browser.close();
 server.close();
