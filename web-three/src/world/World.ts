@@ -16,7 +16,7 @@ import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecy
   makeSubwayEntrance, makeBulletinBoard, makeBench, makeBusStop, makeNewspaperBoxes, makeBarrier,
   makeACUnit, makeBrownstoneStoop, makeStorefront, makeStool, makeVan } from './props';
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
-import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco } from './streetAssets';
+import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
 
 export interface LadderInfo { area: AABB; top: number; }
@@ -155,6 +155,15 @@ export class World {
       // lifted clear of the road top (coplanar bottoms shimmered at grazing angles)
       this.deco('Crosswalk', -5, 0.03, -3.3 + i * 1.3, 3, 0.02, 0.6, PAL.cream);
     }
+    // granite curbs along both road edges — the line that separates "road"
+    // from "sidewalk" in every NYC paused frame. Curb-cut gap at the crosswalk
+    // (x -8..-1), because that is where people actually step across. Stepped
+    // on everywhere anyway (13 cm is a step, not a wall) — visual only.
+    const CURB = 0x8f8a82;
+    this.solid('Curb_N_W', -29, 0.065, 4.08, 42, 0.13, 0.5, CURB, { collide: false });
+    this.solid('Curb_N_E', 24.5, 0.065, 4.08, 51, 0.13, 0.5, CURB, { collide: false });
+    this.solid('Curb_S_W', -29, 0.065, -4.08, 42, 0.13, 0.5, CURB, { collide: false });
+    this.solid('Curb_S_E', 24.5, 0.065, -4.08, 51, 0.13, 0.5, CURB, { collide: false });
 
     // ---------------- buildings ----------------
     this.solid('Bldg_N_West', -35.5, 7, 14, 29, 14, 12, PAL.bldg);
@@ -239,7 +248,7 @@ export class World {
     this.solid('Bodega_BackShelf', -16, 1.0, 19.3, 6, 2.0, 0.6, PAL.bldg2);
 
     // ---------------- props (Rule of Steam: something is always moving) ----
-    this.deco('Manhole', -10, 0.025, 0.5, 1.2, 0.02, 1.2, PAL.manhole);
+    this.deco('Manhole', -10, 0.025, 0.5, 0.95, 0.02, 0.95, PAL.manhole); // 0.95 m — a real manhole, not a patio
     const hydrant = new THREE.Mesh(
       new THREE.CylinderGeometry(0.18, 0.18, 0.9, 10),
       this.mat(PAL.coral),
@@ -580,6 +589,17 @@ export class World {
     noStanding.position.set(20, 0.05, -7.35);
     this.scene.add(noStanding);
 
+    // ---- traffic signal at the crosswalk (SE corner) ----------------------
+    // Mast arm reaches over the road so the head hangs above the cab lane,
+    // lamps facing the oncoming cab. Deco only; the pole is a solid like
+    // every other pole on the block.
+    const signal = makeTrafficSignal(this.bank, {
+      greenLamp: this.mat(PAL.teal, { emissive: PAL.teal, emissiveIntensity: 0.55 }),
+    });
+    signal.position.set(-1.8, 0.05, -7.55);
+    this.scene.add(signal);
+    this.colliders.push(boxFromCenter(-1.8, 2.75, -7.55, 0.3, 5.5, 0.3));
+
     // ---- planters (two, where someone actually carries water) -------------
     const planterEast = makePlanter(this.bank, rng);
     planterEast.position.set(37, 0.05, 7.45);
@@ -597,21 +617,23 @@ export class World {
     this.scene.add(escape);
 
     // ---- pigeons + squirrel (seeded; behaviors in ambient.ts) ----
+    // zBand keeps every bird and the squirrel on the sidewalk paving —
+    // the road is for the cab, not for standing in.
     this.pigeonFlock = new PigeonFlock(
       this.scene,
       { body: this.bank.get(PAL.skyline), head: this.bank.get(PAL.ink), beak: this.bank.get(PAL.amber) },
-      90210, { x: -40, z: 5 }, 2.4, 9,
+      90210, { x: -40, z: 5 }, 2.4, 9, { min: 4.35, max: 7.2 },
     );
     this.squirrel = new Squirrel(
       this.scene,
       { fur: this.bank.get(0x8a6a4a), tail: this.bank.get(0x7a5c48) },
-      7, { x: -36.4, z: 4.8 },
+      7, { x: -36.4, z: 4.8 }, { min: 4.2, max: 7.4 },
     );
     // a small east-end flock — the plaza flock shouldn't own all the birds
     this.pigeonFlockEast = new PigeonFlock(
       this.scene,
       { body: this.bank.get(PAL.skyline), head: this.bank.get(PAL.ink), beak: this.bank.get(PAL.amber) },
-      2718, { x: 30, z: 5 }, 1.8, 4,
+      2718, { x: 30, z: 5 }, 1.8, 4, { min: 4.35, max: 6.2 },
     );
 
     // ---- leaf drift (early autumn; one instanced mesh, one draw call) ----

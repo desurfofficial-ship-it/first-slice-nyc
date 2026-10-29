@@ -247,6 +247,59 @@ export function makePlanter(
   return g;
 }
 
+// ---------------------------------------------------------- traffic signal
+
+/**
+ * A traffic signal at the crosswalk — the piece that makes an intersection
+ * read as an intersection (the 1-Second Law). Ink mast pole with an arm
+ * reaching over the road, a three-lamp head facing oncoming traffic:
+ * coral / gold / teal are the palette's answer to red / amber / green, and
+ * the teal lamp is LIT — the game's sun never leaves golden hour and the
+ * cab always yields to whoever is crossing, so "go, carefully" is the one
+ * honest thing for the light to say. Deco only: World gives the pole a
+ * collider (it is steel on the sidewalk); the arm and head are air.
+ *
+ * Local origin: pole base on the sidewalk. The arm reaches toward +z (the
+ * caller places it on a south corner), lamps face -x (the cab travels +x).
+ */
+export function makeTrafficSignal(
+  bank: { get: (c: number) => THREE.MeshLambertMaterial },
+  opts: { greenLamp: THREE.Material },
+): THREE.Group {
+  const iron = bank.get(PAL_INK);
+  const g = new THREE.Group();
+  // mast pole + base collar
+  g.add(unitCyl(iron, 0.07, 5.4, 0, 2.7, 0));
+  g.add(unitCyl(iron, 0.12, 0.26, 0, 0.13, 0));
+  // mast arm over the road, with a diagonal brace back to the pole
+  g.add(unitBox(iron, 0.075, 0.075, 5.3, 0, 5.28, 2.72));
+  const brace = new THREE.Mesh(geo.box, iron);
+  brace.scale.set(0.055, 0.055, 1.6);
+  brace.position.set(0, 5.02, 0.88);
+  brace.rotation.x = 0.42;
+  brace.castShadow = true;
+  g.add(brace);
+  // head at the arm's far end: ink backplate (behind), ink housing, lamps
+  g.add(unitBox(iron, 0.52, 1.2, 0.05, 0, 4.45, 5.06));
+  g.add(unitBox(iron, 0.3, 0.96, 0.2, 0, 4.45, 4.95));
+  // lamp lenses on the -x face (the face oncoming traffic reads).
+  // dim coral / dim gold / lit teal — unlit lenses sit deeper in the housing.
+  const dimCoral = bank.get(0x99424a);
+  const dimGold = bank.get(0x9a7a34);
+  const lens = (mat: THREE.Material, y: number): void => {
+    const l = new THREE.Mesh(geo.box, mat);
+    l.scale.set(0.05, 0.17, 0.17);
+    l.position.set(-0.16, y, 4.95);
+    g.add(l);
+  };
+  lens(dimCoral, 4.78);
+  lens(dimGold, 4.45);
+  lens(opts.greenLamp, 4.12);
+  shadows(g);
+  consolidate(g);
+  return g;
+}
+
 // ------------------------------------------------- decorative fire escape
 
 /**

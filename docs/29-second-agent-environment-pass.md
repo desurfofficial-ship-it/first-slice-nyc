@@ -35,6 +35,38 @@ by a new probe (`scripts/probe-leaves.mjs`), not by hope:
    neck forever while idling or pecking. The head now unwinds to rest on
    idle/peck entries and resets on landing from a flush flight.
 
+## Round three — the polish pass (2026-10-30)
+
+"Keep polishing visuals" produced four changes, each chosen from looking at
+the running block, not from a checklist:
+
+1. **A traffic signal at the crosswalk.** The intersection was the only
+   place on the block with no traffic control at all. Now the SE corner
+   carries an ink mast pole, an arm reaching over the cab lane, and a
+   three-lamp head facing the oncoming cab — coral / gold / teal, the
+   palette's answer to red / amber / green, with the teal lamp lit. The
+   game's sun never leaves golden hour and the cab always yields to
+   whoever is crossing, so "go, carefully" is the one honest thing for
+   the light to say. Deco only; the pole is a solid like every other pole.
+2. **Granite curbs.** The road/sidewalk seam was a soft color edge; now a
+   13 cm curb line runs both sides, with a curb-cut gap at the crosswalk
+   (x −8..−1) because that is where people step across. Visual only —
+   13 cm is a step, not a wall, and the player steps it freely.
+3. **The birds finally obey the doc.** "Pigeons do not jaywalk" was the
+   behavior engine's comment, but the wander radius let birds stand in
+   the traffic lane (visible in the plaza probe). Flocks and the squirrel
+   now take a sidewalk band and never leave it — verified live by the
+   probe reading every bird's position, not just by eye.
+4. **The manhole was a patio.** 1.2 m across; a real one is ~0.95. Same
+   spot, same steam, believable size.
+
+Steam and leaf drift re-shot and re-verified (`probe-polish.mjs`,
+`shots/env5-*.png`). Perf, measured against the same tree with the round
+stashed (the doc-29 table above predates the hydrant.glb, so the honest
+baseline is a stash, not the old table): boot +10, mid-street +16,
+plaza +10 draw calls — the signal (4 consolidated meshes), four curb
+segments, nothing else. Triangles well under 1k more per view.
+
 ## What the block got
 
 Seven missing pieces, chosen because the block asked for them — not
@@ -152,6 +184,8 @@ in small bills. The leaf system is one instanced draw call for all 48.
   `probe-perf.mjs`, `probe-glb-hydrant.mjs` — probes
 - `web-three/scripts/probe-leaves.mjs` — new (round two): live-sampled
   grounded-leaf assertions + pit close-ups (`shots/env4-*.png`)
+- `web-three/scripts/probe-polish.mjs` — new (round three): signal /
+  curb / steam / flock shots + live sidewalk-band check
 - `tools3d/blender_hydrant.py` — new: the hydrant generator
 
 ## Known limitations
