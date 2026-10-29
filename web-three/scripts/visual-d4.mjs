@@ -49,11 +49,16 @@ const shot = async (name, settleMs = 700) => {
 };
 
 // Stage a kept Day-3 evening → Day-4 morning: kid lives on the stool now.
+// The HUD is staged too — the first cut of these frames wore Day-1's $87 and
+// Day-1's objective (the visual audit's top finding). Evidence should dress
+// like the day it depicts.
 await page.evaluate(() => {
   const g = window.__game;
   const s = g.state;
   s.day = 4;
   s.cartName = "Wade's Spot";
+  s.money = 133;
+  s.dayStartMoney = 120;
   s.kidKept = true;
   s.awningUp = true;
   s.stoolUp = true;
@@ -68,6 +73,9 @@ await page.evaluate(() => {
   g.world.kidGround.rotation.y = Math.PI + 0.5;
   const rig = g.world.kidGround.userData.rig;
   if (rig) rig.mode = 'sit';
+  g.ui.setMoneyQuiet(133);
+  g.ui.setObjective(s.objectiveText());
+  g.ui.showNote('Morning four. You know the way from here.');
 });
 
 // 1 — the stranger at the terminal: the Day-1 mirror (portrait)
@@ -76,13 +84,20 @@ await page.evaluate(() => {
   g.world.stranger.visible = true;
   g.world.stranger.position.set(-36.4, 0.05, 4.8);
   g.world.stranger.rotation.y = Math.PI;
+  // the greeting beat's money: Rosa's $2 has landed by the second frame
+  g.state.money = 122;
+  g.state.setStep(26 /* D4_RUSH */);
+  g.ui.setMoneyQuiet(122);
+  g.ui.setObjective(g.state.objectiveText());
 });
 await teleport(-34.6, 0.05, 4.2, Math.PI * 0.9);
 await shot('d4_stranger_terminal_portrait.png');
 
-// 2 — the greeting: you, her, the terminal behind her (portrait)
-await teleport(-35.4, 0.05, 4.9, Math.PI - 0.5);
-await shot('d4_the_greeting_portrait.png');
+// 2 — the greeting: you, her, the terminal behind her (portrait). Camera
+// just off her shoulder — the audit called the first framing a thin strip
+// of action between two empty planes.
+await teleport(-34.9, 0.05, 4.5, Math.PI - 0.62);
+await shot('d4_the_greeting_portrait.png', 900);
 
 // 3 — she walks your first walk: mid-crosswalk, the cab waiting (landscape)
 await page.evaluate(() => {
@@ -100,7 +115,7 @@ await page.evaluate(() => window.__game.cam.updateFov(720 / 1280));
 // 4 — dusk from the rail: FOUR windows lit (the lamp next door keeps its promise)
 await page.evaluate(() => {
   const g = window.__game;
-  g.state.setStep(29 /* D4_POSTCARD */);
+  g.state.setStep(31 /* D4_POSTCARD */);
   const sky = g.world.skyUniforms;
   sky.topColor.setHex(0x3e2f5b); sky.horizonColor.setHex(0x6d4c7d); sky.groundColor.setHex(0x6d4c7d);
   g.world.sun.intensity = 0.35 * Math.PI;
