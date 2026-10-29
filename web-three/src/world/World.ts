@@ -7,10 +7,10 @@
  */
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PAL } from '../core/palette';
 import { ITEM_LABELS } from '../core/content';
 import { boxFromCenter, type AABB } from '../engine/collide';
+import { buildArticulatedPerson } from './personRig';
 
 export interface LadderInfo { area: AABB; top: number; }
 
@@ -46,9 +46,6 @@ export class World {
   readonly kidSil: THREE.Group;
   readonly goldGlow: THREE.Sprite;
   readonly secondGlow: THREE.Sprite;
-
-  private readonly gltfLoader = new GLTFLoader();
-  private readonly gltfCache = new Map<string, Promise<THREE.Group | null>>();
 
   private steamPoints: THREE.Points;
   private steamSeed: Float32Array;
@@ -203,20 +200,36 @@ export class World {
     // door across the street"; now there is one, under the gold window).
     this.decoMesh('Stoop_Door', new THREE.BoxGeometry(1.4, 2.6, 0.12), this.mat(PAL.teal), 15, 1.3, 7.92);
     this.decoMesh('Stoop_Knob', new THREE.SphereGeometry(0.05, 8, 8), this.mat(PAL.gold), 15.45, 1.3, 7.84);
+    // The stoop itself — "stoup = outdoor living room" deserves actual steps.
+    // Two low risers (tops 0.19 / 0.28, both inside the 0.35 STEP_UP curb
+    // tolerance, so the walker rolls up them without a hop).
+    this.solid('Stoop_Step', 15, 0.095, 6.9, 1.7, 0.19, 0.55, PAL.stone);
+    this.solid('Stoop_Landing', 15, 0.14, 7.55, 1.7, 0.28, 0.75, PAL.stone);
 
     // ---------------- fire escape (main.gd `_build_fire_escape`) ------------
+    // Playtest 2026-10-29: "the stairs also looks weird" — the escape used to
+    // be two floating planks and solid slab rails. Now: real ladders (stiles
+    // + rungs + wall brackets), open guardrails (posts + bars), and diagonal
+    // braces holding the landings. Colliders and trigger volumes untouched —
+    // this is a pure visual rebuild of the same numbers.
     const railCol = PAL.ink;
     this.solid('Landing_1', 13, 4.0, -7.3, 6, 0.15, 1.4, railCol);
     this.solid('Landing_2', 13, 8.0, -7.3, 6, 0.15, 1.4, railCol);
-    this.deco('Rail_1', 13, 4.5, -6.62, 6, 0.9, 0.05, railCol);
-    this.deco('Rail_2', 13, 8.5, -6.62, 6, 0.9, 0.05, railCol);
-    // ladder side rails (visual)
-    this.deco('Ladder_1_Mesh', 9.4, 2.2, -7.75, 0.6, 4.4, 0.08, railCol);
-    this.deco('Ladder_2_Mesh', 16.6, 6.2, -7.75, 0.6, 4.4, 0.08, railCol);
-    // trigger volumes (Area3D counterparts)
+    this.fireRail('Rail_1', 4.0);
+    this.fireRail('Rail_2', 8.0);
+    // trigger volumes (Area3D counterparts) — unchanged, E2E depends on them
     this.ladder1 = { area: boxFromCenter(9.4, 2.4, -7.75, 1.0, 4.8, 1.4), top: 4.35 };
     this.ladder2 = { area: boxFromCenter(16.4, 6.6, -7.75, 1.6, 4.8, 1.4), top: 8.35 };
     this.topLandingZone = boxFromCenter(12.5, 9.0, -7.3, 4.5, 1.8, 1.4);
+    // ladder visuals sit exactly on their trigger columns (ladder 2's old
+    // plank drifted to x=16.6 while the trigger lives at 16.4)
+    this.fireLadder('Ladder_1_Mesh', 9.4, 0.1, 4.35);
+    this.fireLadder('Ladder_2_Mesh', 16.4, 4.075, 8.35);
+    // diagonal braces: wall (z=-8) down to the landing noses (z=-6.7)
+    this.fireBrace(11, 4.0);
+    this.fireBrace(15, 4.0);
+    this.fireBrace(11, 8.0);
+    this.fireBrace(15, 8.0);
 
     // ---------------- windows + the gold one (main.gd `_build_windows`) -----
     const dim = PAL.windowDim;
@@ -306,10 +319,10 @@ export class World {
     this.scene.add(this.cartAwning);
 
     // ---------------- cast (Rosa, Idris, the kid) ---------------------------
-    this.rosa = this.spawnActor('Rosa', -27, 0.05, 6.8, { jacket: 0xff6b6b, pants: PAL.ink, skin: 0xe8b08e, hair: 0x9a938c, style: 'bun' }, 'rosa.glb');
-    this.idris = this.spawnActor('Idris', -2, 0.05, -4.6, { jacket: PAL.plum, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x241f1c, style: 'cap' }, 'idris.glb');
+    this.rosa = this.spawnActor('Rosa', -27, 0.05, 6.8, { jacket: 0xff6b6b, pants: PAL.ink, skin: 0xe8b08e, hair: 0x9a938c, style: 'bun' });
+    this.idris = this.spawnActor('Idris', -2, 0.05, -4.6, { jacket: PAL.plum, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x241f1c, style: 'cap' });
     this.idris.visible = false;
-    this.kidSil = this.spawnActor('TheKid', 13.5, 8.6, 7.86, { jacket: 0x514659, pants: 0x473e50, skin: 0x514659, hair: 0x453b4c, style: 'flat' }, 'kid.glb');
+    this.kidSil = this.spawnActor('TheKid', 13.5, 8.6, 7.86, { jacket: 0x514659, pants: 0x473e50, skin: 0x514659, hair: 0x453b4c, style: 'flat' });
     this.kidSil.scale.setScalar(0.5);
     this.kidSil.visible = false;
 
@@ -445,85 +458,78 @@ export class World {
   }
 
   /**
-   * A person who reads as a person — boots, legs, torso, arms, hands, head
-   * with hair (bun / cap / flat). ~1.72 m, feet at y=0, faces +Z. This is the
-   * fallback visual; the generated .glb from tools3d/procedural_glb.py
-   * replaces it when it loads (same numbers, same look).
+   * A person who reads as a person AND WALKS. Playtest 2026-10-29: "the
+   * characters doesn't walk, they move." The old build was one rigid group
+   * (and the runtime GLB swap was a static mannequin with zero animations),
+   * so everyone skated around. The articulated build lives in personRig.ts
+   * (DOM-free, unit-tested); World only supplies its material factory.
    */
-  buildPerson(o: { jacket: number; pants: number; skin: number; hair: number; style?: 'bun' | 'cap' | 'flat' }): THREE.Group {
-    const g = new THREE.Group();
-    const mk = (geo: THREE.BufferGeometry, color: number, x: number, y: number, z: number, rz = 0) => {
-      const m = new THREE.Mesh(geo, this.mat(color));
-      m.position.set(x, y, z);
-      m.rotation.z = rz;
-      m.castShadow = true;
-      g.add(m);
-      return m;
-    };
-    for (const sx of [-0.11, 0.11]) {
-      mk(new THREE.BoxGeometry(0.16, 0.1, 0.28), PAL.ink, sx, 0.05, 0.03);
-      mk(new THREE.BoxGeometry(0.13, 0.62, 0.16), o.pants, sx, 0.41, 0);
-    }
-    mk(new THREE.BoxGeometry(0.5, 0.62, 0.3), o.jacket, 0, 1.03, 0);
-    for (const [sx, rz] of [[-0.325, 0.09], [0.325, -0.09]] as const) {
-      mk(new THREE.BoxGeometry(0.11, 0.52, 0.13), o.jacket, sx, 1.06, 0, rz);
-      mk(new THREE.BoxGeometry(0.09, 0.09, 0.09), o.skin, sx * 1.06, 0.78, 0.01);
-    }
-    mk(new THREE.BoxGeometry(0.3, 0.32, 0.28), o.skin, 0, 1.5, 0.01);
-    mk(new THREE.BoxGeometry(0.32, 0.13, 0.3), o.hair, 0, 1.7, -0.015);
-    mk(new THREE.BoxGeometry(0.32, 0.2, 0.07), o.hair, 0, 1.58, -0.135);
-    if (o.style === 'bun') {
-      const bun = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), this.mat(o.hair));
-      bun.position.set(0, 1.76, -0.14);
-      bun.castShadow = true;
-      g.add(bun);
-    } else if (o.style === 'cap') {
-      mk(new THREE.BoxGeometry(0.3, 0.03, 0.16), o.hair, 0, 1.635, 0.15);
-      mk(new THREE.BoxGeometry(0.32, 0.1, 0.31), o.hair, 0, 1.695, -0.01);
-    }
-    return g;
+  buildPerson(o: Parameters<typeof buildArticulatedPerson>[0]): THREE.Group {
+    return buildArticulatedPerson(o, (color) => this.mat(color)).group;
   }
 
-  /** Persistent cast member: built-in person now, generated .glb when it lands. */
-  private spawnActor(name: string, x: number, y: number, z: number, look: Parameters<World['buildPerson']>[0], glbFile: string): THREE.Group {
+  /** Persistent cast member: the articulated person (rig included). */
+  private spawnActor(name: string, x: number, y: number, z: number, look: Parameters<World['buildPerson']>[0]): THREE.Group {
     const g = this.buildPerson(look);
     g.name = name;
     g.position.set(x, y, z);
     this.scene.add(g);
-    void this.applyGlb(g, glbFile);
     return g;
   }
 
-  /** Loads public/models/<file> and swaps it in for the fallback geometry. */
-  async applyGlb(target: THREE.Group, file: string): Promise<void> {
-    const loaded = await this.loadModel(file);
-    if (!loaded || !target.parent) return; // fallback stays if the file is missing
-    target.clear();
-    target.add(loaded);
+  // ------------------------------------------------ fire-escape part builders
+
+  /** Open guardrail: posts + top bar + mid bar (the old solid slab read as a wall). */
+  private fireRail(name: string, y: number): void {
+    const col = PAL.ink;
+    for (const x of [10.3, 11.7, 13.1, 14.5, 15.7]) {
+      this.deco(`${name}_Post_${x}`, x, y + 0.5, -6.62, 0.055, 1.0, 0.055, col);
+    }
+    this.deco(`${name}_TopBar`, 13, y + 0.98, -6.62, 6, 0.06, 0.06, col);
+    this.deco(`${name}_MidBar`, 13, y + 0.52, -6.62, 6, 0.05, 0.05, col);
   }
 
-  private loadModel(file: string): Promise<THREE.Group | null> {
-    let p = this.gltfCache.get(file);
-    if (!p) {
-      const url = `${import.meta.env.BASE_URL}models/${file}`;
-      p = this.gltfLoader.loadAsync(url)
-        .then((gltf) => {
-          const root = gltf.scene as THREE.Group;
-          root.traverse((o) => {
-            if (o instanceof THREE.Mesh) {
-              o.castShadow = true;
-              // harmonize with the game's Lambert look (GLB arrives PBR)
-              const src = o.material as THREE.MeshStandardMaterial;
-              const lam = new THREE.MeshLambertMaterial({ color: src?.color?.clone() ?? 0xffffff });
-              o.material = lam;
-            }
-          });
-          return root;
-        })
-        .catch(() => null); // offline/missing file → built-in geometry is the visual
-      this.gltfCache.set(file, p);
+  /** A real ladder: two stiles, rungs every ~0.35 m, brackets into the wall. */
+  private fireLadder(name: string, x: number, yBase: number, yTop: number): void {
+    const col = PAL.ink;
+    const h = yTop - yBase;
+    const mid = (yBase + yTop) / 2;
+    this.deco(`${name}_Stile_W`, x - 0.26, mid, -7.72, 0.06, h, 0.06, col);
+    this.deco(`${name}_Stile_E`, x + 0.26, mid, -7.72, 0.06, h, 0.06, col);
+    for (let y = yBase + 0.25; y < yTop - 0.1; y += 0.35) {
+      this.deco(`${name}_Rung_${y.toFixed(2)}`, x, y, -7.72, 0.5, 0.055, 0.055, col);
     }
-    return p;
+    // brackets tie the stiles back to the brick (wall face at z=-8.0)
+    for (const sx of [-0.26, 0.26]) {
+      this.deco(`${name}_Bracket_${sx}`, x + sx, yTop - 0.25, -7.9, 0.06, 0.4, 0.22, col);
+    }
+  }
+
+  /** Diagonal strut from the wall to a landing's nose (pure deco). */
+  private fireBrace(x: number, y: number): void {
+    const col = PAL.ink;
+    const from = { y: y - 0.55, z: -7.85 }; // on the wall
+    const to = { y: y - 0.1, z: -6.7 };     // under the landing nose
+    const dy = to.y - from.y, dz = to.z - from.z;
+    const len = Math.hypot(dy, dz);
+    const m = this.deco(`Brace_${x}_${y}`, x, (from.y + to.y) / 2, (from.z + to.z) / 2, 0.07, len, 0.07, col);
+    // lean the +Y axis back toward the wall: rotation about X by -atan2(|dz|, dy)
+    m.rotation.x = -Math.atan2(Math.abs(dz), dy);
+  }
+
+  /** Rosa's Day-2 broom — childed to her right arm by the caller. */
+  makeBroom(): THREE.Group {
+    const broom = new THREE.Group();
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1.25, 6), this.mat(0x8a6a4a));
+    stick.position.y = -0.25;
+    stick.castShadow = true;
+    const brush = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.13, 0.1), this.mat(0xd9b26b));
+    brush.position.set(0, -0.92, 0);
+    brush.castShadow = true;
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.05, 0.11), this.mat(PAL.coral));
+    band.position.set(0, -0.83, 0);
+    broom.add(stick, brush, band);
+    return broom;
   }
 
   /** Shared customer builder (transient — no GLB fetch per spawn). */

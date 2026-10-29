@@ -49,6 +49,9 @@ export class Player {
       // lateral step-off moves in XZ and releases when outside the ladder volume
       this.capsule.x += rightX * lateral * dt;
       this.capsule.z += rightZ * lateral * dt;
+      // face the wall (the fire escape hangs on the building's street face) —
+      // a climber nose-first into the brick read as a glitch in playtesting
+      this.rotationY = lerpAngle(this.rotationY, Math.PI, Math.min(1, dt * 10.0));
       // Still collide with the building while on the ladder — without this,
       // sideways step-off could embed the capsule in the fire-escape wall.
       depenetrate(this.boxes, this.capsule, STEP_UP);

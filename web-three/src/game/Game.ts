@@ -19,6 +19,7 @@ import { Tweens, type Tween } from '../engine/tweens';
 import { capsuleInBox } from '../engine/collide';
 import { UI } from '../ui/UI';
 import { capturePostcard, downloadPostcard } from '../postcard/PostcardCapture';
+import { updatePersonAnim, type PersonRig } from '../world/personRig';
 
 interface Interactable {
   id: string;
@@ -35,9 +36,13 @@ export class Game {
   readonly tweens = new Tweens();
 
   private renderer: THREE.WebGLRenderer;
-  private playerVisual: THREE.Group;
-  private cupProp: THREE.Object3D;
+  /** The player's articulated visual — public readonly for the test harness. */
+  readonly playerVisual: THREE.Group;
+  readonly cupProp: THREE.Object3D;
   private customer: THREE.Group | null = null;
+  private rosaBroom: THREE.Group | null = null;
+  /** Everyone with a rig — one animator pass per frame (walk/idle/climb/sweep). */
+  private readonly cast: THREE.Group[] = [];
 
   private dayFading = false;
   private duskStarted = false;
@@ -88,13 +93,18 @@ export class Game {
       turnR: document.getElementById('turn-right')!,
     });
 
-    // ---------------- player visual (a person, not a capsule) --------------
-    // Playtest 2026-10-29: capsule + floating "nose" box read as Plankton.
-    // Same builder as the cast; the generated player.glb swaps in when loaded.
+    // ---------------- player visual (a person who WALKS) -------------------
+    // Playtest 2026-10-29, round two: "the characters doesn't walk, they
+    // move." The rig (hip/shoulder pivots + walk cycle in personRig.ts) is
+    // the visual now; the old runtime swap to static GLB mannequins is gone —
+    // those exports carry zero animations and the swap also orphaned the
+    // coffee cup (applyGlb's clear() detached it, so the Day-2 cup in hand
+    // was invisible).
     this.playerVisual = this.world.buildPerson({
       jacket: PAL.gold, pants: PAL.ink, skin: 0xd9a06b, hair: PAL.ink, style: 'flat',
     });
     this.playerVisual.name = 'Player';
+    this.cast.push(this.playerVisual);
     const cupBody = new THREE.Mesh(
       new THREE.CylinderGeometry(0.075, 0.06, 0.17, 10),
       new THREE.MeshLambertMaterial({ color: PAL.cream }),
@@ -111,7 +121,9 @@ export class Game {
     this.cupProp = cup;
     this.playerVisual.add(cup);
     this.world.scene.add(this.playerVisual);
-    void this.world.applyGlb(this.playerVisual, 'player.glb');
+
+    // the rest of the cast joins the animator (walk/idle/breathe)
+    this.cast.push(this.world.rosa, this.world.idris, this.world.kidSil);
 
     // ---------------- interactables (main.gd `_build_interactables`) --------
     this.interactables = [
@@ -215,8 +227,14 @@ export class Game {
       this.player.update(dt, { x: 0, y: 0 });
     }
 
-    // visual sync
-    this.playerVisual.position.set(this.player.capsule.x, this.player.capsule.y, this.player.capsule.z);
+    // visual sync — on a ladder the body leans to the wall (visual-only
+    // offset; the capsule stays authoritative for step-offs)
+    const climbing = this.player.ladder !== null;
+    this.playerVisual.position.set(
+      this.player.capsule.x,
+      this.player.capsule.y,
+      this.player.capsule.z + (climbing ? -0.42 : 0),
+    );
     this.playerVisual.rotation.y = this.player.rotationY;
 
     // zones
@@ -231,6 +249,13 @@ export class Game {
     // world life (Rule of Steam) — the taxi yields to the pedestrian
     this.world.update(dt, this.player.capsule);
     this.syncGlows();
+
+    // the cast animates: walk when their position moved, climb on ladders,
+    // sweep when Rosa's on broom duty, breathe when parked
+    for (const actor of this.cast) {
+      if (!actor.visible) continue;
+      updatePersonAnim(actor, dt, actor === this.playerVisual && climbing ? { mode: 'climb' } : undefined);
+    }
 
     // HUD
     if (s.step !== Step.DONE && !this.dayFading) s.elapsed += dt;
@@ -631,19 +656,26 @@ export class Game {
 
   private kidDuskWave(): void {
     if (!this.world.kidSil.visible) return;
-    const t = this.tweens;
     const kid = this.world.kidSil;
-    t.sequence(
-      t.num(() => kid.rotation.z, (v) => { kid.rotation.z = v; }, 0.55, 0.25),
-      t.num(() => kid.rotation.z, (v) => { kid.rotation.z = v; }, -0.55, 0.5),
-      t.num(() => kid.rotation.z, (v) => { kid.rotation.z = v; }, 0.0, 0.35),
-    );
+    const rig = kid.userData.rig as PersonRig | undefined;
+    if (rig) {
+      // wave with the ARM (the old whole-body roll wobbled the kid like a
+      // bowling pin) — raise the arm, wag it, bring it home
+      rig.mode = 'wave';
+      this.tweens.sequence(
+        this.tweens.num(() => rig.armR.rotation.x, (v) => { rig.armR.rotation.x = v; }, -2.6, 0.3),
+        this.tweens.num(() => rig.armR.rotation.z, (v) => { rig.armR.rotation.z = v; }, 0.5, 0.25),
+        this.tweens.num(() => rig.armR.rotation.z, (v) => { rig.armR.rotation.z = v; }, -0.3, 0.5),
+        this.tweens.num(() => rig.armR.rotation.z, (v) => { rig.armR.rotation.z = v; }, 0.5, 0.5),
+        this.tweens.call(() => { rig.armR.rotation.x = 0; rig.armR.rotation.z = -0.09; rig.mode = 'auto'; }),
+      );
+    }
     const flick: ReturnType<Tweens['num']>[] = [];
     for (const e of [1.5, 0.3, 2.2, 0.2, 1.8]) {
-      flick.push(t.num(() => this.world.secondWindowMat.emissiveIntensity, (v) => { this.world.secondWindowMat.emissiveIntensity = v; }, e, 0.14, (x) => x));
+      flick.push(this.tweens.num(() => this.world.secondWindowMat.emissiveIntensity, (v) => { this.world.secondWindowMat.emissiveIntensity = v; }, e, 0.14, (x) => x));
     }
-    flick.push(t.num(() => this.world.secondWindowMat.emissiveIntensity, (v) => { this.world.secondWindowMat.emissiveIntensity = v; }, 3.2, 0.6));
-    t.sequence(...flick);
+    flick.push(this.tweens.num(() => this.world.secondWindowMat.emissiveIntensity, (v) => { this.world.secondWindowMat.emissiveIntensity = v; }, 3.2, 0.6));
+    this.tweens.sequence(...flick);
     this.ui.showNote('The kid waves from the window you lit. The lamp next door flickers, thinks about it, and stays on too.');
   }
 
@@ -744,6 +776,7 @@ export class Game {
     g.name = isIdris ? 'MrIdris' : 'Customer';
     this.world.scene.add(g);
     this.customer = g;
+    this.cast.push(g); // joins the idle-breathe pass; rig speed stays 0
   }
 
   private removeCustomer(): void {
@@ -755,6 +788,8 @@ export class Game {
         (o.material as THREE.Material).dispose();
       }
     });
+    const i = this.cast.indexOf(this.customer);
+    if (i >= 0) this.cast.splice(i, 1);
     this.customer = null;
   }
 
@@ -843,11 +878,19 @@ export class Game {
     const rosa = this.world.rosa;
     rosa.position.set(-16, 0.05, 7.6);
     rosa.visible = true;
-    // she sweeps — the street is never still
-    this.tweens.sequence(
-      this.tweens.num(() => rosa.rotation.z, (v) => { rosa.rotation.z = v; }, 0.05, 1.4),
-      this.tweens.num(() => rosa.rotation.z, (v) => { rosa.rotation.z = v; }, -0.05, 1.4),
-    );
+    rosa.rotation.z = 0;
+    // she sweeps — arm + broom now (the old whole-body z-tilt rocked her
+    // like a metronome); the rig's sweep mode owns the arm from here
+    const rosaRig = rosa.userData.rig as PersonRig | undefined;
+    if (rosaRig) {
+      rosaRig.mode = 'sweep';
+      if (!this.rosaBroom) {
+        this.rosaBroom = this.world.makeBroom();
+        this.rosaBroom.position.set(-0.02, -0.5, 0.14); // in the right hand
+        this.rosaBroom.rotation.x = -0.42;              // brush meets the pavement
+        rosaRig.armR.add(this.rosaBroom);
+      }
+    }
     const idris = this.world.idris;
     idris.visible = true;
     idris.position.set(-2, 0.05, -4.6);
@@ -870,10 +913,14 @@ export class Game {
     this.cam.updateFov(window.innerWidth / window.innerHeight);
   }
 
-  /** idris walk-in (main.gd `_advance_day2` idris branch). */
+  /** idris walk-in (main.gd `_advance_day2` idris branch). He faces his
+   *  direction of travel now — the old slide-in moved him sideways-while-facing
+   *  +Z, which read exactly as the "they don't walk" complaint. */
   startIdrisWalk(): void {
     if (this.idrisWalkStarted || this.state.step !== Step.D2_IDRIS) return;
     this.idrisWalkStarted = true;
+    const idris = this.world.idris;
+    idris.rotation.y = Math.PI / 2; // face +X, where he's headed
     this.tweens.sequence(
       this.tweens.num(() => this.world.idris.position.x, (v) => { this.world.idris.position.x = v; }, 4.4, 5),
       this.tweens.call(() => { this.state.idrisArrived = true; }),

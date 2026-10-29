@@ -110,6 +110,19 @@ export function runAutotest(game: Game): void {
       await waitFrames(30);
       check(game.player.onGround && p().y < 0.2, `player stands on the sidewalk (y=${p().y.toFixed(2)})`);
 
+      // the walk cycle itself (playtest 2026-10-29: "the characters doesn't
+      // walk, they move") — real key input, hips must swing while moving
+      game.input.injectKey('KeyW', true);
+      let swing = 0;
+      for (let i = 0; i < 26; i++) {
+        await waitFrames(1);
+        const r = (game.playerVisual.userData as { rig?: { hipL: { rotation: { x: number } } } }).rig;
+        if (r) swing = Math.max(swing, Math.abs(r.hipL.rotation.x));
+      }
+      game.input.injectKey('KeyW', false);
+      await waitFrames(5);
+      check(swing > 0.15, `walk cycle swings the hips while moving (max |hipL|=${swing.toFixed(3)})`);
+
       await walkTo(-27.8, 6.6);
       await interact();
       check(s.step === Step.ENTER_BODEGA, 'Rosa greeting advances flow');
@@ -203,6 +216,10 @@ export function runAutotest(game: Game): void {
       await walkTo(-16, 6.8);
       await interact();
       check(s.step === Step.D2_DELIVER && dbg.cupVisible(), 'Rosa\u2019s favor accepted: cup in hand');
+      // regression (playtest 2026-10-29): the old GLB swap orphaned the cup —
+      // visible flag flipped while the cup hung in detached limbo
+      const cupAttached = game.cupProp.parent === game.playerVisual;
+      check(cupAttached, 'cup prop is still childed to the player visual');
       await walkTo(15, 6.9);
       await interact();
       check(s.kidKept && s.money === 117 && game.world.kidSil.visible, `kid kept: +$3, kid at the glass ($${s.money})`);

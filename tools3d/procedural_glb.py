@@ -5,11 +5,21 @@ procedural_glb.py — parametric lowpoly .glb generator (CPU, no GPU, no cloud).
 This is the works-everywhere half of the tools3d pipeline. TRELLIS
 (generate_glb.py) makes organic meshes from images/prompts on a CUDA box;
 this script makes the DETERMINISTIC cast: the block's people and cars,
-exported as real .glb files the game loads at runtime (with built-in
-geometry as fallback if a file is missing).
+exported as real .glb files in public/models/.
 
 Geometry mirrors web-three's TS person/car builders number-for-number so the
-GLB and the fallback are interchangeable. Y-up, feet at origin, facing +Z.
+GLB and the built-in geometry are interchangeable. Y-up, feet at origin,
+facing +Z.
+
+Playtest 2026-10-29, round two: these exports are STATIC meshes (zero
+animations, zero skins), so when the game swapped them in over its built-in
+people, the cast slid around like mannequins — "the characters doesn't walk,
+they move." The game now renders its own articulated rig (hip/shoulder
+pivots + the personRig.ts walk cycle) and no longer fetches these GLBs for
+the cast. They remain: (a) the pipeline's proof artifacts, (b) drop-in
+static props, and (c) the geometry reference the TS builders mirror. A
+future rigged exporter (skeleton + glTF animations) can re-enter through
+World's loader — swap it in per-part and drive it with an AnimationMixer.
 
 Usage:
     python tools3d/procedural_glb.py --out-dir web-three/public/models

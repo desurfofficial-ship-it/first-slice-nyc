@@ -150,6 +150,7 @@ Details and numbers live in [Doc 15](docs/15-tech-spikes.md).
 | [22 – Day 2 Greybox](docs/22-day2-greybox.md) | The neighborhood comes alive — seams fixed, save v1, the second window |
 | [24 – Three.js Build](docs/24-web-three-build.md) | The browser migration — stack, evidence, deployment, honest limits |
 | [25 – Day 2 Render Notes](docs/25-day2-render-notes.md) | Day 2, finally seen — frames, findings, fixes, and the second postcard |
+| [26 – Walk-Cycle & Fire-Escape Notes](docs/26-walk-cycle-fire-escape.md) | The cast finally walks — the rig, the rebuilt fire escape, the GLB verdict |
 | [AGENTS.md](AGENTS.md) | Operating manual for AI agents |
 
 ---

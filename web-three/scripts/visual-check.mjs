@@ -46,6 +46,39 @@ const shot = (name) => page.screenshot({ path: join(OUT, name) });
 // 1. spawn — golden hour, terminal, Rosa waving
 await shot('01-spawn-golden-hour.png');
 
+// 1b. mid-walk cycle — hips must visibly swing (playtest: "they don't walk")
+await page.evaluate(() => {
+  const g = window.__game;
+  g.player.capsule.x = -26; g.player.capsule.y = 0.1; g.player.capsule.z = 2;
+  g.cam.snapBehind(g.player.capsule);
+});
+await page.evaluate(() => window.__game.input.injectKey('KeyS', true)); // walk toward cam
+await wait(700);
+await shot('01b-player-midwalk.png');
+await page.evaluate(() => window.__game.input.injectKey('KeyS', false));
+await wait(300);
+
+// 1c. the fire escape — real ladders, rails, braces (playtest: "stairs look weird")
+// player south of the street keeps the yaw at PI (stable), camera looks at the escape
+await page.evaluate(() => {
+  const g = window.__game;
+  g.player.capsule.x = 10; g.player.capsule.y = 0.1; g.player.capsule.z = -4;
+  g.cam.snapBehind(g.player.capsule);
+});
+await wait(700);
+await shot('01c-fire-escape.png');
+
+// 1d. the stoop — steps at the teal door (Day 2 delivery target); yaw 0 zone.
+// Camera parks at focus.z-9, so keep the player on the north sidewalk and the
+// camera clears the south buildings.
+await page.evaluate(() => {
+  const g = window.__game;
+  g.player.capsule.x = 13; g.player.capsule.y = 0.1; g.player.capsule.z = 4.8;
+  g.cam.snapBehind(g.player.capsule);
+});
+await wait(700);
+await shot('01d-stoop.png');
+
 // 2. bodega interior (roof hides)
 await page.evaluate(() => {
   const g = window.__game;
