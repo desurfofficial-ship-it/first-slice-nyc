@@ -40,9 +40,17 @@ Every session ends with a **postcard** — a beautiful, auto-composed, captioned
 
 ---
 
-## Current Status — Two Days Are Alive
+## Current Status — Two Days Are Alive, in Two Engines
 
-The Day 1 greybox **and Day 2** are playable in **Godot 4.7**.
+The Day 1 greybox **and Day 2** are playable in **Godot 4.7** — and now also in **the browser** ([`web-three/`](web-three/), the Three.js migration, [Doc 24](docs/24-web-three-build.md)).
+
+```bash
+# play the browser build
+cd web-three && npm install && npm run dev     # http://localhost:5173
+
+# or the Godot greybox
+godot --headless --path greybox-godot -- --autotest
+```
 
 **Day 1 path:**  
 Terminal → Rosa's bodega → first rush → name your cart → serve Mr. Idris → climb the fire escape at dusk → watch one window turn gold → receive your first postcard.
@@ -126,6 +134,7 @@ Details and numbers live in [Doc 15](docs/15-tech-spikes.md).
 | [20 – Day 1 Render Notes](docs/20-day1-greybox-render-notes.md) | First played pass — six camera findings, with evidence frames |
 | [21 – Synthetic Playtest 01](docs/21-synthetic-playtest-01.md) | Five scripted walkers, one day — three real seams, now closed |
 | [22 – Day 2 Greybox](docs/22-day2-greybox.md) | The neighborhood comes alive — seams fixed, save v1, the second window |
+| [24 – Three.js Build](docs/24-web-three-build.md) | The browser migration — stack, evidence, honest limits |
 | [AGENTS.md](AGENTS.md) | Operating manual for AI agents |
 
 ---
