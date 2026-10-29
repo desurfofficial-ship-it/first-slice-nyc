@@ -1,0 +1,5 @@
+{"ev":"follow_orbit","viewport":"720x1280","worst_edge_margin_px":359}
+{"ev":"blend_follow_look","max_jump":0.07}
+{"ev":"look_orbit","worst_edge_margin_px":170}
+{"cut_distance_if_hard_cut":12.96,"ev":"blend_look_postcard","max_jump":0.17}
+{"ev":"postcard_check","player_behind_cam":false,"player_out_of_frame":true,"rig_z":-7.6,"wall_z":-8.0,"window_screen_px":[360,640]}

@@ -18,7 +18,7 @@ It still works, by luck: with default backface culling, a camera inside a box se
 
 ## Finding 2 — Your own head is the foreground of the wonder beat
 
-During the authored 2-second swing, the camera passes within **2.0 u of the player capsule** (measured in both orientations; the follow camera starts ~9 u away, swings past you, ends hovering over your shoulder). In the final frame (`portrait_21_gold_window_lit.png`) the lit gold window is there, the dusk is there, the skyline is there — and the biggest object in the middle of it is your own capsule.
+During the authored 2-second swing, the camera passes within **1.8 u of the player capsule** (measured both orientations: 1.80 portrait, 1.81 landscape; the follow camera starts ~9 u away, swings past you, ends hovering over your shoulder). In the final frame (`portrait_21_gold_window_lit.png`) the lit gold window is there, the dusk is there, the skyline is there — and the biggest object in the middle of it is your own capsule.
 
 The moment is supposed to be about the window. Right now it is partly about the back of your head.
 
@@ -34,7 +34,7 @@ Nothing visual breaks today — hidden means not drawn. But any raycast that mea
 
 ## Finding 4 — The crosswalk camera does a 180 mid-street
 
-The cozy camera flips its target yaw (0 ↔ π) when the player crosses z = -2.5. Cross the street and you cross that line mid-crossing. Measured: yaw swings **166°** while lerp catches up, and the worst single-frame camera jump in the whole day is **7.89 u/frame portrait, 9.11 u/frame landscape** — against a normal-day range of 0.54–0.75. That is a hard snap smuggled into a smooth system, and it happens at the exact moment the player is doing the level's one brave thing.
+The cozy camera flips its target yaw (0 ↔ π) when the player crosses z = -2.5. Cross the street and you cross that line mid-crossing. Measured: yaw swings **165–166°** while lerp catches up, and the worst single-frame camera jump in the whole day is **7.59–8.38 u/frame** across the two passes — against a normal-day range of 0.54–0.75. That is a hard snap smuggled into a smooth system, and it happens at the exact moment the player is doing the level's one brave thing.
 
 **Do:** move the yaw flip off the street centerline (flip at the curbs), or blend yaw over the crossing, or pick a crossing-aligned camera for those few meters.
 

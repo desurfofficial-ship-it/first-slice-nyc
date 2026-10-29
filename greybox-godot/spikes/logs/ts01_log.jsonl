@@ -1,0 +1,6 @@
+{"ev":"at_rig","step":"POSTCARD","t":28.0}
+{"ev":"trigger","gold":4.0,"step":"DONE","t":32.0}
+{"ev":"render","ms":299,"size":[768,1160],"step":"DONE","t":32.0}
+{"empty":false,"ev":"blank_check","format":5,"lum_hi":0.0,"lum_lo":0.0,"ok":true,"step":"DONE","t":32.0}
+{"ev":"composite","ms":383,"out":[768,1344],"step":"DONE","t":32.0}
+{"ev":"done","glide_ms":2025,"step":"DONE","t":32.0,"target_ms":1500,"target_note":"device target; llvmpipe is not a device [TBD: owner spiking, date open]","trigger_to_png_ms":2817}
