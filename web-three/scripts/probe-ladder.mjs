@@ -61,7 +61,7 @@ const steer = async (x, z, timeout, stopOnLadder) => {
       const p = g.player.capsule;
       const dx = x - p.x, dz = z - p.z;
       if (Math.hypot(dx, dz) < 0.35) return 'arrived';
-      const yaw = g.cam.camYaw;
+      const yaw = g.player.camYaw; // movement basis (stays put during camera flips)
       const f = (dx / Math.hypot(dx, dz)) * Math.sin(yaw) + (dz / Math.hypot(dx, dz)) * Math.cos(yaw);
       const r = (dx / Math.hypot(dx, dz)) * -Math.cos(yaw) + (dz / Math.hypot(dx, dz)) * Math.sin(yaw);
       g.input.injectKey('KeyW', f > 0.2);

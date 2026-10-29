@@ -3,6 +3,21 @@
  * vertical-first framing (Camera3D KEEP_WIDTH counterpart).
  *
  * Manual orbit (Z/C, Q/E, touch) wins over street-side auto-yaw while held.
+ *
+ * Playtest 2026-10-30: "when you curving or wants to move to the opposite
+ * direction on the other side, it's confusing — maybe make it rotate too."
+ * The old auto-yaw lerped toward the street-side target EVEN while the
+ * player held a movement key, so mid-walk the camera-relative input basis
+ * rotated under their thumbs: crossing the street, "S" quietly became "W"
+ * and the character veered or turned around. Now:
+ *   - moving  → the yaw only auto-rotates for a real "get behind me" flip
+ *     (> FLIP_ANGLE away), and the MOVEMENT reference (`moveYaw`) stays
+ *     frozen while it swings — held keys keep meaning the same world
+ *     direction; the camera rotates around you, not under you.
+ *   - idle    → the yaw settles onto the street side (or behind where you
+ *     last faced, if you had turned around), and the reference re-syncs.
+ *     Settling while standing can't veer anything.
+ *   - manual  → orbit rotates both (steering works exactly as before).
  */
 
 import * as THREE from 'three';
@@ -20,13 +35,46 @@ const MAX_VFOV = 91;
 const FLIP_SOUTH = -3.1;
 const FLIP_NORTH = -1.9;
 const BOOM_MARGIN = 0.35;
+/** Only a misalignment larger than this (~92°) is worth an auto-flip while
+ *  the player is walking — anything less keeps the stable street-side view. */
+const FLIP_ANGLE = 1.6;
+/** When idle, settle behind the player's last heading if it disagrees with
+ *  the street-side yaw by more than this (~103°) — "I turned around". */
+const TURNED_AROUND = 1.8;
 
 export type CameraPose = 'follow' | 'postcard';
 
+function wrapPi(a: number): number {
+  let d = a % (Math.PI * 2);
+  if (d > Math.PI) d -= Math.PI * 2;
+  if (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
 export class GameCamera {
   readonly camera: THREE.PerspectiveCamera;
-  pose: CameraPose = 'follow';
+  /** Camera pose. Switching poses re-syncs the movement reference, so a
+   *  postcard never leaves a stale basis behind. */
+  get pose(): CameraPose { return this._pose; }
+  set pose(p: CameraPose) {
+    if (p !== this._pose) {
+      this._pose = p;
+      this.resyncRef = true;
+    }
+  }
+  private _pose: CameraPose = 'follow';
   camYaw = 0;
+  /** The yaw the PLAYER's keys are relative to. Tracks camYaw except while
+   *  an auto-flip swings the camera mid-walk — Game feeds this to the
+   *  walker (player.camYaw), which is why crossing the street no longer
+   *  turns "hold S" into "walk back north". */
+  moveYaw = 0;
+  private wasMoving = false;
+  /** A get-behind-me flip, once started, runs to completion — the FLIP_ANGLE
+   *  gate only ARMS it (starting a swing for every 100° stray would jitter);
+   *  without this the swing dies at ~92° and the camera never gets behind you. */
+  private flipping = false;
+  private resyncRef = true;
   private yawSide: 0 | 1 = 0;
   private boxes: AABB[] | null = null;
   private focusTarget = new THREE.Vector3();
@@ -91,9 +139,17 @@ export class GameCamera {
     dt: number,
     playerPos: { x: number; y: number; z: number },
     camTurn: number,
+    move: { x: number; y: number },
+    heading: number,
     rigPosition?: { x: number; y: number; z: number },
     rigLook?: { x: number; y: number; z: number },
   ): void {
+    if (this.resyncRef) {
+      this.moveYaw = this.camYaw;
+      this.wasMoving = false;
+      this.resyncRef = false;
+    }
+
     if (this.pose === 'postcard' && rigPosition && rigLook) {
       this.rigLook.set(rigLook.x, rigLook.y, rigLook.z);
       this.camera.position.set(rigPosition.x, rigPosition.y, rigPosition.z);
@@ -104,12 +160,36 @@ export class GameCamera {
     if (playerPos.z < FLIP_SOUTH) this.yawSide = 1;
     else if (playerPos.z > FLIP_NORTH) this.yawSide = 0;
     const targetYaw = this.yawSide === 1 ? Math.PI : 0;
-    // Manual orbit wins while turning — do not fight the player
-    if (Math.abs(camTurn) > 0.01) {
-      this.camYaw += camTurn * dt * TURN_SPEED;
+    const moving = Math.hypot(move.x, move.y) > 0.1;
+    const manual = Math.abs(camTurn) > 0.01;
+
+    if (manual) {
+      // Manual orbit wins while turning — do not fight the player.
+      const dth = camTurn * dt * TURN_SPEED;
+      this.camYaw += dth;
+      this.moveYaw += dth;
+      this.flipping = false;
+    } else if (!moving) {
+      // Settle while standing still — a flip can't veer anything mid-stride.
+      // If the player had turned to walk back the way they came, get behind
+      // THAT heading instead of the street default (playtest: the camera sat
+      // in their face after every about-face).
+      this.flipping = false;
+      const settle = Math.abs(wrapPi(heading - targetYaw)) > TURNED_AROUND ? heading : targetYaw;
+      this.camYaw = lerpAngle(this.camYaw, settle, Math.min(1, dt * YAW_LERP));
+      this.moveYaw = this.camYaw;
     } else {
-      this.camYaw = lerpAngle(this.camYaw, targetYaw, Math.min(1, dt * YAW_LERP));
+      // Fresh press → keys mean where the camera looks right now.
+      if (!this.wasMoving) this.moveYaw = this.camYaw;
+      // While walking, only swing for a real get-behind-me flip — and keep
+      // the movement reference frozen so held keys keep their meaning.
+      if (Math.abs(wrapPi(targetYaw - this.camYaw)) > FLIP_ANGLE) this.flipping = true;
+      if (this.flipping) {
+        this.camYaw = lerpAngle(this.camYaw, targetYaw, Math.min(1, dt * YAW_LERP));
+        if (Math.abs(wrapPi(targetYaw - this.camYaw)) < 0.05) this.flipping = false;
+      }
     }
+    this.wasMoving = moving;
 
     const fwdX = Math.sin(this.camYaw);
     const fwdZ = Math.cos(this.camYaw);
@@ -143,5 +223,6 @@ export class GameCamera {
     const goal = this.shortenBoom(this.focusTarget, this.desired);
     this.camera.position.copy(goal);
     this.camera.lookAt(this.focusTarget);
+    this.moveYaw = this.camYaw;
   }
 }

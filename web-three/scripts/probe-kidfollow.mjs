@@ -59,7 +59,7 @@ await page.evaluate(() => {
     const dx = 4 - p.x, dz = -5.2 - p.z;
     const d = Math.hypot(dx, dz);
     if (d < 0.35) { g.input.injectKey('KeyW', false); g.input.injectKey('KeyD', false); return; }
-    const yaw = g.cam.camYaw;
+    const yaw = g.player.camYaw; // movement basis (stays put during camera flips)
     const f = (dx / d) * Math.sin(yaw) + (dz / d) * Math.cos(yaw);
     const r = (dx / d) * -Math.cos(yaw) + (dz / d) * Math.sin(yaw);
     g.input.injectKey('KeyW', f > 0.2);

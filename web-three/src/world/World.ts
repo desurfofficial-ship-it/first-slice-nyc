@@ -54,6 +54,18 @@ export class World {
   private taxiBase: THREE.Group;
   /** The cab's collider — boxFromCenter once, then moved every frame. */
   readonly taxiCollider: AABB;
+  /** The cart is furniture now: it has a collider, so "he passed through the
+   *  cart" is over (playtest 2026-10-30). Static — it never moves. */
+  readonly cartCollider: AABB;
+  /** Person colliders for the cast, synced under them every frame (the taxi
+   *  precedent: a body you can ghost through reads as broken). Disabled by
+   *  parking the box underground while the actor is hidden. */
+  readonly rosaCollider: AABB;
+  readonly idrisCollider: AABB;
+  readonly kidCollider: AABB;
+  /** The transient customer at the cart — Game syncs this one (it owns
+   *  spawning/removal); World.update handles the persistent cast. */
+  readonly customerCollider: AABB;
   readonly rosa: THREE.Group;
   readonly idris: THREE.Group;
   readonly kidSil: THREE.Group;
@@ -300,6 +312,12 @@ export class World {
     // + rungs + wall brackets), open guardrails (posts + bars), and diagonal
     // braces holding the landings. Colliders and trigger volumes untouched —
     // this is a pure visual rebuild of the same numbers.
+    // Landings stay x 10..16 (the oracle's numbers): ladder 2's column (x 16.4)
+    // sits 0.4 OFF the slab edge — groundHeight's padded reach (r + r*0.6 =
+    // 0.56) still finds the slab there, so the descent dismount (player.ts) can
+    // set you down on it, while depenetrate's UNpadded test (r = 0.35 < 0.4)
+    // never shoves you sideways mid-descent. Extending the slab instead would
+    // squeeze the descender off the column — do not "fix" that gap.
     const railCol = PAL.ink;
     this.solid('Landing_1', 13, 4.0, -7.3, 6, 0.15, 1.4, railCol);
     this.solid('Landing_2', 13, 8.0, -7.3, 6, 0.15, 1.4, railCol);
@@ -412,6 +430,14 @@ export class World {
     this.cartAwning.add(canopy, skirt);
     this.cartAwning.visible = false;
     this.scene.add(this.cartAwning);
+    // the cart's body blocks — you lean on the counter, you don't stand in it
+    this.cartCollider = boxFromCenter(4, 1.0, -6.6, 2.2, 2.0, 1.4);
+    this.colliders.push(this.cartCollider);
+    this.rosaCollider = boxFromCenter(-27, 0.85, 6.8, 0.56, 1.7, 0.56);
+    this.idrisCollider = boxFromCenter(-2, 0.85, -4.6, 0.56, 1.7, 0.56);
+    this.kidCollider = boxFromCenter(15, 0.7, 6.35, 0.5, 1.4, 0.5);
+    this.customerCollider = boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56);
+    this.colliders.push(this.rosaCollider, this.idrisCollider, this.kidCollider, this.customerCollider);
 
     // ---------------- cast (Rosa, Idris, the kid) ---------------------------
     this.rosa = this.spawnActor('Rosa', -27, 0.05, 6.8, { jacket: 0xff6b6b, pants: PAL.ink, skin: 0xe8b08e, hair: 0x9a938c, style: 'bun' });
@@ -1209,7 +1235,28 @@ export class World {
     return sp;
   }
 
+  /** Keep a person's collider under them; park it underground while hidden —
+   *  a box at y -999 can't overlap any capsule, which is the cheapest "off". */
+  syncPersonCollider(box: AABB, actor: THREE.Object3D | null, halfW = 0.28, height = 1.7): void {
+    if (!actor || !actor.visible) {
+      box.minY = -999;
+      box.maxY = -998;
+      return;
+    }
+    box.minX = actor.position.x - halfW;
+    box.maxX = actor.position.x + halfW;
+    box.minY = actor.position.y;
+    box.maxY = actor.position.y + height;
+    box.minZ = actor.position.z - halfW;
+    box.maxZ = actor.position.z + halfW;
+  }
+
   update(dt: number, player?: { x: number; y: number; z: number }, dusk = false, extra?: Array<{ x: number; z: number }>) {
+    // the persistent cast owns a body each — no more ghosting through Rosa,
+    // Idris, or the kid (playtest 2026-10-30: "passed through the npc and rosa")
+    this.syncPersonCollider(this.rosaCollider, this.rosa);
+    this.syncPersonCollider(this.idrisCollider, this.idris);
+    this.syncPersonCollider(this.kidCollider, this.kidGround, 0.25, 1.4);
     // taxi loops the street (main.gd `_process`: x += 9*dt, wraps at ±46).
     // NYC rules after playtest — the cab never drives through you:
     //   1. crosswalk occupied → hold at the stop line (nose at x ≈ -10.7)

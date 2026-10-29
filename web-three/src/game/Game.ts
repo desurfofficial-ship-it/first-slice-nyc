@@ -236,13 +236,14 @@ export class Game {
       this.startDusk();
       this.lightGoldWindow();
     }
+    // the customer at the cart owns a body too — synced fresh for this move
+    this.world.syncPersonCollider(this.world.customerCollider, this.customer);
     if (!this.dayFading && this.ui.nameBox.hidden) {
       // movement
       this.player.update(dt, inp.move);
     } else {
       this.player.update(dt, { x: 0, y: 0 });
     }
-
     // visual sync — on a ladder the body leans to the wall (visual-only
     // offset; the capsule stays authoritative for step-offs). The lean LERPS
     // now — the old hard ±0.42 snap on grab/release read as a glitch.
@@ -259,10 +260,11 @@ export class Game {
     this.checkZones();
     this.perFrameChecks(dt);
 
-    // camera
+    // camera — the walker steers by `moveYaw` (the frozen reference during an
+    // auto-flip), the boom swings by camYaw. See GameCamera for the split.
     const rig = this.postcardRig ? { pos: this.rigPos, look: this.rigLook } : undefined;
-    this.cam.update(dt, this.player.capsule, inp.camTurn, rig?.pos, rig?.look);
-    this.player.camYaw = this.cam.camYaw;
+    this.cam.update(dt, this.player.capsule, inp.camTurn, inp.move, this.player.rotationY, rig?.pos, rig?.look);
+    this.player.camYaw = this.cam.moveYaw;
 
     // world life (Rule of Steam) — the taxi yields to the pedestrian AND the
     // kid; trees breathe, pigeons worry about your shoes

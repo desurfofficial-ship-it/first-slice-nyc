@@ -47,10 +47,31 @@ export class Player {
       this.capsule.z += rightZ * lateral * dt;
       this.rotationY = lerpAngle(this.rotationY, Math.PI, Math.min(1, dt * 10.0));
       depenetrate(this.boxes, this.capsule, STEP_UP);
+      const prevY = this.capsule.y;
       this.capsule.y += this.vy * dt;
       if (this.capsule.y > this.ladder.top) {
         this.capsule.y = this.ladder.top;
         if (this.vy > 0) this.vy = 0;
+      }
+      // Playtest 2026-10-30: "trying to get down from the stairs and he fell."
+      // Descending past a trigger's bottom used to keep you grabbed until your
+      // HEAD cleared the volume — below ladder 2's area (min y 4.2) you hung in
+      // mid-air inside Landing 1, and any lateral step-off dropped you from
+      // nowhere. Now a descent that CROSSES a solid top this frame dismounts
+      // onto it: ladder 2 sets you down on the landing, ladder 1 on the street.
+      // Two guards keep it honest: only below (top - 0.5) so the top rung can't
+      // re-deposit you on the landing you just left, and prevY must be at/above
+      // the top — groundHeight snaps UP within 0.45, and without that guard the
+      // first steps past a slab would teleport you back up onto it.
+      if (this.vy < 0 && this.capsule.y < this.ladder.top - 0.5) {
+        const g = groundHeight(this.boxes, this.capsule, GROUND_SNAP);
+        if (prevY >= g - 0.01 && this.capsule.y <= g + 0.02) {
+          this.capsule.y = g;
+          this.vy = 0;
+          this.ladder = null;
+          this.onGround = true;
+          return;
+        }
       }
       // Bottom of the ladder: step onto the ground instead of freefalling
       if (this.capsule.y <= 0.12 && this.vy < 0) {

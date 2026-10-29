@@ -59,6 +59,8 @@ export function runAutotest(game: Game): void {
   const walkTo = async (x: number, z: number, timeout = 20, stopOnLadder = false) => {
     const t0 = performance.now();
     let frames = 0;
+    let lastPos = '';
+    let stuckCount = 0;
     while (performance.now() - t0 < timeout * 1000) {
       if (stopOnLadder && game.player.ladder !== null) break;
       const p = game.player.capsule;
@@ -66,10 +68,30 @@ export function runAutotest(game: Game): void {
       const dz = z - p.z;
       if (Math.hypot(dx, dz) < 0.35) break;
       if (walkLog && frames % 90 === 0) {
-        console.info(`[walk] t=${((performance.now() - t0) / 1000).toFixed(1)} pos=(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}) yaw=${game.cam.camYaw.toFixed(2)} ladder=${game.player.ladder !== null} ground=${game.player.onGround}`);
+        console.info(`[walk] t=${((performance.now() - t0) / 1000).toFixed(1)} pos=(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}) yaw=${game.player.camYaw.toFixed(2)} ladder=${game.player.ladder !== null} ground=${game.player.onGround}`);
+      }
+      if (walkLog && frames > 0 && frames % 30 === 0) {
+        const key = `${p.x.toFixed(2)},${p.z.toFixed(2)}`;
+        if (key === lastPos) {
+          stuckCount++;
+          if (stuckCount === 2 || stuckCount === 20) {
+            const near: Array<{ d: number; box: number[] }> = [];
+            game.world.colliders.forEach((b) => {
+              const nx = Math.max(b.minX, Math.min(p.x, b.maxX));
+              const nz = Math.max(b.minZ, Math.min(p.z, b.maxZ));
+              const d = Math.hypot(p.x - nx, p.z - nz);
+              if (d < 0.6) near.push({ d: +d.toFixed(3), box: [b.minX, b.maxX, b.minY, b.maxY, b.minZ, b.maxZ].map((v) => +v.toFixed(2)) });
+            });
+            console.info(`[stuck] frames=${frames} pos=(${p.x.toFixed(3)},${p.z.toFixed(3)}) near=${JSON.stringify(near)} rosa=(${game.world.rosa.position.x.toFixed(2)},${game.world.rosa.position.z.toFixed(2)})`);
+            const inp = game.input.sample();
+            console.info(`[stuck2] move=(${inp.move.x.toFixed(2)},${inp.move.y.toFixed(2)}) camYaw=${game.cam.camYaw.toFixed(3)} moveYaw=${game.cam.moveYaw.toFixed(3)} rotY=${game.player.rotationY.toFixed(3)} frozen=${game.player.frozen} nameBoxHidden=${game.ui.nameBox.hidden} ladder=${game.player.ladder !== null} vy=${game.player.vy.toFixed(2)} onGround=${game.player.onGround}`);
+          }
+        } else { stuckCount = 0; lastPos = key; }
       }
       frames++;
-      const yaw = game.cam.camYaw;
+      // steer by the MOVEMENT basis, not the boom yaw — during a street-side
+      // flip the camera swings while the reference the walker uses stays put
+      const yaw = game.player.camYaw;
       const fwdX = Math.sin(yaw), fwdZ = Math.cos(yaw);
       const rightX = -Math.cos(yaw), rightZ = Math.sin(yaw);
       const len = Math.hypot(dx, dz) || 1;

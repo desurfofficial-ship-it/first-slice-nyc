@@ -46,6 +46,13 @@ function circleOverlapsRectXZ(c: Capsule, b: AABB, pad: number): boolean {
 }
 
 const MAX_SUBSTEP = 0.2; // never sweep further than this per collision probe
+/** Playtest 2026-10-30 (e2e): hugging a wall parked the capsule at EXACTLY
+ *  face − radius; the next lateral slide re-tested that face and float noise
+ *  (d = 0.349999…97 < 0.35) read it as overlap — the move clamped to where it
+ *  already was, and the player WELDED to every corner until they stepped
+ *  back. The move-block tests ignore contacts within 1 mm of exact; genuine
+ *  embedment is still depenetrate's job. */
+const SKIN = 0.001;
 
 /**
  * Try to move the capsule along X by dx; clamp against the first blocking box.
@@ -67,7 +74,7 @@ export function moveAxisX(boxes: AABB[], c: Capsule, dx: number, stepUp: number)
       if (!capsuleOverlapsBoxY(c, b)) continue;
       if (b.maxY <= c.y + stepUp) continue;        // steppable curb
       if (c.y + c.height <= b.minY) continue;      // fully above the head
-      if (!circleOverlapsRectXZ({ ...c, x: target }, b, 0)) continue;
+      if (!circleOverlapsRectXZ({ ...c, x: target, radius: c.radius - SKIN }, b, 0)) continue;
       c.x = d > 0 ? Math.max(c.x, b.minX - c.radius) : Math.min(c.x, b.maxX + c.radius);
       hit = true;
       break;
@@ -90,7 +97,7 @@ export function moveAxisZ(boxes: AABB[], c: Capsule, dz: number, stepUp: number)
       if (!capsuleOverlapsBoxY(c, b)) continue;
       if (b.maxY <= c.y + stepUp) continue;
       if (c.y + c.height <= b.minY) continue;
-      if (!circleOverlapsRectXZ({ ...c, z: target }, b, 0)) continue;
+      if (!circleOverlapsRectXZ({ ...c, z: target, radius: c.radius - SKIN }, b, 0)) continue;
       c.z = d > 0 ? Math.max(c.z, b.minZ - c.radius) : Math.min(c.z, b.maxZ + c.radius);
       hit = true;
       break;
