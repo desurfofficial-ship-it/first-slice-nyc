@@ -31,6 +31,11 @@ interface PigeonState {
   group: THREE.Group;
   head: THREE.Group;
   tail: THREE.Mesh;
+  /** the wing pair — folded wings ARE the body silhouette, so the pair is
+   *  only VISIBLE mid-flight (hidden = skipped draw = zero steady-state
+   *  cost). A pigeon that arcs over the plaza on invisible wings reads as a
+   *  thrown prop; the flap is what sells the flush. */
+  wings: THREE.Group;
   home: { x: number; z: number };
   pos: { x: number; z: number };
   facing: number;
@@ -111,7 +116,21 @@ export class PigeonFlock {
       tail.scale.set(0.09, 0.02, 0.14);
       tail.position.set(0, 0.13, -0.16);
       tail.rotation.x = 0.28;
-      g.add(body, head, tail);
+      // the wing pair: two slabs of the bird's own plumage, hinged at the
+      // body, swept back a hair. One shared geometry, plumage material —
+      // variety and flight cost zero extra materials.
+      const wings = new THREE.Group();
+      wings.name = 'Wings';
+      for (const wx of [-0.15, 0.15]) {
+        const w = new THREE.Mesh(pigeonWingGeo, plumage);
+        w.scale.set(0.17, 0.014, 0.075);
+        w.position.set(wx, 0.03, -0.02);
+        w.rotation.y = wx < 0 ? 0.3 : -0.3; // tips trail toward the tail
+        wings.add(w);
+      }
+      wings.position.y = 0.14;
+      wings.visible = false; // folded — the body reads as the folded wing
+      g.add(body, head, tail, wings);
       if (mats.patch && rng() < 0.28) {
         // the blaze: a small cream nape chip, squashed against the neck
         const blaze = new THREE.Mesh(pigeonBlazeGeo, mats.patch);
@@ -128,7 +147,7 @@ export class PigeonFlock {
         ok = this.birds.every((b) => Math.hypot(b.pos.x - x, b.pos.z - z) > 0.55);
       }
       const bird: PigeonState = {
-        group: g, head, tail,
+        group: g, head, tail, wings,
         home: { x: center.x, z: center.z },
         pos: { x, z },
         facing: rng() * Math.PI * 2,
@@ -189,12 +208,17 @@ export class PigeonFlock {
           b.pos.z = b.flyFrom.z + (b.flyTo.z - b.flyFrom.z) * ease;
           b.group.position.y = this.groundY + Math.sin(Math.PI * k) * 1.15;
           b.group.rotation.y = Math.atan2(b.flyTo.x - b.flyFrom.x, b.flyTo.z - b.flyFrom.z);
-          // two flap beats over the arc
+          // two flap beats over the arc — wings hinge at the body and beat
+          // at the tail's cadence, so body, tail, and wings read as one animal
           b.tail.rotation.x = 0.28 + Math.sin(b.flyAge * 26) * 0.35;
+          b.wings.visible = true;
+          b.wings.rotation.z = Math.sin(b.flyAge * 26) * 0.55;
           if (k >= 1) {
             b.group.position.y = this.groundY;
             b.tail.rotation.x = 0.28;
             b.head.position.z = 0.13; // never land mid-bob
+            b.wings.visible = false; // folded again — and skipped by the renderer
+            b.wings.rotation.z = 0;
             b.mode = 'idle';
             b.timer = 0.6 + (b.phase % 0.9);
           }
@@ -269,6 +293,7 @@ const pigeonHeadGeo = new THREE.SphereGeometry(1, 7, 5);
 const pigeonBeakGeo = new THREE.ConeGeometry(1, 2, 5);
 const pigeonTailGeo = new THREE.BoxGeometry(1, 1, 1);
 const pigeonBlazeGeo = new THREE.SphereGeometry(1, 6, 4);
+const pigeonWingGeo = new THREE.BoxGeometry(1, 1, 1);
 
 interface SquirrelState {
   group: THREE.Group;

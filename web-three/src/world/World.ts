@@ -500,7 +500,17 @@ export class World {
     }
 
     // ---- subway plaza (north-west end): entrance, flyer board, benches ----
-    this.deco('Plaza_Deck', -41.5, 0.015, 5.9, 7, 0.03, 3.6, PAL.stone);
+    // The plaza owns its paving: two stone slabs flanking the subway stair
+    // cut, sitting a half-centimetre proud of the sidewalk (the same proud
+    // edge as the tree-pit soil, which reads cleanly in frame). The first
+    // draft deck (top 0.03) was buried INSIDE the sidewalk (top 0.1) and
+    // rendered nowhere — a plaza you can't see is not a plaza. The slabs
+    // dodge both plaza tree pits (soil tops also 0.105 — coplanar tops
+    // shimmer) and leave a walk-coloured apron around the stair; birds'
+    // groundY (0.1) sinks half a centimetre into the stone, which is
+    // invisible at bird scale. receive:true so shadows land on the stone.
+    this.solid('Plaza_Deck_W', -44.3, 0.09, 6.55, 1.4, 0.03, 2.3, PAL.stone, { collide: false, cast: false, receive: true });
+    this.solid('Plaza_Deck_E', -39.3, 0.09, 6.45, 2.6, 0.03, 2.5, PAL.stone, { collide: false, cast: false, receive: true });
     const subway = makeSubwayEntrance(this.bank, this.signMaterials.bind(this));
     subway.position.set(-42, 0.05, 6.2);
     this.scene.add(subway);

@@ -307,6 +307,68 @@ in small bills. The leaf system is one instanced draw call for all 48.
 - Software-GL fps here is ~6; that is the headless rasterizer, not the
   game. Judge the counters, not the fps.
 
+## Round six — the plaza owns its paving, the birds own their wings (2026-10-30)
+
+Visual-polish round, from living with the round-five block. Three finds,
+each verified live by the new `probe-env6.mjs`:
+
+1. **`Plaza_Deck` rendered nowhere — fixed in place, not handed off.**
+   Round five diagnosed the buried deck and left it to the lead agent;
+   with "keep polishing visuals" the standing order, the one-line class
+   of fix belongs to the env pass. The deck (a 7 × 3.6 pad, top y = 0.03)
+   sat fully inside `Sidewalk_N` (top y = 0.1) and never drew. It is now
+   **two stone slabs** (`Plaza_Deck_W`, `Plaza_Deck_E`) flanking the
+   subway stair cut, tops at **y = 0.105** — half a centimetre proud, the
+   same proud edge as the tree-pit soil, which reads cleanly in frame.
+   The split is not cosmetic: both plaza tree pits' soil tops are also
+   0.105, and coplanar tops shimmer — the slabs dodge the pits in x/z and
+   leave a walk-coloured apron around the stair cut. `receiveShadow: true`
+   so bird shadows land on the stone. Birds' groundY (0.1) sinks half a
+   centimetre into the slab — invisible at bird scale, verified.
+2. **Pigeons flew on invisible wings.** The flush arc had tail beats and
+   no wings — a bird arcing over the plaza read as a thrown prop. Each
+   bird now carries a **wing pair** (two plumage slabs, one shared unit
+   box, hinged at the body, swept back a hair) that is `visible = false`
+   on the ground — the folded wing IS the body silhouette, and a hidden
+   mesh skips its draw, so the steady-state cost is zero — and spreads
+   mid-flight, beating at the tail's cadence (`sin(flyAge * 26) * 0.55`),
+   folding again on touchdown. Named node `Wings` per bird; probes assert
+   identity, not shape.
+3. **The fire escape's braces were hidden under its own platforms.** The
+   straight wall brackets (z 0.1, tucked beneath the deck) could not be
+   seen from the street, so the landings floated in every close-up —
+   Doc 31's `d4_receipt_on_cart_portrait` finding, on the deco asset
+   this pass owns. Braces are now **diagonal struts** from the wall face
+   (z ≈ 0, y − 0.35) up to the platform's street edge (z ≈ 0.84, deck
+   underside), rotated to read as ironwork from any low angle. Same
+   material, same merged geometry — zero draw-call change.
+
+**Plus one found by chasing a stray pixel.** An unexplained white oval
+hovered near the plaza tree canopy in the round-six plaza frame. A new
+one-off tool, `probe-identify.mjs` (project every mesh's bounding sphere
+onto a pixel's ray, report hit/color), named it: the subway entrance's
+cream **"F" bullet disc**, parked 0.25 m west of its post — attached to
+nothing, reading as a floating oval from oblique angles. It now rides the
+west post (back face embedded 15 mm into the post: bolted, not glued to
+its silhouette).
+
+Verified: `probe-env6.mjs` — deck tops 0.105 (+0.5 cm over the slab),
+stair-cut and pit clearance asserted in x/z; 13/13 birds with wings folded
+at rest, driven flush shows wings VISIBLE mid-arc (tilt −0.486) and folded
+on landing (y back to 0.1); brace span wall→deck edge derived and
+asserted; four eyeball frames (`shots/env6-plaza-deck.png`,
+`-plaza-deck-low.png`, `-fire-escape.png`, `-wings.png`) confirm: stone
+plaza with pigeons ON it, pits and apron reading clean, platforms visibly
+held, wings spread mid-flap. Regression: tsc clean, vitest 112/112, build
+clean, `probe-leaves.mjs` 48 leaves / 38 grounded / 0 buried / 0 hovering,
+full E2E battery **0 failures (318 s, Day 1–4)**, zero console errors.
+
+The design deliverables the brief asks for — living-neighborhood design,
+the long road (days/weeks/months/years), character continuity, postcard
+memory — are now written up, source-backed and proposal-form, in
+[Doc 33](33-living-neighborhood-design.md). No shared code was written
+for them.
+
 ## For the lead agent
 
 Nothing in this pass needs your systems to change. The only interfaces
@@ -329,12 +391,12 @@ live in YOUR files; diagnosed from here, not touched:
   overlap — any camera off dead-center reads it as floating. One-line
   fix in your block: drop the spire's center to overlap the tower (e.g.
   center y 92 → 88), or parent it to the tower.
-- **`Plaza_Deck` is buried.** The stone plaza pad (top y = 0.03,
+- **`Plaza_Deck` is buried.** ~~The stone plaza pad (top y = 0.03,
   x −45..−38, z 4.1..7.7) sits fully inside `Sidewalk_N` (top y = 0.1,
-  z 4..8) — it renders nowhere; the plaza ground you see is the plain
-  slab. Harmless (the birds now stand on the slab, correctly), but if
-  the deck was meant to read as different paving, its top needs to come
-  up past 0.1 — or cut the slab for it.
+  z 4..8) — it renders nowhere.~~ **Fixed in round six, this side:** the
+  deck is now two stone slabs flanking the stair cut, tops 0.105, dodging
+  both plaza tree pits' coplanar soil tops. No action needed — noted here
+  so the round-five diagnosis reads resolved, not open.
 
 Everything else Doc 31 raises is composition and evidence hygiene in
 your probe scripts and frames — not touched from this side.
