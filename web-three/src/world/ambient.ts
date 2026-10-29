@@ -162,6 +162,7 @@ export class PigeonFlock {
           if (k >= 1) {
             b.group.position.y = 0;
             b.tail.rotation.x = 0.28;
+            b.head.position.z = 0.13; // never land mid-bob
             b.mode = 'idle';
             b.timer = 0.6 + (b.phase % 0.9);
           }
@@ -171,6 +172,8 @@ export class PigeonFlock {
           b.timer -= dt;
           b.head.rotation.x = Math.sin(b.phase * 1.3) * 0.16; // glancing about
           b.head.rotation.y = Math.sin(b.phase * 0.7) * 0.4;
+          // unwind the walk-bob: the head eases back to rest, mid-stride or not
+          b.head.position.z += (0.13 - b.head.position.z) * Math.min(1, dt * 12);
           if (b.timer <= 0) {
             const roll = (b.phase * 7.13) % 1;
             if (roll < 0.45) {
@@ -212,6 +215,7 @@ export class PigeonFlock {
           b.timer -= dt;
           b.head.rotation.x = 0.55 + Math.sin(b.phase * 6.5) * 0.28; // dabbing the pavement
           b.head.rotation.y = 0;
+          b.head.position.z += (0.13 - b.head.position.z) * Math.min(1, dt * 12);
           if (b.timer <= 0) {
             b.mode = 'idle';
             b.timer = 0.7 + (b.phase % 1.4);

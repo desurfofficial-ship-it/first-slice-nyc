@@ -67,6 +67,8 @@ export interface Tree {
   group: THREE.Group;
   /** the canopy group — the ambience pass rotates this a hair each frame */
   canopy: THREE.Group;
+  /** world height of the tallest canopy blob — leaf drift spawns under it */
+  top: number;
 }
 
 /** A street tree with believable low-poly structure: trunk, root flare,
@@ -88,16 +90,19 @@ export function makeTree(bank: MatBank, rng: () => number): Tree {
   const canopy = new THREE.Group();
   canopy.position.y = h;
   const blobs = 3;
+  let top = h;
   for (let i = 0; i < blobs; i++) {
     const r = 0.85 + rng() * 0.55;
+    const cy = r * 0.45 + rng() * 0.5;
     const b = mesh(geo.sphere, i === 0 ? leafA : (rng() < 0.5 ? leafA : leafB),
-      (rng() - 0.5) * 0.9, r * 0.45 + rng() * 0.5, (rng() - 0.5) * 0.9);
+      (rng() - 0.5) * 0.9, cy, (rng() - 0.5) * 0.9);
     b.scale.setScalar(r);
     b.castShadow = true;
     canopy.add(b);
+    top = Math.max(top, h + cy + r * 0.9);
   }
   g.add(canopy);
-  return { group: g, canopy };
+  return { group: g, canopy, top };
 }
 
 /** Sidewalk tree pit: dark soil + a low guard rim (NYC plant-beding). */

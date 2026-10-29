@@ -522,6 +522,7 @@ export class World {
       [-44, -7.0], [-30, -7.0], [-16, -7.0], [28, -7.0], [38, -7.0],      // south
       [-45, 4.7], [-38.6, 4.5],                                            // plaza park trees
     ];
+    const treeTops: number[] = []; // real canopy tops — leaf drift spawns under them
     for (let i = 0; i < treeSpots.length; i++) {
       const [tx, tz] = treeSpots[i];
       const pit = makeTreePit(this.bank);
@@ -532,6 +533,7 @@ export class World {
       t.group.rotation.y = rng() * Math.PI * 2;
       this.scene.add(t.group);
       this.trees.push({ canopy: t.canopy, phase: rng() * Math.PI * 2 });
+      treeTops.push(t.top);
     }
 
     // ---- one more parked vehicle: a delivery van, north curb ----
@@ -613,7 +615,10 @@ export class World {
     );
 
     // ---- leaf drift (early autumn; one instanced mesh, one draw call) ----
-    const leafSpots = treeSpots.map(([lx, lz]) => ({ x: lx, z: lz, r: 1.3, top: 3.3 }));
+    // tops come from the trees we just grew (2.9..4.5 m), so leaves are born
+    // inside a canopy, not mid-air below it; ground heights are derived per
+    // leaf inside LeafDrift (pit soil / sidewalk slab / asphalt).
+    const leafSpots = treeSpots.map(([lx, lz], i) => ({ x: lx, z: lz, r: 1.3, top: treeTops[i] }));
     this.leaves = new LeafDrift(this.scene, leafSpots, 4);
 
     // ---- the stool (Day 3 purchase) + the kid at ground level ----
