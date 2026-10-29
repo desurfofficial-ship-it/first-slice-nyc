@@ -138,8 +138,8 @@ func _leg(what: String, target: Vector3) -> void:
 	sp_max_cam_jump = 0.0
 	await _walk_to(target)
 	var arrived := player.global_position.distance_to(target) < 1.2
-	_log({"ev": "leg", "what": what, "s": snappedf(elapsed - t0, 2), "from_d": snappedf(d0, 1),
-		"end_d": snappedf(player.global_position.distance_to(target), 2), "arrived": arrived,
+	_log({"ev": "leg", "what": what, "s": snappedf(elapsed - t0, 0.01), "from_d": snappedf(d0, 0.1),
+		"end_d": snappedf(player.global_position.distance_to(target), 0.01), "arrived": arrived,
 		"max_cam_jump": snappedf(sp_max_cam_jump, 0.01)})
 
 ## Camera→player occlusion probe, straight geometry, every beat.
@@ -155,8 +155,8 @@ func _probe(beat: String) -> void:
 	var occl_at := -1.0
 	if not hit.is_empty():
 		occl = String(hit.collider.name)
-		occl_at = snappedf(from.distance_to(hit.position), 2)
-	_log({"ev": "probe", "beat": beat, "cam_to_player": snappedf(d, 2),
+		occl_at = snappedf(from.distance_to(hit.position), 0.01)
+	_log({"ev": "probe", "beat": beat, "cam_to_player": snappedf(d, 0.01),
 		"occluder": occl, "occl_at": occl_at})
 
 ## The roof hides when you step inside. Does its collider hide too?
@@ -183,10 +183,10 @@ func _probe_rig_swing() -> void:
 			var q := PhysicsRayQueryParameters3D.create(cam.global_position, gold_window.global_position)
 			var hit := space.intersect_ray(q)
 			if not hit.is_empty() and hit.collider == player:
-				blocked_at.append(snappedf(cam.global_position.distance_to(hit.position), 2))
+				blocked_at.append(snappedf(cam.global_position.distance_to(hit.position), 0.01))
 		if postcard_panel.visible:
 			break
-	_log({"ev": "rig_swing", "min_cam_to_player": snappedf(min_d, 2),
+	_log({"ev": "rig_swing", "min_cam_to_player": snappedf(min_d, 0.01),
 		"capsule_blocks_window_at": blocked_at, "blocked": blocked_at.size() > 0})
 
 func _shot(tag: String) -> void:
@@ -198,7 +198,7 @@ func _shot(tag: String) -> void:
 	_log({"ev": "shot", "tag": tag, "ok": true, "size": [img.get_width(), img.get_height()]})
 
 func _log(d: Dictionary) -> void:
-	d["t"] = snappedf(elapsed, 2)
+	d["t"] = snappedf(elapsed, 0.01)
 	d["step"] = Step.keys()[step]
 	print(JSON.stringify(d))
 	if sp_log != null:
