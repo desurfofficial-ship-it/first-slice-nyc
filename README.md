@@ -44,8 +44,16 @@ Every session ends with a **postcard** — a beautiful, auto-composed, captioned
 
 The Day 1 greybox **and Day 2** are playable in **Godot 4.7** — and now also in **the browser** ([`web-three/`](web-three/), the Three.js migration, [Doc 24](docs/24-web-three-build.md)).
 
+<div align="center">
+
+**▶ [Play in the browser](https://desurfofficial-ship-it.github.io/first-slice-nyc/) ◀**
+
+*WASD walk · Space interact · Z/C turn camera · touch controls on mobile*
+
+</div>
+
 ```bash
-# play the browser build
+# play the browser build locally
 cd web-three && npm install && npm run dev     # http://localhost:5173
 
 # or the Godot greybox
@@ -134,7 +142,7 @@ Details and numbers live in [Doc 15](docs/15-tech-spikes.md).
 | [20 – Day 1 Render Notes](docs/20-day1-greybox-render-notes.md) | First played pass — six camera findings, with evidence frames |
 | [21 – Synthetic Playtest 01](docs/21-synthetic-playtest-01.md) | Five scripted walkers, one day — three real seams, now closed |
 | [22 – Day 2 Greybox](docs/22-day2-greybox.md) | The neighborhood comes alive — seams fixed, save v1, the second window |
-| [24 – Three.js Build](docs/24-web-three-build.md) | The browser migration — stack, evidence, honest limits |
+| [24 – Three.js Build](docs/24-web-three-build.md) | The browser migration — stack, evidence, deployment, honest limits |
 | [AGENTS.md](AGENTS.md) | Operating manual for AI agents |
 
 ---

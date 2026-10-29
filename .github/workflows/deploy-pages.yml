@@ -1,0 +1,63 @@
+name: Deploy web-three to GitHub Pages
+
+# Builds the Three.js game (web-three/) and publishes it as the repo's
+# GitHub Pages site. Unit tests gate the build; the full browser E2E
+# (scripts/e2e.mjs) runs locally before push — see docs/24 §3.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web-three/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web-three
+        run: npm ci
+
+      - name: Typecheck + unit tests (44)
+        working-directory: web-three
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Production build
+        working-directory: web-three
+        run: npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web-three/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

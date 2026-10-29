@@ -118,5 +118,25 @@ web-three/
 └── scripts/                    # e2e.mjs · visual-check.mjs
 ```
 
+## 9. Deployment — GitHub Pages
+
+The browser build ships as the repo's GitHub Pages site:
+
+**https://desurfofficial-ship-it.github.io/first-slice-nyc/**
+
+| Piece | Choice |
+|---|---|
+| Trigger | push to `main` (plus manual `workflow_dispatch`) |
+| Workflow | [.github/workflows/deploy-pages.yml](../.github/workflows/deploy-pages.yml) |
+| Gate | typecheck + 44 unit tests must pass before the build |
+| Artifact | `web-three/dist` → `actions/upload-pages-artifact` → `actions/deploy-pages@v4` |
+| Subpath | Vite `base: './'` (relative) — the game is procedural geometry with no runtime asset fetches, so it sits cleanly under `/first-slice-nyc/` |
+| Pages mode | `build_type: workflow` (switched from the legacy root build, which served an empty index) |
+
+CI runs unit tests only; the full browser E2E (`scripts/e2e.mjs`, ~110 s of
+real Day 1 + Day 2 play) stays a local pre-push gate because it needs
+headless Chromium. The vite build uses relative asset URLs, so the same
+`dist/` works from any subpath.
+
 *Godot remains the reference implementation. `greybox-godot/` is unmodified
 by this migration.*
