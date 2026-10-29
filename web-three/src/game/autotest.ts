@@ -49,18 +49,14 @@ export function runAutotest(game: Game): void {
   const waitFrames = async (n: number) => { for (let i = 0; i < n; i++) await nextFrame(); };
   const waitMs = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-  const hold = async (code: string, secs: number) => {
-    game.input.injectKey(code, true);
-    await waitMs(secs * 1000);
-    game.input.injectKey(code, false);
-    await waitFrames(2);
-  };
-
   const walkLog = new URLSearchParams(location.search).has('walklog');
 
   /** Steer with real input keys toward a point (camera-relative), up to `timeout` s.
-   *  stopOnLadder: arrive as soon as a ladder is grabbed (climbing replaces walking). */
-  const walkTo = async (x: number, z: number, timeout = 12, stopOnLadder = false) => {
+   *  stopOnLadder: arrive as soon as a ladder is grabbed (climbing replaces walking).
+   *  The default budget is generous on purpose: software rendering runs sim
+   *  time slower than real time, and the block is full now — a walk that
+   *  crosses the street may wait for a cab to yield. */
+  const walkTo = async (x: number, z: number, timeout = 20, stopOnLadder = false) => {
     const t0 = performance.now();
     let frames = 0;
     while (performance.now() - t0 < timeout * 1000) {
@@ -96,6 +92,20 @@ export function runAutotest(game: Game): void {
   const interact = async () => {
     game.input.injectInteract();
     await waitFrames(2);
+  };
+
+  /** Hold a key until a condition lands (or timeout). The world grew a
+   *  neighborhood — software-rendered sim time runs slower than real time
+   *  now, so fixed holds under-climb. Conditions don't. */
+  const holdUntil = async (code: string, pred: () => boolean, timeout = 10) => {
+    game.input.injectKey(code, true);
+    const t0 = performance.now();
+    while (performance.now() - t0 < timeout * 1000) {
+      await nextFrame();
+      if (pred()) break;
+    }
+    game.input.injectKey(code, false);
+    await waitFrames(3);
   };
 
   const run = async () => {
@@ -181,22 +191,22 @@ export function runAutotest(game: Game): void {
       check(dbg.duskStarted(), 'dusk starts at the fire escape');
 
       // -- seam 2: step off partway; Rosa must call you back --
-      await hold('KeyW', 1.2);
-      await hold('KeyA', 0.8);
+      await holdUntil('KeyW', () => p().y > 1.4, 8);
+      await holdUntil('KeyA', () => game.player.ladder === null, 4);
       await waitFrames(40);
       check(game.player.ladder === null && p().y < 0.4, `stepped off ladder 1 (y=${p().y.toFixed(2)})`);
       check(dbg.objective().toLowerCase().includes('fire escape'), "stepping off calls Rosa's hint");
       await walkTo(9.4, -7.2, 12, true);
       check(game.player.ladder !== null, 're-grabbed ladder 1');
-      await hold('KeyW', 2.2);
-      await hold('KeyD', 0.6);
+      await holdUntil('KeyW', () => p().y > 3.6, 10);   // ride to the rail
+      await holdUntil('KeyD', () => game.player.ladder === null, 4); // step east onto the landing
       await waitFrames(20);
       check(p().y > 3.9 && game.player.onGround, `standing on landing 1 (y=${p().y.toFixed(2)})`);
       await walkTo(16.2, -7.2, 8, true);
       check(game.player.ladder !== null, `grabbed ladder 2 (pos=${p().x.toFixed(1)},${p().z.toFixed(1)})`);
-      await hold('KeyW', 2.2);
+      await holdUntil('KeyW', () => p().y >= 8.34, 10);
       check(p().y <= 8.36, `ladder caps at the rail — no overshoot (y=${p().y.toFixed(2)})`);
-      await hold('KeyA', 0.9);
+      await holdUntil('KeyA', () => game.player.ladder === null, 4);
       await waitFrames(20);
       check(p().y > 7.9, `reached landing 2 (y=${p().y.toFixed(2)})`);
       const rigAfterClimb = (game.playerVisual.userData as { rig?: { mode: string } }).rig;
@@ -229,9 +239,9 @@ export function runAutotest(game: Game): void {
       check(s.money === 112 && s.cartName === "Wade's Spot", 'day 2 keeps name and money');
       check(loadSave().day === 2, 'day-start snapshot written');
 
-      // Idris walks to the cart
+      // Idris walks to the cart (tweens run on sim time; give the slow renderer room)
       const idrisT0 = performance.now();
-      while (!s.idrisArrived && performance.now() - idrisT0 < 9000) await nextFrame();
+      while (!s.idrisArrived && performance.now() - idrisT0 < 20000) await nextFrame();
       check(s.idrisArrived, 'Idris arrives at the cart');
       await walkTo(4.4, -4.6, 8);
       await interact();
@@ -262,12 +272,12 @@ export function runAutotest(game: Game): void {
       check(s.step === Step.D2_CLIMB2, 'dusk climb offered');
 
       await walkTo(9.4, -7.2, 12, true);
-      await hold('KeyW', 2.2);
-      await hold('KeyD', 0.6);
+      await holdUntil('KeyW', () => p().y > 3.6, 10);
+      await holdUntil('KeyD', () => game.player.ladder === null, 4);
       await waitFrames(20);
       await walkTo(16.2, -7.2, 8, true);
-      await hold('KeyW', 2.2);
-      await hold('KeyA', 0.9);
+      await holdUntil('KeyW', () => p().y >= 8.34, 10);
+      await holdUntil('KeyA', () => game.player.ladder === null, 4);
       {
         const t0 = performance.now();
         while (performance.now() - t0 < 30000 && dbg.secondIntensity() <= 2.5) await nextFrame();
@@ -287,6 +297,91 @@ export function runAutotest(game: Game): void {
       check(save.day === 2 && save.day_complete === true && save.awning === true
         && save.kid_kept === true && save.money === 111,
         `save holds day 2 complete: $${save.money}, awning=${save.awning}, kid=${save.kid_kept}`);
+
+      // ============================================================ Day 3
+      // "A Place at the Corner" — Rosa at the cart, a real morning rush
+      // (orders are brewed, not snapped), the kid comes down, the stool,
+      // the flyer by the subway, and the third window.
+      await walkTo(12.5, -6.8, 8);
+      await interact();
+      check(s.lingerStage === 2, 'day 2 rail: Rosa\u2019s goodnight beat');
+      await interact();
+      await waitMs(2400);
+      check(s.day === 3 && s.step === Step.D3_WAKE, 'day 3 begins \u2014 Rosa has news');
+      check(loadSave().day === 3, 'day-3 snapshot written');
+
+      await interact();
+      check(s.step === Step.D3_RUSH, 'Rosa\u2019s news opens the rush');
+      check(!!game.customer, 'Idris is first at the cart');
+      const orderBubble = game.customer?.children.find((c) => c.type === 'Sprite');
+      check(!!orderBubble, 'the first order bubble is up');
+
+      for (let i = 0; i < 4; i++) {
+        await walkTo(4, -5.2, 10);
+        await interact();
+        const brewT0 = performance.now();
+        while (s.d3Brewing && performance.now() - brewT0 < 9000) await nextFrame();
+        await waitFrames(4);
+      }
+      check(!s.d3Brewing && s.step === Step.D3_KIDDOWN, 'four orders brewed and served');
+      check(s.money === 130, `morning rush pays $19 (got $${s.money})`);
+      check(game.world.kidGround.visible, 'the kid is waiting at the stoop');
+
+      await walkTo(14.6, 6.3, 22);
+      await interact();
+      check(s.kidDown, 'the kid joins you');
+      {
+        // he walks at your hip \u2014 sample his progress mid-walk
+        const kid = game.world.kidGround;
+        const x0 = kid.position.x;
+        await walkTo(9, 2, 6);
+        check(kid.position.x < x0 - 2, `the kid is actually walking (x ${x0.toFixed(1)} \u2192 ${kid.position.x.toFixed(1)})`);
+      }
+      await walkTo(4, -5.2, 20);
+      {
+        // he closes the last meter at his own pace (sim time lags real time
+        // under software rendering — poll, don't sample)
+        const t0 = performance.now();
+        while (performance.now() - t0 < 20000 && !s.kidAtCorner) await nextFrame();
+      }
+      check(s.kidAtCorner && s.step === Step.D3_STOOL, 'the kid reached the corner on his own feet');
+      await interact();
+      await interact();
+      check(s.stoolUp && s.money === 120 && game.world.stool.visible, `stool up: -$10 (got $${s.money})`);
+      check(s.step === Step.D3_POSTER, 'the flyer objective is up');
+
+      await walkTo(-37.6, 6.9, 48);
+      await interact();
+      check(s.step === Step.D3_CLIMB3, 'flyer read \u2014 the block knows your name');
+
+      await walkTo(9.4, -7.2, 48, true);
+      check(game.player.ladder !== null, 'day 3: grabbed ladder 1');
+      await holdUntil('KeyW', () => p().y > 3.6, 10);
+      await holdUntil('KeyD', () => game.player.ladder === null, 4);
+      await waitFrames(20);
+      await walkTo(16.2, -7.2, 8, true);
+      await holdUntil('KeyW', () => p().y >= 8.34, 10);
+      await holdUntil('KeyA', () => game.player.ladder === null, 4);
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < 30000 && !(s.step === Step.D3_POSTCARD && !game.ui.postcardPanel.hidden)) await nextFrame();
+      }
+      check(s.step === Step.D3_POSTCARD && !game.ui.postcardPanel.hidden, 'day 3 postcard composes');
+      check(dbg.caption().includes('Day 3'), 'postcard says Day 3');
+      check(dbg.thirdIntensity() > 2.5, 'the third window lights \u2014 golden-hour payoff');
+      check(game.world.kidGround.visible, 'the kid is at the corner below, on his stool');
+      await interact();
+      check(!game.player.frozen, 'day 3 end lingers too');
+
+      await walkTo(12.5, -6.8, 8);
+      await interact();
+      check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight (day 3)');
+      await interact();
+      await waitMs(500);
+      check(s.day === 3 && !dbg.dayFading(), 'day 4 does not begin \u2014 the light stays a little longer');
+      const save3 = loadSave();
+      check(save3.day === 3 && save3.day_complete === true && save3.stool === true && save3.money === 120,
+        `save holds day 3 complete: $${save3.money}, stool=${save3.stool}`);
     } catch (err) {
       check(false, `driver exception: ${(err as Error).message}`);
       console.error(err);

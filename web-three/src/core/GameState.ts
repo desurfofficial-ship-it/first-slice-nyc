@@ -5,7 +5,8 @@
  */
 
 import { MAX_DAY, type SaveData } from './Save';
-import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote } from './content';
+import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, D3_ORDERS,
+  D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE } from './content';
 
 export const Step = {
   MEET_ROSA: 0,
@@ -25,7 +26,15 @@ export const Step = {
   D2_LUNCH: 14,
   D2_CLIMB2: 15,
   D2_POSTCARD: 16,
-  DONE: 17,
+  // ---- Day 3 — "A Place at the Corner" (docs/28) ----
+  D3_WAKE: 17,
+  D3_RUSH: 18,
+  D3_KIDDOWN: 19,
+  D3_STOOL: 20,
+  D3_POSTER: 21,
+  D3_CLIMB3: 22,
+  D3_POSTCARD: 23,
+  DONE: 24,
 } as const;
 export type Step = (typeof Step)[keyof typeof Step];
 
@@ -59,6 +68,12 @@ export type Effect =
   | { kind: 'awning-up' }
   | { kind: 'cup-given' }
   | { kind: 'cup-taken-back' }
+  | { kind: 'brew-start' }
+  | { kind: 'kid-down' }
+  | { kind: 'kid-follow' }
+  | { kind: 'kid-sits' }
+  | { kind: 'stool-offer' }
+  | { kind: 'stool-up' }
   | { kind: 'persist' };
 
 export class GameState {
@@ -83,9 +98,21 @@ export class GameState {
   soloServed = 0;
   elapsed = 0;
   onDay2 = false;
+  // ---- Day 3 ----
+  d3Index = 0;          // which order in the morning queue is at the cart
+  d3Brewing = false;    // an order is being made — repeat presses do nothing
+  kidDown = false;      // the kid has come down and joined you
+  kidAtCorner = false;  // he reached the cart on his own two feet
+  stoolUp = false;      // the Day 3 purchase
+  stoolConfirm = false; // the awning-style confirm gate
+  posterSeen = false;
 
   get isDay2(): boolean {
     return this.day >= 2;
+  }
+
+  get isDay3(): boolean {
+    return this.day >= 3;
   }
 
   objectiveText(): string {
@@ -119,7 +146,12 @@ export class GameState {
   isRelevant(id: string): boolean {
     switch (id) {
       case 'rosa':
-        return this.step === Step.MEET_ROSA || (this.isDay2 && this.step <= Step.D2_CLIMB2);
+        return this.step === Step.MEET_ROSA || (this.isDay2 && this.step <= Step.D2_CLIMB2)
+          || (this.isDay3 && this.step >= Step.D3_WAKE && this.step <= Step.D3_CLIMB3);
+      case 'kid':
+        return this.step === Step.D3_KIDDOWN && !this.kidDown;
+      case 'poster':
+        return this.step === Step.D3_POSTER;
       case 'counter':
         return this.step === Step.RUSH;
       case 'idris':
@@ -127,11 +159,13 @@ export class GameState {
       case 'stoop':
         return this.step === Step.D2_DELIVER;
       case 'rail':
-        return this.step === Step.POSTCARD || this.step === Step.D2_POSTCARD
+        return this.step === Step.POSTCARD || this.step === Step.D2_POSTCARD || this.step === Step.D3_POSTCARD
           || (this.step === Step.DONE && this.lingerStage >= 1);
       case 'cart':
-        if (this.step === Step.CLAIM_CART || this.step === Step.SOLO || this.step === Step.D2_LUNCH) return true;
-        return this.isDay2 && this.step >= Step.D2_WAKE && this.step < Step.D2_POSTCARD;
+        if (this.step === Step.CLAIM_CART || this.step === Step.SOLO || this.step === Step.D2_LUNCH
+          || this.step === Step.D3_RUSH || this.step === Step.D3_STOOL) return true;
+        return (this.isDay2 && this.step >= Step.D2_WAKE && this.step < Step.D2_POSTCARD)
+          || (this.isDay3 && this.step >= Step.D3_WAKE && this.step < Step.D3_POSTCARD);
       default:
         return id.startsWith('item_') && this.step === Step.COLLECT;
     }
@@ -273,6 +307,111 @@ export class GameState {
     return this.setStep(Step.D2_CLIMB2);
   }
 
+  // ---------------------------------------------------------------- Day 3 ----
+
+  /** Rosa's morning-three news, at the cart. Opens the rush (Idris first). */
+  rosaD3Wake(): Effect[] {
+    if (this.step !== Step.D3_WAKE) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: D3_WAKE_NOTE },
+      ...this.setStep(Step.D3_RUSH),
+      // Idris opens the rush — the regulars are the news that matters
+      { kind: 'spawn-customer', who: 'idris', x: 4, z: -4.6 },
+    ];
+    return out;
+  }
+
+  /** A serve press at the cart during the Day 3 rush. Starts a brew — no
+   *  instant cups. Returns [] when nothing should happen (no customer, or a
+   *  brew already running: repeated input can never double-serve). */
+  startBrew(): Effect[] {
+    if (this.step !== Step.D3_RUSH || this.d3Brewing) return [];
+    const order = D3_ORDERS[this.d3Index];
+    if (!order) return [];
+    this.d3Brewing = true;
+    return [{ kind: 'brew-start' }];
+  }
+
+  /** The brew timer ran out (Game owns the clock). Pays, reacts, queues the
+   *  next order — or sends the kid down when the rush is done. */
+  completeBrew(): Effect[] {
+    if (!this.d3Brewing) return [];
+    this.d3Brewing = false;
+    const order = D3_ORDERS[this.d3Index];
+    if (!order) return [];
+    this.d3Index += 1;
+    const out: Effect[] = [{ kind: 'serve-customer' }, ...this.earn(order.pay)];
+    if (this.d3Index >= D3_ORDERS.length) {
+      out.push({ kind: 'note', text: 'Four orders. The urn is warm, the stool fund is real, and the corner is starting to say so back.' });
+      out.push(...this.setStep(Step.D3_KIDDOWN));
+      out.push({ kind: 'kid-down' });
+    } else {
+      out.push({ kind: 'note', text: order.reaction });
+      out.push({ kind: 'spawn-customer', who: order.who === 'idris' ? 'rush' : 'rush', x: 4, z: -4.6 });
+    }
+    return out;
+  }
+
+  /** Talking to the kid at the stoop — he joins you. */
+  kidJoins(): Effect[] {
+    if (this.step !== Step.D3_KIDDOWN || this.kidDown) return [];
+    this.kidDown = true;
+    return [
+      { kind: 'note', text: D3_KIDDOWN_NOTE },
+      { kind: 'kid-follow' },
+    ];
+  }
+
+  /** The kid reached the cart corner on foot (Game measures the distance). */
+  kidReachesCorner(): Effect[] {
+    if (this.step !== Step.D3_KIDDOWN || !this.kidDown || this.kidAtCorner) return [];
+    this.kidAtCorner = true;
+    const out: Effect[] = [
+      { kind: 'note', text: D3_KID_ARRIVED_NOTE },
+    ];
+    if (this.stoolUp) {
+      // a replay, or a stool bought early — skip the purchase, sit him down
+      out.push(...this.setStep(Step.D3_POSTER));
+      out.push({ kind: 'kid-sits' });
+    } else {
+      out.push(...this.setStep(Step.D3_STOOL));
+    }
+    return out;
+  }
+
+  /** The stool — Day 3's one purchase (awnings are Day 2's). Confirm-gated
+   *  exactly like the awning; $10; repeat input can never double-spend
+   *  because the step leaves D3_STOOL the moment it's bought. */
+  stoolInteraction(): Effect[] {
+    if (this.step !== Step.D3_STOOL) return [];
+    if (!this.stoolConfirm) {
+      this.stoolConfirm = true;
+      return [{ kind: 'stool-offer' }];
+    }
+    this.stoolConfirm = false;
+    return this.confirmStool();
+  }
+
+  confirmStool(): Effect[] {
+    if (this.step !== Step.D3_STOOL) return [];
+    this.stoolUp = true;
+    return [
+      { kind: 'stool-up' },
+      { kind: 'kid-sits' }, // he's at the corner by now — the stool is his
+      ...this.spend(10),
+      ...this.setStep(Step.D3_POSTER),
+    ];
+  }
+
+  seePoster(): Effect[] {
+    if (this.step !== Step.D3_POSTER || this.posterSeen) return [];
+    this.posterSeen = true;
+    return [
+      { kind: 'note', text: D3_POSTER_NOTE },
+      ...this.setStep(Step.D3_CLIMB3),
+    ];
+  }
+
   serveIdris(): Effect[] {
     if (this.step !== Step.D2_IDRIS || !this.idrisArrived) return [];
     this.idrisServed = true;
@@ -345,11 +484,28 @@ export class GameState {
       idris_served: this.idrisServed,
       lunch_served: this.lunchServed,
       day_start_money: this.dayStartMoney,
+      stool: this.stoolUp,
     };
   }
 }
 
 function rosaChatLineOf(s: GameState): { text: string; nextChatIndex: number } {
+  if (s.isDay3) {
+    if (!s.kidAtCorner) {
+      return { text: 'Rosa: \u201CHe\u2019s at the stoop. Take your time \u2014 first times are slow on purpose.\u201D', nextChatIndex: s.rosaChatI };
+    }
+    if (!s.stoolUp) {
+      return { text: 'Rosa: \u201CA stool. Then your regulars can sit. One summer in and you\u2019re running a living room.\u201D', nextChatIndex: s.rosaChatI };
+    }
+    if (!s.posterSeen) {
+      return { text: 'Rosa: \u201CSomebody put a flyer up by the subway. Something about your coffee. I don\u2019t gossip, so go look.\u201D', nextChatIndex: s.rosaChatI };
+    }
+    const lines3 = [
+      'Rosa: \u201CThree windows. Three. The block is getting lit because of you.\u201D',
+      'Rosa: \u201CTomatoes are still salted wrong. You\u2019re a good influence on nothing.\u201D',
+    ];
+    return { text: lines3[s.rosaChatI % 2], nextChatIndex: (s.rosaChatI + 1) % 2 };
+  }
   if (!s.idrisServed) {
     return {
       text: `Rosa: \u201C${s.cartName}. It\u2019s ugly. So was mine, once. Good.\u201D She means the cart. It\u2019s a compliment.`,

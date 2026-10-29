@@ -40,9 +40,9 @@ Every session ends with a **postcard** — a beautiful, auto-composed, captioned
 
 ---
 
-## Current Status — Two Days Are Alive, in Two Engines
+## Current Status — Three Days Are Alive, in Two Engines
 
-The Day 1 greybox **and Day 2** are playable in **Godot 4.7** — and now also in **the browser** ([`web-three/`](web-three/), the Three.js migration, [Doc 24](docs/24-web-three-build.md)).
+Day 1, Day 2, **and Day 3** are playable in **Godot 4.7** — and in **the browser** ([`web-three/`](web-three/), the Three.js migration, [Doc 24](docs/24-web-three-build.md)), which is now the leading build: the block has brownstones, storefronts, a subway plaza, street trees, pigeons, and a full Day 3.
 
 <div align="center">
 
@@ -66,11 +66,15 @@ Terminal → Rosa's bodega → first rush → name your cart → serve Mr. Idris
 **Then Day 2 — [the neighborhood comes alive](docs/22-day2-greybox.md):**  
 The postcard closes, you can linger at the rail, and tomorrow begins: Idris comes back for the usual, Rosa asks you to keep the kid in the gold window, the awning goes up ($15, real tips, the lunch rush follows), and at dusk a second window lights. Your corner persists — quit any time, resume exact.
 
+**Then Day 3 — [a place at the corner](docs/28-day3-a-place-at-the-corner.md) (web build):**  
+Rosa brings the news at YOUR cart. The morning rush is four real orders — bubbles up, urn hissing, money honest. Then the kid comes down from the window for the first time, walks to your corner at your hip, and takes the stool ($10). A flyer by the subway stairs says the block knows your name. At dusk a third window lights, and the kid waves from his stool below. Day 4 is still being written — the light stays.
+
 ```bash
-godot --headless --path greybox-godot -- --autotest
+godot --headless --path greybox-godot -- --autotest          # the oracle: Day 1 + 2
+cd web-three && npm test && node scripts/e2e.mjs            # the web build: Day 1 + 2 + 3
 ```
 
-Last headless run: **0 failures, 46 checks — full Day 1 + Day 2 + the three Doc 21 seams closed + the day-start money arc**.
+Last runs: **Godot oracle 0 failures** · **web E2E 0 failures (full Day 1 + Day 2 + Day 3, real input)** · **79/79 unit tests** · typecheck clean.
 
 ### Real captures from the greybox
 
@@ -78,11 +82,17 @@ Last headless run: **0 failures, 46 checks — full Day 1 + Day 2 + the three Do
 |-------|--------|------------|-------------|
 | ![Spawn](assets/greybox-day1/frames/portrait_01_spawn.png) | ![Bodega](assets/greybox-day1/frames/portrait_05_bodega_inside.png) | ![Cart](assets/greybox-day1/frames/portrait_16_cart_named.png) | ![Gold Window](assets/greybox-day1/frames/portrait_21_gold_window_lit.png) |
 
-### Day 2, seen — [Doc 24](docs/25-day2-render-notes.md)
+### Day 2, seen — [Doc 25](docs/25-day2-render-notes.md)
 
 | Title Card | Teal Door | Awning Up | Two Windows |
 |------------|-----------|-----------|-------------|
 | ![Title](assets/greybox-day2/frames/d2_03_title_card.png) | ![Door](assets/greybox-day2/frames/d2_09_teal_door_stoop.png) | ![Awning](assets/greybox-day2/frames/d2_12_awning_up.png) | ![Windows](assets/greybox-day2/frames/d2_15_second_window.png) |
+
+### Day 3, seen — [Doc 28](docs/28-day3-a-place-at-the-corner.md)
+
+| The Subway Plaza | Brownstone Row | The Kid's Stool | Three Windows |
+|------------------|----------------|-----------------|---------------|
+| ![Plaza](assets/web-three/frames/d3_plaza_pigeons_portrait.png) | ![Brownstones](assets/web-three/frames/d3_brownstones_portrait.png) | ![Stool](assets/web-three/frames/d3_kid_on_stool_portrait.png) | ![Dusk](assets/web-three/frames/d3_three_windows_dusk_portrait.png) |
 
 ### First generated postcard
 
@@ -152,6 +162,7 @@ Details and numbers live in [Doc 15](docs/15-tech-spikes.md).
 | [25 – Day 2 Render Notes](docs/25-day2-render-notes.md) | Day 2, finally seen — frames, findings, fixes, and the second postcard |
 | [26 – Walk-Cycle & Fire-Escape Notes](docs/26-walk-cycle-fire-escape.md) | The cast finally walks — the rig, the rebuilt fire escape, the GLB verdict |
 | [27 – Field Bugs, Round Two](docs/27-field-bugs-round-two.md) | The six phone complaints — kid at the glass, the raised hand, the ladder, the ghost cab, the camera, the touch controls — all closed |
+| [28 – Day 3: A Place at the Corner](docs/28-day3-a-place-at-the-corner.md) | Day 3 — the living street (brownstones, trees, pigeons), the brewed morning rush, the kid's walk down, the stool, the flyer, the third window |
 | [AGENTS.md](AGENTS.md) | Operating manual for AI agents |
 
 ---

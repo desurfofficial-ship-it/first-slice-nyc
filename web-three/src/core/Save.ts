@@ -9,7 +9,9 @@
  */
 
 export const SAVE_KEY = 'first_slice_save_v1';
-export const MAX_DAY = 2; // Day 3 is still being written (see docs/22-day2-greybox.md)
+// Day 3 "A Place at the Corner" is live (docs/28-day3-a-place-at-the-corner.md).
+// Day 4+ is still being written — the rail's goodnight holds the light instead.
+export const MAX_DAY = 3;
 
 export interface SaveData {
   day: number;
@@ -24,6 +26,9 @@ export interface SaveData {
   /** Day-start money snapshot for the postcard caption (web save v1 extension,
    *  fixes the reference's "$87 → $111" Day 2 caption bug — Doc 22 says $112 → $111). */
   day_start_money?: number;
+  /** Day 3 purchase — the stool by the cart (the kid's seat). Optional so a
+   *  pre-Day-3 save parses unchanged; missing reads as false. */
+  stool?: boolean;
 }
 
 export function defaultSave(): SaveData {
@@ -37,6 +42,7 @@ export function defaultSave(): SaveData {
     kid_kept: false,
     idris_served: false,
     lunch_served: 0,
+    stool: false,
   };
 }
 
@@ -73,6 +79,7 @@ export function parseSave(raw: string | null): SaveData {
     cart_name: typeof d.cart_name === 'string' ? d.cart_name : '',
     money: Math.max(0, Math.trunc(num('money', 87))),
     awning: bool('awning', false),
+    stool: bool('stool', false),
     kid_kept: bool('kid_kept', false),
     idris_served: bool('idris_served', false),
     lunch_served: clamp(Math.trunc(num('lunch_served', 0)), 0, 3),

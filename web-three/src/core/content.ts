@@ -27,8 +27,16 @@ export const OBJECTIVES: Record<number, string> = {
   12: 'Rosa is out front with a favor to ask.',                          // D2_TASK
   13: 'Take the kid his regular. The teal door across the street.',      // D2_DELIVER
   14: 'Lunch. The shade is working — three at the cart.',                // D2_LUNCH
-  15: 'Fire escape at dusk. You know the way now.',                      // D2_CLIMB2
+  15: 'Dusk soon. The awning kit leans against the cart if you want it — $15. Fire escape when ready.', // D2_CLIMB2 (RN-4: the objective points at the awning too)
   16: '',                                                                // D2_POSTCARD
+  // ---- Day 3 — "A Place at the Corner" (docs/28) ----
+  17: 'Rosa is at your cart with news.',                                 // D3_WAKE
+  18: 'The morning rush. Serve at your cart.',                           // D3_RUSH
+  19: 'The kid is coming down for the first time. Walk him to your corner.', // D3_KIDDOWN
+  20: 'A stool leans against the cart. [Space] at the cart to put it up.', // D3_STOOL
+  21: 'Rosa says a flyer went up by the subway stairs. Go see.',         // D3_POSTER
+  22: 'Fire escape at dusk. The best seat is yours by habit now.',       // D3_CLIMB3
+  23: '',                                                                // D3_POSTCARD
 };
 
 export const MAP_NOTE_BOOT = 'You are here. That\u2019s enough.'; // Doc 08 note #1
@@ -37,6 +45,20 @@ export const MAP_NOTE_BOOT = 'You are here. That\u2019s enough.'; // Doc 08 note
 export function composeCaption(s: {
   day: number; replay: boolean; dayStartMoney: number; money: number; cartName: string;
 }): string {
+  if (s.day >= 3) {
+    if (s.replay) {
+      return (
+        'Day 3, again. The stool is still warm. That is the whole point of a stool.\n\n' +
+        `\u2014 ${s.cartName}, Day 3`
+      );
+    }
+    return (
+      `Day 3. $${s.dayStartMoney} \u2192 $${s.money}.\n` +
+      'Met: the block. The kid came down from the window.\n' +
+      'The corner keeps you now.\n\n' +
+      `\u2014 ${s.cartName}, Day 3`
+    );
+  }
   if (s.day <= 1) {
     return (
       `Day 1. $${s.dayStartMoney} \u2192 $${s.money}.\n` +
@@ -140,7 +162,6 @@ export const KID_WAVE_NOTE =
   'The kid waves from the window you lit. The lamp next door flickers, thinks about it, and stays on too.';
 export const DAY_BEYOND_NOTE = (n: number) =>
   `Day ${n} is still being written. The light stays a little longer.`;
-
 export const ROSA_GREET_NOTE =
   'Rosa: \u201CHoney, your Map is upside down. Come on, I\u2019ll show you.\u201D';
 
@@ -174,10 +195,14 @@ export function promptVerb(id: string, s: GameState): string {
     case 'counter': return 'Serve';
     case 'idris': return 'Serve the usual';
     case 'stoop': return 'Deliver';
+    case 'kid': return 'Walk with him';
+    case 'poster': return 'Read the flyer';
     case 'rail': return s.lingerStage <= 1 ? 'Stay a while' : 'Tomorrow';
     case 'cart':
       if (s.step === 5 /* CLAIM_CART */) return 'Claim corner';
       if (s.step === 7 /* SOLO */ || s.step === 14 /* D2_LUNCH */) return 'Serve';
+      if (s.step === 18 /* D3_RUSH */) return s.d3Brewing ? BREWING_PROMPT : 'Serve';
+      if (s.step === 20 /* D3_STOOL */) return 'Stool \u2014 $10';
       if (s.day >= 2 && !s.awningUp && s.money >= 15) return 'Awning \u2014 $15';
       return 'Serve';
     case 'item_mango': return 'Take the mango';
@@ -188,3 +213,68 @@ export function promptVerb(id: string, s: GameState): string {
 }
 
 export const DEFAULT_CART_NAME = 'First Slice';
+
+// ---------------------------------------------------------------- Day 3 ----
+
+export const D3_WAKE_NOTE =
+  'Rosa: \u201CThree windows light up when you work. The block noticed.\u201D She taps the counter. \u201CToday the block says thanks. And \u2014 he\u2019s coming down. The kid. First time since you got here.\u201D';
+export const D3_WAKE_ACCEPTED_NOTE =
+  'Morning three. The corner has a shape now \u2014 yours.';
+
+export const D3_KIDDOWN_NOTE =
+  'The kid, at the bottom of the stoop: \u201CYou\u2019re taller down here.\u201D He falls in beside you like it\u2019s a thing they do.';
+export const D3_KID_ARRIVED_NOTE =
+  'The kid: \u201CSo this is the corner from the ground. It\u2019s better. You can smell it.\u201D';
+
+export const STOOL_OFFER_NOTE =
+  'A stool leans against the cart \u2014 the good kind, painted teal. $10, cash. [Space] again to set it up.';
+export const STOOL_UP_NOTE =
+  'The stool sits down at the corner of the counter. The kid sits down on the stool. Two things that were always going to happen.';
+
+export const D3_POSTER_NOTE =
+  'A flyer, still wet at the corners: your cart, someone\u2019s photo, and \u201CBEST CORNER COFFEE \u2014 as voted by everyone who was asked.\u201D You were asked by nobody. It went up anyway.';
+
+export const D3_CLIMB_NOTE =
+  'Same stairs. Your legs know the count now.';
+export const D3_GOLDEN_NOTE =
+  'From up here, the corner looks kept. The stool is small and exactly the right size. The kid waves up without looking away from the cart.';
+
+export const DAY3_BEGIN_NOTE = 'Day 3. The cart is still yours. The corner is starting to say so back.';
+
+/** The morning-rush order queue — who, what the bubble says, what serving pays,
+ *  and the note when their cup changes hands. Idris opens; canon names only. */
+export interface D3Order {
+  who: 'idris' | 'rush';
+  bubble: string;      // world-space order bubble (short, readable)
+  pay: number;
+  reaction: string;    // note on serve
+}
+export const D3_ORDERS: D3Order[] = [
+  {
+    who: 'idris',
+    bubble: 'THE USUAL',
+    pay: 3,
+    reaction: 'Mr. Idris: \u201CThird day. Same cup. That\u2019s how you know a place is real.\u201D',
+  },
+  {
+    who: 'rush',
+    bubble: '2\u00D7 REGULAR',
+    pay: 8,
+    reaction: 'The lunch parent: \u201COne\u2019s for the kid at the window. He talks about your corner.\u201D',
+  },
+  {
+    who: 'rush',
+    bubble: 'LARGE \u00B7 BLACK',
+    pay: 4,
+    reaction: 'The early shift: \u201CLarge, black, no sugar. I\u2019ve been up since four.\u201D The cup says thank you anyway.',
+  },
+  {
+    who: 'rush',
+    bubble: 'SMALL \u00B7 2 SUGARS',
+    pay: 4,
+    reaction: 'She counts out coins and leaves one extra: \u201CFor the stool fund. I heard there\u2019s a stool fund.\u201D There is now.',
+  },
+];
+
+export const BREWING_NOTE = 'The urn hisses. Steam does the talking.';
+export const BREWING_PROMPT = 'Brewing\u2026';

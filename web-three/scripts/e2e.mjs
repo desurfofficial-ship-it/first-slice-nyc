@@ -49,7 +49,7 @@ page.on('pageerror', (err) => consoleErrors.push(`PAGEERROR: ${err.message}`));
 await page.goto(`http://localhost:${PORT}/?autotest=1`, { waitUntil: 'load' });
 
 try {
-  await page.waitForFunction(() => window.__AUTOTEST__?.done === true, null, { timeout: 240000 });
+  await page.waitForFunction(() => window.__AUTOTEST__?.done === true, null, { timeout: 340000 });
 } catch {
   console.error('TIMEOUT waiting for the autotest driver');
 }

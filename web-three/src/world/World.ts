@@ -12,6 +12,10 @@ import { PAL } from '../core/palette';
 import { ITEM_LABELS } from '../core/content';
 import { boxFromCenter, type AABB } from '../engine/collide';
 import { buildArticulatedPerson } from './personRig';
+import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecycleBin, makeHydrant,
+  makeSubwayEntrance, makeBulletinBoard, makeBench, makeBusStop, makeNewspaperBoxes, makeBarrier,
+  makeACUnit, makeBrownstoneStoop, makeStorefront, makeStool, makeVan } from './props';
+import { PigeonFlock, Squirrel, seededRng } from './ambient';
 
 export interface LadderInfo { area: AABB; top: number; }
 
@@ -49,6 +53,17 @@ export class World {
   readonly kidSil: THREE.Group;
   readonly goldGlow: THREE.Sprite;
   readonly secondGlow: THREE.Sprite;
+  // ---- Day 3 + the living street (docs/28, workstreams A/B) ----
+  readonly thirdWindowMat!: THREE.MeshLambertMaterial;
+  readonly thirdGlow: THREE.Sprite;
+  readonly kidGround: THREE.Group;   // the kid at ground level (Day 3)
+  readonly stool: THREE.Group;       // the Day 3 purchase, hidden until bought
+  readonly flyerMat: THREE.MeshLambertMaterial;
+  private readonly bank: MatBank;
+  private readonly trees: Array<{ canopy: THREE.Group; phase: number }> = [];
+  private readonly pigeonFlock: PigeonFlock;
+  private readonly squirrel: Squirrel;
+  private ambientTime = 0;
 
   private steamPoints: THREE.Points;
   private steamSeed: Float32Array;
@@ -272,6 +287,10 @@ export class World {
         } else if (row === 2 && col === 0) {
           this.secondWindowMat = this.mat(dim, { emissive: PAL.gold, emissiveIntensity: 0 });
           this.decoMesh('SecondWindow', new THREE.BoxGeometry(1.2, 1.6, 0.08), this.secondWindowMat, p[0], p[1], p[2]);
+        } else if (row === 2 && col === 2) {
+          // the third window — Day 3's golden-hour payoff (docs/28 §E)
+          this.thirdWindowMat = this.mat(dim, { emissive: PAL.gold, emissiveIntensity: 0 });
+          this.decoMesh('ThirdWindow', new THREE.BoxGeometry(1.2, 1.6, 0.08), this.thirdWindowMat, p[0], p[1], p[2]);
         } else {
           this.decoMesh(`Window_${row}_${col}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), dimMat, p[0], p[1], p[2]);
         }
@@ -283,6 +302,9 @@ export class World {
     this.secondGlow = this.makeGlow(2.6);
     this.secondGlow.position.set(10.5, 9, 7.6);
     this.scene.add(this.secondGlow);
+    this.thirdGlow = this.makeGlow(2.6);
+    this.thirdGlow.position.set(16.5, 9, 7.6);
+    this.scene.add(this.thirdGlow);
 
     // ---------------- skyline card (far north-east, above the low building) -
     const heights = [38, 62, 45, 80, 52, 70, 40, 58];
@@ -360,6 +382,143 @@ export class World {
     this.kidSil = this.spawnActor('TheKid', 13.5, 8.6, 7.78, { jacket: 0x514659, pants: 0x473e50, skin: 0x514659, hair: 0x453b4c, style: 'flat' });
     this.kidSil.scale.setScalar(0.5);
     this.kidSil.visible = false;
+
+    // ---------------- the living street (docs/28 — workstreams A & B) ------
+    // Shared materials + geometry through the bank; seeded tree placement so
+    // every run of the block is the same block.
+    this.bank = new MatBank((c) => this.mat(c));
+    const rng = seededRng(20261029);
+
+    // ---- brownstone row (south-west face): stoops, doors, windows, AC ----
+    const stoopDoors = [PAL.teal, 0xff6b6b, 0x6d4c7d];
+    const stoopX = [-40, -34, -28];
+    for (let i = 0; i < stoopX.length; i++) {
+      const stoop = makeBrownstoneStoop(this.bank, stoopDoors[i]);
+      stoop.position.set(stoopX[i], 0, -7.4);
+      this.scene.add(stoop);
+    }
+    // tall parlor windows between the stoops + a couple of AC units
+    for (const wx of [-43, -37, -31, -25, -19, -13, -7, -1]) {
+      for (const wy of [3.6, 6.6, 9.6]) {
+        this.decoMesh(`BrownstoneWin_${wx}_${wy}`, new THREE.BoxGeometry(1.1, 1.9, 0.08), this.mat(0x3b3346), wx, wy, -7.94);
+      }
+    }
+    for (const [ax, ay] of [[-37, 3.0], [-25, 3.0], [-13, 6.0]] as const) {
+      const ac = makeACUnit(this.bank);
+      ac.position.set(ax, ay, -7.75);
+      this.scene.add(ac);
+    }
+
+    // ---- storefronts (north face): named shops with awnings ----
+    const laundry = makeStorefront(this.bank, this.signMaterials.bind(this), 'SUNRISE LAUNDRY', PAL.teal, 6);
+    laundry.position.set(-5, 0.05, 8.02);
+    this.scene.add(laundry);
+    const pizza = makeStorefront(this.bank, this.signMaterials.bind(this), 'CORNER SLICE PIZZA', PAL.coral, 6);
+    pizza.position.set(27, 0.05, 8.02);
+    this.scene.add(pizza);
+    // AC units under the gold-window building's upper windows
+    for (const ax of [10.5, 16.5]) {
+      const ac = makeACUnit(this.bank);
+      ac.position.set(ax, 5.9, 7.75);
+      this.scene.add(ac);
+    }
+
+    // ---- subway plaza (north-west end): entrance, flyer board, benches ----
+    this.deco('Plaza_Deck', -41.5, 0.015, 5.9, 7, 0.03, 3.6, PAL.stone);
+    const subway = makeSubwayEntrance(this.bank, this.signMaterials.bind(this));
+    subway.position.set(-42, 0.05, 6.2);
+    this.scene.add(subway);
+    this.colliders.push(boxFromCenter(-42, 0.4, 6.2, 2.6, 1.0, 3.5)); // nobody walks into the earth
+    this.flyerMat = new THREE.MeshLambertMaterial({ map: this.flyerTexture('YOUR CORNER') });
+    const board = makeBulletinBoard(this.bank, this.flyerMat);
+    board.position.set(-37.6, 0.05, 7.5);
+    board.rotation.y = Math.PI; // faces the street, readable from the sidewalk
+    this.scene.add(board);
+    const plazaBench = makeBench(this.bank);
+    plazaBench.position.set(-40.5, 0.05, 4.55);
+    plazaBench.rotation.y = Math.PI;
+    this.scene.add(plazaBench);
+    const papers = makeNewspaperBoxes(this.bank);
+    papers.position.set(-44.6, 0.05, 6.6);
+    this.scene.add(papers);
+
+    // ---- bus stop (north, west of the bodega) + bench ----
+    const bus = makeBusStop(this.bank, this.signMaterials.bind(this));
+    bus.position.set(-24.5, 0.05, 7.35);
+    this.scene.add(bus);
+    const busBench = makeBench(this.bank);
+    busBench.position.set(-24.5, 0.05, 6.85);
+    busBench.rotation.y = Math.PI;
+    this.scene.add(busBench);
+
+    // ---- street furniture: lights, cans, hydrant, one honest barrier ----
+    const lights: Array<[number, number, number]> = [
+      [-34, 7.35, Math.PI / 2], [8, 7.35, Math.PI / 2],
+      [-18, -7.35, -Math.PI / 2], [30, -7.35, -Math.PI / 2],
+    ];
+    for (const [lx, lz, lyaw] of lights) {
+      const lamp = makeStreetlight(this.bank);
+      lamp.position.set(lx, 0.05, lz);
+      lamp.rotation.y = lyaw; // arm reaches over the street
+      this.scene.add(lamp);
+    }
+    const can1 = makeTrashCan(this.bank); can1.position.set(-19, 0.05, 7.45); this.scene.add(can1);
+    const can2 = makeTrashCan(this.bank); can2.position.set(2, 0.05, -7.45); this.scene.add(can2);
+    const recy = makeRecycleBin(this.bank); recy.position.set(2.85, 0.05, -7.45); this.scene.add(recy);
+    const hyd2 = makeHydrant(this.bank); hyd2.position.set(34, 0.05, -4.75); this.scene.add(hyd2);
+    const barrier = makeBarrier(this.bank); barrier.position.set(-9.7, 0.05, 7.5); barrier.rotation.y = 0.35; this.scene.add(barrier);
+
+    // ---- street trees in tree pits (seeded; never in front of a door) ----
+    const treeSpots: Array<[number, number]> = [
+      [-34, 7.15], [-22, 7.15], [-4, 7.15], [20, 7.15], [32, 7.15],       // north
+      [-44, -7.0], [-30, -7.0], [-16, -7.0], [28, -7.0], [38, -7.0],      // south
+      [-45, 4.7], [-38.6, 4.5],                                            // plaza park trees
+    ];
+    for (let i = 0; i < treeSpots.length; i++) {
+      const [tx, tz] = treeSpots[i];
+      const pit = makeTreePit(this.bank);
+      pit.position.set(tx, 0.03, tz);
+      this.scene.add(pit);
+      const t = makeTree(this.bank, rng);
+      t.group.position.set(tx, 0.05, tz);
+      t.group.rotation.y = rng() * Math.PI * 2;
+      this.scene.add(t.group);
+      this.trees.push({ canopy: t.canopy, phase: rng() * Math.PI * 2 });
+    }
+
+    // ---- one more parked vehicle: a delivery van, north curb ----
+    const van = makeVan(this.bank);
+    van.position.set(-14, 0, 3.05);
+    van.rotation.y = Math.PI;
+    this.scene.add(van);
+    this.colliders.push(boxFromCenter(-14, 0.75, 3.05, 4.4, 1.5, 1.95));
+
+    // ---- pigeons + squirrel (seeded; behaviors in ambient.ts) ----
+    this.pigeonFlock = new PigeonFlock(
+      this.scene,
+      { body: this.bank.get(PAL.skyline), head: this.bank.get(PAL.ink), beak: this.bank.get(PAL.amber) },
+      90210, { x: -40, z: 5 }, 2.4, 9,
+    );
+    this.squirrel = new Squirrel(
+      this.scene,
+      { fur: this.bank.get(0x8a6a4a), tail: this.bank.get(0x7a5c48) },
+      7, { x: -36.4, z: 4.8 },
+    );
+
+    // ---- the stool (Day 3 purchase) + the kid at ground level ----
+    this.stool = makeStool(this.bank);
+    this.stool.position.set(5.25, 0.05, -5.7);
+    this.stool.visible = false;
+    this.scene.add(this.stool);
+    this.kidGround = this.buildPerson({
+      jacket: 0x514659, pants: 0x473e50, skin: 0xd9a06b, hair: 0x453b4c, style: 'flat',
+    });
+    this.kidGround.name = 'TheKidDown';
+    this.kidGround.scale.setScalar(0.78);
+    this.kidGround.position.set(15, 0.05, 6.35);
+    this.kidGround.rotation.y = Math.PI; // faces the street
+    this.kidGround.visible = false;
+    this.scene.add(this.kidGround);
 
     // ---------------- steam (manhole, animating) ----------------------------
     const steamCount = 24;
@@ -889,22 +1048,92 @@ export class World {
     this.roof.visible = !hidden;
   }
 
-  update(dt: number, player?: { x: number; y: number; z: number }) {
+  /** Redraw the flyer face (cart name goes up the moment it's known). */
+  setFlyerText(name: string) {
+    const old = this.flyerMat.map;
+    this.flyerMat.map = this.flyerTexture(name || 'YOUR CORNER');
+    this.flyerMat.needsUpdate = true;
+    old?.dispose();
+  }
+
+  private flyerTexture(name: string): THREE.CanvasTexture {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 192;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = '#FFF8F0';
+    ctx.fillRect(0, 0, 256, 192);
+    ctx.strokeStyle = '#3A3440';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(6, 6, 244, 180);
+    ctx.fillStyle = '#F7B32B';
+    ctx.fillRect(18, 18, 220, 44);
+    ctx.fillStyle = '#3A3440';
+    ctx.font = '800 22px "Trebuchet MS", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('BEST CORNER COFFEE', 128, 47, 210);
+    ctx.font = '700 26px "Trebuchet MS", sans-serif';
+    ctx.fillText(name.toUpperCase().slice(0, 18), 128, 105, 216);
+    ctx.font = '400 15px "Trebuchet MS", sans-serif';
+    ctx.fillText('as voted by everyone', 128, 138, 216);
+    ctx.fillText('who was asked', 128, 158, 216);
+    ctx.font = '400 12px "Trebuchet MS", sans-serif';
+    ctx.fillText('— photo: somebody\u2019s cousin —', 128, 180, 216);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  /** The order bubble — what the customer at the cart is waiting for. */
+  makeOrderBubble(text: string): THREE.Sprite {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 80;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = 'rgba(255, 248, 240, 0.96)';
+    ctx.beginPath();
+    ctx.roundRect(4, 4, 248, 62, 18);
+    ctx.fill();
+    ctx.strokeStyle = '#3A3440';
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    // the little tail pointing down at the customer
+    ctx.beginPath();
+    ctx.moveTo(112, 64); ctx.lineTo(128, 78); ctx.lineTo(144, 64);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255, 248, 240, 0.96)';
+    ctx.fill();
+    ctx.fillStyle = '#3A3440';
+    ctx.font = '800 30px "Trebuchet MS", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 34, 226);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    sp.scale.set(1.7, 0.53, 1);
+    return sp;
+  }
+
+  update(dt: number, player?: { x: number; y: number; z: number }, dusk = false, extra?: Array<{ x: number; z: number }>) {
     // taxi loops the street (main.gd `_process`: x += 9*dt, wraps at ±46).
     // NYC rules after playtest — the cab never drives through you:
     //   1. crosswalk occupied → hold at the stop line (nose at x ≈ -10.7)
     //      until it's clear, creeping up if it's still far;
     //   2. anyone in the road ahead → brake to a stop ~4.5 m short.
+    // "Anyone" includes the kid on his walk (Day 3) — a cab through a
+    // child reads exactly as broken as a cab through you.
     const road = this.taxi.position;
     let speed = 9.0;
-    if (player) {
-      const onCrosswalk = player.x > -8.5 && player.x < -1.5 && player.z > -4.6 && player.z < 4.6;
+    const bodies: Array<{ x: number; z: number }> = [];
+    if (player) bodies.push(player);
+    if (extra) bodies.push(...extra);
+    for (const b of bodies) {
+      const onCrosswalk = b.x > -8.5 && b.x < -1.5 && b.z > -4.6 && b.z < 4.6;
       if (onCrosswalk && road.x < -4.2) {
         // cab nose = road.x + 2.2; hold it west of the crosswalk's west edge
         speed = road.x > -10.7 ? 0 : Math.min(speed, 3.0);
       } else {
-        const inRoad = Math.abs(player.z) < 4.2;
-        const gap = player.x - road.x; // cab travels +x; gap > 0 = player ahead
+        const inRoad = Math.abs(b.z) < 4.2;
+        const gap = b.x - road.x; // cab travels +x; gap > 0 = body ahead
         if (inRoad && gap > -2.3 && gap < 10) {
           speed = gap < 4.5 ? 0 : Math.min(speed, 2.0);
         }
@@ -925,6 +1154,16 @@ export class World {
       posAttr.setX(i, x);
     }
     posAttr.needsUpdate = true;
+
+    // trees breathe (a hair of canopy sway), the flock lives its small life
+    this.ambientTime += dt;
+    for (const t of this.trees) {
+      t.canopy.rotation.z = Math.sin(this.ambientTime * 0.9 + t.phase) * 0.022;
+      t.canopy.rotation.x = Math.cos(this.ambientTime * 0.7 + t.phase) * 0.016;
+    }
+    const pp = player ? { x: player.x, z: player.z } : undefined;
+    this.pigeonFlock.update(dt, pp, dusk);
+    this.squirrel.update(dt, pp, dusk);
   }
 
   dispose() {

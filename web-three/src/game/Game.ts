@@ -8,7 +8,9 @@
 
 import * as THREE from 'three';
 import { GameState, Step, INTERACT_RANGE, START_MONEY, type Effect } from '../core/GameState';
-import { composeCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE_OBJECTIVE } from '../core/content';
+import { composeCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE_OBJECTIVE,
+  D3_ORDERS, BREWING_NOTE, STOOL_OFFER_NOTE, STOOL_UP_NOTE, D3_GOLDEN_NOTE,
+  D3_CLIMB_NOTE, DAY3_BEGIN_NOTE } from '../core/content';
 import { loadSave, writeSave, type SaveData } from '../core/Save';
 import { PAL } from '../core/palette';
 import { World, phys } from '../world/World';
@@ -39,7 +41,8 @@ export class Game {
   /** The player's articulated visual — public readonly for the test harness. */
   readonly playerVisual: THREE.Group;
   readonly cupProp: THREE.Object3D;
-  private customer: THREE.Group | null = null;
+  /** The customer at the cart — public for the E2E harness (bubble check). */
+  customer: THREE.Group | null = null;
   private rosaBroom: THREE.Group | null = null;
   /** Everyone with a rig — one animator pass per frame (walk/idle/climb/sweep). */
   private readonly cast: THREE.Group[] = [];
@@ -64,6 +67,8 @@ export class Game {
   private reachedTopFired = false;
   private idrisWalkStarted = false;
   private goldDebugFired = false;
+  private brewTimer = 0;
+  private brewingNoteShown = false;
 
   // postcard rig tween targets (mutated by tweens, read by the camera)
   private rigPos = { x: 0, y: 0, z: 0 };
@@ -128,7 +133,7 @@ export class Game {
     this.world.scene.add(this.playerVisual);
 
     // the rest of the cast joins the animator (walk/idle/breathe)
-    this.cast.push(this.world.rosa, this.world.idris, this.world.kidSil);
+    this.cast.push(this.world.rosa, this.world.idris, this.world.kidSil, this.world.kidGround);
 
     // ---------------- interactables (main.gd `_build_interactables`) --------
     this.interactables = [
@@ -141,6 +146,8 @@ export class Game {
       { id: 'idris', pos: () => this.world.idris.position },
       { id: 'stoop', pos: () => ({ x: 15, y: 0.05, z: 6.9 }) },
       { id: 'rail', pos: () => ({ x: 12.5, y: 8.0, z: -6.8 }) },
+      { id: 'kid', pos: () => this.world.kidGround.position },
+      { id: 'poster', pos: () => ({ x: -37.6, y: 1.5, z: 7.4 }) },
     ];
     this.world.addItem('mango', -18, 2.25, 19.2, PAL.amber);
     this.world.addItem('coffee', -16, 2.25, 19.2, PAL.teal);
@@ -254,9 +261,24 @@ export class Game {
     this.cam.update(dt, this.player.capsule, inp.camTurn, rig?.pos, rig?.look);
     this.player.camYaw = this.cam.camYaw;
 
-    // world life (Rule of Steam) — the taxi yields to the pedestrian
-    this.world.update(dt, this.player.capsule);
+    // world life (Rule of Steam) — the taxi yields to the pedestrian AND the
+    // kid; trees breathe, pigeons worry about your shoes
+    this.world.update(
+      dt, this.player.capsule, this.duskStarted,
+      this.world.kidGround.visible ? [{ x: this.world.kidGround.position.x, z: this.world.kidGround.position.z }] : undefined,
+    );
     this.syncGlows();
+
+    // Day 3: the urn runs on its own clock; the kid walks at your hip
+    if (s.d3Brewing) {
+      this.brewTimer -= dt;
+      if (this.brewTimer <= 0) {
+        for (const e of s.completeBrew()) this.applyEffect(e);
+      }
+    }
+    if (s.isDay3 && s.step === Step.D3_KIDDOWN && s.kidDown && !s.kidAtCorner) {
+      this.updateKidFollow(dt);
+    }
 
     // the cast animates: walk when their position moved, climb on ladders,
     // sweep when Rosa's on broom duty, breathe when parked. The PLAYER's mode
@@ -285,6 +307,8 @@ export class Game {
     (this.world.goldGlow.material as THREE.SpriteMaterial).opacity = g * 0.85;
     const g2 = clamp01((this.world.secondWindowMat.emissiveIntensity ?? 0) / 3.2);
     (this.world.secondGlow.material as THREE.SpriteMaterial).opacity = g2 * 0.8;
+    const g3 = clamp01((this.world.thirdWindowMat.emissiveIntensity ?? 0) / 3.2);
+    (this.world.thirdGlow.material as THREE.SpriteMaterial).opacity = g3 * 0.8;
   }
 
   // ------------------------------------------------------------------ zones
@@ -334,7 +358,7 @@ export class Game {
 
     // top landing (main.gd `_reach_top`)
     if (!this.reachedTopFired && capsuleInBox(c, this.world.topLandingZone)) {
-      if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2) {
+      if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3) {
         this.reachedTopFired = true;
         this.reachTop();
       }
@@ -349,13 +373,13 @@ export class Game {
       this.checkpoint = { x: 9.4, y: 0.05, z: -5.5 };
       this.startDusk();
     }
-    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2) {
+    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3) {
       this.ui.setObjective('Climb.');
     }
   }
 
   private onLadderLeave(): void {
-    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2) {
+    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3) {
       this.ladderHintPending = true;
     }
   }
@@ -377,7 +401,7 @@ export class Game {
     // the fire escape you had just correctly climbed.
     if (this.ladderHintPending && this.player.ladder === null && this.player.onGround && this.player.capsule.y < 1.0) {
       this.ladderHintPending = false;
-      if (s.step === Step.CLIMB || s.step === Step.D2_CLIMB2) {
+      if (s.step === Step.CLIMB || s.step === Step.D2_CLIMB2 || s.step === Step.D3_CLIMB3) {
         this.ui.setObjective('The fire escape, around the corner. Rosa will not let this go.');
         this.ui.showNote('Rosa, from somewhere behind you: \u201CFire escape! Around the corner! You found it once!\u201D');
       }
@@ -426,7 +450,12 @@ export class Game {
     const s = this.state;
     switch (id) {
       case 'rosa':
-        if (s.isDay2) {
+        if (s.step === Step.D3_WAKE) {
+          // Day 3 morning: her news at your cart — must come BEFORE the
+          // isDay2 chat branch (day 3 is also day >= 2, and the chat would
+          // swallow the wake beat whole).
+          for (const e of s.rosaD3Wake()) this.applyEffect(e);
+        } else if (s.isDay2) {
           const { effects } = s.rosaTask();
           for (const e of effects) this.applyEffect(e);
         } else {
@@ -443,6 +472,12 @@ export class Game {
           if (this.customer) {
             for (const e of s.serveCart()) this.applyEffect(e);
           }
+        } else if (s.step === Step.D3_RUSH) {
+          if (this.customer) {
+            for (const e of s.startBrew()) this.applyEffect(e);
+          }
+        } else if (s.step === Step.D3_STOOL) {
+          for (const e of s.stoolInteraction()) this.applyEffect(e);
         } else if (s.isDay2 && !s.awningUp && s.money >= 15 && this.customer === null
           && s.step >= Step.D2_WAKE && s.step <= Step.D2_CLIMB2) {
           for (const e of s.cartAwningInteraction()) this.applyEffect(e);
@@ -450,6 +485,12 @@ export class Game {
         break;
       case 'idris':
         for (const e of s.serveIdris()) this.applyEffect(e);
+        break;
+      case 'kid':
+        for (const e of s.kidJoins()) this.applyEffect(e);
+        break;
+      case 'poster':
+        for (const e of s.seePoster()) this.applyEffect(e);
         break;
       case 'stoop':
         for (const e of s.deliverToKid()) this.applyEffect(e);
@@ -539,6 +580,29 @@ export class Game {
       case 'cup-taken-back':
         this.cupProp.visible = false;
         break;
+      case 'brew-start':
+        this.brewTimer = 1.15;
+        if (!this.brewingNoteShown) {
+          this.brewingNoteShown = true;
+          this.ui.showNote(BREWING_NOTE);
+        }
+        break;
+      case 'kid-down':
+        this.showKidGround();
+        break;
+      case 'kid-follow':
+        break; // the follow loop is driven by state flags, not the effect
+      case 'kid-sits':
+        this.sitKid();
+        break;
+      case 'stool-offer':
+        this.ui.showNote(STOOL_OFFER_NOTE);
+        break;
+      case 'stool-up':
+        this.world.stool.visible = true;
+        this.ui.showNote(STOOL_UP_NOTE);
+        this.persist(); // the stool is bought money — save it the moment it happens
+        break;
       case 'awning-offer':
         this.ui.showNote('An awning kit leans against the cart, teal like Rosa\u2019s. $15, cash. [Space] again to put it up.');
         break;
@@ -620,14 +684,17 @@ export class Game {
 
   private reachTop(): void {
     const s = this.state;
+    const day3 = s.step === Step.D3_CLIMB3;
     const day2 = s.step === Step.D2_CLIMB2;
-    s.setStep(day2 ? Step.D2_POSTCARD : Step.POSTCARD);
+    s.setStep(day3 ? Step.D3_POSTCARD : (day2 ? Step.D2_POSTCARD : Step.POSTCARD));
     this.ui.setObjective('');
     this.startDusk();
     this.player.frozen = true;
-    this.ui.showNote(day2
-      ? 'Same seat. The city kept it warm for you.'
-      : 'Stoop = outdoor living room. You\u2019re invited. That\u2019s the important part.');
+    this.ui.showNote(day3
+      ? D3_CLIMB_NOTE
+      : (day2
+        ? 'Same seat. The city kept it warm for you.'
+        : 'Stoop = outdoor living room. You\u2019re invited. That\u2019s the important part.'));
 
     // Authored rig — the proven TS-01 glide: "from mid-street up and back to
     // the south sidewalk, window to sky." The capture camera is born with the
@@ -652,11 +719,41 @@ export class Game {
       t.wait(1.0),
       t.call(() => {
         this.lightGoldWindow();
-        if (day2) this.kidDuskWave();
+        if (day3) this.goldenBeat3();
+        else if (day2) this.kidDuskWave();
       }),
       t.wait(2.6),
       t.call(() => this.composePostcard()),
     );
+  }
+
+  /** Day 3's golden-hour payoff: the third window flickers alive, the kid
+   *  waves up from his stool, and the corner reads as a place someone keeps. */
+  private goldenBeat3(): void {
+    const t = this.tweens;
+    const flick: ReturnType<Tweens['num']>[] = [];
+    for (const e of [1.8, 0.2, 2.6, 0.0, 2.0]) {
+      flick.push(t.num(() => this.world.thirdWindowMat.emissiveIntensity, (v) => { this.world.thirdWindowMat.emissiveIntensity = v; }, e, 0.13, (x) => x));
+    }
+    flick.push(t.num(() => this.world.thirdWindowMat.emissiveIntensity, (v) => { this.world.thirdWindowMat.emissiveIntensity = v; }, 3.2, 0.6));
+    t.sequence(...flick);
+    // the kid, down on his stool, waves without looking away from the cart
+    if (this.world.kidGround.visible) {
+      const rig = this.world.kidGround.userData.rig as PersonRig | undefined;
+      if (rig) {
+        rig.mode = 'wave';
+        t.sequence(
+          t.num(() => rig.armR.rotation.x, (v) => { rig.armR.rotation.x = v; }, -2.6, 0.3),
+          t.num(() => rig.armR.rotation.z, (v) => { rig.armR.rotation.z = v; }, 0.5, 0.25),
+          t.num(() => rig.armR.rotation.z, (v) => { rig.armR.rotation.z = v; }, -0.3, 0.5),
+          t.call(() => {
+            rig.armR.rotation.x = -0.38; rig.armR.rotation.z = -0.14;
+            rig.mode = this.state.kidAtCorner ? 'sit' : 'auto';
+          }),
+        );
+      }
+    }
+    this.ui.showNote(D3_GOLDEN_NOTE);
   }
 
   /** Flicker, then hold (main.gd `_light_gold_window`). */
@@ -710,7 +807,7 @@ export class Game {
       day: s.day, replay: s.replayDay, dayStartMoney: s.dayStartMoney, money: s.money, cartName: s.cartName,
     });
     if (s.day > 1) s.dayComplete = true;
-    s.setStep(s.day > 1 ? Step.D2_POSTCARD : Step.DONE);
+    s.setStep(s.day >= 3 ? Step.D3_POSTCARD : (s.day > 1 ? Step.D2_POSTCARD : Step.DONE));
     this.ui.setObjective('');
 
     let url: string;
@@ -741,7 +838,7 @@ export class Game {
     this.cam.pose = 'follow';
     const effects = this.state.dismissPostcard();
     for (const e of effects) this.applyEffect(e);
-    if (this.state.step === Step.POSTCARD || this.state.step === Step.D2_POSTCARD) {
+    if (this.state.step === Step.POSTCARD || this.state.step === Step.D2_POSTCARD || this.state.step === Step.D3_POSTCARD) {
       this.ui.setObjective(LINGER_OBJECTIVE);
     }
   }
@@ -761,6 +858,7 @@ export class Game {
     goldIntensity: () => this.world.goldWindowMat.emissiveIntensity,
     rosaIntensity: () => this.world.rosaWindowMat.emissiveIntensity,
     secondIntensity: () => this.world.secondWindowMat.emissiveIntensity,
+    thirdIntensity: () => this.world.thirdWindowMat.emissiveIntensity,
     cupVisible: () => this.cupProp.visible,
     caption: () => document.getElementById('postcard-caption')?.textContent ?? '',
     objective: () => this.ui.objectiveText,
@@ -775,6 +873,7 @@ export class Game {
     if (name) {
       this.world.setCartSignText(name);
       this.world.cartSign.visible = true;
+      this.world.setFlyerText(name); // the flyer at the subway learns your name too
     }
   }
 
@@ -790,6 +889,14 @@ export class Game {
       : this.world.makeCustomerVisual(color, skin, hair);
     g.position.set(x, 0.05, z);
     g.name = isIdris ? 'MrIdris' : 'Customer';
+    // Day 3 rush: every order is a real order — the bubble says what's wanted
+    const s = this.state;
+    const order = D3_ORDERS[s.d3Index];
+    if (s.isDay3 && s.step === Step.D3_RUSH && order) {
+      const bubble = this.world.makeOrderBubble(order.bubble);
+      bubble.position.set(0, 2.35, 0);
+      g.add(bubble);
+    }
     this.world.scene.add(g);
     this.customer = g;
     this.cast.push(g); // joins the idle-breathe pass; rig speed stays 0
@@ -802,6 +909,11 @@ export class Game {
       if (o instanceof THREE.Mesh) {
         o.geometry.dispose();
         (o.material as THREE.Material).dispose();
+      } else if (o instanceof THREE.Sprite) {
+        // the order bubble rides along with the customer — free it too
+        const m = o.material as THREE.SpriteMaterial;
+        m.map?.dispose();
+        m.dispose();
       }
     });
     const i = this.cast.indexOf(this.customer);
@@ -816,6 +928,56 @@ export class Game {
       this.tweens.num(() => kid.position.y, (v) => { kid.position.y = v; }, 8.66, 1.1),
       this.tweens.num(() => kid.position.y, (v) => { kid.position.y = v; }, 8.6, 1.1),
     );
+  }
+
+  // ------------------------------------------------------------------ day 3
+
+  /** The kid, at the bottom of the stoop — ground level, first time ever. */
+  private showKidGround(): void {
+    const kid = this.world.kidGround;
+    kid.visible = true;
+    kid.position.set(15, 0.05, 6.35);
+    kid.rotation.y = Math.PI;
+  }
+
+  /** He follows at your hip — close behind, never shoveled forward.
+   *  Teleport-rescue only if the gap becomes absurd (stuck behind a car). */
+  private updateKidFollow(dt: number): void {
+    const kid = this.world.kidGround;
+    const p = this.player.capsule;
+    const dx = p.x - kid.position.x;
+    const dz = p.z - kid.position.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist > 13) {
+      // rescue: re-place him just behind you (children are not speedruns)
+      kid.position.set(p.x - Math.sin(this.player.rotationY) * 0.8, 0.05, p.z - Math.cos(this.player.rotationY) * 0.8);
+      return;
+    }
+    const stop = 1.0; // he stops at your hip, not inside you
+    if (dist > stop) {
+      const speed = Math.min(3.8, (dist - stop) * 2.2 + 0.6);
+      const step = Math.min(dist - stop, speed * dt);
+      kid.position.x += (dx / dist) * step;
+      kid.position.z += (dz / dist) * step;
+      kid.rotation.y = Math.atan2(dx, dz); // he walks facing where he's going
+    }
+    // arrival: both of you at the corner, the cart within reach
+    const cart = this.world.cartRoot.position;
+    const kidToCart = Math.hypot(cart.x - kid.position.x, cart.z - kid.position.z);
+    const youToCart = Math.hypot(cart.x - p.x, cart.z - p.z);
+    if (kidToCart < 2.6 && youToCart < 3.2) {
+      for (const e of this.state.kidReachesCorner()) this.applyEffect(e);
+    }
+  }
+
+  /** The kid takes the stool. Root sunk, hips bent — the sit mode does it. */
+  private sitKid(): void {
+    const kid = this.world.kidGround;
+    kid.visible = true;
+    kid.position.set(5.62, 0.05, -5.42);
+    kid.rotation.y = Math.PI + 0.5; // angled toward the cart, watching the street
+    const rig = kid.userData.rig as PersonRig | undefined;
+    if (rig) rig.mode = 'sit';
   }
 
   // ------------------------------------------------------------------ days
@@ -858,15 +1020,31 @@ export class Game {
       s.money = sd.money;
       s.awningUp = sd.awning;
       s.kidKept = sd.kid_kept;
+      s.stoolUp = sd.stool ?? false;
+    } else {
+      s.stoolUp = false;
     }
-    // Day-start money snapshot (Doc 22's "$112 → $111" math; the reference
+    // day-start money snapshot (Doc 22's "$112 → $111" math; the reference
     // never updates day_start_money on Day 2 — fixed here as intended behavior).
     s.dayStartMoney = (sd !== null && sd.day_start_money !== undefined) ? sd.day_start_money : s.money;
+    // day-3 morning state resets fresh each begin (mid-day saves resume at the morning)
+    s.d3Index = 0;
+    s.d3Brewing = false;
+    this.brewTimer = 0;
+    this.brewingNoteShown = false;
+    s.kidDown = false;
+    s.kidAtCorner = false;
+    s.stoolConfirm = false;
+    s.posterSeen = false;
     this.ui.setMoneyQuiet(s.money);
     if (s.cartName) this.applyCartIdentity(s.cartName);
     this.world.cartAwning.visible = s.awningUp; // rebuild the world to match the save
+    this.world.stool.visible = s.stoolUp;
+    this.world.kidGround.visible = false;
+    this.world.setFlyerText(s.cartName || 'YOUR CORNER'); // the flyer learns your name
     this.toMorningLight();
-    this.placeDay2Cast();
+    if (n >= 3) this.placeDay3Cast();
+    else this.placeDay2Cast();
     this.player.capsule.x = 3; this.player.capsule.y = 0.05; this.player.capsule.z = -5.4;
     this.player.vy = 0;
     this.player.ladder = null;
@@ -874,11 +1052,24 @@ export class Game {
     this.checkpoint = { x: 3, y: 0.05, z: -5.4 };
     this.world.goldWindowMat.emissiveIntensity = 4.0; // the kid's window stays lit — Day 1 happened
     this.world.secondWindowMat.emissiveIntensity = 0;
+    this.world.thirdWindowMat.emissiveIntensity = 0;
     if (s.kidKept) this.showKid();
 
-    s.setStep(Step.D2_WAKE);
-    this.ui.setObjective(s.objectiveText());
-    this.ui.showNote(`Day ${n}. The cart is still yours. That part never resets.`);
+    if (n >= 3) {
+      s.setStep(Step.D3_WAKE);
+      this.ui.setObjective(s.objectiveText());
+      this.ui.showNote(DAY3_BEGIN_NOTE);
+      // a kept Day 3, replayed: the kid already lives at the corner now
+      if (s.replayDay && s.stoolUp && s.kidKept) {
+        this.sitKid();
+        s.kidDown = true;
+        s.kidAtCorner = true;
+      }
+    } else {
+      s.setStep(Step.D2_WAKE);
+      this.ui.setObjective(s.objectiveText());
+      this.ui.showNote(`Day ${n}. The cart is still yours. That part never resets.`);
+    }
 
     // day-start snapshot — this is what a restart (R) or a quit comes back to
     this.persist();
@@ -906,6 +1097,7 @@ export class Game {
         this.rosaBroom.rotation.x = -0.42;              // brush meets the pavement
         rosaRig.armR.add(this.rosaBroom);
       }
+      this.rosaBroom.visible = true;
     }
     const idris = this.world.idris;
     idris.visible = true;
@@ -914,6 +1106,20 @@ export class Game {
     if (this.state.idrisServed) {
       idris.position.set(-24, 0.05, 6.4); // already walked home
     }
+  }
+
+  /** Day 3 morning cast — Rosa visits YOUR corner (the news travels to you). */
+  private placeDay3Cast(): void {
+    const rosa = this.world.rosa;
+    rosa.position.set(2.1, 0.05, -4.9);
+    rosa.rotation.y = 0.4; // angled toward the cart and the street
+    rosa.visible = true;
+    rosa.rotation.z = 0;
+    const rosaRig = rosa.userData.rig as PersonRig | undefined;
+    if (rosaRig) rosaRig.mode = 'auto';
+    if (this.rosaBroom) this.rosaBroom.visible = false; // off duty today
+    // Idris starts the rush as a customer — spawned by rosaD3Wake, hidden here
+    this.world.idris.visible = false;
   }
 
   /** main.gd `_persist` — day 1 never writes. */
