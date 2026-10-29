@@ -1,5 +1,6 @@
 import * as THREE from "three";
 
+import { Day1World } from "../world/Day1World";
 import { PAL } from "../world/materials";
 import type { SaveData } from "./Save";
 import { loadOrDefault, saveBootNote } from "./Save";
@@ -23,6 +24,7 @@ export class Game {
   /** Authoritative state. Scene graph never writes to it. */
   step: GameStep = 0;
   save: SaveData;
+  readonly world: Day1World;
 
   private container: HTMLElement;
   private raf = 0;
@@ -41,10 +43,13 @@ export class Game {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(container.clientWidth, container.clientHeight);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(PAL.cream);
+    this.scene.fog = new THREE.Fog(PAL.cream, 90, 220);
 
     // Portrait-first: fov 55, the TS-02 numbers, aspect from the real window.
     this.camera = new THREE.PerspectiveCamera(
@@ -53,25 +58,13 @@ export class Game {
       0.1,
       300,
     );
-    this.camera.position.set(0, 6.5, 9);
-    this.camera.lookAt(0, 1.2, 0);
+    // M2 framing: styleframe A's read — west down the street from the corner,
+    // bodega + teal awning on the right, crosswalk ahead, taxi lane, skyline.
+    // M3 replaces this with the follow rig.
+    this.camera.position.set(3, 7.5, -2.5);
+    this.camera.lookAt(-20, 1.5, 5);
 
-    // -- M1 boot beacon: one gold box on stone, lit softly. M2 replaces this
-    // with the Doc 10 block; the beacon's job (proving the pipeline) is done.
-    const hemi = new THREE.HemisphereLight(PAL.cream, PAL.stone, 1.15);
-    this.scene.add(hemi);
-    const sun = new THREE.DirectionalLight(PAL.amber, 1.3);
-    sun.position.set(-12, 18, 8);
-    this.scene.add(sun);
-
-    const beacon = new THREE.Mesh(
-      new THREE.BoxGeometry(1, 1, 1),
-      new THREE.MeshStandardMaterial({ color: PAL.gold }),
-    );
-    beacon.position.set(0, 0.5, 0);
-    beacon.name = "BootBeacon";
-    this.scene.add(beacon);
-
+    this.world = new Day1World(this.scene);
     window.addEventListener("resize", this.onResize);
   }
 
@@ -90,8 +83,9 @@ export class Game {
   }
 
   /** Simulation step. State first, render after — the loop stays honest. */
-  update(_dt: number): void {
-    // M4+: step machine, player, camera poses, interactions.
+  update(dt: number): void {
+    // M2: street life (taxi drift, steam). Decisions arrive with the step machine.
+    this.world.tick(dt);
   }
 
   resize(): void {

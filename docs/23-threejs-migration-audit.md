@@ -211,7 +211,7 @@ Must all pass before calling migration of Day 1 “done”:
 |-------|-------------|------------|
 | **M0** | This audit (done) | Plan reviewed |
 | **M1** | `web-three/` Vite + Three.js + TS boot, empty scene, resize — **DONE 2026-10-29**: `npm run build` clean (131 KB gzip), dev server browser-verified desktop + 390×844, zero console errors/page errors; boot-beacon render in both viewports | `npm run dev` works |
-| **M2** | Day 1 world blockout + lights + palette | Recognizable street / bodega / corner / fire escape |
+| **M2** | Day 1 world blockout + lights + palette — **DONE 2026-10-29**: the Doc 10 block ported number-for-number from the oracle (`src/world/Day1World.ts`); golden-hour light + shadows; steam + taxi drift ticking; evidence frames in `assets/web-three/frames/` (corner portrait + landscape, bodega front, fire escape, cart corner) — street, bodega, corner and fire escape each read | Recognizable street / bodega / corner / fire escape |
 | **M3** | Player movement + camera + collision | Walk block without falling through; vertical framing |
 | **M4** | Interact system + step machine (no full content) | Can trigger sequence of steps with debug UI |
 | **M5** | Full Day 1 content path (Rosa → rush → cart → Idris → climb → gold) | Complete path playable |
