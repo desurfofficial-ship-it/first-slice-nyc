@@ -1,0 +1,304 @@
+/* FIRST SLICE — web UI. Palette per Doc 04 (art direction bible). */
+
+:root {
+  --gold: #F7B32B;
+  --brick: #B23A48;
+  --teal: #2A9D8F;
+  --amber: #FFB85C;
+  --stone: #E8E4DC;
+  --plum: #6D4C7D;
+  --coral: #FF6B6B;
+  --cream: #FFF8F0;
+  --ink: #3A3440;
+  --night: #1A1420;
+
+  --ui-font: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+  --hand-font: 'Bradley Hand', 'Segoe Print', 'Comic Sans MS', cursive;
+  --mono-font: 'Courier New', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--night);
+  font-family: var(--ui-font);
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+#app, #app canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* ---------------- HUD ---------------- */
+
+#hud {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  color: var(--cream);
+}
+
+#hud-top-left {
+  position: absolute;
+  top: calc(14px + env(safe-area-inset-top));
+  left: calc(16px + env(safe-area-inset-left));
+  max-width: min(58ch, 72vw);
+}
+
+#objective {
+  font-size: clamp(15px, 2.4vmin, 21px);
+  font-weight: 600;
+  line-height: 1.35;
+  text-shadow: 0 1px 3px rgba(26, 20, 32, 0.75), 0 0 14px rgba(26, 20, 32, 0.4);
+}
+
+#note {
+  margin-top: 10px;
+  font-family: var(--hand-font);
+  font-size: clamp(14px, 2.2vmin, 19px);
+  line-height: 1.4;
+  color: var(--gold);
+  text-shadow: 0 1px 3px rgba(26, 20, 32, 0.8);
+  animation: note-in 0.5s ease-out;
+}
+@keyframes note-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+#hud-top-right {
+  position: absolute;
+  top: calc(14px + env(safe-area-inset-top));
+  right: calc(16px + env(safe-area-inset-right));
+  text-align: right;
+  text-shadow: 0 1px 3px rgba(26, 20, 32, 0.75);
+}
+
+#money { font-size: clamp(20px, 3.4vmin, 30px); font-weight: 700; font-family: var(--mono-font); transition: transform 0.15s ease, color 0.4s ease; }
+#money.pulse { transform: scale(1.18); color: var(--gold); }
+#timer { font-size: clamp(12px, 1.9vmin, 16px); opacity: 0.85; font-family: var(--mono-font); }
+
+#prompt {
+  position: absolute;
+  left: 50%; bottom: calc(max(96px, 14vh) + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  background: rgba(26, 20, 32, 0.72);
+  border: 1px solid rgba(255, 248, 240, 0.28);
+  color: var(--cream);
+  font-size: clamp(14px, 2.2vmin, 18px);
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 999px;
+  white-space: nowrap;
+  animation: note-in 0.25s ease-out;
+}
+#prompt .key {
+  display: inline-block;
+  font-family: var(--mono-font);
+  font-size: 0.85em;
+  background: rgba(255, 248, 240, 0.16);
+  border: 1px solid rgba(255, 248, 240, 0.3);
+  border-radius: 6px;
+  padding: 0 7px;
+  margin-right: 8px;
+}
+
+/* ---------------- Panels ---------------- */
+
+.panel {
+  position: fixed;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  background: var(--cream);
+  color: var(--ink);
+  border: 6px solid var(--brick);
+  border-radius: 10px;
+  padding: 22px 26px;
+  width: min(420px, calc(100vw - 40px));
+  box-shadow: 0 18px 50px rgba(26, 20, 32, 0.5);
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+.panel label { font-size: 17px; font-weight: 600; line-height: 1.4; }
+
+#cart-name-input {
+  font-family: var(--hand-font);
+  font-size: 26px;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-bottom: 2px dashed rgba(58, 52, 64, 0.4);
+  padding: 6px 2px;
+  outline: none;
+  width: 100%;
+}
+#cart-name-input:focus { border-bottom-color: var(--teal); }
+#cart-name-input::placeholder { color: rgba(58, 52, 64, 0.35); }
+
+button {
+  font-family: var(--ui-font);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--cream);
+  background: var(--teal);
+  border: none;
+  border-radius: 999px;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+button:hover { filter: brightness(1.08); }
+button:active { transform: scale(0.97); }
+button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+/* ---------------- Postcard ---------------- */
+
+#postcard-panel {
+  position: fixed;
+  left: 50%; bottom: calc(18px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  width: min(400px, calc(100vw - 28px));
+}
+
+#postcard-card {
+  background: var(--cream);
+  border: 6px solid var(--brick);
+  border-radius: 8px;
+  padding: 12px 12px 10px;
+  box-shadow: 0 18px 50px rgba(26, 20, 32, 0.55);
+  width: 100%;
+}
+
+#postcard-img { width: 100%; max-height: 38vh; object-fit: cover; border-radius: 3px; display: block; background: var(--stone); }
+
+#postcard-caption {
+  font-family: var(--hand-font);
+  color: var(--ink);
+  font-size: clamp(14px, 2.1vmin, 17px);
+  line-height: 1.45;
+  padding-top: 10px;
+  white-space: pre-line;
+}
+
+#postcard-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+#postcard-keep { background: var(--brick); }
+#postcard-stay { background: rgba(26, 20, 32, 0.78); border: 1px solid rgba(255, 248, 240, 0.3); }
+
+/* ---------------- Touch controls ---------------- */
+
+#touch-ui { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
+#touch-ui.hidden-when-panel { display: none; }
+
+#joy-zone {
+  position: absolute;
+  left: 0; bottom: 0;
+  width: 46%; height: 44%;
+  pointer-events: auto;
+}
+
+#joy-base {
+  position: absolute;
+  width: 108px; height: 108px;
+  border-radius: 50%;
+  background: rgba(255, 248, 240, 0.10);
+  border: 2px solid rgba(255, 248, 240, 0.35);
+  transform: translate(-50%, -50%);
+}
+#joy-stick {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  background: rgba(255, 248, 240, 0.55);
+  transform: translate(-50%, -50%);
+}
+
+#touch-right {
+  position: absolute;
+  right: calc(14px + env(safe-area-inset-right));
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; align-items: flex-end; gap: 14px;
+  pointer-events: auto;
+}
+
+#turn-btns { display: flex; gap: 10px; }
+#turn-btns button {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: rgba(26, 20, 32, 0.55);
+  border: 1px solid rgba(255, 248, 240, 0.3);
+  font-size: 22px;
+  color: var(--cream);
+}
+
+#btn-interact {
+  width: 78px; height: 78px;
+  border-radius: 50%;
+  background: rgba(247, 179, 43, 0.92);
+  border: 2px solid rgba(26, 20, 32, 0.35);
+  color: var(--ink);
+  font-size: 30px;
+  box-shadow: 0 6px 18px rgba(26, 20, 32, 0.4);
+}
+#btn-interact.occupied { animation: pulse-dot 1.4s ease-in-out infinite; }
+@keyframes pulse-dot { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+
+/* ---------------- Fade / title / loading ---------------- */
+
+#fade {
+  position: fixed; inset: 0;
+  background: var(--night);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 40;
+  transition: opacity 0.7s ease;
+}
+#fade.on { opacity: 1; pointer-events: auto; }
+
+#title-card {
+  position: fixed; inset: 0;
+  z-index: 41;
+  display: flex; align-items: center; justify-content: center;
+  font-size: clamp(40px, 9vmin, 72px);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--cream);
+  text-shadow: 0 2px 16px rgba(26, 20, 32, 0.8);
+  pointer-events: none;
+}
+
+#loading {
+  position: fixed; inset: 0;
+  z-index: 50;
+  background: var(--night);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  color: var(--cream);
+  transition: opacity 0.6s ease;
+}
+#loading.done { opacity: 0; pointer-events: none; }
+.load-title { font-size: clamp(34px, 7vmin, 56px); font-weight: 800; letter-spacing: 0.08em; color: var(--gold); }
+.load-sub { font-size: clamp(14px, 2.6vmin, 20px); letter-spacing: 0.35em; opacity: 0.85; }
+.load-status { margin-top: 18px; font-size: 14px; opacity: 0.6; font-family: var(--mono-font); }
+
+#error-banner {
+  position: fixed;
+  left: 50%; top: calc(12px + env(safe-area-inset-top));
+  transform: translateX(-50%);
+  z-index: 60;
+  background: var(--brick);
+  color: var(--cream);
+  font-size: 14px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  max-width: calc(100vw - 32px);
+  box-shadow: 0 8px 24px rgba(26, 20, 32, 0.5);
+}
+
+[hidden] { display: none !important; }
+
+/* Landscape phones: keep the prompt clear of the joystick */
+@media (max-height: 460px) {
+  #prompt { bottom: calc(78px + env(safe-area-inset-bottom)); }
+  #postcard-img { max-height: 30vh; }
+}

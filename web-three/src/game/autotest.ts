@@ -1,0 +1,255 @@
+/**
+ * Browser E2E driver — the counterpart of the Godot headless autotest
+ * (main.gd `_run_autotest`). Runs the REAL game with real physics and the
+ * real input layer: walks waypoints with camera-relative steering (injecting
+ * WASD exactly like a player), presses interact, climbs both ladders, and
+ * verifies the full Day 1 + Day 2 path — the three Doc 21 seams, the money
+ * math, and the save file.
+ *
+ * Activated with ?autotest=1. Results stream to the console and to
+ * window.__AUTOTEST__ for external harnesses (Playwright / agent-browser).
+ */
+
+import { Step } from '../core/GameState';
+import { loadSave, wipeSave } from '../core/Save';
+import type { Game } from './Game';
+
+interface AutotestReport {
+  lines: string[];
+  failures: string[];
+  done: boolean;
+  startedAt: number;
+}
+
+declare global {
+  interface Window {
+    __AUTOTEST__: AutotestReport;
+    __AUTOTEST_SUMMARY__?: string;
+  }
+}
+
+export function runAutotest(game: Game): void {
+  const report: AutotestReport = { lines: [], failures: [], done: false, startedAt: Date.now() };
+  window.__AUTOTEST__ = report;
+  const log = document.createElement('pre');
+  log.id = 'autotest-log';
+  log.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:99;font:11px monospace;color:#B9F5EA;background:rgba(26,20,32,.85);padding:8px;max-height:34vh;overflow:auto;max-width:70vw;white-space:pre-wrap;';
+  document.body.appendChild(log);
+
+  const check = (ok: boolean, what: string) => {
+    const line = `${ok ? 'PASS' : 'FAIL'} ${what}`;
+    report.lines.push(line);
+    if (!ok) report.failures.push(what);
+    log.textContent += line + '\n';
+    log.scrollTop = log.scrollHeight;
+    console.info(line);
+  };
+
+  const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
+  const waitFrames = async (n: number) => { for (let i = 0; i < n; i++) await nextFrame(); };
+  const waitMs = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+  const hold = async (code: string, secs: number) => {
+    game.input.injectKey(code, true);
+    await waitMs(secs * 1000);
+    game.input.injectKey(code, false);
+    await waitFrames(2);
+  };
+
+  const walkLog = new URLSearchParams(location.search).has('walklog');
+
+  /** Steer with real input keys toward a point (camera-relative), up to `timeout` s.
+   *  stopOnLadder: arrive as soon as a ladder is grabbed (climbing replaces walking). */
+  const walkTo = async (x: number, z: number, timeout = 12, stopOnLadder = false) => {
+    const t0 = performance.now();
+    let frames = 0;
+    while (performance.now() - t0 < timeout * 1000) {
+      if (stopOnLadder && game.player.ladder !== null) break;
+      const p = game.player.capsule;
+      const dx = x - p.x;
+      const dz = z - p.z;
+      if (Math.hypot(dx, dz) < 0.35) break;
+      if (walkLog && frames % 90 === 0) {
+        console.info(`[walk] t=${((performance.now() - t0) / 1000).toFixed(1)} pos=(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}) yaw=${game.cam.camYaw.toFixed(2)} ladder=${game.player.ladder !== null} ground=${game.player.onGround}`);
+      }
+      frames++;
+      const yaw = game.cam.camYaw;
+      const fwdX = Math.sin(yaw), fwdZ = Math.cos(yaw);
+      const rightX = -Math.cos(yaw), rightZ = Math.sin(yaw);
+      const len = Math.hypot(dx, dz) || 1;
+      const nx = dx / len, nz = dz / len;
+      const f = nx * fwdX + nz * fwdZ;
+      const r = nx * rightX + nz * rightZ;
+      game.input.injectKey('KeyW', f > 0.2);
+      game.input.injectKey('KeyS', f < -0.2);
+      game.input.injectKey('KeyD', r > 0.2);
+      game.input.injectKey('KeyA', r < -0.2);
+      await nextFrame();
+    }
+    game.input.injectKey('KeyW', false);
+    game.input.injectKey('KeyS', false);
+    game.input.injectKey('KeyD', false);
+    game.input.injectKey('KeyA', false);
+    await waitFrames(3);
+  };
+
+  const interact = async () => {
+    game.input.injectInteract();
+    await waitFrames(2);
+  };
+
+  const run = async () => {
+    const s = game.state;
+    const p = () => game.player.capsule;
+    const dbg = game.debug;
+    try {
+      // fresh Day 1 for the test run
+      wipeSave();
+      if (s.day >= 2) location.reload();
+
+      await waitFrames(30);
+      check(game.player.onGround && p().y < 0.2, `player stands on the sidewalk (y=${p().y.toFixed(2)})`);
+
+      await walkTo(-27.8, 6.6);
+      await interact();
+      check(s.step === Step.ENTER_BODEGA, 'Rosa greeting advances flow');
+      await walkTo(-16, 7.0);
+      await walkTo(-16, 12.0);
+      check(s.step === Step.COLLECT && !game.world.roof.visible, 'enter bodega: roof hides, collect step');
+      for (const x of [-18.0, -16.0, -14.0]) {
+        await walkTo(x, 18.3);
+        await interact();
+      }
+      check(s.step === Step.RUSH, '3 shelf items collected');
+      await walkTo(-18.0, 13.0);
+      for (let i = 0; i < 5; i++) await interact();
+      check(s.step === Step.CROSS && s.rushServed === 5, '5-order rush served');
+      check(s.money === 112, `day 1 rush pays $87 \u2192 $112 (Doc 08) (got $${s.money})`);
+      await walkTo(-16, 6.0);
+      await walkTo(-5, 5.0);
+      await walkTo(-5, -5.0);
+      check(s.step === Step.CLAIM_CART, 'crosswalk trigger fires');
+      await walkTo(4, -5.2);
+      await interact();
+      check(!game.ui.nameBox.hidden && game.player.frozen, 'cart claim opens name box and freezes walker');
+
+      // Type with movement + interact keys in the name; none should leak to the walker.
+      const before = { x: p().x, z: p().z };
+      game.ui.nameInput.focus();
+      for (const ch of "Wade's Spot") {
+        const code = ch === ' ' ? 'Space' : `Key${ch.toUpperCase()}`;
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: ch, code, bubbles: true }));
+        game.ui.nameInput.value += ch;
+        window.dispatchEvent(new KeyboardEvent('keyup', { key: ch, code, bubbles: true }));
+        await waitFrames(2);
+      }
+      check(game.ui.nameInput.value === "Wade's Spot", `name box keeps every letter (got '${game.ui.nameInput.value}')`);
+      check(Math.hypot(p().x - before.x, p().z - before.z) < 0.05, "typing WASD/Space doesn't move the walker");
+      game.confirmName(game.ui.nameInput.value);
+      check(s.step === Step.SOLO && s.cartName === "Wade's Spot", 'cart named');
+      for (let i = 0; i < 3; i++) await interact();
+      check(s.step === Step.CLIMB && s.soloServed === 3, '3 solo serves incl. Mr. Idris');
+
+      await walkTo(9.4, -7.2, 12, true);
+      check(game.player.ladder !== null, 'grabbed ladder 1');
+      check(dbg.duskStarted(), 'dusk starts at the fire escape');
+
+      // -- seam 2: step off partway; Rosa must call you back --
+      await hold('KeyW', 1.2);
+      await hold('KeyA', 0.8);
+      await waitFrames(40);
+      check(game.player.ladder === null && p().y < 0.4, `stepped off ladder 1 (y=${p().y.toFixed(2)})`);
+      check(dbg.objective().toLowerCase().includes('fire escape'), "stepping off calls Rosa's hint");
+      await walkTo(9.4, -7.2, 12, true);
+      check(game.player.ladder !== null, 're-grabbed ladder 1');
+      await hold('KeyW', 2.2);
+      await hold('KeyD', 0.6);
+      await waitFrames(20);
+      check(p().y > 3.9 && game.player.onGround, `standing on landing 1 (y=${p().y.toFixed(2)})`);
+      await walkTo(16.2, -7.2, 8, true);
+      check(game.player.ladder !== null, `grabbed ladder 2 (pos=${p().x.toFixed(1)},${p().z.toFixed(1)})`);
+      await hold('KeyW', 2.2);
+      await hold('KeyA', 0.9);
+      await waitFrames(20);
+      check(p().y > 7.9, `reached landing 2 (y=${p().y.toFixed(2)})`);
+      await waitMs(7200);
+      check(s.step === Step.DONE && !game.ui.postcardPanel.hidden, 'gold window + Postcard compose');
+      check(dbg.goldIntensity() > 3.0, 'gold window holds lit');
+      check(s.money === 112, 'money label reads $112');
+
+      // -- seam 3: the end breathes — postcard closes, lingering is allowed --
+      await interact();
+      check(game.ui.postcardPanel.hidden && !game.player.frozen && !dbg.postcardRig(), 'postcard dismisses \u2014 the end lingers');
+      await walkTo(12.5, -6.8, 8);
+      await interact();
+      check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight beat');
+      await waitMs(1500);
+      check(dbg.rosaIntensity() > 1.5, 'Rosa\u2019s window warms');
+      await interact();
+      check(dbg.dayFading(), 'rail: tomorrow begins');
+      await waitMs(2200);
+      check(s.day === 2 && s.step === Step.D2_IDRIS, 'day 2 begins \u2014 Idris is on his way');
+      check(s.money === 112 && s.cartName === "Wade's Spot", 'day 2 keeps name and money');
+      check(loadSave().day === 2, 'day-start snapshot written');
+
+      // Idris walks to the cart
+      const idrisT0 = performance.now();
+      while (!s.idrisArrived && performance.now() - idrisT0 < 9000) await nextFrame();
+      check(s.idrisArrived, 'Idris arrives at the cart');
+      await walkTo(4.4, -4.6, 8);
+      await interact();
+      check(s.idrisServed && s.money === 114, `Idris served: +$2 (got $${s.money})`);
+
+      await walkTo(-16, 6.8);
+      await interact();
+      check(s.step === Step.D2_DELIVER && dbg.cupVisible(), 'Rosa\u2019s favor accepted: cup in hand');
+      await walkTo(15, 6.9);
+      await interact();
+      check(s.kidKept && s.money === 117 && game.world.kidSil.visible, `kid kept: +$3, kid at the glass ($${s.money})`);
+      await walkTo(4, -5.2);
+      await interact();
+      check(s.awningConfirm, 'awning offer asks for a confirm press');
+      await interact();
+      check(s.awningUp && s.money === 102 && game.world.cartAwning.visible, `awning up: -$15 (got $${s.money})`);
+      for (let i = 0; i < 3; i++) {
+        await walkTo(4, -5.2);
+        await interact();
+        await waitFrames(2);
+      }
+      check(s.lunchServed === 3 && s.money === 111, `lunch rush with awning tips: $${s.money}`);
+      check(s.step === Step.D2_CLIMB2, 'dusk climb offered');
+
+      await walkTo(9.4, -7.2, 12, true);
+      await hold('KeyW', 2.2);
+      await hold('KeyD', 0.6);
+      await waitFrames(20);
+      await walkTo(16.2, -7.2, 8, true);
+      await hold('KeyW', 2.2);
+      await hold('KeyA', 0.9);
+      await waitMs(5000);
+      check(dbg.secondIntensity() > 2.5, 'second window lights');
+      check(game.world.kidSil.visible, 'the kid is at the glass');
+      await waitMs(3200);
+      check(s.step === Step.D2_POSTCARD && !game.ui.postcardPanel.hidden, 'day 2 postcard composes');
+      check(dbg.caption().includes('Day 2'), 'postcard says Day 2');
+      await interact();
+      check(!game.player.frozen, 'day 2 end lingers too');
+
+      const save = loadSave();
+      check(save.day === 2 && save.day_complete === true && save.awning === true
+        && save.kid_kept === true && save.money === 111,
+        `save holds day 2 complete: $${save.money}, awning=${save.awning}, kid=${save.kid_kept}`);
+    } catch (err) {
+      check(false, `driver exception: ${(err as Error).message}`);
+      console.error(err);
+    } finally {
+      report.done = true;
+      const summary = `AUTOTEST ${report.failures.length === 0 ? 'OK' : 'FAILED'}: ${report.failures.length} failures, ${Math.round((Date.now() - report.startedAt) / 1000)}s`;
+      log.textContent += summary + '\n';
+      console.info(summary);
+      window.__AUTOTEST_SUMMARY__ = summary;
+    }
+  };
+
+  void run();
+}
