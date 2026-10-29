@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FIRST SLICE — A New York Story</title>
+  <meta name="description" content="A cozy lowpoly life-simulation game for people who have never been to New York. Fall in love with the city, one slice at a time." />
+  <style>
+    :root {
+      --taxi: #F7B32B;
+      --brick: #B23A48;
+      --green: #2A9D8F;
+      --amber: #FFB85C;
+      --steam: #E8E4DC;
+      --plum: #6D4C7D;
+      --cream: #FFF8F0;
+      --ink: #1a1a1a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      line-height: 1.55;
+      overflow-x: hidden;
+    }
+
+    a { color: var(--brick); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 4rem 1.5rem;
+      background:
+        linear-gradient(180deg, #FFB85C 0%, #F7B32B 35%, #B23A48 100%);
+      color: white;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.25) 100%);
+      pointer-events: none;
+    }
+
+    .hero-content { position: relative; z-index: 1; max-width: 720px; }
+
+    .hero h1 {
+      font-size: clamp(2.8rem, 8vw, 4.5rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      margin-bottom: 0.4rem;
+      text-shadow: 0 2px 20px rgba(0,0,0,0.2);
+    }
+
+    .hero .subtitle {
+      font-size: clamp(1.1rem, 3vw, 1.4rem);
+      font-weight: 500;
+      opacity: 0.95;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero .tagline {
+      font-size: 1.15rem;
+      max-width: 34em;
+      margin: 0 auto 2.5rem;
+      opacity: 0.92;
+    }
+
+    .btn {
+      display: inline-block;
+      background: white;
+      color: var(--brick);
+      font-weight: 700;
+      padding: 0.85rem 1.8rem;
+      border-radius: 999px;
+      font-size: 1rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 28px rgba(0,0,0,0.2);
+      text-decoration: none;
+    }
+
+    section {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 5rem 1.5rem;
+    }
+
+    h2 {
+      font-size: clamp(1.8rem, 4vw, 2.4rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 1rem;
+      color: var(--brick);
+    }
+
+    .lead {
+      font-size: 1.2rem;
+      max-width: 38em;
+      margin-bottom: 2.5rem;
+      color: #333;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+      border: 1px solid rgba(0,0,0,0.04);
+    }
+
+    .card img {
+      width: 100%;
+      height: 220px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .card .body {
+      padding: 1.25rem 1.4rem 1.5rem;
+    }
+
+    .card h3 {
+      font-size: 1.1rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .card p {
+      font-size: 0.95rem;
+      color: #444;
+    }
+
+    .postcard-wrap {
+      text-align: center;
+      margin: 2rem 0;
+    }
+
+    .postcard-wrap img {
+      max-width: 100%;
+      width: 420px;
+      border-radius: 8px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+      border: 8px solid white;
+    }
+
+    .status {
+      background: #1a1a1a;
+      color: white;
+      border-radius: 16px;
+      padding: 2rem 2rem;
+      margin: 3rem 0;
+    }
+
+    .status h3 {
+      color: var(--taxi);
+      margin-bottom: 0.75rem;
+      font-size: 1.2rem;
+    }
+
+    .status ul {
+      list-style: none;
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .status li::before {
+      content: "✓ ";
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    footer {
+      text-align: center;
+      padding: 3rem 1.5rem 4rem;
+      color: #666;
+      font-size: 0.95rem;
+    }
+
+    footer strong {
+      color: var(--brick);
+    }
+
+    @media (max-width: 600px) {
+      .card img { height: 180px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="hero">
+    <div class="hero-content">
+      <h1>FIRST SLICE</h1>
+      <p class="subtitle">A New York Story</p>
+      <p class="tagline">
+        A cozy lowpoly life-sim for the billions of people who have never been to New York — but have always felt it.
+      </p>
+      <a class="btn" href="https://github.com/desurfofficial-ship-it/first-slice-nyc">View on GitHub</a>
+    </div>
+  </header>
+
+  <section>
+    <h2>The fantasy</h2>
+    <p class="lead">
+      You arrive with $87 and a duffel bag. A bodega owner named Rosa takes pity on you.
+      You get a cart. The city starts teaching you — patiently, warmly, one order and one postcard at a time.
+    </p>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="body">
+          <h3>For never-visitors</h3>
+          <p>Zero NYC knowledge assumed. The city itself is the tutorial. No quizzes. No gatekeeping.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="body">
+          <h3>Wonder first</h3>
+          <p>Every session has a designed “I wish I could see that” moment. The game composes your memories for you.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="body">
+          <h3>Postcard beauty</h3>
+          <p>Lowpoly, golden-hour, vertical-first. Every frame readable in one second of scrolling.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Locked styleframes</h2>
+    <p class="lead">Official visual targets for production.</p>
+
+    <div class="grid-3">
+      <div class="card">
+        <img src="../assets/styleframes/styleframe-a-golden-hour-corner.jpg" alt="Golden-hour corner with coffee cart" />
+        <div class="body">
+          <h3>A — Golden-Hour Corner</h3>
+          <p>Primary daytime & cart reference.</p>
+        </div>
+      </div>
+      <div class="card">
+        <img src="../assets/styleframes/styleframe-b-dusk-fire-escape.jpg" alt="Dusk fire escape with gold window" />
+        <div class="body">
+          <h3>B — Dusk Fire Escape</h3>
+          <p>Emotional dusk & Skyline of Lit Windows.</p>
+        </div>
+      </div>
+      <div class="card">
+        <img src="../assets/styleframes/styleframe-c-first-postcard.jpg" alt="First postcard composition" />
+        <div class="body">
+          <h3>C — Postcard Framing</h3>
+          <p>Border, composition, and keepsake feel.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Day 1 greybox is alive</h2>
+    <p class="lead">
+      The first 30 minutes are playable in Godot 4.7. You can walk from the terminal to the gold window and receive a real postcard.
+    </p>
+
+    <div class="grid-2">
+      <div class="card">
+        <img src="../assets/greybox-day1/frames/portrait_05_bodega_inside.png" alt="Inside Rosa’s bodega" />
+        <div class="body">
+          <h3>Rosa’s Bodega</h3>
+          <p>First rush. First lessons. First kindness.</p>
+        </div>
+      </div>
+      <div class="card">
+        <img src="../assets/greybox-day1/frames/portrait_16_cart_named.png" alt="Player’s named cart" />
+        <div class="body">
+          <h3>Your Corner</h3>
+          <p>You name the cart. The city writes it down with you.</p>
+        </div>
+      </div>
+      <div class="card">
+        <img src="../assets/greybox-day1/frames/portrait_21_gold_window_lit.png" alt="Gold window at dusk" />
+        <div class="body">
+          <h3>The Gold Window</h3>
+          <p>One window turns gold. Someone felt kept because of you.</p>
+        </div>
+      </div>
+      <div class="card">
+        <img src="../assets/greybox-day1/frames/portrait_01_spawn.png" alt="Arrival / spawn" />
+        <div class="body">
+          <h3>Arrival</h3>
+          <p>You are here. That’s enough.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="postcard-wrap">
+      <img src="../assets/greybox-day1/postcard_day1.png" alt="First generated Day 1 postcard" />
+      <p style="margin-top: 1rem; color: #555;">First real postcard generated by the game (TS-01 proven)</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="status">
+      <h3>Current status</h3>
+      <ul>
+        <li>Full design documentation & Vertical Slice locked</li>
+        <li>Styleframes officially locked</li>
+        <li>Day 1 greybox playable in Godot</li>
+        <li>Postcard capture pipeline proven</li>
+        <li>Vertical camera system proven</li>
+      </ul>
+    </div>
+
+    <p class="lead" style="margin-top: 2rem;">
+      The city is still teaching us. We’re building the plane ticket that doesn’t cost flight money.
+    </p>
+
+    <p>
+      <a class="btn" href="https://github.com/desurfofficial-ship-it/first-slice-nyc" style="background: var(--brick); color: white;">Explore the repo</a>
+    </p>
+  </section>
+
+  <footer>
+    <p><strong>FIRST SLICE</strong> — A New York Story</p>
+    <p style="margin-top: 0.5rem;">Start small. Dream big. The city will teach you.</p>
+  </footer>
+
+</body>
+</html>
