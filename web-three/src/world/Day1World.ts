@@ -64,6 +64,33 @@ function cyl(
   return m;
 }
 
+export interface AABB {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}
+
+export interface LadderZone extends AABB {
+  x: number;
+  z: number;
+  top: number;
+  id: string;
+}
+
+function pushBox(
+  list: AABB[],
+  center: [number, number],
+  size: [number, number],
+): void {
+  list.push({
+    minX: center[0] - size[0] / 2,
+    maxX: center[0] + size[0] / 2,
+    minZ: center[1] - size[1] / 2,
+    maxZ: center[1] + size[1] / 2,
+  });
+}
+
 export class Day1World {
   readonly group = new THREE.Group();
 
@@ -81,6 +108,16 @@ export class Day1World {
   private readonly steamBits: THREE.Mesh[] = [];
   private taxiX = -45;
   private disposed = false;
+
+  /** Static colliders (capsule-vs-AABB, XZ). Oracle walls, buildings, bodega. */
+  readonly colliders: AABB[] = [];
+  /** Ladder grab zones — oracle `_ladder` areas with their top heights. */
+  readonly ladders: LadderZone[] = [];
+  /** Platform tops the player can stand on (the two fire-escape landings). */
+  private readonly landings: Array<{ box: AABB; top: number }> = [
+    { box: { minX: 10, maxX: 16, minZ: -8.0, maxZ: -6.6 }, top: 4.075 },
+    { box: { minX: 10, maxX: 16, minZ: -8.0, maxZ: -6.6 }, top: 8.075 },
+  ];
 
   constructor(scene: THREE.Scene) {
     this.group.name = "Day1World";
@@ -260,7 +297,56 @@ export class Day1World {
     this.group.add(this.sun);
     this.group.add(new THREE.AmbientLight(PAL.cream, 0.25));
 
+    // -- colliders: what the capsule must respect (oracle statics) ----------
+    const C = this.colliders;
+    pushBox(C, [-48, 0], [1, 40]);   // west bound
+    pushBox(C, [48, 0], [1, 40]);    // east bound
+    // north block (bodega gap x[-21,-11] stays open)
+    pushBox(C, [-35.5, 14], [29, 12]);
+    pushBox(C, [-1, 14], [20, 12]);
+    pushBox(C, [15, 14], [12, 12]);
+    pushBox(C, [35, 14], [28, 12]);
+    // south block
+    pushBox(C, [-25, -14], [50, 12]);
+    pushBox(C, [13, -14], [26, 12]);
+    pushBox(C, [38, -14], [24, 12]);
+    // bodega walls (door gap x[-17.5,-14.5] stays open)
+    pushBox(C, [-20.8, 14], [0.4, 12]);
+    pushBox(C, [-11.2, 14], [0.4, 12]);
+    pushBox(C, [-16, 19.8], [10, 0.4]);
+    pushBox(C, [-19.25, 8.2], [3.5, 0.4]);
+    pushBox(C, [-12.75, 8.2], [3.5, 0.4]);
+    pushBox(C, [-19.6, 13.5], [1.2, 6]);   // counter
+
+    // -- ladders (oracle _ladder areas: width, depth 1.4, top heights) ------
+    this.ladders.push({ minX: 8.9, maxX: 9.9, minZ: -8.45, maxZ: -7.05, x: 9.4, z: -7.75, top: 4.35, id: "Ladder_1" });
+    this.ladders.push({ minX: 15.6, maxX: 17.2, minZ: -8.45, maxZ: -7.05, x: 16.4, z: -7.75, top: 8.35, id: "Ladder_2" });
+
     this.setShadows(true);
+  }
+
+  /**
+   * Stepped ground: the highest platform top under the point that is at or
+   * below `nearY + 0.5` (so the street stays the street while you climb past
+   * a landing). Oracle ground is flat y=0 plus the two landings.
+   */
+  groundAt(x: number, z: number, nearY: number): number {
+    let g = 0;
+    for (const l of this.landings) {
+      const b = l.box;
+      if (x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ && l.top <= nearY + 0.5) {
+        g = Math.max(g, l.top);
+      }
+    }
+    return g;
+  }
+
+  /** The ladder zone under this XZ spot, or null (oracle `_grab_ladder`). */
+  ladderAt(x: number, z: number): LadderZone | null {
+    for (const l of this.ladders) {
+      if (x >= l.minX && x <= l.maxX && z >= l.minZ && z <= l.maxZ) return l;
+    }
+    return null;
   }
 
   /** Shadows on the big statics only — llvmpipe and low-RAM phones pay per caster. */

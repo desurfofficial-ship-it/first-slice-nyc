@@ -1,5 +1,8 @@
 import * as THREE from "three";
 
+import { GameCamera } from "../camera/GameCamera";
+import { Input } from "../input/Input";
+import { PlayerController } from "../player/PlayerController";
 import { Day1World } from "../world/Day1World";
 import { PAL } from "../world/materials";
 import type { SaveData } from "./Save";
@@ -25,6 +28,9 @@ export class Game {
   step: GameStep = 0;
   save: SaveData;
   readonly world: Day1World;
+  readonly player: PlayerController;
+  readonly gameCamera: GameCamera;
+  readonly input = new Input();
 
   private container: HTMLElement;
   private raf = 0;
@@ -52,19 +58,16 @@ export class Game {
     this.scene.fog = new THREE.Fog(PAL.cream, 90, 220);
 
     // Portrait-first: fov 55, the TS-02 numbers, aspect from the real window.
-    this.camera = new THREE.PerspectiveCamera(
-      55,
-      container.clientWidth / Math.max(container.clientHeight, 1),
-      0.1,
-      300,
-    );
-    // M2 framing: styleframe A's read — west down the street from the corner,
-    // bodega + teal awning on the right, crosswalk ahead, taxi lane, skyline.
-    // M3 replaces this with the follow rig.
-    this.camera.position.set(3, 7.5, -2.5);
-    this.camera.lookAt(-20, 1.5, 5);
+    this.gameCamera = new GameCamera(container.clientWidth / Math.max(container.clientHeight, 1));
+    this.camera = this.gameCamera.camera;
 
     this.world = new Day1World(this.scene);
+    this.player = new PlayerController(this.world);
+    this.scene.add(this.player.root);
+    this.player.place(); // the terminal doorstep (oracle START_POS)
+    this.gameCamera.snapBehind(this.player.position);
+    this.input.bindKeyboard();
+
     window.addEventListener("resize", this.onResize);
   }
 
@@ -84,15 +87,17 @@ export class Game {
 
   /** Simulation step. State first, render after — the loop stays honest. */
   update(dt: number): void {
-    // M2: street life (taxi drift, steam). Decisions arrive with the step machine.
     this.world.tick(dt);
+    // M3: walk the block. Interact/step machine arrives M4; camera turns via Z/C.
+    this.gameCamera.turn = this.input.state.turn;
+    this.player.update(dt, this.input, this.gameCamera.yaw);
+    this.gameCamera.update(dt, this.player.position);
   }
 
   resize(): void {
     const w = this.container.clientWidth;
     const h = Math.max(this.container.clientHeight, 1);
-    this.camera.aspect = w / h;
-    this.camera.updateProjectionMatrix();
+    this.gameCamera.setAspect(w / h);
     this.renderer.setSize(w, h);
   }
 

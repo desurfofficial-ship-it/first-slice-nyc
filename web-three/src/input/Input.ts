@@ -10,6 +10,7 @@ export interface InputState {
   left: boolean;
   right: boolean;
   interact: boolean;
+  turn: number; // −1 (Z, left) .. +1 (C, right) — the camera drift axis
 }
 
 export class Input {
@@ -19,6 +20,7 @@ export class Input {
     left: false,
     right: false,
     interact: false,
+    turn: 0,
   };
 
   private bindings: Array<() => void> = [];
@@ -31,6 +33,8 @@ export class Input {
         case "KeyA": case "ArrowLeft": this.state.left = down; break;
         case "KeyD": case "ArrowRight": this.state.right = down; break;
         case "Space": case "KeyE": this.state.interact = down; break;
+        case "KeyZ": this.state.turn = down ? -1 : 0; break;
+        case "KeyC": this.state.turn = down ? 1 : 0; break;
         default: break;
       }
     };
