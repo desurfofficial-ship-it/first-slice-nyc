@@ -40,7 +40,7 @@ Also: `--autotest-load` (resume/replay from save), `--autotest-corrupt-boot`
 (garbage save boots safe), and `PERSONA=<name> res://spikes/playtest.tscn -- --playtest`
 for the five synthetic walkers.
 
-Day 2 has been **seen** now too — [Doc 23](../docs/23-day2-render-notes.md),
+Day 2 has been **seen** now too — [Doc 24](../docs/24-day2-render-notes.md),
 frames in `../assets/greybox-day2/`, postcard pipeline proven on the second
 day (`spikes/spectator_d2.tscn -- --spectator2`).
 

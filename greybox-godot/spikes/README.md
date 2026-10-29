@@ -34,7 +34,7 @@ Results: [Doc 20](../docs/20-day1-greybox-render-notes.md).
 
 Subclasses the spectator. Plays Day 1's end into Day 2 with real input: title card, morning, Idris's walk back, Rosa sweeping, the cup, the teal door, the kid at the glass, the awning before/after, lunch, the dusk climb, the second window — then composes the Day 2 postcard with the TS-01 pipeline (re-aimed at both windows). Logs a street census at morning. **Wipe `user://save.json` first** — a kept-Day-2 save boots a replay, which is correct behavior for the game and wrong input for this rig.
 
-Results: [Doc 23](../docs/23-day2-render-notes.md). Artifact: `../assets/greybox-day2/postcard_day2.png`.
+Results: [Doc 24](../docs/24-day2-render-notes.md). Artifact: `../assets/greybox-day2/postcard_day2.png`.
 
 ## ts01_postcard — the capture pipeline
 

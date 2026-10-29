@@ -62,7 +62,7 @@ Last headless run: **0 failures, 46 checks — full Day 1 + Day 2 + the three Do
 |-------|--------|------------|-------------|
 | ![Spawn](assets/greybox-day1/frames/portrait_01_spawn.png) | ![Bodega](assets/greybox-day1/frames/portrait_05_bodega_inside.png) | ![Cart](assets/greybox-day1/frames/portrait_16_cart_named.png) | ![Gold Window](assets/greybox-day1/frames/portrait_21_gold_window_lit.png) |
 
-### Day 2, seen — [Doc 23](docs/23-day2-render-notes.md)
+### Day 2, seen — [Doc 24](docs/24-day2-render-notes.md)
 
 | Title Card | Teal Door | Awning Up | Two Windows |
 |------------|-----------|-----------|-------------|
@@ -132,7 +132,7 @@ Details and numbers live in [Doc 15](docs/15-tech-spikes.md).
 | [20 – Day 1 Render Notes](docs/20-day1-greybox-render-notes.md) | First played pass — six camera findings, with evidence frames |
 | [21 – Synthetic Playtest 01](docs/21-synthetic-playtest-01.md) | Five scripted walkers, one day — three real seams, now closed |
 | [22 – Day 2 Greybox](docs/22-day2-greybox.md) | The neighborhood comes alive — seams fixed, save v1, the second window |
-| [23 – Day 2 Render Notes](docs/23-day2-render-notes.md) | Day 2, finally seen — frames, findings, fixes, and the second postcard |
+| [24 – Day 2 Render Notes](docs/24-day2-render-notes.md) | Day 2, finally seen — frames, findings, fixes, and the second postcard |
 | [AGENTS.md](AGENTS.md) | Operating manual for AI agents |
 
 ---
