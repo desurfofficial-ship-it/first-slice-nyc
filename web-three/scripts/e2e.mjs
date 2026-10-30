@@ -46,7 +46,7 @@ page.on('console', (msg) => {
   const text = msg.text();
   if (text.includes('PASS ') || text.includes('FAIL ') || text.includes('AUTOTEST')) {
     console.log('DRIVER:', text); // stream the driver log live
-  } else if (text.includes('[walk]') || text.includes('[beat]')) {
+  } else if (text.includes('[walk]') || text.includes('[beat]') || text.includes('[claim]') || text.includes('[crawl]') || text.includes('[stuck]')) {
     console.log('TRACE :', text); // timeline traces for slow-machine forensics
   } else if (msg.type() === 'error') {
     consoleErrors.push(text);
@@ -54,14 +54,14 @@ page.on('console', (msg) => {
 });
 page.on('pageerror', (err) => consoleErrors.push(`PAGEERROR: ${err.message}`));
 
-await page.goto(`http://localhost:${PORT}/?autotest=1&fx=off`, { waitUntil: 'load' });
+await page.goto(`http://localhost:${PORT}/?autotest=1&fx=off&walklog=1`, { waitUntil: 'load' });
 
 try {
   // The four-day journey is longer now (Day 4 afternoon included) and this
   // suite must survive a LOADED machine — the 340 s ceiling once cut Day 4
   // off mid-walk while Days 1-3 were still being honest. 600 s with a
   // condition-based driver: quiet machines finish in ~4 minutes anyway.
-  await page.waitForFunction(() => window.__AUTOTEST__?.done === true, null, { timeout: 600000 });
+  await page.waitForFunction(() => window.__AUTOTEST__?.done === true, null, { timeout: 900000 });
 } catch {
   console.error('TIMEOUT waiting for the autotest driver');
 }

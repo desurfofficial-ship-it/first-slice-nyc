@@ -20,7 +20,7 @@ import { Player } from '../player/Player';
 import { GameCamera } from '../camera/GameCamera';
 import { InputManager } from '../engine/Input';
 import { Tweens, type Tween } from '../engine/tweens';
-import { capsuleInBox } from '../engine/collide';
+import { capsuleInBox, moveAxisX, moveAxisZ, type Capsule } from '../engine/collide';
 import { UI } from '../ui/UI';
 import { capturePostcard, downloadPostcard } from '../postcard/PostcardCapture';
 import { updatePersonAnim, type PersonRig } from '../world/personRig';
@@ -63,6 +63,9 @@ export class Game {
   private waypoint: THREE.Sprite | null = null;
   private roofHidden = false;
   private climbLean = 0;
+  /** Scratch capsule for the kid's follow-walk — reused, never allocated
+   *  per frame (his physical body against the world's colliders). */
+  private readonly kidCapsule: Capsule = { x: 0, y: 0.05, z: 0, radius: 0.25, height: 1.4 };
   private checkpoint = { x: -30, y: 0.05, z: 6.2 };
   private lastPostcardUrl: string | null = null;
 
@@ -255,6 +258,14 @@ export class Game {
     }
     // the customer at the cart owns a body too — synced fresh for this move
     this.world.syncPersonCollider(this.world.customerCollider, this.customer);
+    // Dynamic colliders sync BEFORE the walker moves (agent-2 audit, doc 35):
+    // world.update used to run after player.update, so the walker resolved
+    // against last frame's taxi box — up to 0.9 m stale at the dt clamp, and
+    // a player visibly sank into a passing cab before anything stopped them.
+    const peds: Array<{ x: number; z: number }> = [];
+    if (this.world.kidGround.visible) peds.push({ x: this.world.kidGround.position.x, z: this.world.kidGround.position.z });
+    if (this.world.stranger.visible) peds.push({ x: this.world.stranger.position.x, z: this.world.stranger.position.z });
+    this.world.updateDynamics(dt, this.player.capsule, peds);
     if (!this.dayFading && this.ui.nameBox.hidden) {
       // movement
       this.player.update(dt, inp.move);
@@ -283,12 +294,10 @@ export class Game {
     this.cam.update(dt, this.player.capsule, inp.camTurn, inp.move, this.player.rotationY, rig?.pos, rig?.look);
     this.player.camYaw = this.cam.moveYaw;
 
-    // world life (Rule of Steam) — the taxi yields to the pedestrian AND the
-    // kid AND the stranger; trees breathe, pigeons worry about your shoes
-    const peds: Array<{ x: number; z: number }> = [];
-    if (this.world.kidGround.visible) peds.push({ x: this.world.kidGround.position.x, z: this.world.kidGround.position.z });
-    if (this.world.stranger.visible) peds.push({ x: this.world.stranger.position.x, z: this.world.stranger.position.z });
-    this.world.update(dt, this.player.capsule, this.duskStarted, peds);
+    // world life (Rule of Steam) — phase 2 only here: the walkers steer
+    // around the fresh player position, trees breathe, pigeons worry about
+    // your shoes. (Phase 1 — colliders + the cab — ran before the walker.)
+    this.world.updateAmbient(dt, this.player.capsule, this.duskStarted);
     this.syncGlows();
 
     // Day 3+4: the urn runs on its own clock; the kid walks at your hip
@@ -1195,8 +1204,15 @@ export class Game {
     if (dist > stop) {
       const speed = Math.min(3.8, (dist - stop) * 2.2 + 0.6);
       const step = Math.min(dist - stop, speed * dt);
-      kid.position.x += (dx / dist) * step;
-      kid.position.z += (dz / dist) * step;
+      // the kid is a physical body now (agent-2 doc 35): he steers around
+      // benches, trunks and the cart with the same axis-slide the walker
+      // uses, instead of ghosting through the street on his way to you
+      const kc = this.kidCapsule;
+      kc.x = kid.position.x; kc.y = kid.position.y; kc.z = kid.position.z;
+      moveAxisX(this.world.colliders, kc, (dx / dist) * step, 0.35);
+      moveAxisZ(this.world.colliders, kc, (dz / dist) * step, 0.35);
+      kid.position.x = kc.x;
+      kid.position.z = kc.z;
       kid.rotation.y = Math.atan2(dx, dz); // he walks facing where he's going
     }
     // arrival: both of you at the corner, the cart within reach

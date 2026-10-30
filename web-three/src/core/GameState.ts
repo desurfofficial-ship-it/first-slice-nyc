@@ -207,7 +207,12 @@ export class GameState {
         if (this.step === Step.CLAIM_CART || this.step === Step.SOLO || this.step === Step.D2_LUNCH
           || this.step === Step.D3_RUSH || this.step === Step.D3_STOOL
           || this.step === Step.D4_RUSH) return true;
-        return (this.isDay2 && this.step >= Step.D2_WAKE && this.step < Step.D2_POSTCARD)
+        // while Idris stands AT the cart (D2_IDRIS, arrived), the cart's own
+        // press is meaningless — the awning needs the counter clear — and a
+        // walker parked a step nearer the cart than him fed the press to
+        // this no-op branch instead of his serve. Yield the window.
+        return (this.isDay2 && this.step >= Step.D2_WAKE && this.step < Step.D2_POSTCARD
+          && !(this.step === Step.D2_IDRIS && this.idrisArrived))
           || (this.isDay3 && this.step >= Step.D3_WAKE && this.step < Step.D3_POSTCARD)
           || (this.isDay4 && this.step >= Step.D4_WAKE && this.step < Step.D4_POSTCARD);
       default:

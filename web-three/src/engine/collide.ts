@@ -14,6 +14,13 @@ export interface AABB {
   minZ: number; maxZ: number;
 }
 
+/** A ground-plane footprint — the XZ slice of an AABB that crowd/traffic
+ *  logic reasons about. AABBs are assignable to this structurally. */
+export interface RectXZ {
+  minX: number; maxX: number;
+  minZ: number; maxZ: number;
+}
+
 export function boxFromCenter(
   cx: number, cy: number, cz: number,
   sx: number, sy: number, sz: number,
@@ -190,4 +197,96 @@ export function capsuleInBox(c: Capsule, b: AABB): boolean {
 export function pointInBoxXZ(x: number, z: number, feetY: number, headY: number, b: AABB): boolean {
   return x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ
     && headY > b.minY && feetY < b.maxY;
+}
+
+// ---------------------------------------------- XZ circle-vs-rect primitives
+// Shared by the crowd resolver (peds.ts) and the traffic brain (traffic.ts).
+// Everything is XZ-only on purpose: the street is flat, the cab never pitches,
+// and "solid" at street level means "your circle vs my footprint".
+
+/**
+ * Signed XZ clearance between a circle and a box footprint:
+ *   > 0 — that many metres of air between them;
+ *   ≤ 0 — touching or interpenetrating (depth of the overlap).
+ * The nearest point on the rect is clamped, so a circle fully inside the
+ * rect reports the negative distance to the nearest EDGE — which is exactly
+ * the push-out depth the resolvers want.
+ */
+export function circleRectGapXZ(cx: number, cz: number, r: number, b: RectXZ): number {
+  const nx = Math.max(b.minX, Math.min(cx, b.maxX));
+  const nz = Math.max(b.minZ, Math.min(cz, b.maxZ));
+  const dx = cx - nx;
+  const dz = cz - nz;
+  return Math.sqrt(dx * dx + dz * dz) - r;
+}
+
+export interface CirclePush { x: number; z: number }
+
+/**
+ * Hard separation for two overlapping circles (crowd resolve). Returns the
+ * symmetric half-pushes via `outA`/`outB` (either may be null — e.g. the
+ * player never moves for a pedestrian), capped at `maxPush` so a deep spawn
+ * overlap can never slingshot anyone. Returns false when not overlapping.
+ */
+export function resolveCirclesXZ(
+  ax: number, az: number, bx: number, bz: number,
+  ra: number, rb: number, maxPush: number,
+  outA: CirclePush | null, outB: CirclePush | null,
+): boolean {
+  const dx = bx - ax;
+  const dz = bz - az;
+  const d2 = dx * dx + dz * dz;
+  const minD = ra + rb;
+  if (d2 >= minD * minD) return false;
+  if (d2 <= 1e-9) {
+    // dead center-on-center: separate along +x by convention (vanishingly
+    // rare for walkers, and any fixed axis beats jitter)
+    if (outA) { outA.x = -maxPush; outA.z = 0; }
+    if (outB) { outB.x = maxPush; outB.z = 0; }
+    return true;
+  }
+  const d = Math.sqrt(d2);
+  const push = Math.min(maxPush, (minD - d) / 2);
+  const ux = dx / d;
+  const uz = dz / d;
+  if (outA) { outA.x = -ux * push; outA.z = -uz * push; }
+  if (outB) { outB.x = ux * push; outB.z = uz * push; }
+  return true;
+}
+
+/**
+ * Push a circle out of a box footprint along the shortest exit (smallest
+ * separation to the nearest face), capped at `maxPush`. Returns the push
+ * via `out` and true when a push was needed. Used to un-wedge a pedestrian
+ * from the cab's rect without moving the cab.
+ */
+export function pushCircleOutOfRectXZ(
+  cx: number, cz: number, r: number, b: RectXZ, maxPush: number, out: CirclePush,
+): boolean {
+  const gap = circleRectGapXZ(cx, cz, r, b);
+  if (gap >= 0) return false;
+  const nx = Math.max(b.minX, Math.min(cx, b.maxX));
+  const nz = Math.max(b.minZ, Math.min(cz, b.maxZ));
+  const dx = cx - nx;
+  const dz = cz - nz;
+  const depth = Math.min(-gap, maxPush);
+  if (dx === 0 && dz === 0) {
+    // center inside the rect: exit through the nearest face
+    const left = cx - b.minX;
+    const right = b.maxX - cx;
+    const front = cz - b.minZ;
+    const back = b.maxZ - cz;
+    const m = Math.min(left, right, front, back);
+    out.x = 0;
+    out.z = 0;
+    if (m === left) out.x = -Math.min(maxPush, left + r);
+    else if (m === right) out.x = Math.min(maxPush, right + r);
+    else if (m === front) out.z = -Math.min(maxPush, front + r);
+    else out.z = Math.min(maxPush, back + r);
+    return true;
+  }
+  const d = Math.sqrt(dx * dx + dz * dz);
+  out.x = (dx / d) * depth;
+  out.z = (dz / d) * depth;
+  return true;
 }
