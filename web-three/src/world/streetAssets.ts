@@ -336,9 +336,18 @@ export function makeFireEscapeDeco(
       g.add(unitBox(iron, 0.05, 0.05, 0.8, sx, y + 0.97, 0.42));
       g.add(unitBox(iron, 0.05, 0.95, 0.05, sx, y + 0.5, 0.8));
     }
-    // wall brackets under the platform
+    // wall brackets under the platform — DIAGONAL braces from the wall face
+    // down-and-back to the platform's street edge. Straight stubs tucked
+    // under the deck are invisible from the street, and a landing whose only
+    // support is hidden reads as floating in every close-up (Doc 31,
+    // d4_receipt_on_cart_portrait). A brace you can see is the brace that works.
     for (const bx of [-W / 2 + 0.5, 0, W / 2 - 0.5]) {
-      g.add(unitBox(iron, 0.09, 0.09, 0.5, bx, y - 0.12, 0.1));
+      const brace = new THREE.Mesh(geo.box, iron);
+      brace.scale.set(0.07, 0.05, 0.9);
+      brace.position.set(bx, y - 0.2, 0.42);
+      brace.rotation.x = -0.34; // street end rises to meet the deck, wall end drops
+      brace.castShadow = true;
+      g.add(brace);
     }
   };
   platform(y1);

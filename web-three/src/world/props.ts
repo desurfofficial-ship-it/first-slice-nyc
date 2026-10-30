@@ -219,9 +219,14 @@ export function makeSubwayEntrance(
   const signMesh = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.7, 0.14), sign('SUBWAY', 512, 128, PAL_TEAL, PAL_CREAM, 64));
   signMesh.position.set(0, 2.7, -1.4);
   g.add(signMesh);
+  // the F bullet rides the WEST POST, not the air beside it — the first
+  // draft parked it 0.25 m past the post's edge and oblique angles turned
+  // it into a floating white oval over the plaza (env-pass six found it
+  // probing a stray pixel). Back face embedded 15 mm into the post: bolted,
+  // not glued to its silhouette.
   const bullet = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.1, 16), sign('F', 64, 64, PAL_CREAM, PAL_INK, 44));
   bullet.rotation.x = Math.PI / 2;
-  bullet.position.set(-1.55, 2.0, -1.4);
+  bullet.position.set(-1.3, 2.0, -1.48);
   g.add(bullet);
   return g;
 }
