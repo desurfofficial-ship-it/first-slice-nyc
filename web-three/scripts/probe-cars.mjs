@@ -52,18 +52,19 @@ const state = await page.evaluate(() => {
     return { pos: `${p.x.toFixed(1)},${p.y.toFixed(1)},${p.z.toFixed(1)}`, meshes };
   };
   return {
-    taxiWrapper: info(wrapper('Taxi_glb')),
-    sedanWrapper: info(wrapper('Sedan_glb')),
+    taxiWrapper: info(wrapper('car_taxi_glb')),
+    sedanWrapper: info(wrapper('car_sedan_glb')),
     bodegaRoofSign: named('Bodega_RoofSign'),
     bodegaBladeSign: named('Bodega_BladeSign'),
   };
 });
 console.log('STATE', JSON.stringify(state, null, 1));
 
-// photograph the parked sedan (player across the street from it)
+// photograph the parked sedan (player across the street from it — the sedan
+// lives on the NORTH curb now, so stand on the south sidewalk looking north)
 await page.evaluate(() => {
   const g = window.__game;
-  g.player.capsule.x = 24; g.player.capsule.z = 1.5; g.player.capsule.y = 0.05;
+  g.player.capsule.x = 24; g.player.capsule.z = -5.2; g.player.capsule.y = 0.05;
 });
 await page.waitForTimeout(2200);
 await page.screenshot({ path: `${OUT}/probe-sedan.png` });
