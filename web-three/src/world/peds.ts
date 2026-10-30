@@ -32,13 +32,11 @@ import {
   EntityManager, Vehicle, Path, FollowPathBehavior,
   ObstacleAvoidanceBehavior, SeparationBehavior, GameEntity, Vector3,
 } from 'yuka';
-import { buildArticulatedPerson, updatePersonAnim } from './personRig';
+import { buildArticulatedPerson, updatePersonAnim, type PersonLook } from './personRig';
 import { seededRng } from './ambient';
 
-export interface PedLook {
-  jacket: number; pants: number; skin: number; hair: number;
-  style?: 'bun' | 'cap' | 'flat';
-}
+/** Walkers wear the same look schema as the cast — scale/shoe included. */
+export interface PedLook extends PersonLook {}
 
 /** Lane discipline: the sidewalk slabs top out at y = 0.1, the road at 0. */
 function groundY(z: number): number {
@@ -109,10 +107,7 @@ export class Pedestrians {
 
       // the same handcrafted rig the cast wears — bank-shared materials,
       // so three more neighbors cost three rigs, zero new materials
-      const { group } = buildArticulatedPerson(
-        { jacket: look.jacket, pants: look.pants, skin: look.skin, hair: look.hair, style: look.style },
-        mat,
-      );
+      const { group } = buildArticulatedPerson(look, mat);
       group.position.set(start[0], groundY(start[1]), start[1]);
       group.rotation.y = rng() * Math.PI * 2;
       this.group.add(group);

@@ -16,7 +16,7 @@ import { composeCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE_OBJECTIVE,
 import { loadSave, writeSave, type SaveData } from '../core/Save';
 import { PAL } from '../core/palette';
 import { World, phys } from '../world/World';
-import { Player } from '../player/Player';
+import { Player, lerpAngle } from '../player/Player';
 import { GameCamera } from '../camera/GameCamera';
 import { InputManager } from '../engine/Input';
 import { Tweens, type Tween } from '../engine/tweens';
@@ -128,6 +128,10 @@ export class Game {
     // was invisible).
     this.playerVisual = this.world.buildPerson({
       jacket: PAL.gold, pants: PAL.ink, skin: 0xd9a06b, hair: PAL.ink, style: 'flat',
+      // character-quality pass: cream sneakers + a messenger strap — same
+      // boxes, but the silhouette now reads "everyday NY courier" instead
+      // of "gold rectangle", and he is recognizable from any angle
+      shoe: 0xece5d8, strap: 0x6e4a2f,
     });
     this.playerVisual.name = 'Player';
     this.cast.push(this.playerVisual);
@@ -1119,9 +1123,14 @@ export class Game {
     const color = isIdris ? PAL.plum : lighten(PAL.teal, Math.random() * 0.3);
     const skin = isIdris ? 0x8a5a3b : [0xe8b08e, 0xd9a06b, 0x8a5a3b, 0xc98d68][Math.floor(Math.random() * 4)];
     const hair = isIdris ? 0x241f1c : [0x3a3440, 0x4a3a30, 0x2b2730, 0x9a938c][Math.floor(Math.random() * 4)];
-    const g = isIdris ? this.world.buildPerson({ jacket: color, pants: PAL.ink, skin, hair, style: 'cap' })
+    const g = isIdris ? this.world.buildPerson({ jacket: color, pants: PAL.ink, skin, hair, style: 'cap', glasses: true })
       : this.world.makeCustomerVisual(color, skin, hair);
     g.position.set(x, 0.05, z);
+    // face the cart you're ordering from (the cart sits SOUTH of the spawn
+    // point at (4, -4.6); the default +Z facing had every customer staring
+    // at the street while they ordered). Idris's walk-in tween re-faces him
+    // along his route, so this default never fights the choreography.
+    g.rotation.y = Math.PI;
     g.name = isIdris ? 'MrIdris' : 'Customer';
     // Day 3+4 rush: every order is a real order — the bubble says what's wanted
     const s = this.state;
@@ -1198,6 +1207,10 @@ export class Game {
       kid.position.x += (dx / dist) * step;
       kid.position.z += (dz / dist) * step;
       kid.rotation.y = Math.atan2(dx, dz); // he walks facing where he's going
+    } else if (dist > 0.5) {
+      // parked at your hip he still knows you're there: ease around to face
+      // you instead of freezing on his last walking heading
+      kid.rotation.y = lerpAngle(kid.rotation.y, Math.atan2(dx, dz), Math.min(1, dt * 4));
     }
     // arrival: both of you at the corner, the cart within reach
     const cart = this.world.cartRoot.position;
