@@ -310,14 +310,20 @@ export class World {
     this.taxiCollider = boxFromCenter(-45, 0.75, -2, 4.4, 1.5, 1.95);
     this.colliders.push(this.taxiCollider);
 
-    // A parked sedan on the south curb (street life; collides — it's a car).
+    // A parked sedan on the north curb (street life; collides — it's a car).
+    // It used to sit on the SOUTH curb at z=-3.05: a curb-parked car and the
+    // cab lane (z=-2) overlap ~0.8 m of visible body there, so the taxi
+    // drove straight THROUGH the sedan every ~10 s loop (probe-sweep7 frame
+    // 04 caught them mid-interpenetration). The north curb is outside the
+    // cab's lane for the entire loop; the van already parks this side, same
+    // rotation.y = π — nose west, parked with westbound traffic.
     const sedan = this.buildCar('sedan');
-    sedan.position.set(24, 0, -3.05);
+    sedan.position.set(24, 0, 3.05);
     sedan.rotation.y = Math.PI;
     this.registerGlbProp('car_sedan', sedan); // same seam, parked car
     void this.upgradePropWithGLB('car_sedan');
     this.scene.add(sedan);
-    this.colliders.push(boxFromCenter(24, 0.75, -3.05, 4.4, 1.5, 1.95));
+    this.colliders.push(boxFromCenter(24, 0.75, 3.05, 4.4, 1.5, 1.95));
 
     // Player corner — "a waiting rectangle of different paving"
     this.deco('PlayerCorner', 4, 0.12, -6, 8, 0.02, 3.6, PAL.stone);

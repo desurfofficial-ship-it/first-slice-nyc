@@ -400,3 +400,74 @@ live in YOUR files; diagnosed from here, not touched:
 
 Everything else Doc 31 raises is composition and evidence hygiene in
 your probe scripts and frames — not touched from this side.
+## Round seven — the cab owns its lane, the sedan owns the curb (2026-10-30)
+
+User's standing order: keep polishing visuals. Synced onto origin/main
+40ba313 (the lead's Day-4 camera/wall-slide/person-collider push — my four
+modules untouched by it). Method: a thirteen-frame frozen-camera sweep of
+the whole merged block (`probe-sweep7.mjs`), every anomaly either identified
+in code or ray-identified live (`probe-identify7.mjs`), then the one real
+defect fixed and proven.
+
+**Found and fixed (env-owned): the taxi drove through the parked sedan.**
+The sedan sat on the south curb at z = −3.05 while the cab lane runs at
+z = −2 — a curb-parked car and the cab overlap ~0.8 m of visible body
+there, so the taxi interpenetrated the sedan every ~10 s loop (sweep frame
+`sw7-04` caught them mid-bite). Fix: the sedan now parks on the NORTH curb
+(24, 3.05), outside the cab's lane for the entire loop — same side and
+nose-west rotation as the van, parked with westbound traffic. Collider
+moved with it. `probe-env7.mjs` asserts the new home, the π yaw (via the
+GLB wrapper's quaternion — `Quaternion.copy()` leaves the euler mirror
+stale, a known three.js gotcha worth knowing when probing), and sweeps the
+cab across its whole loop: **min lateral gap 3.1 m, 0 AABB overlaps in
+369 samples**. Eyeball frame `env7-cab-passes-sedan.png`.
+
+**Identified, not bugs** (so the next audit doesn't re-chase them): the
+red diagonal on the east-end building is the CORNER SLICE PIZZA awning
+edge seen at a glancing angle; the "brown panel with posts" is that
+storefront's glass face and piers (`makeStorefront`, props.ts); the salmon
+chunk on the x=28 south tree is a goldB crown blob on a turning tree; the
+soft white blobs near the crosswalk are the shared manhole steam, anchored
+and correct at distance; Rosa standing in front of a blank wall at x=−27
+is authored staging (she tweens to the bodega door at x=−16 during beats).
+probe-cars.mjs's GLB wrapper lookups were stale ('Sedan_glb' → the real
+'car_sedan_glb') and its sedan portrait framing followed the car north.
+
+**Handoff — the lead's lane: the E2E battery is red on 40ba313, and it
+is not the environment's fault.** 16 failures, first "three orders brewed
+and served"; bisected by stash → rebuild → rerun: the pristine tree fails
+IDENTICALLY (same 16 checks; only random rush-tip money differs). Root
+cause, with telemetry from a `?walklog` run:
+
+1. `placeDay4Cast()` calls `placeDay3Cast()` — "Rosa at the cart" is
+   authored: she stands at (2.1, 0.05, −4.9) all Day-3 AND Day-4 morning,
+   on the cart's service approach.
+2. The person-collider push ("bodies have weight") gives Rosa a solid
+   0.56 × 1.7 box there (synced every frame by `syncPersonCollider`).
+3. The driver's rush route comes off the crosswalk heading east along
+   z ≈ −5.2 and welds on her box's SW corner: `[stuck] pos=(1.469,−5.12)
+   near=[box 1.82..2.38, −5.18..−4.62] rosa=(2.10,−4.90)` — x 1.469 is
+   exactly box minX 1.82 − capsule radius 0.35. Three walkTo budgets
+   expire ~2.5 m short of the serve spot; the interacts press air; no
+   brew starts; step never leaves D4_RUSH (26); every later Day-4 beat,
+   the postcard, and the save check cascade.
+4. The mechanism itself is healthy: a teleport-based white-box
+   (`probe-rushdiag.mjs`, committed for you) boots Day 4 from a faithful
+   save and shows interact → startBrew → completeBrew advancing
+   rushIndex cleanly when the player stands at (4, −5.2). It's the WALK,
+   not the brew. (Note for re-runs: seed the save with
+   `day_complete: false`, or `earn()` silently pays nothing — replay
+   days are on the house.)
+
+Fix options, all yours — the call is a design one: move Rosa's morning
+spot off the approach line (e.g. z −4.9 → −4.3, north of the walk path —
+she still faces the cart), or widen the driver's sidestep budget, or
+except the persistent cast from the player's collision list during rush
+steps. Before this lands, the battery stays red for reasons that have
+nothing to do with Days 1–3 or the environment.
+
+Verification this round: tsc clean; vitest 125/125 (your new
+camera/descend/wall-slide suites included); build clean; probe-env7 PASS
+(0 console errors); probe-leaves 48/37/0/0 unchanged; probe-env5 +
+probe-env6 PASS unchanged; E2E 16 failures — **pre-existing on 40ba313,
+evidence above**. My tree adds zero new failures.
