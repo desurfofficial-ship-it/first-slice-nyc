@@ -393,9 +393,10 @@ export function runAutotest(game: Game): void {
       await walkTo(4, -5.45, 20);
       {
         // he closes the last meter at his own pace (sim time lags real time
-        // under software rendering — poll, don't sample)
+        // under software rendering — poll, don't sample; the full street is
+        // heavy now, so give the walk real room)
         const t0 = performance.now();
-        while (performance.now() - t0 < 12000 && !s.kidAtCorner) await nextFrame();
+        while (performance.now() - t0 < 20000 && !s.kidAtCorner) await nextFrame();
       }
       check(s.kidAtCorner && s.step === Step.D3_STOOL, 'the kid reached the corner on his own feet');
       await interact();
@@ -415,10 +416,13 @@ export function runAutotest(game: Game): void {
       await interact();
       check(s.step === Step.D3_CLIMB3, 'flyer read \u2014 the block knows your name');
 
+      // back east — NORTH of the cart. The cart is solid (playtest: "passed
+      // through the cart") and its west face eats diagonal pushes from the
+      // south; the e2e caught the walker parked on it at (2.5, -7.4).
       await walkTo(-5, 5.4, 24);
       await cabClear();
-      await walkTo(-5, -5.0, 24);
-      await walkTo(9.4, -7.2, 24, true);
+      await walkTo(9.4, 5.0, 60);
+      await walkTo(9.4, -7.2, 30, true);
       check(game.player.ladder !== null, 'day 3: grabbed ladder 1' + snap());
       await holdUntil('KeyW', () => p().y > 3.6, 10);
       await holdUntil('KeyD', () => game.player.ladder === null, 4);
@@ -547,6 +551,10 @@ export function runAutotest(game: Game): void {
       await holdUntil('KeyW', () => p().y >= 8.34, 14);
       check(p().y <= 8.36, `day 4: ladder caps at the rail (y=${p().y.toFixed(2)})` + snap());
       await holdUntil('KeyA', () => game.player.ladder === null, 4);
+      // walk to the landing's middle — the reach-top trigger (x 10.25..14.75)
+      // can't see a capsule parked at the step-off point (~x 15.2); every day's
+      // postcard beat needs this walk, Day 4 included
+      await walkTo(12.5, -6.8, 8);
       {
         const t0 = performance.now();
         while (performance.now() - t0 < 45000 && !(s.step === Step.D4_POSTCARD && !game.ui.postcardPanel.hidden)) await nextFrame();
