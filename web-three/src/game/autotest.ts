@@ -55,24 +55,44 @@ export function runAutotest(game: Game): void {
    *  stopOnLadder: arrive as soon as a ladder is grabbed (climbing replaces walking).
    *  The default budget is generous on purpose: software rendering runs sim
    *  time slower than real time, and the block is full now — a walk that
-   *  crosses the street may wait for a cab to yield. */
+   *  crosses the street may wait for a cab to yield.
+   *  Progress-extended deadlines: the first `timeout` seconds behave exactly
+   *  like the old walk; after that, a walk that is STILL CLOSING on its
+   *  target keeps going (up to a 3x hard cap) — a walk still moving is not
+   *  a failed walk. One that stops closing (no 0.4 m gained in 4 s — a
+   *  pinned walker slides, it doesn't close) ends at once, like the old
+   *  budget expiry did. Slow machines finish; stuck walks don't burn the cap. */
   const walkTo = async (x: number, z: number, timeout = 20, stopOnLadder = false) => {
     const t0 = performance.now();
+    const hardCap = timeout * 3000; // 3x, in ms — the ceiling, never the plan
     let frames = 0;
     let lastPos = '';
     let stuckCount = 0;
-    while (performance.now() - t0 < timeout * 1000) {
+    let windowDist = Math.hypot(x - game.player.capsule.x, z - game.player.capsule.z);
+    let windowT0 = performance.now();
+    while (performance.now() - t0 < hardCap) {
       if (stopOnLadder && game.player.ladder !== null) break;
       const p = game.player.capsule;
       const dx = x - p.x;
       const dz = z - p.z;
       if (Math.hypot(dx, dz) < 0.35) break;
+      // the extension: past the original budget, a walk that stopped closing ends now
+      if (performance.now() - t0 > timeout * 1000 && performance.now() - windowT0 > 4000) {
+        const nowDist = Math.hypot(dx, dz);
+        if (nowDist > windowDist - 0.4) break;
+        windowDist = nowDist;
+        windowT0 = performance.now();
+      }
       // stuck tracking runs EVERY frame — the sidestep logic depends on it
       const posKey = `${p.x.toFixed(2)},${p.z.toFixed(2)}`;
       if (posKey === lastPos) stuckCount++;
       else { stuckCount = 0; lastPos = posKey; }
       if (walkLog && frames % 90 === 0) {
-        console.info(`[walk] t=${((performance.now() - t0) / 1000).toFixed(1)} pos=(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}) yaw=${game.player.camYaw.toFixed(2)} ladder=${game.player.ladder !== null} ground=${game.player.onGround}`);
+        const kid = game.world.kidGround;
+        const fam = game.world.familiar;
+        console.info(`[walk] t=${((performance.now() - t0) / 1000).toFixed(1)} pos=(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}) yaw=${game.player.camYaw.toFixed(2)} ladder=${game.player.ladder !== null} ground=${game.player.onGround}`
+          + ` kid=${kid.visible ? `(${kid.position.x.toFixed(1)},${kid.position.z.toFixed(1)})` : 'off'}`
+          + ` fam=${fam.visible ? `(${fam.position.x.toFixed(1)},${fam.position.z.toFixed(1)})` : 'off'}`);
       }
       if (walkLog && stuckCount === 2) {
         const near: Array<{ d: number; box: number[] }> = [];
@@ -268,6 +288,11 @@ export function runAutotest(game: Game): void {
       check(p().y > 7.9, `reached landing 2 (y=${p().y.toFixed(2)})`);
       const rigAfterClimb = (game.playerVisual.userData as { rig?: { mode: string } }).rig;
       check(!!rigAfterClimb && rigAfterClimb.mode === 'auto', 'climb pose released after stepping off (hands down)');
+      // walk INTO the reach-top trigger (x 10.25..14.75) before polling — the
+      // dismount parks at x≈15.2, and a trigger you never enter never fires
+      // (the same root the Day-4 driver walk fixed; slow machines drift
+      // wide of the zone and every dusk beat starves behind it)
+      await walkTo(12.5, -6.8, 10);
       // poll, don't sleep: sim time lags real time under software rendering,
       // so a fixed wait can sample mid-flick (the dip is the POINT of the beat)
       {
@@ -304,18 +329,32 @@ export function runAutotest(game: Game): void {
       await interact();
       check(s.idrisServed && s.money === 114, `Idris served: +$2 (got $${s.money})`);
 
-      await walkTo(-16, 6.8);
+      // the favor is across the street — routed like a person: the
+      // crosswalk, then west along the north sidewalk. (The old diagonal
+      // crossed the road exactly where a held cab can sit; the crosswalk
+      // can't.)
+      await cabClear();
+      await walkTo(-5, -5.0, 24);
+      await walkTo(-5, 4.85, 24);
+      await walkTo(-16, 6.8, 24);
       await interact();
       check(s.step === Step.D2_DELIVER && dbg.cupVisible(), 'Rosa\u2019s favor accepted: cup in hand');
       // regression (playtest 2026-10-29): the old GLB swap orphaned the cup —
       // visible flag flipped while the cup hung in detached limbo
       const cupAttached = game.cupProp.parent === game.playerVisual;
       check(cupAttached, 'cup prop is still childed to the player visual');
-      await walkTo(15, 6.9);
+      // the stoop is a sidewalk walk from here (same side of the street) —
+      // past the bodega, the bus stop, the trees
+      await walkTo(15, 6.9, 24);
       await interact();
       check(s.kidKept && s.money === 117 && game.world.kidSil.visible, `kid kept: +$3, kid at the glass ($${s.money})`);
       check(game.world.kidSil.position.z < 7.9, 'kid silhouette stands IN FRONT of the window glass');
-      await walkTo(4, -5.2);
+      // back to the cart — routed like a person: west along the north
+      // sidewalk, the crosswalk (the cab waits), then east along the south
+      await cabClear();
+      await walkTo(-5, 4.85, 24);
+      await walkTo(-5, -5.0, 24);
+      await walkTo(4, -5.2, 24);
       await interact();
       check(s.awningConfirm, 'awning offer asks for a confirm press');
       await interact();
@@ -335,6 +374,7 @@ export function runAutotest(game: Game): void {
       await walkTo(16.2, -7.2, 8, true);
       await holdUntil('KeyW', () => p().y >= 8.34, 10);
       await holdUntil('KeyA', () => game.player.ladder === null, 4);
+      await walkTo(12.5, -6.8, 10); // walk into the reach-top trigger — the dismount parks outside it (see Day 1 note)
       {
         const t0 = performance.now();
         while (performance.now() - t0 < 30000 && dbg.secondIntensity() <= 2.5) await nextFrame();
@@ -367,6 +407,10 @@ export function runAutotest(game: Game): void {
       check(s.day === 3 && s.step === Step.D3_WAKE, 'day 3 begins \u2014 Rosa has news');
       check(loadSave().day === 3, 'day-3 snapshot written');
 
+      // Rosa holds the corner's south-east edge — the pocket north of the
+      // cart's body and south of her (one clear lane; the kid's stool moved
+      // east-south so this pocket stays open on Day 4 too)
+      await walkTo(6.9, -5.2, 12);
       await interact();
       check(s.step === Step.D3_RUSH, 'Rosa\u2019s news opens the rush');
       check(!!game.customer, 'Idris is first at the cart');
@@ -384,21 +428,33 @@ export function runAutotest(game: Game): void {
       check(s.money === 130, `morning rush pays $19 (got $${s.money})`);
       check(game.world.kidGround.visible, 'the kid is waiting at the stoop');
 
-      await walkTo(14.6, 6.3, 22);
+      // the stoop is across the street — routed like a person: the
+      // crosswalk, then east along the north sidewalk. The kid's first walk
+      // home should be the route a person walks; the driver is no exception.
+      await cabClear();
+      await walkTo(-5, -5.0, 24);
+      await walkTo(-5, 4.85, 24);
+      await walkTo(14.6, 6.3, 30);
       await interact();
       check(s.kidDown, 'the kid joins you');
       {
-        // he walks at your hip \u2014 sample his progress mid-walk
+        // he walks at your hip — sample his progress mid-walk (west along
+        // the north sidewalk, no road underfoot)
         const kid = game.world.kidGround;
         const x0 = kid.position.x;
-        await walkTo(9, 2, 6);
+        await walkTo(9, 5.0, 8);
         check(kid.position.x < x0 - 2, `the kid is actually walking (x ${x0.toFixed(1)} \u2192 ${kid.position.x.toFixed(1)})`);
       }
-      // walk TO the corner — the cart is solid now, so a player naturally
-      // bumps to its edge (~1.05 m out) and the kid's 1.0 m hip distance puts
-      // him inside the 2.6 m corner radius. Stopping 1.7 m short with the kid
-      // trailing on the far side misses the trigger by centimeters (the flaky
-      // e2e found it); a person walks up to the counter.
+      // walk TO the corner — routed like a person: back over the crosswalk
+      // (the cab waits for both of you), then east along the south sidewalk.
+      // The cart is solid now, so a player naturally bumps to its edge
+      // (~1.05 m out) and the kid's 1.0 m hip distance puts him inside the
+      // 2.6 m corner radius. Stopping 1.7 m short with the kid trailing on
+      // the far side misses the trigger by centimeters (the flaky e2e found
+      // it); a person walks up to the counter.
+      await cabClear();
+      await walkTo(-5, 4.85, 24);
+      await walkTo(-5, -5.0, 24);
       await walkTo(4, -5.45, 20);
       {
         // he closes the last meter at his own pace (sim time lags real time
@@ -420,7 +476,7 @@ export function runAutotest(game: Game): void {
       // under the full sim load (leaves, signal, two flocks).
       await walkTo(-5, -5.0, 24);
       await cabClear();
-      await walkTo(-5, 5.4, 24);
+      await walkTo(-5, 4.85, 24);
       await walkTo(-37.6, 6.9, 60);
       await interact();
       check(s.step === Step.D3_CLIMB3, 'flyer read \u2014 the block knows your name');
@@ -428,7 +484,7 @@ export function runAutotest(game: Game): void {
       // back east — NORTH of the cart. The cart is solid (playtest: "passed
       // through the cart") and its west face eats diagonal pushes from the
       // south; the e2e caught the walker parked on it at (2.5, -7.4).
-      await walkTo(-5, 5.4, 24);
+      await walkTo(-5, 4.85, 24);
       await cabClear();
       await walkTo(9.4, 5.0, 60);
       await walkTo(9.4, -7.2, 30, true);
@@ -441,6 +497,7 @@ export function runAutotest(game: Game): void {
       await holdUntil('KeyW', () => p().y >= 8.34, 14);
       check(p().y <= 8.36, `day 3: ladder caps at the rail (y=${p().y.toFixed(2)})` + snap());
       await holdUntil('KeyA', () => game.player.ladder === null, 4);
+      await walkTo(12.5, -6.8, 10); // walk into the reach-top trigger — the dismount parks outside it (see Day 1 note)
       {
         const t0 = performance.now();
         while (performance.now() - t0 < 30000 && !(s.step === Step.D3_POSTCARD && !game.ui.postcardPanel.hidden)) await nextFrame();
@@ -471,6 +528,8 @@ export function runAutotest(game: Game): void {
       check(game.world.kidGround.visible && !game.world.kidSil.visible,
         'the kid is on his stool at sunrise, not in the window');
 
+      // Rosa holds the corner's south-east edge — the same open pocket
+      await walkTo(6.9, -5.2, 12);
       await interact();
       check(s.step === Step.D4_STRANGER, 'Rosa points at the terminal');
       check(game.world.stranger.visible, 'the stranger is standing by the terminal');
@@ -481,7 +540,7 @@ export function runAutotest(game: Game): void {
       // this suite had under load — a cab can park on any diagonal.
       await walkTo(-5, -5.0, 24);
       await cabClear();
-      await walkTo(-5, 5.4, 24);
+      await walkTo(-5, 4.85, 24);
       await walkTo(-36.0, 5.0, 60);
       await interact();
       check(s.strangerMet && s.money === 122 && s.step === Step.D4_RUSH,
@@ -495,7 +554,7 @@ export function runAutotest(game: Game): void {
       // back over the crosswalk.
       for (let i = 0; i < 3; i++) {
         if (i === 0) {
-          await walkTo(-5, 5.4, 24);
+          await walkTo(-5, 4.85, 24);
           await cabClear();
           await walkTo(-5, -5.0, 24);
         }
@@ -525,7 +584,7 @@ export function runAutotest(game: Game): void {
       // the paperwork. Routed like a person again: crosswalk, then west.
       await walkTo(-5, -5.0, 24);
       await cabClear();
-      await walkTo(-5, 5.4, 24);
+      await walkTo(-5, 4.85, 24);
       await walkTo(-6.8, 6.4, 24);
       await interact();
       check(s.step === Step.D4_PERMIT && s.apronWashing,
@@ -549,8 +608,16 @@ export function runAutotest(game: Game): void {
       await interact();
       check(s.permitFiled && s.money === 123, 'a repeat press at the A-frame spends nothing');
 
-      await cabClear(); // the receipt is on the cart — now the dusk climb, no diagonals into a parked cab
-      await walkTo(9.4, -7.2, 60, true);
+      // the dusk climb, routed exactly like Day 3's proven approach: east
+      // along the north sidewalk, then south across at x=9.4 (the cab yields
+      // to a body in the road). The south-side variants all found furniture:
+      // the A-frame diagonal clipped Rosa's corner (run four), the south
+      // sidewalk wedged between the cart's west face and the trashcan at
+      // (2,-7.45) (run eight) — a 60 cm gap a 70 cm walker does not fit
+      // through. The north route has none of that.
+      await cabClear();
+      await walkTo(9.4, 5.0, 40);
+      await walkTo(9.4, -7.2, 30, true);
       check(game.player.ladder !== null, 'day 4: grabbed ladder 1' + snap());
       await holdUntil('KeyW', () => p().y > 4.2, 10); // ride to the rail — mid-ladder exits fall below the snap window (see Day 1 note)
       await holdUntil('KeyD', () => game.player.ladder === null, 4);

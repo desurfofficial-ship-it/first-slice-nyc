@@ -82,11 +82,14 @@ export function hasVariance(img: ImageData): boolean {
  * with the cart name, and the handwritten caption (Styleframe C framing,
  * caption strip laid out like the TS-01 reference artifact).
  */
+export type PostcardSeason = 'october';
+
 export function composePostcard(
   img: ImageData,
   caption: string,
   cartName: string,
   day: number,
+  season?: PostcardSeason,
 ): string {
   const canvas = document.createElement('canvas');
   canvas.width = CARD_W;
@@ -164,6 +167,30 @@ export function composePostcard(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('NYC', 0, -16);
+  // the season stamp (Doc 33 §5.2): the stamp corner carries the week. One
+  // small authored glyph keyed on the same day data as the caption — no
+  // pipeline change, the 1-Second Law untouched. October: one ginkgo leaf,
+  // gold like the trees that turned.
+  if (season === 'october') {
+    ctx.save();
+    ctx.translate(-stampW / 2 + 20, -stampH / 2 + 20);
+    ctx.rotate(-0.5);
+    ctx.fillStyle = '#C9822B';
+    ctx.beginPath();
+    ctx.moveTo(0, 8);            // stem end
+    ctx.quadraticCurveTo(-7, 2, -5, -5);  // one shoulder
+    ctx.quadraticCurveTo(-2, -9, 0, -10); // the point
+    ctx.quadraticCurveTo(2, -9, 5, -5);   // the other shoulder
+    ctx.quadraticCurveTo(7, 2, 0, 8);
+    ctx.fill();
+    ctx.strokeStyle = '#8a5a1f';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(0, 7);
+    ctx.lineTo(0, -8);
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.fillStyle = '#3A3440';
   ctx.font = '22px "Bradley Hand", "Segoe Print", cursive';
   const name = cartName.length > 14 ? cartName.slice(0, 13) + '\u2026' : cartName;
@@ -193,12 +220,13 @@ export function capturePostcard(
   caption: string,
   cartName: string,
   day: number,
+  season?: PostcardSeason,
 ): CaptureResult {
   const img = renderPixels(renderer, scene, camera);
   if (!hasVariance(img)) {
     throw new Error('postcard capture came back uniform (render target empty)');
   }
-  return { dataUrl: composePostcard(img, caption, cartName, day), width: CARD_W, height: CARD_H };
+  return { dataUrl: composePostcard(img, caption, cartName, day, season), width: CARD_W, height: CARD_H };
 }
 
 /** Trigger a PNG download for the composed postcard. */

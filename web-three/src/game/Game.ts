@@ -12,7 +12,7 @@ import { composeCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE_OBJECTIVE,
   D3_ORDERS, D4_ORDERS, BREWING_NOTE, STOOL_OFFER_NOTE, STOOL_UP_NOTE, D3_GOLDEN_NOTE,
   D3_CLIMB_NOTE, DAY3_BEGIN_NOTE, D4_GOLDEN_NOTE, D4_CLIMB_NOTE, DAY4_BEGIN_NOTE,
   D4_STRANGER_ONHOUSE_NOTE, D4_STRANGER_WATCH_NOTE, D4_STRANGER_DEPART_NOTE,
-  D4_KID_APRON_NOTE, D4_APRON_CLEAN_NOTE } from '../core/content';
+  D4_KID_APRON_NOTE, D4_APRON_CLEAN_NOTE, FAMILIAR_NOD_NOTE, FAMILIAR_WORD_NOTE } from '../core/content';
 import { loadSave, writeSave, type SaveData } from '../core/Save';
 import { PAL } from '../core/palette';
 import { World, phys } from '../world/World';
@@ -24,12 +24,17 @@ import { capsuleInBox } from '../engine/collide';
 import { UI } from '../ui/UI';
 import { capturePostcard, downloadPostcard } from '../postcard/PostcardCapture';
 import { updatePersonAnim, type PersonRig } from '../world/personRig';
+import { FAMILIAR_SPEED, familiarBeatForDay } from '../world/dressing';
 import { gameAudio } from './audio';
 
 interface Interactable {
   id: string;
   pos: () => { x: number; y: number; z: number };
 }
+
+/** One waypoint on the familiar face's daily walk. dwell = seconds she
+ *  stands there (the nod, the word); sit/hide = what happens on arrival. */
+interface FamiliarStop { x: number; z: number; dwell?: number; sit?: boolean; hide?: boolean; note?: string }
 
 export class Game {
   readonly state = new GameState();
@@ -76,6 +81,11 @@ export class Game {
   private brewTimer = 0;
   private brewingNoteShown = false;
   private washTimer = 0;
+
+  // ---- the familiar face (Doc 33 §2.2): one waypoint walk per day ----
+  private familiarPath: FamiliarStop[] = [];
+  private familiarNode = 0;
+  private familiarPausing = 0;
 
   // postcard rig tween targets (mutated by tweens, read by the camera)
   private rigPos = { x: 0, y: 0, z: 0 };
@@ -151,6 +161,7 @@ export class Game {
     // the rest of the cast joins the animator (walk/idle/breathe)
     this.cast.push(this.world.rosa, this.world.idris, this.world.kidSil, this.world.kidGround, this.world.stranger);
     this.cast.push(this.world.sal); // Sal breathes at his counter, every day
+    this.cast.push(this.world.familiar); // the familiar face breathes between her rounds
 
     // ---------------- interactables (main.gd `_build_interactables`) --------
     this.interactables = [
@@ -182,6 +193,7 @@ export class Game {
       this.state.money = START_MONEY;
       this.state.dayStartMoney = START_MONEY;
       this.state.setStep(Step.MEET_ROSA);
+      this.world.dressDay(1); // Day 1 is dressed by construction defaults; this makes it honest
       this.ui.showNote(MAP_NOTE_BOOT);
       this.ui.setMoneyQuiet(this.state.money);
     }
@@ -284,10 +296,12 @@ export class Game {
     this.player.camYaw = this.cam.moveYaw;
 
     // world life (Rule of Steam) — the taxi yields to the pedestrian AND the
-    // kid AND the stranger; trees breathe, pigeons worry about your shoes
+    // kid AND the stranger AND the familiar face when she's mid-crossing;
+    // trees breathe, pigeons worry about your shoes
     const peds: Array<{ x: number; z: number }> = [];
     if (this.world.kidGround.visible) peds.push({ x: this.world.kidGround.position.x, z: this.world.kidGround.position.z });
     if (this.world.stranger.visible) peds.push({ x: this.world.stranger.position.x, z: this.world.stranger.position.z });
+    if (this.world.familiar.visible) peds.push({ x: this.world.familiar.position.x, z: this.world.familiar.position.z });
     this.world.update(dt, this.player.capsule, this.duskStarted, peds);
     this.syncGlows();
 
@@ -308,6 +322,8 @@ export class Game {
     if (s.isDay3 && s.step === Step.D3_KIDDOWN && s.kidDown && !s.kidAtCorner) {
       this.updateKidFollow(dt);
     }
+    // the familiar face walks her round (Doc 33 §2.2) — day-keyed, unhurried
+    this.updateFamiliar(dt);
 
     // the cast animates: walk when their position moved, climb on ladders,
     // sweep when Rosa's on broom duty, breathe when parked. The PLAYER's mode
@@ -1034,6 +1050,7 @@ export class Game {
     const s = this.state;
     const caption = composeCaption({
       day: s.day, replay: s.replayDay, dayStartMoney: s.dayStartMoney, money: s.money, cartName: s.cartName,
+      awningUp: s.awningUp, // Day 2 without shade says so kindly (Doc 33 §5.1)
     });
     if (s.day > 1) s.dayComplete = true;
     s.setStep(s.day >= 4 ? Step.D4_POSTCARD : (s.day === 3 ? Step.D3_POSTCARD : (s.day > 1 ? Step.D2_POSTCARD : Step.DONE)));
@@ -1047,6 +1064,7 @@ export class Game {
       capCam.lookAt(this.rigLook.x, this.rigLook.y, this.rigLook.z);
       const result = capturePostcard(
         this.renderer, this.world.scene, capCam, caption, s.cartName || 'First Slice', s.day,
+        'october', // days 1–4 are one golden October week — the stamp knows it
       );
       url = result.dataUrl;
       this.lastPostcardUrl = url;
@@ -1096,6 +1114,21 @@ export class Game {
     washerRunning: () => this.world.isWasherRunning(),
     permitConfirm: () => this.state.permitConfirm,
     permitFiled: () => this.state.permitFiled,
+    // the living block (Doc 33) — reads only, for the visual probes
+    ambientWindows: () => [
+      this.world.ambientWindowMatLate.emissiveIntensity,
+      this.world.ambientWindowMatNew.emissiveIntensity,
+      this.world.ambientWindowMatRiser.emissiveIntensity,
+    ],
+    barrierVisible: () => this.world.barrier.visible,
+    patchVisible: () => this.world.asphaltPatch.visible,
+    flyerDay: () => this.world.dressedDay,
+    familiar: () => ({
+      visible: this.world.familiar.visible,
+      x: this.world.familiar.position.x,
+      z: this.world.familiar.position.z,
+      mode: (this.world.familiar.userData.rig as PersonRig | undefined)?.mode ?? 'auto',
+    }),
   };
 
   private applyCartIdentity(name: string): void {
@@ -1208,17 +1241,133 @@ export class Game {
     }
   }
 
-  /** The kid takes the stool. Root sunk, hips bent — the sit mode does it. */
+  /** The kid takes the stool. Root sunk, hips bent — the sit mode does it.
+   *  His seat is east-south of the cart (with the stool), OUT of the serving
+   *  pocket: the old spot sealed the corner between the cart's east face and
+   *  his own collider, and a walker in the pocket had 27 centimetres of
+   *  room. He still watches the cart and the street. */
   private sitKid(): void {
     const kid = this.world.kidGround;
     kid.visible = true;
-    kid.position.set(5.62, 0.05, -5.42);
-    kid.rotation.y = Math.PI + 0.5; // angled toward the cart, watching the street
+    kid.position.set(7.15, 0.05, -6.25);
+    kid.rotation.y = -1.25; // angled toward the cart, watching the street
     const rig = kid.userData.rig as PersonRig | undefined;
     if (rig) rig.mode = 'sit';
   }
 
   // ------------------------------------------------------------------ days
+
+  /** The familiar face's round, reset each beginDay (Doc 33 §2.2). Days 1–3
+   *  she starts hidden; Day 4 she wakes at her bench — she was sitting there
+   *  when yesterday ended, and the block doesn't teleport its neighbors. */
+  private resetFamiliar(n: number): void {
+    const f = this.world.familiar;
+    this.familiarPath = [];
+    this.familiarNode = 0;
+    this.familiarPausing = 0;
+    const rig = f.userData.rig as PersonRig | undefined;
+    f.position.set(-40.5, 0.12, 4.7); // the plaza bench, her default seat (hips level with the seat top)
+    f.rotation.y = Math.PI;          // square to the street, watching
+    if (n >= 4) {
+      f.visible = true;
+      if (rig) rig.mode = 'sit';
+    } else {
+      f.visible = false;
+    }
+  }
+
+  /**
+   * The familiar face (Doc 33 §2.2) — ONE recurring neighbor with ONE
+   * authored round per day, keyed on the day number and the Step machine.
+   * No pathfinding, no crowd sim, no stored flag: a body, a schedule, and
+   * the same cardigan every day. Escalation ladder:
+   *   Day 1: absent.  Day 2: a dusk pass below the fire escape, no note.
+   *   Day 3: the nod passing the cart, then the plaza bench through dusk.
+   *   Day 4: she crosses back during the wash and spends one word.
+   */
+  private updateFamiliar(dt: number): void {
+    const s = this.state;
+    const f = this.world.familiar;
+    const rig = f.userData.rig as PersonRig | undefined;
+    const beat = familiarBeatForDay(s.day);
+
+    // ---- entrances: day-keyed, step-keyed, one per day ----
+    if (beat === 'pass' && s.step === Step.D2_CLIMB2 && !f.visible && this.familiarNode === 0) {
+      // the dusk pass — below the fire escape while you watch from the ladder;
+      // the block kept going without you, and nobody makes a speech about it
+      f.visible = true;
+      f.position.set(10, 0.05, -5.55);
+      if (rig) rig.mode = 'auto';
+      this.familiarPath = [
+        { x: 4.6, z: -5.55, dwell: 0.4 },
+        { x: -26, z: -5.55, hide: true },
+      ];
+    }
+    if (beat === 'nod' && s.step === Step.D3_KIDDOWN && !f.visible && this.familiarNode === 0) {
+      // the nod — she passes the cart while you walk the kid to the stoop,
+      // then claims the plaza bench for the evening. Her lane is NORTH of
+      // the cart (z -5.55: south of Rosa, north of the cart's body and the
+      // kid's stool — the corner's one clear sidewalk line)
+      f.visible = true;
+      f.position.set(11, 0.05, -5.55);
+      if (rig) rig.mode = 'auto';
+      this.familiarPath = [
+        { x: 4.6, z: -5.55, dwell: 0.9, note: FAMILIAR_NOD_NOTE },
+        { x: -5.7, z: -5.55 },
+        { x: -5.7, z: 6.2 },   // the crosswalk, straight down the stripes
+        { x: -38.5, z: 6.2 },
+        { x: -40.5, z: 5.05 },
+        { x: -40.5, z: 4.7, sit: true },
+      ];
+    }
+    if (beat === 'word' && s.step === Step.D4_PERMIT && s.apronWashing
+      && this.familiarNode === 0 && this.familiarPath.length === 0) {
+      // she crossed out here for this: a wash is a neighbor event
+      f.visible = true;
+      f.position.set(-40.5, 0.12, 4.7);
+      if (rig) rig.mode = 'auto';
+      this.familiarPath = [
+        { x: -40.5, z: 5.05 },
+        { x: -38.5, z: 6.2 },
+        { x: -5.7, z: 6.2 },
+        { x: -5.7, z: -5.55 }, // the crosswalk, and the cab waits for her
+        { x: 4.6, z: -5.55, dwell: 0.9, note: FAMILIAR_WORD_NOTE },
+        { x: 16, z: -5.55, hide: true },
+      ];
+    }
+
+    if (!f.visible || rig === undefined) return;
+
+    // ---- the walk: unhurried, waypoint to waypoint, sidewalk-honest ----
+    if (this.familiarPausing > 0) {
+      this.familiarPausing -= dt; // she stops for the nod, the word — not for you
+      return;
+    }
+    const stop = this.familiarPath[this.familiarNode];
+    if (!stop) return;
+    const dx = stop.x - f.position.x;
+    const dz = stop.z - f.position.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist < 0.08) {
+      if (stop.note) this.ui.showNote(stop.note);
+      if (stop.dwell) this.familiarPausing = stop.dwell;
+      if (stop.sit && rig) {
+        rig.mode = 'sit';
+        f.position.set(stop.x, 0.12, stop.z); // hips level with the bench seat (0.5)
+        f.rotation.y = Math.PI;
+        this.familiarNode++;
+        return;
+      }
+      if (stop.hide) f.visible = false;
+      this.familiarNode++;
+      return;
+    }
+    const step = Math.min(dist, FAMILIAR_SPEED * dt);
+    f.position.x += (dx / dist) * step;
+    f.position.z += (dz / dist) * step;
+    f.rotation.y = Math.atan2(dx, dz); // she faces where she's going
+    // rig measures the delta → the walk cycle is free (personRig contract)
+  }
 
   /** main.gd `_begin_day` — used for boot-resume and the rail's "Tomorrow". */
   private async beginDay(n: number, sd: SaveData | null, completed: boolean): Promise<void> {
@@ -1295,6 +1444,11 @@ export class Game {
     this.world.stool.visible = s.stoolUp;
     this.world.setPermitReceiptVisible(s.permitFiled); // the receipt survives the night
     this.world.kidGround.visible = false;
+    // the living block dresses for the day (Doc 33 §2.3 — windows, barrier,
+    // the board's slip) before the flyer learns your name; then the familiar
+    // face gets her day's schedule (§2.2)
+    this.world.dressDay(n);
+    this.resetFamiliar(n);
     this.world.setFlyerText(s.cartName || 'YOUR CORNER'); // the flyer learns your name
     this.toMorningLight();
     if (n >= 4) this.placeDay4Cast();
@@ -1374,11 +1528,18 @@ export class Game {
     }
   }
 
-  /** Day 3 morning cast — Rosa visits YOUR corner (the news travels to you). */
+  /** Day 3 morning cast — Rosa visits YOUR corner (the news travels to you).
+   *  Her spot is the corner's SOUTH-EAST edge, clear of the cart's west
+   *  walk lane: at the old (2.1, -4.9) her body left a sub-meter gate
+   *  between her collider and the cart's, and every west-side approach —
+   *  crosswalk route, cart serve, kid arrival — ground against her (the
+   *  walklog probe measured the walker pinned at x≈1.5 for half a minute;
+   *  twice, on two machines' worth of runs). The lane now runs clear
+   *  x 0..5; she keeps the corner, angled toward her cart. */
   private placeDay3Cast(): void {
     const rosa = this.world.rosa;
-    rosa.position.set(2.1, 0.05, -4.9);
-    rosa.rotation.y = 0.4; // angled toward the cart and the street
+    rosa.position.set(6.35, 0.05, -4.3);
+    rosa.rotation.y = -1.94; // facing southwest — the cart, the stool, the street
     rosa.visible = true;
     rosa.rotation.z = 0;
     const rosaRig = rosa.userData.rig as PersonRig | undefined;

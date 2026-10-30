@@ -50,9 +50,13 @@ export const OBJECTIVES: Record<number, string> = {
 
 export const MAP_NOTE_BOOT = 'You are here. That\u2019s enough.'; // Doc 08 note #1
 
-/** Postcard caption composer (main.gd `_compose_postcard`). */
+/** Postcard caption composer (main.gd `_compose_postcard`).
+ *  `awningUp` is optional: calls that omit it compose byte-identically to
+ *  the pre-living-block text. Day 2 without an awning gets one kind line —
+ *  the corner doesn't guilt you about shade (Doc 33 §5.1). */
 export function composeCaption(s: {
   day: number; replay: boolean; dayStartMoney: number; money: number; cartName: string;
+  awningUp?: boolean;
 }): string {
   if (s.day >= 4) {
     if (s.replay) {
@@ -98,9 +102,13 @@ export function composeCaption(s: {
       `\u2014 ${s.cartName}, Day 2`
     );
   }
+  const noAwning = s.awningUp === false
+    ? 'No awning yet. The corner didn\u2019t mind.\n'
+    : '';
   return (
     `Day 2. $${s.dayStartMoney} \u2192 $${s.money}.\n` +
     'Met: the kid. The corner knows you back now.\n' +
+    noAwning +
     'The regulars are waiting.\n\n' +
     `\u2014 ${s.cartName}, Day 2`
   );
@@ -179,6 +187,11 @@ export const LUNCH_NOTE_3 = 'Three more orders. The corner is starting to know y
 
 export const IDRIS_SERVE_NOTE_NO_AWNING =
   'Mr. Idris: \u201CTold you I\u2019d be back. The usual.\u201D It tastes the same as yesterday. That\u2019s the point.';
+/** The remembered favor (Doc 33 §4.2): Day 3's first cup, spoken to the
+ *  favor YOU did on Day 2. Memory is content — one line, no cutscene, and
+ *  only on Day 3 (a Day-4 replay of the rush must not re-run it). */
+export const IDRIS_D3_FAVOR_REACTION =
+  'Mr. Idris: \u201CThird day. Same cup. You did right by the kid \u2014 that\u2019s the whole job, kid.\u201D';
 export const IDRIS_SERVE_NOTE_AWNING =
   'Mr. Idris: \u201CTold you I\u2019d be back. The usual.\u201D He leaves a dollar extra under the cup. Shade is service.';
 export const KID_DELIVER_NOTE =
@@ -396,4 +409,22 @@ export const D4_NOTICE_LINES: string[] = [
   '$10 to file',
   'Window opens Monday',
 ];
+// ---------------------------------------------------------------- the living block ----
+// Small day-keyed warmth (Doc 33 §4) — all of it derived from the day
+// number and existing flags. Nothing here is stored; a save that predates
+// these lines plays them like it always knew.
+
+/** Rosa, the first chat of a Day-4 morning after the Map changed hands:
+ *  the greeting ladder's "shorthand" rung — four mornings deep. */
+export const ROSA_FOUR_MORNINGS_NOTE =
+  'Rosa: \u201CFour mornings. The urn remembers your hands. So do I.\u201D';
+
+/** The familiar face, Day 3 — the nod (Doc 33 §2.2). */
+export const FAMILIAR_NOD_NOTE =
+  'A woman in a stone-gray cardigan passes the cart, folded paper under her arm. She nods — at you, at the cart, hard to tell. It feels the same.';
+/** The familiar face, Day 4 — she crosses back during the wash and spends
+ *  one word. On this block, that's a handshake. */
+export const FAMILIAR_WORD_NOTE =
+  'She\u2019s crossing back at this hour. \u201CMorning,\u201D she says. One word. On this block, that\u2019s a handshake.';
+
 export const D4_RECEIPT_TEXT = 'FILED';

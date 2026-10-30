@@ -73,12 +73,15 @@ Rosa brings the news at YOUR cart. The morning rush is four real orders — bubb
 The Hospitality Law chapter. A stranger with a duffel bag stands where the story started. Rosa: "You looked like that once. Go say hi." One free regular, Rosa's two dollars, three honest orders — and the Map changes hands. She walks your first walk; the corner does not own her. **And Day 4 afternoon — [the block opens up](docs/30-day4-the-block-opens-up.md):**  
 The block was always this big. Sunrise Laundry is a real place now — Sal, two washers, one mango-stained apron (first wash free: "the aprons are advertising") — and by the crosswalk, a city notice: MOBILE FOOD VENDING PERMIT — APPLICATION. $10 to file, confirm-gated, spent once. The receipt goes on the cart. At dusk the lamp next door flickers, thinks about it, and stays on. Four windows, one filed application, and Day 5 is still being written — the light stays.
 
+**And the block keeps a diary — [Doc 34](docs/34-living-block-implemented.md), the living block:**  
+The flyer board rotates its paper (a lost cat, a stoop sale, a street fair). Windows wake and sleep — someone got home late, someone new moved in, the early riser beats you to the morning. The water-main barrier is gone by Day 4, leaving fresh asphalt. Idris remembers the kid. Rosa has a line she only says when the Map changes hands. And one neighbor — stone-gray cardigan, folded paper under her arm — passes your cart on Day 2, nods on Day 3, and on Day 4, during the wash, spends one word: "Morning." On this block, that's a handshake.
+
 ```bash
 godot --headless --path greybox-godot -- --autotest          # the oracle: Day 1 + 2
 cd web-three && npm test && node scripts/e2e.mjs            # the web build: Day 1 + 2 + 3 + 4
 ```
 
-Last runs: **Godot oracle 0 failures** · **web E2E 0 failures (full Day 1 → Day 4 afternoon, real input, 304 s)** · **112/112 unit tests** · typecheck clean.
+Last runs: **Godot oracle 0 failures** · **web E2E 0 failures ×2 (full Day 1 → Day 4 afternoon, real input; 393 s / 387 s)** · **154/154 unit tests** · typecheck clean.
 
 ### Real captures from the greybox
 
@@ -103,6 +106,12 @@ Last runs: **Godot oracle 0 failures** · **web E2E 0 failures (full Day 1 → D
 | The Stranger, At the Terminal | She Walks Your First Walk | The Block Opens Up | Four Windows |
 |-------------------------------|---------------------------|--------------------|--------------|
 | ![Terminal](assets/web-three/frames/d4_stranger_terminal_portrait.png) | ![The Walk](assets/web-three/frames/d4_she_walks_your_first_walk.png) | ![The Laundry](assets/web-three/frames/d4_laundry_bay_portrait.png) | ![Dusk](assets/web-three/frames/d4_four_windows_dusk_portrait.png) |
+
+### The living block, seen — [Doc 34](docs/34-living-block-implemented.md)
+
+| The Board's Diary (D1 / D4) | The Barrier's Last Day | Windows Awake (D4) | The Familiar Face |
+|------------------------------|------------------------|--------------------|-------------------|
+| ![Flyer D1](assets/web-three/frames/living_flyer_d1.png) | ![Patch](assets/web-three/frames/living_barrier_diary_d4.png) | ![Windows](assets/web-three/frames/living_windows_d4_morning.png) | ![Bench](assets/web-three/frames/living_familiar_bench_d4.png) |
 
 ### First generated postcard
 
@@ -177,6 +186,7 @@ Details and numbers live in [Doc 15](docs/15-tech-spikes.md).
 | [30 – Day 4 Afternoon: The Block Opens Up](docs/30-day4-the-block-opens-up.md) | Sunrise Laundry opens: Sal, the washers, the apron run, the vending-permit application, the receipt on the cart, and the ambient sound layer |
 | [31 – Visual Audit](docs/31-visual-audit.md) | The second agent's frame-by-frame review — evidence integrity, defects, fixes |
 | [32 – Audio Notes](docs/32-audio-notes.md) | The synthesized ambient layer — voices, house rules, integration, honest limits |
+| [34 – The Living Block](docs/34-living-block-implemented.md) | Doc 33 reviewed and integrated: the block's diary (flyer slips, window lights, the barrier), the remembered favor, the familiar face, the postcard's season stamp — and what stays a proposal |
 | [AGENTS.md](AGENTS.md) | Operating manual for AI agents |
 
 ---
