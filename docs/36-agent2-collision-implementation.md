@@ -156,7 +156,39 @@ stale at the dt clamp).
 - Pigeons/squirrel/leaves/steam remain deliberately non-solid (decoration).
 - The cab still teleports at the ±46 wrap (authored, pre-existing).
 
-## 8. Integration instructions for the main agent
+## 8. Merge with the main agent's Doc-33 pass (resolved on this branch)
+
+`origin/main` advanced to `21797bc` (the diary board, brownstone panes, the
+familiar neighbor, the Day-4 barrier removal) while this branch worked. The
+merge is resolved here with both feature sets intact:
+
+- `autotest.ts` / `e2e.mjs`: their versions taken (their progress-extended
+  deadlines and routing are consistent with their new content), then my
+  recovery mechanics grafted INTO their walkTo — the aim fix, the
+  back-up/slide phases with the 0.8 m cap, the 25 cm progress hysteresis,
+  and the static-only detour. Their interact() was single-press; a 3-press
+  volley gated on "the game reacted" (step change / name box / freeze /
+  awning flag) is added — ungated, the volley chained serve → awning offer
+  → awning confirm and spent $15 in one call.
+- `Game.ts`: their `familiar` body joins the yield list through my
+  phase-split frame order.
+- `World.ts`: their dynamic barrier (a diary entry, gone by Day 4) keeps my
+  collider treatment — a DYNAMIC AABB parked underground the day it leaves,
+  aligned to the building line (z 7.62) per the sidewalk law.
+- `GameState.ts`: both edits (their content flags, my cart-yield during
+  D2_IDRIS).
+
+**Known remaining e2e issue (handed over):** on the cart approach the walker
+will FOLLOW a slower same-direction pedestrian at their pace instead of
+overtaking — the "pardon me" sidestep fires (the ped slides aside at
+3 m/s) but the follow-grind still eats serve-leg budgets at 5 fps. The
+`[press]`/`[crawl]` forensics channels document the exact mechanism
+(`scripts/e2e.mjs` streams them; the serve press logged `nearest=null`
+8 m from Idris with the walker at (−3.9, −7.6)). A deterministic overtake
+bias for held walkers walking the same direction as the player is the
+one-line fix candidate for the main agent's AI pass.
+
+## 9. Integration instructions for the main agent
 
 1. Branch `agent2/collision-solidity` is based on `origin/main` @ `eed8e64`.
    Merge or cherry-pick; conflicts are most likely in `World.ts` (constructors

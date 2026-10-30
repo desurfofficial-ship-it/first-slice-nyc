@@ -9,7 +9,7 @@ import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
   D4_WAKE_NOTE, D4_STRANGER_GREET_NOTE, D4_RUSH_DONE_NOTE, D4_MAP_NOTE,
   D4_SAL_MEET_NOTE, D4_SAL_CHAT_NOTE, D4_PERMIT_OFFER_NOTE, D4_PERMIT_FILED_NOTE,
-  D4_PERMIT_ALREADY_NOTE } from './content';
+  D4_PERMIT_ALREADY_NOTE, IDRIS_D3_FAVOR_REACTION, ROSA_FOUR_MORNINGS_NOTE } from './content';
 
 export const Step = {
   MEET_ROSA: 0,
@@ -130,6 +130,10 @@ export class GameState {
   mapGiven = false;       // the Map changed hands
   strangerMet = false;    // you said the thing Rosa said
   strangerAtCart = false; // she finished walking your first walk
+  // transient (never saved — the replayNoteShown pattern): Rosa's shorthand
+  // rung is spoken once, at the handoff. A save that never heard of it
+  // parses and plays unchanged.
+  fourMorningsSaid = false;
   // ---- Day 4 afternoon — the block opens up (docs/30) ----
   apronWashing = false;   // the apron is in the machine
   apronClean = false;     // the wash finished on the Game's clock
@@ -404,7 +408,11 @@ export class GameState {
         out.push({ kind: 'kid-down' });
       }
     } else {
-      out.push({ kind: 'note', text: order.reaction });
+      // Day 3's first cup carries the remembered favor (Doc 33 §4.2) when
+      // the kid was kept on Day 2 — one line, spoken, never stored. The
+      // Day-4 morning rush keeps its own line: the favor lands once.
+      const favor = !day4 && order.who === 'idris' && this.kidKept;
+      out.push({ kind: 'note', text: favor ? IDRIS_D3_FAVOR_REACTION : order.reaction });
       out.push({ kind: 'spawn-customer', who: order.who === 'idris' ? 'rush' : 'rush', x: 4, z: -4.6 });
     }
     return out;
@@ -663,6 +671,13 @@ function rosaChatLineOf(s: GameState): { text: string; nextChatIndex: number } {
       'Rosa: \u201CShe\u2019ll be back Tuesday. They always come back Tuesday.\u201D',
       'Rosa: \u201CSal washed your apron? First one\u2019s always free. His soap is a rumor.\u201D',
     ];
+    // the shorthand rung (Doc 33 §4.1): spoken at the handoff itself — the
+    // Map just changed hands, and Rosa is still within reach. Once per
+    // session, like replayNoteShown: a transient marker, never saved.
+    if (s.mapGiven && !s.fourMorningsSaid) {
+      s.fourMorningsSaid = true;
+      return { text: ROSA_FOUR_MORNINGS_NOTE, nextChatIndex: s.rosaChatI };
+    }
     return { text: lines4[s.rosaChatI % 3], nextChatIndex: (s.rosaChatI + 1) % 3 };
   }
   if (s.isDay3) {

@@ -46,7 +46,7 @@ page.on('console', (msg) => {
   const text = msg.text();
   if (text.includes('PASS ') || text.includes('FAIL ') || text.includes('AUTOTEST')) {
     console.log('DRIVER:', text); // stream the driver log live
-  } else if (text.includes('[walk]') || text.includes('[beat]') || text.includes('[claim]') || text.includes('[crawl]') || text.includes('[stuck]')) {
+  } else if (text.includes('[walk]') || text.includes('[beat]') || text.includes('[press]') || text.includes('[crawl]')) {
     console.log('TRACE :', text); // timeline traces for slow-machine forensics
   } else if (msg.type() === 'error') {
     consoleErrors.push(text);
@@ -54,13 +54,18 @@ page.on('console', (msg) => {
 });
 page.on('pageerror', (err) => consoleErrors.push(`PAGEERROR: ${err.message}`));
 
-await page.goto(`http://localhost:${PORT}/?autotest=1&fx=off&walklog=1`, { waitUntil: 'load' });
+// E2E_WALKLOG=1 turns on the driver's [walk]/[stuck] timeline traces
+// (slow-machine forensics; off by default — a quiet log is a readable log).
+const WALKLOG = process.env.E2E_WALKLOG === '1' ? '&walklog=1' : '';
+await page.goto(`http://localhost:${PORT}/?autotest=1&fx=off${WALKLOG}`, { waitUntil: 'load' });
 
 try {
   // The four-day journey is longer now (Day 4 afternoon included) and this
   // suite must survive a LOADED machine — the 340 s ceiling once cut Day 4
-  // off mid-walk while Days 1-3 were still being honest. 600 s with a
-  // condition-based driver: quiet machines finish in ~4 minutes anyway.
+  // off mid-walk while Days 1-3 were still being honest. 600 s held until
+  // the walks grew progress-extended deadlines (a walk still moving is not
+  // a failed walk, 3x cap): slow sandboxes now spend the cap on the long
+  // legs, so 900 s with a condition-based driver.
   await page.waitForFunction(() => window.__AUTOTEST__?.done === true, null, { timeout: 900000 });
 } catch {
   console.error('TIMEOUT waiting for the autotest driver');

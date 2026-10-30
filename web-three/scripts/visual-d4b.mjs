@@ -68,8 +68,8 @@ await page.evaluate(() => {
   g.world.cartAwning.visible = true;
   g.world.stool.visible = true;
   g.world.kidGround.visible = true;
-  g.world.kidGround.position.set(5.62, 0.05, -5.42);
-  g.world.kidGround.rotation.y = Math.PI + 0.5;
+  g.world.kidGround.position.set(7.15, 0.05, -6.25);
+  g.world.kidGround.rotation.y = -1.25;
   const rig = g.world.kidGround.userData.rig;
   if (rig) rig.mode = 'sit';
   g.ui.setObjective(s.objectiveText());

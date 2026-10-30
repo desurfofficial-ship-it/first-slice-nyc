@@ -78,8 +78,8 @@ await page.evaluate(() => {
   const g = window.__game;
   // directly seat him (deterministic framing for the shot)
   g.world.kidGround.visible = true;
-  g.world.kidGround.position.set(5.62, 0.05, -5.42);
-  g.world.kidGround.rotation.y = Math.PI + 0.5;
+  g.world.kidGround.position.set(7.15, 0.05, -6.25);
+  g.world.kidGround.rotation.y = -1.25;
   const rig = g.world.kidGround.userData.rig;
   if (rig) rig.mode = 'sit';
   g.player.capsule.x = 1.2; g.player.capsule.y = 0.05; g.player.capsule.z = -2.4;

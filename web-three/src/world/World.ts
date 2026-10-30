@@ -21,6 +21,7 @@ import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
 import { Pedestrians, type PedLook } from './peds';
+import { ambientWindowPlan, barrierDiary, flyerSlipForDay } from './dressing';
 import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT } from '../core/content';
 
 export interface LadderInfo { area: AABB; top: number; }
@@ -85,6 +86,9 @@ export class World {
   /** The Day-3 stool's body — parked underground until the purchase makes
    *  it real; synced in updateDynamics like the cast. */
   readonly stoolCollider: AABB;
+  /** The water-main barrier's body — parked underground the day the city
+   *  takes it (Day 4's diary); synced in updateDynamics like the cast. */
+  readonly barrierCollider: AABB = boxFromCenter(-9.7, 0.45, 7.62, 1.7, 0.9, 0.56);
   readonly rosa: THREE.Group;
   readonly idris: THREE.Group;
   readonly kidSil: THREE.Group;
@@ -103,6 +107,15 @@ export class World {
   // ---- Day 4 afternoon — the block opens up (docs/30) ----
   readonly sal: THREE.Group;         // Sunrise Laundry, thirty years at the counter
   readonly permitReceipt: THREE.Group; // propped on the cart once the permit is filed
+  // ---- the living block (Doc 33 §2.2/§2.3, dressing.ts) ----
+  readonly familiar: THREE.Group;    // the familiar face — one recurring neighbor
+  readonly barrier: THREE.Group;     // the water-main barrier (gone by Day 4)
+  readonly asphaltPatch: THREE.Mesh; // fresh asphalt where the barrier stood
+  readonly ambientWindowMatLate!: THREE.MeshLambertMaterial;   // got home late → away
+  readonly ambientWindowMatNew!: THREE.MeshLambertMaterial;    // someone new, Day 3
+  readonly ambientWindowMatRiser!: THREE.MeshLambertMaterial;  // the early riser, Day 4
+  /** The day the flyer board is currently dressed for (slips rotate by day). */
+  private flyerDay = 1;
   private washerLoad: THREE.Mesh | null = null;
   private washerRunning = false;
   private readonly bank: MatBank;
@@ -425,6 +438,21 @@ export class World {
           // thinks about it, and stays on too"). Day 4 keeps that promise.
           this.fourthWindowMat = this.mat(dim, { emissive: PAL.gold, emissiveIntensity: 0 });
           this.decoMesh('FourthWindow', new THREE.BoxGeometry(1.2, 1.6, 0.08), this.fourthWindowMat, p[0], p[1], p[2]);
+        } else if (row === 1 && col === 0) {
+          // ambient window — "got home late" (Day 2), then away. Same pane
+          // the grid always had; it only leaves the shared dim material so
+          // its emissive can keep a day-keyed diary (dressing.ts).
+          this.ambientWindowMatLate = this.mat(dim, { emissive: PAL.gold, emissiveIntensity: 0 });
+          this.decoMesh('AmbientWindow_Late', new THREE.BoxGeometry(1.2, 1.6, 0.08), this.ambientWindowMatLate, p[0], p[1], p[2]);
+        } else if (row === 1 && col === 3) {
+          // ambient window — someone new moves in on Day 3 (above the lamp
+          // that promised to stay on)
+          this.ambientWindowMatNew = this.mat(dim, { emissive: PAL.gold, emissiveIntensity: 0 });
+          this.decoMesh('AmbientWindow_New', new THREE.BoxGeometry(1.2, 1.6, 0.08), this.ambientWindowMatNew, p[0], p[1], p[2]);
+        } else if (row === 0 && col === 2) {
+          // ambient window — the early riser, awake before the rush by Day 4
+          this.ambientWindowMatRiser = this.mat(dim, { emissive: PAL.gold, emissiveIntensity: 0 });
+          this.decoMesh('AmbientWindow_Riser', new THREE.BoxGeometry(1.2, 1.6, 0.08), this.ambientWindowMatRiser, p[0], p[1], p[2]);
         } else {
           this.decoMesh(`Window_${row}_${col}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), dimMat, p[0], p[1], p[2]);
         }
@@ -647,7 +675,26 @@ export class World {
     const can2 = makeTrashCan(this.bank); can2.position.set(2, 0.05, -7.45); this.scene.add(can2);
     const recy = makeRecycleBin(this.bank); recy.position.set(2.85, 0.05, -7.45); this.scene.add(recy);
     const hyd2 = makeHydrant(this.bank); hyd2.position.set(34, 0.05, -4.75); this.scene.add(hyd2);
+    // the barrier is a diary entry now (Doc 33 §2.3): Days 1–3 it guards a
+    // (theatrically) open water main; Day 4 it's gone and the patch it left
+    // reads as fresh asphalt. Kept OUT of the static bake — a merged mesh
+    // can't change its mind about existing. It sits at the building line
+    // (z 7.62): the north walking lane (z 4–7.2) stays open, and its
+    // collider is DYNAMIC — parked underground the day the city takes it.
     const barrier = makeBarrier(this.bank); barrier.position.set(-9.7, 0.05, 7.62); barrier.rotation.y = 0.35; this.scene.add(barrier);
+    this.barrier = barrier;
+    // fresh asphalt, one hair proud of the slab (top 0.102 vs slab 0.1 —
+    // the same proud-edge trick the tree pits and plaza decks use). A
+    // patch you can't see is not a patch.
+    this.asphaltPatch = new THREE.Mesh(
+      new THREE.BoxGeometry(1.75, 0.012, 0.95),
+      this.mat(0x3e3a46),
+    );
+    this.asphaltPatch.name = 'AsphaltPatch';
+    this.asphaltPatch.position.set(-9.7, 0.096, 7.62);
+    this.asphaltPatch.receiveShadow = true;
+    this.asphaltPatch.visible = false;
+    this.scene.add(this.asphaltPatch);
     // solids, sized to the visuals. The can + recycle bin are ONE recycling
     // station — a single box spanning both: as two boxes they left a 0.14 m
     // slot between them (sub-capsule) that wedged a walker solid (E2E).
@@ -656,7 +703,6 @@ export class World {
     this.colliders.push(boxFromCenter(-19, 0.5, 7.66, 0.74, 1.0, 0.74));        // can (north)
     this.colliders.push(boxFromCenter(2.41, 0.5, -7.45, 1.56, 1.0, 0.74));      // can + recycle station
     this.colliders.push(boxFromCenter(34, 0.425, -4.75, 0.45, 0.85, 0.45));     // hydrant
-    this.colliders.push(boxFromCenter(-9.7, 0.45, 7.62, 1.7, 0.9, 0.56));       // barrier
     for (const [lx, lz] of lights) {
       this.colliders.push(boxFromCenter(lx, 2.6, lz, 0.24, 5.2, 0.24));         // lamp posts
     }
@@ -847,7 +893,7 @@ export class World {
 
     // ---- the stool (Day 3 purchase) + the kid at ground level ----
     this.stool = makeStool(this.bank);
-    this.stool.position.set(5.25, 0.05, -5.7);
+    this.stool.position.set(6.95, 0.05, -6.55); // east-south of the cart — OUT of the serving pocket (the old spot sealed the D4 corner shut: cart | 27 cm | kid)
     this.stool.visible = false;
     this.scene.add(this.stool);
     // furniture is furniture once it exists: the stool carries a collider
@@ -856,6 +902,7 @@ export class World {
     // buying never spawns a box under your feet.
     this.stoolCollider = boxFromCenter(5.25, 0.3, -5.7, 0.55, 0.6, 0.55);
     this.colliders.push(this.stoolCollider);
+    this.colliders.push(this.barrierCollider);
     this.kidGround = this.buildPerson({
       jacket: 0x514659, pants: 0x473e50, skin: 0xd9a06b, hair: 0x453b4c, style: 'flat',
     });
@@ -883,6 +930,24 @@ export class World {
     duffel.add(bag, strap);
     duffel.position.set(0.05, 1.15, -0.24); // between the shoulders, on the back (model faces local +Z)
     this.stranger.add(duffel);
+
+    // ---- the familiar face (Doc 33 §2.2, dressing.ts): ONE recurring
+    // neighbor. Stone-gray cardigan, folded newspaper under her arm, a walk
+    // that never hurries. Same body every day — that's the entire design:
+    // a walker who has passed you on enough days becomes a person. Her
+    // schedule is a Game-side waypoint walk keyed on the day number; no
+    // collider, no prompt, no flag stored. ----
+    this.familiar = this.spawnActor('TheFamiliar', -40.5, 0.12, 4.7, {
+      jacket: 0x8a8378, pants: 0x47404b, skin: 0xe8b08e, hair: 0x9a938c, style: 'bun',
+    });
+    this.familiar.rotation.y = Math.PI; // built sitting the plaza bench, watching the street
+    this.familiar.visible = false;
+    // the folded paper — a slab tucked against her left side, at rest
+    const paper = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.26, 0.19), this.mat(PAL.cream));
+    paper.castShadow = true;
+    paper.position.set(-0.06, -0.42, 0.03); // against the arm, below the hand
+    paper.rotation.z = 0.12;
+    this.familiar.userData.rig.armL.add(paper);
 
     // ---------------- Sal + Sunrise Laundry + the permit (docs/30) ---------
     this.sal = this.spawnActor('Sal', -7.0, 0.05, 7.85, {
@@ -1006,6 +1071,7 @@ export class World {
     const skip = new Set<THREE.Object3D>([
       this.cartRoot, this.cartAwning, this.roof,
       this.rosa, this.idris, this.kidGround, this.kidSil, this.stranger, this.sal,
+      this.familiar, this.barrier, this.asphaltPatch,
       this.stool, this.permitReceipt,
       this.pigeonFlock.group, this.pigeonFlockEast.group, this.squirrel.group,
       this.leaves.mesh,
@@ -1015,8 +1081,11 @@ export class World {
     ]);
     // the windows whose MATERIALS are tweened (dusk, golden-hour beats) —
     // they share a signature with the plain dim windows and must not join
-    // their batch, or one lit window would light the whole row
-    const NAMED_SKIP = new Set(['GoldWindow', 'SecondWindow', 'ThirdWindow', 'FourthWindow', 'Bodega_Window']);
+    // their batch, or one lit window would light the whole row. The three
+    // ambient windows keep a day-keyed diary instead (dressing.ts) — same
+    // exclusion, different author.
+    const NAMED_SKIP = new Set(['GoldWindow', 'SecondWindow', 'ThirdWindow', 'FourthWindow', 'Bodega_Window',
+      'AmbientWindow_Late', 'AmbientWindow_New', 'AmbientWindow_Riser']);
     const excluded = (o: THREE.Object3D): boolean => {
       for (let p: THREE.Object3D | null = o; p !== null; p = p.parent) {
         if (skip.has(p) || NAMED_SKIP.has(p.name)) return true;
@@ -1883,15 +1952,18 @@ export class World {
     this.roof.visible = !hidden;
   }
 
-  /** Redraw the flyer face (cart name goes up the moment it's known). */
+  /** Redraw the flyer face (cart name goes up the moment it's known). The
+   *  day's slip rides along — the board keeps a diary (dressing.ts). */
   setFlyerText(name: string) {
     const old = this.flyerMat.map;
-    this.flyerMat.map = this.flyerTexture(name || 'YOUR CORNER');
+    const clean = name || 'YOUR CORNER';
+    this.currentFlyerName = clean;
+    this.flyerMat.map = this.flyerTexture(clean, this.flyerDay);
     this.flyerMat.needsUpdate = true;
     old?.dispose();
   }
 
-  private flyerTexture(name: string): THREE.CanvasTexture {
+  private flyerTexture(name: string, day: number = 1): THREE.CanvasTexture {
     const c = document.createElement('canvas');
     c.width = 256; c.height = 192;
     const ctx = c.getContext('2d')!;
@@ -1913,9 +1985,64 @@ export class World {
     ctx.fillText('who was asked', 128, 158, 216);
     ctx.font = '400 12px "Trebuchet MS", sans-serif';
     ctx.fillText('— photo: somebody\u2019s cousin —', 128, 180, 216);
+    // the neighbor notice — a small slip, pinned at a slant, day-keyed
+    // (deterministic; the board rotates its paper the way real corkboards do)
+    const slip = flyerSlipForDay(day);
+    ctx.save();
+    ctx.translate(40, 96);
+    ctx.rotate(-0.07);
+    ctx.fillStyle = '#FDF3E3';
+    ctx.fillRect(-34, -42, 68, 84);
+    ctx.strokeStyle = '#B23A48';
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(-34, -42, 68, 84);
+    // the pin
+    ctx.fillStyle = '#B23A48';
+    ctx.beginPath();
+    ctx.arc(0, -34, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#3A3440';
+    ctx.font = '800 11px "Trebuchet MS", sans-serif';
+    ctx.fillText(slip.title, 0, -20, 62);
+    ctx.font = '400 9px "Trebuchet MS", sans-serif';
+    slip.lines.forEach((line, i) => {
+      ctx.fillText(line, 0, -4 + i * 13, 62);
+    });
+    ctx.restore();
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     return tex;
+  }
+
+  /**
+   * Dress the block for a day (Doc 33 §2.3 — the diary a player reads at a
+   * glance). Called by Game.beginDay before the fade-in. Pure material and
+   * visibility writes on existing geometry: no spawn, no teardown, no
+   * draw-call churn.
+   */
+  dressDay(day: number) {
+    // window lights: someone home late, someone new, someone up early
+    const plan = ambientWindowPlan(day);
+    this.ambientWindowMatLate.emissiveIntensity = plan.lateHome;
+    this.ambientWindowMatNew.emissiveIntensity = plan.newFace;
+    this.ambientWindowMatRiser.emissiveIntensity = plan.earlyRiser;
+    // the barrier's last day is Day 3; the asphalt remembers
+    const diary = barrierDiary(day);
+    this.barrier.visible = diary.barrierVisible;
+    this.asphaltPatch.visible = diary.patchVisible;
+    // the board's slip rotates with the week
+    this.flyerDay = day;
+    const old = this.flyerMat.map;
+    this.flyerMat.map = this.flyerTexture(this.currentFlyerName, day);
+    this.flyerMat.needsUpdate = true;
+    old?.dispose();
+  }
+
+  /** The cart name currently on the flyer (kept so dressDay can redraw). */
+  private currentFlyerName = 'YOUR CORNER';
+  /** The day the block is currently dressed for (probes read this). */
+  get dressedDay(): number {
+    return this.flyerDay;
   }
 
   /** The order bubble — what the customer at the cart is waiting for. */
@@ -1979,6 +2106,9 @@ export class World {
     this.syncPersonCollider(this.idrisCollider, this.idris);
     this.syncPersonCollider(this.kidCollider, this.kidGround, 0.25, 1.4);
     this.syncPersonCollider(this.stoolCollider, this.stool, 0.275, 0.6);
+    // the barrier leaves on Day 4 — its body leaves with it (a box at y
+    // -999 can't overlap anything: the cheapest "gone")
+    this.syncPersonCollider(this.barrierCollider, this.barrier, 0.85, 0.9);
     this.updateTaxi(dt, player, extra);
   }
 

@@ -54,7 +54,8 @@ export function runAutotest(game: Game): void {
   /** One-level detour: pick the side with open air (a capsule-padded probe
    *  against the world's own collider list) — the same "re-route around the
    *  obstacle, then resume" rule the pedestrians follow. Street-level solids
-   *  only: ground slabs (steppable) and overhead geometry don't count. */
+   *  only: ground slabs (steppable) and overhead geometry don't count.
+   *  (Agent-2 collision pass, docs/35-36.) */
   const pickDetourSide = (px: number, pz: number, dirX: number, dirZ: number): number => {
     const perpX = -dirZ;
     const perpZ = dirX;
@@ -75,30 +76,34 @@ export function runAutotest(game: Game): void {
     return best;
   };
 
-  /** Steer with real input keys toward a point (camera-relative), up to
-   *  `timeout` s. stopOnLadder: arrive as soon as a ladder is grabbed.
-   *  The budget stretches on slow machines: authored numbers assume a
-   *  responsive loop, and on software GL the same walk costs 2-3x the wall
-   *  time (dt clamps at 0.1 s) — measured over the first frames. */
+  /** Steer with real input keys toward a point (camera-relative), up to `timeout` s.
+   *  stopOnLadder: arrive as soon as a ladder is grabbed (climbing replaces walking).
+   *  The default budget is generous on purpose: software rendering runs sim
+   *  time slower than real time, and the block is full now — a walk that
+   *  crosses the street may wait for a cab to yield.
+   *  Progress-extended deadlines: the first `timeout` seconds behave exactly
+   *  like the old walk; after that, a walk that is STILL CLOSING on its
+   *  target keeps going (up to a 3x hard cap) — a walk still moving is not
+   *  a failed walk. One that stops closing (no 0.4 m gained in 4 s — a
+   *  pinned walker slides, it doesn't close) ends at once, like the old
+   *  budget expiry did. Slow machines finish; stuck walks don't burn the cap. */
   const walkTo = async (x: number, z: number, timeout = 20, stopOnLadder = false) => {
     const t0 = performance.now();
+    const hardCap = timeout * 3000; // 3x, in ms — the ceiling, never the plan
     let frames = 0;
-    let bestDist = Infinity; // closest approach to the current goal (25 cm hysteresis)
     let stuckCount = 0;
+    let bestDist = Infinity; // 25 cm progress hysteresis (agent-2: the clamp
+    // point breathes ±1 cm against a held pedestrian and the dance's own
+    // ping-pong re-approached its old best — finer keys reset every frame)
     let slide = 0; // recovery phase: 2 = step back, ±1 = sidestep
     let lastPhase = -1;
     let phaseX = 0;
     let phaseZ = 0;
     let detour: { x: number; z: number } | null = null;
     let detours = 0;
-    // the block is solid now — walks meet furniture, the cab and three
-    // pedestrians that all cost real seconds — so every authored budget is
-    // scaled 1.5x (and the adaptive probe below stretches it further on
-    // slow machines). Passing legs never consume their budget.
-    let budget = Math.max(timeout, 9) * 1500;
-    let lastPrintPos: { x: number; z: number } | null = null;
-    let sampledFps = false;
-    while (performance.now() - t0 < budget) {
+    let windowDist = Math.hypot(x - game.player.capsule.x, z - game.player.capsule.z);
+    let windowT0 = performance.now();
+    while (performance.now() - t0 < hardCap) {
       if (stopOnLadder && game.player.ladder !== null) break;
       const p = game.player.capsule;
       // goal: the detour point while one is active, else the leg's target
@@ -111,44 +116,30 @@ export function runAutotest(game: Game): void {
       const gz = detour ? detour.z : z;
       const dx: number = gx - p.x;
       const dz: number = gz - p.z;
-      const dist = Math.hypot(dx, dz);
-      if (!detour && dist < 0.35) break;
-      // adaptive budget: one measurement, ~1 s in — below ~14 fps the leg
-      // gets the wall-time it actually needs on this machine
-      if (!sampledFps && frames === 60) {
-        sampledFps = true;
-        const fps = 60 / ((performance.now() - t0) / 1000);
-        if (fps < 14) budget = timeout * 2200;
+      const distGoal = Math.hypot(dx, dz);
+      if (!detour && distGoal < 0.35) break;
+      // the extension: past the original budget, a walk that stopped closing ends now
+      if (performance.now() - t0 > timeout * 1000 && performance.now() - windowT0 > 4000) {
+        const nowDist = Math.hypot(dx, dz);
+        if (nowDist > windowDist - 0.4) break;
+        windowDist = nowDist;
+        windowT0 = performance.now();
       }
-      // stuck = no real progress toward the goal, with 25 cm of hysteresis:
-      // pressed against a pedestrian the clamp point breathes ±1 cm (a finer
-      // key reset the counter every frame), and the dance's own ping-pong
-      // re-approached its old best by a centimetre each cycle, resetting the
-      // counter forever. bestDist only tightens on progress a body-width
-      // closer, so wobble, back-up and re-approach all count as stuck.
-      if (dist < bestDist - 0.25) {
-        bestDist = dist;
+      // stuck = no real progress toward the goal, with 25 cm of hysteresis
+      // (agent-2: a position key reset every frame against a held body's
+      // breathing clamp point; bestDist only tightens on real progress)
+      if (distGoal < bestDist - 0.25) {
+        bestDist = distGoal;
         stuckCount = 0;
       } else {
         stuckCount++;
       }
       if (walkLog && frames % 90 === 0) {
-        const moved = lastPrintPos ? Math.hypot(p.x - lastPrintPos.x, p.z - lastPrintPos.z) : 99;
-        console.info(`[walk] t=${((performance.now() - t0) / 1000).toFixed(1)} pos=(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}) yaw=${game.player.camYaw.toFixed(2)} ladder=${game.player.ladder !== null} ground=${game.player.onGround} moved90=${moved.toFixed(2)}`);
-        if (lastPrintPos && moved < 1.2) {
-          // crawling, not stuck: dump the same forensics so slow grinds
-          // against a body/box are diagnosable too
-          const near: Array<{ d: number; box: number[] }> = [];
-          game.world.colliders.forEach((b) => {
-            const nx2 = Math.max(b.minX, Math.min(p.x, b.maxX));
-            const nz2 = Math.max(b.minZ, Math.min(p.z, b.maxZ));
-            const d = Math.hypot(p.x - nx2, p.z - nz2);
-            if (d < 0.8) near.push({ d: +d.toFixed(3), box: [b.minX, b.maxX, b.minZ, b.maxZ].map((v) => +v.toFixed(2)) });
-          });
-          const peds = game.world.pedBodies().map((b) => `(${b.x.toFixed(1)},${b.z.toFixed(1)})`).join(' ');
-          console.info(`[crawl] pos=(${p.x.toFixed(2)},${p.z.toFixed(2)}) near=${JSON.stringify(near)} peds=${peds}`);
-        }
-        lastPrintPos = { x: p.x, z: p.z };
+        const kid = game.world.kidGround;
+        const fam = game.world.familiar;
+        console.info(`[walk] t=${((performance.now() - t0) / 1000).toFixed(1)} pos=(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}) yaw=${game.player.camYaw.toFixed(2)} ladder=${game.player.ladder !== null} ground=${game.player.onGround}`
+          + ` kid=${kid.visible ? `(${kid.position.x.toFixed(1)},${kid.position.z.toFixed(1)})` : 'off'}`
+          + ` fam=${fam.visible ? `(${fam.position.x.toFixed(1)},${fam.position.z.toFixed(1)})` : 'off'}`);
       }
       if (walkLog && stuckCount === 2) {
         const near: Array<{ d: number; box: number[] }> = [];
@@ -170,6 +161,10 @@ export function runAutotest(game: Game): void {
       const nx = dx / len, nz = dz / len;
       const f = nx * fwdX + nz * fwdZ;
       let r = nx * rightX + nz * rightZ;
+      // Blocked head-on (the cab yields and stands in the path, the cart, a
+      // pole): pure pushes have no lateral component (|r| < 0.2) and weld to
+      // the box forever. Sidestep ON TOP of the steer keys, alternating every
+      // ~45 frames, until position moves again — how a person edges around.
       // Blocked (the cab, the cart, furniture, a pedestrian): recovery is
       // how a person gets past — FACE where you're going (the boom can sit
       // 90° off the walk direction; with a perpendicular camera W/S and A/D
@@ -195,16 +190,15 @@ export function runAutotest(game: Game): void {
         lastPhase = -1;
       }
       // the dance bought ~10 s and no progress: re-route — but ONLY around a
-      // static blocker. A stall against a pedestrian is a handshake, not a
-      // wall: their own sidestep resolves it, and a 2.5 m detour would drag
-      // the walker across a pedestrian lane into the NEXT meeting.
+      // static blocker (a pedestrian stall is a handshake; their own
+      // sidestep resolves it, and a 2.5 m detour would cross a ped lane)
       if (stuckCount > 240 && !detour && detours < 8) {
         const dlen: number = Math.hypot(dx, dz) || 1;
         const aheadX = p.x + (dx / dlen) * 0.6;
         const aheadZ = p.z + (dz / dlen) * 0.6;
         let staticBlock = false;
         for (const b of game.world.colliders) {
-          if (b.maxY <= 0.4 || b.minY >= 1.8) continue; // ground or overhead
+          if (b.maxY <= 0.4 || b.minY >= 1.8) continue;
           const nx2 = Math.max(b.minX, Math.min(aheadX, b.maxX));
           const nz2 = Math.max(b.minZ, Math.min(aheadZ, b.maxZ));
           if (Math.hypot(aheadX - nx2, aheadZ - nz2) < 0.9) { staticBlock = true; break; }
@@ -233,14 +227,19 @@ export function runAutotest(game: Game): void {
   };
 
   const interact = async () => {
-    // three presses, ~a quarter second apart: a press can land while the
-    // walker is still settling from a recovery dance (mid-slide, a body
-    // short of the nearest-interactable contest) — the beats are idempotent
-    // (the suite's own "a repeat press spends nothing" check), so re-pressing
-    // costs nothing and covers the settle race.
+    // up to three presses ~a quarter second apart: a press can land while
+    // the walker is still settling from a recovery dance. The volley STOPS
+    // the moment the game reacts — a step change, a name box, a freeze, or
+    // the awning's offer flag — because the beats chain: press 1 serves
+    // Idris, press 2 would open the awning offer, press 3 would CONFIRM it
+    // (-$15) in the same breath. One reaction per interact() call.
+    const step0 = game.state.step;
+    const awning0 = game.state.awningConfirm;
     for (let i = 0; i < 3; i++) {
       game.input.injectInteract();
       await waitFrames(6);
+      if (game.state.step !== step0 || !game.ui.nameBox.hidden
+        || game.player.frozen || game.state.awningConfirm !== awning0) break;
     }
   };
 
@@ -340,7 +339,6 @@ export function runAutotest(game: Game): void {
       await walkTo(-5, -5.0);
       check(s.step === Step.CLAIM_CART, 'crosswalk trigger fires');
       await walkTo(4, -5.2);
-      await walkTo(4, -5.55, 6); // close the last half-metre: interact range is 2.4
       await interact();
       check(!game.ui.nameBox.hidden && game.player.frozen, 'cart claim opens name box and freezes walker');
 
@@ -391,11 +389,15 @@ export function runAutotest(game: Game): void {
       await holdUntil('KeyW', () => p().y >= 8.34, 10);
       check(p().y <= 8.36, `ladder caps at the rail — no overshoot (y=${p().y.toFixed(2)})`);
       await holdUntil('KeyA', () => game.player.ladder === null, 4);
-      if (!game.player.frozen) await walkTo(12.5, -6.8, 8); // arm the reach-top beat
       await waitFrames(20);
       check(p().y > 7.9, `reached landing 2 (y=${p().y.toFixed(2)})`);
       const rigAfterClimb = (game.playerVisual.userData as { rig?: { mode: string } }).rig;
       check(!!rigAfterClimb && rigAfterClimb.mode === 'auto', 'climb pose released after stepping off (hands down)');
+      // walk INTO the reach-top trigger (x 10.25..14.75) before polling — the
+      // dismount parks at x≈15.2, and a trigger you never enter never fires
+      // (the same root the Day-4 driver walk fixed; slow machines drift
+      // wide of the zone and every dusk beat starves behind it)
+      await walkTo(12.5, -6.8, 10);
       // poll, don't sleep: sim time lags real time under software rendering,
       // so a fixed wait can sample mid-flick (the dip is the POINT of the beat)
       {
@@ -409,7 +411,7 @@ export function runAutotest(game: Game): void {
       // -- seam 3: the end breathes — postcard closes, lingering is allowed --
       await interact();
       check(game.ui.postcardPanel.hidden && !game.player.frozen && !dbg.postcardRig(), 'postcard dismisses \u2014 the end lingers');
-      if (!game.player.frozen) await walkTo(12.5, -6.8, 8); // skip if the beat armed early
+      await walkTo(12.5, -6.8, 8);
       await interact();
       check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight beat');
       {
@@ -428,45 +430,42 @@ export function runAutotest(game: Game): void {
       const idrisT0 = performance.now();
       while (!s.idrisArrived && performance.now() - idrisT0 < 20000) await nextFrame();
       check(s.idrisArrived, 'Idris arrives at the cart');
-      // road crossings go by the crosswalk with the cab held (the suite's
-      // own convention); the serve approach walks at Idris and stalls on his
-      // collider ~0.9 m west of him — inside range, nearer him than the cart
-      await walkTo(-5, 5.4, 24);
-      await cabClear();
-      await walkTo(-5, -5.0, 24);
       await walkTo(4.4, -4.6, 8);
-      await walkTo(4.4, -4.9, 5);
       await interact();
       check(s.idrisServed && s.money === 114, `Idris served: +$2 (got $${s.money})`);
 
-      // back west by the crosswalk (the suite's crossing convention)
-      await walkTo(-5, -5.0, 24);
+      // the favor is across the street — routed like a person: the
+      // crosswalk, then west along the north sidewalk. (The old diagonal
+      // crossed the road exactly where a held cab can sit; the crosswalk
+      // can't.)
       await cabClear();
-      await walkTo(-5, 5.4, 24);
-      await walkTo(-16, 6.8, 30);
+      await walkTo(-5, -5.0, 24);
+      await walkTo(-5, 4.85, 24);
+      await walkTo(-16, 6.8, 24);
       await interact();
       check(s.step === Step.D2_DELIVER && dbg.cupVisible(), 'Rosa\u2019s favor accepted: cup in hand');
       // regression (playtest 2026-10-29): the old GLB swap orphaned the cup —
       // visible flag flipped while the cup hung in detached limbo
       const cupAttached = game.cupProp.parent === game.playerVisual;
       check(cupAttached, 'cup prop is still childed to the player visual');
-      await walkTo(15, 6.9, 60); // 31 m of north sidewalk + head-on meetings
+      // the stoop is a sidewalk walk from here (same side of the street) —
+      // past the bodega, the bus stop, the trees
+      await walkTo(15, 6.9, 24);
       await interact();
       check(s.kidKept && s.money === 117 && game.world.kidSil.visible, `kid kept: +$3, kid at the glass ($${s.money})`);
       check(game.world.kidSil.position.z < 7.9, 'kid silhouette stands IN FRONT of the window glass');
-      // back to the cart by the crosswalk, like every other crossing
-      await walkTo(-5, 5.4, 24);
+      // back to the cart — routed like a person: west along the north
+      // sidewalk, the crosswalk (the cab waits), then east along the south
       await cabClear();
+      await walkTo(-5, 4.85, 24);
       await walkTo(-5, -5.0, 24);
-      await walkTo(4, -5.2, 14);
-      await walkTo(4, -5.55, 6); // close the last half-metre
+      await walkTo(4, -5.2, 24);
       await interact();
       check(s.awningConfirm, 'awning offer asks for a confirm press');
       await interact();
       check(s.awningUp && s.money === 102 && game.world.cartAwning.visible, `awning up: -$15 (got $${s.money})`);
       for (let i = 0; i < 3; i++) {
         await walkTo(4, -5.2);
-        await walkTo(4, -5.55, 6); // close the last half-metre
         await interact();
         await waitFrames(2);
       }
@@ -480,7 +479,7 @@ export function runAutotest(game: Game): void {
       await walkTo(16.2, -7.2, 8, true);
       await holdUntil('KeyW', () => p().y >= 8.34, 10);
       await holdUntil('KeyA', () => game.player.ladder === null, 4);
-      if (!game.player.frozen) await walkTo(12.5, -6.8, 8); // arm the reach-top beat
+      await walkTo(12.5, -6.8, 10); // walk into the reach-top trigger — the dismount parks outside it (see Day 1 note)
       {
         const t0 = performance.now();
         while (performance.now() - t0 < 30000 && dbg.secondIntensity() <= 2.5) await nextFrame();
@@ -505,7 +504,7 @@ export function runAutotest(game: Game): void {
       // "A Place at the Corner" — Rosa at the cart, a real morning rush
       // (orders are brewed, not snapped), the kid comes down, the stool,
       // the flyer by the subway, and the third window.
-      if (!game.player.frozen) await walkTo(12.5, -6.8, 8); // skip if the beat armed early
+      await walkTo(12.5, -6.8, 8);
       await interact();
       check(s.lingerStage === 2, 'day 2 rail: Rosa\u2019s goodnight beat');
       await interact();
@@ -513,6 +512,10 @@ export function runAutotest(game: Game): void {
       check(s.day === 3 && s.step === Step.D3_WAKE, 'day 3 begins \u2014 Rosa has news');
       check(loadSave().day === 3, 'day-3 snapshot written');
 
+      // Rosa holds the corner's south-east edge — the pocket north of the
+      // cart's body and south of her (one clear lane; the kid's stool moved
+      // east-south so this pocket stays open on Day 4 too)
+      await walkTo(6.9, -5.2, 12);
       await interact();
       check(s.step === Step.D3_RUSH, 'Rosa\u2019s news opens the rush');
       check(!!game.customer, 'Idris is first at the cart');
@@ -521,7 +524,6 @@ export function runAutotest(game: Game): void {
 
       for (let i = 0; i < 4; i++) {
         await walkTo(4, -5.2, 10);
-        await walkTo(4, -5.55, 6); // close the last half-metre
         await interact();
         const brewT0 = performance.now();
         while (s.brewing && performance.now() - brewT0 < 9000) await nextFrame();
@@ -531,21 +533,33 @@ export function runAutotest(game: Game): void {
       check(s.money === 130, `morning rush pays $19 (got $${s.money})`);
       check(game.world.kidGround.visible, 'the kid is waiting at the stoop');
 
-      await walkTo(14.6, 6.3, 22);
+      // the stoop is across the street — routed like a person: the
+      // crosswalk, then east along the north sidewalk. The kid's first walk
+      // home should be the route a person walks; the driver is no exception.
+      await cabClear();
+      await walkTo(-5, -5.0, 24);
+      await walkTo(-5, 4.85, 24);
+      await walkTo(14.6, 6.3, 30);
       await interact();
       check(s.kidDown, 'the kid joins you');
       {
-        // he walks at your hip \u2014 sample his progress mid-walk
+        // he walks at your hip — sample his progress mid-walk (west along
+        // the north sidewalk, no road underfoot)
         const kid = game.world.kidGround;
         const x0 = kid.position.x;
-        await walkTo(9, 2, 6);
+        await walkTo(9, 5.0, 8);
         check(kid.position.x < x0 - 2, `the kid is actually walking (x ${x0.toFixed(1)} \u2192 ${kid.position.x.toFixed(1)})`);
       }
-      // walk TO the corner — the cart is solid now, so a player naturally
-      // bumps to its edge (~1.05 m out) and the kid's 1.0 m hip distance puts
-      // him inside the 2.6 m corner radius. Stopping 1.7 m short with the kid
-      // trailing on the far side misses the trigger by centimeters (the flaky
-      // e2e found it); a person walks up to the counter.
+      // walk TO the corner — routed like a person: back over the crosswalk
+      // (the cab waits for both of you), then east along the south sidewalk.
+      // The cart is solid now, so a player naturally bumps to its edge
+      // (~1.05 m out) and the kid's 1.0 m hip distance puts him inside the
+      // 2.6 m corner radius. Stopping 1.7 m short with the kid trailing on
+      // the far side misses the trigger by centimeters (the flaky e2e found
+      // it); a person walks up to the counter.
+      await cabClear();
+      await walkTo(-5, 4.85, 24);
+      await walkTo(-5, -5.0, 24);
       await walkTo(4, -5.45, 20);
       {
         // he closes the last meter at his own pace (sim time lags real time
@@ -567,7 +581,7 @@ export function runAutotest(game: Game): void {
       // under the full sim load (leaves, signal, two flocks).
       await walkTo(-5, -5.0, 24);
       await cabClear();
-      await walkTo(-5, 5.4, 24);
+      await walkTo(-5, 4.85, 24);
       await walkTo(-37.6, 6.9, 60);
       await interact();
       check(s.step === Step.D3_CLIMB3, 'flyer read \u2014 the block knows your name');
@@ -575,7 +589,7 @@ export function runAutotest(game: Game): void {
       // back east — NORTH of the cart. The cart is solid (playtest: "passed
       // through the cart") and its west face eats diagonal pushes from the
       // south; the e2e caught the walker parked on it at (2.5, -7.4).
-      await walkTo(-5, 5.4, 24);
+      await walkTo(-5, 4.85, 24);
       await cabClear();
       await walkTo(9.4, 5.0, 60);
       await walkTo(9.4, -7.2, 30, true);
@@ -588,7 +602,7 @@ export function runAutotest(game: Game): void {
       await holdUntil('KeyW', () => p().y >= 8.34, 14);
       check(p().y <= 8.36, `day 3: ladder caps at the rail (y=${p().y.toFixed(2)})` + snap());
       await holdUntil('KeyA', () => game.player.ladder === null, 4);
-      if (!game.player.frozen) await walkTo(12.5, -6.8, 8); // arm the reach-top beat
+      await walkTo(12.5, -6.8, 10); // walk into the reach-top trigger — the dismount parks outside it (see Day 1 note)
       {
         const t0 = performance.now();
         while (performance.now() - t0 < 30000 && !(s.step === Step.D3_POSTCARD && !game.ui.postcardPanel.hidden)) await nextFrame();
@@ -600,7 +614,7 @@ export function runAutotest(game: Game): void {
       await interact();
       check(!game.player.frozen, 'day 3 end lingers too' + snap());
 
-      if (!game.player.frozen) await walkTo(12.5, -6.8, 8); // skip if the beat armed early
+      await walkTo(12.5, -6.8, 8);
       await interact();
       check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight (day 3)' + snap());
       const save3 = loadSave();
@@ -619,6 +633,8 @@ export function runAutotest(game: Game): void {
       check(game.world.kidGround.visible && !game.world.kidSil.visible,
         'the kid is on his stool at sunrise, not in the window');
 
+      // Rosa holds the corner's south-east edge — the same open pocket
+      await walkTo(6.9, -5.2, 12);
       await interact();
       check(s.step === Step.D4_STRANGER, 'Rosa points at the terminal');
       check(game.world.stranger.visible, 'the stranger is standing by the terminal');
@@ -629,7 +645,7 @@ export function runAutotest(game: Game): void {
       // this suite had under load — a cab can park on any diagonal.
       await walkTo(-5, -5.0, 24);
       await cabClear();
-      await walkTo(-5, 5.4, 24);
+      await walkTo(-5, 4.85, 24);
       await walkTo(-36.0, 5.0, 60);
       await interact();
       check(s.strangerMet && s.money === 122 && s.step === Step.D4_RUSH,
@@ -643,12 +659,11 @@ export function runAutotest(game: Game): void {
       // back over the crosswalk.
       for (let i = 0; i < 3; i++) {
         if (i === 0) {
-          await walkTo(-5, 5.4, 24);
+          await walkTo(-5, 4.85, 24);
           await cabClear();
           await walkTo(-5, -5.0, 24);
         }
         await walkTo(4, -5.2, i === 0 ? 30 : 10);
-        await walkTo(4, -5.55, 6); // close the last half-metre
         await interact();
         const brewT0 = performance.now();
         while (s.brewing && performance.now() - brewT0 < 9000) await nextFrame();
@@ -674,7 +689,7 @@ export function runAutotest(game: Game): void {
       // the paperwork. Routed like a person again: crosswalk, then west.
       await walkTo(-5, -5.0, 24);
       await cabClear();
-      await walkTo(-5, 5.4, 24);
+      await walkTo(-5, 4.85, 24);
       await walkTo(-6.8, 6.4, 24);
       await interact();
       check(s.step === Step.D4_PERMIT && s.apronWashing,
@@ -698,8 +713,16 @@ export function runAutotest(game: Game): void {
       await interact();
       check(s.permitFiled && s.money === 123, 'a repeat press at the A-frame spends nothing');
 
-      await cabClear(); // the receipt is on the cart — now the dusk climb, no diagonals into a parked cab
-      await walkTo(9.4, -7.2, 60, true);
+      // the dusk climb, routed exactly like Day 3's proven approach: east
+      // along the north sidewalk, then south across at x=9.4 (the cab yields
+      // to a body in the road). The south-side variants all found furniture:
+      // the A-frame diagonal clipped Rosa's corner (run four), the south
+      // sidewalk wedged between the cart's west face and the trashcan at
+      // (2,-7.45) (run eight) — a 60 cm gap a 70 cm walker does not fit
+      // through. The north route has none of that.
+      await cabClear();
+      await walkTo(9.4, 5.0, 40);
+      await walkTo(9.4, -7.2, 30, true);
       check(game.player.ladder !== null, 'day 4: grabbed ladder 1' + snap());
       await holdUntil('KeyW', () => p().y > 4.2, 10); // ride to the rail — mid-ladder exits fall below the snap window (see Day 1 note)
       await holdUntil('KeyD', () => game.player.ladder === null, 4);
