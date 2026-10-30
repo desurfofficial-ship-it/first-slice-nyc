@@ -8,6 +8,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PAL } from '../core/palette';
 import { ITEM_LABELS } from '../core/content';
 import { boxFromCenter, type AABB } from '../engine/collide';
@@ -18,6 +19,7 @@ import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecy
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
+import { Pedestrians, type PedLook } from './peds';
 import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT } from '../core/content';
 
 export interface LadderInfo { area: AABB; top: number; }
@@ -90,11 +92,12 @@ export class World {
   private washerLoad: THREE.Mesh | null = null;
   private washerRunning = false;
   private readonly bank: MatBank;
-  private readonly trees: Array<{ canopy: THREE.Group; phase: number }> = [];
+  private readonly trees: Array<{ group: THREE.Group; canopy: THREE.Group; phase: number }> = [];
   private readonly pigeonFlock: PigeonFlock;
   private readonly pigeonFlockEast: PigeonFlock; // the east end gets its own small knot of birds
   private readonly squirrel: Squirrel;
   private leaves!: LeafDrift;
+  private peds: Pedestrians;
   private ambientTime = 0;
 
   private steamPoints: THREE.Points;
@@ -620,7 +623,7 @@ export class World {
       t.group.position.set(tx, 0.05, tz);
       t.group.rotation.y = rng() * Math.PI * 2;
       this.scene.add(t.group);
-      this.trees.push({ canopy: t.canopy, phase: rng() * Math.PI * 2 });
+      this.trees.push({ group: t.group, canopy: t.canopy, phase: rng() * Math.PI * 2 });
       treeTops.push(t.top);
     }
 
@@ -803,6 +806,169 @@ export class World {
     this.steamPoints = new THREE.Points(steamGeo, this.steamMaterial());
     this.steamPoints.frustumCulled = false;
     this.scene.add(this.steamPoints);
+
+    this.bakeStatics();
+
+    // ---- ambient pedestrians (Yuka steering) ----------------------------
+    // Built AFTER the static bake so their rigs are never merge candidates;
+    // bank-shared materials keep them material-free to add. Three walkers on
+    // three loops: a crosswalk commuter (full block), a north-side window
+    // shopper, and a south-side local. Obstacle circles: the parked van and
+    // sedan, the mailbox, cans, barrier, bus stop, benches, papers, poles —
+    // the player and the cart register as DYNAMIC circles each frame.
+    const pedLooks: PedLook[] = [
+      { jacket: 0x4a5568, pants: 0x3b3f4a, skin: 0xc98e5a, hair: 0x2b2730, style: 'cap' },
+      { jacket: 0x7d5a62, pants: 0x47404b, skin: 0xe8b08e, hair: 0x6e3b2a, style: 'bun' },
+      { jacket: 0x5d6b4a, pants: 0x39423a, skin: 0x8a5a3b, hair: 0x1f1b23, style: 'flat' },
+    ];
+    const pedPaths: Array<Array<[number, number]>> = [
+      // the commuter: full block, crossing only at the crosswalk (x ≈ -6.5,
+      // inside the cab's yield zone), two lanes per direction
+      [[-6.5, 6.15], [38, 6.15], [38, 6.85], [-6.5, 6.85],
+       [-6.5, -6.15], [26, -6.15], [26, -6.85], [-6.5, -6.85]],
+      // the window shopper: north sidewalk out-and-back, past the bodega
+      [[10, 6.1], [-28, 6.1], [-28, 6.75], [10, 6.75]],
+      // the south-side local: laundry to the west end and back
+      [[-34, -6.1], [18, -6.1], [18, -6.8], [-34, -6.8]],
+    ];
+    this.peds = new Pedestrians(
+      this.scene, pedLooks, (c) => this.bank.get(c), 20261030, pedPaths,
+      [
+        { x: -14, z: 3.05, r: 1.9 },   // delivery van, north curb
+        { x: 24, z: -3.05, r: 1.9 },   // parked sedan, south curb
+        { x: -3.2, z: -5.7, r: 0.45 }, // mailbox
+        { x: 10.5, z: -5.6, r: 0.4 },  // trashcan (glb-wearable)
+        { x: 2, z: -7.45, r: 0.4 },    // trashcan
+        { x: 2.85, z: -7.45, r: 0.4 }, // recycle bin
+        { x: -19, z: 7.45, r: 0.4 },   // trashcan north
+        { x: -9.7, z: 7.5, r: 0.7 },   // barrier
+        { x: 34, z: -4.75, r: 0.35 },  // hydrant
+        { x: -24.5, z: 7.35, r: 1.0 }, // bus stop + bench
+        { x: -40.5, z: 4.55, r: 1.0 }, // plaza bench
+        { x: -44.6, z: 6.6, r: 0.9 },  // newspaper boxes
+        { x: -8.5, z: -7.35, r: 0.3 }, // utility poles
+        { x: 20, z: -7.35, r: 0.3 },
+        { x: 44.5, z: -7.35, r: 0.3 },
+        { x: 13.5, z: -5.9, r: 0.3 },  // streetlamp
+      ],
+    );
+  }
+
+  // ------------------------------------------------- static-geometry bake
+  // Perf evidence (probe-perf + scene census, 2026-10-30): the block rendered
+  // 700+ draw calls for only ~23k triangles — the scene was draw-call-bound,
+  // not geometry-bound. Everything below merges never-animated decoration
+  // meshes into one mesh per (material signature, shadow flags), using
+  // three's own BufferGeometryUtils — no new dependency, no visual change:
+  // world transforms are baked, so every vertex lands exactly where it did.
+  //
+  // NOT merged (each would either move, toggle, or have its material
+  // tweened after construction):
+  //   cart + wearables, cast members, the bodega roof (ducks when you step
+  //   inside), GLB-upgradable props (their children are swapped at boot),
+  //   trees (canopy sway), birds, leaves, steam, shelf items (removed on
+  //   pickup), and the five story windows whose emissive is tweened.
+  // Signs stay out automatically (their materials carry canvas textures),
+  // as do anything transparent or non-Lambert. Batches under 2 meshes are
+  // left alone — merging them would save nothing.
+  private bakeStatics(): void {
+    const skip = new Set<THREE.Object3D>([
+      this.cartRoot, this.cartAwning, this.roof,
+      this.rosa, this.idris, this.kidGround, this.kidSil, this.stranger, this.sal,
+      this.stool, this.permitReceipt,
+      this.pigeonFlock.group, this.pigeonFlockEast.group, this.squirrel.group,
+      this.leaves.mesh,
+      ...this.glbProps.values(),
+      ...this.itemMeshes.values(),
+      ...this.trees.map((t) => t.group),
+    ]);
+    // the windows whose MATERIALS are tweened (dusk, golden-hour beats) —
+    // they share a signature with the plain dim windows and must not join
+    // their batch, or one lit window would light the whole row
+    const NAMED_SKIP = new Set(['GoldWindow', 'SecondWindow', 'ThirdWindow', 'FourthWindow', 'Bodega_Window']);
+    const excluded = (o: THREE.Object3D): boolean => {
+      for (let p: THREE.Object3D | null = o; p !== null; p = p.parent) {
+        if (skip.has(p) || NAMED_SKIP.has(p.name)) return true;
+      }
+      return false;
+    };
+
+    interface BatchSrc { geo: THREE.BufferGeometry; mesh: THREE.Mesh; tile: number }
+    interface Batch { srcs: BatchSrc[]; cast: boolean; receive: boolean; mat: THREE.MeshLambertMaterial }
+    const batches = new Map<string, Batch>();
+
+    this.scene.traverse((o) => {
+      if (!(o instanceof THREE.Mesh) || excluded(o)) return;
+      const mat = o.material;
+      if (!(mat instanceof THREE.MeshLambertMaterial) || mat.map || mat.transparent) return;
+      const geo = o.geometry;
+      if (!geo.index || !geo.attributes.position || !geo.attributes.normal) return;
+      const key = `${mat.color.getHexString()}|${mat.emissive.getHexString()}`
+        + `|${mat.emissiveIntensity}|${mat.fog ? 1 : 0}`
+        + `|${o.castShadow ? 1 : 0}|${o.receiveShadow ? 1 : 0}`;
+      let b = batches.get(key);
+      if (!b) batches.set(key, b = { srcs: [], cast: o.castShadow, receive: o.receiveShadow, mat });
+      o.updateWorldMatrix(true, false);
+      const g = geo.clone();
+      g.applyMatrix4(o.matrixWorld);
+      // keep every batch attribute-identical for mergeGeometries
+      for (const name of Object.keys(g.attributes)) {
+        if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
+      }
+      // Region-split: a whole-block batch would defeat frustum culling (the
+      // batch's bounding sphere spans the block, so nothing ever culls) —
+      // on software GL that cost more in rasterized triangles than the draw
+      // calls saved (playtest 2026-10-30: the e2e driver lost a third of its
+      // fps and its timed beats started missing). Batching per 25 m tile
+      // along the street keeps the draw-call win AND lets off-screen tiles
+      // cull exactly like the individual meshes did.
+      const tile = Math.max(0, Math.min(3, Math.floor((o.matrixWorld.elements[12] + 50) / 25)));
+      b.srcs.push({ geo: g, mesh: o, tile });
+    });
+
+    // commits happen per (signature, tile); a tile group of 1 stays as-is —
+    // merging it would save nothing
+    const bySigTile = new Map<string, { batch: Batch; srcs: BatchSrc[] }>();
+    for (const [key, b] of batches) {
+      const byTile = new Map<number, BatchSrc[]>();
+      for (const s of b.srcs) {
+        let list = byTile.get(s.tile);
+        if (!list) byTile.set(s.tile, list = []);
+        list.push(s);
+      }
+      for (const [tile, srcs] of byTile) {
+        if (srcs.length >= 2) bySigTile.set(`${key}#${tile}`, { batch: b, srcs });
+        else for (const s of srcs) s.geo.dispose();
+      }
+    }
+
+    // geometries referenced by any mesh we are NOT merging must survive
+    const merging = new Set<THREE.Mesh>();
+    for (const g of bySigTile.values()) for (const s of g.srcs) merging.add(s.mesh);
+    const keepGeoms = new Set<THREE.BufferGeometry>();
+    this.scene.traverse((o) => {
+      if (o instanceof THREE.Mesh && !merging.has(o)) keepGeoms.add(o.geometry);
+    });
+
+    let batchIndex = 0;
+    for (const g of bySigTile.values()) {
+      const merged = mergeGeometries(g.srcs.map((s) => s.geo), false);
+      if (!merged) {
+        for (const s of g.srcs) s.geo.dispose();
+        continue;
+      }
+      for (const s of g.srcs) {
+        s.mesh.parent?.remove(s.mesh);
+        if (!keepGeoms.has(s.mesh.geometry)) s.mesh.geometry.dispose();
+      }
+      for (const s of g.srcs) s.geo.dispose();
+      merged.computeBoundingSphere();
+      const mesh = new THREE.Mesh(merged, g.batch.mat);
+      mesh.name = `StaticBake_${batchIndex++}`;
+      mesh.castShadow = g.batch.cast;
+      mesh.receiveShadow = g.batch.receive;
+      this.scene.add(mesh);
+    }
   }
 
   // ------------------------------------------------------------------ helpers
@@ -1685,6 +1851,12 @@ export class World {
     const bodies: Array<{ x: number; z: number }> = [];
     if (player) bodies.push(player);
     if (extra) bodies.push(...extra);
+    // ambient walkers join the yield list — a pedestrian mid-crosswalk holds
+    // the cab at the stop line, exactly like the kid or the stranger do
+    bodies.push(...this.peds.bodies());
+    // the walkers steer around you and the cart, and mind the furniture
+    this.peds.update(dt, player ? { x: player.x, z: player.z } : undefined,
+      { x: this.cartRoot.position.x, z: this.cartRoot.position.z });
     for (const b of bodies) {
       const onCrosswalk = b.x > -8.5 && b.x < -1.5 && b.z > -4.6 && b.z < 4.6;
       if (onCrosswalk && road.x < -4.2) {

@@ -155,7 +155,7 @@ The browser build ships as the repo's GitHub Pages site:
 |---|---|
 | Trigger | push to `main` (plus manual `workflow_dispatch`) |
 | Workflow | [.github/workflows/deploy-pages.yml](../.github/workflows/deploy-pages.yml) |
-| Gate | typecheck + 44 unit tests must pass before the build |
+| Gate | typecheck + unit tests must pass before the build (125 as of doc 34) |
 | Artifact | `web-three/dist` → `actions/upload-pages-artifact` → `actions/deploy-pages@v4` |
 | Subpath | Vite `base: './'` (relative) — the game is procedural geometry with no runtime asset fetches, so it sits cleanly under `/first-slice-nyc/` |
 | Pages mode | `build_type: workflow` (switched from the legacy root build, which served an empty index) |

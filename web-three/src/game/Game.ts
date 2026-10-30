@@ -88,10 +88,16 @@ export class Game {
 
   constructor(container: HTMLElement) {
     // ---------------- renderer ----------------
+    // ?fx=off — test affordance for slow/software-GL machines: the shadow
+    // pass is over half the frame cost under SwiftShader (probe-shadow-cost:
+    // 21 → 46 fps), and a clamped dt stretches the four-day E2E driver past
+    // every timeout. Shadows carry no gameplay state; the visual checks
+    // (visual-check.mjs) keep full fx so screenshots stay faithful.
+    const fxOff = new URLSearchParams(location.search).get('fx') === 'off';
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = !fxOff;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.NeutralToneMapping; // closest to the reference's filmic
     this.renderer.toneMappingExposure = 1.05;

@@ -36,7 +36,7 @@ jobs:
         working-directory: web-three
         run: npm ci
 
-      - name: Typecheck + unit tests (44)
+      - name: Typecheck + unit tests
         working-directory: web-three
         run: |
           npm run typecheck

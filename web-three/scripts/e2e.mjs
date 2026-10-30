@@ -33,20 +33,28 @@ await new Promise((r) => server.listen(PORT, r));
 const browser = await chromium.launch({
   args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox'],
 });
-const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
+// Viewport override for slow/software-GL machines: at ~5 fps the loop's dt
+// clamp (0.1 s) makes game-time run at half wall speed and the four-day
+// driver outlives every timeout. A small viewport raises fps until dt stops
+// clamping; the driver is viewport-agnostic. Defaults unchanged (900x700).
+const VW = Number.parseInt(process.env.E2E_W ?? '900', 10);
+const VH = Number.parseInt(process.env.E2E_H ?? '700', 10);
+const page = await browser.newPage({ viewport: { width: VW, height: VH } });
 
 const consoleErrors = [];
 page.on('console', (msg) => {
   const text = msg.text();
   if (text.includes('PASS ') || text.includes('FAIL ') || text.includes('AUTOTEST')) {
     console.log('DRIVER:', text); // stream the driver log live
+  } else if (text.includes('[walk]') || text.includes('[beat]')) {
+    console.log('TRACE :', text); // timeline traces for slow-machine forensics
   } else if (msg.type() === 'error') {
     consoleErrors.push(text);
   }
 });
 page.on('pageerror', (err) => consoleErrors.push(`PAGEERROR: ${err.message}`));
 
-await page.goto(`http://localhost:${PORT}/?autotest=1`, { waitUntil: 'load' });
+await page.goto(`http://localhost:${PORT}/?autotest=1&fx=off`, { waitUntil: 'load' });
 
 try {
   // The four-day journey is longer now (Day 4 afternoon included) and this

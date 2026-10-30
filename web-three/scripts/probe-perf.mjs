@@ -28,11 +28,11 @@ const server = createServer((req, res) => {
 await new Promise((r) => server.listen(PORT, r));
 
 const browser = await chromium.launch({ args: ['use-gl=swiftshader', 'enable-unsafe-swiftshader'].map((a) => '--' + a) });
-const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+const page = await browser.newPage({ viewport: { width: Number(process.env.E2E_W ?? 1280), height: Number(process.env.E2E_H ?? 800) } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 
-await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'load' });
+await page.goto(`http://localhost:${PORT}/${process.env.FXOFF ? "?fx=off" : ""}`, { waitUntil: "load" });
 await page.waitForTimeout(3000);
 
 const sample = async (label) => {

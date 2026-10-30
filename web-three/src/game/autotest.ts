@@ -246,7 +246,16 @@ export function runAutotest(game: Game): void {
       check(dbg.objective().toLowerCase().includes('fire escape'), "stepping off calls Rosa's hint");
       await walkTo(9.4, -7.2, 12, true);
       check(game.player.ladder !== null, 're-grabbed ladder 1');
-      await holdUntil('KeyW', () => p().y > 3.6, 10);   // ride to the rail
+      // ride to the RAIL (top 4.35) before stepping east. The old threshold
+      // (3.6) exited mid-ladder, 0.45–0.47 below the landing top (4.075) —
+      // exactly the ground-snap window, so the dismount landed on the landing
+      // only when the frame sampling overshot the threshold enough. A build
+      // whose fps profile differs by a hair flipped that coin (playtest
+      // 2026-10-30: three runs, three falls to the street). Riding to 4.2 is
+      // what the comment always said and what a player does: from the cap,
+      // the fall to the landing top is 0.275 — inside the snap window at any
+      // dt the loop can produce.
+      await holdUntil('KeyW', () => p().y > 4.2, 10);   // ride to the rail
       await holdUntil('KeyD', () => game.player.ladder === null, 4); // step east onto the landing
       await waitFrames(20);
       check(p().y > 3.9 && game.player.onGround, `standing on landing 1 (y=${p().y.toFixed(2)})`);
@@ -320,7 +329,7 @@ export function runAutotest(game: Game): void {
       check(s.step === Step.D2_CLIMB2, 'dusk climb offered');
 
       await walkTo(9.4, -7.2, 12, true);
-      await holdUntil('KeyW', () => p().y > 3.6, 10);
+      await holdUntil('KeyW', () => p().y > 4.2, 10); // ride to the rail — mid-ladder exits fall below the snap window (see Day 1 note)
       await holdUntil('KeyD', () => game.player.ladder === null, 4);
       await waitFrames(20);
       await walkTo(16.2, -7.2, 8, true);
@@ -424,7 +433,7 @@ export function runAutotest(game: Game): void {
       await walkTo(9.4, 5.0, 60);
       await walkTo(9.4, -7.2, 30, true);
       check(game.player.ladder !== null, 'day 3: grabbed ladder 1' + snap());
-      await holdUntil('KeyW', () => p().y > 3.6, 10);
+      await holdUntil('KeyW', () => p().y > 4.2, 10); // ride to the rail — mid-ladder exits fall below the snap window (see Day 1 note)
       await holdUntil('KeyD', () => game.player.ladder === null, 4);
       await waitFrames(20);
       await walkTo(16.2, -7.2, 12, true);
@@ -543,7 +552,7 @@ export function runAutotest(game: Game): void {
       await cabClear(); // the receipt is on the cart — now the dusk climb, no diagonals into a parked cab
       await walkTo(9.4, -7.2, 60, true);
       check(game.player.ladder !== null, 'day 4: grabbed ladder 1' + snap());
-      await holdUntil('KeyW', () => p().y > 3.6, 10);
+      await holdUntil('KeyW', () => p().y > 4.2, 10); // ride to the rail — mid-ladder exits fall below the snap window (see Day 1 note)
       await holdUntil('KeyD', () => game.player.ladder === null, 4);
       await waitFrames(20);
       await walkTo(16.2, -7.2, 12, true);
