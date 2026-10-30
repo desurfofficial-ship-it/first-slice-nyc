@@ -70,6 +70,11 @@ export interface Tree {
   canopy: THREE.Group;
   /** world height of the tallest canopy blob — leaf drift spawns under it */
   top: number;
+  /** per-tree cloned blob materials — the camera's fade-on-occlude pass
+   *  (World, driven by GameCamera's occlusion array) dissolves ONE tree's
+   *  leaves when they swallow the player; the shared bank materials would
+   *  fade the whole street at once. */
+  mats: THREE.MeshLambertMaterial[];
 }
 
 /** A street tree with believable low-poly structure: trunk, root flare,
@@ -98,6 +103,7 @@ export function makeTree(bank: MatBank, rng: () => number, autumn = false): Tree
   canopy.position.y = h;
   const blobs = 3;
   let top = h;
+  const mats: THREE.MeshLambertMaterial[] = [];
   // blob 0 is the crown (highest); blobs 1-2 hang lower on the flanks.
   // Turning reads as a GRADIENT, never a coin flip: crown honey-gold, mid
   // blob lighter amber, lowest blob still green — the tree holds on from
@@ -111,7 +117,10 @@ export function makeTree(bank: MatBank, rng: () => number, autumn = false): Tree
   for (let i = 0; i < blobs; i++) {
     const r = 0.85 + rng() * 0.55;
     const cy = r * 0.45 + rng() * 0.5;
-    const b = mesh(geo.sphere, leafFor(i),
+    const m = leafFor(i).clone();
+    m.transparent = true; // fade-on-occlude ready; opacity 1 renders as opaque
+    mats.push(m);
+    const b = mesh(geo.sphere, m,
       (rng() - 0.5) * 0.9, cy, (rng() - 0.5) * 0.9);
     b.scale.setScalar(r);
     b.castShadow = true;
@@ -119,7 +128,7 @@ export function makeTree(bank: MatBank, rng: () => number, autumn = false): Tree
     top = Math.max(top, h + cy + r * 0.9);
   }
   g.add(canopy);
-  return { group: g, canopy, top };
+  return { group: g, canopy, top, mats };
 }
 
 /** Sidewalk tree pit: dark soil inside a low granite rim — the same grey

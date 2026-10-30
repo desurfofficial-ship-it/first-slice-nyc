@@ -471,3 +471,90 @@ camera/descend/wall-slide suites included); build clean; probe-env7 PASS
 (0 console errors); probe-leaves 48/37/0/0 unchanged; probe-env5 +
 probe-env6 PASS unchanged; E2E 16 failures — **pre-existing on 40ba313,
 evidence above**. My tree adds zero new failures.
+
+## Round eight — the camera stops hiding the player (2026-10-30, user-directed)
+
+Direct instruction: **"Fix the camera view and angle."** The camera is
+listed in the mission as a system to preserve, so the fix is surgical:
+framing, corridor and occlusion only — the orbit/flip/input logic (the
+split that fixed mid-walk veering) is untouched, and the postcard pose is
+untouched except for one deliberate FOV cap noted below.
+
+Diagnosis came from a live-camera probe (`probe-cam.mjs`, committed):
+real key events through the real InputManager, screenshots + numeric
+readouts of what the PLAYER's lens actually shows. Four findings:
+
+1. **The street hid the player.** The on-axis boom means anything one
+   metre off the walking line can swallow the player for whole seconds:
+   at player x ≈ −36 the plaza tree's canopy (blob x/z jitter ±0.45
+   combines diagonally to ~2.04 m reach, plus the group spin) covers
+   screen centre; the beat screenshot shows no player at all.
+2. **The boom was requested 9 m behind a mid-street player.** The request
+   landed inside the south brownstones; shortenBoom dragged it back to
+   the building face — exactly the south tree-pit/canopy belt (z ≈ −7.7).
+   The lens then parks INSIDE canopies: a leaf blob filled a third of the
+   frame during south-side settles and mid-crossing flips.
+3. **Portrait phones wasted the glass.** KEEP_WIDTH pushed vertical FOV
+   to the 91° cap: more than half the screen was flat wall above and
+   empty road below, the player ~10 % of frame height (81 px of 844).
+4. **South-side flips collapsed the boom.** With the corridor clamp (see
+   below), a player standing near the flip line mid-street could pinch
+   the lens to 3 m / 65°.
+
+Fixes, all in `src/camera/GameCamera.ts` unless noted:
+
+- **Landscape boom tightened one step**: CAM_DIST 9→8, CAM_HEIGHT_BASE
+  6.5→6.0 (player reads ~30 % of frame height; pitch 38.5°→39.8° —
+  effectively unchanged).
+- **Portrait reframe**: aspect < 1 holds the boom at ×0.75 distance and
+  ×0.82 height, and MAX_VFOV 91→**80**. The player reads ~1.7× larger
+  (~147 px), the street fills the frame instead of the sky. NOTE for the
+  lead agent: the FOV cap also applies to PORTRAIT postcards (the rig
+  shares the camera) — landscape postcards are pixel-identical, portrait
+  ones frame slightly tighter (and better).
+- **Street corridor**: the desired boom z is clamped to [−4.8, 4.9]
+  before any wall-shortening, so flips and crossings can never request a
+  camera inside either canopy belt or the building faces. The −4.8/4.9
+  bounds were derived from the canopy spheres: camera y ≥ 6.2 clears
+  every sphere vertically once it stays ~2.1 m from a row line.
+- **Boom floor 4.6 m** after the clamp, so a mid-street player near the
+  flip line keeps a humane framing (worst case 4.6 m / 55°, transient).
+- **Canopy sidestep**: the world now reports its canopies
+  (`World.canopySpheres()`, r 2.15 spheres centred a blob-radius under
+  the measured top; wired once in Game.ts). When the camera→focus sight
+  line passes within a canopy sphere + 0.45 m, the boom steps aside in
+  world-x (ladder 0…±3.5 m, smallest first, smoothed at 2.5/s). Zero
+  offset when already clear — the classic framing is untouched.
+- **Fade-on-occlude** (the part the sidestep cannot do): beside a plaza
+  tree NO straight line from a street-level camera reaches the player
+  (every ladder candidate is blocked — verified). So the camera measures
+  the ACTUAL lens→player segment each frame (`GameCamera.occlusion`,
+  0..1 per canopy) and `World.update` dissolves that ONE tree's canopy
+  toward 0.22 gauze at 8/s. This required per-tree material clones in
+  `makeTree` (`Tree.mats`) — the shared bank materials would have faded
+  the whole street's foliage at once. Landscape + portrait unaffected
+  visually at opacity 1; transparent:true only moves the blobs into the
+  sorted pass.
+
+New probes (committed): `probe-cam.mjs` (live beats, landscape +
+portrait, numeric readouts incl. sideStep), `probe-camsweep.mjs`
+(continuous 3 Hz clearance sweep over the whole block, both sidewalks),
+`probe-camfade.mjs` (parks the player at the two worst beats and proves
+the fade). Screenshots in `shots/cam-*.png`, `camsweep-*`, `camfade-*`:
+the before/after of the x ≈ −36 beat is the whole story — from "player
+completely invisible behind a tree" to "player crisp, canopy a soft
+ghost above".
+
+Verification this round: tsc clean; build clean; vitest 125/125;
+probe-cam zero console/page errors on both aspects. E2E: 27/11/16
+failures across three runs — **re-confirmed pre-existing**, this time
+against a pristine-HEAD baseline (`git archive 31e0375` → separate
+build → same battery): baseline 16 failures, entry point "three orders
+brewed and served" (day 4), identical cascade to mine; my build's re-run
+fails the same cluster and passes all of day 3. The day-3 variance
+between my two runs (the "third window lights" race at autotest.ts:437 —
+30 s real-time wait, then an immediate `thirdIntensity() > 2.5` check
+with no glow-wait) is machine-load flake, not state. Two timing races
+for the lead agent's list: that glow check, and the fact that w2/w3 read
+0.0 in late-run state dumps on BOTH builds (the golden-hour windows may
+not persist; yours to call).

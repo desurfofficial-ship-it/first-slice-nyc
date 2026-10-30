@@ -56,6 +56,16 @@ export class World {
   get taxi(): THREE.Group {
     return (this.glbProps.get('car_taxi') as THREE.Group | undefined) ?? this.taxiBase;
   }
+  /** World-space canopy spheres for the camera's sight-line guard
+   *  (GameCamera.pickSideStep) — the trees report themselves. */
+  canopySpheres(): Array<{ x: number; y: number; z: number; r: number }> {
+    return this.canopySpheresCache;
+  }
+  /** Per-canopy occlusion written by the camera each frame (1 = the sight
+   *  line runs through that canopy). Game wires this once at boot; the
+   *  update pass dissolves occluded canopies toward gauze so the street
+   *  never hides the player behind its own leaves. */
+  canopyOcclusion: Float32Array | null = null;
   private taxiBase: THREE.Group;
   /** The cab's collider — boxFromCenter once, then moved every frame. */
   readonly taxiCollider: AABB;
@@ -92,7 +102,9 @@ export class World {
   private washerLoad: THREE.Mesh | null = null;
   private washerRunning = false;
   private readonly bank: MatBank;
-  private readonly trees: Array<{ group: THREE.Group; canopy: THREE.Group; phase: number }> = [];
+  private readonly trees: Array<{ group: THREE.Group; canopy: THREE.Group; phase: number; mats: THREE.MeshLambertMaterial[]; fade: number }> = [];
+  /** Canopy bounding spheres for the camera's sight-line guard. */
+  private readonly canopySpheresCache: Array<{ x: number; y: number; z: number; r: number }> = [];
   private readonly pigeonFlock: PigeonFlock;
   private readonly pigeonFlockEast: PigeonFlock; // the east end gets its own small knot of birds
   private readonly squirrel: Squirrel;
@@ -629,8 +641,19 @@ export class World {
       t.group.position.set(tx, 0.05, tz);
       t.group.rotation.y = rng() * Math.PI * 2;
       this.scene.add(t.group);
-      this.trees.push({ group: t.group, canopy: t.canopy, phase: rng() * Math.PI * 2 });
+      this.trees.push({ group: t.group, canopy: t.canopy, phase: rng() * Math.PI * 2, mats: t.mats, fade: 1 });
       treeTops.push(t.top);
+    }
+    // Canopy spheres for GameCamera's sidestep (see pickSideStep). One sphere
+    // per tree, centred a blob-radius under the measured top. The widest
+    // cluster the factory can roll: blob r ≤ 1.4, x AND z jitter ±0.45
+    // combine diagonally (±0.64) and the group spins — so the true horizontal
+    // reach is ~2.04 m, and r 1.9 let a real canopy graze the sight line by
+    // three centimetres while still swallowing the player on screen. r 2.15
+    // covers the worst roll with margin. Coarse on purpose — the camera only
+    // needs "a blob of leaves lives here", not the exact silhouette.
+    for (let i = 0; i < treeSpots.length; i++) {
+      this.canopySpheresCache.push({ x: treeSpots[i][0], y: treeTops[i] - 0.9, z: treeSpots[i][1], r: 2.15 });
     }
 
     // ---- one more parked vehicle: a delivery van, north curb ----
@@ -1897,6 +1920,18 @@ export class World {
     for (const t of this.trees) {
       t.canopy.rotation.z = Math.sin(this.ambientTime * 0.9 + t.phase) * 0.022;
       t.canopy.rotation.x = Math.cos(this.ambientTime * 0.7 + t.phase) * 0.016;
+    }
+    // fade-on-occlude — the camera reports which canopies stand between it
+    // and the player (GameCamera.updateOcclusion); a canopy that swallows
+    // the player dissolves toward gauze instead of hiding them. Fast fade
+    // in (~8/s), so the lens never lingers behind full leaves.
+    if (this.canopyOcclusion && this.canopyOcclusion.length === this.trees.length) {
+      for (let i = 0; i < this.trees.length; i++) {
+        const t = this.trees[i];
+        const target = 1 - 0.78 * this.canopyOcclusion[i]; // floor 0.22 gauze
+        t.fade += (target - t.fade) * Math.min(1, dt * 8);
+        for (const m of t.mats) m.opacity = t.fade;
+      }
     }
     // the near washer spins while the apron is in the machine (Rule of Steam)
     if (this.washerRunning && this.washerLoad) {
