@@ -6,6 +6,36 @@
 
 ---
 
+## 0. Living Neighborhood — GDD is law (read before expanding the world)
+
+**Authoritative creative direction:** [docs/01-game-design-document.md](docs/01-game-design-document.md) (**GDD v2.0**).
+
+Any expansion prompt (including the Living Neighborhood milestone, Doc 33 / Doc 34) exists to fix **lack of exploration, player agency, and meaningful interactions**. It is **not** permission to replace the original game concept or build a generic open-world city.
+
+### Keep these original design pillars central
+
+1. **The daily loop:** Morning — Open Up · Midday — Go Explore · Evening — Build Your Slice · Night — City Wind-Down · then the **Postcard**.
+2. **The Map** companion and discovery-based New York learning.
+3. **The Regulars** and their gradual friendship stories.
+4. **Postcard quests**, landmarks, and memorable New York moments.
+5. **The Slice Ladder:** Cart → Bodega → Café → Food Spot → Rooftop.
+6. **The City Passport** and eventual five-borough progression.
+7. **Cozy, colorful, readable low-poly** New York presentation.
+
+### Working rules for expansion
+
+- Prefer a **compact but rich neighborhood** over a huge map.
+- Every new location needs a **purpose**.
+- Every major interaction needs a **meaningful experience or consequence**.
+- **Identify** which GDD systems are already implemented, partially implemented, and still missing — **before** building more world.
+- **Do not silently replace or abandon** GDD systems while expanding the world.
+
+**Ultimate goal (unchanged):** FIRST SLICE — a cozy New York life-simulation about discovering the city, building relationships, learning its culture, and gradually finding your place in it.
+
+If a proposed change fights these pillars, **stop and ask a human**. Expansion without the GDD is scope failure, not progress.
+
+---
+
 ## 1. The Laws (non-negotiable design laws)
 
 You do not "follow preferences" here. You uphold laws. Every output — doc, code, image prompt, line of dialogue — is checked against them:
@@ -78,12 +108,14 @@ first-slice-nyc/
 │   ├── 04-art-direction-bible.md       # Palette, camera, the 1-Second Law
 │   ├── 05-viral-growth-playbook.md     # Postcard-as-ad, UGC engine, market
 │   ├── 06-production-roadmap.md        # Phases 0–6, epics, KPI gates, risks
-│   └── 07-vertical-slice-design.md     # Phase 1 contract (v0.1, WIP)
+│   ├── 07-vertical-slice-design.md     # Phase 1 contract (v0.1, WIP)
+│   ├── 33-living-neighborhood-design.md
+│   └── 34-living-block-implemented.md
 ├── assets/                    # Screenshots/previews
 └── agents/                    # (planned) skills/<name>/SKILL.md extensions
 ```
 
-Game code will live in `/game` (Unity 6 URP) after Phase 0 exit. Do not create it early.
+Game code for the browser greybox lives in `web-three/`. Do not replace GDD systems with a generic city demo.
 
 ## 4. Environment & Commands
 
@@ -104,20 +136,21 @@ git status && git log --oneline -5     # orient first, always
 
 ## 5. Workflow Protocol
 
-1. **Read `/home/z/my-project/worklog.md` (sandbox) and the latest commit log before starting.** Understand what previous agents did.
+1. **Read `AGENTS.md` §0 (GDD / Living Neighborhood) and the latest commit log before starting.** Understand what previous agents did.
 2. Work in a branch or on `main` only for doc fixes — bulk changes get a branch.
 3. Small, honest commits: `docs(gdd): add Map v1 trigger table`.
-4. Before finishing: run whatever check exists (`lint` for code, self-review for docs — voice guide §2, Laws §1).
-5. **Append** (never overwrite) a worklog entry using the template at the bottom of `worklog.md`.
+4. Before finishing: run whatever check exists (`lint` for code, self-review for docs — voice guide §2, Laws §1, §0 pillars).
+5. **Append** (never overwrite) a worklog entry using the template at the bottom of `worklog.md` when that file is in play.
 6. Cite provenance: if an idea, skill, or snippet comes from a repo, a post, or the web, say so in the doc's changelog or the commit message. Stolen-with-credit is our house style; stolen-silently is not.
 
 **PR / change checklist:**
+- [ ] **§0 GDD pillars respected** (daily loop, Map, Regulars, Postcard, Slice Ladder, Passport, cozy low-poly) — expansion did not replace the concept
 - [ ] Laws §1 respected (which ones apply? name them in the description)
 - [ ] Anti-Slop Quality Gate §1b respected (inspected in-game; no filler; owner + behavior + style + verification)
 - [ ] Voice guide §2 respected
 - [ ] Terminology consistent with §2 table
 - [ ] No secrets, no fabricated data, TBDs marked `[TBD]` with owner + date
-- [ ] Worklog appended
+- [ ] GDD systems audited: implemented / partial / missing named; nothing silently abandoned
 
 ## 6. Skills Library
 
@@ -147,7 +180,7 @@ A **skill** is a packaged procedure an agent loads when a task matches its trigg
 ### skill: content-pipeline
 **Inputs:** content type (postcard / Map note / slang card / Regular beat / event) + quantity.
 1. Re-read Doc 02 + Doc 04 for voice; read 3 existing examples of the type.
-2. Draft with the type's law: postcards ≤ 2 sentences, one "wait, REALLY?" fact; Map notes in feelings-first ordinary words; Regular beats end on warmth, never cliffhanger-of-dread.
+2. Draft with the type's law: postcards ≤ 2 sentences, one "wait, REALLY?" fact; Map notes in feelings--first ordinary words; Regular beats end on warmth, never cliffhanger-of-dread.
 3. Run the self-check: Could a never-visitor keep this? Does it pass the fridge test? Is there exactly one wonder beat? Does any line quiz, sigh at, or flatter the player falsely?
 4. Mark culture-specific beats for the NYC-resident panel.
 **DoD:** content in the correct doc/data file, voice-checked, provenance noted.
@@ -158,6 +191,7 @@ A **skill** is a packaged procedure an agent loads when a task matches its trigg
 1. Open Doc 07 §3 scope tables (IN/OUT).
 2. Classify: IN (spec exists?) · OUT (recommend deferral with a one-line note in the backlog section of Doc 07 §10) · UNDECIDED (escalate to human).
 3. For IN items, verify acceptance criteria are addressed.
+4. Check **§0**: does this expand the GDD, or replace it with a generic city?
 **DoD:** verdict in 5 lines: IN/OUT/UNDECIDED + why + what to do next.
 **Pitfall:** scope creep is a *design* failure here, not just a schedule one — every OUT-feature dilutes the slice's proof.
 
@@ -167,7 +201,7 @@ A **skill** is a packaged procedure an agent loads when a task matches its trigg
 2. Scaffold → implement → unit-test the pure logic (order flow, caption composer, note triggers) → device smoke test.
 3. Run the Laws audit on anything visual; run `visual-qa` **and** the Anti-Slop Quality Gate (§1b).
 4. PR with: what, which law it serves, screenshots, open questions.
-**DoD:** feature DoD from Doc 06 §7 fully checked; Anti-Slop Gate passed.
+**DoD:** feature DoD from Doc 06 §7 fully checked; Anti-Slop Gate passed; §0 pillars intact.
 **Pitfall:** optimizing code before the moment works in greybox. Feel first, performance second, elegance last.
 
 ### skill: visual-qa
@@ -245,9 +279,10 @@ trigger: <when to load>
 
 - Monetization or pricing of any kind is proposed (Law 6 territory)
 - Scope grows: new boroughs, new systems beyond the roadmap epics
+- **World expansion that abandons GDD pillars** (daily loop, Map, Regulars, Postcard, Slice Ladder) in favor of a generic open city
 - Naming, IP, or partnership decisions (the title is a legal decision, not a design one)
 - Credentials are requested, or anything touches payments/PII
-- A "requirement" contradicts the Laws — escalate with the conflict stated plainly
+- A "requirement" contradicts the Laws or §0 — escalate with the conflict stated plainly
 
 ## 9. Honesty Rules
 
