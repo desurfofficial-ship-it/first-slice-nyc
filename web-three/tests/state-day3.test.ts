@@ -9,6 +9,8 @@ import { describe, it, expect } from 'vitest';
 import { GameState, Step } from '../src/core/GameState';
 import { D3_ORDERS, composeCaption } from '../src/core/content';
 import { parseSave, defaultSave, SAVE_KEY } from '../src/core/Save';
+import { authoredRegistry, relevant } from './registryHarness';
+const reg = authoredRegistry();
 
 /** A Day-2-completed state, ready to begin Day 3 (the autotest's end state). */
 function day2Done(money = 111): GameState {
@@ -174,14 +176,14 @@ describe('Day 3 — poster, climb, postcard', () => {
 
   it('relevance: kid and poster answer only when the story is there', () => {
     const s = day3ToRush();
-    expect(s.isRelevant('kid')).toBe(false);
+    expect(relevant(reg, s, 'kid')).toBe(false);
     s.setStep(Step.D3_KIDDOWN);
-    expect(s.isRelevant('kid')).toBe(true);
+    expect(relevant(reg, s, 'kid')).toBe(true);
     s.kidJoins();
-    expect(s.isRelevant('kid')).toBe(false);
-    expect(s.isRelevant('poster')).toBe(false);
+    expect(relevant(reg, s, 'kid')).toBe(false);
+    expect(relevant(reg, s, 'poster')).toBe(false);
     s.setStep(Step.D3_POSTER);
-    expect(s.isRelevant('poster')).toBe(true);
+    expect(relevant(reg, s, 'poster')).toBe(true);
   });
 
   it('the Day 3 caption carries the money math and the belonging beat', () => {

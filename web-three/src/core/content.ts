@@ -8,8 +8,6 @@
  * says what you picked. The reference was silent on all three counts.
  */
 
-import type { GameState } from './GameState';
-
 /** Objective line per step (main.gd `_set_step`). */
 export const OBJECTIVES: Record<number, string> = {
   0:  'Someone by the terminal is waving at you.',                       // MEET_ROSA
@@ -226,37 +224,9 @@ export function itemPickNote(id: string, leftAfter: number): string {
   return `The ${label}. ${flavor} That's three — “Perfect,” Rosa says, and the bell over the door rings.`;
 }
 
-/** Prompt verbs (main.gd `_update_prompt`). */
-export function promptVerb(id: string, s: GameState): string {
-  switch (id) {
-    case 'rosa': return 'Say hi';
-    case 'counter': return 'Serve';
-    case 'idris': return 'Serve the usual';
-    case 'stoop': return 'Deliver';
-    case 'kid': return 'Walk with him';
-    case 'poster': return 'Read the flyer';
-    case 'stranger': return 'Say hi';
-    case 'laundry':
-      return s.step === 28 /* D4_LAUNDRY */ ? 'Hand the apron'
-        : s.step === 29 /* D4_PERMIT */ ? 'Ask Sal'
-        : 'Say hi';
-    case 'permit':
-      return s.permitConfirm ? 'File \u2014 $10' : 'Read the notice';
-    case 'rail': return s.lingerStage <= 1 ? 'Stay a while' : 'Tomorrow';
-    case 'cart':
-      if (s.step === 5 /* CLAIM_CART */) return 'Claim corner';
-      if (s.step === 7 /* SOLO */ || s.step === 14 /* D2_LUNCH */) return 'Serve';
-      if (s.step === 18 /* D3_RUSH */ || s.step === 26 /* D4_RUSH */) return s.brewing ? BREWING_PROMPT : 'Serve';
-      if (s.step === 20 /* D3_STOOL */) return 'Stool \u2014 $10';
-      if (s.day >= 2 && !s.awningUp && s.money >= 15) return 'Awning \u2014 $15';
-      return 'Serve';
-    case 'item_mango': return 'Take the mango';
-    case 'item_coffee': return 'Take the coffee';
-    case 'item_bread': return 'Take the bread';
-    default: return 'Take'; // anything else on a shelf
-  }
-}
-
+/** Prompt verbs for the authored interactions moved INTO their interaction
+ *  definitions (game/interactionDefs.ts) by the Doc 37 §3B registry refactor.
+ *  content.ts keeps the TEXT; the interaction owns the choice of line. */
 export const DEFAULT_CART_NAME = 'First Slice';
 
 // ---------------------------------------------------------------- Day 3 ----
@@ -428,3 +398,79 @@ export const FAMILIAR_WORD_NOTE =
   'She\u2019s crossing back at this hour. \u201CMorning,\u201D she says. One word. On this block, that\u2019s a handshake.';
 
 export const D4_RECEIPT_TEXT = 'FILED';
+
+// -------------------------------------------------- free-roam (Doc 37 §3C) ----
+// The block answers before the story does. Every line here is available
+// OUTSIDE the authored beats: the bodega sells every morning, the bench
+// holds whoever sits, the board and the newsboxes rotate by day. None of
+// it is stored in the save — day-keyed like the living block, so a save
+// that predates these lines plays them like it always knew.
+
+/** The bodega's shelf, as a shop. The three quest goods double as stock:
+ *  during Day-1 COLLECT they are "Take" (Rosa's errand, free); every other
+ *  moment they are "Buy" — with a real deduction, the awning/stool pattern
+ *  of a second press to confirm. */
+export interface ShelfGood {
+  id: string;
+  label: string;
+  price: number;
+  /** First press — the offer (the confirm gate). */
+  offer: string;
+  /** The buy line. */
+  buy: string;
+  /** Not enough money. */
+  broke: string;
+}
+
+export const SHELF_GOODS: ShelfGood[] = [
+  {
+    id: 'mango', label: 'Mango', price: 2,
+    offer: 'A mango, heavy for its size \u2014 $2. [Space] again to buy it.',
+    buy: 'You buy the mango. Rosa waves from the counter without looking up.',
+    broke: 'The mango is $2. The wallet says another day.',
+  },
+  {
+    id: 'coffee', label: 'Coffee', price: 5,
+    offer: 'The tin with the faded label \u2014 $5. [Space] again to buy it.',
+    buy: 'You buy the tin. It\u2019s the one the regulars ask for by its dent.',
+    broke: 'The tin is $5. The wallet says another day.',
+  },
+  {
+    id: 'bread', label: 'Bread', price: 3,
+    offer: 'Bread, still warm from the morning tray \u2014 $3. [Space] again to buy it.',
+    buy: 'You buy the bread. The bag is warm all the way home.',
+    broke: 'The bread is $3. The wallet says another day.',
+  },
+];
+
+/** The bulletin board by the subway stairs — the slip rotates by day
+ *  (Doc 33 §2.3's flyer diary, now readable). Day 3's beat is the poster
+ *  itself; the board steps aside for it. */
+export const BULLETIN_NOTES: string[] = [
+  'STOOP SALE SATURDAY \u2014 the Rivera stoop, everything must go. Someone has underlined \u201Ceverything\u201D twice.',
+  'LOST: one gray cat. Answers to Station, or faster to a can of tuna. The reward is described as \u201Cdeep affection.\u201D',
+  'A flyer, still wet at the corners: your cart, someone\u2019s photo, \u201CBEST CORNER COFFEE \u2014 as voted by everyone who was asked.\u201D',
+  'PARADE SUNDAY, 9 AM, this block. Bring a chair. Someone has crossed out \u201Croad closures\u201D and written \u201Cgood delays.\u201D',
+];
+
+/** The newspaper boxes at the plaza — a headline a day. The city talks to
+ *  itself; you are allowed to listen. */
+export const NEWSPAPER_NOTES: string[] = [
+  'THE DAILY: \u201CCITY WAKES EARLY; COFFEE BLAMED.\u201D Below the fold, a letter to the editor defends the bean.',
+  'THE DAILY: \u201CMAYOR VISITS LAUNDROMAT, CALLS IT \u2018THE TOWN SQUARE.\u2019\u201D Sal is not quoted. Sal does not need quotes.',
+  'THE DAILY: \u201CLOCAL CORNER VOTED BEST CORNER.\u201D The poll had one respondent. She knows who she is.',
+  'THE DAILY: \u201CPARADE TOMORROW.\u201D The route is a straight line past a certain coffee cart.',
+];
+
+/** The bus bench — sitting is an interaction now (Doc 37 §3B: using
+ *  environmental objects). One line a day; the bench keeps no save. */
+export const BENCH_SIT_NOTES: string[] = [
+  'The bench is warm from the morning. The street does its work in front of you. It is enough.',
+  'From here the whole block minds its business. It minds it well.',
+  'A pigeon lands, considers you, and decides you are furniture. The highest compliment it gives.',
+  'The bench again. It is starting to be your bench. The paint has not noticed yet.',
+];
+
+/** The subway stairs — a glance down. The kid had it right on Day 3. */
+export const SUBWAY_NOTE =
+  'The stairs go down. F and M both work \u2014 the kid had that right. The city keeps its promises underground.';

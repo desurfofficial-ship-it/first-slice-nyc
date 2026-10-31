@@ -7,7 +7,7 @@
  */
 
 import * as THREE from 'three';
-import { GameState, Step, INTERACT_RANGE, START_MONEY, type Effect } from '../core/GameState';
+import { GameState, Step, START_MONEY, type Effect } from '../core/GameState';
 import { composeCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE_OBJECTIVE,
   D3_ORDERS, D4_ORDERS, BREWING_NOTE, STOOL_OFFER_NOTE, STOOL_UP_NOTE, D3_GOLDEN_NOTE,
   D3_CLIMB_NOTE, DAY3_BEGIN_NOTE, D4_GOLDEN_NOTE, D4_CLIMB_NOTE, DAY4_BEGIN_NOTE,
@@ -25,16 +25,22 @@ import { UI } from '../ui/UI';
 import { capturePostcard, downloadPostcard } from '../postcard/PostcardCapture';
 import { updatePersonAnim, type PersonRig } from '../world/personRig';
 import { FAMILIAR_SPEED, familiarBeatForDay } from '../world/dressing';
+import { InteractionRegistry, NEVER_NEAR, type InteractionCtx } from './interactions';
+import { buildInteractions, byDay, BUS_BENCH_SEAT } from './interactionDefs';
+import { BENCH_SIT_NOTES } from '../core/content';
 import { gameAudio } from './audio';
-
-interface Interactable {
-  id: string;
-  pos: () => { x: number; y: number; z: number };
-}
 
 /** One waypoint on the familiar face's daily walk. dwell = seconds she
  *  stands there (the nod, the word); sit/hide = what happens on arrival. */
 interface FamiliarStop { x: number; z: number; dwell?: number; sit?: boolean; hide?: boolean; note?: string }
+
+/** The bodega shelf's three stock spots — the Day-1 errand picks from these,
+ *  and the morning restock puts them back (the shop is open every day). */
+const SHELF_STOCK: Array<[id: string, x: number, y: number, z: number]> = [
+  ['mango', -18, 2.25, 19.2],
+  ['coffee', -16, 2.25, 19.2],
+  ['bread', -14, 2.25, 19.2],
+];
 
 export class Game {
   readonly state = new GameState();
@@ -94,7 +100,12 @@ export class Game {
   private rigPos = { x: 0, y: 0, z: 0 };
   private rigLook = { x: 0, y: 0, z: 0 };
 
-  private interactables: Interactable[] = [];
+  /** Every pressable thing, declared once (Doc 37 §3B). Authored beats and
+   *  the free-roam set live side by side in one registry; nothing is wired
+   *  by scattered checks in this loop anymore. Public for the E2E/probe
+   *  harnesses. */
+  readonly registry = new InteractionRegistry();
+  private readonly ictx: InteractionCtx;
   private lastTime = performance.now();
   private running = true;
   private autotestStarted = false;
@@ -170,23 +181,19 @@ export class Game {
     this.cast.push(this.world.sal); // Sal breathes at his counter, every day
     this.cast.push(this.world.familiar); // the familiar face breathes between her rounds
 
-    // ---------------- interactables (main.gd `_build_interactables`) --------
-    this.interactables = [
-      { id: 'rosa', pos: () => this.world.rosa.position },
-      { id: 'item_mango', pos: () => this.itemPos('mango') },
-      { id: 'item_coffee', pos: () => this.itemPos('coffee') },
-      { id: 'item_bread', pos: () => this.itemPos('bread') },
-      { id: 'counter', pos: () => ({ x: -18.5, y: 0.5, z: 13.5 }) },
-      { id: 'cart', pos: () => this.world.cartRoot.position },
-      { id: 'idris', pos: () => this.world.idris.position },
-      { id: 'stoop', pos: () => ({ x: 15, y: 0.05, z: 6.9 }) },
-      { id: 'rail', pos: () => ({ x: 12.5, y: 8.0, z: -6.8 }) },
-      { id: 'kid', pos: () => this.world.kidGround.position },
-      { id: 'poster', pos: () => ({ x: -37.6, y: 1.5, z: 7.4 }) },
-      { id: 'stranger', pos: () => this.world.stranger.position },
-      { id: 'laundry', pos: () => ({ x: -7.0, y: 1.05, z: 7.3 }) },
-      { id: 'permit', pos: () => ({ x: -4.0, y: 1.0, z: 5.8 }) },
-    ];
+    // ---------------- interactions (Doc 37 §3B — one registry) -------------
+    // Authored beats + the free-roam set, declared once in interactionDefs.
+    // The old four-place wiring (array + isRelevant + promptVerb + a switch)
+    // is folded into per-interaction records.
+    this.ictx = { state: this.state, game: this };
+    this.registry.register(...buildInteractions({
+      rosa: () => this.world.rosa.position,
+      idris: () => this.world.idris.position,
+      kid: () => this.world.kidGround.position,
+      stranger: () => this.world.stranger.position,
+      cart: () => this.world.cartRoot.position,
+      shelfItem: (id) => this.world.itemMeshes.get(id)?.position ?? NEVER_NEAR,
+    }));
     this.world.addItem('mango', -18, 2.25, 19.2, PAL.amber);
     this.world.addItem('coffee', -16, 2.25, 19.2, PAL.teal);
     this.world.addItem('bread', -14, 2.25, 19.2, PAL.cream);
@@ -284,8 +291,9 @@ export class Game {
     if (this.world.familiar.visible) peds.push({ x: this.world.familiar.position.x, z: this.world.familiar.position.z });
     this.world.updateDynamics(dt, this.player.capsule, peds);
     if (!this.dayFading && this.ui.nameBox.hidden) {
-      // movement
-      this.player.update(dt, inp.move);
+      // movement — paused on the bench (Doc 37 §3C: the seat holds you;
+      // physics would drag the capsule off it, so the walker simply rests)
+      if (!this.sitting) this.player.update(dt, inp.move);
     } else {
       this.player.update(dt, { x: 0, y: 0 });
     }
@@ -347,7 +355,9 @@ export class Game {
     // waves — a tween flips those back).
     for (const actor of this.cast) {
       if (!actor.visible) continue;
-      updatePersonAnim(actor, dt, actor === this.playerVisual ? { mode: climbing ? 'climb' : 'auto' } : undefined);
+      updatePersonAnim(actor, dt, actor === this.playerVisual
+        ? { mode: this.sitting ? 'sit' : climbing ? 'climb' : 'auto' }
+        : undefined);
     }
 
     // the follow beacon — a gold chevron bobbing over whoever the objective
@@ -375,7 +385,10 @@ export class Game {
     const mm = Math.floor(s.elapsed / 60);
     const ss = Math.floor(s.elapsed % 60);
     this.ui.setTimer(`${mm}:${ss.toString().padStart(2, '0')}`);
-    this.ui.setPrompt(this.nearestInteractableId(), s);
+    const near = this.nearestInteraction();
+    this.ui.setPrompt(near ? near.prompt(s, this.ictx) : null);
+    // an offer you walked away from is an offer you declined
+    if (s.buyConfirm !== null && near?.id !== s.buyConfirm) s.buyConfirm = null;
 
     this.renderer.render(this.world.scene, this.cam.camera);
   }
@@ -501,116 +514,70 @@ export class Game {
     this.player.capsule.z = this.checkpoint.z;
   }
 
-  // ------------------------------------------------------------------ interact
+  // ------------------------------------------------------------------ sitting
+  // Doc 37 §3C — the bench is furniture, not scenery. While seated the
+  // capsule parks on the seat and the walker's physics rests (a seat is not
+  // a ladder: nothing should pull you off it); standing restores the exact
+  // spot you rose from. The rig folds via its own 'sit' pose (personRig).
 
-  private itemPos(id: string): { x: number; y: number; z: number } {
-    const m = this.world.itemMeshes.get(id);
-    return m ? m.position : { x: 0, y: -100, z: 0 }; // collected items are never nearest
+  private sitReturn: { x: number; z: number; rot: number } | null = null;
+
+  get sitting(): boolean {
+    return this.sitReturn !== null;
   }
 
-  private nearestInteractableId(): string | null {
+  sitOnBench(): void {
+    if (this.sitReturn) return;
     const c = this.player.capsule;
-    let best: Interactable | null = null;
-    let bestD = INTERACT_RANGE;
-    for (const it of this.interactables) {
-      const p = it.pos();
-      const d = Math.hypot(p.x - c.x, p.z - c.z);
-      if (Math.abs(p.y - c.y) > 3.0) continue;
-      if (d < bestD && this.state.isRelevant(it.id)) {
-        bestD = d;
-        best = it;
-      }
+    this.sitReturn = { x: c.x, z: c.z, rot: this.player.rotationY };
+    c.x = BUS_BENCH_SEAT.x;
+    c.y = 0.12; // hips level with the seat top — the same settle the familiar uses
+    c.z = BUS_BENCH_SEAT.z;
+    this.player.vy = 0;
+    this.player.rotationY = Math.PI; // face the street, like the bench does
+    this.ui.showNote(byDay(BENCH_SIT_NOTES, this.state.day));
+  }
+
+  standUp(): void {
+    const r = this.sitReturn;
+    if (!r) return;
+    this.sitReturn = null;
+    const c = this.player.capsule;
+    c.x = r.x;
+    c.y = 0.05;
+    c.z = r.z;
+    this.player.vy = 0;
+    this.player.rotationY = r.rot;
+  }
+
+  // ------------------------------------------------------------------ shelf
+  // The bodega's shelf is a shop now (Doc 37 §3C): restocked every morning
+  // and the moment Rosa's errand empties it. Purchases deduct real money.
+
+  private restockShelf(): void {
+    for (const [id, x, y, z] of SHELF_STOCK) {
+      if (!this.world.itemMeshes.has(id)) this.world.addItem(id, x, y, z, 0);
     }
-    return best?.id ?? null;
+  }
+
+  // ------------------------------------------------------------------ interact
+
+  /** The nearest enabled interaction from the registry — the only proximity
+   *  pass in the game (Doc 37 §3B). Kept as a method because the E2E/probe
+   *  harnesses read it. */
+  nearestInteraction() {
+    return this.registry.nearest(this.player.capsule, this.state, this.ictx);
   }
 
   private tryInteract(): void {
-    const id = this.nearestInteractableId();
-    if (id === null) return;
-    const s = this.state;
-    switch (id) {
-      case 'rosa':
-        if (s.step === Step.D3_WAKE) {
-          // Day 3 morning: her news at your cart — must come BEFORE the
-          // isDay2 chat branch (day 3 is also day >= 2, and the chat would
-          // swallow the wake beat whole).
-          for (const e of s.rosaD3Wake()) this.applyEffect(e);
-        } else if (s.step === Step.D4_WAKE) {
-          // Day 4 morning, same law: the wake beat first, chat second.
-          for (const e of s.rosaD4Wake()) this.applyEffect(e);
-        } else if (s.isDay2) {
-          const { effects } = s.rosaTask();
-          for (const e of effects) this.applyEffect(e);
-        } else {
-          for (const e of s.tryRosa()) this.applyEffect(e);
-        }
-        break;
-      case 'counter':
-        for (const e of s.serveCounter()) this.applyEffect(e);
-        break;
-      case 'cart':
-        if (s.step === Step.CLAIM_CART) {
-          for (const e of s.claimCart()) this.applyEffect(e);
-        } else if (s.step === Step.SOLO || s.step === Step.D2_LUNCH) {
-          if (this.customer) {
-            for (const e of s.serveCart()) this.applyEffect(e);
-          }
-        } else if (s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) {
-          if (this.customer) {
-            for (const e of s.startBrew()) this.applyEffect(e);
-          }
-        } else if (s.step === Step.D3_STOOL) {
-          for (const e of s.stoolInteraction()) this.applyEffect(e);
-        } else if (s.isDay2 && !s.awningUp && s.money >= 15 && this.customer === null
-          && s.step >= Step.D2_WAKE && s.step <= Step.D2_CLIMB2) {
-          for (const e of s.cartAwningInteraction()) this.applyEffect(e);
-        }
-        break;
-      case 'idris':
-        for (const e of s.serveIdris()) this.applyEffect(e);
-        break;
-      case 'kid':
-        // At the stool beat the kid is AT your hip — often nearer than the
-        // cart — so facing him must offer the stool too (a player walks up
-        // and presses Space at the pair of them, not at a specific prop).
-        if (s.step === Step.D3_STOOL) {
-          for (const e of s.stoolInteraction()) this.applyEffect(e);
-        } else {
-          for (const e of s.kidJoins()) this.applyEffect(e);
-        }
-        break;
-      case 'stranger':
-        if (s.step === Step.D4_STRANGER) {
-          for (const e of s.greetStranger()) this.applyEffect(e);
-        } else if (s.step === Step.D4_MAP) {
-          for (const e of s.giveMap()) this.applyEffect(e);
-        }
-        break;
-      case 'laundry':
-        if (s.step === Step.D4_LAUNDRY) {
-          for (const e of s.handApron()) this.applyEffect(e);
-        } else if (s.step === Step.D4_PERMIT) {
-          for (const e of s.laundryChat()) this.applyEffect(e);
-        }
-        break;
-      case 'permit':
-        for (const e of s.readPermit()) this.applyEffect(e);
-        break;
-      case 'poster':
-        for (const e of s.seePoster()) this.applyEffect(e);
-        break;
-      case 'stoop':
-        for (const e of s.deliverToKid()) this.applyEffect(e);
-        break;
-      case 'rail':
-        for (const e of s.rail()) this.applyEffect(e);
-        break;
-      default:
-        if (id.startsWith('item_')) {
-          const itemId = id.slice(5);
-          for (const e of s.collect(itemId)) this.applyEffect(e);
-        }
+    const it = this.nearestInteraction();
+    if (!it) return;
+    // A confirm offer is bound to its own interaction: walking away, or
+    // pressing at anything else, takes the offer off the table.
+    if (this.state.buyConfirm !== null && this.state.buyConfirm !== it.id) {
+      this.state.buyConfirm = null;
     }
+    for (const e of it.perform(this.ictx)) this.applyEffect(e);
   }
 
   // ------------------------------------------------------------------ effects
@@ -639,7 +606,10 @@ export class Game {
         break;
       case 'collect':
         this.world.removeItem(e.id);
-        this.interactables = this.interactables.filter((it) => it.id !== `item_${e.id}`);
+        this.registry.unregister(`item_${e.id}`);
+        // Rosa's three are hers now — and the shelf goes back to selling:
+        // the restock is what makes the bodega a shop outside the errand.
+        if (this.state.itemsLeft.size === 0) this.restockShelf();
         break;
       case 'spawn-customer':
         this.spawnCustomer(e.who, e.x, e.z);
@@ -1401,6 +1371,9 @@ export class Game {
   /** main.gd `_begin_day` — used for boot-resume and the rail's "Tomorrow". */
   private async beginDay(n: number, sd: SaveData | null, completed: boolean): Promise<void> {
     const s = this.state;
+    // no morning starts seated — stand before the world moves (and before
+    // the fade teleports the capsule out from under the bench)
+    this.standUp();
     this.dayFading = true;
     this.player.frozen = true;
     await this.ui.fadeOut(700);
@@ -1456,6 +1429,7 @@ export class Game {
     s.kidDown = false;
     s.kidAtCorner = false;
     s.stoolConfirm = false;
+    s.buyConfirm = null; // an offer never survives the night
     s.posterSeen = false;
     s.strangerMet = false;
     s.strangerAtCart = false;
@@ -1477,6 +1451,7 @@ export class Game {
     // the board's slip) before the flyer learns your name; then the familiar
     // face gets her day's schedule (§2.2)
     this.world.dressDay(n);
+    this.restockShelf(); // the shelf is stocked every morning (Doc 37 §3C)
     this.resetFamiliar(n);
     this.world.setFlyerText(s.cartName || 'YOUR CORNER'); // the flyer learns your name
     this.toMorningLight();

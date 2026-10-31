@@ -299,15 +299,19 @@ export function runAutotest(game: Game): void {
     const awning0 = game.state.awningConfirm;
     // integration: the stool and permit use the same awning-style confirm
     // gate — a slow note render must not let presses 2/3 fire, or one volley
-    // opens AND confirms (and unsets) the offer in a single breath
+    // opens AND confirms (and unsets) the offer in a single breath. The
+    // free-roam shelf's buyConfirm (Doc 37 §3C) joined the same law: one
+    // volley offers, the next volley buys — never both in one breath.
     const stool0 = game.state.stoolConfirm;
     const permit0 = game.state.permitConfirm;
+    const buy0 = game.state.buyConfirm;
     for (let i = 0; i < 3; i++) {
       game.input.injectInteract();
       await waitFrames(6);
       if (game.state.step !== step0 || !game.ui.nameBox.hidden
         || game.player.frozen || game.state.awningConfirm !== awning0
-        || game.state.stoolConfirm !== stool0 || game.state.permitConfirm !== permit0) break;
+        || game.state.stoolConfirm !== stool0 || game.state.permitConfirm !== permit0
+        || game.state.buyConfirm !== buy0) break;
     }
   };
 

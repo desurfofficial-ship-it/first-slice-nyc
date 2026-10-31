@@ -126,6 +126,10 @@ export class GameState {
   stoolUp = false;      // the Day 3 purchase
   stoolConfirm = false; // the awning-style confirm gate
   posterSeen = false;
+  /** Transient (never saved): the interaction id whose offer is on the
+   *  table — the awning/stool/permit confirm-gate pattern, generalized for
+   *  the free-roam shelf (Doc 37 §3C). First press offers, second buys. */
+  buyConfirm: string | null = null;
   // ---- Day 4 ----
   mapGiven = false;       // the Map changed hands
   strangerMet = false;    // you said the thing Rosa said
@@ -180,49 +184,10 @@ export class GameState {
     return [{ kind: 'money' }];
   }
 
-  isRelevant(id: string): boolean {
-    switch (id) {
-      case 'rosa':
-        return this.step === Step.MEET_ROSA || (this.isDay2 && this.step <= Step.D2_CLIMB2)
-          || (this.isDay3 && this.step >= Step.D3_WAKE && this.step <= Step.D3_CLIMB3)
-          || (this.isDay4 && this.step >= Step.D4_WAKE && this.step <= Step.D4_MAP);
-      case 'kid':
-        return this.step === Step.D3_KIDDOWN && !this.kidDown;
-      case 'poster':
-        return this.step === Step.D3_POSTER;
-      case 'stranger':
-        return this.step === Step.D4_STRANGER
-          || (this.step === Step.D4_MAP && this.strangerAtCart);
-      case 'laundry':
-        return this.step === Step.D4_LAUNDRY || this.step === Step.D4_PERMIT;
-      case 'permit':
-        return this.step === Step.D4_PERMIT;
-      case 'counter':
-        return this.step === Step.RUSH;
-      case 'idris':
-        return this.step === Step.D2_IDRIS && this.idrisArrived;
-      case 'stoop':
-        return this.step === Step.D2_DELIVER;
-      case 'rail':
-        return this.step === Step.POSTCARD || this.step === Step.D2_POSTCARD || this.step === Step.D3_POSTCARD
-          || this.step === Step.D4_POSTCARD
-          || (this.step === Step.DONE && this.lingerStage >= 1);
-      case 'cart':
-        if (this.step === Step.CLAIM_CART || this.step === Step.SOLO || this.step === Step.D2_LUNCH
-          || this.step === Step.D3_RUSH || this.step === Step.D3_STOOL
-          || this.step === Step.D4_RUSH) return true;
-        // while Idris stands AT the cart (D2_IDRIS, arrived), the cart's own
-        // press is meaningless — the awning needs the counter clear — and a
-        // walker parked a step nearer the cart than him fed the press to
-        // this no-op branch instead of his serve. Yield the window.
-        return (this.isDay2 && this.step >= Step.D2_WAKE && this.step < Step.D2_POSTCARD
-          && !(this.step === Step.D2_IDRIS && this.idrisArrived))
-          || (this.isDay3 && this.step >= Step.D3_WAKE && this.step < Step.D3_POSTCARD)
-          || (this.isDay4 && this.step >= Step.D4_WAKE && this.step < Step.D4_POSTCARD);
-      default:
-        return id.startsWith('item_') && this.step === Step.COLLECT;
-    }
-  }
+  /** Whether an interaction is currently offerable moved into the registry
+   *  (Doc 37 §3B): each interaction owns its `enabled` gate. The old
+   *  per-id switch lived here; game/interactionDefs.ts is its 1:1 port and
+   *  the E2E driver is its specification. */
 
   tryRosa(): Effect[] {
     if (this.step === Step.MEET_ROSA) {
