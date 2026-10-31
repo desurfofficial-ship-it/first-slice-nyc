@@ -94,7 +94,8 @@ export type Effect =
   | { kind: 'apron-clean' }
   | { kind: 'permit-offer' }
   | { kind: 'permit-filed' }
-  | { kind: 'persist' };
+  | { kind: 'persist' }
+  | { kind: 'shelf-deplete'; id: string };
 
 export class GameState {
   step: Step = Step.MEET_ROSA;
@@ -130,6 +131,9 @@ export class GameState {
    *  table — the awning/stool/permit confirm-gate pattern, generalized for
    *  the free-roam shelf (Doc 37 §3C). First press offers, second buys. */
   buyConfirm: string | null = null;
+  /** Transient shelf units for the free-roam shop (never saved). One unit
+   *  per SKU each morning; a successful purchase consumes one. */
+  shelfStock: Record<string, number> = { mango: 1, coffee: 1, bread: 1 };
   // ---- Day 4 ----
   mapGiven = false;       // the Map changed hands
   strangerMet = false;    // you said the thing Rosa said
@@ -182,6 +186,23 @@ export class GameState {
   spend(n: number): Effect[] {
     this.money = Math.max(0, this.money - n);
     return [{ kind: 'money' }];
+  }
+
+  /** Morning (and post-errand) restock — one unit per shelf SKU. */
+  restockShelfStock(): void {
+    this.shelfStock = { mango: 1, coffee: 1, bread: 1 };
+  }
+
+  shelfUnits(id: string): number {
+    return this.shelfStock[id] ?? 0;
+  }
+
+  /** Consume one shelf unit after money already checked. Returns true if now empty. */
+  consumeShelfUnit(id: string): boolean {
+    const n = this.shelfStock[id] ?? 0;
+    if (n <= 0) return true;
+    this.shelfStock[id] = n - 1;
+    return this.shelfStock[id] <= 0;
   }
 
   /** Whether an interaction is currently offerable moved into the registry

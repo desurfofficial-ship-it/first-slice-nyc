@@ -420,6 +420,8 @@ export interface ShelfGood {
   buy: string;
   /** Not enough money. */
   broke: string;
+  /** Shelf unit already sold today. */
+  soldOut: string;
 }
 
 export const SHELF_GOODS: ShelfGood[] = [
@@ -428,18 +430,21 @@ export const SHELF_GOODS: ShelfGood[] = [
     offer: 'A mango, heavy for its size \u2014 $2. [Space] again to buy it.',
     buy: 'You buy the mango. Rosa waves from the counter without looking up.',
     broke: 'The mango is $2. The wallet says another day.',
+    soldOut: 'The mango tray is empty. Rosa restocks in the morning.',
   },
   {
     id: 'coffee', label: 'Coffee', price: 5,
     offer: 'The tin with the faded label \u2014 $5. [Space] again to buy it.',
     buy: 'You buy the tin. It\u2019s the one the regulars ask for by its dent.',
     broke: 'The tin is $5. The wallet says another day.',
+    soldOut: 'The coffee tin is gone for today. Morning brings another.',
   },
   {
     id: 'bread', label: 'Bread', price: 3,
     offer: 'Bread, still warm from the morning tray \u2014 $3. [Space] again to buy it.',
     buy: 'You buy the bread. The bag is warm all the way home.',
     broke: 'The bread is $3. The wallet says another day.',
+    soldOut: 'The bread board is bare. Tomorrow\u2019s tray is already spoken for.',
   },
 ];
 

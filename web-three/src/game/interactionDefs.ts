@@ -100,7 +100,11 @@ export function shelfInteractions(src: InteractionSources): Interaction[] {
     pos: () => src.shelfItem(good.id),
     // During Day-1 COLLECT the same meshes are the quest ("Take", free):
     // the shop keeps its hands in its pockets until the errand is done.
-    enabled: (s) => s.step !== Step.COLLECT && src.shelfItem(good.id) !== NEVER_NEAR,
+    // Finite stock: sold-out SKUs stay disabled until morning restock.
+    enabled: (s) =>
+      s.step !== Step.COLLECT
+      && s.shelfUnits(good.id) > 0
+      && src.shelfItem(good.id) !== NEVER_NEAR,
     prompt: () => `${good.label} \u2014 $${good.price}`,
     perform: ({ state }): Effect[] => {
       const me = `shelf_${good.id}`;
@@ -109,13 +113,18 @@ export function shelfInteractions(src: InteractionSources): Interaction[] {
         return [{ kind: 'note', text: good.offer }];
       }
       state.buyConfirm = null;
+      if (state.shelfUnits(good.id) <= 0) return [{ kind: 'note', text: good.soldOut }];
       if (state.money < good.price) return [{ kind: 'note', text: good.broke }];
-      // the state owns its wallet (the stool/permit law): spend() deducts
-      // and returns the money effect the orchestrator renders
-      return [
+      // Wallet first, then one unit — empty shelf emits shelf-deplete so the
+      // mesh leaves until morning restock (no duplicate inventory entries).
+      const out: Effect[] = [
         ...state.spend(good.price),
         { kind: 'note', text: good.buy },
       ];
+      if (state.consumeShelfUnit(good.id)) {
+        out.push({ kind: 'shelf-deplete', id: good.id });
+      }
+      return out;
     },
   }));
 }
