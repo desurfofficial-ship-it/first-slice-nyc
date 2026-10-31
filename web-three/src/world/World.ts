@@ -543,8 +543,8 @@ export class World {
     this.colliders.push(this.rosaCollider, this.idrisCollider, this.kidCollider, this.customerCollider);
 
     // ---------------- cast (Rosa, Idris, the kid) ---------------------------
-    this.rosa = this.spawnActor('Rosa', -27, 0.05, 6.8, { jacket: 0xff6b6b, pants: PAL.ink, skin: 0xe8b08e, hair: 0x9a938c, style: 'bun' });
-    this.idris = this.spawnActor('Idris', -2, 0.05, -4.6, { jacket: PAL.plum, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x241f1c, style: 'cap' });
+    this.rosa = this.spawnActor('Rosa', -27, 0.05, 6.8, { jacket: 0xff6b6b, pants: PAL.ink, skin: 0xe8b08e, hair: 0x9a938c, style: 'bun', shawl: 0x7a5c68 });
+    this.idris = this.spawnActor('Idris', -2, 0.05, -4.6, { jacket: PAL.plum, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x241f1c, style: 'cap', glasses: true });
     this.idris.visible = false;
     // The kid, at the glass — a small shape against the light. The web port
     // had him at the oracle's z (7.86), but the articulated kid is shallower
@@ -904,7 +904,7 @@ export class World {
     this.colliders.push(this.stoolCollider);
     this.colliders.push(this.barrierCollider);
     this.kidGround = this.buildPerson({
-      jacket: 0x514659, pants: 0x473e50, skin: 0xd9a06b, hair: 0x453b4c, style: 'flat',
+      jacket: 0x514659, pants: 0x473e50, skin: 0xd9a06b, hair: 0x453b4c, style: 'flat', shoe: 0xc0392b,
     });
     this.kidGround.name = 'TheKidDown';
     this.kidGround.scale.setScalar(0.78);
@@ -951,7 +951,7 @@ export class World {
 
     // ---------------- Sal + Sunrise Laundry + the permit (docs/30) ---------
     this.sal = this.spawnActor('Sal', -7.0, 0.05, 7.85, {
-      jacket: PAL.teal, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x9a938c, style: 'flat',
+      jacket: PAL.teal, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x9a938c, style: 'flat', glasses: true,
     });
     this.sal.rotation.y = Math.PI; // faces the street, chest-up behind his counter
     this.permitReceipt = this.buildPermitReceipt();
@@ -986,9 +986,11 @@ export class World {
     // sedan, the mailbox, cans, barrier, bus stop, benches, papers, poles —
     // the player and the cart register as DYNAMIC circles each frame.
     const pedLooks: PedLook[] = [
-      { jacket: 0x4a5568, pants: 0x3b3f4a, skin: 0xc98e5a, hair: 0x2b2730, style: 'cap' },
-      { jacket: 0x7d5a62, pants: 0x47404b, skin: 0xe8b08e, hair: 0x6e3b2a, style: 'bun' },
-      { jacket: 0x5d6b4a, pants: 0x39423a, skin: 0x8a5a3b, hair: 0x1f1b23, style: 'flat' },
+      // height + shoe variety so the three never read as clones (Doc 04:
+      // deliberate identity, bank-shared materials — scale is free)
+      { jacket: 0x4a5568, pants: 0x3b3f4a, skin: 0xc98e5a, hair: 0x2b2730, style: 'cap', shoe: 0x4a3428, scale: 1.05 },
+      { jacket: 0x7d5a62, pants: 0x47404b, skin: 0xe8b08e, hair: 0x6e3b2a, style: 'bun', scale: 0.95 },
+      { jacket: 0x5d6b4a, pants: 0x39423a, skin: 0x8a5a3b, hair: 0x1f1b23, style: 'flat', scale: 1.09 },
     ];
     const pedPaths: Array<Array<[number, number]>> = [
       // the commuter: full block, crossing only at the crosswalk (x ≈ -6.5,
