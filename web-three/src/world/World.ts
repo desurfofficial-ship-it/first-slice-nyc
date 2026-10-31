@@ -791,7 +791,12 @@ export class World {
     }
 
     // ---- one more parked vehicle: a delivery van, north curb ----
-    const van = makeVan(this.bank);
+    // "GOLDEN ORCHARD PRODUCE CO." — rebuilt as a proper box truck (Doc 04
+    // law, banked materials, signage via the same canvas factory as every
+    // other block sign). Its body now fills the collider below: the old
+    // 3.7 m visual inside a 4.4 m box meant 0.7 m of invisible wall east of
+    // the tailgate.
+    const van = makeVan(this.bank, this.signMaterials.bind(this));
     van.position.set(-14, 0, 3.05);
     van.rotation.y = Math.PI;
     this.scene.add(van);
