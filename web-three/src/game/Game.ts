@@ -16,11 +16,11 @@ import { composeCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE_OBJECTIVE,
 import { loadSave, writeSave, type SaveData } from '../core/Save';
 import { PAL } from '../core/palette';
 import { World, phys } from '../world/World';
-import { Player } from '../player/Player';
+import { Player, lerpAngle } from '../player/Player';
 import { GameCamera } from '../camera/GameCamera';
 import { InputManager } from '../engine/Input';
 import { Tweens, type Tween } from '../engine/tweens';
-import { capsuleInBox } from '../engine/collide';
+import { capsuleInBox, moveAxisX, moveAxisZ, type Capsule } from '../engine/collide';
 import { UI } from '../ui/UI';
 import { capturePostcard, downloadPostcard } from '../postcard/PostcardCapture';
 import { updatePersonAnim, type PersonRig } from '../world/personRig';
@@ -68,6 +68,9 @@ export class Game {
   private waypoint: THREE.Sprite | null = null;
   private roofHidden = false;
   private climbLean = 0;
+  /** Scratch capsule for the kid's follow-walk — reused, never allocated
+   *  per frame (his physical body against the world's colliders). */
+  private readonly kidCapsule: Capsule = { x: 0, y: 0.05, z: 0, radius: 0.25, height: 1.4 };
   private checkpoint = { x: -30, y: 0.05, z: 6.2 };
   private lastPostcardUrl: string | null = null;
 
@@ -138,6 +141,10 @@ export class Game {
     // was invisible).
     this.playerVisual = this.world.buildPerson({
       jacket: PAL.gold, pants: PAL.ink, skin: 0xd9a06b, hair: PAL.ink, style: 'flat',
+      // character-quality pass: cream sneakers + a messenger strap — same
+      // boxes, but the silhouette now reads "everyday NY courier" instead
+      // of "gold rectangle", and he is recognizable from any angle
+      shoe: 0xece5d8, strap: 0x6e4a2f,
     });
     this.playerVisual.name = 'Player';
     this.cast.push(this.playerVisual);
@@ -267,6 +274,15 @@ export class Game {
     }
     // the customer at the cart owns a body too — synced fresh for this move
     this.world.syncPersonCollider(this.world.customerCollider, this.customer);
+    // Dynamic colliders sync BEFORE the walker moves (agent-2 audit, doc 35):
+    // world.update used to run after player.update, so the walker resolved
+    // against last frame's taxi box — up to 0.9 m stale at the dt clamp, and
+    // a player visibly sank into a passing cab before anything stopped them.
+    const peds: Array<{ x: number; z: number }> = [];
+    if (this.world.kidGround.visible) peds.push({ x: this.world.kidGround.position.x, z: this.world.kidGround.position.z });
+    if (this.world.stranger.visible) peds.push({ x: this.world.stranger.position.x, z: this.world.stranger.position.z });
+    if (this.world.familiar.visible) peds.push({ x: this.world.familiar.position.x, z: this.world.familiar.position.z });
+    this.world.updateDynamics(dt, this.player.capsule, peds);
     if (!this.dayFading && this.ui.nameBox.hidden) {
       // movement
       this.player.update(dt, inp.move);
@@ -295,14 +311,11 @@ export class Game {
     this.cam.update(dt, this.player.capsule, inp.camTurn, inp.move, this.player.rotationY, rig?.pos, rig?.look);
     this.player.camYaw = this.cam.moveYaw;
 
-    // world life (Rule of Steam) — the taxi yields to the pedestrian AND the
-    // kid AND the stranger AND the familiar face when she's mid-crossing;
-    // trees breathe, pigeons worry about your shoes
-    const peds: Array<{ x: number; z: number }> = [];
-    if (this.world.kidGround.visible) peds.push({ x: this.world.kidGround.position.x, z: this.world.kidGround.position.z });
-    if (this.world.stranger.visible) peds.push({ x: this.world.stranger.position.x, z: this.world.stranger.position.z });
-    if (this.world.familiar.visible) peds.push({ x: this.world.familiar.position.x, z: this.world.familiar.position.z });
-    this.world.update(dt, this.player.capsule, this.duskStarted, peds);
+    // world life (Rule of Steam) — phase 2 only here: the walkers steer
+    // around the fresh player position, trees breathe, pigeons worry about
+    // your shoes. (Phase 1 — colliders + the cab, yielding to the kid AND
+    // the stranger AND the familiar face — ran before the walker.)
+    this.world.updateAmbient(dt, this.player.capsule, this.duskStarted);
     this.syncGlows();
 
     // Day 3+4: the urn runs on its own clock; the kid walks at your hip
@@ -1152,9 +1165,14 @@ export class Game {
     const color = isIdris ? PAL.plum : lighten(PAL.teal, Math.random() * 0.3);
     const skin = isIdris ? 0x8a5a3b : [0xe8b08e, 0xd9a06b, 0x8a5a3b, 0xc98d68][Math.floor(Math.random() * 4)];
     const hair = isIdris ? 0x241f1c : [0x3a3440, 0x4a3a30, 0x2b2730, 0x9a938c][Math.floor(Math.random() * 4)];
-    const g = isIdris ? this.world.buildPerson({ jacket: color, pants: PAL.ink, skin, hair, style: 'cap' })
+    const g = isIdris ? this.world.buildPerson({ jacket: color, pants: PAL.ink, skin, hair, style: 'cap', glasses: true })
       : this.world.makeCustomerVisual(color, skin, hair);
     g.position.set(x, 0.05, z);
+    // face the cart you're ordering from (the cart sits SOUTH of the spawn
+    // point at (4, -4.6); the default +Z facing had every customer staring
+    // at the street while they ordered). Idris's walk-in tween re-faces him
+    // along his route, so this default never fights the choreography.
+    g.rotation.y = Math.PI;
     g.name = isIdris ? 'MrIdris' : 'Customer';
     // Day 3+4 rush: every order is a real order — the bubble says what's wanted
     const s = this.state;
@@ -1228,9 +1246,20 @@ export class Game {
     if (dist > stop) {
       const speed = Math.min(3.8, (dist - stop) * 2.2 + 0.6);
       const step = Math.min(dist - stop, speed * dt);
-      kid.position.x += (dx / dist) * step;
-      kid.position.z += (dz / dist) * step;
+      // the kid is a physical body now (agent-2 doc 35): he steers around
+      // benches, trunks and the cart with the same axis-slide the walker
+      // uses, instead of ghosting through the street on his way to you
+      const kc = this.kidCapsule;
+      kc.x = kid.position.x; kc.y = kid.position.y; kc.z = kid.position.z;
+      moveAxisX(this.world.colliders, kc, (dx / dist) * step, 0.35);
+      moveAxisZ(this.world.colliders, kc, (dz / dist) * step, 0.35);
+      kid.position.x = kc.x;
+      kid.position.z = kc.z;
       kid.rotation.y = Math.atan2(dx, dz); // he walks facing where he's going
+    } else if (dist > 0.5) {
+      // parked at your hip he still knows you're there: ease around to face
+      // you instead of freezing on his last walking heading
+      kid.rotation.y = lerpAngle(kid.rotation.y, Math.atan2(dx, dz), Math.min(1, dt * 4));
     }
     // arrival: both of you at the corner, the cart within reach
     const cart = this.world.cartRoot.position;

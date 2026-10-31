@@ -1,18 +1,20 @@
 /**
- * Focused probe: replicate the e2e's stall at (-21.04, 7.65) — walk-cycle
- * precondition (player parked against the west building face at z 7.65),
- * then the D1 greet + bodega walk. Logs per-frame while stuck.
+ * Collision probe — reproduces the west-leg stall with full forensics.
+ * Walks (-5,5.4) -> (-16,6.8) -> (15,6.9) and dumps the walker's nearest
+ * colliders + pedestrian positions whenever the position stalls, plus a
+ * screenshot at each beat. Not part of the test suite; a diagnostic tool.
  */
 
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { extname, join } from 'node:path';
 
 const DIST = new URL('../dist', import.meta.url).pathname;
-const PORT = 4578;
+const OUT = new URL('../shots', import.meta.url).pathname;
+mkdirSync(OUT, { recursive: true });
+const PORT = 4589;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
-
 const server = createServer((req, res) => {
   let p = decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname);
   if (p === '/') p = '/index.html';
@@ -30,87 +32,100 @@ await new Promise((r) => server.listen(PORT, r));
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
 page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
-await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'load' });
-await page.waitForFunction(() => !!window.__game, null, { timeout: 20000 });
-await new Promise((r) => setTimeout(r, 500));
 
-// e2e precondition: the walk-cycle test parks the player against the west
-// building face (z = 8 - 0.35) before the greet walk starts
+await page.goto(`http://localhost:${PORT}/?fx=off`, { waitUntil: 'load' });
+await page.waitForFunction(() => window.__game !== undefined, null, { timeout: 20000 });
+await page.waitForTimeout(1200);
+
+// skip the greeting flow: advance to a free-walk state by muting the story UI
 await page.evaluate(() => {
   const g = window.__game;
-  g.player.capsule.x = -30.0;
-  g.player.capsule.z = 7.65;
-  g.player.capsule.y = 0.1;
-  g.ui.nameBox.hidden = true;
+  // walk freely (the greeting note may freeze the walker; unfreeze)
+  g.player.frozen = false;
+  if (g.ui?.nameBox) g.ui.nameBox.hidden = true;
 });
 
-const steer = async (x, z, timeout) => {
-  const t0 = Date.now();
-  let stuckFrames = 0;
-  let last = null;
-  while (Date.now() - t0 < timeout * 1000) {
-    const state = await page.evaluate(({ x, z }) => {
+const walkTo = async (x, z, timeout = 18) => {
+  const t0 = performance.now();
+  let lastKey = '';
+  let stuck = 0;
+  let frames = 0;
+  while (performance.now() - t0 < timeout * 1000) {
+    const info = await page.evaluate(([tx, tz, lastKey, stuck, frames]) => {
       const g = window.__game;
       const p = g.player.capsule;
-      const dx = x - p.x, dz = z - p.z;
+      const dx = tx - p.x;
+      const dz = tz - p.z;
       const dist = Math.hypot(dx, dz);
-      if (dist < 0.35) return { done: 'arrived' };
-      const yaw = g.player.camYaw;
-      const f = (dx / dist) * Math.sin(yaw) + (dz / dist) * Math.cos(yaw);
-      const r = (dx / dist) * -Math.cos(yaw) + (dz / dist) * Math.sin(yaw);
+      if (dist < 0.35) return { done: true, p: [p.x, p.y, p.z] };
+      const posKey = `${p.x.toFixed(2)},${p.z.toFixed(2)}`;
+      const isStuck = posKey === lastKey;
+      const newStuck = isStuck ? stuck + 1 : 0;
+      // aim + steer exactly like the e2e driver (post-repair semantics)
+      const yaw = newStuck > 12 ? Math.atan2(dx, dz) : g.player.camYaw;
+      const fwdX = Math.sin(yaw), fwdZ = Math.cos(yaw);
+      const rightX = -Math.cos(yaw), rightZ = Math.sin(yaw);
+      const len = dist || 1;
+      const nx = dx / len, nz = dz / len;
+      const f = nx * fwdX + nz * fwdZ;
+      const r = nx * rightX + nz * rightZ;
+      const slide = newStuck > 12 ? (Math.floor(newStuck / 45) % 2 === 0 ? -1 : 1) : 0;
+      g.player.camYaw = yaw;
       g.input.injectKey('KeyW', f > 0.2);
       g.input.injectKey('KeyS', f < -0.2);
-      g.input.injectKey('KeyD', r > 0.2);
-      g.input.injectKey('KeyA', r < -0.2);
-      return { done: 'walking', px: +p.x.toFixed(3), pz: +p.z.toFixed(3), yaw: +yaw.toFixed(2),
-        keys: { w: f > 0.2, a: r < -0.2, s: f < -0.2, d: r > 0.2 },
-        rosa: { x: +g.world.rosa.position.x.toFixed(2), z: +g.world.rosa.position.z.toFixed(2) } };
-    }, { x, z });
-    if (state.done === 'arrived') {
-      await releaseKeys();
-      return 'arrived';
+      g.input.injectKey('KeyD', slide !== 0 ? slide > 0 : r > 0.2);
+      g.input.injectKey('KeyA', slide !== 0 ? slide < 0 : r < -0.2);
+      // forensics when stalled
+      let near = [];
+      if (isStuck && frames % 30 === 0) {
+        near = g.world.colliders
+          .map((b, i) => {
+            const nx2 = Math.max(b.minX, Math.min(p.x, b.maxX));
+            const nz2 = Math.max(b.minZ, Math.min(p.z, b.maxZ));
+            return { i, d: Math.hypot(p.x - nx2, p.z - nz2), b: [b.minX, b.maxX, b.minZ, b.maxZ].map((v) => +v.toFixed(2)) };
+          })
+          .filter((o) => o.d < 0.8)
+          .sort((a, b2) => a.d - b2.d)
+          .slice(0, 6);
+      }
+      const peds = g.world.peds ? g.world.peds.bodies().map((b) => [+b.x.toFixed(1), +b.z.toFixed(1)]) : [];
+      const dbg = { keys: { w: g.input.isDown("KeyW"), a: g.input.isDown("KeyA"), s: g.input.isDown("KeyS"), d: g.input.isDown("KeyD") }, camYaw: +g.player.camYaw.toFixed(2) };
+      return { p: [p.x, p.y, p.z], posKey, isStuck, newStuck, near, peds, yaw: +yaw.toFixed(2), slide, dbg };
+    }, [x, z, lastKey, stuck, frames]);
+    if (info.done) { console.log(`ARRIVED (${x},${z}) at ${((performance.now() - t0) / 1000).toFixed(1)}s`); break; }
+    lastKey = info.posKey ?? lastKey;
+    stuck = info.newStuck ?? 0;
+    frames++;
+    if (info.near && info.near.length) {
+      console.log(`STALL f=${frames} pos=(${info.p[0].toFixed(2)},${info.p[2].toFixed(2)}) yaw=${info.yaw} slide=${info.slide}`);
+      console.log(`  near: ${JSON.stringify(info.near)}`);
+      console.log(`  peds: ${JSON.stringify(info.peds)} keys: ${JSON.stringify(info.dbg.keys)} camYaw=${info.dbg.camYaw}`);
+      await page.screenshot({ path: join(OUT, `stall-${Date.now() % 100000}.png`) });
     }
-    const key = `${state.px},${state.pz}`;
-    if (key === last) { stuckFrames++; } else { stuckFrames = 0; last = key; }
-    if (stuckFrames === 30 || stuckFrames === 240) {
-      console.log('STUCK', JSON.stringify(state));
-      // what does the player overlap / what's around?
-      const around = await page.evaluate(() => {
-        const g = window.__game;
-        const p = g.player.capsule;
-        const hits = [];
-        g.world.colliders.forEach((b, i) => {
-          const nx = Math.max(b.minX, Math.min(p.x, b.maxX));
-          const nz = Math.max(b.minZ, Math.min(p.z, b.maxZ));
-          const d = Math.hypot(p.x - nx, p.z - nz);
-          if (d < 0.6) hits.push({ i, d: +d.toFixed(3),
-            box: [b.minX, b.maxX, b.minY, b.maxY, b.minZ, b.maxZ].map((v) => +v.toFixed(2)) });
-        });
-        return hits;
-      });
-      console.log('NEARBY COLLIDERS:', JSON.stringify(around));
-    }
-    if (stuckFrames > 500) break;
+    await page.evaluate(() => new Promise((r2) => requestAnimationFrame(r2)));
   }
-  await releaseKeys();
-  return 'timeout';
-};
-
-const releaseKeys = async () => {
   await page.evaluate(() => {
     const g = window.__game;
-    for (const k of ['KeyW', 'KeyS', 'KeyD', 'KeyA']) g.input.injectKey(k, false);
+    g.input.injectKey('KeyW', false);
+    g.input.injectKey('KeyS', false);
+    g.input.injectKey('KeyA', false);
+    g.input.injectKey('KeyD', false);
   });
+  await page.waitForTimeout(120);
 };
 
-console.log('walk rosa:', await steer(-27.8, 6.6, 25));
-await page.evaluate(() => window.__game.input.injectInteract());
-await new Promise((r) => setTimeout(r, 300));
-console.log('greeted, step =', await page.evaluate(() => window.__game.state.step));
-console.log('walk door:', await steer(-16, 7.0, 25));
-console.log('walk inside:', await steer(-16, 12.0, 25));
-console.log('final step =', await page.evaluate(() => window.__game.state.step),
-  'roof =', await page.evaluate(() => window.__game.world.roof.visible));
+console.log('--- leg 1: (-5,5.4) -> (-16,6.8) [Rosa favor]');
+await walkTo(-5, 5.4, 14);
+await walkTo(-16, 6.8, 20);
+console.log('--- leg 2: -> (15,6.9) [the kid at the glass]');
+await walkTo(15, 6.9, 24);
+console.log('--- leg 3: -> (4,-5.2) [back to the cart]');
+await walkTo(4, -5.2, 18);
+console.log('--- leg 4: (-5,-5) -> (4,-5.2) [the Day-4 hydrant leg, from the west]');
+await page.evaluate(() => { const g = window.__game; g.player.capsule.x = -5.05; g.player.capsule.z = -4.96; });
+await page.waitForTimeout(300);
+await walkTo(4, -5.2, 22);
+await page.screenshot({ path: join(OUT, 'probe-end.png') });
 await browser.close();
-await new Promise((r) => server.close(r));
+server.close();
 process.exit(0);

@@ -12,6 +12,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { PAL } from '../core/palette';
 import { ITEM_LABELS } from '../core/content';
 import { boxFromCenter, type AABB } from '../engine/collide';
+import { approachSpeed, bodyConflictsWithCab, noseLimit, type TrafficBody } from '../engine/traffic';
 import { buildArticulatedPerson } from './personRig';
 import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecycleBin, makeHydrant,
   makeSubwayEntrance, makeBulletinBoard, makeBench, makeBusStop, makeNewspaperBoxes, makeBarrier,
@@ -82,6 +83,12 @@ export class World {
   /** The transient customer at the cart — Game syncs this one (it owns
    *  spawning/removal); World.update handles the persistent cast. */
   readonly customerCollider: AABB;
+  /** The Day-3 stool's body — parked underground until the purchase makes
+   *  it real; synced in updateDynamics like the cast. */
+  readonly stoolCollider: AABB;
+  /** The water-main barrier's body — parked underground the day the city
+   *  takes it (Day 4's diary); synced in updateDynamics like the cast. */
+  readonly barrierCollider: AABB = boxFromCenter(-9.7, 0.45, 7.62, 1.7, 0.9, 0.56);
   readonly rosa: THREE.Group;
   readonly idris: THREE.Group;
   readonly kidSil: THREE.Group;
@@ -121,6 +128,11 @@ export class World {
   private leaves!: LeafDrift;
   private peds: Pedestrians;
   private ambientTime = 0;
+
+  /** Read-only XZ of every ambient walker (diagnostics + probes). */
+  pedBodies(): Array<{ x: number; z: number }> {
+    return this.peds ? this.peds.bodies() : [];
+  }
 
   private steamPoints: THREE.Points;
   private steamSeed: Float32Array;
@@ -300,18 +312,32 @@ export class World {
       new THREE.CylinderGeometry(0.18, 0.18, 0.9, 10),
       this.mat(PAL.coral),
     );
-    hydrant.position.set(-0.6, 0.45, -4.6);
+    hydrant.position.set(5.7, 0.45, -4.55);
     hydrant.castShadow = true;
     this.scene.add(hydrant);
+    // solid — a hydrant is cast iron (agent 2 collision audit, doc 35 §2).
+    // It stood at (-0.6, -4.6): dead center of the swept corridor between
+    // the crosswalk and the cart (the E2E parked on its west face for whole
+    // budgets). East of the cart at the curb line it is out of every
+    // authored leg and every drift zone the E2E actually walks.
+    this.colliders.push(boxFromCenter(5.7, 0.425, -4.55, 0.45, 0.85, 0.45));
 
     // Street life — the object canon's quiet furniture. Each is a procedural
     // placeholder that a generated .glb can replace at runtime: drop
     // <id>.glb into public/models/ and it wears the mesh on next boot
-    // (tools3d/spaces_manifest.json generates exactly these ids). No
-    // colliders, no triggers — decoration, not gameplay.
+    // (tools3d/spaces_manifest.json generates exactly these ids). Colliders
+    // are registered just above — solid furniture, decoration only for the
+    // GLB visuals themselves.
     this.scene.add(this.makeMailbox(-3.2, -5.7));
     this.scene.add(this.makeTrashcan(10.5, -5.6));
     this.scene.add(this.makeStreetlamp(13.5, -5.9));
+    // solid street furniture — the audit found the whole family collider-free
+    // (doc 35 §2): the player ghosted through mailbox, can and lamp post.
+    // Footprints match the visuals; the GLB-upgrade guard (±90 %) keeps any
+    // generated mesh inside these boxes.
+    this.colliders.push(boxFromCenter(-3.2, 0.48, -6.1, 0.6, 0.95, 0.5));    // mailbox (off the cart corridor)
+    this.colliders.push(boxFromCenter(10.5, 0.5, -5.6, 0.68, 1.0, 0.68));    // trashcan
+    this.colliders.push(boxFromCenter(13.5, 2.2, -5.9, 0.24, 4.4, 0.24));    // lamp post
     this.registerGlbProp('hydrant', hydrant);
     void this.upgradePropWithGLB('hydrant');
     void this.upgradePropWithGLB('mailbox');
@@ -517,8 +543,8 @@ export class World {
     this.colliders.push(this.rosaCollider, this.idrisCollider, this.kidCollider, this.customerCollider);
 
     // ---------------- cast (Rosa, Idris, the kid) ---------------------------
-    this.rosa = this.spawnActor('Rosa', -27, 0.05, 6.8, { jacket: 0xff6b6b, pants: PAL.ink, skin: 0xe8b08e, hair: 0x9a938c, style: 'bun' });
-    this.idris = this.spawnActor('Idris', -2, 0.05, -4.6, { jacket: PAL.plum, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x241f1c, style: 'cap' });
+    this.rosa = this.spawnActor('Rosa', -27, 0.05, 6.8, { jacket: 0xff6b6b, pants: PAL.ink, skin: 0xe8b08e, hair: 0x9a938c, style: 'bun', shawl: 0x7a5c68 });
+    this.idris = this.spawnActor('Idris', -2, 0.05, -4.6, { jacket: PAL.plum, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x241f1c, style: 'cap', glasses: true });
     this.idris.visible = false;
     // The kid, at the glass — a small shape against the light. The web port
     // had him at the oracle's z (7.86), but the articulated kid is shallower
@@ -596,18 +622,30 @@ export class World {
     plazaBench.position.set(-40.5, 0.05, 4.55);
     plazaBench.rotation.y = Math.PI;
     this.scene.add(plazaBench);
+    this.colliders.push(boxFromCenter(-40.5, 0.35, 4.55, 1.85, 0.7, 0.62)); // bench blocks
     const papers = makeNewspaperBoxes(this.bank);
     papers.position.set(-44.6, 0.05, 6.6);
     this.scene.add(papers);
+    this.colliders.push(boxFromCenter(-44.29, 0.425, 6.62, 1.3, 0.85, 0.6)); // newsboxes block
 
     // ---- bus stop (north, west of the bodega) + bench ----
+    // The bench sits against the building line (z 7.55), east of the sign
+    // pole — real NYC placement keeps the walking lane (z ≈ 4–7.2) open.
+    // The first draft had the bench mid-sidewalk at z 6.85 WITH a pole
+    // collider at 7.35: the E2E walker hit the bench face head-on, the
+    // sidestep shoved it into the 0.575 m pocket between pole and building,
+    // and it was wedged there for the rest of the run — the exact
+    // "trapped in geometry" failure this pass exists to prevent. Now the
+    // lane is open, the bench still blocks (it is a bench), and the sign
+    // pole is air like the wires (nothing can force you into its corner).
     const bus = makeBusStop(this.bank, this.signMaterials.bind(this));
     bus.position.set(-24.5, 0.05, 7.35);
     this.scene.add(bus);
     const busBench = makeBench(this.bank);
-    busBench.position.set(-24.5, 0.05, 6.85);
+    busBench.position.set(-23.3, 0.05, 7.62);
     busBench.rotation.y = Math.PI;
     this.scene.add(busBench);
+    this.colliders.push(boxFromCenter(-23.3, 0.35, 7.62, 1.85, 0.7, 0.62)); // bench blocks
 
     // ---- street furniture: lights, cans, hydrant, one honest barrier ----
     // The lamp faces are lit: the sun never leaves golden hour here, and
@@ -622,7 +660,7 @@ export class World {
     // lamp 3 -18 -> -19.5 and lamp 4 30 -> 31.5 (a metre of margin is not
     // margin when a seeded canopy blob can grow another half-metre).
     const lights: Array<[number, number, number]> = [
-      [-31, 7.35, Math.PI / 2], [8, 7.35, Math.PI / 2],
+      [-31, 7.42, Math.PI / 2], [8, 7.42, Math.PI / 2],
       [-19.5, -7.35, -Math.PI / 2], [31.5, -7.35, -Math.PI / 2],
     ];
     for (let li = 0; li < lights.length; li++) {
@@ -633,15 +671,17 @@ export class World {
       lamp.name = `Streetlight_${li}`; // probes assert on these
       this.scene.add(lamp);
     }
-    const can1 = makeTrashCan(this.bank); can1.position.set(-19, 0.05, 7.45); this.scene.add(can1);
+    const can1 = makeTrashCan(this.bank); can1.position.set(-19, 0.05, 7.66); this.scene.add(can1);
     const can2 = makeTrashCan(this.bank); can2.position.set(2, 0.05, -7.45); this.scene.add(can2);
     const recy = makeRecycleBin(this.bank); recy.position.set(2.85, 0.05, -7.45); this.scene.add(recy);
     const hyd2 = makeHydrant(this.bank); hyd2.position.set(34, 0.05, -4.75); this.scene.add(hyd2);
     // the barrier is a diary entry now (Doc 33 §2.3): Days 1–3 it guards a
     // (theatrically) open water main; Day 4 it's gone and the patch it left
     // reads as fresh asphalt. Kept OUT of the static bake — a merged mesh
-    // can't change its mind about existing.
-    const barrier = makeBarrier(this.bank); barrier.position.set(-9.7, 0.05, 7.5); barrier.rotation.y = 0.35; this.scene.add(barrier);
+    // can't change its mind about existing. It sits at the building line
+    // (z 7.62): the north walking lane (z 4–7.2) stays open, and its
+    // collider is DYNAMIC — parked underground the day the city takes it.
+    const barrier = makeBarrier(this.bank); barrier.position.set(-9.7, 0.05, 7.62); barrier.rotation.y = 0.35; this.scene.add(barrier);
     this.barrier = barrier;
     // fresh asphalt, one hair proud of the slab (top 0.102 vs slab 0.1 —
     // the same proud-edge trick the tree pits and plaza decks use). A
@@ -651,16 +691,32 @@ export class World {
       this.mat(0x3e3a46),
     );
     this.asphaltPatch.name = 'AsphaltPatch';
-    this.asphaltPatch.position.set(-9.7, 0.096, 7.5);
+    this.asphaltPatch.position.set(-9.7, 0.096, 7.62);
     this.asphaltPatch.receiveShadow = true;
     this.asphaltPatch.visible = false;
     this.scene.add(this.asphaltPatch);
+    // solids, sized to the visuals. The can + recycle bin are ONE recycling
+    // station — a single box spanning both: as two boxes they left a 0.14 m
+    // slot between them (sub-capsule) that wedged a walker solid (E2E).
+    // All north-side boxes keep minZ >= 7.28: the walking lane (z 4–7.2)
+    // stays open.
+    this.colliders.push(boxFromCenter(-19, 0.5, 7.66, 0.74, 1.0, 0.74));        // can (north)
+    this.colliders.push(boxFromCenter(2.41, 0.5, -7.45, 1.56, 1.0, 0.74));      // can + recycle station
+    this.colliders.push(boxFromCenter(34, 0.425, -4.75, 0.45, 0.85, 0.45));     // hydrant
+    for (const [lx, lz] of lights) {
+      this.colliders.push(boxFromCenter(lx, 2.6, lz, 0.24, 5.2, 0.24));         // lamp posts
+    }
 
     // ---- street trees in tree pits (seeded; never in front of a door) ----
     // (-4, 7.15) moved to (-1.2, 7.15): the laundromat bay is there now, and
     // a tree growing through the washers read exactly as broken.
     const treeSpots: Array<[number, number]> = [
-      [-34, 7.15], [-22, 7.15], [-1.2, 7.15], [20, 7.15], [32, 7.15],     // north
+      [-34, 7.48], [-22, 7.48], [-1.2, 7.48], [20, 7.48], [32, 7.48],     // north —
+      // ↑ the whole north row sits at the building line. The block's own
+      // "sidewalk law" (buildLaundromat) keeps the north walking lane open
+      // at z ≈ 4–7.2, and the authored E2E hauls run it at z 6.8–6.9 — any
+      // solid reaching below z 7.28 grazes that lane and stalls the driver
+      // on a wall it cannot round in one sidestep window (5 fps).
       [-44, -7.0], [-30, -7.0], [-16, -7.0], [28, -7.0], [38, -7.0],      // south
       [-45, 4.7], [-38.6, 4.5],                                            // plaza park trees
     ];
@@ -685,6 +741,18 @@ export class World {
       this.scene.add(t.group);
       this.trees.push({ group: t.group, canopy: t.canopy, phase: rng() * Math.PI * 2, mats: t.mats, fade: 1 });
       treeTops.push(t.top);
+      // the trunk is wood — a thin box that matches it (canopy stays air;
+      // only the trunk blocks). North STREET trees extend back to the
+      // building face: the strip between a free-standing trunk and the wall
+      // is 0.67 m — narrower than the walker — and a body sidestepped into
+      // it could never leave (the E2E proved it). Merging trunk and wall
+      // removes the pocket without moving any usable space: nobody fit
+      // there before. Plaza trees and the south row keep plain boxes (their
+      // backs are open or passable).
+      const trunkHalf = 0.18;
+      const zMax = tz > 6 ? 8.0 : tz + trunkHalf;
+      const zSpan = (zMax - (tz - trunkHalf));
+      this.colliders.push(boxFromCenter(tx, 1.1, (tz - trunkHalf + zMax) / 2, 0.36, 2.2, zSpan));
     }
     // Canopy spheres for GameCamera's sidestep (see pickSideStep). One sphere
     // per tree, centred a blob-radius under the measured top. The widest
@@ -755,12 +823,17 @@ export class World {
 
     // ---- planters (two, where someone actually carries water) -------------
     const planterEast = makePlanter(this.bank, rng);
-    planterEast.position.set(37, 0.05, 7.45);
+    planterEast.position.set(37, 0.05, 7.6);
     this.scene.add(planterEast);
     const planterPlaza = makePlanter(this.bank, rng);
     planterPlaza.position.set(-46.6, 0.05, 4.4);
     planterPlaza.rotation.y = Math.PI / 2;
     this.scene.add(planterPlaza);
+    // cedar is solid; the plaza one is yawed π/2 so its long axis runs z
+    this.colliders.push(boxFromCenter(37, 0.25, 7.6, 1.1, 0.55, 0.55));
+    this.colliders.push(boxFromCenter(-46.6, 0.25, 4.4, 0.55, 0.55, 1.1));
+    // the bulletin board is furniture too (its flyer face is the Day-3 beat)
+    this.colliders.push(boxFromCenter(-37.6, 0.975, 7.5, 1.75, 1.95, 0.3));
 
     // ---- one cast-iron fire-escape silhouette on the brownstone row ------
     // Decorative only — no colliders, no triggers. The climbable escape on
@@ -823,8 +896,15 @@ export class World {
     this.stool.position.set(6.95, 0.05, -6.55); // east-south of the cart — OUT of the serving pocket (the old spot sealed the D4 corner shut: cart | 27 cm | kid)
     this.stool.visible = false;
     this.scene.add(this.stool);
+    // furniture is furniture once it exists: the stool carries a collider
+    // that is parked underground while it is hidden and lands with it when
+    // bought (synced in updateDynamics). The cart's side is clear of it, so
+    // buying never spawns a box under your feet.
+    this.stoolCollider = boxFromCenter(5.25, 0.3, -5.7, 0.55, 0.6, 0.55);
+    this.colliders.push(this.stoolCollider);
+    this.colliders.push(this.barrierCollider);
     this.kidGround = this.buildPerson({
-      jacket: 0x514659, pants: 0x473e50, skin: 0xd9a06b, hair: 0x453b4c, style: 'flat',
+      jacket: 0x514659, pants: 0x473e50, skin: 0xd9a06b, hair: 0x453b4c, style: 'flat', shoe: 0xc0392b,
     });
     this.kidGround.name = 'TheKidDown';
     this.kidGround.scale.setScalar(0.78);
@@ -871,7 +951,7 @@ export class World {
 
     // ---------------- Sal + Sunrise Laundry + the permit (docs/30) ---------
     this.sal = this.spawnActor('Sal', -7.0, 0.05, 7.85, {
-      jacket: PAL.teal, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x9a938c, style: 'flat',
+      jacket: PAL.teal, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x9a938c, style: 'flat', glasses: true,
     });
     this.sal.rotation.y = Math.PI; // faces the street, chest-up behind his counter
     this.permitReceipt = this.buildPermitReceipt();
@@ -906,9 +986,11 @@ export class World {
     // sedan, the mailbox, cans, barrier, bus stop, benches, papers, poles —
     // the player and the cart register as DYNAMIC circles each frame.
     const pedLooks: PedLook[] = [
-      { jacket: 0x4a5568, pants: 0x3b3f4a, skin: 0xc98e5a, hair: 0x2b2730, style: 'cap' },
-      { jacket: 0x7d5a62, pants: 0x47404b, skin: 0xe8b08e, hair: 0x6e3b2a, style: 'bun' },
-      { jacket: 0x5d6b4a, pants: 0x39423a, skin: 0x8a5a3b, hair: 0x1f1b23, style: 'flat' },
+      // height + shoe variety so the three never read as clones (Doc 04:
+      // deliberate identity, bank-shared materials — scale is free)
+      { jacket: 0x4a5568, pants: 0x3b3f4a, skin: 0xc98e5a, hair: 0x2b2730, style: 'cap', shoe: 0x4a3428, scale: 1.05 },
+      { jacket: 0x7d5a62, pants: 0x47404b, skin: 0xe8b08e, hair: 0x6e3b2a, style: 'bun', scale: 0.95 },
+      { jacket: 0x5d6b4a, pants: 0x39423a, skin: 0x8a5a3b, hair: 0x1f1b23, style: 'flat', scale: 1.09 },
     ];
     const pedPaths: Array<Array<[number, number]>> = [
       // the commuter: full block, crossing only at the crosswalk (x ≈ -6.5,
@@ -924,23 +1006,50 @@ export class World {
       this.scene, pedLooks, (c) => this.bank.get(c), 20261030, pedPaths,
       [
         { x: -14, z: 3.05, r: 1.9 },   // delivery van, north curb
-        { x: 24, z: -3.05, r: 1.9 },   // parked sedan, south curb
-        { x: -3.2, z: -5.7, r: 0.45 }, // mailbox
+        { x: 24, z: 3.05, r: 1.9 },    // parked sedan — north curb (was -3.05:
+                                       // the curb move in 1bc2dac never reached
+                                       // this list, so walkers bowed around a
+                                       // ghost car in the cab lane — doc 35 §3)
+        { x: -3.2, z: -6.1, r: 0.45 }, // mailbox
         { x: 10.5, z: -5.6, r: 0.4 },  // trashcan (glb-wearable)
         { x: 2, z: -7.45, r: 0.4 },    // trashcan
         { x: 2.85, z: -7.45, r: 0.4 }, // recycle bin
-        { x: -19, z: 7.45, r: 0.4 },   // trashcan north
-        { x: -9.7, z: 7.5, r: 0.7 },   // barrier
-        { x: 34, z: -4.75, r: 0.35 },  // hydrant
-        { x: -24.5, z: 7.35, r: 1.0 }, // bus stop + bench
+        { x: -19, z: 7.66, r: 0.4 },   // trashcan north
+        { x: -9.7, z: 7.62, r: 0.7 },  // barrier
+        { x: 34, z: -4.75, r: 0.35 },  // hydrant east
+        { x: 5.7, z: -4.55, r: 0.35 }, // hydrant west (east of the cart, at the curb)
+        { x: -24.5, z: 7.35, r: 0.4 }, // bus stop sign pole (air — collider removed:
+                                       // its corner pocket could wedge a body)
+        { x: -23.3, z: 7.62, r: 1.1 }, // bus bench (at the building line)
         { x: -40.5, z: 4.55, r: 1.0 }, // plaza bench
         { x: -44.6, z: 6.6, r: 0.9 },  // newspaper boxes
         { x: -8.5, z: -7.35, r: 0.3 }, // utility poles
         { x: 20, z: -7.35, r: 0.3 },
         { x: 44.5, z: -7.35, r: 0.3 },
         { x: 13.5, z: -5.9, r: 0.3 },  // streetlamp
+        { x: 37, z: 7.6, r: 0.6 },     // planter east (missing)
+        { x: -46.6, z: 4.4, r: 0.6 },  // planter plaza (missing)
+        { x: -8.55, z: 7.55, r: 0.5 }, // shirt rack (missing)
+        { x: -4.0, z: 5.8, r: 0.5 },   // permit A-frame — it stands IN the
+                                       // north walk lane; walkers bow around it
+        { x: -34, z: 7.48, r: 0.35 },  // tree trunks — all twelve, so nobody
+        { x: -22, z: 7.48, r: 0.35 },  // brushes a trunk they could see coming
+        { x: -1.2, z: 7.48, r: 0.35 },
+        { x: 20, z: 7.48, r: 0.35 },
+        { x: 32, z: 7.48, r: 0.35 },
+        { x: -44, z: -7.0, r: 0.35 },
+        { x: -30, z: -7.0, r: 0.35 },
+        { x: -16, z: -7.0, r: 0.35 },
+        { x: 28, z: -7.0, r: 0.35 },
+        { x: 38, z: -7.0, r: 0.35 },
+        { x: -45, z: 4.7, r: 0.35 },
+        { x: -38.6, z: 4.5, r: 0.35 },
       ],
     );
+    // the walkers carry real bodies for the player's collision stack — the
+    // audit's "NPCs walking through the player" (doc 35 §1): one synced AABB
+    // each, registered once, moved by Pedestrians.update every frame
+    for (const box of this.peds.walkColliders) this.colliders.push(box);
   }
 
   // ------------------------------------------------- static-geometry bake
@@ -1984,47 +2093,39 @@ export class World {
     box.maxZ = actor.position.z + halfW;
   }
 
-  update(dt: number, player?: { x: number; y: number; z: number }, dusk = false, extra?: Array<{ x: number; z: number }>) {
+  /**
+   * Phase 1 of the frame (Game calls this BEFORE the player's move): sync
+   * every dynamic collider to this frame's transforms, then advance the cab.
+   * The audit (doc 35 §1) found the old single update() ran AFTER
+   * player.update — the walker resolved against last frame's cab box, up to
+   * 0.9 m stale at the dt clamp, and visibly sank into a passing taxi.
+   * Dynamics-before-player fixes the ordering with no gameplay change.
+   */
+  updateDynamics(dt: number, player?: { x: number; y: number; z: number }, extra?: Array<{ x: number; z: number }>): void {
     // the persistent cast owns a body each — no more ghosting through Rosa,
     // Idris, or the kid (playtest 2026-10-30: "passed through the npc and rosa")
     this.syncPersonCollider(this.rosaCollider, this.rosa);
     this.syncPersonCollider(this.idrisCollider, this.idris);
     this.syncPersonCollider(this.kidCollider, this.kidGround, 0.25, 1.4);
-    // taxi loops the street (main.gd `_process`: x += 9*dt, wraps at ±46).
-    // NYC rules after playtest — the cab never drives through you:
-    //   1. crosswalk occupied → hold at the stop line (nose at x ≈ -10.7)
-    //      until it's clear, creeping up if it's still far;
-    //   2. anyone in the road ahead → brake to a stop ~4.5 m short.
-    // "Anyone" includes the kid on his walk (Day 3) — a cab through a
-    // child reads exactly as broken as a cab through you.
-    const road = this.taxi.position;
-    let speed = 9.0;
-    const bodies: Array<{ x: number; z: number }> = [];
-    if (player) bodies.push(player);
-    if (extra) bodies.push(...extra);
-    // ambient walkers join the yield list — a pedestrian mid-crosswalk holds
-    // the cab at the stop line, exactly like the kid or the stranger do
-    bodies.push(...this.peds.bodies());
-    // the walkers steer around you and the cart, and mind the furniture
-    this.peds.update(dt, player ? { x: player.x, z: player.z } : undefined,
-      { x: this.cartRoot.position.x, z: this.cartRoot.position.z });
-    for (const b of bodies) {
-      const onCrosswalk = b.x > -8.5 && b.x < -1.5 && b.z > -4.6 && b.z < 4.6;
-      if (onCrosswalk && road.x < -4.2) {
-        // cab nose = road.x + 2.2; hold it west of the crosswalk's west edge
-        speed = road.x > -10.7 ? 0 : Math.min(speed, 3.0);
-      } else {
-        const inRoad = Math.abs(b.z) < 4.2;
-        const gap = b.x - road.x; // cab travels +x; gap > 0 = body ahead
-        if (inRoad && gap > -2.3 && gap < 10) {
-          speed = gap < 4.5 ? 0 : Math.min(speed, 2.0);
-        }
-      }
-    }
-    road.x += dt * speed;
-    if (road.x > 46) road.x = -46;
-    this.taxiCollider.minX = road.x - 2.2;
-    this.taxiCollider.maxX = road.x + 2.2;
+    this.syncPersonCollider(this.stoolCollider, this.stool, 0.275, 0.6);
+    // the barrier leaves on Day 4 — its body leaves with it (a box at y
+    // -999 can't overlap anything: the cheapest "gone")
+    this.syncPersonCollider(this.barrierCollider, this.barrier, 0.85, 0.9);
+    this.updateTaxi(dt, player, extra);
+  }
+
+  /** Phase 2 of the frame (after the player's move): everything that only
+   *  reads the world — pedestrian steering, birds, steam, leaves. */
+  updateAmbient(dt: number, player?: { x: number; y: number; z: number }, dusk = false): void {
+    // the walkers steer around you and the cart, mind the furniture, and
+    // hold their ground against the cab's footprint
+    this.peds.update(
+      dt,
+      player ? { x: player.x, z: player.z } : undefined,
+      { x: this.cartRoot.position.x, z: this.cartRoot.position.z },
+      { x: this.taxi.position.x, z: this.taxi.position.z },
+      { x: this.rosa.position.x, z: this.rosa.position.z },
+    );
 
     // steam rises and wobbles — the Rule of Steam
     const posAttr = this.steamPoints.geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -2064,6 +2165,139 @@ export class World {
     this.pigeonFlockEast.update(dt, pp, dusk);
     this.squirrel.update(dt, pp, dusk);
     this.leaves.update(dt, this.ambientTime);
+  }
+
+  /** Both phases, in order — kept for any caller that just wants "advance
+   *  the world" (tests, probes). Game.frame calls the phases separately. */
+  update(dt: number, player?: { x: number; y: number; z: number }, dusk = false, extra?: Array<{ x: number; z: number }>) {
+    this.updateDynamics(dt, player, extra);
+    this.updateAmbient(dt, player, dusk);
+  }
+
+  // ---- the cab: NYC rules on rails (doc 35 §1 "Vehicles") ---------------
+  // Preserved from the playtest fixes: crosswalk-only courtesy hold, yield
+  // to anyone in the path, wrap at ±46. Rebuilt on the traffic brain:
+  //   - progressive braking (the old 9→0 hard cut snapped on screen),
+  //   - lateral truth (a body 3 m clear on the curb no longer freezes the
+  //     cab from 10 m away — the old |z|<4.2 gate),
+  //   - bodies fully behind the tail never block (the old gap > -2.3 test
+  //     stopped the cab for things it had already passed),
+  //   - vehicle-vs-vehicle: the parked sedan and van are declared bodies,
+  //     so a car ahead in the lane is braked for, not driven through,
+  //   - a committed-move guard: the rail step is clamped by noseLimit()
+  //     BEFORE it lands, so no frame can end with the cab inside anyone.
+  private static readonly CAB = {
+    cruise: 9.0,       // main.gd: x += 9*dt
+    halfLen: 2.2,      // collider 4.4 × 1.95
+    halfWid: 0.975,
+    laneZ: -2,
+    stopGap: 2.5,      // air held between the nose and whatever it yields to —
+                       // generous on purpose: a nose-to-nose cab wall is
+                       // unnavigable for a diagonal-crossing pedestrian
+    gain: 2.2,         // braking curve (1/s) — decel ≈ gain × speed
+    pedRadius: 0.45,   // how much coat a body wears beyond its center
+    holdCenterX: -10.7 // crosswalk hold: nose at the crosswalk's west edge
+  } as const;
+
+  /** Preallocated yield bodies — the scan runs every frame; nothing in it
+   *  may allocate (perf rule: no per-frame garbage). */
+  private readonly trafficPool: TrafficBody[] = Array.from({ length: 16 }, () => ({ x: 0, z: 0, r: 0 }));
+  private readonly parkedSedanRect: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
+  private readonly parkedVanRect: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
+  private readonly cabRectScratch: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
+  private readonly sweepRectScratch: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
+
+  private updateTaxi(dt: number, player?: { x: number; y: number; z: number }, extra?: Array<{ x: number; z: number }>): void {
+    const CAB = World.CAB;
+    const road = this.taxi.position;
+    const noseX = road.x + CAB.halfLen;
+
+    // ---- gather today's street into the yield pool (preallocated) --------
+    let n = 0;
+    const pool = this.trafficPool;
+    const addBody = (x: number, z: number, r: number) => {
+      if (n >= pool.length) return;
+      pool[n].x = x; pool[n].z = z; pool[n].r = r; pool[n].rect = undefined;
+      n++;
+    };
+    if (player) addBody(player.x, player.z, CAB.pedRadius);
+    if (extra) for (const b of extra) addBody(b.x, b.z, CAB.pedRadius);
+    for (const b of this.peds.bodies()) addBody(b.x, b.z, 0.4);
+    // vehicles: rects, so car-vs-car is footprint-to-footprint. The parked
+    // pair sits off-lane (north curb) — declared anyway, so the day another
+    // car shares the lane the braking is already real. (The cab never
+    // yields to itself, and never to the invisible bounds — the wrap at
+    // ±46 is authored.)
+    const sedan = this.parkedSedanRect;
+    sedan.minX = 24 - 2.2; sedan.maxX = 24 + 2.2;
+    sedan.minZ = 3.05 - 0.975; sedan.maxZ = 3.05 + 0.975;
+    const van = this.parkedVanRect;
+    van.minX = -14 - 2.2; van.maxX = -14 + 2.2;
+    van.minZ = 3.05 - 0.975; van.maxZ = 3.05 + 0.975;
+    pool[n].x = 24; pool[n].z = 3.05; pool[n].r = 0; pool[n].rect = sedan; n++;
+    pool[n].x = -14; pool[n].z = 3.05; pool[n].r = 0; pool[n].rect = van; n++;
+
+    const cabRect = this.cabRectScratch;
+    cabRect.minX = road.x - CAB.halfLen; cabRect.maxX = road.x + CAB.halfLen;
+    cabRect.minZ = CAB.laneZ - CAB.halfWid; cabRect.maxZ = CAB.laneZ + CAB.halfWid;
+
+    // ---- courtesy rule 1: the crosswalk (trigger unchanged, curve new) ----
+    // Occupied = a body (never a parked car) stands inside the crosswalk
+    // paint; the cab brakes toward the same authored hold point, but on the
+    // curve now — a creep to the line instead of a 3 m/s lurch.
+    let speed: number = CAB.cruise;
+    let crosswalkOccupied = !!(player && player.x > -8.5 && player.x < -1.5 && player.z > -4.6 && player.z < 4.6);
+    if (!crosswalkOccupied && extra) {
+      crosswalkOccupied = extra.some((b) => b.x > -8.5 && b.x < -1.5 && b.z > -4.6 && b.z < 4.6);
+    }
+    for (let i = 0; i < n && !crosswalkOccupied; i++) {
+      const b = pool[i];
+      if (b.rect) continue;
+      if (b.x > -8.5 && b.x < -1.5 && b.z > -4.6 && b.z < 4.6) crosswalkOccupied = true;
+    }
+    if (crosswalkOccupied && road.x < -4.2) {
+      const gapToLine = CAB.holdCenterX - road.x; // center-based, as authored
+      speed = Math.min(speed, approachSpeed(CAB.cruise, gapToLine, CAB.stopGap, CAB.gain));
+    }
+
+    // ---- rule 2: anything actually in the path (lateral truth) ------------
+    // The sweep window covers the FULL braking distance (stopGap + the
+    // curve's stopping span), so the cab enters the curve already braking —
+    // a window sized to the nose alone would drop 9→2 m/s in one frame,
+    // which is exactly the snap this rewrite removes.
+    const sweepRect = this.sweepRectScratch;
+    sweepRect.minX = cabRect.minX;
+    sweepRect.maxX = noseX + CAB.stopGap + CAB.cruise / CAB.gain + 0.5;
+    sweepRect.minZ = cabRect.minZ;
+    sweepRect.maxZ = cabRect.maxZ;
+    for (let i = 0; i < n; i++) {
+      const b = pool[i];
+      if (b.rect) {
+        if (!bodyConflictsWithCab(b, cabRect)) continue; // laterally clear
+        const clearance = Math.max(b.rect.minX - noseX, 0);
+        if (b.rect.maxX <= road.x - CAB.halfLen) continue; // fully behind
+        speed = Math.min(speed, approachSpeed(CAB.cruise, clearance, CAB.stopGap, CAB.gain));
+      } else {
+        if (b.x + b.r <= road.x - CAB.halfLen) continue;   // fully behind
+        if (!bodyConflictsWithCab(b, sweepRect)) continue; // not in the path
+        const clearance = Math.max((b.x - b.r) - noseX, 0);
+        speed = Math.min(speed, approachSpeed(CAB.cruise, clearance, CAB.stopGap, CAB.gain));
+      }
+    }
+
+    // ---- committed-move guard: resolve BEFORE moving, never after ---------
+    const limit = noseLimit(noseX, pool, n, CAB.laneZ, CAB.halfWid);
+    const wantedNose = noseX + dt * speed;
+    road.x += Math.min(wantedNose, limit) - noseX;
+    if (road.x > 46) road.x = -46;
+    this.taxiCollider.minX = road.x - CAB.halfLen;
+    this.taxiCollider.maxX = road.x + CAB.halfLen;
+
+    // post-move truth: a body the cab slid beside (never through) gets the
+    // air it is owed — the pedestrian yields to the vehicle, pushed out
+    // along the shortest exit, capped so nobody slingshots
+    cabRect.minX = road.x - CAB.halfLen; cabRect.maxX = road.x + CAB.halfLen;
+    this.peds.resolveAgainstCab(cabRect);
   }
 
   dispose() {
