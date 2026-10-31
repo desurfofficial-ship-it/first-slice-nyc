@@ -479,3 +479,88 @@ export const BENCH_SIT_NOTES: string[] = [
 /** The subway stairs — a glance down. The kid had it right on Day 3. */
 export const SUBWAY_NOTE =
   'The stairs go down. F and M both work \u2014 the kid had that right. The city keeps its promises underground.';
+
+// ---------------------------------------------------- the expanded block ----
+// docs/38 §4 — the free-roam loops east of the crosswalk. Same law as the
+// living block's diary: day-keyed, deterministic, no save fields. Prices are
+// honest numbers the wallet actually pays.
+
+/** FADE KING BARBERSHOP — the chair is $12. One cut per day: the second
+ *  visit gets the "you're fresh" line (transient `trimToday`, not saved —
+ *  a haircut is not a possession, it's a morning). */
+export const BARBER_PRICE = 12;
+export const BARBER_OFFER =
+  'The chair by the window is open \u2014 a trim, $12, cash. [Space] again to take it.';
+export const BARBER_BROKE =
+  'The trim is $12. The wallet says grow it out another week.';
+export const BARBER_FRESH =
+  'Fresh this morning \u2014 the pole is still spinning for you, but the chair says come back tomorrow.';
+export const BARBER_LINES: string[] = [
+  'The clippers hum. The mirror talks. You leave lighter by twelve dollars and one eyebrow\u2019s worth of doubt.',
+  'Outside, a man nods at your line-up. Inside, the pole never stopped. Fade King earned the name.',
+  'The barber asks what you do. You say coffee cart. He says the block already knows. Twelve dollars well spent.',
+  'A trim and fifteen minutes of the radio. You walk out squinting at how sharp the afternoon got.',
+];
+
+/** CORNER PARK — the sittable bench by the lawn. The bus bench notes live
+ *  on the bus bench; these belong to the lawn. */
+export const PARK_SIT_NOTES: string[] = [
+  'The lawn is two shades of green and one shade of honest. The hydrant keeps watch like it was hired to.',
+  'A pigeon walks the path like it pays rent. From this bench, the whole block breathes out.',
+  'Somebody\u2019s radio three benches down plays something from 1971. Nobody minds. The park approves.',
+  'Your bench now too, apparently. The paint on this one hasn\u2019t noticed either.',
+];
+
+/** DIRTY WATER DOGS — $2, from the cart by the park gate. The city\u2019s
+ *  oldest food group. */
+export const HOT_DOG_PRICE = 2;
+export const HOT_DOG_OFFER =
+  'A hot dog off the cart \u2014 $2, mustard\u2019s free, opinions extra. [Space] again to buy.';
+export const HOT_DOG_BROKE =
+  'The dog is $2. The cart man has seen thinner wallets keep walking. No shame in it.';
+export const HOT_DOG_LINES: string[] = [
+  'You eat it standing up, because that\u2019s the rule nobody wrote down. The mustard wins.',
+  'The cart man nods like you passed something. You have eaten a dirty-water dog. The city files the paperwork.',
+  'Sauerkraut, because the man insisted. He was right. He usually is.',
+  'Lunch from a cart, eaten on a bench you sit on every day. That\u2019s the whole city in one sentence.',
+];
+
+/** THE ALLEY — the hidden corner between the pizza joint and Fade King.
+ *  Some days the cat is in. (Station: the bulletin board\u2019s lost gray,
+ *  \u201Canswers to Station or faster to a can of tuna.\u201D) */
+export const ALLEY_NOTES: string[] = [
+  'A dead bulb, a trash bag, a quiet brick canyon. The block\u2019s off hours live back here.',
+  'Two green eyes at the back wall \u2014 gray, unbothered, gone before you can check the collar. Station, maybe. Do not chase.',
+  'Someone chalked a hopscotch grid back here, half faded. The alley has younger tenants than it lets on.',
+  'The steam grate is warm and the cat-sized hollow beside it is empty, recently. You miss her by minutes, again.',
+];
+
+/** THE HALF-COURT — free, repeatable, deterministic. The hoop keeps score
+ *  in notes, not UI. */
+export const COURT_MAKE: string[] = [
+  'Off the backboard and through \u2014 the net that isn\u2019t there still swishes.',
+  'Clean. The rim doesn\u2019t move. Somewhere a man on a bench nods without looking up.',
+  'It rolls the rim\u2019s whole diameter and drops. The crowd is three pigeons and they go wild.',
+  'One more. The court starts keeping your secret: you might be okay at this.',
+];
+export const COURT_MISS: string[] = [
+  'Front iron. The ball bounces out like it has somewhere else to be.',
+  'Short. The free-throw line judges you in silence. Next one\u2019s yours.',
+];
+export const COURT_STREAK_NOTE =
+  'That\u2019s three in a row. The hoop has nothing to say, but the pole heard it.';
+
+/** DO A LOAD — the laundromat\u2019s near washer, $3, when the story isn\u2019t
+ *  using the bay. Same machine Sal runs on wash day. */
+export const FREE_WASH_PRICE = 3;
+export const FREE_WASH_OFFER =
+  'The near washer\u2019s mouth is open \u2014 one load, $3. [Space] again to feed it.';
+export const FREE_WASH_BROKE =
+  'A load is $3. The basket keeps its opinions to itself.';
+export const FREE_WASH_RUNNING =
+  'The drum\u2019s already turning. Sal says a watched washer never spins \u2014 come back in a minute.';
+export const FREE_WASH_NOTES: string[] = [
+  'The drum stops. Warm towels, folded badly, carried home like treasure. Three dollars, honestly spent.',
+  'Spin\u2019s done. The socks came back with opinions about the dryer but everything\u2019s clean. The block smells like a laundromat in a good way.',
+  'Done. You fold the load on your knees right there by the machine, because that\u2019s how it\u2019s done.',
+];

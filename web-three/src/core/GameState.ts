@@ -95,7 +95,8 @@ export type Effect =
   | { kind: 'permit-offer' }
   | { kind: 'permit-filed' }
   | { kind: 'persist' }
-  | { kind: 'shelf-deplete'; id: string };
+  | { kind: 'shelf-deplete'; id: string }
+  | { kind: 'free-wash-start' };
 
 export class GameState {
   step: Step = Step.MEET_ROSA;
@@ -131,6 +132,10 @@ export class GameState {
    *  table — the awning/stool/permit confirm-gate pattern, generalized for
    *  the free-roam shelf (Doc 37 §3C). First press offers, second buys. */
   buyConfirm: string | null = null;
+  /** Freshly cut at Fade King today (docs/38). TRANSIENT — never saved; a
+   *  haircut is a morning, not a possession. The save-v1 shape is untouched
+   *  by construction: this field is simply not serialized. */
+  trimToday = false;
   /** Transient shelf units for the free-roam shop (never saved). One unit
    *  per SKU each morning; a successful purchase consumes one. */
   shelfStock: Record<string, number> = { mango: 1, coffee: 1, bread: 1 };

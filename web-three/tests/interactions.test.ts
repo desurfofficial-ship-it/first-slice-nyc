@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { GameState, Step, START_MONEY } from '../src/core/GameState';
 import { parseSave, defaultSave } from '../src/core/Save';
 import { InteractionRegistry, NEVER_NEAR, type Interaction } from '../src/game/interactions';
-import { buildInteractions, byDay, BUS_BENCH_SEAT } from '../src/game/interactionDefs';
+import { buildInteractions, byDay, BUS_BENCH_SEAT, hoopOutcome } from '../src/game/interactionDefs';
 import { BULLETIN_NOTES, SHELF_GOODS, NEWSPAPER_NOTES } from '../src/core/content';
 import type { Game } from '../src/game/Game';
 
@@ -39,7 +39,11 @@ const player = { x: 0, y: 0.05, z: 0, radius: 0.35, height: 1.75 };
 const STUB_GAME = {
   sitting: false,
   sitOnBench: () => {},
+  sitInPark: () => {},
   standUp: () => {},
+  shootHoop: () => {},
+  hoopInFlight: false,
+  freeWashRunning: false,
   customer: null,
 } as unknown as Game;
 const ctxOf = (s: GameState) => ({ state: s, game: STUB_GAME });
@@ -287,5 +291,139 @@ describe('no save-schema change ships with the shop (Save v1 stays v1)', () => {
     s.buyConfirm = 'shelf_mango';
     const snap = s.snapshotForSave();
     expect(JSON.stringify(snap)).not.toContain('buyConfirm');
+  });
+});
+
+// ---------------------------------------------------- the expanded block ----
+// docs/38 §4 — the free-roam loops east of the crosswalk: the park bench,
+// the half-court, the dirty-water dog cart, Fade King, the alley, and the
+// laundromat's $3 load. Same laws as the shop: real money, no story
+// gating, deterministic by day, no save fields.
+
+describe('the expanded block (docs/38 — new locations, new loops)', () => {
+  it('the park bench sits and stands through the same sit system', () => {
+    const { registry, state } = fullRegistry();
+    const it = probe('park_bench', registry);
+    expect(it.enabled(state, ctxOf(state))).toBe(true);
+    // the probe stub records which sit the interaction calls
+    let sat = '';
+    const ctx = { state, game: { ...STUB_GAME, sitInPark: () => { sat = 'park'; }, sitting: false } as unknown as Game };
+    it.perform(ctx);
+    expect(sat).toBe('park');
+    // seated, the prompt flips to stand
+    const seated = { state, game: { ...STUB_GAME, sitting: true } as unknown as Game };
+    expect(it.prompt(state, seated)).toBe('Stand up');
+  });
+
+  it('hoopOutcome is deterministic and day-keyed — a 6-in-10 shooter', () => {
+    // same inputs, same rim: the E2E and every player meet the same result
+    expect(hoopOutcome(1, 0)).toBe(hoopOutcome(1, 0));
+    // shot index changes the form; the pattern is a pure function
+    const day1 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((shot) => hoopOutcome(1, shot));
+    expect(day1).toContain('make');
+    expect(day1).toContain('miss');
+    // day 2 reads a different game
+    expect(hoopOutcome(2, 0)).toBe(hoopOutcome(2, 0));
+  });
+
+  it('the court disables mid-flight and its perform hands off to the game', () => {
+    const { registry, state } = fullRegistry();
+    const it = probe('court', registry);
+    let shots = 0;
+    const ctx = { state, game: { ...STUB_GAME, hoopInFlight: false, shootHoop: () => { shots += 1; } } as unknown as Game };
+    expect(it.enabled(state, ctx)).toBe(true);
+    it.perform(ctx);
+    expect(shots).toBe(1);
+    // in flight: nothing to press
+    const flying = { state, game: { ...STUB_GAME, hoopInFlight: true } as unknown as Game };
+    expect(it.enabled(state, flying)).toBe(false);
+  });
+
+  it('the hot dog cart: offer, then a real $2 through the confirm gate', () => {
+    const { registry, state } = fullRegistry();
+    const it = probe('hotdog', registry);
+    const offer = it.perform(ctxOf(state));
+    expect(state.buyConfirm).toBe('hotdog');
+    expect(state.money).toBe(START_MONEY);
+    expect(offer.some((e) => e.kind === 'note')).toBe(true);
+    const buy = it.perform(ctxOf(state));
+    expect(buy.some((e) => e.kind === 'money')).toBe(true);
+    expect(state.money).toBe(START_MONEY - 2);
+    expect(state.buyConfirm).toBeNull();
+  });
+
+  it('a $1 wallet leaves the cart hungry (the broke path, generalized)', () => {
+    const { registry, state } = fullRegistry();
+    state.spend(START_MONEY - 1);
+    const it = probe('hotdog', registry);
+    it.perform(ctxOf(state)); // offer
+    const out = it.perform(ctxOf(state)); // attempt
+    expect(out).toHaveLength(1);
+    expect(out[0].kind).toBe('note');
+    expect(state.money).toBe(1);
+  });
+
+  it('Fade King: $12, one cut per day, the second visit is free small talk', () => {
+    const { registry, state } = fullRegistry();
+    const it = probe('barber', registry);
+    it.perform(ctxOf(state)); // offer
+    const buy = it.perform(ctxOf(state)); // the cut
+    expect(state.money).toBe(START_MONEY - 12);
+    expect(state.trimToday).toBe(true);
+    expect(buy.some((e) => e.kind === 'money')).toBe(true);
+    // fresh now: the precheck short-circuits BEFORE the gate — no charge
+    const before = state.money;
+    const again = it.perform(ctxOf(state));
+    expect(again).toHaveLength(1);
+    expect(again[0].kind).toBe('note');
+    expect(state.money).toBe(before);
+    // and the prompt reads like a barber, not a vending machine
+    expect(it.prompt(state, ctxOf(state))).toBe('Fresh cut \u2014 walk on');
+  });
+
+  it('the alley is a read, not a beat — any day, no step change', () => {
+    const { registry, state } = fullRegistry();
+    const it = probe('alley', registry);
+    expect(it.enabled(state, ctxOf(state))).toBe(true);
+    const out = it.perform(ctxOf(state));
+    expect(out).toHaveLength(1);
+    expect(out[0]).toEqual({ kind: 'note', text: expect.any(String) });
+    expect(state.step).toBe(Step.MEET_ROSA);
+  });
+
+  it('the $3 load: the story owns the bay on Day 4\u2019s beats, the block owns it the rest of the week', () => {
+    const { registry, state } = fullRegistry();
+    const it = probe('washer_free', registry);
+    // story beats that use the bay:
+    state.setStep(Step.D4_LAUNDRY);
+    expect(it.enabled(state, ctxOf(state))).toBe(false);
+    state.setStep(Step.D4_PERMIT);
+    expect(it.enabled(state, ctxOf(state))).toBe(false);
+    // every other moment, including before the story starts:
+    for (const step of [Step.MEET_ROSA, Step.RUSH, Step.D2_LUNCH, Step.D4_WAKE, Step.DONE]) {
+      state.setStep(step);
+      expect(it.enabled(state, ctxOf(state))).toBe(true);
+    }
+    // a running drum takes the interaction off the table
+    state.setStep(Step.SOLO);
+    const busy = { state, game: { ...STUB_GAME, freeWashRunning: true } as unknown as Game };
+    expect(it.enabled(state, busy)).toBe(false);
+    // and the money still moves when the drum is free
+    const offer = it.perform(ctxOf(state));
+    expect(state.buyConfirm).toBe('washer_free');
+    const buy = it.perform(ctxOf(state));
+    expect(state.money).toBe(START_MONEY - 3);
+    expect(buy.some((e) => e.kind === 'free-wash-start')).toBe(true);
+    expect(offer.some((e) => e.kind === 'note')).toBe(true);
+  });
+
+  it('no new save fields: the trim flag and confirm gate stay out of snapshots', () => {
+    const s = new GameState();
+    s.trimToday = true;
+    s.buyConfirm = 'barber';
+    const snap = s.snapshotForSave();
+    const text = JSON.stringify(snap);
+    expect(text).not.toContain('trimToday');
+    expect(text).not.toContain('buyConfirm');
   });
 });

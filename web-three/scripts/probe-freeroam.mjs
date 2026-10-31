@@ -13,6 +13,10 @@
  *      reads it, and a broke wallet buys nothing
  *   4. a Day-2 v1 save boots, the shelf is restocked and purchasable
  *      (Save v1 compat, live)
+ *   5. the expanded block (docs/38): alley read, park bench sit/stand, one
+ *      shot (court disables mid-flight, resets after), the $2 hot dog, the
+ *      $12 trim (once a day — the fresh-cut line is free), and the $3 load
+ *      (drum spins, stops, day line lands) — every deduction real
  */
 
 import { chromium } from 'playwright';
@@ -176,6 +180,96 @@ await press();
 await press();
 st = await snap();
 check(st.money === 110, `purchasing works on a loaded old save ($112 - $2 = $${st.money})`);
+
+// ---------------------------------------------------------------- pass 3: the expanded block (docs/38)
+// Day 2, wallet at $110. The east end now answers: alley, park bench, a
+// shot, the hot dog cart, Fade King, and the laundromat's $3 load — every
+// deduction real, every loop story-free.
+
+// the alley — a read, any day (the step may be wherever Day-2 boot put it;
+// what matters is the note changes nothing about it)
+await teleport(32.1, 6.4);
+st = await snap();
+const stepBeforeAlley = st.step;
+check(st.prompt === 'Peek into the alley', `alley prompt (got ${JSON.stringify(st.prompt)})`);
+await press();
+st = await snap();
+check(st.note?.includes('green eyes') === true && st.step === stepBeforeAlley,
+  `alley note reads, story untouched (note ${JSON.stringify(st.note?.slice(0, 40))}, step ${st.step} -> ${stepBeforeAlley})`);
+
+// the park bench — sit on the seat, stand back to the street spot
+await teleport(41.2, -4.2);
+st = await snap();
+check(st.prompt === 'Sit in the park', `park bench prompt (got ${JSON.stringify(st.prompt)})`);
+const parkBefore = { x: st.capsule.x, z: st.capsule.z };
+await press();
+st = await snap();
+check(st.sitting === true, 'sitting in the park');
+check(Math.hypot(st.capsule.x - 41.5, st.capsule.z - (-5.05)) < 0.3,
+  `capsule parked on the park bench (got ${st.capsule.x.toFixed(2)}, ${st.capsule.z.toFixed(2)})`);
+await press();
+st = await snap();
+check(st.sitting === false, 'standing from the park bench works');
+check(Math.hypot(st.capsule.x - parkBefore.x, st.capsule.z - parkBefore.z) < 0.05, 'park stand restores the spot');
+
+// the half-court — one shot flies, lands, and the court resets
+await teleport(43.2, 5.2);
+st = await snap();
+check(st.prompt === 'Shoot around', `court prompt (got ${JSON.stringify(st.prompt)})`);
+await press();
+await page.waitForTimeout(400);
+st = await snap();
+check(st.prompt === null, `the court goes quiet while the ball flies (got ${JSON.stringify(st.prompt)})`);
+await page.waitForTimeout(4400); // flight + landing + reset, at software-GL half-speed
+st = await snap();
+check(st.prompt === 'Shoot around', 'the ball is back — the court resets itself');
+const ballRest = await page.evaluate(() => {
+  const b = window.__game.world.ball;
+  return { x: b.position.x, y: b.position.y, z: b.position.z };
+});
+check(Math.hypot(ballRest.x - 43.2, ballRest.z - 5.2) < 0.05, `ball rests by the key again (got ${ballRest.x.toFixed(2)}, ${ballRest.z.toFixed(2)})`);
+
+// the hot dog cart — $2, real
+await teleport(29.8, -2.9);
+st = await snap();
+check(st.prompt === 'Hot dog \u2014 $2', `hot dog prompt (got ${JSON.stringify(st.prompt)})`);
+await press();
+st = await snap();
+check(st.money === 110 && st.note?.includes('$2') === true, `first press only offers ($${st.money})`);
+await press();
+st = await snap();
+check(st.money === 108, `the dog costs $2 — real deduction ($${st.money})`);
+
+// Fade King — $12, once a day; the second visit is free small talk
+await teleport(36.6, 6.2);
+st = await snap();
+check(st.prompt === 'Get a trim \u2014 $12', `barber prompt (got ${JSON.stringify(st.prompt)})`);
+await press();
+await press();
+st = await snap();
+check(st.money === 96, `the trim costs $12 ($${st.money})`);
+st = await snap();
+check(st.prompt === 'Fresh cut \u2014 walk on', `the fresh-cut prompt (got ${JSON.stringify(st.prompt)})`);
+await press();
+st = await snap();
+check(st.money === 96, `a fresh head spends nothing more ($${st.money})`);
+
+// the laundromat's $3 load — the story isn't using the bay today
+await teleport(-5.9, 6.0);
+st = await snap();
+check(st.prompt === 'Do a load \u2014 $3', `washer prompt (got ${JSON.stringify(st.prompt)})`);
+await press();
+await press();
+st = await snap();
+check(st.money === 93, `a load costs $3 ($${st.money})`);
+const spinning = await page.evaluate(() => window.__game.world.isWasherRunning());
+check(spinning === true, 'the drum is turning for the $3 load');
+await page.waitForTimeout(14000); // six game-seconds, at software-GL half-speed
+st = await snap();
+const stillSpinning = await page.evaluate(() => window.__game.world.isWasherRunning());
+check(stillSpinning === false, 'the drum stops when the load is done');
+check(st.note?.includes('fold') === true || st.note?.includes('done') === true || st.note?.includes('Warm') === true,
+  `the load finishes with its day line (got ${JSON.stringify(st.note?.slice(0, 40))})`);
 
 check(consoleErrors.length === 0, `console clean (${consoleErrors.length} errors${consoleErrors.length ? ': ' + consoleErrors[0] : ''})`);
 

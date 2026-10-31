@@ -26,8 +26,8 @@ import { capturePostcard, downloadPostcard } from '../postcard/PostcardCapture';
 import { updatePersonAnim, type PersonRig } from '../world/personRig';
 import { FAMILIAR_SPEED, familiarBeatForDay } from '../world/dressing';
 import { InteractionRegistry, NEVER_NEAR, type InteractionCtx } from './interactions';
-import { buildInteractions, byDay, BUS_BENCH_SEAT } from './interactionDefs';
-import { BENCH_SIT_NOTES } from '../core/content';
+import { buildInteractions, byDay, BUS_BENCH_SEAT, PARK_BENCH_SEAT, COURT_BALL_REST, HOOP_RIM, hoopOutcome } from './interactionDefs';
+import { BENCH_SIT_NOTES, PARK_SIT_NOTES, COURT_MAKE, COURT_MISS, COURT_STREAK_NOTE, FREE_WASH_NOTES } from '../core/content';
 import { gameAudio } from './audio';
 
 /** One waypoint on the familiar face's daily walk. dwell = seconds she
@@ -340,6 +340,12 @@ export class Game {
         for (const e of s.completeWash()) this.applyEffect(e);
       }
     }
+    // the free-roam load (docs/38) runs on its own clock — the story wash
+    // and the $3 load never share the drum (the washer_free gate keeps out)
+    if (this.freeWashRunning) {
+      this.freeWashTimer -= dt;
+      if (this.freeWashTimer <= 0) this.finishFreeWash();
+    }
     if (s.isDay3 && s.step === Step.D3_KIDDOWN && s.kidDown && !s.kidAtCorner) {
       this.updateKidFollow(dt);
     }
@@ -526,16 +532,30 @@ export class Game {
     return this.sitReturn !== null;
   }
 
-  sitOnBench(): void {
+  /** The one sit system (docs/38 — the park bench is the bus bench's
+   *  sibling): capsule parks on the seat, physics rests, the rig folds to
+   *  its sit pose, the seat's diary speaks. Standing restores the street
+   *  spot. Defaults keep the original bus-bench behavior byte-for-byte. */
+  sitAt(seat: { x: number; y: number; z: number }, faceY: number, notes: readonly string[]): void {
     if (this.sitReturn) return;
     const c = this.player.capsule;
     this.sitReturn = { x: c.x, z: c.z, rot: this.player.rotationY };
-    c.x = BUS_BENCH_SEAT.x;
+    c.x = seat.x;
     c.y = 0.12; // hips level with the seat top — the same settle the familiar uses
-    c.z = BUS_BENCH_SEAT.z;
+    c.z = seat.z;
     this.player.vy = 0;
-    this.player.rotationY = Math.PI; // face the street, like the bench does
-    this.ui.showNote(byDay(BENCH_SIT_NOTES, this.state.day));
+    this.player.rotationY = faceY;
+    this.ui.showNote(byDay(notes, this.state.day));
+  }
+
+  sitOnBench(): void {
+    this.sitAt(BUS_BENCH_SEAT, Math.PI, BENCH_SIT_NOTES); // face the street, like the bench does
+  }
+
+  /** The park bench faces the lawn's street side — same street-watch pose,
+   *  mirrored to face north across the lawn. */
+  sitInPark(): void {
+    this.sitAt(PARK_BENCH_SEAT, Math.PI, PARK_SIT_NOTES);
   }
 
   standUp(): void {
@@ -563,6 +583,86 @@ export class Game {
         this.world.addItem(id, x, y, z, 0);
       }
     }
+  }
+
+  // ------------------------------------------------------------------ the half-court (docs/38)
+  // The hoop keeps score in notes, not UI. Outcomes are deterministic per
+  // (day, shot index) — hoopOutcome — so the E2E and every player meet the
+  // same rim. No save fields: a streak is a moment, not a possession.
+
+  /** A shot is in the air — the court interaction disables itself until it
+   *  lands. */
+  hoopInFlight = false;
+  private hoopShots = 0;
+  private hoopStreak = 0;
+
+  shootHoop(): void {
+    if (this.hoopInFlight) return;
+    this.hoopInFlight = true;
+    const ball = this.world.ball;
+    const made = hoopOutcome(this.state.day, this.hoopShots);
+    this.hoopShots += 1;
+    // launch from beside the player toward the rim — two tweens per axis
+    // (up-and-over, then the drop), the honest lowpoly arc
+    const rx = HOOP_RIM.x, ry = HOOP_RIM.y, rz = HOOP_RIM.z;
+    const flight = 0.55; // seconds to the rim
+    const land = made
+      ? { x: rx, z: rz + 0.05, y: 0.13, note: this.hoopMadeNote() } // drops clean through
+      : { x: rx - 0.5, z: rz - 0.9, y: 0.13, note: byDay(COURT_MISS, this.state.day) }; // off the front iron
+    this.tweens.sequence(
+      this.tweens.parallel(
+        this.tweens.num(() => ball.position.x, (v) => { ball.position.x = v; }, rx, flight, (t) => t),
+        this.tweens.num(() => ball.position.z, (v) => { ball.position.z = v; }, rz, flight, (t) => t),
+        this.tweens.num(() => ball.position.y, (v) => { ball.position.y = v; }, ry + 0.35, flight),
+      ),
+      this.tweens.parallel(
+        this.tweens.num(() => ball.position.x, (v) => { ball.position.x = v; }, land.x, 0.42, (t) => t),
+        this.tweens.num(() => ball.position.z, (v) => { ball.position.z = v; }, land.z, 0.42, (t) => t),
+        this.tweens.num(() => ball.position.y, (v) => { ball.position.y = v; }, land.y, 0.42),
+      ),
+      this.tweens.call(() => {
+        this.ui.showNote(land.note);
+      }),
+      this.tweens.wait(0.7),
+      this.tweens.call(() => {
+        // the ball rolls back to its spot by the key — the court resets
+        // itself, no inventory, no state
+        ball.position.set(COURT_BALL_REST.x, COURT_BALL_REST.y, COURT_BALL_REST.z);
+        this.hoopInFlight = false;
+      }),
+    );
+  }
+
+  /** Made-basket lines escalate with the streak; the third is the brag. */
+  private hoopMadeNote(): string {
+    this.hoopStreak += 1;
+    if (this.hoopStreak >= 3) {
+      // a run of three gets its own line once, then the normal rotation
+      return this.hoopStreak === 3 ? COURT_STREAK_NOTE : byDay(COURT_MAKE, this.state.day);
+    }
+    return COURT_MAKE[(this.hoopStreak - 1) % COURT_MAKE.length];
+  }
+
+  // ------------------------------------------------------------------ the free wash (docs/38)
+  // The laundromat's near washer, when Sal's story isn't using the bay: $3,
+  // six honest seconds of drum, a day-keyed done line. Same machine, same
+  // visual path as the story wash — never both at once (the gate keeps out).
+
+  freeWashRunning = false;
+  private freeWashTimer = 0;
+
+  private startFreeWash(): void {
+    this.freeWashRunning = true;
+    this.freeWashTimer = 6;
+    this.world.setWasherRunning(true);
+    gameAudio.wash();
+  }
+
+  private finishFreeWash(): void {
+    this.freeWashRunning = false;
+    this.world.setWasherRunning(false);
+    gameAudio.washStop();
+    this.ui.showNote(byDay(FREE_WASH_NOTES, this.state.day));
   }
 
   // ------------------------------------------------------------------ interact
@@ -721,6 +821,10 @@ export class Game {
         this.washTimer = 2.4;
         this.world.setWasherRunning(true);
         gameAudio.wash();
+        break;
+      case 'free-wash-start':
+        // the laundromat's other wash (docs/38): same machine, its own clock
+        this.startFreeWash();
         break;
       case 'apron-clean':
         this.world.setWasherRunning(false);
@@ -1413,6 +1517,20 @@ export class Game {
     }
     s.idrisArrived = false;
     this.removeCustomer();
+    // the new block's morning resets (docs/38): a fresh day is a fresh
+    // streak, an uncut head, an idle drum. The ball lands wherever it was —
+    // snap it home before the fade lifts.
+    this.hoopInFlight = false;
+    this.hoopShots = 0;
+    this.hoopStreak = 0;
+    this.world.ball.position.set(COURT_BALL_REST.x, COURT_BALL_REST.y, COURT_BALL_REST.z);
+    if (this.freeWashRunning) {
+      // a wash left running when the day rolled over finishes quietly
+      this.freeWashRunning = false;
+      this.freeWashTimer = 0;
+      this.world.setWasherRunning(false);
+    }
+    s.trimToday = false;
     if (sd !== null) {
       s.cartName = sd.cart_name;
       s.money = sd.money;

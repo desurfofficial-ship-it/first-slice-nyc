@@ -22,6 +22,10 @@ import {
   NEWSPAPER_NOTES,
   SHELF_GOODS,
   SUBWAY_NOTE,
+  BARBER_PRICE, BARBER_OFFER, BARBER_BROKE, BARBER_FRESH, BARBER_LINES,
+  HOT_DOG_PRICE, HOT_DOG_OFFER, HOT_DOG_BROKE, HOT_DOG_LINES,
+  ALLEY_NOTES,
+  FREE_WASH_PRICE, FREE_WASH_OFFER, FREE_WASH_BROKE,
 } from '../core/content';
 import { NEVER_NEAR, type Interaction, type InteractionCtx, type Vec3Like } from './interactions';
 
@@ -63,6 +67,157 @@ const bench: Interaction = {
     }
     ctx.game.sitOnBench();
     return [];
+  },
+};
+
+// ---------------------------------------------- the expanded block (docs/38) ----
+
+/** The park bench by the lawn — the bus bench's sibling. Same sit system,
+ *  different seat, different diary. */
+export const PARK_BENCH_SEAT: Vec3Like = { x: 41.5, y: 0.55, z: -5.05 };
+
+const parkBench: Interaction = {
+  id: 'park_bench',
+  pos: () => PARK_BENCH_SEAT,
+  radius: 2.2,
+  enabled: () => true,
+  prompt: (_s, ctx) => (ctx.game.sitting ? 'Stand up' : 'Sit in the park'),
+  perform: (ctx) => {
+    if (ctx.game.sitting) {
+      ctx.game.standUp();
+      return [];
+    }
+    ctx.game.sitInPark();
+    return [];
+  },
+};
+
+/** The rim's mouth and the ball's rest spot, in world space — Game's hoop
+ *  flight and the probe both read these. */
+export const HOOP_RIM: Vec3Like = { x: 44.25, y: 2.6, z: 7.64 };
+export const COURT_BALL_REST: Vec3Like = { x: 43.2, y: 0.13, z: 5.2 };
+
+/** Deterministic day-seeded outcome — a 6-in-10 shooter whose form comes
+ *  and goes by day. Pure, so tests and the E2E both know the answer. */
+export function hoopOutcome(day: number, shot: number): 'make' | 'miss' {
+  return ((Math.max(1, day) * 7 + shot * 13) % 10) < 6 ? 'make' : 'miss';
+}
+
+const court: Interaction = {
+  id: 'court',
+  pos: () => COURT_BALL_REST,
+  radius: 2.1,
+  // the ball flies alone: no second press can interrupt a shot mid-arc
+  enabled: (_s, ctx) => !ctx.game.hoopInFlight,
+  prompt: () => 'Shoot around',
+  perform: (ctx) => {
+    ctx.game.shootHoop();
+    return [];
+  },
+};
+
+/** Confirm-gate purchase, the shelf's pattern generalized: first press
+ *  offers (and binds `state.buyConfirm` to this interaction), second buys.
+ *  A real `spend()` — the money HUD pulses, the day-end save carries it.
+ *  `precheck` may short-circuit with a plain note BEFORE the offer (the
+ *  barber's fresh-cut morning) — no gate, no money moves. */
+function gatedBuy(opts: {
+  id: string;
+  pos: () => Vec3Like;
+  radius?: number;
+  price: number;
+  label: string;
+  offer: string;
+  broke: string;
+  dayLines: readonly string[];
+  precheck?: (s: GameState) => string | null;
+  onBuy?: (ctx: InteractionCtx) => void;
+}): Interaction {
+  return {
+    id: opts.id,
+    pos: opts.pos,
+    ...(opts.radius !== undefined ? { radius: opts.radius } : {}),
+    enabled: () => true,
+    prompt: (s) => {
+      if (opts.precheck && opts.precheck(s) !== null) {
+        return opts.id === 'barber' ? 'Fresh cut — walk on' : `${opts.label} \u2014 $${opts.price}`;
+      }
+      return `${opts.label} \u2014 $${opts.price}`;
+    },
+    perform: (ctx): Effect[] => {
+      if (opts.precheck) {
+        const short = opts.precheck(ctx.state);
+        if (short !== null) return [{ kind: 'note', text: short }];
+      }
+      const me = opts.id;
+      if (ctx.state.buyConfirm !== me) {
+        ctx.state.buyConfirm = me;
+        return [{ kind: 'note', text: opts.offer }];
+      }
+      ctx.state.buyConfirm = null;
+      if (ctx.state.money < opts.price) return [{ kind: 'note', text: opts.broke }];
+      opts.onBuy?.(ctx);
+      return [
+        ...ctx.state.spend(opts.price),
+        { kind: 'note', text: byDay(opts.dayLines, ctx.state.day) },
+      ];
+    },
+  };
+}
+
+const hotdog = gatedBuy({
+  id: 'hotdog',
+  pos: () => ({ x: 29.8, y: 1.0, z: -4.55 }),
+  radius: 2.2,
+  price: HOT_DOG_PRICE,
+  label: 'Hot dog',
+  offer: HOT_DOG_OFFER,
+  broke: HOT_DOG_BROKE,
+  dayLines: HOT_DOG_LINES,
+});
+
+const barber = gatedBuy({
+  id: 'barber',
+  pos: () => ({ x: 36.6, y: 1.4, z: 7.9 }),
+  price: BARBER_PRICE,
+  label: 'Get a trim',
+  offer: BARBER_OFFER,
+  broke: BARBER_BROKE,
+  dayLines: BARBER_LINES,
+  // already fresh today: the chair politely declines, no money moves
+  precheck: (s) => (s.trimToday ? BARBER_FRESH : null),
+  onBuy: ({ state }) => { state.trimToday = true; },
+});
+
+const alley: Interaction = {
+  id: 'alley',
+  pos: () => ({ x: 32.1, y: 1.2, z: 8.4 }),
+  radius: 2.1,
+  enabled: () => true,
+  prompt: () => 'Peek into the alley',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(ALLEY_NOTES, state.day) }],
+};
+
+/** The laundromat's near washer, free-roam edition. The Day-4 story owns
+ *  the bay at its own beats (hand-apron, permit chat) and while Sal's wash
+ *  runs; the rest of the week it's $3 and six patient minutes-worth of
+ *  drum hum. */
+const washerFree: Interaction = {
+  id: 'washer_free',
+  pos: () => ({ x: -5.9, y: 0.9, z: 7.6 }),
+  radius: 2.2,
+  enabled: (s, ctx) =>
+    s.step !== Step.D4_LAUNDRY && s.step !== Step.D4_PERMIT
+    && !s.apronWashing && !ctx.game.freeWashRunning,
+  prompt: () => `Do a load \u2014 $${FREE_WASH_PRICE}`,
+  perform: ({ state }): Effect[] => {
+    if (state.buyConfirm !== 'washer_free') {
+      state.buyConfirm = 'washer_free';
+      return [{ kind: 'note', text: FREE_WASH_OFFER }];
+    }
+    state.buyConfirm = null;
+    if (state.money < FREE_WASH_PRICE) return [{ kind: 'note', text: FREE_WASH_BROKE }];
+    return [...state.spend(FREE_WASH_PRICE), { kind: 'free-wash-start' }];
   },
 };
 
@@ -130,7 +285,7 @@ export function shelfInteractions(src: InteractionSources): Interaction[] {
 }
 
 export function freeRoamInteractions(src: InteractionSources): Interaction[] {
-  return [bench, board, newsbox, subway, ...shelfInteractions(src)];
+  return [bench, parkBench, court, hotdog, barber, alley, washerFree, board, newsbox, subway, ...shelfInteractions(src)];
 }
 
 // ------------------------------------------------------------------ authored ----
