@@ -383,25 +383,128 @@ export function makeStool(bank: MatBank): THREE.Group {
   return g;
 }
 
-/** A delivery van — box body, cab, and one honest company-less panel. */
-export function makeVan(bank: MatBank): THREE.Group {
+/** A delivery van — "GOLDEN ORCHARD PRODUCE CO.", a believable New York
+ *  box truck parked on the north curb (nose west, with westbound traffic).
+ *
+ *  Design notes (Doc 04 law: palette only, banked materials, honest parts):
+ *    - Silhouette: cab-over nose + raised cargo box on visible chassis rails
+ *      + exposed rear wheels with fenders and mud flaps. The raised-box /
+ *      low-nose profile is what makes a box truck read as a delivery vehicle
+ *      at gameplay distance — not decorations.
+ *    - Front vs rear, instantly: headlights + grille + big windshield against
+ *      coral taillights + double rear doors with hinges, handles, ICC step
+ *      bumper and a license plate.
+ *    - Branding: a gold/ink sign panel on both flanks and across the rear
+ *      doors — the same gold-with-ink-letters family as the bodega's signs,
+ *      so the van looks like it delivers TO this block (Rosa's produce,
+ *      plausibly). `sign` is the World's canvas-texture factory; optional so
+ *      tests can build a plain van.
+ *    - Envelope: the body spans exactly the declared collider (4.4 × 1.95,
+ *      World.ts) — the old build left 0.7 m of invisible wall east of the
+ *      tailgate. Mirrors are the only proud parts (~7 cm past the box), and
+ *      the player capsule is kept 0.35 m off the collider face, so nothing
+ *      clips. Wheels: manhole-dark tyres, stone rims, ink hubs — the sedan's
+ *      material family.
+ *    - Draw calls: every color here already exists somewhere on the street,
+ *      so bakeStatics merges the van's parts into the existing per-tile
+ *      batches; the three sign meshes (canvas materials, never baked) are
+ *      the van's only dedicated draw calls. */
+export function makeVan(
+  bank: MatBank,
+  sign?: (text: string, w: number, h: number, bg: number, fg: number, px: number) => THREE.Material | THREE.Material[],
+): THREE.Group {
   const g = new THREE.Group();
-  const bodyCol = bank.get(0xb9b1a6);
-  const mk = (sx: number, sy: number, sz: number, x: number, y: number, z: number, m: THREE.Material = bodyCol) => {
+  g.name = 'delivery_van';
+  const body = bank.get(0xb9b1a6);   // PAL.walk — the van's work clothes
+  const ink = bank.get(PAL_INK);     // trim, bumpers, hardware, tyres' hubs
+  const dark = bank.get(0x2b2730);   // PAL.manhole — tyres, chassis, grille
+  const glass = bank.get(0x3b3346);  // PAL.windowDim — all glazing
+  const stone = bank.get(0xe8e4dc);  // PAL.stone — wheel rims
+  const cream = bank.get(PAL_CREAM); // headlights, plate
+  const coral = bank.get(PAL_CORAL); // taillights
+  const gold = bank.get(PAL_GOLD);   // marker lights (and the sign panels)
+  const seam = bank.get(0x9a938c);   // AC-unit grey — panel lines, rub rail
+  const solid = (sx: number, sy: number, sz: number, x: number, y: number, z: number, m: THREE.Material, cast = true) => {
     const b = unitBox(m, sx, sy, sz, x, y, z);
-    b.castShadow = true;
+    b.castShadow = cast;
     g.add(b);
+    return b;
   };
-  mk(2.9, 1.5, 1.9, 0.2, 1.25, 0);           // cargo box
-  mk(1.1, 1.05, 1.8, 1.9, 1.0, 0);           // cab
-  mk(0.9, 0.5, 1.6, 1.95, 1.5, 0, bank.get(0x3b3346)); // windshield band
-  mk(2.9, 0.1, 1.7, 0.2, 2.03, 0);           // roof
-  for (const sx of [-1.0, 1.35]) {
-    for (const sz of [-0.85, 0.85]) {
-      const w = unitCyl(bank.get(0x2b2730), 0.34, 0.2, sx, 0.34, sz);
-      w.rotation.x = Math.PI / 2;
-      g.add(w);
+  const wheel = (r: number, w: number, x: number, z: number) => {
+    const tyre = unitCyl(dark, r, w, x, r, z);
+    tyre.rotation.x = Math.PI / 2;
+    tyre.castShadow = true;
+    g.add(tyre);
+    const rim = unitCyl(stone, r * 0.47, w + 0.02, x, r, z);
+    rim.rotation.x = Math.PI / 2;
+    g.add(rim);
+    const hub = unitCyl(ink, r * 0.15, w + 0.035, x, r, z);
+    hub.rotation.x = Math.PI / 2;
+    g.add(hub);
+  };
+
+  // ---- cab (nose at local +x; cab-over: windshield is the front wall) ----
+  solid(1.68, 0.88, 1.85, 1.36, 0.86, 0, body);            // cab body 0.42–1.30
+  solid(1.72, 0.10, 1.90, 1.34, 1.95, 0, body);            // cab roof → 2.00
+  solid(0.065, 0.62, 1.70, 2.1725, 1.56, 0, glass);        // windshield band (5 mm proud of the cab face — no coplanar z-fight)
+  solid(0.075, 0.09, 1.72, 2.175, 1.90, 0, ink);           // windshield header (7.5 mm proud: real trim)
+  solid(0.075, 0.12, 1.70, 2.175, 1.18, 0, ink);           // dash/cowl band under the glass
+  for (const sz of [-0.875, 0.875]) solid(0.08, 0.68, 0.09, 2.175, 1.56, sz, body); // A-pillars (swallow the glass edge)
+  for (const sz of [-0.925, 0.925]) {
+    solid(0.55, 0.45, 0.04, 1.30, 1.55, sz - 0.005, glass, false); // cab side windows
+    solid(0.02, 0.75, 0.02, 0.98, 1.00, sz + 0.01, ink, false); // door seam
+    solid(0.10, 0.03, 0.03, 1.12, 1.18, sz + 0.015, ink, false); // door handle
+    solid(0.05, 0.04, 0.14, 2.05, 1.62, sz * 1.045, ink, false); // mirror arm
+    solid(0.06, 0.22, 0.03, 2.05, 1.60, sz * 1.093, body, false); // mirror head
+  }
+  solid(0.065, 0.28, 1.50, 2.1725, 0.86, 0, dark);         // grille (5 mm proud — no coplanar z-fight)
+  for (const sz of [-0.68, 0.68]) solid(0.065, 0.16, 0.30, 2.1725, 0.62, sz, cream); // headlights (proud)
+  solid(0.14, 0.20, 1.95, 2.13, 0.30, 0, ink);             // front bumper
+  for (const sz of [-0.80, 0.80]) {                        // front fender lips (kiss the tyre tops)
+    solid(0.80, 0.05, 0.10, 1.50, 0.70, sz * 1.1, body, false);
+    wheel(0.34, 0.22, 1.50, sz);
+  }
+
+  // ---- cargo box (raised: 0.97–2.22, sits on rails above the rear axle) ----
+  solid(2.62, 1.25, 1.95, -0.87, 1.595, 0, body);          // box body
+  solid(2.70, 0.05, 2.00, -0.88, 2.245, 0, body);          // roof cap → 2.27
+  solid(2.55, 0.20, 0.36, -0.75, 0.62, 0, dark);           // chassis rail (runs into the cab — no daylight gap)
+  for (const sx of [-1.55, -0.55]) {                       // vertical panel seams
+    for (const sz of [-0.965, 0.965]) solid(0.025, 1.15, 0.02, sx, 1.60, sz, seam, false);
+  }
+  for (const sz of [-0.965, 0.965]) solid(2.56, 0.08, 0.02, -0.88, 1.06, sz, seam, false); // rub rail
+  for (const sz of [-0.6, 0, 0.6]) solid(0.06, 0.05, 0.09, 0.40, 2.28, sz, gold, false);   // roof markers
+
+  // ---- rear: double doors, hardware, lights, ICC step, plate ----
+  for (const sz of [-0.4675, 0.4675]) {
+    solid(0.03, 1.16, 0.90, -2.185, 1.60, sz, body);       // door L/R (proud to -2.20)
+    for (const hy of [1.15, 1.60, 2.05]) solid(0.03, 0.10, 0.05, -2.19, hy, sz * 2.0 + (sz > 0 ? -0.03 : 0.03), ink, false); // hinges at outer edges
+    solid(0.025, 0.04, 0.16, -2.20, 1.32, sz - Math.sign(sz) * 0.3675, ink, false); // handles at the gap
+  }
+  solid(0.03, 1.16, 0.03, -2.19, 1.60, 0, ink, false);     // door gap
+  for (const sz of [-0.83, 0.83]) solid(0.05, 0.26, 0.12, -2.175, 0.84, sz, coral); // taillights (tops touch the box underside)
+  solid(0.12, 0.16, 1.95, -2.13, 0.34, 0, ink);            // ICC step bumper
+  solid(0.02, 0.16, 0.34, -2.19, 0.50, 0, cream, false);   // license plate (sits on the ICC bumper)
+  for (const sz of [-0.86, 0.86]) {                        // rear fenders (overlap the tyre tops) + flaps
+    solid(0.85, 0.05, 0.10, -1.35, 0.74, sz, body, false);
+    solid(0.04, 0.30, 0.26, -1.73, 0.35, sz * 0.907, ink, false);
+    wheel(0.36, 0.26, -1.35, sz * 0.884);
+  }
+
+  // ---- branding: gold flanks + rear-door panel (never baked — canvas) ----
+  if (sign) {
+    const flank = sign('GOLDEN ORCHARD\nPRODUCE CO \u00b7 NEW YORK, NY', 768, 208, PAL_GOLD, PAL_INK, 56);
+    for (const sz of [-0.99, 0.99]) {
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(2.30, 0.62, 0.04), flank);
+      panel.position.set(-0.90, 1.62, sz);
+      panel.castShadow = true;
+      g.add(panel);
     }
+    const rear = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.56, 0.04), sign('GOLDEN\nORCHARD', 256, 224, PAL_GOLD, PAL_INK, 66));
+    rear.rotation.y = -Math.PI / 2; // text face out through the tailgate
+    rear.position.set(-2.22, 1.74, 0);
+    rear.castShadow = true;
+    g.add(rear);
   }
   return g;
 }
