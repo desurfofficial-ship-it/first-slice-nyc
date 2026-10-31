@@ -555,8 +555,13 @@ export class Game {
   // and the moment Rosa's errand empties it. Purchases deduct real money.
 
   private restockShelf(): void {
+    // Finite shop: refill units, then ensure exactly one mesh per in-stock SKU
+    // (never double-add if the mesh is already on the shelf).
+    this.state.restockShelfStock();
     for (const [id, x, y, z] of SHELF_STOCK) {
-      if (!this.world.itemMeshes.has(id)) this.world.addItem(id, x, y, z, 0);
+      if (this.state.shelfUnits(id) > 0 && !this.world.itemMeshes.has(id)) {
+        this.world.addItem(id, x, y, z, 0);
+      }
     }
   }
 
@@ -610,6 +615,10 @@ export class Game {
         // Rosa's three are hers now — and the shelf goes back to selling:
         // the restock is what makes the bodega a shop outside the errand.
         if (this.state.itemsLeft.size === 0) this.restockShelf();
+        break;
+      case 'shelf-deplete':
+        // Paid purchase consumed the last unit — hide the mesh until morning.
+        this.world.removeItem(e.id);
         break;
       case 'spawn-customer':
         this.spawnCustomer(e.who, e.x, e.z);

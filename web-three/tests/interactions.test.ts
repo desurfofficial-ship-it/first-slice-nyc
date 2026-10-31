@@ -162,6 +162,67 @@ describe('the free-roam shop (Doc 37 §3C — real money, no story gating)', () 
   });
 });
 
+
+describe('finite shelf stock (Phase 1 completion)', () => {
+  it('a successful purchase consumes one unit and depletes the SKU', () => {
+    const { registry, state } = fullRegistry();
+    const mango = probe('shelf_mango', registry);
+    expect(state.shelfUnits('mango')).toBe(1);
+    mango.perform(ctxOf(state)); // offer
+    const out = mango.perform(ctxOf(state)); // buy
+    expect(state.money).toBe(START_MONEY - 2);
+    expect(state.shelfUnits('mango')).toBe(0);
+    expect(out.some((e) => e.kind === 'shelf-deplete' && (e as { id: string }).id === 'mango')).toBe(true);
+    expect(mango.enabled(state, ctxOf(state))).toBe(false);
+  });
+
+  it('sold-out SKU refuses a second purchase (no double charge)', () => {
+    const { registry, state } = fullRegistry();
+    const coffee = probe('shelf_coffee', registry);
+    coffee.perform(ctxOf(state));
+    coffee.perform(ctxOf(state));
+    expect(state.shelfUnits('coffee')).toBe(0);
+    const before = state.money;
+    state.buyConfirm = null;
+    coffee.perform(ctxOf(state)); // offer
+    const out = coffee.perform(ctxOf(state)); // attempt buy
+    expect(out.some((e) => e.kind === 'note')).toBe(true);
+    expect(out.some((e) => e.kind === 'money' || e.kind === 'spend')).toBe(false);
+    expect(state.money).toBe(before);
+    expect(state.shelfUnits('coffee')).toBe(0);
+  });
+
+  it('morning restock restores one unit per SKU', () => {
+    const { state } = fullRegistry();
+    state.consumeShelfUnit('mango');
+    state.consumeShelfUnit('coffee');
+    state.consumeShelfUnit('bread');
+    expect(state.shelfUnits('mango')).toBe(0);
+    state.restockShelfStock();
+    expect(state.shelfUnits('mango')).toBe(1);
+    expect(state.shelfUnits('coffee')).toBe(1);
+    expect(state.shelfUnits('bread')).toBe(1);
+  });
+
+  it('Day-1 COLLECT still disables the paid shop on the same meshes', () => {
+    const { registry, state } = fullRegistry();
+    state.setStep(Step.COLLECT);
+    for (const id of ['shelf_mango', 'shelf_coffee', 'shelf_bread']) {
+      expect(probe(id, registry).enabled(state, ctxOf(state))).toBe(false);
+    }
+    for (const id of ['item_mango', 'item_coffee', 'item_bread']) {
+      expect(probe(id, registry).enabled(state, ctxOf(state))).toBe(true);
+    }
+  });
+
+  it('shelf stock is not written into SaveData', () => {
+    const s = new GameState();
+    s.consumeShelfUnit('mango');
+    const snap = s.snapshotForSave();
+    expect(JSON.stringify(snap)).not.toContain('shelfStock');
+  });
+});
+
 describe('the bench, the board, the newsbox (free-roam reads and sits)', () => {
   it('sitting toggles through the game hooks, standing is free', () => {
     const { registry, state } = fullRegistry();
