@@ -51,6 +51,31 @@ export function runAutotest(game: Game): void {
 
   const walkLog = new URLSearchParams(location.search).has('walklog');
 
+  /** One-level detour: pick the side with open air (a capsule-padded probe
+   *  against the world's own collider list) — the same "re-route around the
+   *  obstacle, then resume" rule the pedestrians follow. Street-level solids
+   *  only: ground slabs (steppable) and overhead geometry don't count.
+   *  (Agent-2 collision pass, docs/35-36.) */
+  const pickDetourSide = (px: number, pz: number, dirX: number, dirZ: number): number => {
+    const perpX = -dirZ;
+    const perpZ = dirX;
+    let best = 0;
+    let bestBlocked = Infinity;
+    for (const side of [-1, 1] as const) {
+      const qx = px + perpX * side * 1.4;
+      const qz = pz + perpZ * side * 1.4;
+      let blocked = 0;
+      for (const b of game.world.colliders) {
+        if (b.maxY <= 0.4 || b.minY >= 1.8) continue; // ground or overhead
+        const nx2 = Math.max(b.minX, Math.min(qx, b.maxX));
+        const nz2 = Math.max(b.minZ, Math.min(qz, b.maxZ));
+        if (Math.hypot(qx - nx2, qz - nz2) < 0.4) blocked++;
+      }
+      if (blocked < bestBlocked) { bestBlocked = blocked; best = side; }
+    }
+    return best;
+  };
+
   /** Steer with real input keys toward a point (camera-relative), up to `timeout` s.
    *  stopOnLadder: arrive as soon as a ladder is grabbed (climbing replaces walking).
    *  The default budget is generous on purpose: software rendering runs sim
@@ -66,16 +91,33 @@ export function runAutotest(game: Game): void {
     const t0 = performance.now();
     const hardCap = timeout * 3000; // 3x, in ms — the ceiling, never the plan
     let frames = 0;
-    let lastPos = '';
     let stuckCount = 0;
+    let bestDist = Infinity; // 25 cm progress hysteresis (agent-2: the clamp
+    // point breathes ±1 cm against a held pedestrian and the dance's own
+    // ping-pong re-approached its old best — finer keys reset every frame)
+    let slide = 0; // recovery phase: 2 = step back, ±1 = sidestep
+    let lastPhase = -1;
+    let phaseX = 0;
+    let phaseZ = 0;
+    let detour: { x: number; z: number } | null = null;
+    let detours = 0;
     let windowDist = Math.hypot(x - game.player.capsule.x, z - game.player.capsule.z);
     let windowT0 = performance.now();
     while (performance.now() - t0 < hardCap) {
       if (stopOnLadder && game.player.ladder !== null) break;
       const p = game.player.capsule;
-      const dx = x - p.x;
-      const dz = z - p.z;
-      if (Math.hypot(dx, dz) < 0.35) break;
+      // goal: the detour point while one is active, else the leg's target
+      if (detour && Math.hypot(detour.x - p.x, detour.z - p.z) < 0.6) {
+        detour = null; // rounded it — resume the authored line
+        bestDist = Infinity;
+        stuckCount = 0;
+      }
+      const gx = detour ? detour.x : x;
+      const gz = detour ? detour.z : z;
+      const dx: number = gx - p.x;
+      const dz: number = gz - p.z;
+      const distGoal = Math.hypot(dx, dz);
+      if (!detour && distGoal < 0.35) break;
       // the extension: past the original budget, a walk that stopped closing ends now
       if (performance.now() - t0 > timeout * 1000 && performance.now() - windowT0 > 4000) {
         const nowDist = Math.hypot(dx, dz);
@@ -83,10 +125,15 @@ export function runAutotest(game: Game): void {
         windowDist = nowDist;
         windowT0 = performance.now();
       }
-      // stuck tracking runs EVERY frame — the sidestep logic depends on it
-      const posKey = `${p.x.toFixed(2)},${p.z.toFixed(2)}`;
-      if (posKey === lastPos) stuckCount++;
-      else { stuckCount = 0; lastPos = posKey; }
+      // stuck = no real progress toward the goal, with 25 cm of hysteresis
+      // (agent-2: a position key reset every frame against a held body's
+      // breathing clamp point; bestDist only tightens on real progress)
+      if (distGoal < bestDist - 0.25) {
+        bestDist = distGoal;
+        stuckCount = 0;
+      } else {
+        stuckCount++;
+      }
       if (walkLog && frames % 90 === 0) {
         const kid = game.world.kidGround;
         const fam = game.world.familiar;
@@ -118,12 +165,58 @@ export function runAutotest(game: Game): void {
       // pole): pure pushes have no lateral component (|r| < 0.2) and weld to
       // the box forever. Sidestep ON TOP of the steer keys, alternating every
       // ~45 frames, until position moves again — how a person edges around.
-      let slide = 0;
-      if (stuckCount > 12) slide = Math.floor(stuckCount / 45) % 2 === 0 ? -1 : 1;
-      game.input.injectKey('KeyW', f > 0.2);
-      game.input.injectKey('KeyS', f < -0.2);
-      game.input.injectKey('KeyD', r > 0.2 || slide > 0);
-      game.input.injectKey('KeyA', r < -0.2 || slide < 0);
+      // Blocked (the cab, the cart, furniture, a pedestrian): recovery is
+      // how a person gets past — FACE where you're going (the boom can sit
+      // 90° off the walk direction; with a perpendicular camera W/S and A/D
+      // were both dead — A+D injected together cancel to zero, so the old
+      // "sidestep" was a no-op), then BACK UP off the contact, then
+      // SIDESTEP alternating, 16-frame phases capped at 0.8 m (a phase is a
+      // step, not a sprint — at 5 fps 24 frames was 10 m of blast).
+      if (stuckCount > 8) {
+        const phase = Math.floor(stuckCount / 16) % 3;
+        if (phase !== lastPhase) {
+          lastPhase = phase;
+          phaseX = p.x;
+          phaseZ = p.z;
+        }
+        if (Math.hypot(p.x - phaseX, p.z - phaseZ) > 0.8) {
+          stuckCount = (Math.floor(stuckCount / 16) + 1) * 16 + 1;
+        }
+        slide = Math.floor(stuckCount / 16) % 3 === 0 ? 2
+          : (Math.floor(stuckCount / 16) % 3 === 1 ? -1 : 1); // 2 = step back
+        game.player.camYaw = Math.atan2(dx, dz);
+      } else {
+        slide = 0;
+        lastPhase = -1;
+      }
+      // the dance bought ~10 s and no progress: re-route — but ONLY around a
+      // static blocker (a pedestrian stall is a handshake; their own
+      // sidestep resolves it, and a 2.5 m detour would cross a ped lane)
+      if (stuckCount > 240 && !detour && detours < 8) {
+        const dlen: number = Math.hypot(dx, dz) || 1;
+        const aheadX = p.x + (dx / dlen) * 0.6;
+        const aheadZ = p.z + (dz / dlen) * 0.6;
+        let staticBlock = false;
+        for (const b of game.world.colliders) {
+          if (b.maxY <= 0.4 || b.minY >= 1.8) continue;
+          const nx2 = Math.max(b.minX, Math.min(aheadX, b.maxX));
+          const nz2 = Math.max(b.minZ, Math.min(aheadZ, b.maxZ));
+          if (Math.hypot(aheadX - nx2, aheadZ - nz2) < 0.9) { staticBlock = true; break; }
+        }
+        if (staticBlock) {
+          const side = pickDetourSide(p.x, p.z, dx / dlen, dz / dlen);
+          detour = { x: p.x + -dz / dlen * side * 2.5, z: p.z + dx / dlen * side * 2.5 };
+          detours++;
+          bestDist = Infinity;
+          stuckCount = 0;
+        }
+      }
+      const steerD = r > 0.2;
+      const steerA = r < -0.2;
+      game.input.injectKey('KeyW', slide !== 2 && f > 0.2);
+      game.input.injectKey('KeyS', slide === 2 || f < -0.2);
+      game.input.injectKey('KeyD', slide === 1 || (slide === 0 && steerD));
+      game.input.injectKey('KeyA', slide === -1 || (slide === 0 && steerA));
       await nextFrame();
     }
     game.input.injectKey('KeyW', false);
@@ -134,8 +227,20 @@ export function runAutotest(game: Game): void {
   };
 
   const interact = async () => {
-    game.input.injectInteract();
-    await waitFrames(2);
+    // up to three presses ~a quarter second apart: a press can land while
+    // the walker is still settling from a recovery dance. The volley STOPS
+    // the moment the game reacts — a step change, a name box, a freeze, or
+    // the awning's offer flag — because the beats chain: press 1 serves
+    // Idris, press 2 would open the awning offer, press 3 would CONFIRM it
+    // (-$15) in the same breath. One reaction per interact() call.
+    const step0 = game.state.step;
+    const awning0 = game.state.awningConfirm;
+    for (let i = 0; i < 3; i++) {
+      game.input.injectInteract();
+      await waitFrames(6);
+      if (game.state.step !== step0 || !game.ui.nameBox.hidden
+        || game.player.frozen || game.state.awningConfirm !== awning0) break;
+    }
   };
 
   /** Wait for the cab to be east of the crosswalk and moving away. Road
