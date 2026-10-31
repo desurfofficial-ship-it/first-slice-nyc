@@ -4,6 +4,8 @@
 
 **Current phase:** Pre-Production (docs-complete, code pending — see [docs/06-production-roadmap.md](docs/06-production-roadmap.md)). The highest-value contributions right now: design-doc depth, content pipelines, and slice specs. Do not scaffold game code before Phase 0 exit is signed.
 
+> **ACTIVE MILESTONE:** [docs/37-living-neighborhood-milestone-brief.md](docs/37-living-neighborhood-milestone-brief.md) — *From scripted story to a living, interactive neighborhood.* If you were assigned the Living Neighborhood implementation, **start there**: audit-first workflow, phase order, red lines, test matrix, and Definition of Done are all in that brief.
+
 ---
 
 ## 0. Living Neighborhood — GDD is law (read before expanding the world)
