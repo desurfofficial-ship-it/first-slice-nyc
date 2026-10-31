@@ -68,6 +68,27 @@ const PED_REACH = 0.28 * Math.SQRT2; // walk-collider CORNER reach — on the
 const PLAYER_R = 0.35;    // matches the player capsule exactly
 const MAX_PUSH = 0.25;    // per-frame cap — nobody slingshots, ever
 
+/**
+ * Overtake bias (doc 36 §8 handover, integrated): a walker we have caught
+ * FROM BEHIND — velocity aligned with the push, i.e. both heading the same
+ * way — must clear the lane immediately. The yield push alone can never
+ * unlock that pair: it pushes the walker along the player's own motion, so
+ * walker-forward and player-forward balance into a grind (the E2E's
+ * "follows at their pace instead of overtaking" serve-budget killer).
+ * The step-out direction is deterministic: toward the curb (z → 0), never
+ * toward the building line, so benches/trees at z ±7.5 can't become a new
+ * pocket. Pure so the choice is unit-testable.
+ *
+ * @param perpZ  z-component of the unit perpendicular to the player→walker line
+ * @param walkerZ the held walker's z
+ * @returns -1 | +1 — the slideSide whose perpendicular motion heads for the road
+ */
+export function curbSideSlide(perpZ: number, walkerZ: number): number {
+  const toRoad = walkerZ > 0 ? -1 : 1;       // toward z = 0
+  const perpSign = perpZ > 0 ? 1 : perpZ < 0 ? -1 : 1;
+  return perpSign === toRoad ? 1 : -1;
+}
+
 interface Ped {
   vehicle: Vehicle;
   group: THREE.Group;
@@ -231,22 +252,45 @@ export class Pedestrians {
           // to the player line, on the side they were already passing.
           // This is the head-on unlock: without it the pedestrian's forward
           // pull and the hold cancel and both parties stall mid-sidewalk.
-          pd.holdTime += dt;
-          if (pd.holdTime > 0.25) {
-            if (pd.slideSide === 0) {
-              const vx = pd.vehicle.velocity.x;
-              const vz = pd.vehicle.velocity.z;
-              // side = sign of the cross product(velocity, push-out) — the
-              // direction their own motion is already carrying them past
-              const cross = vx * a.z - vz * a.x;
-              pd.slideSide = cross >= 0 ? 1 : -1;
-              if (Math.abs(cross) < 1e-4) pd.slideSide = (i % 2 === 0) ? 1 : -1;
+          const plen = Math.hypot(a.x, a.z) || 1;
+          const px2 = -a.z / plen;
+          const pz2 = a.x / plen;
+          const vx = pd.vehicle.velocity.x;
+          const vz = pd.vehicle.velocity.z;
+          const vlen = Math.hypot(vx, vz);
+          // OVERTAKE BIAS (doc 36 §8 handover): a walker caught from behind —
+          // velocity aligned with the push — steps out NOW, curb-side. The
+          // 0.25 s head-on grace would only balance the grind here.
+          const sameDir = vlen > 0.2 && (vx * a.x + vz * a.z) / (vlen * plen) > 0.45;
+          if (sameDir) {
+            if (pd.slideSide === 0) pd.slideSide = curbSideSlide(pz2, pi.z);
+            pi.x += px2 * pd.slideSide * dt * 3.5;
+            pi.z += pz2 * pd.slideSide * dt * 3.5;
+            pd.holdTime = 0; // not a standoff; the grace clock stays fresh
+          } else {
+            pd.holdTime += dt;
+            if (pd.holdTime > 0.25) {
+              if (pd.slideSide === 0) {
+                // side = sign of the cross product(velocity, push-out) — the
+                // direction their own motion is already carrying them past
+                const cross = vx * a.z - vz * a.x;
+                pd.slideSide = cross >= 0 ? 1 : -1;
+                if (Math.abs(cross) < 1e-4) pd.slideSide = (i % 2 === 0) ? 1 : -1;
+              }
+              pi.x += px2 * pd.slideSide * dt * 3.0;
+              pi.z += pz2 * pd.slideSide * dt * 3.0;
             }
-            const plen = Math.hypot(a.x, a.z) || 1;
-            const px2 = -a.z / plen;
-            const pz2 = a.x / plen;
-            pi.x += px2 * pd.slideSide * dt * 3.0;
-            pi.z += pz2 * pd.slideSide * dt * 3.0;
+          }
+          // SWEEP-BACK GUARD (integration fix): the sidestep is displacement
+          // ON TOP of the yield push, and the player's capsule resolves
+          // against these boxes ONE FRAME STALE. At the dt clamp a 3.5 m/s
+          // sidestep sweeps the box ~0.35 m into where the capsule is — and
+          // the player's own depenetrate then shoves the PLAYER backwards,
+          // every frame (the e2e's "walks west at full speed" ghost). The
+          // walker yields twice: after ALL displacement, the yield distance
+          // is re-enforced — the box can never park inside the capsule.
+          if (resolveCirclesXZ(pi.x, pi.z, player.x, player.z, PED_REACH, PLAYER_R, MAX_PUSH, a, null)) {
+            pi.x += a.x; pi.z += a.z;
           }
         } else {
           pd.holdTime = 0;

@@ -87,7 +87,7 @@ export function runAutotest(game: Game): void {
    *  a failed walk. One that stops closing (no 0.4 m gained in 4 s — a
    *  pinned walker slides, it doesn't close) ends at once, like the old
    *  budget expiry did. Slow machines finish; stuck walks don't burn the cap. */
-  const walkTo = async (x: number, z: number, timeout = 20, stopOnLadder = false) => {
+  const walkTo = async (x: number, z: number, timeout = 20, stopOnLadder = false, arrive = 0.35) => {
     const t0 = performance.now();
     const hardCap = timeout * 3000; // 3x, in ms — the ceiling, never the plan
     let frames = 0;
@@ -103,6 +103,13 @@ export function runAutotest(game: Game): void {
     let detours = 0;
     let windowDist = Math.hypot(x - game.player.capsule.x, z - game.player.capsule.z);
     let windowT0 = performance.now();
+    // integration fix (grind-detour): the stuck counter resets on any real
+    // progress — but a leg can LOSE ground net-net (clip a corner, back up,
+    // clip again) and never sit still long enough to fire the static detour.
+    // Track time-since-real-progress as a second trigger: 9 s without a
+    // 0.4 m improvement means the dance is grinding — route around.
+    let grindDist = windowDist;
+    let grindT0 = t0;
     while (performance.now() - t0 < hardCap) {
       if (stopOnLadder && game.player.ladder !== null) break;
       const p = game.player.capsule;
@@ -111,13 +118,19 @@ export function runAutotest(game: Game): void {
         detour = null; // rounded it — resume the authored line
         bestDist = Infinity;
         stuckCount = 0;
+        grindDist = Math.hypot(x - p.x, z - p.z); // fresh grind clock too
+        grindT0 = performance.now();
       }
       const gx = detour ? detour.x : x;
       const gz = detour ? detour.z : z;
       const dx: number = gx - p.x;
       const dz: number = gz - p.z;
       const distGoal = Math.hypot(dx, dz);
-      if (!detour && distGoal < 0.35) break;
+      // arrive: NPC-body targets (Idris at the cart, the stranger at the
+      // counter) can never be reached to 0.35 — their box face stops the
+      // capsule ~0.65 out — so those legs declare a wider arrival inside
+      // INTERACT_RANGE (2.4) and skip the face-grind dance entirely.
+      if (!detour && distGoal < arrive) break;
       // the extension: past the original budget, a walk that stopped closing ends now
       if (performance.now() - t0 > timeout * 1000 && performance.now() - windowT0 > 4000) {
         const nowDist = Math.hypot(dx, dz);
@@ -134,12 +147,19 @@ export function runAutotest(game: Game): void {
       } else {
         stuckCount++;
       }
+      if (distGoal < grindDist - 0.4) {
+        grindDist = distGoal;
+        grindT0 = performance.now();
+      }
       if (walkLog && frames % 90 === 0) {
         const kid = game.world.kidGround;
         const fam = game.world.familiar;
         console.info(`[walk] t=${((performance.now() - t0) / 1000).toFixed(1)} pos=(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}) yaw=${game.player.camYaw.toFixed(2)} ladder=${game.player.ladder !== null} ground=${game.player.onGround}`
           + ` kid=${kid.visible ? `(${kid.position.x.toFixed(1)},${kid.position.z.toFixed(1)})` : 'off'}`
           + ` fam=${fam.visible ? `(${fam.position.x.toFixed(1)},${fam.position.z.toFixed(1)})` : 'off'}`);
+        // integration forensics: which goal is this leg actually chasing,
+        // how far, how stuck
+        console.info(`[aim] goal=(${gx.toFixed(2)},${gz.toFixed(2)}) detour=${detour ? 1 : 0} d=${distGoal.toFixed(2)} best=${bestDist.toFixed(2)} stuck=${stuckCount} frozen=${game.player.frozen}`);
       }
       if (walkLog && stuckCount === 2) {
         const near: Array<{ d: number; box: number[] }> = [];
@@ -151,9 +171,32 @@ export function runAutotest(game: Game): void {
         });
         console.info(`[stuck] frames=${frames} pos=(${p.x.toFixed(3)},${p.z.toFixed(3)}) near=${JSON.stringify(near)} rosa=(${game.world.rosa.position.x.toFixed(2)},${game.world.rosa.position.z.toFixed(2)})`);
       }
+      // integration forensics: periodic near-box dump while a leg drags on
+      // (the stuck===2 window can be missed if a hold resets the counter)
+      if (walkLog && frames % 90 === 0 && stuckCount > 30) {
+        const near: Array<{ d: number; box: number[] }> = [];
+        game.world.colliders.forEach((b) => {
+          const nx2 = Math.max(b.minX, Math.min(p.x, b.maxX));
+          const nz2 = Math.max(b.minZ, Math.min(p.z, b.maxZ));
+          const d = Math.hypot(p.x - nx2, p.z - nz2);
+          if (d < 0.75) near.push({ d: +d.toFixed(3), box: [b.minX, b.maxX, b.minY, b.maxY, b.minZ, b.maxZ].map((v) => +v.toFixed(2)) });
+        });
+        const pedBodies = game.world.pedBodies().map((b) => `(${b.x.toFixed(1)},${b.z.toFixed(1)})`).join(',');
+        console.info(`[drag] frames=${frames} pos=(${p.x.toFixed(3)},${p.z.toFixed(3)}) near=${JSON.stringify(near)} peds=[${pedBodies}]`);
+      }
       frames++;
-      // steer by the MOVEMENT basis, not the boom yaw — during a street-side
-      // flip the camera swings while the reference the walker uses stays put
+      // PIN THE MOVEMENT BASIS (integration fix): the driver used to STEER BY
+      // the camera's moveYaw — but moveYaw follows the boom and flips
+      // street-side mid-walk; a basis sampled across a flip inverts W/S for a
+      // frame and the walker LUNGES the wrong way (the "walks west at full
+      // speed" and southeast-corner ghosts — trace: yaw pinned at −3.14 while
+      // S-commanded motion ran along +fwd). Writing the goal yaw into
+      // player.camYaw every frame pins the movement basis: the camera
+      // re-derives its own orbit (moveYaw is overwritten after cam.update
+      // anyway), and the next player.update moves on a stable, goal-facing
+      // reference. W is now always "toward the goal"; A/D sidesteps inherit
+      // the same determinism.
+      game.player.camYaw = Math.atan2(dx, dz);
       const yaw = game.player.camYaw;
       const fwdX = Math.sin(yaw), fwdZ = Math.cos(yaw);
       const rightX = -Math.cos(yaw), rightZ = Math.sin(yaw);
@@ -161,6 +204,9 @@ export function runAutotest(game: Game): void {
       const nx = dx / len, nz = dz / len;
       const f = nx * fwdX + nz * fwdZ;
       let r = nx * rightX + nz * rightZ;
+      if (walkLog && frames % 90 === 0) {
+        console.info(`[basis] f=${f.toFixed(2)} r=${r.toFixed(2)} n=(${nx.toFixed(2)},${nz.toFixed(2)})`);
+      }
       // Blocked head-on (the cab yields and stands in the path, the cart, a
       // pole): pure pushes have no lateral component (|r| < 0.2) and weld to
       // the box forever. Sidestep ON TOP of the steer keys, alternating every
@@ -191,8 +237,12 @@ export function runAutotest(game: Game): void {
       }
       // the dance bought ~10 s and no progress: re-route — but ONLY around a
       // static blocker (a pedestrian stall is a handshake; their own
-      // sidestep resolves it, and a 2.5 m detour would cross a ped lane)
-      if (stuckCount > 240 && !detour && detours < 8) {
+      // sidestep resolves it, and a 2.5 m detour would cross a ped lane).
+      // Integration: the grind clock (9 s without a 0.4 m gain) fires this
+      // too — the van-corner dance alternates progress and back-steps and
+      // never sat still for the old frame-count gate.
+      if ((stuckCount > 240 || performance.now() - grindT0 > 9000) && !detour && detours < 8
+        && distGoal > arrive + 0.5) {
         const dlen: number = Math.hypot(dx, dz) || 1;
         const aheadX = p.x + (dx / dlen) * 0.6;
         const aheadZ = p.z + (dz / dlen) * 0.6;
@@ -209,6 +259,10 @@ export function runAutotest(game: Game): void {
           detours++;
           bestDist = Infinity;
           stuckCount = 0;
+        } else if (performance.now() - grindT0 > 12000) {
+          // grinding but nothing static ahead (a cab handshake, a ped lane):
+          // give the budget back instead of burning the 3x ceiling
+          break;
         }
       }
       const steerD = r > 0.2;
@@ -235,11 +289,17 @@ export function runAutotest(game: Game): void {
     // (-$15) in the same breath. One reaction per interact() call.
     const step0 = game.state.step;
     const awning0 = game.state.awningConfirm;
+    // integration: the stool and permit use the same awning-style confirm
+    // gate — a slow note render must not let presses 2/3 fire, or one volley
+    // opens AND confirms (and unsets) the offer in a single breath
+    const stool0 = game.state.stoolConfirm;
+    const permit0 = game.state.permitConfirm;
     for (let i = 0; i < 3; i++) {
       game.input.injectInteract();
       await waitFrames(6);
       if (game.state.step !== step0 || !game.ui.nameBox.hidden
-        || game.player.frozen || game.state.awningConfirm !== awning0) break;
+        || game.player.frozen || game.state.awningConfirm !== awning0
+        || game.state.stoolConfirm !== stool0 || game.state.permitConfirm !== permit0) break;
     }
   };
 
@@ -430,7 +490,7 @@ export function runAutotest(game: Game): void {
       const idrisT0 = performance.now();
       while (!s.idrisArrived && performance.now() - idrisT0 < 20000) await nextFrame();
       check(s.idrisArrived, 'Idris arrives at the cart');
-      await walkTo(4.4, -4.6, 8);
+      await walkTo(4.4, -4.6, 8, false, 1.2);
       await interact();
       check(s.idrisServed && s.money === 114, `Idris served: +$2 (got $${s.money})`);
 
@@ -678,7 +738,7 @@ export function runAutotest(game: Game): void {
         while (performance.now() - t0 < 60000 && !s.strangerAtCart) await nextFrame();
       }
       check(s.strangerAtCart, 'the stranger reached the cart on her own two feet');
-      await walkTo(2.6, -4.6, 12);
+      await walkTo(2.6, -4.6, 12, false, 1.2);
       await interact();
       check(s.mapGiven && s.step === Step.D4_LAUNDRY,
         'the Map changed hands — and the kid flags the apron (the afternoon opens)');

@@ -46,7 +46,8 @@ page.on('console', (msg) => {
   const text = msg.text();
   if (text.includes('PASS ') || text.includes('FAIL ') || text.includes('AUTOTEST')) {
     console.log('DRIVER:', text); // stream the driver log live
-  } else if (text.includes('[walk]') || text.includes('[beat]') || text.includes('[press]') || text.includes('[crawl]')) {
+  } else if (text.includes('[walk]') || text.includes('[beat]') || text.includes('[press]') || text.includes('[crawl]')
+    || text.includes('[aim]') || text.includes('[basis]') || text.includes('[drag]') || text.includes('[stuck]')) {
     console.log('TRACE :', text); // timeline traces for slow-machine forensics
   } else if (msg.type() === 'error') {
     consoleErrors.push(text);

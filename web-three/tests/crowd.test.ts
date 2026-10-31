@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveCirclesXZ, pushCircleOutOfRectXZ, circleRectGapXZ, type CirclePush,
 } from '../src/engine/collide';
+import { curbSideSlide } from '../src/world/peds';
 
 const push = (): CirclePush => ({ x: 0, z: 0 });
 
@@ -120,5 +121,25 @@ describe('signed gap (circleRectGapXZ)', () => {
     expect(circleRectGapXZ(3, 0, 0.5, rect)).toBeCloseTo(1.5, 6);
     expect(circleRectGapXZ(0, 0, 0.5, rect)).toBeLessThan(0);
     expect(circleRectGapXZ(1.2, 0, 0.5, rect)).toBeCloseTo(-0.3, 6);
+  });
+});
+
+describe('overtake bias (curbSideSlide)', () => {
+  it('an eastbound overtake on the north sidewalk steps toward the road', () => {
+    // player eastbound catches walker ahead: push +x → perpendicular z +1
+    expect(curbSideSlide(1, 6.2)).toBe(-1); // motion z = 1 × −1 = −1 → road
+  });
+  it('a westbound overtake on the north sidewalk still steps toward the road', () => {
+    // player westbound: push −x → perpendicular z −1
+    expect(curbSideSlide(-1, 6.2)).toBe(1); // motion z = −1 × 1 = −1 → road
+  });
+  it('south-sidewalk overtakes mirror: step toward the road (z → 0)', () => {
+    expect(curbSideSlide(1, -6.2)).toBe(1);   // motion z = +1 → road
+    expect(curbSideSlide(-1, -6.2)).toBe(-1); // motion z = −1 × −1 = +1 → road
+  });
+  it('a vanishing perpendicular is deterministic (never 0)', () => {
+    const s = curbSideSlide(0, 6.2);
+    expect(s === 1 || s === -1).toBe(true);
+    expect(curbSideSlide(0, 6.2)).toBe(s); // same inputs, same side
   });
 });
