@@ -405,3 +405,117 @@ export function makeVan(bank: MatBank): THREE.Group {
   }
   return g;
 }
+// ---------------------------------------------------------------- Doc 38 ----
+// The expanded block (Doc 37 §3A): barbershop pole, the hoop, the park
+// fence and its Parks-department sign, and the dirty-water dog cart. Same
+// law as everything in this file: banked materials, unit primitives, honest
+// silhouettes, no new dependencies.
+
+/** The barber pole — stacked red/white segments between ink caps. Air, like
+ *  every other pole: nothing can wedge a body against it. */
+export function makeBarberPole(bank: MatBank): THREE.Group {
+  const g = new THREE.Group();
+  const red = bank.get(0xb23a48);
+  const white = bank.get(PAL_CREAM);
+  const cap = unitCyl(bank.get(PAL_INK), 0.12, 0.07, 0, 0.44, 0);
+  g.add(cap);
+  g.add(unitCyl(bank.get(PAL_INK), 0.12, 0.07, 0, -0.04, 0));
+  const bands = [red, white, red, white, red];
+  for (let i = 0; i < bands.length; i++) {
+    const seg = unitCyl(bands[i], 0.095, 0.095, 0, 0.36 - i * 0.1, 0);
+    seg.castShadow = true;
+    g.add(seg);
+  }
+  g.add(unitCyl(bank.get(PAL_INK), 0.03, 0.5, 0, -0.3, 0)); // mount stub
+  return g;
+}
+
+/** The half-court hoop — pole, arm, cream backboard with an ink square, and
+ *  an honest orange rim. No net (four draw calls for something the sun eats
+ *  at golden hour is not a trade this block makes). */
+export function makeHoop(bank: MatBank): THREE.Group {
+  const g = new THREE.Group();
+  const pole = unitCyl(bank.get(PAL_INK), 0.07, 3.3, 0, 1.65, 0);
+  pole.castShadow = true;
+  g.add(pole);
+  const arm = unitBox(bank.get(PAL_INK), 0.07, 0.07, 0.42, 0, 3.05, -0.24);
+  g.add(arm);
+  const board = unitBox(bank.get(PAL_CREAM), 1.15, 0.75, 0.06, 0, 2.95, -0.02);
+  board.castShadow = true;
+  g.add(board);
+  const square = unitBox(bank.get(PAL_INK), 0.42, 0.32, 0.02, 0, 2.82, 0.02);
+  g.add(square);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.022, 8, 20), bank.get(0xd9772f));
+  rim.rotation.x = Math.PI / 2;
+  rim.position.set(0, 2.6, 0.26);
+  rim.castShadow = true;
+  g.add(rim);
+  return g;
+}
+
+/** One run of the park's iron fence — two rails and pickets. Low, on
+ *  purpose: NYC park fences are seat-height furniture, and the block reads
+ *  them that way. */
+export function makeFence(bank: MatBank, len: number): THREE.Group {
+  const g = new THREE.Group();
+  const iron = bank.get(PAL_INK);
+  g.add(unitBox(iron, len, 0.05, 0.05, 0, 0.72, 0));
+  g.add(unitBox(iron, len, 0.05, 0.05, 0, 0.4, 0));
+  const n = Math.max(2, Math.round(len / 0.22));
+  for (let i = 0; i <= n; i++) {
+    const x = -len / 2 + (len / n) * i;
+    g.add(unitBox(iron, 0.045, 0.78, 0.045, x, 0.39, 0));
+  }
+  g.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
+  return g;
+}
+
+/** The Parks-department sign — dark green plate, cream letters, two posts.
+ *  Every pocket park in the city has exactly one of these. */
+export function makeParksSign(
+  bank: MatBank, sign: (text: string, w: number, h: number, bg: number, fg: number, px: number) => THREE.Material | THREE.Material[],
+  text: string,
+): THREE.Group {
+  const g = new THREE.Group();
+  for (const sx of [-0.55, 0.55]) {
+    const post = unitCyl(bank.get(PAL_INK), 0.035, 1.5, sx, 0.75, 0);
+    post.castShadow = true;
+    g.add(post);
+  }
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.5, 0.06), sign(text, 512, 160, 0x1f6f5e, PAL_CREAM, 40));
+  plate.position.set(0, 1.35, 0);
+  g.add(plate);
+  return g;
+}
+
+/** The dirty-water dog cart — teal body, warm lid, two wheels, a handle,
+ *  and the amber umbrella every corner deserves. The umbrella is a cone on
+ *  a stick: the silhouette does the work. */
+export function makeVendorCart(
+  bank: MatBank, sign: (text: string, w: number, h: number, bg: number, fg: number, px: number) => THREE.Material | THREE.Material[],
+  text: string,
+): THREE.Group {
+  const g = new THREE.Group();
+  const body = unitBox(bank.get(PAL_TEAL), 1.5, 0.85, 0.75, 0, 0.75, 0);
+  body.castShadow = true;
+  g.add(body);
+  const lid = unitBox(bank.get(0xb9b1a6), 1.56, 0.1, 0.8, 0, 1.22, 0);
+  lid.castShadow = true;
+  g.add(lid);
+  for (const sx of [-0.55, 0.55]) {
+    const w = unitCyl(bank.get(0x2b2730), 0.26, 0.12, sx, 0.26, 0.28);
+    w.rotation.x = Math.PI / 2;
+    g.add(w);
+  }
+  g.add(unitBox(bank.get(PAL_INK), 0.05, 0.05, 0.5, 0.7, 1.0, 0.55)); // handle
+  const pole = unitCyl(bank.get(PAL_INK), 0.03, 2.1, 0.45, 1.75, -0.1);
+  g.add(pole);
+  const umbrella = new THREE.Mesh(new THREE.ConeGeometry(1.05, 0.42, 10), bank.get(0xffb85c));
+  umbrella.position.set(0.45, 2.85, -0.1);
+  umbrella.castShadow = true;
+  g.add(umbrella);
+  const s = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.34, 0.06), sign(text, 512, 128, PAL_GOLD, PAL_INK, 36));
+  s.position.set(0, 0.95, 0.4);
+  g.add(s);
+  return g;
+}

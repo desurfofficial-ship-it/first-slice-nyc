@@ -16,7 +16,8 @@ import { approachSpeed, bodyConflictsWithCab, noseLimit, type TrafficBody } from
 import { buildArticulatedPerson } from './personRig';
 import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecycleBin, makeHydrant,
   makeSubwayEntrance, makeBulletinBoard, makeBench, makeBusStop, makeNewspaperBoxes, makeBarrier,
-  makeACUnit, makeBrownstoneStoop, makeStorefront, makeStool, makeVan } from './props';
+  makeACUnit, makeBrownstoneStoop, makeStorefront, makeStool, makeVan,
+  makeBarberPole, makeHoop, makeFence, makeParksSign, makeVendorCart } from './props';
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
@@ -114,6 +115,9 @@ export class World {
   readonly ambientWindowMatLate!: THREE.MeshLambertMaterial;   // got home late → away
   readonly ambientWindowMatNew!: THREE.MeshLambertMaterial;    // someone new, Day 3
   readonly ambientWindowMatRiser!: THREE.MeshLambertMaterial;  // the early riser, Day 4
+  /** The half-court ball (docs/38): rests by the key, flies when shot.
+   *  Excluded from the static bake — it moves. (Assigned by buildCourt.) */
+  ball!: THREE.Mesh;
   /** The day the flyer board is currently dressed for (slips rotate by day). */
   private flyerDay = 1;
   private washerLoad: THREE.Mesh | null = null;
@@ -228,7 +232,11 @@ export class World {
     this.solid('Bldg_N_West', -35.5, 7, 14, 29, 14, 12, PAL.bldg);
     this.solid('Bldg_N_East_A', -1, 9, 14, 20, 18, 12, PAL.bldg2);
     this.solid('Bldg_N_GoldWindow', 15, 5.5, 14, 12, 11, 12, PAL.brick);
-    this.solid('Bldg_N_East_B', 35, 8, 14, 28, 16, 12, PAL.bldg);
+    // Bldg_N_East_B is split in two so the alley (buildAlley) can be a REAL
+    // cut — a 2.8 m slot with open sky above — instead of a false front.
+    // West half x 21–30.7, east half x 33.5–49; the alley fills the gap.
+    this.solid('Bldg_N_East_B_W', 25.85, 8, 14, 9.7, 16, 12, PAL.bldg);
+    this.solid('Bldg_N_East_B_E', 41.25, 8, 14, 15.5, 16, 12, PAL.bldg);
     // Terminal door + sign (west building, faces the street). The sign gets a
     // real label — the block stopped being a maze of anonymous boxes.
     this.deco('Terminal_Door', -30, 1.4, 7.95, 3, 2.8, 0.15, PAL.teal);
@@ -597,6 +605,15 @@ export class World {
       this.scene.add(ac);
     }
 
+    // ---- the expanded block (Doc 37 §3A, built in docs/38 §3) ------------
+    // Everything new lives east of x = 29, on land no authored beat, ped
+    // route, or E2E path uses. Compact, rich, zero new dependencies.
+    this.buildAlley();
+    this.buildBarbershop();
+    this.buildCourt();
+    this.buildPark();
+    this.buildVendorCart();
+
     // ---- subway plaza (north-west end): entrance, flyer board, benches ----
     // The plaza owns its paving: two stone slabs flanking the subway stair
     // cut, sitting a half-centimetre proud of the sidewalk (the same proud
@@ -821,16 +838,14 @@ export class World {
     this.scene.add(signal);
     this.colliders.push(boxFromCenter(-1.8, 2.75, -7.55, 0.3, 5.5, 0.3));
 
-    // ---- planters (two, where someone actually carries water) -------------
-    const planterEast = makePlanter(this.bank, rng);
-    planterEast.position.set(37, 0.05, 7.6);
-    this.scene.add(planterEast);
+    // ---- planters (the plaza one; the east planter moved to the park,
+    // docs/38 — the barbershop needed its storefront, and the planter's
+    // PED bow-around entry moved with it, doc 35 §3's ghost-prop lesson)
     const planterPlaza = makePlanter(this.bank, rng);
     planterPlaza.position.set(-46.6, 0.05, 4.4);
     planterPlaza.rotation.y = Math.PI / 2;
     this.scene.add(planterPlaza);
-    // cedar is solid; the plaza one is yawed π/2 so its long axis runs z
-    this.colliders.push(boxFromCenter(37, 0.25, 7.6, 1.1, 0.55, 0.55));
+    // the plaza one is yawed π/2 so its long axis runs z
     this.colliders.push(boxFromCenter(-46.6, 0.25, 4.4, 0.55, 0.55, 1.1));
     // the bulletin board is furniture too (its flyer face is the Day-3 beat)
     this.colliders.push(boxFromCenter(-37.6, 0.975, 7.5, 1.75, 1.95, 0.3));
@@ -1027,7 +1042,7 @@ export class World {
         { x: 20, z: -7.35, r: 0.3 },
         { x: 44.5, z: -7.35, r: 0.3 },
         { x: 13.5, z: -5.9, r: 0.3 },  // streetlamp
-        { x: 37, z: 7.6, r: 0.6 },     // planter east (missing)
+        { x: 29.8, z: -4.55, r: 0.9 }, // dirty-water dog cart (docs/38)
         { x: -46.6, z: 4.4, r: 0.6 },  // planter plaza (missing)
         { x: -8.55, z: 7.55, r: 0.5 }, // shirt rack (missing)
         { x: -4.0, z: 5.8, r: 0.5 },   // permit A-frame — it stands IN the
@@ -1075,6 +1090,7 @@ export class World {
       this.rosa, this.idris, this.kidGround, this.kidSil, this.stranger, this.sal,
       this.familiar, this.barrier, this.asphaltPatch,
       this.stool, this.permitReceipt,
+      this.ball, // the half-court ball flies (docs/38)
       this.pigeonFlock.group, this.pigeonFlockEast.group, this.squirrel.group,
       this.leaves.mesh,
       ...this.glbProps.values(),
@@ -1495,6 +1511,165 @@ export class World {
     notice.rotation.y = 0.12;
     this.scene.add(notice);
     this.colliders.push(boxFromCenter(-4.0, 0.5, 5.8, 0.65, 1.0, 0.3));
+  }
+
+  // ------------------------------------------------- the expanded block (docs/38)
+  // Doc 37 §3A: bodega (shipped), laundromat (shipped), and now — a
+  // barbershop, a real alley, a pocket park, a half-court, a street vendor.
+  // "A compact, rich block beats a vast empty one": every addition is east
+  // of x = 29, on land nothing authored uses.
+
+  /** THE ALLEY — a real cut between the split halves of Bldg_N_East_B:
+   *  side walls, a back wall, a lintel, gravel underfoot, open sky above.
+   *  The hidden corner the bulletin board's lost cat comes back to. */
+  private buildAlley(): void {
+    // gravel floor — flush with the sidewalk, no lip to trip a capsule
+    this.deco('Alley_Floor', 32.1, 0.035, 9.3, 2.8, 0.05, 2.6, 0x4a4552, {});
+    this.deco('Alley_Floor_2', 32.1, 0.035, 7.4, 2.8, 0.05, 1.2, 0x4a4552, {});
+    // side walls (y 0–3) + back wall; the slot above y = 3 stays open — a
+    // slice of sky between two sixteen-metre masses, exactly like a real
+    // alley gives you
+    this.solid('Alley_Wall_W', 30.85, 1.5, 9.3, 0.3, 3, 2.7, PAL.brick);
+    this.solid('Alley_Wall_E', 33.35, 1.5, 9.3, 0.3, 3, 2.7, PAL.brick);
+    this.solid('Alley_Back', 32.1, 1.5, 10.5, 2.8, 3, 0.3, 0x6e554e);
+    // the lintel ties the two building halves together over the mouth
+    this.solid('Alley_Lintel', 32.1, 3.45, 9.3, 3.2, 1.1, 3.4, PAL.bldg);
+    // one honest trash bag — the alley is somebody's Tuesday
+    this.decoMesh('Alley_Bag', new THREE.SphereGeometry(0.28, 8, 6), this.mat(PAL.ink), 31.6, 0.28, 9.9);
+    // a string of dead bulbs across the mouth (unlit: the city fixes these
+    // eventually) — one thin ink wire, two glass nubs
+    const wire = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.015, 0.015), this.mat(PAL.ink));
+    wire.position.set(32.1, 2.82, 8.1);
+    this.scene.add(wire);
+    for (const bx of [31.4, 32.8]) {
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 6), this.mat(PAL.cream));
+      bulb.position.set(bx, 2.74, 8.1);
+      this.scene.add(bulb);
+    }
+  }
+
+  /** FADE KING BARBERSHOP — a storefront on the north face (same builder as
+   *  the pizza joint), striped pole on the wall west of the glass. Air pole:
+   *  signs and poles stay non-solid, like every other pole on the block. */
+  private buildBarbershop(): void {
+    const shop = makeStorefront(this.bank, this.signMaterials.bind(this), 'FADE KING BARBERSHOP', PAL.brick, 5);
+    shop.position.set(36.6, 0.05, 8.02);
+    this.scene.add(shop);
+    const pole = makeBarberPole(this.bank);
+    pole.position.set(33.85, 1.55, 7.93);
+    this.scene.add(pole);
+    // two folding chairs wait against the wall between pole and glass —
+    // the walk-in queue is furniture with a story
+    for (const cx of [35.0, 35.8]) {
+      const seat = this.deco('Barber_Chand_' + cx, cx, 0.42, 7.72, 0.5, 0.06, 0.5, 0x2b2730);
+      seat.castShadow = true;
+      const back = this.deco('Barber_Back_' + cx, cx, 0.72, 7.92, 0.5, 0.6, 0.06, 0x2b2730);
+      back.castShadow = true;
+    }
+    this.colliders.push(boxFromCenter(35.4, 0.5, 7.8, 1.3, 1.0, 0.5)); // the chair pair blocks
+  }
+
+  /** THE HALF-COURT — painted key and arc on the north-east sidewalk, hoop
+   *  against the building face. The commuter ped turns around at x = 38;
+   *  everything here is east of the turn and ped-free. */
+  private buildCourt(): void {
+    // paint: asphalt patch slightly darker than the walk, cream lines
+    this.deco('Court_Paint', 43.75, 0.035, 6.1, 7.3, 0.02, 3.4, 0x4a4552, {});
+    const line = this.mat(PAL.cream);
+    for (const [lx, lz, sx, sz] of [
+      [42.6, 5.9, 0.08, 2.6], [45.9, 5.9, 0.08, 2.6], // key sidelines
+      [44.25, 7.2, 3.4, 0.08],                          // free-throw line
+      [42.6, 4.6, 0.08, 0.6], [45.9, 4.6, 0.08, 0.6],  // key corners
+    ] as const) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(sx, 0.02, sz), line);
+      m.position.set(lx, 0.045, lz);
+      this.scene.add(m);
+    }
+    // the arc — half ring laid flat at the free-throw line, opening south
+    const arc = new THREE.Mesh(
+      new THREE.RingGeometry(1.75, 1.85, 26, 1, Math.PI, Math.PI),
+      line,
+    );
+    arc.rotation.x = -Math.PI / 2;
+    arc.position.set(44.25, 0.045, 7.2);
+    this.scene.add(arc);
+    // the hoop, against the face; the rim reads from the whole sidewalk
+    const hoop = makeHoop(this.bank);
+    hoop.position.set(44.25, 0.05, 7.9);
+    this.scene.add(hoop);
+    this.colliders.push(boxFromCenter(44.25, 1.65, 7.9, 0.24, 3.3, 0.24)); // the pole blocks
+    // the ball — orange, patient, at rest by the key. It moves when shot,
+    // so it is excluded from the static bake (see bakeStatics).
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), this.mat(0xd9772f));
+    ball.name = 'CourtBall';
+    ball.position.set(43.2, 0.13, 5.2);
+    ball.castShadow = true;
+    this.scene.add(ball);
+    this.ball = ball;
+  }
+
+  /** CORNER PARK — the south-east pocket: iron fence with a gate, lawn, a
+   *  gravel path, two benches (the south one is sittable), the Parks sign,
+   *  a trash can, and the planter that used to stand at (37, 7.6) — it
+   *  moved here (the barbershop needed its storefront), so its PED
+   *  bow-around entry moved with it (doc 35 §3's ghost-prop lesson). The
+   *  existing hydrant (34, −4.75) and tree (38, −7) stay: the park keeps
+   *  what the block already had. */
+  private buildPark(): void {
+    // lawn + path, receive-only, no collide (flush with the walk)
+    this.deco('Park_Lawn', 39.3, 0.04, -6.15, 17.0, 0.05, 3.5, 0x3a7355, {});
+    this.deco('Park_Path', 31.9, 0.045, -6.0, 2.4, 0.04, 1.1, PAL.stone, {});
+    // fence: west line at x = 30.6 with a 1.6 m gate at z −6.7…−5.1
+    const fenceW1 = makeFence(this.bank, 1.3);
+    fenceW1.position.set(30.6, 0.05, -7.35);
+    fenceW1.rotation.y = Math.PI / 2;
+    this.scene.add(fenceW1);
+    const fenceW2 = makeFence(this.bank, 0.8);
+    fenceW2.position.set(30.6, 0.05, -4.7);
+    fenceW2.rotation.y = Math.PI / 2;
+    this.scene.add(fenceW2);
+    this.colliders.push(boxFromCenter(30.6, 0.4, -7.35, 0.15, 0.8, 1.3));
+    this.colliders.push(boxFromCenter(30.6, 0.4, -4.7, 0.15, 0.8, 0.8));
+    // south fence closing the pocket at the curb line? No — the curb is the
+    // park's north edge; parks open to their street. A low fence runs the
+    // west line only; the lawn's ends fade into the walk.
+    // benches: the street one (sittable, faces the street) + a quiet one
+    const parkBench = makeBench(this.bank);
+    parkBench.position.set(41.5, 0.05, -5.05);
+    parkBench.rotation.y = Math.PI; // back to the lawn, face to the street
+    this.scene.add(parkBench);
+    this.colliders.push(boxFromCenter(41.5, 0.35, -5.05, 1.85, 0.7, 0.62));
+    const quietBench = makeBench(this.bank);
+    quietBench.position.set(33.7, 0.05, -7.15);
+    quietBench.rotation.y = Math.PI;
+    this.scene.add(quietBench);
+    this.colliders.push(boxFromCenter(33.7, 0.35, -7.15, 1.85, 0.7, 0.62));
+    // the Parks sign at the gate, facing the street (west)
+    const sign = makeParksSign(this.bank, this.signMaterials.bind(this), 'CORNER PARK');
+    sign.position.set(31.5, 0.05, -4.55);
+    sign.rotation.y = Math.PI / 2;
+    this.scene.add(sign);
+    this.colliders.push(boxFromCenter(31.5, 0.7, -4.55, 0.4, 1.5, 0.2));
+    // trash can + the relocated planter
+    const can = makeTrashCan(this.bank);
+    can.position.set(36.8, 0.05, -7.4);
+    this.scene.add(can);
+    this.colliders.push(boxFromCenter(36.8, 0.5, -7.4, 0.68, 1.0, 0.68));
+    const rngPark = seededRng(20261031);
+    const planterEast = makePlanter(this.bank, rngPark);
+    planterEast.position.set(45.0, 0.05, -7.4);
+    this.scene.add(planterEast);
+    this.colliders.push(boxFromCenter(45.0, 0.25, -7.4, 1.1, 0.55, 0.55));
+  }
+
+  /** The dirty-water dog cart — south curb by the park gate, amber
+   *  umbrella, gold sign. Lateral clearance to the cab's rail (z = −2) is
+   *  2.55 m: the cab's half-width plus the cart's cannot reach contact. */
+  private buildVendorCart(): void {
+    const cart = makeVendorCart(this.bank, this.signMaterials.bind(this), 'DIRTY WATER DOGS');
+    cart.position.set(29.8, 0.05, -4.55);
+    this.scene.add(cart);
+    this.colliders.push(boxFromCenter(29.8, 0.6, -4.55, 1.7, 1.2, 0.9));
   }
 
   /** Rolling shirt rack — two uprights, a bar, four honest shirts. The
