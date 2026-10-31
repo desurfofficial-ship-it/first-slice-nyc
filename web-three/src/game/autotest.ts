@@ -131,6 +131,14 @@ export function runAutotest(game: Game): void {
       // capsule ~0.65 out — so those legs declare a wider arrival inside
       // INTERACT_RANGE (2.4) and skip the face-grind dance entirely.
       if (!detour && distGoal < arrive) break;
+      // a day-beat can freeze the walker MID-LEG (the day-1 postcard composes
+      // while the roof walk is still settling at slow fps; a beat note pops) —
+      // the game owns the player now and the leg's purpose is void. Hand
+      // control back at once instead of burning the cap frozen: the next
+      // interact() dismisses/reacts with the walker wherever the beat put it.
+      // (The settle window keeps legs that START during a note's own unfreeze
+      // from breaking on frame one.)
+      if (frames > 30 && game.player.frozen) break;
       // the extension: past the original budget, a walk that stopped closing ends now
       if (performance.now() - t0 > timeout * 1000 && performance.now() - windowT0 > 4000) {
         const nowDist = Math.hypot(dx, dz);
@@ -396,6 +404,11 @@ export function runAutotest(game: Game): void {
       }
       await walkTo(-16, 6.0);
       await walkTo(-5, 5.0);
+      // the 14 s cab-wait above ran before this ~20 s walk sequence — the cab
+      // loops the block in ~10 s and can be back, parked mid-crosswalk (its
+      // courtesy hold keeps it wherever it was when the zone filled). Wait it
+      // out here too, same discipline as every other crossing in this suite.
+      await cabClear();
       await walkTo(-5, -5.0);
       check(s.step === Step.CLAIM_CART, 'crosswalk trigger fires');
       await walkTo(4, -5.2);
