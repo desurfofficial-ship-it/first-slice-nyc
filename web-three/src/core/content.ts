@@ -564,3 +564,67 @@ export const FREE_WASH_NOTES: string[] = [
   'Spin\u2019s done. The socks came back with opinions about the dryer but everything\u2019s clean. The block smells like a laundromat in a good way.',
   'Done. You fold the load on your knees right there by the machine, because that\u2019s how it\u2019s done.',
 ];
+
+// ------------------------------------------------------ the walkers speak ----
+// Phase 4 (Doc 37 §3E): optional conversations with the block's ambient
+// walkers, through the same registry as everything else. One line a day per
+// neighbor (the byDay rotation), anonymous-neighbor voices per Doc 04 —
+// no names, no backstories, just people on their own schedules. A player
+// can play all four days without pressing a single one of these.
+
+export const WALKER_CHAT: string[][] = [
+  [ // the commuter — four loops a day, the 7:42 waits for nobody
+    '\u201CMorning.\u201D He tips a cap he isn\u2019t wearing. The crosswalk takes him.',
+    '\u201CStill got the corner. Good.\u201D He\u2019s already three steps gone.',
+    '\u201CRush hour\u2019s a state of mind. Mine is caffeinated.\u201D He means your cart.',
+    '\u201CSee you tomorrow. Same sidewalk. It\u2019s a good system.\u201D',
+  ],
+  [ // the window shopper — she knows every pane on the block
+    '\u201CRosa restocked the mangoes. I\u2019m just looking. I\u2019m always just looking.\u201D',
+    '\u201CThat barber pole\u2019s been spinning since the seventies. The block\u2019s metronome.\u201D',
+    '\u201CWindow shopping is free. The window knows me by now.\u201D',
+    '\u201CBest corner in the city, right here. The poll had one respondent. It was me.\u201D',
+  ],
+  [ // the south-side local — laundry Tuesdays, opinions daily
+    '\u201CSal\u2019s machine hums in B-flat. Been meaning to tell him for a year.\u201D',
+    '\u201CThe cart man waves with the tongs. Health code says no. Friendship says yes.\u201D',
+    '\u201CTwelve trees on this block. I counted. Somebody had to.\u201D',
+    '\u201CYou think the pigeons are random? Nothing out here is random.\u201D',
+  ],
+];
+
+// ----------------------------------------------------- the block remembers ----
+// Phase 5 (Doc 37 §3F): choices outside the story leave a mark. Each memory
+// has a threshold (`at` — cumulative, persisted, Save-v1-safe); once a
+// counter reaches it, the repeat interaction's line changes to show the
+// block noticed. Pure data — `withMemory` in interactionDefs picks.
+
+export interface MemoryLine {
+  /** Cumulative count at which the memory starts surfacing. */
+  at: number;
+  /** What gets said once the block has noticed. */
+  line: string;
+}
+
+export const MEMORY_LINES: Record<'shelf' | 'dog' | 'trim' | 'wash' | 'hoop', MemoryLine> = {
+  shelf: {
+    at: 3,
+    line: 'Rosa has your bag packed before the door chime settles. \u201CThe usual,\u201D she says, and it\u2019s not a question.',
+  },
+  dog: {
+    at: 3,
+    line: '\u201CThe usual?\u201D He\u2019s already reaching. The block has learned your order.',
+  },
+  trim: {
+    at: 2,
+    line: 'He sees you coming and spins the chair with his foot. Regular rules now \u2014 no words needed.',
+  },
+  wash: {
+    at: 2,
+    line: 'Your machine, by popular demand of nobody in particular. It just knows you now.',
+  },
+  hoop: {
+    at: 5,
+    line: 'The pole has stopped counting your makes out loud. That\u2019s how you know it respects you.',
+  },
+};

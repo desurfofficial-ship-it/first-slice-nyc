@@ -152,6 +152,15 @@ export class GameState {
   apronClean = false;     // the wash finished on the Game's clock
   permitFiled = false;    // the application went in — permanent, like the stool
   permitConfirm = false;  // the awning-style confirm gate
+  // ---- the block remembers (Doc 37 §3F) — cumulative free-roam choices ----
+  // Persisted as OPTIONAL save fields (save stays v1 — old saves parse
+  // unchanged, missing reads as 0; see Save.ts migration note). These are
+  // the "choices outside the main story" the block surfaces as memories.
+  shelfBuys = 0;
+  dogBuys = 0;
+  trims = 0;
+  washes = 0;
+  hoopMakes = 0;
 
   get isDay2(): boolean {
     return this.day >= 2;
@@ -208,6 +217,18 @@ export class GameState {
     if (n <= 0) return true;
     this.shelfStock[id] = n - 1;
     return this.shelfStock[id] <= 0;
+  }
+
+  /** A free-roam choice was made — the block keeps count (Doc 37 §3F).
+   *  Counters are cumulative across days, persisted at the day-end save. */
+  recordChoice(kind: 'shelf' | 'dog' | 'trim' | 'wash' | 'hoop'): void {
+    switch (kind) {
+      case 'shelf': this.shelfBuys += 1; break;
+      case 'dog': this.dogBuys += 1; break;
+      case 'trim': this.trims += 1; break;
+      case 'wash': this.washes += 1; break;
+      case 'hoop': this.hoopMakes += 1; break;
+    }
   }
 
   /** Whether an interaction is currently offerable moved into the registry
@@ -645,6 +666,11 @@ export class GameState {
       stool: this.stoolUp,
       map_given: this.mapGiven,
       permit: this.permitFiled,
+      shelf_buys: this.shelfBuys,
+      dog_buys: this.dogBuys,
+      trims: this.trims,
+      washes: this.washes,
+      hoop_makes: this.hoopMakes,
     };
   }
 }

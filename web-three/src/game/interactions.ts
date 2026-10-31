@@ -44,6 +44,10 @@ export interface Interaction {
   radius?: number;
   /** Vertical band — |pos.y − player.y| above this is out of reach. */
   yBand?: number;
+  /** True for the authored story set — the walker conversations (Phase 4)
+   *  step aside while any authored interaction is enabled, so a passing
+   *  neighbor can never swallow a story beat's press. */
+  authored?: boolean;
   enabled(s: GameState, ctx: InteractionCtx): boolean;
   prompt(s: GameState, ctx: InteractionCtx): string;
   perform(ctx: InteractionCtx): Effect[];

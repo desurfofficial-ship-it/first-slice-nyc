@@ -89,6 +89,28 @@ export function curbSideSlide(perpZ: number, walkerZ: number): number {
   return perpSign === toRoad ? 1 : -1;
 }
 
+/**
+ * One scheduled beat in a walker's day (Doc 37 §3E — lightweight routines):
+ * a spot near their loop where they stop, stand, and look at something for
+ * a while — the barber's pole, the bodega window, the mail. Positions are
+ * TRIGGER points near the walking lane, not teleports: the walker pauses
+ * wherever they happen to be when the spot comes within reach, faces
+ * `faceTo`, and resumes when the dwell is spent. Deterministic by
+ * construction (position-triggered, seeded starts, no random).
+ */
+export interface RoutineStop {
+  x: number;
+  z: number;
+  /** The thing the beat is about — a shop window, a mailbox, a bench mate. */
+  faceTo: [number, number];
+  /** Seconds spent standing there. The block is not in a hurry. */
+  dwell: number;
+}
+
+const ROUTINE_TRIGGER_R = 0.9;   // close enough to the spot to take the beat
+const ROUTINE_RELEASE_R = 1.4;   // past this, the beat may fire again next lap
+const CHAT_RANGE = 1.7;          // two dwelling walkers this close talk (face each other)
+
 interface Ped {
   vehicle: Vehicle;
   group: THREE.Group;
@@ -96,6 +118,13 @@ interface Ped {
   box: AABB;     // the walker's real body, synced under them every frame
   holdTime: number;  // seconds spent held off a body (player/cab) this stand
   slideSide: number; // locked sidestep direction while yielding (-1 | +1)
+  // ---- the day's routine (Phase 4) ----
+  stops: RoutineStop[];  // their scheduled beats, taken round-robin per lap
+  stopIdx: number;       // which beat is next
+  dwellLeft: number;     // > 0 → standing at a beat right now
+  faceTo: [number, number] | null; // what the current beat looks at
+  cooldown: number;      // seconds before another beat can fire
+  latched: boolean;      // this beat already fired — walk away before it re-arms
 }
 
 const MAX_DT = 0.1; // matches the game loop's clamp — Yuka integrates with the same dt
@@ -121,6 +150,7 @@ export class Pedestrians {
     seed: number,
     paths: Array<Array<[number, number]>>,
     staticObstacles: Array<{ x: number; z: number; r: number }>,
+    routines: RoutineStop[][] = [],
   ) {
     this.group.name = 'Pedestrians';
     const rng = seededRng(seed);
@@ -184,10 +214,27 @@ export class Pedestrians {
         box: this.walkColliders[i],
         holdTime: 0,
         slideSide: 0,
+        // the day's beats — round-robin from wherever the seeded start landed
+        stops: routines[i % Math.max(1, routines.length)] ?? [],
+        stopIdx: i, // staggered so the block's beats don't all fire at once
+        dwellLeft: 0,
+        faceTo: null,
+        cooldown: 1.2 + i * 0.7, // don't pause in the first seconds a player sees them
+        latched: false,
       });
     });
 
     scene.add(this.group);
+  }
+
+  /** Live position of walker `i` — the interaction registry reads this every
+   *  frame (moving NPCs stay live, Doc 37 §3B). Out of range → parked below
+   *  the world, which the registry's y-band excludes. */
+  bodyAt(i: number): { x: number; y: number; z: number } {
+    const p = this.peds[i];
+    if (!p) return { x: 0, y: -100, z: 0 };
+    const v = p.vehicle.position;
+    return { x: v.x, y: 0, z: v.z };
   }
 
   /** XZ bodies for World's taxi-yield list — a crossing walker holds the cab. */
@@ -224,7 +271,51 @@ export class Pedestrians {
     if (taxi) this.taxiObstacle.position.set(taxi.x, 0, taxi.z);
     if (cast) this.castObstacle.position.set(cast.x, 0, cast.z);
 
+    // ---- routines (Phase 4, Doc 37 §3E): the day's scheduled beats -------
+    // Position-triggered, round-robin, no random: a walker near their next
+    // beat stops, stands, and looks at the thing for a while. While dwelling
+    // the vehicle is HARD-PINNED across the Yuka integration (the recorded
+    // pre-update position is restored after), so no steering force can
+    // accumulate drift under them — the path simply waits, and resumes the
+    // moment the dwell is spent. Deterministic, so the E2E meets the same
+    // street life every run.
+    for (const pd of this.peds) {
+      if (pd.dwellLeft > 0) {
+        pd.dwellLeft -= dt;
+        pd.cooldown = 1.2; // re-armed fresh when the beat ends
+        if (pd.dwellLeft <= 0) {
+          pd.dwellLeft = 0;
+          pd.faceTo = null;
+          pd.latched = true; // walk away before this beat can fire again
+        }
+        continue;
+      }
+      if (pd.cooldown > 0) pd.cooldown -= dt;
+      if (pd.stops.length === 0 || pd.cooldown > 0) continue;
+      const pi0 = pd.vehicle.position;
+      const stop = pd.stops[pd.stopIdx % pd.stops.length];
+      const d = Math.hypot(pi0.x - stop.x, pi0.z - stop.z);
+      if (d < ROUTINE_TRIGGER_R && !pd.latched) {
+        pd.dwellLeft = stop.dwell;
+        pd.faceTo = stop.faceTo;
+        pd.stopIdx += 1; // next lap takes the next beat
+        pd.latched = true;
+      } else if (d > ROUTINE_RELEASE_R) {
+        pd.latched = false;
+      }
+    }
+
+    // pinned walkers hold their exact spot through the integration step
+    const pinned = this.peds
+      .filter((p) => p.dwellLeft > 0)
+      .map((p) => ({ p, x: p.vehicle.position.x, z: p.vehicle.position.z }));
+
     this.manager.update(Math.min(dt, MAX_DT));
+
+    for (const pin of pinned) {
+      pin.p.vehicle.position.set(pin.x, 0, pin.z);
+      pin.p.vehicle.velocity.set(0, 0, 0);
+    }
 
     // ---- hard guarantees (steering asked; physics resolves) --------------
     // 1. walker ↔ walker: symmetric half-pushes. SeparationBehavior is a
@@ -311,7 +402,31 @@ export class Pedestrians {
       const vx = p.vehicle.velocity.x;
       const vz = p.vehicle.velocity.z;
       if (vx * vx + vz * vz > 0.01) p.group.rotation.y = Math.atan2(vx, vz);
+      // dwelling: face the beat — or a neighbor who stopped beside you
+      // (two dwelling walkers within CHAT_RANGE face each other: the
+      // block's occasional two-person conversations, emergent from the
+      // schedules, never scripted)
+      if (p.dwellLeft > 0) {
+        let tx: number | null = null;
+        let tz: number | null = null;
+        let bestD2 = CHAT_RANGE * CHAT_RANGE;
+        for (const other of this.peds) {
+          if (other === p || other.dwellLeft <= 0) continue;
+          const ov = other.vehicle.position;
+          const dx = ov.x - v.x;
+          const dz = ov.z - v.z;
+          const d2 = dx * dx + dz * dz;
+          if (d2 < bestD2) { bestD2 = d2; tx = ov.x; tz = ov.z; }
+        }
+        if (tx === null && p.faceTo) { tx = p.faceTo[0]; tz = p.faceTo[1]; }
+        if (tx !== null && tz !== null) {
+          const dx = tx - v.x;
+          const dz = tz - v.z;
+          if (dx * dx + dz * dz > 0.04) p.group.rotation.y = Math.atan2(dx, dz);
+        }
+      }
       // the rig measures its own position delta → the walk cycle is free
+      // (a dwelling walker's delta is zero → it reads as a natural idle)
       updatePersonAnim(p.group, dt);
       // the walker's real body follows (feet on their ground; a box at the
       // walker's feet height blocks the capsule exactly like the cast's)

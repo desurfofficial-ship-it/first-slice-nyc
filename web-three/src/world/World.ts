@@ -21,7 +21,7 @@ import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecy
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
-import { Pedestrians, type PedLook } from './peds';
+import { Pedestrians, type PedLook, type RoutineStop } from './peds';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay } from './dressing';
 import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT } from '../core/content';
 
@@ -136,6 +136,13 @@ export class World {
   /** Read-only XZ of every ambient walker (diagnostics + probes). */
   pedBodies(): Array<{ x: number; z: number }> {
     return this.peds ? this.peds.bodies() : [];
+  }
+
+  /** Live position of ambient walker `i` — the interaction registry's walker
+   *  conversations read this every frame (Doc 37 §3B: moving NPCs stay live).
+   *  Out of range → parked below the world (the y-band excludes it). */
+  walkerPos(i: number): { x: number; y: number; z: number } {
+    return this.peds ? this.peds.bodyAt(i) : { x: 0, y: -100, z: 0 };
   }
 
   private steamPoints: THREE.Points;
@@ -1017,6 +1024,36 @@ export class World {
       // the south-side local: laundry to the west end and back
       [[-34, -6.1], [18, -6.1], [18, -6.8], [-34, -6.8]],
     ];
+    // ---- their routines (Phase 4, Doc 37 §3E): the day's small beats ------
+    // Every trigger sits OFF the walk lanes (at the building line or the
+    // curb edge), so a pause never plugs both lanes; the beat is taken
+    // wherever the walker happens to be when the spot comes within reach.
+    // Round-robin per lap, so a commuter glances at the barber's pole one
+    // lap and reads the mail the next — a block, not a loop recording.
+    // The bench gossip pair (shopper + commuter) stops sit ~1.2 m apart on
+    // the north line: when both dwell at once they face each other — the
+    // block's occasional two-person conversation.
+    const pedRoutines: RoutineStop[][] = [
+      // the commuter: the barber's pole on the way east, the mailbox on the
+      // way west, and a chance word by the bus bench
+      [
+        { x: 34.5, z: 7.0, faceTo: [36.6, 7.9], dwell: 3.0 },
+        { x: -3.4, z: -6.9, faceTo: [-3.2, -6.1], dwell: 2.5 },
+        { x: -24.9, z: 7.0, faceTo: [-23.3, 7.62], dwell: 5.0 },
+      ],
+      // the window shopper: the bodega window (she's just looking — always),
+      // then the bench, where the gossip lives
+      [
+        { x: -17.0, z: 7.0, faceTo: [-18.5, 13.5], dwell: 4.0 },
+        { x: -26.1, z: 7.0, faceTo: [-23.3, 7.62], dwell: 5.0 },
+      ],
+      // the south-side local: watches the cart corner (opinions daily),
+      // reads the stoops at the quiet west end
+      [
+        { x: 5.4, z: -6.9, faceTo: [4.0, -6.6], dwell: 3.0 },
+        { x: -30.5, z: -6.9, faceTo: [-30.5, -9.0], dwell: 2.5 },
+      ],
+    ];
     this.peds = new Pedestrians(
       this.scene, pedLooks, (c) => this.bank.get(c), 20261030, pedPaths,
       [
@@ -1060,6 +1097,7 @@ export class World {
         { x: -45, z: 4.7, r: 0.35 },
         { x: -38.6, z: 4.5, r: 0.35 },
       ],
+      pedRoutines,
     );
     // the walkers carry real bodies for the player's collision stack — the
     // audit's "NPCs walking through the player" (doc 35 §1): one synced AABB

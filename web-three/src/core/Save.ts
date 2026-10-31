@@ -6,6 +6,14 @@
  *   * money is always a day-start or verified mid-day snapshot — no duplicate rewards
  *   * day 1 never writes: the intro replays fresh by design (R = restart day)
  *   * replay=true marks a kept final day being replayed: rewards rest, warmth doesn't
+ *
+ * Migration strategy (Doc 37 §3F — save stays v1):
+ *   The living-block counters (shelf_buys / dog_buys / trims / washes /
+ *   hoop_makes) are OPTIONAL trailing fields. A pre-milestone save has none
+ *   of them and parses unchanged (missing reads as 0); a post-milestone save
+ *   loaded by older code is ignored field-by-field (every reader names its
+ *   fields). No key bump, no transform, no version branch — the compat proof
+ *   is automated in tests/save.test.ts ("old v1 JSON" case).
  */
 
 export const SAVE_KEY = 'first_slice_save_v1';
@@ -37,6 +45,15 @@ export interface SaveData {
    *  Permanent progression, like the stool: once true it stays true.
    *  Optional so pre-existing saves parse unchanged; missing reads as false. */
   permit?: boolean;
+  // ---- the block remembers (Doc 37 §3F) — optional v1-safe counters ----
+  /** Cumulative free-roam choices, persisted so the block can surface them
+   *  as memories on later days. Optional so pre-milestone saves parse
+   *  unchanged; missing reads as 0. Clamped to [0, 999]. */
+  shelf_buys?: number;
+  dog_buys?: number;
+  trims?: number;
+  washes?: number;
+  hoop_makes?: number;
 }
 
 export function defaultSave(): SaveData {
@@ -53,6 +70,11 @@ export function defaultSave(): SaveData {
     stool: false,
     map_given: false,
     permit: false,
+    shelf_buys: 0,
+    dog_buys: 0,
+    trims: 0,
+    washes: 0,
+    hoop_makes: 0,
   };
 }
 
@@ -96,6 +118,12 @@ export function parseSave(raw: string | null): SaveData {
     idris_served: bool('idris_served', false),
     lunch_served: clamp(Math.trunc(num('lunch_served', 0)), 0, 3),
     day_start_money: Math.max(0, Math.trunc(num('day_start_money', Math.max(0, Math.trunc(num('money', 87)))))),
+    // the block remembers (Doc 37 §3F) — absent in old saves, reads as 0
+    shelf_buys: clamp(Math.trunc(num('shelf_buys', 0)), 0, 999),
+    dog_buys: clamp(Math.trunc(num('dog_buys', 0)), 0, 999),
+    trims: clamp(Math.trunc(num('trims', 0)), 0, 999),
+    washes: clamp(Math.trunc(num('washes', 0)), 0, 999),
+    hoop_makes: clamp(Math.trunc(num('hoop_makes', 0)), 0, 999),
   };
 }
 

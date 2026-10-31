@@ -27,7 +27,7 @@ import { updatePersonAnim, type PersonRig } from '../world/personRig';
 import { FAMILIAR_SPEED, familiarBeatForDay } from '../world/dressing';
 import { InteractionRegistry, NEVER_NEAR, type InteractionCtx } from './interactions';
 import { buildInteractions, byDay, BUS_BENCH_SEAT, PARK_BENCH_SEAT, COURT_BALL_REST, HOOP_RIM, hoopOutcome } from './interactionDefs';
-import { BENCH_SIT_NOTES, PARK_SIT_NOTES, COURT_MAKE, COURT_MISS, COURT_STREAK_NOTE, FREE_WASH_NOTES } from '../core/content';
+import { BENCH_SIT_NOTES, PARK_SIT_NOTES, COURT_MAKE, COURT_MISS, COURT_STREAK_NOTE, FREE_WASH_NOTES, MEMORY_LINES } from '../core/content';
 import { gameAudio } from './audio';
 
 /** One waypoint on the familiar face's daily walk. dwell = seconds she
@@ -193,6 +193,7 @@ export class Game {
       stranger: () => this.world.stranger.position,
       cart: () => this.world.cartRoot.position,
       shelfItem: (id) => this.world.itemMeshes.get(id)?.position ?? NEVER_NEAR,
+      walker: (i) => this.world.walkerPos(i), // Phase 4 — live walker positions
     }));
     this.world.addItem('mango', -18, 2.25, 19.2, PAL.amber);
     this.world.addItem('coffee', -16, 2.25, 19.2, PAL.teal);
@@ -602,6 +603,9 @@ export class Game {
     const ball = this.world.ball;
     const made = hoopOutcome(this.state.day, this.hoopShots);
     this.hoopShots += 1;
+    // the court's score now survives the save (Doc 37 §3F): cumulative
+    // makes are a choice the block remembers (the 5th make gets its line)
+    if (made) this.state.recordChoice('hoop');
     // launch from beside the player toward the rim — two tweens per axis
     // (up-and-over, then the drop), the honest lowpoly arc
     const rx = HOOP_RIM.x, ry = HOOP_RIM.y, rz = HOOP_RIM.z;
@@ -633,13 +637,17 @@ export class Game {
     );
   }
 
-  /** Made-basket lines escalate with the streak; the third is the brag. */
+  /** Made-basket lines escalate with the streak; the third is the brag.
+   *  And once the save's cumulative makes cross the memory threshold
+   *  (Doc 37 §3F — recorded in shootHoop before this renders), the pole
+   *  stops counting out loud: it respects you now. */
   private hoopMadeNote(): string {
     this.hoopStreak += 1;
     if (this.hoopStreak >= 3) {
       // a run of three gets its own line once, then the normal rotation
       return this.hoopStreak === 3 ? COURT_STREAK_NOTE : byDay(COURT_MAKE, this.state.day);
     }
+    if (this.state.hoopMakes >= MEMORY_LINES.hoop.at) return MEMORY_LINES.hoop.line;
     return COURT_MAKE[(this.hoopStreak - 1) % COURT_MAKE.length];
   }
 
@@ -672,6 +680,18 @@ export class Game {
    *  harnesses read it. */
   nearestInteraction() {
     return this.registry.nearest(this.player.capsule, this.state, this.ictx);
+  }
+
+  /** True while any AUTHORED story interaction is pressable right now —
+   *  the walker conversations (Phase 4) read this to step aside, so a
+   *  passing neighbor can never swallow a story beat's press. Cheap: every
+   *  authored gate is a switch comparison or two. */
+  hasBlockingInteraction(): boolean {
+    for (const it of this.registry.list()) {
+      if (!it.authored) continue;
+      if (it.enabled(this.state, this.ictx)) return true;
+    }
+    return false;
   }
 
   private tryInteract(): void {
@@ -1539,6 +1559,13 @@ export class Game {
       s.stoolUp = sd.stool ?? false;
       s.mapGiven = sd.map_given ?? false;
       s.permitFiled = sd.permit ?? false;
+      // the block remembers (Doc 37 §3F): cumulative free-roam choices
+      // survive the night — absent in an old save reads as 0, by migration
+      s.shelfBuys = sd.shelf_buys ?? 0;
+      s.dogBuys = sd.dog_buys ?? 0;
+      s.trims = sd.trims ?? 0;
+      s.washes = sd.washes ?? 0;
+      s.hoopMakes = sd.hoop_makes ?? 0;
     }
     // sd === null (a rail "Tomorrow"): the live state carries the wallet, the
     // name, the awning — and the STOOL. The stool is bought, the Map is

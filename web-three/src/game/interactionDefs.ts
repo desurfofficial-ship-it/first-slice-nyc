@@ -26,6 +26,7 @@ import {
   HOT_DOG_PRICE, HOT_DOG_OFFER, HOT_DOG_BROKE, HOT_DOG_LINES,
   ALLEY_NOTES,
   FREE_WASH_PRICE, FREE_WASH_OFFER, FREE_WASH_BROKE,
+  WALKER_CHAT, MEMORY_LINES, type MemoryLine,
 } from '../core/content';
 import { NEVER_NEAR, type Interaction, type InteractionCtx, type Vec3Like } from './interactions';
 
@@ -35,8 +36,18 @@ export function byDay<T>(list: readonly T[], day: number): T {
   return list[(Math.max(1, day) - 1) % list.length];
 }
 
+/** The block remembers (Doc 37 §3F): once a cumulative choice counter
+ *  reaches the memory's threshold, the memory line replaces the day line.
+ *  Pure — the memory lands on the SAME press that crosses the threshold
+ *  (callers record the choice first, then render the note). */
+export function withMemory(base: string, count: number, mem: MemoryLine): string {
+  return count >= mem.at ? mem.line : base;
+}
+
 /** Live positions the interactions need. Game supplies them from the world;
- *  tests supply stubs. */
+ *  tests supply stubs. `walker` is optional: the authored-only harnesses
+ *  don't carry it, and the walker conversations park far below the world
+ *  (out of the y-band) when absent. */
 export interface InteractionSources {
   rosa: () => Vec3Like;
   idris: () => Vec3Like;
@@ -45,6 +56,8 @@ export interface InteractionSources {
   cart: () => Vec3Like;
   /** A shelf item's mesh position, or NEVER_NEAR when it isn't on the shelf. */
   shelfItem: (id: string) => Vec3Like;
+  /** Live position of ambient walker i (Phase 4 — moving NPCs stay live). */
+  walker?: (i: number) => Vec3Like;
 }
 
 // ---------------------------------------------------------------- free-roam ----
@@ -120,7 +133,9 @@ const court: Interaction = {
  *  offers (and binds `state.buyConfirm` to this interaction), second buys.
  *  A real `spend()` — the money HUD pulses, the day-end save carries it.
  *  `precheck` may short-circuit with a plain note BEFORE the offer (the
- *  barber's fresh-cut morning) — no gate, no money moves. */
+ *  barber's fresh-cut morning) — no gate, no money moves. `memory` may
+ *  replace the day line once the cumulative counter crosses its threshold
+ *  (Doc 37 §3F — the block noticed you're a regular). */
 function gatedBuy(opts: {
   id: string;
   pos: () => Vec3Like;
@@ -131,6 +146,7 @@ function gatedBuy(opts: {
   broke: string;
   dayLines: readonly string[];
   precheck?: (s: GameState) => string | null;
+  memory?: (s: GameState) => string | null;
   onBuy?: (ctx: InteractionCtx) => void;
 }): Interaction {
   return {
@@ -157,9 +173,10 @@ function gatedBuy(opts: {
       ctx.state.buyConfirm = null;
       if (ctx.state.money < opts.price) return [{ kind: 'note', text: opts.broke }];
       opts.onBuy?.(ctx);
+      const memory = opts.memory?.(ctx.state) ?? null;
       return [
         ...ctx.state.spend(opts.price),
-        { kind: 'note', text: byDay(opts.dayLines, ctx.state.day) },
+        { kind: 'note', text: memory ?? byDay(opts.dayLines, ctx.state.day) },
       ];
     },
   };
@@ -174,6 +191,9 @@ const hotdog = gatedBuy({
   offer: HOT_DOG_OFFER,
   broke: HOT_DOG_BROKE,
   dayLines: HOT_DOG_LINES,
+  // the cart man learns your order (Doc 37 §3F): third dog and up
+  onBuy: ({ state }) => { state.recordChoice('dog'); },
+  memory: (s) => (s.dogBuys >= MEMORY_LINES.dog.at ? MEMORY_LINES.dog.line : null),
 });
 
 const barber = gatedBuy({
@@ -186,7 +206,9 @@ const barber = gatedBuy({
   dayLines: BARBER_LINES,
   // already fresh today: the chair politely declines, no money moves
   precheck: (s) => (s.trimToday ? BARBER_FRESH : null),
-  onBuy: ({ state }) => { state.trimToday = true; },
+  // the chair knows its regulars (Doc 37 §3F): second cut and up
+  onBuy: ({ state }) => { state.trimToday = true; state.recordChoice('trim'); },
+  memory: (s) => (s.trims >= MEMORY_LINES.trim.at ? MEMORY_LINES.trim.line : null),
 });
 
 const alley: Interaction = {
@@ -201,7 +223,8 @@ const alley: Interaction = {
 /** The laundromat's near washer, free-roam edition. The Day-4 story owns
  *  the bay at its own beats (hand-apron, permit chat) and while Sal's wash
  *  runs; the rest of the week it's $3 and six patient minutes-worth of
- *  drum hum. */
+ *  drum hum. Sal learns your basket too (Doc 37 §3F): from the second
+ *  load on, the offer reads like a regular. */
 const washerFree: Interaction = {
   id: 'washer_free',
   pos: () => ({ x: -5.9, y: 0.9, z: 7.6 }),
@@ -211,12 +234,14 @@ const washerFree: Interaction = {
     && !s.apronWashing && !ctx.game.freeWashRunning,
   prompt: () => `Do a load \u2014 $${FREE_WASH_PRICE}`,
   perform: ({ state }): Effect[] => {
+    const mem = state.washes >= MEMORY_LINES.wash.at ? MEMORY_LINES.wash.line : null;
     if (state.buyConfirm !== 'washer_free') {
       state.buyConfirm = 'washer_free';
-      return [{ kind: 'note', text: FREE_WASH_OFFER }];
+      return [{ kind: 'note', text: mem ?? FREE_WASH_OFFER }];
     }
     state.buyConfirm = null;
     if (state.money < FREE_WASH_PRICE) return [{ kind: 'note', text: FREE_WASH_BROKE }];
+    state.recordChoice('wash');
     return [...state.spend(FREE_WASH_PRICE), { kind: 'free-wash-start' }];
   },
 };
@@ -248,7 +273,9 @@ const subway: Interaction = {
 
 /** The shelf as a shop. The confirm gate follows the awning/stool pattern:
  *  first press offers (and flips `state.buyConfirm`), second press buys.
- *  A real `spend()` — the money HUD pulses, the day-end save carries it. */
+ *  A real `spend()` — the money HUD pulses, the day-end save carries it.
+ *  Rosa learns your bag too (Doc 37 §3F): from the third buy on, the note
+ *  reads like a regular's. */
 export function shelfInteractions(src: InteractionSources): Interaction[] {
   return SHELF_GOODS.map((good): Interaction => ({
     id: `shelf_${good.id}`,
@@ -270,11 +297,14 @@ export function shelfInteractions(src: InteractionSources): Interaction[] {
       state.buyConfirm = null;
       if (state.shelfUnits(good.id) <= 0) return [{ kind: 'note', text: good.soldOut }];
       if (state.money < good.price) return [{ kind: 'note', text: good.broke }];
-      // Wallet first, then one unit — empty shelf emits shelf-deplete so the
-      // mesh leaves until morning restock (no duplicate inventory entries).
+      // The choice lands BEFORE the note renders, so the memory (if this
+      // press crosses its threshold) lands on the same press. Wallet first,
+      // then one unit — empty shelf emits shelf-deplete so the mesh leaves
+      // until morning restock (no duplicate inventory entries).
+      state.recordChoice('shelf');
       const out: Effect[] = [
         ...state.spend(good.price),
-        { kind: 'note', text: good.buy },
+        { kind: 'note', text: withMemory(good.buy, state.shelfBuys, MEMORY_LINES.shelf) },
       ];
       if (state.consumeShelfUnit(good.id)) {
         out.push({ kind: 'shelf-deplete', id: good.id });
@@ -284,8 +314,26 @@ export function shelfInteractions(src: InteractionSources): Interaction[] {
   }));
 }
 
+// ------------------------------------------------- the walkers speak (Phase 4) ----
+
+/** Optional conversations with the block's ambient walkers (Doc 37 §3E).
+ *  Registered AFTER the authored set — and they step aside whenever any
+ *  authored interaction is enabled, so a passing neighbor can never swallow
+ *  a story beat's press (the E2E driver's chain is untouchable). Day-keyed
+ *  lines, no state, no money: the block's small talk, purely optional. */
+export function walkerChats(src: InteractionSources): Interaction[] {
+  return WALKER_CHAT.map((lines, i): Interaction => ({
+    id: `walker_${i}`,
+    pos: () => (src.walker ? src.walker(i) : NEVER_NEAR),
+    radius: 2.2,
+    enabled: (_s, ctx) => !(ctx.game.hasBlockingInteraction?.() ?? true),
+    prompt: () => 'Say hi',
+    perform: ({ state }): Effect[] => [{ kind: 'note', text: byDay(lines, state.day) }],
+  }));
+}
+
 export function freeRoamInteractions(src: InteractionSources): Interaction[] {
-  return [bench, parkBench, court, hotdog, barber, alley, washerFree, board, newsbox, subway, ...shelfInteractions(src)];
+  return [bench, parkBench, court, hotdog, barber, alley, washerFree, board, newsbox, subway, ...walkerChats(src), ...shelfInteractions(src)];
 }
 
 // ------------------------------------------------------------------ authored ----
@@ -300,7 +348,11 @@ function act(ctx: InteractionCtx, run: (s: GameState) => Effect[]): Effect[] {
 }
 
 export function authoredInteractions(src: InteractionSources): Interaction[] {
-  return [
+  // `authored: true` tags the story set — the walker conversations (Phase 4)
+  // read it to step aside while any story beat is pressable, so a passing
+  // neighbor can never swallow a story beat's press.
+  const tag = (d: Interaction): Interaction => ({ ...d, authored: true });
+  const defs: Interaction[] = [
     {
       id: 'rosa',
       pos: src.rosa,
@@ -459,6 +511,7 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
       perform: (ctx) => act(ctx, (s) => s.collect(item)),
     })),
   ];
+  return defs.map(tag);
 }
 
 /** The whole registry's contents, in registration order (authored first so
