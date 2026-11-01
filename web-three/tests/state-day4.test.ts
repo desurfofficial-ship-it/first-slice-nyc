@@ -9,6 +9,8 @@ import { describe, it, expect } from 'vitest';
 import { GameState, Step } from '../src/core/GameState';
 import { D4_ORDERS, D3_ORDERS, composeCaption } from '../src/core/content';
 import { parseSave, defaultSave, SAVE_KEY, MAX_DAY } from '../src/core/Save';
+import { authoredRegistry, relevant } from './registryHarness';
+const reg = authoredRegistry();
 
 /** A Day-3-completed state, ready to begin Day 4 (the autotest's end state). */
 function day3Done(money = 120): GameState {
@@ -223,14 +225,14 @@ describe('Day 4 afternoon — the block opens up (docs/30)', () => {
 
   it('relevance: Sal answers in his two steps, the A-frame only while filing', () => {
     const s = day4MapGiven();
-    expect(s.isRelevant('laundry')).toBe(true);
-    expect(s.isRelevant('permit')).toBe(false); // not until the wash starts
+    expect(relevant(reg, s, 'laundry')).toBe(true);
+    expect(relevant(reg, s, 'permit')).toBe(false); // not until the wash starts
     s.handApron();
-    expect(s.isRelevant('permit')).toBe(true);
+    expect(relevant(reg, s, 'permit')).toBe(true);
     s.readPermit();
     s.readPermit();
-    expect(s.isRelevant('permit')).toBe(false);
-    expect(s.isRelevant('laundry')).toBe(false);
+    expect(relevant(reg, s, 'permit')).toBe(false);
+    expect(relevant(reg, s, 'laundry')).toBe(false);
   });
 
   it('snapshot carries permit; parse reads it back; old saves parse clean', () => {
@@ -277,30 +279,30 @@ describe('Day 4 — the wall and the relevance map', () => {
   it('relevance: the stranger answers in her two steps and only then', () => {
     const s = day4ToRush();
     s.setStep(Step.D4_STRANGER);
-    expect(s.isRelevant('stranger')).toBe(true);
+    expect(relevant(reg, s, 'stranger')).toBe(true);
     s.setStep(Step.D4_RUSH);
-    expect(s.isRelevant('stranger')).toBe(false);
+    expect(relevant(reg, s, 'stranger')).toBe(false);
     s.setStep(Step.D4_MAP);
-    expect(s.isRelevant('stranger')).toBe(false); // she has to arrive first
+    expect(relevant(reg, s, 'stranger')).toBe(false); // she has to arrive first
     s.strangerAtCart = true;
-    expect(s.isRelevant('stranger')).toBe(true);
+    expect(relevant(reg, s, 'stranger')).toBe(true);
     s.setStep(Step.D4_CLIMB4);
-    expect(s.isRelevant('stranger')).toBe(false);
+    expect(relevant(reg, s, 'stranger')).toBe(false);
   });
 
   it('relevance: rosa and cart answer through the Day 4 morning', () => {
     const s = day4ToRush();
-    expect(s.isRelevant('rosa')).toBe(true);
-    expect(s.isRelevant('cart')).toBe(true);
+    expect(relevant(reg, s, 'rosa')).toBe(true);
+    expect(relevant(reg, s, 'cart')).toBe(true);
     s.setStep(Step.D4_CLIMB4);
-    expect(s.isRelevant('rosa')).toBe(false);
+    expect(relevant(reg, s, 'rosa')).toBe(false);
   });
 
   it('relevance: the rail answers on D4_POSTCARD', () => {
     const s = day3Done();
     s.day = 4;
     s.setStep(Step.D4_POSTCARD);
-    expect(s.isRelevant('rail')).toBe(true);
+    expect(relevant(reg, s, 'rail')).toBe(true);
   });
 });
 

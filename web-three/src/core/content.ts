@@ -8,8 +8,6 @@
  * says what you picked. The reference was silent on all three counts.
  */
 
-import type { GameState } from './GameState';
-
 /** Objective line per step (main.gd `_set_step`). */
 export const OBJECTIVES: Record<number, string> = {
   0:  'Someone by the terminal is waving at you.',                       // MEET_ROSA
@@ -226,37 +224,9 @@ export function itemPickNote(id: string, leftAfter: number): string {
   return `The ${label}. ${flavor} That's three — “Perfect,” Rosa says, and the bell over the door rings.`;
 }
 
-/** Prompt verbs (main.gd `_update_prompt`). */
-export function promptVerb(id: string, s: GameState): string {
-  switch (id) {
-    case 'rosa': return 'Say hi';
-    case 'counter': return 'Serve';
-    case 'idris': return 'Serve the usual';
-    case 'stoop': return 'Deliver';
-    case 'kid': return 'Walk with him';
-    case 'poster': return 'Read the flyer';
-    case 'stranger': return 'Say hi';
-    case 'laundry':
-      return s.step === 28 /* D4_LAUNDRY */ ? 'Hand the apron'
-        : s.step === 29 /* D4_PERMIT */ ? 'Ask Sal'
-        : 'Say hi';
-    case 'permit':
-      return s.permitConfirm ? 'File \u2014 $10' : 'Read the notice';
-    case 'rail': return s.lingerStage <= 1 ? 'Stay a while' : 'Tomorrow';
-    case 'cart':
-      if (s.step === 5 /* CLAIM_CART */) return 'Claim corner';
-      if (s.step === 7 /* SOLO */ || s.step === 14 /* D2_LUNCH */) return 'Serve';
-      if (s.step === 18 /* D3_RUSH */ || s.step === 26 /* D4_RUSH */) return s.brewing ? BREWING_PROMPT : 'Serve';
-      if (s.step === 20 /* D3_STOOL */) return 'Stool \u2014 $10';
-      if (s.day >= 2 && !s.awningUp && s.money >= 15) return 'Awning \u2014 $15';
-      return 'Serve';
-    case 'item_mango': return 'Take the mango';
-    case 'item_coffee': return 'Take the coffee';
-    case 'item_bread': return 'Take the bread';
-    default: return 'Take'; // anything else on a shelf
-  }
-}
-
+/** Prompt verbs for the authored interactions moved INTO their interaction
+ *  definitions (game/interactionDefs.ts) by the Doc 37 §3B registry refactor.
+ *  content.ts keeps the TEXT; the interaction owns the choice of line. */
 export const DEFAULT_CART_NAME = 'First Slice';
 
 // ---------------------------------------------------------------- Day 3 ----
@@ -428,3 +398,233 @@ export const FAMILIAR_WORD_NOTE =
   'She\u2019s crossing back at this hour. \u201CMorning,\u201D she says. One word. On this block, that\u2019s a handshake.';
 
 export const D4_RECEIPT_TEXT = 'FILED';
+
+// -------------------------------------------------- free-roam (Doc 37 §3C) ----
+// The block answers before the story does. Every line here is available
+// OUTSIDE the authored beats: the bodega sells every morning, the bench
+// holds whoever sits, the board and the newsboxes rotate by day. None of
+// it is stored in the save — day-keyed like the living block, so a save
+// that predates these lines plays them like it always knew.
+
+/** The bodega's shelf, as a shop. The three quest goods double as stock:
+ *  during Day-1 COLLECT they are "Take" (Rosa's errand, free); every other
+ *  moment they are "Buy" — with a real deduction, the awning/stool pattern
+ *  of a second press to confirm. */
+export interface ShelfGood {
+  id: string;
+  label: string;
+  price: number;
+  /** First press — the offer (the confirm gate). */
+  offer: string;
+  /** The buy line. */
+  buy: string;
+  /** Not enough money. */
+  broke: string;
+  /** Shelf unit already sold today. */
+  soldOut: string;
+}
+
+export const SHELF_GOODS: ShelfGood[] = [
+  {
+    id: 'mango', label: 'Mango', price: 2,
+    offer: 'A mango, heavy for its size \u2014 $2. [Space] again to buy it.',
+    buy: 'You buy the mango. Rosa waves from the counter without looking up.',
+    broke: 'The mango is $2. The wallet says another day.',
+    soldOut: 'The mango tray is empty. Rosa restocks in the morning.',
+  },
+  {
+    id: 'coffee', label: 'Coffee', price: 5,
+    offer: 'The tin with the faded label \u2014 $5. [Space] again to buy it.',
+    buy: 'You buy the tin. It\u2019s the one the regulars ask for by its dent.',
+    broke: 'The tin is $5. The wallet says another day.',
+    soldOut: 'The coffee tin is gone for today. Morning brings another.',
+  },
+  {
+    id: 'bread', label: 'Bread', price: 3,
+    offer: 'Bread, still warm from the morning tray \u2014 $3. [Space] again to buy it.',
+    buy: 'You buy the bread. The bag is warm all the way home.',
+    broke: 'The bread is $3. The wallet says another day.',
+    soldOut: 'The bread board is bare. Tomorrow\u2019s tray is already spoken for.',
+  },
+];
+
+/** The bulletin board by the subway stairs — the slip rotates by day
+ *  (Doc 33 §2.3's flyer diary, now readable). Day 3's beat is the poster
+ *  itself; the board steps aside for it. */
+export const BULLETIN_NOTES: string[] = [
+  'STOOP SALE SATURDAY \u2014 the Rivera stoop, everything must go. Someone has underlined \u201Ceverything\u201D twice.',
+  'LOST: one gray cat. Answers to Station, or faster to a can of tuna. The reward is described as \u201Cdeep affection.\u201D',
+  'A flyer, still wet at the corners: your cart, someone\u2019s photo, \u201CBEST CORNER COFFEE \u2014 as voted by everyone who was asked.\u201D',
+  'PARADE SUNDAY, 9 AM, this block. Bring a chair. Someone has crossed out \u201Croad closures\u201D and written \u201Cgood delays.\u201D',
+];
+
+/** The newspaper boxes at the plaza — a headline a day. The city talks to
+ *  itself; you are allowed to listen. */
+export const NEWSPAPER_NOTES: string[] = [
+  'THE DAILY: \u201CCITY WAKES EARLY; COFFEE BLAMED.\u201D Below the fold, a letter to the editor defends the bean.',
+  'THE DAILY: \u201CMAYOR VISITS LAUNDROMAT, CALLS IT \u2018THE TOWN SQUARE.\u2019\u201D Sal is not quoted. Sal does not need quotes.',
+  'THE DAILY: \u201CLOCAL CORNER VOTED BEST CORNER.\u201D The poll had one respondent. She knows who she is.',
+  'THE DAILY: \u201CPARADE TOMORROW.\u201D The route is a straight line past a certain coffee cart.',
+];
+
+/** The bus bench — sitting is an interaction now (Doc 37 §3B: using
+ *  environmental objects). One line a day; the bench keeps no save. */
+export const BENCH_SIT_NOTES: string[] = [
+  'The bench is warm from the morning. The street does its work in front of you. It is enough.',
+  'From here the whole block minds its business. It minds it well.',
+  'A pigeon lands, considers you, and decides you are furniture. The highest compliment it gives.',
+  'The bench again. It is starting to be your bench. The paint has not noticed yet.',
+];
+
+/** The subway stairs — a glance down. The kid had it right on Day 3. */
+export const SUBWAY_NOTE =
+  'The stairs go down. F and M both work \u2014 the kid had that right. The city keeps its promises underground.';
+
+// ---------------------------------------------------- the expanded block ----
+// docs/38 §4 — the free-roam loops east of the crosswalk. Same law as the
+// living block's diary: day-keyed, deterministic, no save fields. Prices are
+// honest numbers the wallet actually pays.
+
+/** FADE KING BARBERSHOP — the chair is $12. One cut per day: the second
+ *  visit gets the "you're fresh" line (transient `trimToday`, not saved —
+ *  a haircut is not a possession, it's a morning). */
+export const BARBER_PRICE = 12;
+export const BARBER_OFFER =
+  'The chair by the window is open \u2014 a trim, $12, cash. [Space] again to take it.';
+export const BARBER_BROKE =
+  'The trim is $12. The wallet says grow it out another week.';
+export const BARBER_FRESH =
+  'Fresh this morning \u2014 the pole is still spinning for you, but the chair says come back tomorrow.';
+export const BARBER_LINES: string[] = [
+  'The clippers hum. The mirror talks. You leave lighter by twelve dollars and one eyebrow\u2019s worth of doubt.',
+  'Outside, a man nods at your line-up. Inside, the pole never stopped. Fade King earned the name.',
+  'The barber asks what you do. You say coffee cart. He says the block already knows. Twelve dollars well spent.',
+  'A trim and fifteen minutes of the radio. You walk out squinting at how sharp the afternoon got.',
+];
+
+/** CORNER PARK — the sittable bench by the lawn. The bus bench notes live
+ *  on the bus bench; these belong to the lawn. */
+export const PARK_SIT_NOTES: string[] = [
+  'The lawn is two shades of green and one shade of honest. The hydrant keeps watch like it was hired to.',
+  'A pigeon walks the path like it pays rent. From this bench, the whole block breathes out.',
+  'Somebody\u2019s radio three benches down plays something from 1971. Nobody minds. The park approves.',
+  'Your bench now too, apparently. The paint on this one hasn\u2019t noticed either.',
+];
+
+/** DIRTY WATER DOGS — $2, from the cart by the park gate. The city\u2019s
+ *  oldest food group. */
+export const HOT_DOG_PRICE = 2;
+export const HOT_DOG_OFFER =
+  'A hot dog off the cart \u2014 $2, mustard\u2019s free, opinions extra. [Space] again to buy.';
+export const HOT_DOG_BROKE =
+  'The dog is $2. The cart man has seen thinner wallets keep walking. No shame in it.';
+export const HOT_DOG_LINES: string[] = [
+  'You eat it standing up, because that\u2019s the rule nobody wrote down. The mustard wins.',
+  'The cart man nods like you passed something. You have eaten a dirty-water dog. The city files the paperwork.',
+  'Sauerkraut, because the man insisted. He was right. He usually is.',
+  'Lunch from a cart, eaten on a bench you sit on every day. That\u2019s the whole city in one sentence.',
+];
+
+/** THE ALLEY — the hidden corner between the pizza joint and Fade King.
+ *  Some days the cat is in. (Station: the bulletin board\u2019s lost gray,
+ *  \u201Canswers to Station or faster to a can of tuna.\u201D) */
+export const ALLEY_NOTES: string[] = [
+  'A dead bulb, a trash bag, a quiet brick canyon. The block\u2019s off hours live back here.',
+  'Two green eyes at the back wall \u2014 gray, unbothered, gone before you can check the collar. Station, maybe. Do not chase.',
+  'Someone chalked a hopscotch grid back here, half faded. The alley has younger tenants than it lets on.',
+  'The steam grate is warm and the cat-sized hollow beside it is empty, recently. You miss her by minutes, again.',
+];
+
+/** THE HALF-COURT — free, repeatable, deterministic. The hoop keeps score
+ *  in notes, not UI. */
+export const COURT_MAKE: string[] = [
+  'Off the backboard and through \u2014 the net that isn\u2019t there still swishes.',
+  'Clean. The rim doesn\u2019t move. Somewhere a man on a bench nods without looking up.',
+  'It rolls the rim\u2019s whole diameter and drops. The crowd is three pigeons and they go wild.',
+  'One more. The court starts keeping your secret: you might be okay at this.',
+];
+export const COURT_MISS: string[] = [
+  'Front iron. The ball bounces out like it has somewhere else to be.',
+  'Short. The free-throw line judges you in silence. Next one\u2019s yours.',
+];
+export const COURT_STREAK_NOTE =
+  'That\u2019s three in a row. The hoop has nothing to say, but the pole heard it.';
+
+/** DO A LOAD — the laundromat\u2019s near washer, $3, when the story isn\u2019t
+ *  using the bay. Same machine Sal runs on wash day. */
+export const FREE_WASH_PRICE = 3;
+export const FREE_WASH_OFFER =
+  'The near washer\u2019s mouth is open \u2014 one load, $3. [Space] again to feed it.';
+export const FREE_WASH_BROKE =
+  'A load is $3. The basket keeps its opinions to itself.';
+export const FREE_WASH_RUNNING =
+  'The drum\u2019s already turning. Sal says a watched washer never spins \u2014 come back in a minute.';
+export const FREE_WASH_NOTES: string[] = [
+  'The drum stops. Warm towels, folded badly, carried home like treasure. Three dollars, honestly spent.',
+  'Spin\u2019s done. The socks came back with opinions about the dryer but everything\u2019s clean. The block smells like a laundromat in a good way.',
+  'Done. You fold the load on your knees right there by the machine, because that\u2019s how it\u2019s done.',
+];
+
+// ------------------------------------------------------ the walkers speak ----
+// Phase 4 (Doc 37 §3E): optional conversations with the block's ambient
+// walkers, through the same registry as everything else. One line a day per
+// neighbor (the byDay rotation), anonymous-neighbor voices per Doc 04 —
+// no names, no backstories, just people on their own schedules. A player
+// can play all four days without pressing a single one of these.
+
+export const WALKER_CHAT: string[][] = [
+  [ // the commuter — four loops a day, the 7:42 waits for nobody
+    '\u201CMorning.\u201D He tips a cap he isn\u2019t wearing. The crosswalk takes him.',
+    '\u201CStill got the corner. Good.\u201D He\u2019s already three steps gone.',
+    '\u201CRush hour\u2019s a state of mind. Mine is caffeinated.\u201D He means your cart.',
+    '\u201CSee you tomorrow. Same sidewalk. It\u2019s a good system.\u201D',
+  ],
+  [ // the window shopper — she knows every pane on the block
+    '\u201CRosa restocked the mangoes. I\u2019m just looking. I\u2019m always just looking.\u201D',
+    '\u201CThat barber pole\u2019s been spinning since the seventies. The block\u2019s metronome.\u201D',
+    '\u201CWindow shopping is free. The window knows me by now.\u201D',
+    '\u201CBest corner in the city, right here. The poll had one respondent. It was me.\u201D',
+  ],
+  [ // the south-side local — laundry Tuesdays, opinions daily
+    '\u201CSal\u2019s machine hums in B-flat. Been meaning to tell him for a year.\u201D',
+    '\u201CThe cart man waves with the tongs. Health code says no. Friendship says yes.\u201D',
+    '\u201CTwelve trees on this block. I counted. Somebody had to.\u201D',
+    '\u201CYou think the pigeons are random? Nothing out here is random.\u201D',
+  ],
+];
+
+// ----------------------------------------------------- the block remembers ----
+// Phase 5 (Doc 37 §3F): choices outside the story leave a mark. Each memory
+// has a threshold (`at` — cumulative, persisted, Save-v1-safe); once a
+// counter reaches it, the repeat interaction's line changes to show the
+// block noticed. Pure data — `withMemory` in interactionDefs picks.
+
+export interface MemoryLine {
+  /** Cumulative count at which the memory starts surfacing. */
+  at: number;
+  /** What gets said once the block has noticed. */
+  line: string;
+}
+
+export const MEMORY_LINES: Record<'shelf' | 'dog' | 'trim' | 'wash' | 'hoop', MemoryLine> = {
+  shelf: {
+    at: 3,
+    line: 'Rosa has your bag packed before the door chime settles. \u201CThe usual,\u201D she says, and it\u2019s not a question.',
+  },
+  dog: {
+    at: 3,
+    line: '\u201CThe usual?\u201D He\u2019s already reaching. The block has learned your order.',
+  },
+  trim: {
+    at: 2,
+    line: 'He sees you coming and spins the chair with his foot. Regular rules now \u2014 no words needed.',
+  },
+  wash: {
+    at: 2,
+    line: 'Your machine, by popular demand of nobody in particular. It just knows you now.',
+  },
+  hoop: {
+    at: 5,
+    line: 'The pole has stopped counting your makes out loud. That\u2019s how you know it respects you.',
+  },
+};

@@ -94,7 +94,9 @@ export type Effect =
   | { kind: 'apron-clean' }
   | { kind: 'permit-offer' }
   | { kind: 'permit-filed' }
-  | { kind: 'persist' };
+  | { kind: 'persist' }
+  | { kind: 'shelf-deplete'; id: string }
+  | { kind: 'free-wash-start' };
 
 export class GameState {
   step: Step = Step.MEET_ROSA;
@@ -126,6 +128,17 @@ export class GameState {
   stoolUp = false;      // the Day 3 purchase
   stoolConfirm = false; // the awning-style confirm gate
   posterSeen = false;
+  /** Transient (never saved): the interaction id whose offer is on the
+   *  table — the awning/stool/permit confirm-gate pattern, generalized for
+   *  the free-roam shelf (Doc 37 §3C). First press offers, second buys. */
+  buyConfirm: string | null = null;
+  /** Freshly cut at Fade King today (docs/38). TRANSIENT — never saved; a
+   *  haircut is a morning, not a possession. The save-v1 shape is untouched
+   *  by construction: this field is simply not serialized. */
+  trimToday = false;
+  /** Transient shelf units for the free-roam shop (never saved). One unit
+   *  per SKU each morning; a successful purchase consumes one. */
+  shelfStock: Record<string, number> = { mango: 1, coffee: 1, bread: 1 };
   // ---- Day 4 ----
   mapGiven = false;       // the Map changed hands
   strangerMet = false;    // you said the thing Rosa said
@@ -139,6 +152,15 @@ export class GameState {
   apronClean = false;     // the wash finished on the Game's clock
   permitFiled = false;    // the application went in — permanent, like the stool
   permitConfirm = false;  // the awning-style confirm gate
+  // ---- the block remembers (Doc 37 §3F) — cumulative free-roam choices ----
+  // Persisted as OPTIONAL save fields (save stays v1 — old saves parse
+  // unchanged, missing reads as 0; see Save.ts migration note). These are
+  // the "choices outside the main story" the block surfaces as memories.
+  shelfBuys = 0;
+  dogBuys = 0;
+  trims = 0;
+  washes = 0;
+  hoopMakes = 0;
 
   get isDay2(): boolean {
     return this.day >= 2;
@@ -180,44 +202,39 @@ export class GameState {
     return [{ kind: 'money' }];
   }
 
-  isRelevant(id: string): boolean {
-    switch (id) {
-      case 'rosa':
-        return this.step === Step.MEET_ROSA || (this.isDay2 && this.step <= Step.D2_CLIMB2)
-          || (this.isDay3 && this.step >= Step.D3_WAKE && this.step <= Step.D3_CLIMB3)
-          || (this.isDay4 && this.step >= Step.D4_WAKE && this.step <= Step.D4_MAP);
-      case 'kid':
-        return this.step === Step.D3_KIDDOWN && !this.kidDown;
-      case 'poster':
-        return this.step === Step.D3_POSTER;
-      case 'stranger':
-        return this.step === Step.D4_STRANGER
-          || (this.step === Step.D4_MAP && this.strangerAtCart);
-      case 'laundry':
-        return this.step === Step.D4_LAUNDRY || this.step === Step.D4_PERMIT;
-      case 'permit':
-        return this.step === Step.D4_PERMIT;
-      case 'counter':
-        return this.step === Step.RUSH;
-      case 'idris':
-        return this.step === Step.D2_IDRIS && this.idrisArrived;
-      case 'stoop':
-        return this.step === Step.D2_DELIVER;
-      case 'rail':
-        return this.step === Step.POSTCARD || this.step === Step.D2_POSTCARD || this.step === Step.D3_POSTCARD
-          || this.step === Step.D4_POSTCARD
-          || (this.step === Step.DONE && this.lingerStage >= 1);
-      case 'cart':
-        if (this.step === Step.CLAIM_CART || this.step === Step.SOLO || this.step === Step.D2_LUNCH
-          || this.step === Step.D3_RUSH || this.step === Step.D3_STOOL
-          || this.step === Step.D4_RUSH) return true;
-        return (this.isDay2 && this.step >= Step.D2_WAKE && this.step < Step.D2_POSTCARD)
-          || (this.isDay3 && this.step >= Step.D3_WAKE && this.step < Step.D3_POSTCARD)
-          || (this.isDay4 && this.step >= Step.D4_WAKE && this.step < Step.D4_POSTCARD);
-      default:
-        return id.startsWith('item_') && this.step === Step.COLLECT;
+  /** Morning (and post-errand) restock — one unit per shelf SKU. */
+  restockShelfStock(): void {
+    this.shelfStock = { mango: 1, coffee: 1, bread: 1 };
+  }
+
+  shelfUnits(id: string): number {
+    return this.shelfStock[id] ?? 0;
+  }
+
+  /** Consume one shelf unit after money already checked. Returns true if now empty. */
+  consumeShelfUnit(id: string): boolean {
+    const n = this.shelfStock[id] ?? 0;
+    if (n <= 0) return true;
+    this.shelfStock[id] = n - 1;
+    return this.shelfStock[id] <= 0;
+  }
+
+  /** A free-roam choice was made — the block keeps count (Doc 37 §3F).
+   *  Counters are cumulative across days, persisted at the day-end save. */
+  recordChoice(kind: 'shelf' | 'dog' | 'trim' | 'wash' | 'hoop'): void {
+    switch (kind) {
+      case 'shelf': this.shelfBuys += 1; break;
+      case 'dog': this.dogBuys += 1; break;
+      case 'trim': this.trims += 1; break;
+      case 'wash': this.washes += 1; break;
+      case 'hoop': this.hoopMakes += 1; break;
     }
   }
+
+  /** Whether an interaction is currently offerable moved into the registry
+   *  (Doc 37 §3B): each interaction owns its `enabled` gate. The old
+   *  per-id switch lived here; game/interactionDefs.ts is its 1:1 port and
+   *  the E2E driver is its specification. */
 
   tryRosa(): Effect[] {
     if (this.step === Step.MEET_ROSA) {
@@ -649,6 +666,11 @@ export class GameState {
       stool: this.stoolUp,
       map_given: this.mapGiven,
       permit: this.permitFiled,
+      shelf_buys: this.shelfBuys,
+      dog_buys: this.dogBuys,
+      trims: this.trims,
+      washes: this.washes,
+      hoop_makes: this.hoopMakes,
     };
   }
 }

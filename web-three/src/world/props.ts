@@ -35,6 +35,51 @@ export class MatBank {
   }
 }
 
+// ---- sign boards (W0 draw-call pass) -------------------------------------
+// The old signs were ONE box wearing a 6-material array (4 plain slots for
+// the edges, 2 face slots for the text) — three.js pays one draw call per
+// material GROUP, so every sign on the block cost 6 calls (18 signs ≈ 108
+// calls, measured). A board is now: a plain box (ONE shared bg material —
+// the static bake merges the edges of every sign in a district) + two thin
+// textured planes (front/back). Two calls per sign, same look.
+
+/** What the World's sign factory returns: the unique face material (canvas
+ *  texture) and the SHARED plain material for the board's edges. */
+export interface SignPair { face: THREE.MeshLambertMaterial; plain: THREE.MeshLambertMaterial }
+export type SignPairFactory = (text: string, w: number, h: number, bg: number, fg: number, px: number) => SignPair;
+
+/** A sign board: plain box + two textured faces. `faces 'z'` = text on the
+ *  ±z faces (wall signs); `'x'` = text on the ±x faces (blade signs). */
+export function makeSignBoard(
+  sx: number, sy: number, sz: number,
+  pair: SignPair,
+  faces: 'z' | 'x' = 'z',
+): THREE.Group {
+  const g = new THREE.Group();
+  const box = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), pair.plain);
+  g.add(box);
+  if (faces === 'z') {
+    const plane = new THREE.PlaneGeometry(sx, sy);
+    const front = new THREE.Mesh(plane, pair.face);
+    front.position.z = sz / 2 + 0.004;
+    const back = new THREE.Mesh(plane, pair.face);
+    back.position.z = -sz / 2 - 0.004;
+    back.rotation.y = Math.PI;
+    g.add(front, back);
+  } else {
+    // ±x faces of a box measure (sz × sy), not (sx × sy)
+    const plane = new THREE.PlaneGeometry(sz, sy);
+    const east = new THREE.Mesh(plane, pair.face);
+    east.rotation.y = Math.PI / 2;
+    east.position.x = sx / 2 + 0.004;
+    const west = new THREE.Mesh(plane, pair.face);
+    west.rotation.y = -Math.PI / 2;
+    west.position.x = -sx / 2 - 0.004;
+    g.add(east, west);
+  }
+  return g;
+}
+
 /** Lazily-created shared geometries — identical trees share one sphere. */
 const geo = {
   sphere: new THREE.SphereGeometry(1, 9, 7),
@@ -44,6 +89,10 @@ const geo = {
   cyl: new THREE.CylinderGeometry(0.5, 0.5, 1, 10),
   cone: new THREE.ConeGeometry(0.5, 1, 8),
 };
+
+/** The three tree geometries, exported for World's instanced tree rows —
+ *  new-row canopies ARE the same shapes as makeTree's, one instance each. */
+export const SHARED_GEOS = { sphere: geo.sphere, trunk: geo.trunk, cone: geo.cone };
 
 function mesh(g: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number): THREE.Mesh {
   const out = new THREE.Mesh(g, m);
@@ -211,7 +260,7 @@ export function makeHydrant(bank: MatBank): THREE.Group {
  *  posts, and a raised sign. The stairs themselves are a box we DO collide —
  *  nobody walks into the earth. */
 export function makeSubwayEntrance(
-  bank: MatBank, sign: (text: string, w: number, h: number, bg: number, fg: number, px: number) => THREE.Material | THREE.Material[],
+  bank: MatBank, sign: SignPairFactory,
 ): THREE.Group {
   const iron = bank.get(PAL_INK);
   const g = new THREE.Group();
@@ -225,15 +274,17 @@ export function makeSubwayEntrance(
   }
   // posts + sign
   for (const sx of [-1.3, 1.3]) g.add(unitBox(iron, 0.09, 2.6, 0.09, sx, 1.3, -1.4));
-  const signMesh = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.7, 0.14), sign('SUBWAY', 512, 128, PAL_TEAL, PAL_CREAM, 64));
+  const signMesh = makeSignBoard(2.9, 0.7, 0.14, sign('SUBWAY', 512, 128, PAL_TEAL, PAL_CREAM, 64));
   signMesh.position.set(0, 2.7, -1.4);
   g.add(signMesh);
   // the F bullet rides the WEST POST, not the air beside it — the first
   // draft parked it 0.25 m past the post's edge and oblique angles turned
   // it into a floating white oval over the plaza (env-pass six found it
   // probing a stray pixel). Back face embedded 15 mm into the post: bolted,
-  // not glued to its silhouette.
-  const bullet = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.1, 16), sign('F', 64, 64, PAL_CREAM, PAL_INK, 44));
+  // not glued to its silhouette. A tiny disc — the F bullet is a plain
+  // canvas-texture box face, not a board (one call, not worth two planes).
+  const fPair = sign('F', 64, 64, PAL_CREAM, PAL_INK, 44);
+  const bullet = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.1, 16), fPair.face);
   bullet.rotation.x = Math.PI / 2;
   bullet.position.set(-1.3, 2.0, -1.48);
   g.add(bullet);
@@ -267,15 +318,15 @@ export function makeBench(bank: MatBank): THREE.Group {
   return g;
 }
 
-export function makeBusStop(bank: MatBank, sign: (text: string, w: number, h: number, bg: number, fg: number, px: number) => THREE.Material | THREE.Material[]): THREE.Group {
+export function makeBusStop(bank: MatBank, sign: SignPairFactory): THREE.Group {
   const g = new THREE.Group();
   const pole = unitCyl(bank.get(PAL_INK), 0.045, 3.2, 0, 1.6, 0);
   pole.castShadow = true;
   g.add(pole);
-  const s = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.08), sign('BUS', 128, 96, PAL_CREAM, PAL_INK, 44));
+  const s = makeSignBoard(0.7, 0.5, 0.08, sign('BUS', 128, 96, PAL_CREAM, PAL_INK, 44));
   s.position.set(0, 3.0, 0);
   g.add(s);
-  const chip = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.16, 0.08), sign('M15', 96, 32, PAL_TEAL, PAL_CREAM, 26));
+  const chip = makeSignBoard(0.7, 0.16, 0.08, sign('M15', 96, 32, PAL_TEAL, PAL_CREAM, 26));
   chip.position.set(0, 2.62, 0);
   g.add(chip);
   return g;
@@ -311,35 +362,58 @@ export function makeACUnit(bank: MatBank): THREE.Mesh {
   return m;
 }
 
-/** A brownstone entrance: stoop steps, low railings, a door with a cornice. */
-export function makeBrownstoneStoop(bank: MatBank, doorColor: number): THREE.Group {
+/** A brownstone entrance: stoop steps, low railings, a door with a cornice.
+ *  `tall` is the GRB row's high stoop (docs/40 §4): six risers + landing —
+ *  each riser still inside the walker's 0.35 step tolerance, so the door
+ *  stays climbable; the stoop just owns 2.4 m of sidewalk like the real
+ *  rows do. */
+export function makeBrownstoneStoop(bank: MatBank, doorColor: number, tall = false): THREE.Group {
   const stone = bank.get(0xc9b8a6);
   const iron = bank.get(PAL_INK);
   const g = new THREE.Group();
-  // three risers up to the door (all inside the walker's 0.35 step tolerance)
-  g.add(unitBox(stone, 1.7, 0.11, 0.5, 0, 0.055, 0.75));
-  g.add(unitBox(stone, 1.7, 0.2, 0.5, 0, 0.1, 0.25));
-  g.add(unitBox(stone, 1.7, 0.3, 0.55, 0, 0.15, -0.3));
+  if (!tall) {
+    // three risers up to the door (all inside the walker's 0.35 step tolerance)
+    g.add(unitBox(stone, 1.7, 0.11, 0.5, 0, 0.055, 0.75));
+    g.add(unitBox(stone, 1.7, 0.2, 0.5, 0, 0.1, 0.25));
+    g.add(unitBox(stone, 1.7, 0.3, 0.55, 0, 0.15, -0.3));
+  } else {
+    // six risers + landing: landing top y 0.72, then 0.12-per-riser steps
+    // descending toward the street (run 0.24 each — real brownstone pitch)
+    g.add(unitBox(stone, 1.7, 0.72, 0.9, 0, 0.36, -0.35)); // the landing
+    for (let i = 0; i < 6; i++) {
+      const h = 0.72 - i * 0.12;
+      g.add(unitBox(stone, 1.7, h, 0.24, 0, h / 2, 0.22 + i * 0.24));
+    }
+  }
   // low iron railings
   for (const sx of [-0.82, 0.82]) {
     const rail = new THREE.Group();
-    rail.add(unitBox(iron, 0.05, 0.85, 0.05, 0, 0.42, 1.0));
-    rail.add(unitBox(iron, 0.05, 1.0, 0.05, 0, 0.5, -0.3));
-    rail.add(unitBox(iron, 0.05, 0.05, 1.35, 0, 0.85, 0.35));
+    if (tall) {
+      // a newel at the landing + the rake following the stairs down
+      rail.add(unitBox(iron, 0.05, 1.7, 0.05, 0, 0.85, -0.8));
+      for (let i = 0; i < 4; i++) {
+        rail.add(unitBox(iron, 0.05, 0.05, 0.36, 0, 0.88 - i * 0.16, 0.3 + i * 0.36));
+      }
+    } else {
+      rail.add(unitBox(iron, 0.05, 0.85, 0.05, 0, 0.42, 1.0));
+      rail.add(unitBox(iron, 0.05, 1.0, 0.05, 0, 0.5, -0.3));
+      rail.add(unitBox(iron, 0.05, 0.05, 1.35, 0, 0.85, 0.35));
+    }
     rail.position.x = sx;
     g.add(rail);
   }
-  const door = unitBox(bank.get(doorColor), 1.05, 2.3, 0.1, 0, 1.45, -0.62);
+  const doorY = tall ? 0.72 : 0;
+  const door = unitBox(bank.get(doorColor), 1.05, 2.3, 0.1, 0, 1.45 + doorY, -0.62);
   g.add(door);
-  g.add(unitBox(stone, 1.3, 0.18, 0.16, 0, 2.72, -0.6)); // door cornice
-  g.add(unitBox(bank.get(0xd9c3a5), 0.18, 0.18, 0.06, 0.38, 1.5, -0.55)); // knob chip
+  g.add(unitBox(stone, 1.3, 0.18, 0.16, 0, 2.72 + doorY, -0.6)); // door cornice
+  g.add(unitBox(bank.get(0xd9c3a5), 0.18, 0.18, 0.06, 0.38, 1.5 + doorY, -0.55)); // knob chip
   g.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
   return g;
 }
 
 /** A storefront: display window, column, awning, and a real sign. */
 export function makeStorefront(
-  bank: MatBank, sign: (text: string, w: number, h: number, bg: number, fg: number, px: number) => THREE.Material | THREE.Material[],
+  bank: MatBank, sign: SignPairFactory,
   text: string, awningColor: number, width: number,
 ): THREE.Group {
   const g = new THREE.Group();
@@ -360,7 +434,7 @@ export function makeStorefront(
   awn.rotation.x = 0.32;
   awn.castShadow = true;
   g.add(awn);
-  const s = new THREE.Mesh(new THREE.BoxGeometry(width - 0.6, 0.62, 0.12), sign(text, Math.round(width * 128), 96, PAL_GOLD, PAL_INK, 52));
+  const s = makeSignBoard(width - 0.6, 0.62, 0.12, sign(text, Math.round(width * 128), 96, PAL_GOLD, PAL_INK, 52));
   s.position.set(0, 3.06, 0.22);
   g.add(s);
   return g;
@@ -383,25 +457,473 @@ export function makeStool(bank: MatBank): THREE.Group {
   return g;
 }
 
-/** A delivery van — box body, cab, and one honest company-less panel. */
-export function makeVan(bank: MatBank): THREE.Group {
+/** A delivery van — "GOLDEN ORCHARD PRODUCE CO.", a believable New York
+ *  box truck parked on the north curb (nose west, with westbound traffic).
+ *
+ *  Design notes (Doc 04 law: palette only, banked materials, honest parts):
+ *    - Silhouette: cab-over nose + raised cargo box on visible chassis rails
+ *      + exposed rear wheels with fenders and mud flaps. The raised-box /
+ *      low-nose profile is what makes a box truck read as a delivery vehicle
+ *      at gameplay distance — not decorations.
+ *    - Front vs rear, instantly: headlights + grille + big windshield against
+ *      coral taillights + double rear doors with hinges, handles, ICC step
+ *      bumper and a license plate.
+ *    - Branding: a gold/ink sign panel on both flanks and across the rear
+ *      doors — the same gold-with-ink-letters family as the bodega's signs,
+ *      so the van looks like it delivers TO this block (Rosa's produce,
+ *      plausibly). `sign` is the World's canvas-texture factory; optional so
+ *      tests can build a plain van.
+ *    - Envelope: the body spans exactly the declared collider (4.4 × 1.95,
+ *      World.ts) — the old build left 0.7 m of invisible wall east of the
+ *      tailgate. Mirrors are the only proud parts (~7 cm past the box), and
+ *      the player capsule is kept 0.35 m off the collider face, so nothing
+ *      clips. Wheels: manhole-dark tyres, stone rims, ink hubs — the sedan's
+ *      material family.
+ *    - Draw calls: every color here already exists somewhere on the street,
+ *      so bakeStatics merges the van's parts into the existing per-tile
+ *      batches; the three sign meshes (canvas materials, never baked) are
+ *      the van's only dedicated draw calls. */
+export function makeVan(
+  bank: MatBank,
+  sign?: SignPairFactory,
+): THREE.Group {
   const g = new THREE.Group();
-  const bodyCol = bank.get(0xb9b1a6);
-  const mk = (sx: number, sy: number, sz: number, x: number, y: number, z: number, m: THREE.Material = bodyCol) => {
+  g.name = 'delivery_van';
+  const body = bank.get(0xb9b1a6);   // PAL.walk — the van's work clothes
+  const ink = bank.get(PAL_INK);     // trim, bumpers, hardware, tyres' hubs
+  const dark = bank.get(0x2b2730);   // PAL.manhole — tyres, chassis, grille
+  const glass = bank.get(0x3b3346);  // PAL.windowDim — all glazing
+  const stone = bank.get(0xe8e4dc);  // PAL.stone — wheel rims
+  const cream = bank.get(PAL_CREAM); // headlights, plate
+  const coral = bank.get(PAL_CORAL); // taillights
+  const gold = bank.get(PAL_GOLD);   // marker lights (and the sign panels)
+  const seam = bank.get(0x9a938c);   // AC-unit grey — panel lines, rub rail
+  const solid = (sx: number, sy: number, sz: number, x: number, y: number, z: number, m: THREE.Material, cast = true) => {
     const b = unitBox(m, sx, sy, sz, x, y, z);
-    b.castShadow = true;
+    b.castShadow = cast;
     g.add(b);
+    return b;
   };
-  mk(2.9, 1.5, 1.9, 0.2, 1.25, 0);           // cargo box
-  mk(1.1, 1.05, 1.8, 1.9, 1.0, 0);           // cab
-  mk(0.9, 0.5, 1.6, 1.95, 1.5, 0, bank.get(0x3b3346)); // windshield band
-  mk(2.9, 0.1, 1.7, 0.2, 2.03, 0);           // roof
-  for (const sx of [-1.0, 1.35]) {
-    for (const sz of [-0.85, 0.85]) {
-      const w = unitCyl(bank.get(0x2b2730), 0.34, 0.2, sx, 0.34, sz);
-      w.rotation.x = Math.PI / 2;
-      g.add(w);
+  const wheel = (r: number, w: number, x: number, z: number) => {
+    const tyre = unitCyl(dark, r, w, x, r, z);
+    tyre.rotation.x = Math.PI / 2;
+    tyre.castShadow = true;
+    g.add(tyre);
+    const rim = unitCyl(stone, r * 0.47, w + 0.02, x, r, z);
+    rim.rotation.x = Math.PI / 2;
+    g.add(rim);
+    const hub = unitCyl(ink, r * 0.15, w + 0.035, x, r, z);
+    hub.rotation.x = Math.PI / 2;
+    g.add(hub);
+  };
+
+  // ---- cab (nose at local +x; cab-over: windshield is the front wall) ----
+  solid(1.68, 0.88, 1.85, 1.36, 0.86, 0, body);            // cab body 0.42–1.30
+  solid(1.72, 0.10, 1.90, 1.34, 1.95, 0, body);            // cab roof → 2.00
+  solid(0.065, 0.62, 1.70, 2.1725, 1.56, 0, glass);        // windshield band (5 mm proud of the cab face — no coplanar z-fight)
+  solid(0.075, 0.09, 1.72, 2.175, 1.90, 0, ink);           // windshield header (7.5 mm proud: real trim)
+  solid(0.075, 0.12, 1.70, 2.175, 1.18, 0, ink);           // dash/cowl band under the glass
+  for (const sz of [-0.875, 0.875]) solid(0.08, 0.68, 0.09, 2.175, 1.56, sz, body); // A-pillars (swallow the glass edge)
+  for (const sz of [-0.925, 0.925]) {
+    solid(0.55, 0.45, 0.04, 1.30, 1.55, sz - 0.005, glass, false); // cab side windows
+    solid(0.02, 0.75, 0.02, 0.98, 1.00, sz + 0.01, ink, false); // door seam
+    solid(0.10, 0.03, 0.03, 1.12, 1.18, sz + 0.015, ink, false); // door handle
+    solid(0.05, 0.04, 0.14, 2.05, 1.62, sz * 1.045, ink, false); // mirror arm
+    solid(0.06, 0.22, 0.03, 2.05, 1.60, sz * 1.093, body, false); // mirror head
+  }
+  solid(0.065, 0.28, 1.50, 2.1725, 0.86, 0, dark);         // grille (5 mm proud — no coplanar z-fight)
+  for (const sz of [-0.68, 0.68]) solid(0.065, 0.16, 0.30, 2.1725, 0.62, sz, cream); // headlights (proud)
+  solid(0.14, 0.20, 1.95, 2.13, 0.30, 0, ink);             // front bumper
+  for (const sz of [-0.80, 0.80]) {                        // front fender lips (kiss the tyre tops)
+    solid(0.80, 0.05, 0.10, 1.50, 0.70, sz * 1.1, body, false);
+    wheel(0.34, 0.22, 1.50, sz);
+  }
+
+  // ---- cargo box (raised: 0.97–2.22, sits on rails above the rear axle) ----
+  solid(2.62, 1.25, 1.95, -0.87, 1.595, 0, body);          // box body
+  solid(2.70, 0.05, 2.00, -0.88, 2.245, 0, body);          // roof cap → 2.27
+  solid(2.55, 0.20, 0.36, -0.75, 0.62, 0, dark);           // chassis rail (runs into the cab — no daylight gap)
+  for (const sx of [-1.55, -0.55]) {                       // vertical panel seams
+    for (const sz of [-0.965, 0.965]) solid(0.025, 1.15, 0.02, sx, 1.60, sz, seam, false);
+  }
+  for (const sz of [-0.965, 0.965]) solid(2.56, 0.08, 0.02, -0.88, 1.06, sz, seam, false); // rub rail
+  for (const sz of [-0.6, 0, 0.6]) solid(0.06, 0.05, 0.09, 0.40, 2.28, sz, gold, false);   // roof markers
+
+  // ---- rear: double doors, hardware, lights, ICC step, plate ----
+  for (const sz of [-0.4675, 0.4675]) {
+    solid(0.03, 1.16, 0.90, -2.185, 1.60, sz, body);       // door L/R (proud to -2.20)
+    for (const hy of [1.15, 1.60, 2.05]) solid(0.03, 0.10, 0.05, -2.19, hy, sz * 2.0 + (sz > 0 ? -0.03 : 0.03), ink, false); // hinges at outer edges
+    solid(0.025, 0.04, 0.16, -2.20, 1.32, sz - Math.sign(sz) * 0.3675, ink, false); // handles at the gap
+  }
+  solid(0.03, 1.16, 0.03, -2.19, 1.60, 0, ink, false);     // door gap
+  for (const sz of [-0.83, 0.83]) solid(0.05, 0.26, 0.12, -2.175, 0.84, sz, coral); // taillights (tops touch the box underside)
+  solid(0.12, 0.16, 1.95, -2.13, 0.34, 0, ink);            // ICC step bumper
+  solid(0.02, 0.16, 0.34, -2.19, 0.50, 0, cream, false);   // license plate (sits on the ICC bumper)
+  for (const sz of [-0.86, 0.86]) {                        // rear fenders (overlap the tyre tops) + flaps
+    solid(0.85, 0.05, 0.10, -1.35, 0.74, sz, body, false);
+    solid(0.04, 0.30, 0.26, -1.73, 0.35, sz * 0.907, ink, false);
+    wheel(0.36, 0.26, -1.35, sz * 0.884);
+  }
+
+  // ---- branding: gold flanks + rear-door panel (never baked — canvas) ----
+  if (sign) {
+    for (const sz of [-0.99, 0.99]) {
+      const panel = makeSignBoard(2.30, 0.62, 0.04, sign('GOLDEN ORCHARD\nPRODUCE CO \u00b7 NEW YORK, NY', 768, 208, PAL_GOLD, PAL_INK, 56));
+      panel.position.set(-0.90, 1.62, sz);
+      panel.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
+      g.add(panel);
+    }
+    const rear = makeSignBoard(0.66, 0.56, 0.04, sign('GOLDEN\nORCHARD', 256, 224, PAL_GOLD, PAL_INK, 66));
+    rear.rotation.y = -Math.PI / 2; // text face out through the tailgate
+    rear.position.set(-2.22, 1.74, 0);
+    rear.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
+    g.add(rear);
+  }
+  return g;
+}
+// ---------------------------------------------------------------- Doc 38 ----
+// The expanded block (Doc 37 §3A): barbershop pole, the hoop, the park
+// fence and its Parks-department sign, and the dirty-water dog cart. Same
+// law as everything in this file: banked materials, unit primitives, honest
+// silhouettes, no new dependencies.
+
+/** The barber pole — stacked red/white segments between ink caps. Air, like
+ *  every other pole: nothing can wedge a body against it. */
+export function makeBarberPole(bank: MatBank): THREE.Group {
+  const g = new THREE.Group();
+  const red = bank.get(0xb23a48);
+  const white = bank.get(PAL_CREAM);
+  const cap = unitCyl(bank.get(PAL_INK), 0.12, 0.07, 0, 0.44, 0);
+  g.add(cap);
+  g.add(unitCyl(bank.get(PAL_INK), 0.12, 0.07, 0, -0.04, 0));
+  const bands = [red, white, red, white, red];
+  for (let i = 0; i < bands.length; i++) {
+    const seg = unitCyl(bands[i], 0.095, 0.095, 0, 0.36 - i * 0.1, 0);
+    seg.castShadow = true;
+    g.add(seg);
+  }
+  g.add(unitCyl(bank.get(PAL_INK), 0.03, 0.5, 0, -0.3, 0)); // mount stub
+  return g;
+}
+
+/** The half-court hoop — pole, arm, cream backboard with an ink square, and
+ *  an honest orange rim. No net (four draw calls for something the sun eats
+ *  at golden hour is not a trade this block makes). */
+export function makeHoop(bank: MatBank): THREE.Group {
+  const g = new THREE.Group();
+  const pole = unitCyl(bank.get(PAL_INK), 0.07, 3.3, 0, 1.65, 0);
+  pole.castShadow = true;
+  g.add(pole);
+  const arm = unitBox(bank.get(PAL_INK), 0.07, 0.07, 0.42, 0, 3.05, -0.24);
+  g.add(arm);
+  const board = unitBox(bank.get(PAL_CREAM), 1.15, 0.75, 0.06, 0, 2.95, -0.02);
+  board.castShadow = true;
+  g.add(board);
+  const square = unitBox(bank.get(PAL_INK), 0.42, 0.32, 0.02, 0, 2.82, 0.02);
+  g.add(square);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.022, 8, 20), bank.get(0xd9772f));
+  rim.rotation.x = Math.PI / 2;
+  rim.position.set(0, 2.6, 0.26);
+  rim.castShadow = true;
+  g.add(rim);
+  return g;
+}
+
+/** Iron fence — rails + pickets, `len` long along local X. `h` lifts the
+ *  whole fence (the playground's 1.1 m kid-height rails per the registry;
+ *  the shipped parks keep the 0.78 default). W2 perf call (docs/47): the
+ *  0.045 m pickets stop casting — their shadows are sub-pixel noise and
+ *  they were the single biggest tri cost on the new fences; the RAILS
+ *  still cast, so the fence line still reads on the ground. */
+export function makeFence(bank: MatBank, len: number, h = 0.78): THREE.Group {
+  const g = new THREE.Group();
+  const iron = bank.get(PAL_INK);
+  const s = h / 0.78;
+  const railA = unitBox(iron, len, 0.05, 0.05, 0, 0.72 * s, 0);
+  const railB = unitBox(iron, len, 0.05, 0.05, 0, 0.4 * s, 0);
+  railA.castShadow = railB.castShadow = true;
+  g.add(railA, railB);
+  const n = Math.max(2, Math.round(len / 0.22));
+  for (let i = 0; i <= n; i++) {
+    const x = -len / 2 + (len / n) * i;
+    g.add(unitBox(iron, 0.045, h, 0.045, x, h / 2, 0));
+  }
+  return g;
+}
+
+/** The Parks-department sign — dark green plate, cream letters, two posts.
+ *  Every pocket park in the city has exactly one of these. */
+export function makeParksSign(
+  bank: MatBank, sign: SignPairFactory,
+  text: string,
+): THREE.Group {
+  const g = new THREE.Group();
+  for (const sx of [-0.55, 0.55]) {
+    const post = unitCyl(bank.get(PAL_INK), 0.035, 1.5, sx, 0.75, 0);
+    post.castShadow = true;
+    g.add(post);
+  }
+  const plate = makeSignBoard(1.6, 0.5, 0.06, sign(text, 512, 160, 0x1f6f5e, PAL_CREAM, 40));
+  plate.position.set(0, 1.35, 0);
+  g.add(plate);
+  return g;
+}
+
+/** The dirty-water dog cart — teal body, warm lid, two wheels, a handle,
+ *  and the amber umbrella every corner deserves. The umbrella is a cone on
+ *  a stick: the silhouette does the work. */
+export function makeVendorCart(
+  bank: MatBank, sign: SignPairFactory,
+  text: string,
+): THREE.Group {
+  const g = new THREE.Group();
+  const body = unitBox(bank.get(PAL_TEAL), 1.5, 0.85, 0.75, 0, 0.75, 0);
+  body.castShadow = true;
+  g.add(body);
+  const lid = unitBox(bank.get(0xb9b1a6), 1.56, 0.1, 0.8, 0, 1.22, 0);
+  lid.castShadow = true;
+  g.add(lid);
+  for (const sx of [-0.55, 0.55]) {
+    const w = unitCyl(bank.get(0x2b2730), 0.26, 0.12, sx, 0.26, 0.28);
+    w.rotation.x = Math.PI / 2;
+    g.add(w);
+  }
+  g.add(unitBox(bank.get(PAL_INK), 0.05, 0.05, 0.5, 0.7, 1.0, 0.55)); // handle
+  const pole = unitCyl(bank.get(PAL_INK), 0.03, 2.1, 0.45, 1.75, -0.1);
+  g.add(pole);
+  const umbrella = new THREE.Mesh(new THREE.ConeGeometry(1.05, 0.42, 10), bank.get(0xffb85c));
+  umbrella.position.set(0.45, 2.85, -0.1);
+  umbrella.castShadow = true;
+  g.add(umbrella);
+  const s = makeSignBoard(1.3, 0.34, 0.06, sign(text, 512, 128, PAL_GOLD, PAL_INK, 36));
+  s.position.set(0, 0.95, 0.4);
+  g.add(s);
+  return g;
+}
+
+/** SUB-02 — the south control house (docs/42 §3): the cream metal-and-glass
+ *  pavilion type NYC puts on wide sidewalk corners. Twin GREEN globes (the
+ *  K's second front door — LMK-01 pairs it with the plaza's cast-iron
+ *  housing), a warm interior glow, a small SUBWAY board and the K bullet.
+ *  Registry: 6 × 3.5, h 3.4, collider carried by the caller. */
+export function makeControlHouse(bank: MatBank, sign: SignPairFactory): THREE.Group {
+  const g = new THREE.Group();
+  g.name = 'ControlHouse';
+  const cream = bank.get(PAL_CREAM);
+  const glass = bank.get(0x3b3346);
+  const body = unitBox(cream, 6, 3.0, 3.5, 0, 1.5, 0);
+  body.castShadow = true;
+  g.add(body);
+  // the glass band: three window bays on the street side (north, +z faces
+  // Kestrel) + a warm interior panel that reads after sundown
+  const warm = bank.get(0xd9c3a5);
+  for (const wx of [-1.9, 0, 1.9]) {
+    const pane = unitBox(glass, 1.5, 1.5, 0.08, wx, 1.55, 1.78);
+    g.add(pane);
+    const glow = unitBox(bank.get(0xd9c3a5), 1.3, 1.3, 0.04, wx, 1.55, 1.72);
+    glow.material = warm.clone() as THREE.MeshLambertMaterial;
+    (glow.material as THREE.MeshLambertMaterial).emissive = new THREE.Color(0xffb85c);
+    (glow.material as THREE.MeshLambertMaterial).emissiveIntensity = 0.4;
+    g.add(glow);
+  }
+  // the cornice + the roof cap
+  g.add(unitBox(bank.get(PAL_INK), 6.2, 0.16, 3.7, 0, 3.08, 0));
+  g.add(unitBox(cream, 5.6, 0.3, 3.1, 0, 3.31, 0));
+  // twin green globes on the corner posts — the K's signature (LMK-01)
+  const globeMat = bank.get(PAL_TEAL).clone() as THREE.MeshLambertMaterial;
+  globeMat.emissive = new THREE.Color(PAL_TEAL);
+  globeMat.emissiveIntensity = 0.55;
+  for (const gx of [-2.6, 2.6]) {
+    const post = unitCyl(bank.get(PAL_INK), 0.05, 0.55, gx, 3.75, 1.4);
+    g.add(post);
+    const globe = new THREE.Mesh(geo.sphere, globeMat);
+    globe.scale.setScalar(0.16);
+    globe.position.set(gx, 4.1, 1.4);
+    g.add(globe);
+  }
+  // the stair mouth on the north face + a small board
+  const mouth = unitBox(bank.get(0x241f26), 1.6, 2.2, 0.3, 0, 1.1, -1.78);
+  g.add(mouth);
+  const board = makeSignBoard(1.9, 0.5, 0.08, sign('SUBWAY', 320, 80, PAL_TEAL, PAL_CREAM, 48));
+  board.position.set(0, 2.55, -1.82);
+  g.add(board);
+  return g;
+}
+
+// ================================================================
+// W2 — Kestrel Green, the Gable Garden, the Marlow playground
+// (docs/45 §2: "new small builder, one file, banked materials". Every
+// color here is an existing scene signature — the W0 material law.)
+// ================================================================
+
+/** Kestrel Green's pergola — four posts, two beams, five open slats.
+ *  The reading park's shade. The caller collides the posts; the roof is
+ *  air you sit under, not a room. */
+export function makePergola(bank: MatBank): THREE.Group {
+  const wood = bank.get(0x8a6a4a);
+  const g = new THREE.Group();
+  for (const sx of [-1.95, 1.95]) {
+    for (const sz of [-1.2, 1.2]) {
+      const post = unitBox(wood, 0.22, 2.6, 0.22, sx, 1.3, sz);
+      post.castShadow = true;
+      g.add(post);
     }
   }
+  for (const sz of [-1.2, 1.2]) {
+    g.add(unitBox(wood, 4.5, 0.18, 0.24, 0, 2.62, sz));
+  }
+  for (let i = 0; i < 5; i++) {
+    g.add(unitBox(wood, 4.3, 0.07, 0.3, 0, 2.78, -1.2 + i * 0.6));
+  }
+  g.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
+  // the slats stop casting AFTER the blanket pass — the beams carry the
+  // shade line; slat shadows are noise (W2 perf, docs/47)
+  for (const c of g.children) {
+    if (c instanceof THREE.Mesh && Math.abs(c.position.y - 2.78) < 0.01) c.castShadow = false;
+  }
+  return g;
+}
+
+/** A raised garden bed: timber frame, soil, two seedling blobs. The
+ *  Gable Garden's four — "where the kitchens never end" made literal. */
+export function makeGardenBed(bank: MatBank, rng: () => number): THREE.Group {
+  const wood = bank.get(0x6e554e);
+  const soil = bank.get(0x4a3a30);
+  const g = new THREE.Group();
+  g.add(unitBox(wood, 1.2, 0.5, 1.6, 0, 0.25, 0));
+  g.add(unitBox(soil, 1.04, 0.08, 1.44, 0, 0.52, 0));
+  const leafA = bank.get(0x5d7d4a);
+  const leafB = bank.get(0x516e42);
+  for (let i = 0; i < 2; i++) {
+    const r = 0.16 + rng() * 0.1;
+    const b = new THREE.Mesh(SHARED_GEOS.sphere, i === 1 ? leafB : leafA);
+    b.scale.setScalar(r);
+    b.position.set(-0.22 + i * 0.44, 0.62, (rng() - 0.5) * 0.9);
+    g.add(b);
+  }
+  return g;
+}
+
+/** The garden shed — vertical boards, a metal lean-to, a latched door.
+ *  Registry: 2 × 2.4, h 2.3, at the garden's quiet corner. */
+export function makeShed(bank: MatBank): THREE.Group {
+  const wood = bank.get(0x6e554e);
+  const g = new THREE.Group();
+  g.add(unitBox(wood, 2, 2.1, 2.4, 0, 1.05, 0));
+  const roof = unitBox(bank.get(0x8f8a82), 2.3, 0.08, 2.7, 0, 2.24, 0);
+  roof.rotation.x = 0.09;
+  roof.castShadow = true;
+  g.add(roof);
+  g.add(unitBox(bank.get(0x4a3a30), 0.8, 1.75, 0.06, 0, 0.92, 1.21)); // door
+  g.add(unitBox(bank.get(0xb9b1a6), 0.1, 0.1, 0.05, 0.28, 1.0, 1.25)); // latch
+  g.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
+  return g;
+}
+
+/** Compost bin — slatted timber sides, one honest pile working inside. */
+export function makeCompostBin(bank: MatBank): THREE.Group {
+  const wood = bank.get(0x6e554e);
+  const g = new THREE.Group();
+  g.add(unitBox(bank.get(0x4a3a30), 0.82, 0.42, 0.82, 0, 0.24, 0));
+  for (const sz of [-0.43, 0.43]) g.add(unitBox(wood, 0.9, 0.07, 0.07, 0, 0.5, sz));
+  for (const sx of [-0.43, 0.43]) g.add(unitBox(wood, 0.07, 0.56, 0.9, sx, 0.28, 0));
+  g.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
+  return g;
+}
+
+/** Rain barrel with a spigot — the garden waters from the sky. */
+export function makeWaterBarrel(bank: MatBank): THREE.Group {
+  const wood = bank.get(0x6e554e);
+  const g = new THREE.Group();
+  const body = unitCyl(wood, 0.42, 0.9, 0, 0.45, 0);
+  body.castShadow = true;
+  g.add(body);
+  for (const by of [0.2, 0.72]) g.add(unitCyl(bank.get(PAL_INK), 0.435, 0.06, 0, by, 0));
+  g.add(unitBox(bank.get(0xb9b1a6), 0.07, 0.07, 0.14, 0, 0.28, 0.44)); // spigot
+  return g;
+}
+
+/** A park gate: two posts, a header, and the wings pinned open — the way
+ *  every park gate actually stands on a warm evening. Caller collides
+ *  the posts; the wings read, the gap walks. */
+export function makeParkGate(bank: MatBank, w = 1.8): THREE.Group {
+  const iron = bank.get(PAL_INK);
+  const g = new THREE.Group();
+  for (const sx of [-w / 2 - 0.12, w / 2 + 0.12]) {
+    const post = unitBox(iron, 0.14, 2.0, 0.14, sx, 1.0, 0);
+    post.castShadow = true;
+    g.add(post);
+  }
+  g.add(unitBox(iron, w + 0.5, 0.07, 0.07, 0, 2.0, 0));
+  for (const sx of [-1, 1]) {
+    const wing = makeFence(bank, w / 2);
+    wing.position.set(sx * (w / 4), 0, 0);
+    wing.rotation.y = sx * 1.25; // pinned open against the fence line
+    wing.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = false; });
+    g.add(wing);
+  }
+  return g;
+}
+
+/** The playground's swing set — a 3-bay A-frame, chains and seats hanging
+ *  still until the life pass (W4) gives the block its kids. */
+export function makeSwingSet(bank: MatBank): THREE.Group {
+  const iron = bank.get(PAL_INK);
+  const wood = bank.get(0x8a6a4a);
+  const g = new THREE.Group();
+  for (const sz of [-1.2, 1.2]) {
+    for (const sx of [-1.1, 1.1]) {
+      const leg = unitBox(iron, 0.09, 2.35, 0.09, sx, 1.1, sz);
+      leg.rotation.z = sx > 0 ? -0.28 : 0.28;
+      leg.castShadow = true;
+      g.add(leg);
+    }
+  }
+  const bar = unitBox(iron, 2.6, 0.11, 0.11, 0, 2.2, 0);
+  bar.castShadow = true;
+  g.add(bar);
+  for (let i = 0; i < 3; i++) {
+    const bx = -0.8 + i * 0.8;
+    for (const ch of [-0.22, 0.22]) {
+      g.add(unitBox(iron, 0.035, 1.55, 0.035, bx + ch, 1.38, 0)); // chains: no cast (W2 perf)
+    }
+    g.add(unitBox(wood, 0.5, 0.06, 0.22, bx, 0.56, 0));
+  }
+  return g;
+}
+
+/** Sandbox — timber rim, sand inside. Enterable by design: only the rim
+ *  blocks (the W4 kids play in it, not on it). */
+export function makeSandbox(bank: MatBank): THREE.Group {
+  const wood = bank.get(0x8a6a4a);
+  const g = new THREE.Group();
+  g.add(unitBox(bank.get(0xd9c3a5), 4, 0.05, 3, 0, 0.17, 0)); // the sand
+  for (const sz of [-1.5, 1.5]) g.add(unitBox(wood, 4, 0.3, 0.14, 0, 0.15, sz));
+  for (const sx of [-2, 2]) g.add(unitBox(wood, 0.14, 0.3, 3, sx, 0.15, 0));
+  g.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
+  return g;
+}
+
+/** Spray basin — the hydrant-summer spot, dry in October. Stone ring,
+ *  concrete bowl, a center post waiting for July. (GDD §5.5.) */
+export function makeSprayBasin(bank: MatBank): THREE.Group {
+  const stone = bank.get(0x8f8a82);
+  const conc = bank.get(0xb9b1a6);
+  const g = new THREE.Group();
+  const ring = new THREE.Mesh(new THREE.CylinderGeometry(1.55, 1.55, 0.5, 14, 1, true), stone);
+  ring.position.y = 0.25;
+  g.add(ring);
+  const floor = new THREE.Mesh(new THREE.CylinderGeometry(1.47, 1.47, 0.06, 14), conc);
+  floor.position.y = 0.1;
+  floor.receiveShadow = true;
+  g.add(floor);
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 1.05, 10), stone);
+  post.position.y = 0.55;
+  post.castShadow = true;
+  g.add(post);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.14, 0.12, 10), conc);
+  cap.position.y = 1.12;
+  cap.castShadow = true;
+  g.add(cap);
   return g;
 }

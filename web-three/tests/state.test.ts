@@ -132,40 +132,40 @@ describe('Day 1 — the exact journey (Doc 02 / Doc 10 contract)', () => {
 describe('interaction relevance (main.gd `_is_relevant`)', () => {
   it('counter only relevant during RUSH', () => {
     const s = day1ThroughRush();
-    expect(s.isRelevant('counter')).toBe(true);
+    expect(relevant(reg, s, 'counter')).toBe(true);
     const after = day1Served();
-    expect(after.isRelevant('counter')).toBe(false);
+    expect(relevant(reg, after, 'counter')).toBe(false);
   });
 
   it('cart relevant at CLAIM_CART and SOLO, items only at COLLECT', () => {
     const s = day1Crossed();
-    expect(s.isRelevant('cart')).toBe(true);
-    expect(s.isRelevant('item_mango')).toBe(false);
+    expect(relevant(reg, s, 'cart')).toBe(true);
+    expect(relevant(reg, s, 'item_mango')).toBe(false);
     const c = new GameState();
     c.tryRosa();
     c.enterBodega();
-    expect(c.isRelevant('item_mango')).toBe(true);
-    expect(c.isRelevant('cart')).toBe(false);
+    expect(relevant(reg, c, 'item_mango')).toBe(true);
+    expect(relevant(reg, c, 'cart')).toBe(false);
   });
 
   it('rail relevant at POSTCARD and DONE-with-linger', () => {
     const s = day1ToClimb();
-    expect(s.isRelevant('rail')).toBe(false);
+    expect(relevant(reg, s, 'rail')).toBe(false);
     s.setStep(Step.POSTCARD);
-    expect(s.isRelevant('rail')).toBe(true);
+    expect(relevant(reg, s, 'rail')).toBe(true);
     s.setStep(Step.DONE);
-    expect(s.isRelevant('rail')).toBe(false);
+    expect(relevant(reg, s, 'rail')).toBe(false);
     s.lingerStage = 1;
-    expect(s.isRelevant('rail')).toBe(true);
+    expect(relevant(reg, s, 'rail')).toBe(true);
   });
 
   it('Day 2 idris only relevant once arrived', () => {
     const s = day1ToClimb();
     s.day = 2;
     s.setStep(Step.D2_IDRIS);
-    expect(s.isRelevant('idris')).toBe(false);
+    expect(relevant(reg, s, 'idris')).toBe(false);
     s.idrisArrived = true;
-    expect(s.isRelevant('idris')).toBe(true);
+    expect(relevant(reg, s, 'idris')).toBe(true);
   });
 });
 
@@ -244,6 +244,8 @@ describe('Day 2 — the neighborhood comes alive (Doc 22)', () => {
 });
 
 import { MAX_DAY } from '../src/core/Save';
+import { authoredRegistry, relevant } from './registryHarness';
+const reg = authoredRegistry();
 const MAX_DAY_NUMBER = MAX_DAY;
 
 describe('save snapshot rules (main.gd `_persist`)', () => {

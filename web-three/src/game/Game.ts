@@ -7,7 +7,7 @@
  */
 
 import * as THREE from 'three';
-import { GameState, Step, INTERACT_RANGE, START_MONEY, type Effect } from '../core/GameState';
+import { GameState, Step, START_MONEY, type Effect } from '../core/GameState';
 import { composeCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE_OBJECTIVE,
   D3_ORDERS, D4_ORDERS, BREWING_NOTE, STOOL_OFFER_NOTE, STOOL_UP_NOTE, D3_GOLDEN_NOTE,
   D3_CLIMB_NOTE, DAY3_BEGIN_NOTE, D4_GOLDEN_NOTE, D4_CLIMB_NOTE, DAY4_BEGIN_NOTE,
@@ -16,25 +16,31 @@ import { composeCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE_OBJECTIVE,
 import { loadSave, writeSave, type SaveData } from '../core/Save';
 import { PAL } from '../core/palette';
 import { World, phys } from '../world/World';
-import { Player } from '../player/Player';
+import { Player, lerpAngle } from '../player/Player';
 import { GameCamera } from '../camera/GameCamera';
 import { InputManager } from '../engine/Input';
 import { Tweens, type Tween } from '../engine/tweens';
-import { capsuleInBox } from '../engine/collide';
+import { capsuleInBox, moveAxisX, moveAxisZ, type Capsule } from '../engine/collide';
 import { UI } from '../ui/UI';
 import { capturePostcard, downloadPostcard } from '../postcard/PostcardCapture';
 import { updatePersonAnim, type PersonRig } from '../world/personRig';
 import { FAMILIAR_SPEED, familiarBeatForDay } from '../world/dressing';
+import { InteractionRegistry, NEVER_NEAR, type InteractionCtx } from './interactions';
+import { buildInteractions, byDay, BUS_BENCH_SEAT, PARK_BENCH_SEAT, COURT_BALL_REST, HOOP_RIM, hoopOutcome } from './interactionDefs';
+import { BENCH_SIT_NOTES, PARK_SIT_NOTES, COURT_MAKE, COURT_MISS, COURT_STREAK_NOTE, FREE_WASH_NOTES, MEMORY_LINES } from '../core/content';
 import { gameAudio } from './audio';
-
-interface Interactable {
-  id: string;
-  pos: () => { x: number; y: number; z: number };
-}
 
 /** One waypoint on the familiar face's daily walk. dwell = seconds she
  *  stands there (the nod, the word); sit/hide = what happens on arrival. */
 interface FamiliarStop { x: number; z: number; dwell?: number; sit?: boolean; hide?: boolean; note?: string }
+
+/** The bodega shelf's three stock spots — the Day-1 errand picks from these,
+ *  and the morning restock puts them back (the shop is open every day). */
+const SHELF_STOCK: Array<[id: string, x: number, y: number, z: number]> = [
+  ['mango', -18, 2.25, 19.2],
+  ['coffee', -16, 2.25, 19.2],
+  ['bread', -14, 2.25, 19.2],
+];
 
 export class Game {
   readonly state = new GameState();
@@ -68,6 +74,9 @@ export class Game {
   private waypoint: THREE.Sprite | null = null;
   private roofHidden = false;
   private climbLean = 0;
+  /** Scratch capsule for the kid's follow-walk — reused, never allocated
+   *  per frame (his physical body against the world's colliders). */
+  private readonly kidCapsule: Capsule = { x: 0, y: 0.05, z: 0, radius: 0.25, height: 1.4 };
   private checkpoint = { x: -30, y: 0.05, z: 6.2 };
   private lastPostcardUrl: string | null = null;
 
@@ -91,7 +100,12 @@ export class Game {
   private rigPos = { x: 0, y: 0, z: 0 };
   private rigLook = { x: 0, y: 0, z: 0 };
 
-  private interactables: Interactable[] = [];
+  /** Every pressable thing, declared once (Doc 37 §3B). Authored beats and
+   *  the free-roam set live side by side in one registry; nothing is wired
+   *  by scattered checks in this loop anymore. Public for the E2E/probe
+   *  harnesses. */
+  readonly registry = new InteractionRegistry();
+  private readonly ictx: InteractionCtx;
   private lastTime = performance.now();
   private running = true;
   private autotestStarted = false;
@@ -138,6 +152,10 @@ export class Game {
     // was invisible).
     this.playerVisual = this.world.buildPerson({
       jacket: PAL.gold, pants: PAL.ink, skin: 0xd9a06b, hair: PAL.ink, style: 'flat',
+      // character-quality pass: cream sneakers + a messenger strap — same
+      // boxes, but the silhouette now reads "everyday NY courier" instead
+      // of "gold rectangle", and he is recognizable from any angle
+      shoe: 0xece5d8, strap: 0x6e4a2f,
     });
     this.playerVisual.name = 'Player';
     this.cast.push(this.playerVisual);
@@ -163,23 +181,20 @@ export class Game {
     this.cast.push(this.world.sal); // Sal breathes at his counter, every day
     this.cast.push(this.world.familiar); // the familiar face breathes between her rounds
 
-    // ---------------- interactables (main.gd `_build_interactables`) --------
-    this.interactables = [
-      { id: 'rosa', pos: () => this.world.rosa.position },
-      { id: 'item_mango', pos: () => this.itemPos('mango') },
-      { id: 'item_coffee', pos: () => this.itemPos('coffee') },
-      { id: 'item_bread', pos: () => this.itemPos('bread') },
-      { id: 'counter', pos: () => ({ x: -18.5, y: 0.5, z: 13.5 }) },
-      { id: 'cart', pos: () => this.world.cartRoot.position },
-      { id: 'idris', pos: () => this.world.idris.position },
-      { id: 'stoop', pos: () => ({ x: 15, y: 0.05, z: 6.9 }) },
-      { id: 'rail', pos: () => ({ x: 12.5, y: 8.0, z: -6.8 }) },
-      { id: 'kid', pos: () => this.world.kidGround.position },
-      { id: 'poster', pos: () => ({ x: -37.6, y: 1.5, z: 7.4 }) },
-      { id: 'stranger', pos: () => this.world.stranger.position },
-      { id: 'laundry', pos: () => ({ x: -7.0, y: 1.05, z: 7.3 }) },
-      { id: 'permit', pos: () => ({ x: -4.0, y: 1.0, z: 5.8 }) },
-    ];
+    // ---------------- interactions (Doc 37 §3B — one registry) -------------
+    // Authored beats + the free-roam set, declared once in interactionDefs.
+    // The old four-place wiring (array + isRelevant + promptVerb + a switch)
+    // is folded into per-interaction records.
+    this.ictx = { state: this.state, game: this };
+    this.registry.register(...buildInteractions({
+      rosa: () => this.world.rosa.position,
+      idris: () => this.world.idris.position,
+      kid: () => this.world.kidGround.position,
+      stranger: () => this.world.stranger.position,
+      cart: () => this.world.cartRoot.position,
+      shelfItem: (id) => this.world.itemMeshes.get(id)?.position ?? NEVER_NEAR,
+      walker: (i) => this.world.walkerPos(i), // Phase 4 — live walker positions
+    }));
     this.world.addItem('mango', -18, 2.25, 19.2, PAL.amber);
     this.world.addItem('coffee', -16, 2.25, 19.2, PAL.teal);
     this.world.addItem('bread', -14, 2.25, 19.2, PAL.cream);
@@ -271,9 +286,19 @@ export class Game {
     this.world.syncCastColliders();
     // the customer at the cart owns a body too — synced fresh for this move
     this.world.syncPersonCollider(this.world.customerCollider, this.customer);
+    // Dynamic colliders sync BEFORE the walker moves (agent-2 audit, doc 35):
+    // world.update used to run after player.update, so the walker resolved
+    // against last frame's taxi box — up to 0.9 m stale at the dt clamp, and
+    // a player visibly sank into a passing cab before anything stopped them.
+    const peds: Array<{ x: number; z: number }> = [];
+    if (this.world.kidGround.visible) peds.push({ x: this.world.kidGround.position.x, z: this.world.kidGround.position.z });
+    if (this.world.stranger.visible) peds.push({ x: this.world.stranger.position.x, z: this.world.stranger.position.z });
+    if (this.world.familiar.visible) peds.push({ x: this.world.familiar.position.x, z: this.world.familiar.position.z });
+    this.world.updateDynamics(dt, this.player.capsule, peds);
     if (!this.dayFading && this.ui.nameBox.hidden) {
-      // movement
-      this.player.update(dt, inp.move);
+      // movement — paused on the bench (Doc 37 §3C: the seat holds you;
+      // physics would drag the capsule off it, so the walker simply rests)
+      if (!this.sitting) this.player.update(dt, inp.move);
     } else {
       this.player.update(dt, { x: 0, y: 0 });
     }
@@ -299,14 +324,11 @@ export class Game {
     this.cam.update(dt, this.player.capsule, inp.camTurn, inp.move, this.player.rotationY, rig?.pos, rig?.look);
     this.player.camYaw = this.cam.moveYaw;
 
-    // world life (Rule of Steam) — the taxi yields to the pedestrian AND the
-    // kid AND the stranger AND the familiar face when she's mid-crossing;
-    // trees breathe, pigeons worry about your shoes
-    const peds: Array<{ x: number; z: number }> = [];
-    if (this.world.kidGround.visible) peds.push({ x: this.world.kidGround.position.x, z: this.world.kidGround.position.z });
-    if (this.world.stranger.visible) peds.push({ x: this.world.stranger.position.x, z: this.world.stranger.position.z });
-    if (this.world.familiar.visible) peds.push({ x: this.world.familiar.position.x, z: this.world.familiar.position.z });
-    this.world.update(dt, this.player.capsule, this.duskStarted, peds);
+    // world life (Rule of Steam) — phase 2 only here: the walkers steer
+    // around the fresh player position, trees breathe, pigeons worry about
+    // your shoes. (Phase 1 — colliders + the cab, yielding to the kid AND
+    // the stranger AND the familiar face — ran before the walker.)
+    this.world.updateAmbient(dt, this.player.capsule, this.duskStarted);
     this.syncGlows();
 
     // Day 3+4: the urn runs on its own clock; the kid walks at your hip
@@ -323,6 +345,12 @@ export class Game {
         for (const e of s.completeWash()) this.applyEffect(e);
       }
     }
+    // the free-roam load (docs/38) runs on its own clock — the story wash
+    // and the $3 load never share the drum (the washer_free gate keeps out)
+    if (this.freeWashRunning) {
+      this.freeWashTimer -= dt;
+      if (this.freeWashTimer <= 0) this.finishFreeWash();
+    }
     if (s.isDay3 && s.step === Step.D3_KIDDOWN && s.kidDown && !s.kidAtCorner) {
       this.updateKidFollow(dt);
     }
@@ -338,7 +366,9 @@ export class Game {
     // waves — a tween flips those back).
     for (const actor of this.cast) {
       if (!actor.visible) continue;
-      updatePersonAnim(actor, dt, actor === this.playerVisual ? { mode: climbing ? 'climb' : 'auto' } : undefined);
+      updatePersonAnim(actor, dt, actor === this.playerVisual
+        ? { mode: this.sitting ? 'sit' : climbing ? 'climb' : 'auto' }
+        : undefined);
     }
 
     // the follow beacon — a gold chevron bobbing over whoever the objective
@@ -366,7 +396,10 @@ export class Game {
     const mm = Math.floor(s.elapsed / 60);
     const ss = Math.floor(s.elapsed % 60);
     this.ui.setTimer(`${mm}:${ss.toString().padStart(2, '0')}`);
-    this.ui.setPrompt(this.nearestInteractableId(), s);
+    const near = this.nearestInteraction();
+    this.ui.setPrompt(near ? near.prompt(s, this.ictx) : null);
+    // an offer you walked away from is an offer you declined
+    if (s.buyConfirm !== null && near?.id !== s.buyConfirm) s.buyConfirm = null;
 
     this.renderer.render(this.world.scene, this.cam.camera);
   }
@@ -492,116 +525,188 @@ export class Game {
     this.player.capsule.z = this.checkpoint.z;
   }
 
-  // ------------------------------------------------------------------ interact
+  // ------------------------------------------------------------------ sitting
+  // Doc 37 §3C — the bench is furniture, not scenery. While seated the
+  // capsule parks on the seat and the walker's physics rests (a seat is not
+  // a ladder: nothing should pull you off it); standing restores the exact
+  // spot you rose from. The rig folds via its own 'sit' pose (personRig).
 
-  private itemPos(id: string): { x: number; y: number; z: number } {
-    const m = this.world.itemMeshes.get(id);
-    return m ? m.position : { x: 0, y: -100, z: 0 }; // collected items are never nearest
+  private sitReturn: { x: number; z: number; rot: number } | null = null;
+
+  get sitting(): boolean {
+    return this.sitReturn !== null;
   }
 
-  private nearestInteractableId(): string | null {
+  /** The one sit system (docs/38 — the park bench is the bus bench's
+   *  sibling): capsule parks on the seat, physics rests, the rig folds to
+   *  its sit pose, the seat's diary speaks. Standing restores the street
+   *  spot. Defaults keep the original bus-bench behavior byte-for-byte. */
+  sitAt(seat: { x: number; y: number; z: number }, faceY: number, notes: readonly string[]): void {
+    if (this.sitReturn) return;
     const c = this.player.capsule;
-    let best: Interactable | null = null;
-    let bestD = INTERACT_RANGE;
-    for (const it of this.interactables) {
-      const p = it.pos();
-      const d = Math.hypot(p.x - c.x, p.z - c.z);
-      if (Math.abs(p.y - c.y) > 3.0) continue;
-      if (d < bestD && this.state.isRelevant(it.id)) {
-        bestD = d;
-        best = it;
+    this.sitReturn = { x: c.x, z: c.z, rot: this.player.rotationY };
+    c.x = seat.x;
+    c.y = 0.12; // hips level with the seat top — the same settle the familiar uses
+    c.z = seat.z;
+    this.player.vy = 0;
+    this.player.rotationY = faceY;
+    this.ui.showNote(byDay(notes, this.state.day));
+  }
+
+  sitOnBench(): void {
+    this.sitAt(BUS_BENCH_SEAT, Math.PI, BENCH_SIT_NOTES); // face the street, like the bench does
+  }
+
+  /** The park bench faces the lawn's street side — same street-watch pose,
+   *  mirrored to face north across the lawn. */
+  sitInPark(): void {
+    this.sitAt(PARK_BENCH_SEAT, Math.PI, PARK_SIT_NOTES);
+  }
+
+  standUp(): void {
+    const r = this.sitReturn;
+    if (!r) return;
+    this.sitReturn = null;
+    const c = this.player.capsule;
+    c.x = r.x;
+    c.y = 0.05;
+    c.z = r.z;
+    this.player.vy = 0;
+    this.player.rotationY = r.rot;
+  }
+
+  // ------------------------------------------------------------------ shelf
+  // The bodega's shelf is a shop now (Doc 37 §3C): restocked every morning
+  // and the moment Rosa's errand empties it. Purchases deduct real money.
+
+  private restockShelf(): void {
+    // Finite shop: refill units, then ensure exactly one mesh per in-stock SKU
+    // (never double-add if the mesh is already on the shelf).
+    this.state.restockShelfStock();
+    for (const [id, x, y, z] of SHELF_STOCK) {
+      if (this.state.shelfUnits(id) > 0 && !this.world.itemMeshes.has(id)) {
+        this.world.addItem(id, x, y, z, 0);
       }
     }
-    return best?.id ?? null;
+  }
+
+  // ------------------------------------------------------------------ the half-court (docs/38)
+  // The hoop keeps score in notes, not UI. Outcomes are deterministic per
+  // (day, shot index) — hoopOutcome — so the E2E and every player meet the
+  // same rim. No save fields: a streak is a moment, not a possession.
+
+  /** A shot is in the air — the court interaction disables itself until it
+   *  lands. */
+  hoopInFlight = false;
+  private hoopShots = 0;
+  private hoopStreak = 0;
+
+  shootHoop(): void {
+    if (this.hoopInFlight) return;
+    this.hoopInFlight = true;
+    const ball = this.world.ball;
+    const made = hoopOutcome(this.state.day, this.hoopShots);
+    this.hoopShots += 1;
+    // the court's score now survives the save (Doc 37 §3F): cumulative
+    // makes are a choice the block remembers (the 5th make gets its line)
+    if (made) this.state.recordChoice('hoop');
+    // launch from beside the player toward the rim — two tweens per axis
+    // (up-and-over, then the drop), the honest lowpoly arc
+    const rx = HOOP_RIM.x, ry = HOOP_RIM.y, rz = HOOP_RIM.z;
+    const flight = 0.55; // seconds to the rim
+    const land = made
+      ? { x: rx, z: rz + 0.05, y: 0.13, note: this.hoopMadeNote() } // drops clean through
+      : { x: rx - 0.5, z: rz - 0.9, y: 0.13, note: byDay(COURT_MISS, this.state.day) }; // off the front iron
+    this.tweens.sequence(
+      this.tweens.parallel(
+        this.tweens.num(() => ball.position.x, (v) => { ball.position.x = v; }, rx, flight, (t) => t),
+        this.tweens.num(() => ball.position.z, (v) => { ball.position.z = v; }, rz, flight, (t) => t),
+        this.tweens.num(() => ball.position.y, (v) => { ball.position.y = v; }, ry + 0.35, flight),
+      ),
+      this.tweens.parallel(
+        this.tweens.num(() => ball.position.x, (v) => { ball.position.x = v; }, land.x, 0.42, (t) => t),
+        this.tweens.num(() => ball.position.z, (v) => { ball.position.z = v; }, land.z, 0.42, (t) => t),
+        this.tweens.num(() => ball.position.y, (v) => { ball.position.y = v; }, land.y, 0.42),
+      ),
+      this.tweens.call(() => {
+        this.ui.showNote(land.note);
+      }),
+      this.tweens.wait(0.7),
+      this.tweens.call(() => {
+        // the ball rolls back to its spot by the key — the court resets
+        // itself, no inventory, no state
+        ball.position.set(COURT_BALL_REST.x, COURT_BALL_REST.y, COURT_BALL_REST.z);
+        this.hoopInFlight = false;
+      }),
+    );
+  }
+
+  /** Made-basket lines escalate with the streak; the third is the brag.
+   *  And once the save's cumulative makes cross the memory threshold
+   *  (Doc 37 §3F — recorded in shootHoop before this renders), the pole
+   *  stops counting out loud: it respects you now. */
+  private hoopMadeNote(): string {
+    this.hoopStreak += 1;
+    if (this.hoopStreak >= 3) {
+      // a run of three gets its own line once, then the normal rotation
+      return this.hoopStreak === 3 ? COURT_STREAK_NOTE : byDay(COURT_MAKE, this.state.day);
+    }
+    if (this.state.hoopMakes >= MEMORY_LINES.hoop.at) return MEMORY_LINES.hoop.line;
+    return COURT_MAKE[(this.hoopStreak - 1) % COURT_MAKE.length];
+  }
+
+  // ------------------------------------------------------------------ the free wash (docs/38)
+  // The laundromat's near washer, when Sal's story isn't using the bay: $3,
+  // six honest seconds of drum, a day-keyed done line. Same machine, same
+  // visual path as the story wash — never both at once (the gate keeps out).
+
+  freeWashRunning = false;
+  private freeWashTimer = 0;
+
+  private startFreeWash(): void {
+    this.freeWashRunning = true;
+    this.freeWashTimer = 6;
+    this.world.setWasherRunning(true);
+    gameAudio.wash();
+  }
+
+  private finishFreeWash(): void {
+    this.freeWashRunning = false;
+    this.world.setWasherRunning(false);
+    gameAudio.washStop();
+    this.ui.showNote(byDay(FREE_WASH_NOTES, this.state.day));
+  }
+
+  // ------------------------------------------------------------------ interact
+
+  /** The nearest enabled interaction from the registry — the only proximity
+   *  pass in the game (Doc 37 §3B). Kept as a method because the E2E/probe
+   *  harnesses read it. */
+  nearestInteraction() {
+    return this.registry.nearest(this.player.capsule, this.state, this.ictx);
+  }
+
+  /** True while any AUTHORED story interaction is pressable right now —
+   *  the walker conversations (Phase 4) read this to step aside, so a
+   *  passing neighbor can never swallow a story beat's press. Cheap: every
+   *  authored gate is a switch comparison or two. */
+  hasBlockingInteraction(): boolean {
+    for (const it of this.registry.list()) {
+      if (!it.authored) continue;
+      if (it.enabled(this.state, this.ictx)) return true;
+    }
+    return false;
   }
 
   private tryInteract(): void {
-    const id = this.nearestInteractableId();
-    if (id === null) return;
-    const s = this.state;
-    switch (id) {
-      case 'rosa':
-        if (s.step === Step.D3_WAKE) {
-          // Day 3 morning: her news at your cart — must come BEFORE the
-          // isDay2 chat branch (day 3 is also day >= 2, and the chat would
-          // swallow the wake beat whole).
-          for (const e of s.rosaD3Wake()) this.applyEffect(e);
-        } else if (s.step === Step.D4_WAKE) {
-          // Day 4 morning, same law: the wake beat first, chat second.
-          for (const e of s.rosaD4Wake()) this.applyEffect(e);
-        } else if (s.isDay2) {
-          const { effects } = s.rosaTask();
-          for (const e of effects) this.applyEffect(e);
-        } else {
-          for (const e of s.tryRosa()) this.applyEffect(e);
-        }
-        break;
-      case 'counter':
-        for (const e of s.serveCounter()) this.applyEffect(e);
-        break;
-      case 'cart':
-        if (s.step === Step.CLAIM_CART) {
-          for (const e of s.claimCart()) this.applyEffect(e);
-        } else if (s.step === Step.SOLO || s.step === Step.D2_LUNCH) {
-          if (this.customer) {
-            for (const e of s.serveCart()) this.applyEffect(e);
-          }
-        } else if (s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) {
-          if (this.customer) {
-            for (const e of s.startBrew()) this.applyEffect(e);
-          }
-        } else if (s.step === Step.D3_STOOL) {
-          for (const e of s.stoolInteraction()) this.applyEffect(e);
-        } else if (s.isDay2 && !s.awningUp && s.money >= 15 && this.customer === null
-          && s.step >= Step.D2_WAKE && s.step <= Step.D2_CLIMB2) {
-          for (const e of s.cartAwningInteraction()) this.applyEffect(e);
-        }
-        break;
-      case 'idris':
-        for (const e of s.serveIdris()) this.applyEffect(e);
-        break;
-      case 'kid':
-        // At the stool beat the kid is AT your hip — often nearer than the
-        // cart — so facing him must offer the stool too (a player walks up
-        // and presses Space at the pair of them, not at a specific prop).
-        if (s.step === Step.D3_STOOL) {
-          for (const e of s.stoolInteraction()) this.applyEffect(e);
-        } else {
-          for (const e of s.kidJoins()) this.applyEffect(e);
-        }
-        break;
-      case 'stranger':
-        if (s.step === Step.D4_STRANGER) {
-          for (const e of s.greetStranger()) this.applyEffect(e);
-        } else if (s.step === Step.D4_MAP) {
-          for (const e of s.giveMap()) this.applyEffect(e);
-        }
-        break;
-      case 'laundry':
-        if (s.step === Step.D4_LAUNDRY) {
-          for (const e of s.handApron()) this.applyEffect(e);
-        } else if (s.step === Step.D4_PERMIT) {
-          for (const e of s.laundryChat()) this.applyEffect(e);
-        }
-        break;
-      case 'permit':
-        for (const e of s.readPermit()) this.applyEffect(e);
-        break;
-      case 'poster':
-        for (const e of s.seePoster()) this.applyEffect(e);
-        break;
-      case 'stoop':
-        for (const e of s.deliverToKid()) this.applyEffect(e);
-        break;
-      case 'rail':
-        for (const e of s.rail()) this.applyEffect(e);
-        break;
-      default:
-        if (id.startsWith('item_')) {
-          const itemId = id.slice(5);
-          for (const e of s.collect(itemId)) this.applyEffect(e);
-        }
+    const it = this.nearestInteraction();
+    if (!it) return;
+    // A confirm offer is bound to its own interaction: walking away, or
+    // pressing at anything else, takes the offer off the table.
+    if (this.state.buyConfirm !== null && this.state.buyConfirm !== it.id) {
+      this.state.buyConfirm = null;
     }
+    for (const e of it.perform(this.ictx)) this.applyEffect(e);
   }
 
   // ------------------------------------------------------------------ effects
@@ -630,7 +735,14 @@ export class Game {
         break;
       case 'collect':
         this.world.removeItem(e.id);
-        this.interactables = this.interactables.filter((it) => it.id !== `item_${e.id}`);
+        this.registry.unregister(`item_${e.id}`);
+        // Rosa's three are hers now — and the shelf goes back to selling:
+        // the restock is what makes the bodega a shop outside the errand.
+        if (this.state.itemsLeft.size === 0) this.restockShelf();
+        break;
+      case 'shelf-deplete':
+        // Paid purchase consumed the last unit — hide the mesh until morning.
+        this.world.removeItem(e.id);
         break;
       case 'spawn-customer':
         this.spawnCustomer(e.who, e.x, e.z);
@@ -733,6 +845,10 @@ export class Game {
         this.washTimer = 2.4;
         this.world.setWasherRunning(true);
         gameAudio.wash();
+        break;
+      case 'free-wash-start':
+        // the laundromat's other wash (docs/38): same machine, its own clock
+        this.startFreeWash();
         break;
       case 'apron-clean':
         this.world.setWasherRunning(false);
@@ -1156,9 +1272,14 @@ export class Game {
     const color = isIdris ? PAL.plum : lighten(PAL.teal, Math.random() * 0.3);
     const skin = isIdris ? 0x8a5a3b : [0xe8b08e, 0xd9a06b, 0x8a5a3b, 0xc98d68][Math.floor(Math.random() * 4)];
     const hair = isIdris ? 0x241f1c : [0x3a3440, 0x4a3a30, 0x2b2730, 0x9a938c][Math.floor(Math.random() * 4)];
-    const g = isIdris ? this.world.buildPerson({ jacket: color, pants: PAL.ink, skin, hair, style: 'cap' })
+    const g = isIdris ? this.world.buildPerson({ jacket: color, pants: PAL.ink, skin, hair, style: 'cap', glasses: true })
       : this.world.makeCustomerVisual(color, skin, hair);
     g.position.set(x, 0.05, z);
+    // face the cart you're ordering from (the cart sits SOUTH of the spawn
+    // point at (4, -4.6); the default +Z facing had every customer staring
+    // at the street while they ordered). Idris's walk-in tween re-faces him
+    // along his route, so this default never fights the choreography.
+    g.rotation.y = Math.PI;
     g.name = isIdris ? 'MrIdris' : 'Customer';
     // Day 3+4 rush: every order is a real order — the bubble says what's wanted
     const s = this.state;
@@ -1232,9 +1353,20 @@ export class Game {
     if (dist > stop) {
       const speed = Math.min(3.8, (dist - stop) * 2.2 + 0.6);
       const step = Math.min(dist - stop, speed * dt);
-      kid.position.x += (dx / dist) * step;
-      kid.position.z += (dz / dist) * step;
+      // the kid is a physical body now (agent-2 doc 35): he steers around
+      // benches, trunks and the cart with the same axis-slide the walker
+      // uses, instead of ghosting through the street on his way to you
+      const kc = this.kidCapsule;
+      kc.x = kid.position.x; kc.y = kid.position.y; kc.z = kid.position.z;
+      moveAxisX(this.world.colliders, kc, (dx / dist) * step, 0.35);
+      moveAxisZ(this.world.colliders, kc, (dz / dist) * step, 0.35);
+      kid.position.x = kc.x;
+      kid.position.z = kc.z;
       kid.rotation.y = Math.atan2(dx, dz); // he walks facing where he's going
+    } else if (dist > 0.5) {
+      // parked at your hip he still knows you're there: ease around to face
+      // you instead of freezing on his last walking heading
+      kid.rotation.y = lerpAngle(kid.rotation.y, Math.atan2(dx, dz), Math.min(1, dt * 4));
     }
     // arrival: both of you at the corner, the cart within reach
     const cart = this.world.cartRoot.position;
@@ -1376,6 +1508,9 @@ export class Game {
   /** main.gd `_begin_day` — used for boot-resume and the rail's "Tomorrow". */
   private async beginDay(n: number, sd: SaveData | null, completed: boolean): Promise<void> {
     const s = this.state;
+    // no morning starts seated — stand before the world moves (and before
+    // the fade teleports the capsule out from under the bench)
+    this.standUp();
     this.dayFading = true;
     this.player.frozen = true;
     await this.ui.fadeOut(700);
@@ -1406,6 +1541,20 @@ export class Game {
     }
     s.idrisArrived = false;
     this.removeCustomer();
+    // the new block's morning resets (docs/38): a fresh day is a fresh
+    // streak, an uncut head, an idle drum. The ball lands wherever it was —
+    // snap it home before the fade lifts.
+    this.hoopInFlight = false;
+    this.hoopShots = 0;
+    this.hoopStreak = 0;
+    this.world.ball.position.set(COURT_BALL_REST.x, COURT_BALL_REST.y, COURT_BALL_REST.z);
+    if (this.freeWashRunning) {
+      // a wash left running when the day rolled over finishes quietly
+      this.freeWashRunning = false;
+      this.freeWashTimer = 0;
+      this.world.setWasherRunning(false);
+    }
+    s.trimToday = false;
     if (sd !== null) {
       s.cartName = sd.cart_name;
       s.money = sd.money;
@@ -1414,6 +1563,13 @@ export class Game {
       s.stoolUp = sd.stool ?? false;
       s.mapGiven = sd.map_given ?? false;
       s.permitFiled = sd.permit ?? false;
+      // the block remembers (Doc 37 §3F): cumulative free-roam choices
+      // survive the night — absent in an old save reads as 0, by migration
+      s.shelfBuys = sd.shelf_buys ?? 0;
+      s.dogBuys = sd.dog_buys ?? 0;
+      s.trims = sd.trims ?? 0;
+      s.washes = sd.washes ?? 0;
+      s.hoopMakes = sd.hoop_makes ?? 0;
     }
     // sd === null (a rail "Tomorrow"): the live state carries the wallet, the
     // name, the awning — and the STOOL. The stool is bought, the Map is
@@ -1431,6 +1587,7 @@ export class Game {
     s.kidDown = false;
     s.kidAtCorner = false;
     s.stoolConfirm = false;
+    s.buyConfirm = null; // an offer never survives the night
     s.posterSeen = false;
     s.strangerMet = false;
     s.strangerAtCart = false;
@@ -1452,6 +1609,7 @@ export class Game {
     // the board's slip) before the flyer learns your name; then the familiar
     // face gets her day's schedule (§2.2)
     this.world.dressDay(n);
+    this.restockShelf(); // the shelf is stocked every morning (Doc 37 §3C)
     this.resetFamiliar(n);
     this.world.setFlyerText(s.cartName || 'YOUR CORNER'); // the flyer learns your name
     this.toMorningLight();

@@ -57,8 +57,8 @@ await wait(20000);
 const sample = () => page.evaluate(() => {
   const scene = window.__game.world.scene;
   let leaves = null;
-  scene.traverse((o) => { if (o.isInstancedMesh && !leaves) leaves = o; });
-  if (!leaves) return { fail: 'no InstancedMesh found in scene' };
+  scene.traverse((o) => { if (o.name === 'LeafDrift') leaves = o; });
+  if (!leaves) return { fail: 'no LeafDrift mesh found in scene' };
   const n = leaves.count;
   // raw instanceMatrix buffer: per instance, [12]=x [13]=y [14]=z translation
   const arr = leaves.instanceMatrix.array;

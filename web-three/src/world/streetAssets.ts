@@ -15,6 +15,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { makeSignBoard, type SignPairFactory } from './props';
 
 // ---- palette anchors (same set props.ts pins) ---------------------------
 const PAL_INK = 0x3a3440;
@@ -163,7 +164,7 @@ export function makeSpanWires(
 
 // ---------------------------------------------------------------- pole signs
 
-export type SignFn = (text: string, w: number, h: number, bg: number, fg: number, px: number) => THREE.MeshLambertMaterial[];
+export type SignFn = SignPairFactory;
 
 /**
  * A traffic plate bolted to a pole. `facing` = 'street' (readable across
@@ -180,25 +181,25 @@ export function makePoleSign(
   const bg = opts.bg ?? PAL_CREAM;
   const fg = opts.fg ?? PAL_INK;
   const g = new THREE.Group();
-  const plate = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.05), sign(text, Math.round(w * 256), Math.round(h * 256), bg, fg, 44));
-  plate.position.y = opts.y ?? 3.0;
-  plate.castShadow = true;
-  g.add(plate);
+  const board = makeSignBoard(w, h, 0.05, sign(text, Math.round(w * 256), Math.round(h * 256), bg, fg, 44));
+  board.position.y = opts.y ?? 3.0;
+  board.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
+  g.add(board);
   if (opts.facing === 'traffic') g.rotation.y = -Math.PI / 2; // face toward -x
   if (opts.arrow) {
     // stamped arrow, geometry not font — the glyph renders the same everywhere
     const arrowMat = bank.get(fg);
-    const shaft = unitBox(arrowMat, w * 0.34, h * 0.16, 0.02, -w * 0.1, plate.position.y - h * 0.62, 0.035);
+    const shaft = unitBox(arrowMat, w * 0.34, h * 0.16, 0.02, -w * 0.1, board.position.y - h * 0.62, 0.05);
     const head = new THREE.Mesh(geo.cone, arrowMat);
     head.scale.set(w * 0.16, h * 0.3, 0.02);
     head.rotation.z = -Math.PI / 2;
-    head.position.set(w * 0.22, plate.position.y - h * 0.62, 0.035);
+    head.position.set(w * 0.22, board.position.y - h * 0.62, 0.05);
     g.add(shaft, head);
   }
-  // two U-bolts holding the plate to its pole
+  // two U-bolts holding the board to its pole
   const iron = bank.get(PAL_INK);
-  g.add(unitBox(iron, 0.05, 0.07, 0.16, -w * 0.35, plate.position.y + h * 0.32, 0.06));
-  g.add(unitBox(iron, 0.05, 0.07, 0.16, w * 0.35, plate.position.y + h * 0.32, 0.06));
+  g.add(unitBox(iron, 0.05, 0.07, 0.16, -w * 0.35, (opts.y ?? 3.0) + h * 0.32, 0.06));
+  g.add(unitBox(iron, 0.05, 0.07, 0.16, w * 0.35, (opts.y ?? 3.0) + h * 0.32, 0.06));
   shadows(g);
   consolidate(g);
   return g;

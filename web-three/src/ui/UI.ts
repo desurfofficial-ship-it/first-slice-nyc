@@ -4,9 +4,7 @@
  * error banner. All DOM ids come from index.html.
  */
 
-import { promptVerb } from '../core/content';
 import { gameAudio } from '../game/audio';
-import type { GameState } from '../core/GameState';
 
 function el<T extends HTMLElement>(id: string): T {
   const e = document.getElementById(id);
@@ -110,13 +108,15 @@ export class UI {
     this.timer.textContent = text;
   }
 
-  setPrompt(id: string | null, s?: GameState) {
-    if (id === null || !this.nameBox.hidden || !this.postcardPanel.hidden || !s) {
+  /** The prompt line is decided by the interaction registry (Doc 37 §3B);
+   *  the UI only renders it. `null` hides the prompt and dims the touch
+   *  button — nothing is in reach. */
+  setPrompt(verb: string | null) {
+    if (verb === null || !this.nameBox.hidden || !this.postcardPanel.hidden) {
       this.prompt.hidden = true;
       this.interactBtn.classList.remove('occupied');
       return;
     }
-    const verb = promptVerb(id, s);
     const keyHint = this.isTouch ? '' : '<span class="key">Space</span>';
     this.prompt.innerHTML = `${keyHint}${escapeHtml(verb)}`;
     this.prompt.hidden = false;

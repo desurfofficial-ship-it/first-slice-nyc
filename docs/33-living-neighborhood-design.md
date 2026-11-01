@@ -1,5 +1,8 @@
 # Doc 33 — The Living Neighborhood: audit, design, and the long road
 
+> **Agents — stop and read this first.**  
+> Creative authority is **[GDD v2.0](01-game-design-document.md)**, not this expansion. Living Neighborhood work exists to add exploration, agency, and meaningful interactions **inside** FIRST SLICE. It is **not** permission to replace the daily loop, the Map, Regulars, Postcards, the Slice Ladder, the City Passport, or the cozy low-poly identity with a generic open-world city. Prefer a compact rich neighborhood. Audit GDD systems (implemented / partial / missing) before expanding. Full contract: **[AGENTS.md §0](../AGENTS.md)**.
+
 *Status: second-agent design deliverable. Source-backed audit + proposals for the living block, the long narrative arc, character continuity, and postcard memory. **No shared code was written for this doc** — every proposal names its integration point and its owner. The lead agent decides what ships and when.*
 
 *Companions: [Doc 29](29-second-agent-environment-pass.md) (the environment pass, rounds one–six, implemented) and [Doc 31](31-visual-audit.md) (the lead agent's frame audit). This doc is the thinking those builds serve.*

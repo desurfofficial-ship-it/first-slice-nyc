@@ -12,14 +12,19 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { PAL } from '../core/palette';
 import { ITEM_LABELS } from '../core/content';
 import { boxFromCenter, type AABB } from '../engine/collide';
+import { approachSpeed, bodyConflictsWithCab, noseLimit, type TrafficBody } from '../engine/traffic';
 import { buildArticulatedPerson } from './personRig';
 import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecycleBin, makeHydrant,
   makeSubwayEntrance, makeBulletinBoard, makeBench, makeBusStop, makeNewspaperBoxes, makeBarrier,
-  makeACUnit, makeBrownstoneStoop, makeStorefront, makeStool, makeVan } from './props';
+  makeACUnit, makeBrownstoneStoop, makeStorefront, makeStool, makeVan,
+  makeBarberPole, makeHoop, makeFence, makeParksSign, makeVendorCart,
+  makeSignBoard, makeControlHouse, makePergola, makeGardenBed, makeShed,
+  makeCompostBin, makeWaterBarrel, makeParkGate, makeSwingSet, makeSandbox,
+  makeSprayBasin, SHARED_GEOS, type SignPair } from './props';
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
-import { Pedestrians, type PedLook } from './peds';
+import { Pedestrians, type PedLook, type RoutineStop } from './peds';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay } from './dressing';
 import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT } from '../core/content';
 
@@ -82,17 +87,12 @@ export class World {
   /** The transient customer at the cart — Game syncs this one (it owns
    *  spawning/removal); World.update handles the persistent cast. */
   readonly customerCollider: AABB;
-  // Agent-2 solidity: the rest of the walking cast gets bodies too — the
-  // audit found the stranger, Sal and the familiar face were ghosts.
-  readonly strangerCollider: AABB;
-  readonly salCollider: AABB;
-  readonly familiarCollider: AABB;
-  /** The stool blocks once bought; parked underground until then. */
+  /** The Day-3 stool's body — parked underground until the purchase makes
+   *  it real; synced in updateDynamics like the cast. */
   readonly stoolCollider: AABB;
-  /** The water-main barrier — its body toggles with the prop in dressDay
-   *  (gone on Day 4; an invisible collider guarding fresh asphalt would be
-   *  a ghost wall). */
-  readonly barrierCollider: AABB;
+  /** The water-main barrier's body — parked underground the day the city
+   *  takes it (Day 4's diary); synced in updateDynamics like the cast. */
+  readonly barrierCollider: AABB = boxFromCenter(-9.7, 0.45, 7.62, 1.7, 0.9, 0.56);
   readonly rosa: THREE.Group;
   readonly idris: THREE.Group;
   readonly kidSil: THREE.Group;
@@ -118,6 +118,9 @@ export class World {
   readonly ambientWindowMatLate!: THREE.MeshLambertMaterial;   // got home late → away
   readonly ambientWindowMatNew!: THREE.MeshLambertMaterial;    // someone new, Day 3
   readonly ambientWindowMatRiser!: THREE.MeshLambertMaterial;  // the early riser, Day 4
+  /** The half-court ball (docs/38): rests by the key, flies when shot.
+   *  Excluded from the static bake — it moves. (Assigned by buildCourt.) */
+  ball!: THREE.Mesh;
   /** The day the flyer board is currently dressed for (slips rotate by day). */
   private flyerDay = 1;
   private washerLoad: THREE.Mesh | null = null;
@@ -133,9 +136,94 @@ export class World {
   private peds: Pedestrians;
   private ambientTime = 0;
 
+  /** Read-only XZ of every ambient walker (diagnostics + probes). */
+  pedBodies(): Array<{ x: number; z: number }> {
+    return this.peds ? this.peds.bodies() : [];
+  }
+
+  /** Live position of ambient walker `i` — the interaction registry's walker
+   *  conversations read this every frame (Doc 37 §3B: moving NPCs stay live).
+   *  Out of range → parked below the world (the y-band excludes it). */
+  walkerPos(i: number): { x: number; y: number; z: number } {
+    return this.peds ? this.peds.bodyAt(i) : { x: 0, y: -100, z: 0 };
+  }
+
   private steamPoints: THREE.Points;
   private steamSeed: Float32Array;
   private steamLife: Float32Array;
+
+  // ---- district system (docs/45 W0 — the culling prerequisite) ----------
+  // The master world spans x ±84 / z ±48 (registry bounds.playableCore).
+  // Static geometry bakes per DISTRICT TILE — 28 m columns × 32 m rows — and
+  // every tile plus registered dynamic groups belongs to a district. Each
+  // frame the player's district lights a RING of districts and everything
+  // outside it goes invisible (frustum culling then does the rest). The
+  // ring rule follows the registry's own law: a street is ONE sight line,
+  // so the ring spans every column along it (STREET_RING = all) and 1 row
+  // of depth each way (ROW_RING = 1 = the block behind each sidewalk).
+  // With the shipped single-street world every district sits inside the
+  // ring — zero visible change today; W1+ content lands district-tagged
+  // from birth, and far rows cull the moment they exist.
+  private static readonly DIST_COL_W = 28;   // x: −84..84 in 6 columns
+  private static readonly DIST_ROW_H = 32;   // z: −48..48 in 3 rows
+  private static readonly DIST_COLS = 6;
+  private static readonly DIST_ROWS = 3;
+  private static readonly STREET_RING = World.DIST_COLS; // one sight line, for now
+  private static readonly ROW_RING = 1;
+  /** Baked meshes keyed by district (c<col>r<row>). */
+  private readonly districtBatches = new Map<string, THREE.Mesh[]>();
+  /** Dynamic groups registered to a district (trees, flocks, glb props). */
+  private readonly districtProps = new Map<string, THREE.Object3D[]>();
+  /** Object → its district key (so a re-registration can move it). */
+  private readonly districtOf = new Map<THREE.Object3D, string>();
+  /** The district the visibility pass last applied (skip redundant writes). */
+  private lastDistrict = '';
+
+  /** A baked mesh's district from its world position (mesh center). */
+  private static districtKey(x: number, z: number): string {
+    const col = Math.max(0, Math.min(World.DIST_COLS - 1, Math.floor((x + 84) / World.DIST_COL_W)));
+    const row = Math.max(0, Math.min(World.DIST_ROWS - 1, Math.floor((z + 48) / World.DIST_ROW_H)));
+    return `c${col}r${row}`;
+  }
+
+  /** Register a dynamic group so the district pass owns its visibility.
+   *  Only ever-visible world content goes here — anything Game toggles
+   *  (cart wearables, cast, barrier diary) stays unregistered. Safe to call
+   *  again for the same object (moves it between districts). */
+  private registerDistrictObject(obj: THREE.Object3D, x: number, z: number): void {
+    const prev = this.districtOf.get(obj);
+    if (prev) {
+      const list = this.districtProps.get(prev);
+      if (list) {
+        const i = list.indexOf(obj);
+        if (i >= 0) list.splice(i, 1);
+      }
+    }
+    const key = World.districtKey(x, z);
+    this.districtOf.set(obj, key);
+    let list = this.districtProps.get(key);
+    if (!list) this.districtProps.set(key, list = []);
+    list.push(obj);
+  }
+
+  /** Light the ring of districts around the player, dark the rest.
+   *  Called from updateDynamics with the live player position. */
+  private updateDistricts(px: number, pz: number): void {
+    const col = Math.max(0, Math.min(World.DIST_COLS - 1, Math.floor((px + 84) / World.DIST_COL_W)));
+    const row = Math.max(0, Math.min(World.DIST_ROWS - 1, Math.floor((pz + 48) / World.DIST_ROW_H)));
+    const key = `c${col}r${row}`;
+    if (key === this.lastDistrict) return;
+    this.lastDistrict = key;
+    for (let c = 0; c < World.DIST_COLS; c++) {
+      const colIn = Math.abs(c - col) <= World.STREET_RING;
+      for (let r = 0; r < World.DIST_ROWS; r++) {
+        const inRing = colIn && Math.abs(r - row) <= World.ROW_RING;
+        const dk = `c${c}r${r}`;
+        for (const m of this.districtBatches.get(dk) ?? []) m.visible = inRing;
+        for (const o of this.districtProps.get(dk) ?? []) o.visible = inRing;
+      }
+    }
+  }
 
   /** Decorative props a generated .glb (public/models/<id>.glb) may replace. */
   private glbProps = new Map<string, THREE.Object3D>();
@@ -147,6 +235,9 @@ export class World {
   constructor() {
     const scene = this.scene;
     scene.fog = this.fog = new THREE.Fog(PAL.amber, 40, 170);
+    // the material bank exists before anything is built — signs need its
+    // shared plain materials (W0: sign edges bake-merge per district)
+    this.bank = new MatBank((c) => this.mat(c));
 
     // ---------------- sky (ProceduralSkyMaterial counterpart) ----------------
     this.skyUniforms = {
@@ -227,16 +318,18 @@ export class World {
     this.solid('Bldg_N_West', -35.5, 7, 14, 29, 14, 12, PAL.bldg);
     this.solid('Bldg_N_East_A', -1, 9, 14, 20, 18, 12, PAL.bldg2);
     this.solid('Bldg_N_GoldWindow', 15, 5.5, 14, 12, 11, 12, PAL.brick);
-    this.solid('Bldg_N_East_B', 35, 8, 14, 28, 16, 12, PAL.bldg);
+    // Bldg_N_East_B is split in two so the alley (buildAlley) can be a REAL
+    // cut — a 2.8 m slot with open sky above — instead of a false front.
+    // West half x 21–30.7, east half x 33.5–49; the alley fills the gap.
+    this.solid('Bldg_N_East_B_W', 25.85, 8, 14, 9.7, 16, 12, PAL.bldg);
+    this.solid('Bldg_N_East_B_E', 41.25, 8, 14, 15.5, 16, 12, PAL.bldg);
     // Terminal door + sign (west building, faces the street). The sign gets a
     // real label — the block stopped being a maze of anonymous boxes.
     this.deco('Terminal_Door', -30, 1.4, 7.95, 3, 2.8, 0.15, PAL.teal);
-    this.decoMesh(
-      'Terminal_Sign',
-      new THREE.BoxGeometry(5, 0.8, 0.15),
-      this.signMaterials('BUS TERMINAL', 640, 96, PAL.stone, PAL.ink, 56),
-      -30, 3.4, 7.95,
-    );
+    // The sign gets a real label — the block stopped being a maze of
+    // anonymous boxes. (signBoard: plain box + two textured faces — W0.)
+    this.signBoard('Terminal_Sign', 'BUS TERMINAL', 5, 0.8, 0.15, 640, 96, PAL.stone, PAL.ink, 56)
+      .position.set(-30, 3.4, 7.95);
 
     this.solid('Bldg_S_West', -25, 8, -14, 50, 16, 12, PAL.bldg2);
     this.solid('Bldg_S_FireEscape', 13, 7, -14, 26, 14, 12, PAL.brick);
@@ -263,20 +356,12 @@ export class World {
     //   2. a blade sign projecting over the sidewalk (readable walking up,
     //      when the facade board is above the frame),
     //   3. a rooftop billboard (readable from anywhere on the block).
-    this.decoMesh(
-      'Bodega_Sign',
-      new THREE.BoxGeometry(6.2, 1.35, 0.14),
-      this.signMaterials("ROSA'S\nDELI & GROCERY", 832, 176, PAL.gold, PAL.ink, 62),
-      -16, 4.0, 7.93,
-    );
+    this.signBoard('Bodega_Sign', "ROSA'S\nDELI & GROCERY", 6.2, 1.35, 0.14, 832, 176, PAL.gold, PAL.ink, 62)
+      .position.set(-16, 4.0, 7.93);
     // blade sign: perpendicular board over the door gap, text on the ±x faces
     this.decoMesh('Bodega_BladeBracket', new THREE.BoxGeometry(0.07, 0.5, 0.9), this.mat(PAL.ink), -14.9, 3.55, 7.55);
-    this.decoMesh(
-      'Bodega_BladeSign',
-      new THREE.BoxGeometry(0.12, 0.95, 1.7),
-      this.signMaterials("ROSA'S", 384, 192, PAL.gold, PAL.ink, 74, 'x'),
-      -14.9, 2.95, 7.1,
-    );
+    this.signBoard('Bodega_BladeSign', "ROSA'S", 0.12, 0.95, 1.7, 384, 192, PAL.gold, PAL.ink, 74, 'x')
+      .position.set(-14.9, 2.95, 7.1);
     // The warm window (emission 0.55 — main.gd comment: "the warm window, actually warm")
     this.rosaWindowMat = this.mat(PAL.amber, { emissive: PAL.amber, emissiveIntensity: 0.55 });
     this.decoMesh('Bodega_Window', new THREE.BoxGeometry(2.6, 1.6, 0.06), this.rosaWindowMat, -19.25, 1.8, 7.92);
@@ -287,13 +372,10 @@ export class World {
     // of the way exactly when the roof does (player steps inside).
     const bb = new THREE.Group();
     bb.name = 'Bodega_RoofSign';
-    const signBoard = new THREE.Mesh(
-      new THREE.BoxGeometry(7.4, 1.4, 0.16),
-      this.signMaterials("ROSA'S\nDELI & GROCERY", 896, 176, PAL.gold, PAL.ink, 62),
-    );
-    signBoard.position.y = 1.75;
-    signBoard.castShadow = true;
-    bb.add(signBoard);
+    const billboard = makeSignBoard(7.4, 1.4, 0.16, this.signMaterials("ROSA'S\nDELI & GROCERY", 896, 176, PAL.gold, PAL.ink, 62));
+    billboard.position.y = 1.75;
+    billboard.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
+    bb.add(billboard);
     for (const px of [-3.1, 3.1]) {
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.15, 6), this.mat(PAL.ink));
       pole.position.set(px, 0.55, 0);
@@ -311,18 +393,32 @@ export class World {
       new THREE.CylinderGeometry(0.18, 0.18, 0.9, 10),
       this.mat(PAL.coral),
     );
-    hydrant.position.set(-0.6, 0.45, -4.6);
+    hydrant.position.set(5.7, 0.45, -4.55);
     hydrant.castShadow = true;
     this.scene.add(hydrant);
+    // solid — a hydrant is cast iron (agent 2 collision audit, doc 35 §2).
+    // It stood at (-0.6, -4.6): dead center of the swept corridor between
+    // the crosswalk and the cart (the E2E parked on its west face for whole
+    // budgets). East of the cart at the curb line it is out of every
+    // authored leg and every drift zone the E2E actually walks.
+    this.colliders.push(boxFromCenter(5.7, 0.425, -4.55, 0.45, 0.85, 0.45));
 
     // Street life — the object canon's quiet furniture. Each is a procedural
     // placeholder that a generated .glb can replace at runtime: drop
     // <id>.glb into public/models/ and it wears the mesh on next boot
-    // (tools3d/spaces_manifest.json generates exactly these ids). No
-    // colliders, no triggers — decoration, not gameplay.
+    // (tools3d/spaces_manifest.json generates exactly these ids). Colliders
+    // are registered just above — solid furniture, decoration only for the
+    // GLB visuals themselves.
     this.scene.add(this.makeMailbox(-3.2, -5.7));
     this.scene.add(this.makeTrashcan(10.5, -5.6));
     this.scene.add(this.makeStreetlamp(13.5, -5.9));
+    // solid street furniture — the audit found the whole family collider-free
+    // (doc 35 §2): the player ghosted through mailbox, can and lamp post.
+    // Footprints match the visuals; the GLB-upgrade guard (±90 %) keeps any
+    // generated mesh inside these boxes.
+    this.colliders.push(boxFromCenter(-3.2, 0.48, -6.1, 0.6, 0.95, 0.5));    // mailbox (off the cart corridor)
+    this.colliders.push(boxFromCenter(10.5, 0.5, -5.6, 0.68, 1.0, 0.68));    // trashcan
+    this.colliders.push(boxFromCenter(13.5, 2.2, -5.9, 0.24, 4.4, 0.24));    // lamp post
     this.registerGlbProp('hydrant', hydrant);
     void this.upgradePropWithGLB('hydrant');
     void this.upgradePropWithGLB('mailbox');
@@ -341,7 +437,6 @@ export class World {
     this.taxi.position.set(-45, 0, -2);
     this.scene.add(this.taxi);
     this.taxiCollider = boxFromCenter(-45, 0.75, -2, 4.4, 1.5, 1.95);
-    this.taxiCollider.kind = 'car'; // the cab's own guard filters on this
     this.colliders.push(this.taxiCollider);
 
     // A parked sedan on the north curb (street life; collides — it's a car).
@@ -357,9 +452,7 @@ export class World {
     this.registerGlbProp('car_sedan', sedan); // same seam, parked car
     void this.upgradePropWithGLB('car_sedan');
     this.scene.add(sedan);
-    const sedanBox = boxFromCenter(24, 0.75, 3.05, 4.4, 1.5, 1.95);
-    sedanBox.kind = 'car';
-    this.colliders.push(sedanBox);
+    this.colliders.push(boxFromCenter(24, 0.75, 3.05, 4.4, 1.5, 1.95));
 
     // Player corner — "a waiting rectangle of different paving"
     this.deco('PlayerCorner', 4, 0.12, -6, 8, 0.02, 3.6, PAL.stone);
@@ -466,11 +559,15 @@ export class World {
     }
     this.deco('Spire', 11, 92, 90, 0.6, 24, 0.6, PAL.skyline, { fog: false });
 
-    // ---------------- invisible bounds (nobody leaves the block) ------------
-    this.colliders.push(boxFromCenter(-48, 5, 0, 1, 20, 40));
-    this.colliders.push(boxFromCenter(48, 5, 0, 1, 20, 40));
-    this.colliders.push(boxFromCenter(0, 6, -22, 100, 24, 1)); // south wall behind S buildings
-    this.colliders.push(boxFromCenter(0, 6, 22.5, 100, 24, 1)); // north wall behind N buildings
+    // ---------------- invisible bounds (the master-world core) -------------
+    // W1: the shipped x ±48 / z ∓22/22.5 walls are RETIRED (docs/45 W1 —
+    // "retire the x ±48 walls"; the grid is walkable now, Gable and Marlow
+    // sit outside the old z walls). The boundary moves to the registry's
+    // playable core: x ±84, z ±48 — never before a district has content.
+    this.colliders.push(boxFromCenter(-84, 5, 0, 1, 20, 96));
+    this.colliders.push(boxFromCenter(84, 5, 0, 1, 20, 96));
+    this.colliders.push(boxFromCenter(0, 6, -48, 168, 24, 1)); // south wall behind Marlow
+    this.colliders.push(boxFromCenter(0, 6, 48, 168, 24, 1));  // north wall behind Gable
 
     // zones
     this.crosswalkZone = boxFromCenter(-5, 1, 0, 3.4, 2, 7.5);
@@ -524,21 +621,15 @@ export class World {
     // the cart's body blocks — you lean on the counter, you don't stand in it
     this.cartCollider = boxFromCenter(4, 1.0, -6.6, 2.2, 2.0, 1.4);
     this.colliders.push(this.cartCollider);
-    // kind 'person' — the cab's post-commit guard filters on it (Agent-2)
-    const person = (b: AABB): AABB => { b.kind = 'person'; return b; };
-    this.rosaCollider = person(boxFromCenter(-27, 0.85, 6.8, 0.56, 1.7, 0.56));
-    this.idrisCollider = person(boxFromCenter(-2, 0.85, -4.6, 0.56, 1.7, 0.56));
-    this.kidCollider = person(boxFromCenter(15, 0.7, 6.35, 0.5, 1.4, 0.5));
-    this.customerCollider = person(boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56));
-    this.strangerCollider = person(boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56));
-    this.salCollider = person(boxFromCenter(-7, 0.85, 7.85, 0.56, 1.7, 0.56));
-    this.familiarCollider = person(boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56));
-    this.colliders.push(this.rosaCollider, this.idrisCollider, this.kidCollider,
-      this.customerCollider, this.strangerCollider, this.salCollider, this.familiarCollider);
+    this.rosaCollider = boxFromCenter(-27, 0.85, 6.8, 0.56, 1.7, 0.56);
+    this.idrisCollider = boxFromCenter(-2, 0.85, -4.6, 0.56, 1.7, 0.56);
+    this.kidCollider = boxFromCenter(15, 0.7, 6.35, 0.5, 1.4, 0.5);
+    this.customerCollider = boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56);
+    this.colliders.push(this.rosaCollider, this.idrisCollider, this.kidCollider, this.customerCollider);
 
     // ---------------- cast (Rosa, Idris, the kid) ---------------------------
-    this.rosa = this.spawnActor('Rosa', -27, 0.05, 6.8, { jacket: 0xff6b6b, pants: PAL.ink, skin: 0xe8b08e, hair: 0x9a938c, style: 'bun' });
-    this.idris = this.spawnActor('Idris', -2, 0.05, -4.6, { jacket: PAL.plum, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x241f1c, style: 'cap' });
+    this.rosa = this.spawnActor('Rosa', -27, 0.05, 6.8, { jacket: 0xff6b6b, pants: PAL.ink, skin: 0xe8b08e, hair: 0x9a938c, style: 'bun', shawl: 0x7a5c68 });
+    this.idris = this.spawnActor('Idris', -2, 0.05, -4.6, { jacket: PAL.plum, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x241f1c, style: 'cap', glasses: true });
     this.idris.visible = false;
     // The kid, at the glass — a small shape against the light. The web port
     // had him at the oracle's z (7.86), but the articulated kid is shallower
@@ -551,9 +642,9 @@ export class World {
     this.kidSil.visible = false;
 
     // ---------------- the living street (docs/28 — workstreams A & B) ------
-    // Shared materials + geometry through the bank; seeded tree placement so
+    // Shared materials + geometry through the bank (created at the top of
+    // the constructor — signs need it first); seeded tree placement so
     // every run of the block is the same block.
-    this.bank = new MatBank((c) => this.mat(c));
     const rng = seededRng(20261029);
 
     // ---- brownstone row (south-west face): stoops, doors, windows, AC ----
@@ -581,8 +672,13 @@ export class World {
     // (docs/30): a real recessed bay, Sal behind the counter, two washers
     // (one spins when a wash is running), shirts on the sidewalk rack.
     this.buildLaundromat();
+    // rotation π: the storefront builder leans its awning and sign toward
+    // local +z; the street is on the −z side of the north-face row. (This
+    // also fixes the recorded "pizza-awning diagonal" — the shipped copies
+    // leaned INTO their building faces; the awning now hangs over the walk.)
     const pizza = makeStorefront(this.bank, this.signMaterials.bind(this), 'CORNER SLICE PIZZA', PAL.coral, 6);
     pizza.position.set(27, 0.05, 8.02);
+    pizza.rotation.y = Math.PI;
     this.scene.add(pizza);
     // AC units under the gold-window building's upper windows
     for (const ax of [10.5, 16.5]) {
@@ -590,6 +686,15 @@ export class World {
       ac.position.set(ax, 5.9, 7.75);
       this.scene.add(ac);
     }
+
+    // ---- the expanded block (Doc 37 §3A, built in docs/38 §3) ------------
+    // Everything new lives east of x = 29, on land no authored beat, ped
+    // route, or E2E path uses. Compact, rich, zero new dependencies.
+    this.buildAlley();
+    this.buildBarbershop();
+    this.buildCourt();
+    this.buildPark();
+    this.buildVendorCart();
 
     // ---- subway plaza (north-west end): entrance, flyer board, benches ----
     // The plaza owns its paving: two stone slabs flanking the subway stair
@@ -616,18 +721,30 @@ export class World {
     plazaBench.position.set(-40.5, 0.05, 4.55);
     plazaBench.rotation.y = Math.PI;
     this.scene.add(plazaBench);
+    this.colliders.push(boxFromCenter(-40.5, 0.35, 4.55, 1.85, 0.7, 0.62)); // bench blocks
     const papers = makeNewspaperBoxes(this.bank);
     papers.position.set(-44.6, 0.05, 6.6);
     this.scene.add(papers);
+    this.colliders.push(boxFromCenter(-44.29, 0.425, 6.62, 1.3, 0.85, 0.6)); // newsboxes block
 
     // ---- bus stop (north, west of the bodega) + bench ----
+    // The bench sits against the building line (z 7.55), east of the sign
+    // pole — real NYC placement keeps the walking lane (z ≈ 4–7.2) open.
+    // The first draft had the bench mid-sidewalk at z 6.85 WITH a pole
+    // collider at 7.35: the E2E walker hit the bench face head-on, the
+    // sidestep shoved it into the 0.575 m pocket between pole and building,
+    // and it was wedged there for the rest of the run — the exact
+    // "trapped in geometry" failure this pass exists to prevent. Now the
+    // lane is open, the bench still blocks (it is a bench), and the sign
+    // pole is air like the wires (nothing can force you into its corner).
     const bus = makeBusStop(this.bank, this.signMaterials.bind(this));
     bus.position.set(-24.5, 0.05, 7.35);
     this.scene.add(bus);
     const busBench = makeBench(this.bank);
-    busBench.position.set(-24.5, 0.05, 6.85);
+    busBench.position.set(-23.3, 0.05, 7.62);
     busBench.rotation.y = Math.PI;
     this.scene.add(busBench);
+    this.colliders.push(boxFromCenter(-23.3, 0.35, 7.62, 1.85, 0.7, 0.62)); // bench blocks
 
     // ---- street furniture: lights, cans, hydrant, one honest barrier ----
     // The lamp faces are lit: the sun never leaves golden hour here, and
@@ -642,7 +759,11 @@ export class World {
     // lamp 3 -18 -> -19.5 and lamp 4 30 -> 31.5 (a metre of margin is not
     // margin when a seeded canopy blob can grow another half-metre).
     const lights: Array<[number, number, number]> = [
-      [-31, 7.35, Math.PI / 2], [8, 7.35, Math.PI / 2],
+      // lamp 2 sat at (8, 7.42) from M2 until W2 — the garden slot's mouth
+      // (ALY-02, x 6.5..9) opens exactly there, and a lamp post standing in
+      // a doorway is a wall with a light on it. Moved 2.1 m west, clear of
+      // the mouth and of every door and bay (registry canon list updated).
+      [-31, 7.42, Math.PI / 2], [5.9, 7.42, Math.PI / 2],
       [-19.5, -7.35, -Math.PI / 2], [31.5, -7.35, -Math.PI / 2],
     ];
     for (let li = 0; li < lights.length; li++) {
@@ -653,15 +774,17 @@ export class World {
       lamp.name = `Streetlight_${li}`; // probes assert on these
       this.scene.add(lamp);
     }
-    const can1 = makeTrashCan(this.bank); can1.position.set(-19, 0.05, 7.45); this.scene.add(can1);
+    const can1 = makeTrashCan(this.bank); can1.position.set(-19, 0.05, 7.66); this.scene.add(can1);
     const can2 = makeTrashCan(this.bank); can2.position.set(2, 0.05, -7.45); this.scene.add(can2);
     const recy = makeRecycleBin(this.bank); recy.position.set(2.85, 0.05, -7.45); this.scene.add(recy);
     const hyd2 = makeHydrant(this.bank); hyd2.position.set(34, 0.05, -4.75); this.scene.add(hyd2);
     // the barrier is a diary entry now (Doc 33 §2.3): Days 1–3 it guards a
     // (theatrically) open water main; Day 4 it's gone and the patch it left
     // reads as fresh asphalt. Kept OUT of the static bake — a merged mesh
-    // can't change its mind about existing.
-    const barrier = makeBarrier(this.bank); barrier.position.set(-9.7, 0.05, 7.5); barrier.rotation.y = 0.35; this.scene.add(barrier);
+    // can't change its mind about existing. It sits at the building line
+    // (z 7.62): the north walking lane (z 4–7.2) stays open, and its
+    // collider is DYNAMIC — parked underground the day the city takes it.
+    const barrier = makeBarrier(this.bank); barrier.position.set(-9.7, 0.05, 7.62); barrier.rotation.y = 0.35; this.scene.add(barrier);
     this.barrier = barrier;
     // fresh asphalt, one hair proud of the slab (top 0.102 vs slab 0.1 —
     // the same proud-edge trick the tree pits and plaza decks use). A
@@ -671,16 +794,32 @@ export class World {
       this.mat(0x3e3a46),
     );
     this.asphaltPatch.name = 'AsphaltPatch';
-    this.asphaltPatch.position.set(-9.7, 0.096, 7.5);
+    this.asphaltPatch.position.set(-9.7, 0.096, 7.62);
     this.asphaltPatch.receiveShadow = true;
     this.asphaltPatch.visible = false;
     this.scene.add(this.asphaltPatch);
+    // solids, sized to the visuals. The can + recycle bin are ONE recycling
+    // station — a single box spanning both: as two boxes they left a 0.14 m
+    // slot between them (sub-capsule) that wedged a walker solid (E2E).
+    // All north-side boxes keep minZ >= 7.28: the walking lane (z 4–7.2)
+    // stays open.
+    this.colliders.push(boxFromCenter(-19, 0.5, 7.66, 0.74, 1.0, 0.74));        // can (north)
+    this.colliders.push(boxFromCenter(2.41, 0.5, -7.45, 1.56, 1.0, 0.74));      // can + recycle station
+    this.colliders.push(boxFromCenter(34, 0.425, -4.75, 0.45, 0.85, 0.45));     // hydrant
+    for (const [lx, lz] of lights) {
+      this.colliders.push(boxFromCenter(lx, 2.6, lz, 0.24, 5.2, 0.24));         // lamp posts
+    }
 
     // ---- street trees in tree pits (seeded; never in front of a door) ----
     // (-4, 7.15) moved to (-1.2, 7.15): the laundromat bay is there now, and
     // a tree growing through the washers read exactly as broken.
     const treeSpots: Array<[number, number]> = [
-      [-34, 7.15], [-22, 7.15], [-1.2, 7.15], [20, 7.15], [32, 7.15],     // north
+      [-34, 7.48], [-22, 7.48], [-1.2, 7.48], [20, 7.48], [32, 7.48],     // north —
+      // ↑ the whole north row sits at the building line. The block's own
+      // "sidewalk law" (buildLaundromat) keeps the north walking lane open
+      // at z ≈ 4–7.2, and the authored E2E hauls run it at z 6.8–6.9 — any
+      // solid reaching below z 7.28 grazes that lane and stalls the driver
+      // on a wall it cannot round in one sidestep window (5 fps).
       [-44, -7.0], [-30, -7.0], [-16, -7.0], [28, -7.0], [38, -7.0],      // south
       [-45, 4.7], [-38.6, 4.5],                                            // plaza park trees
     ];
@@ -705,10 +844,22 @@ export class World {
       this.scene.add(t.group);
       this.trees.push({ group: t.group, canopy: t.canopy, phase: rng() * Math.PI * 2, mats: t.mats, fade: 1 });
       treeTops.push(t.top);
-      // trunk body (Agent-2 audit Q2): a 0.3 m box matching trunk + root
-      // flare — the canopy stays walk-under. The walkers get matching
-      // circles below; until now nobody collided with a tree on this block.
-      this.colliders.push(boxFromCenter(tx, 1.2, tz, 0.3, 2.4, 0.3));
+      // the trunk is wood — a thin box that matches it (canopy stays air;
+      // only the trunk blocks). North STREET trees extend back to the
+      // building face: the strip between a free-standing trunk and the wall
+      // is 0.67 m — narrower than the walker — and a body sidestepped into
+      // it could never leave (the E2E proved it). Merging trunk and wall
+      // removes the pocket without moving any usable space: nobody fit
+      // there before. Plaza trees and the south row keep plain boxes (their
+      // backs are open or passable). W2 exception (docs/47): the alley-mouth
+      // tree (x 32) stops at the VISUAL trunk — the face line there opens
+      // into the R-ALLEY lane, and the old reach-to-the-wall box walled the
+      // shortcut's own door; the pocket it leaves is open on the lane side,
+      // a sidestep, not a trap.
+      const trunkHalf = 0.18;
+      const zMax = tz > 6 ? (Math.abs(tx - 32) < 0.01 ? tz + trunkHalf : 8.0) : tz + trunkHalf;
+      const zSpan = (zMax - (tz - trunkHalf));
+      this.colliders.push(boxFromCenter(tx, 1.1, (tz - trunkHalf + zMax) / 2, 0.36, 2.2, zSpan));
     }
     // Canopy spheres for GameCamera's sidestep (see pickSideStep). One sphere
     // per tree, centred a blob-radius under the measured top. The widest
@@ -723,13 +874,16 @@ export class World {
     }
 
     // ---- one more parked vehicle: a delivery van, north curb ----
-    const van = makeVan(this.bank);
+    // "GOLDEN ORCHARD PRODUCE CO." — rebuilt as a proper box truck (Doc 04
+    // law, banked materials, signage via the same canvas factory as every
+    // other block sign). Its body now fills the collider below: the old
+    // 3.7 m visual inside a 4.4 m box meant 0.7 m of invisible wall east of
+    // the tailgate.
+    const van = makeVan(this.bank, this.signMaterials.bind(this));
     van.position.set(-14, 0, 3.05);
     van.rotation.y = Math.PI;
     this.scene.add(van);
-    const vanBox = boxFromCenter(-14, 0.75, 3.05, 4.4, 1.5, 1.95);
-    vanBox.kind = 'car';
-    this.colliders.push(vanBox);
+    this.colliders.push(boxFromCenter(-14, 0.75, 3.05, 4.4, 1.5, 1.95));
 
     // ---- utility poles + overhead wires (second-agent env pass) ----------
     // Three wooden poles on the south sidewalk, wires sagging between them
@@ -779,50 +933,17 @@ export class World {
     this.scene.add(signal);
     this.colliders.push(boxFromCenter(-1.8, 2.75, -7.55, 0.3, 5.5, 0.3));
 
-    // ---- planters (two, where someone actually carries water) -------------
-    const planterEast = makePlanter(this.bank, rng);
-    planterEast.position.set(37, 0.05, 7.45);
-    this.scene.add(planterEast);
+    // ---- planters (the plaza one; the east planter moved to the park,
+    // docs/38 — the barbershop needed its storefront, and the planter's
+    // PED bow-around entry moved with it, doc 35 §3's ghost-prop lesson)
     const planterPlaza = makePlanter(this.bank, rng);
     planterPlaza.position.set(-46.6, 0.05, 4.4);
     planterPlaza.rotation.y = Math.PI / 2;
     this.scene.add(planterPlaza);
-
-    // ---- street furniture colliders (Agent-2 audit Q2) -------------------
-    // The audit found the block's benches, cans, bins, boxes, poles and
-    // boards were visual-only — the player ghosted through every one. Sizes
-    // match the visible geometry (a bench is its seat + back, a can is its
-    // cylinder, a pole is its pole); nothing oversized, no invisible walls.
-    // Trees got their trunk boxes in the planting loop above.
-    this.colliders.push(
-      boxFromCenter(-40.5, 0.4, 4.55, 1.8, 0.8, 0.55),    // plaza bench
-      boxFromCenter(-24.5, 0.4, 6.85, 1.8, 0.8, 0.55),    // bus stop bench
-      boxFromCenter(-24.5, 1.6, 7.35, 0.12, 3.2, 0.12),   // bus stop pole
-      boxFromCenter(-44.29, 0.43, 6.62, 1.2, 0.86, 0.55), // newspaper boxes
-      boxFromCenter(-19, 0.49, 7.45, 0.72, 0.98, 0.72),   // trash can, north
-      boxFromCenter(2, 0.49, -7.45, 0.72, 0.98, 0.72),    // trash can, south
-      boxFromCenter(2.85, 0.5, -7.45, 0.62, 1.0, 0.52),   // recycle bin
-      boxFromCenter(34, 0.42, -4.75, 0.4, 0.84, 0.4),     // hydrant, east
-      boxFromCenter(-0.6, 0.45, -4.6, 0.4, 0.9, 0.4),     // hydrant, crosswalk corner
-      boxFromCenter(-3.2, 0.55, -5.7, 0.65, 1.1, 0.5),    // mailbox
-      boxFromCenter(10.5, 0.41, -5.6, 0.66, 0.82, 0.66),  // trash can (glb seam)
-      boxFromCenter(13.5, 2.2, -5.9, 0.18, 4.4, 0.18),    // streetlamp pole
-      boxFromCenter(-37.6, 1.0, 7.5, 1.7, 2.0, 0.25),     // bulletin board
-      boxFromCenter(37, 0.28, 7.45, 1.1, 0.5, 0.55),      // planter, east
-      boxFromCenter(-46.6, 0.28, 4.4, 0.55, 0.5, 1.1),    // planter, plaza (rot π/2)
-    );
-    // the four cobra-head streetlights — pole-matched boxes (the audit also
-    // flagged the one pre-existing lamp box as ~3× the visible pole)
-    for (const [lx, lz] of [[-31, 7.35], [8, 7.35], [-19.5, -7.35], [31.5, -7.35]]) {
-      this.colliders.push(boxFromCenter(lx, 2.6, lz, 0.2, 5.2, 0.2));
-    }
-    // barrier + stool exist conditionally — dressDay parks the barrier's body
-    // on its last day, update() parks the stool's until it is bought
-    this.barrierCollider = boxFromCenter(-9.7, 0.45, 7.5, 1.55, 0.85, 0.9);
-    this.colliders.push(this.barrierCollider);
-    this.stoolCollider = boxFromCenter(6.95, 0.28, -6.55, 0.5, 0.56, 0.5);
-    this.stoolCollider.minY = -999; this.stoolCollider.maxY = -998; // not bought yet
-    this.colliders.push(this.stoolCollider);
+    // the plaza one is yawed π/2 so its long axis runs z
+    this.colliders.push(boxFromCenter(-46.6, 0.25, 4.4, 0.55, 0.55, 1.1));
+    // the bulletin board is furniture too (its flyer face is the Day-3 beat)
+    this.colliders.push(boxFromCenter(-37.6, 0.975, 7.5, 1.75, 1.95, 0.3));
 
     // ---- one cast-iron fire-escape silhouette on the brownstone row ------
     // Decorative only — no colliders, no triggers. The climbable escape on
@@ -878,15 +999,23 @@ export class World {
       x: lx, z: lz, r: 1.3, top: treeTops[i],
       tints: autumnTrees.has(i) ? TURNING_TINTS : GREEN_TINTS,
     }));
-    this.leaves = new LeafDrift(this.scene, leafSpots, 4);
+    // LeafDrift is constructed AFTER buildAlderHeightsW1() so the new tree
+    // rows shed leaves too (see the call site below the W1 build).
 
     // ---- the stool (Day 3 purchase) + the kid at ground level ----
     this.stool = makeStool(this.bank);
     this.stool.position.set(6.95, 0.05, -6.55); // east-south of the cart — OUT of the serving pocket (the old spot sealed the D4 corner shut: cart | 27 cm | kid)
     this.stool.visible = false;
     this.scene.add(this.stool);
+    // furniture is furniture once it exists: the stool carries a collider
+    // that is parked underground while it is hidden and lands with it when
+    // bought (synced in updateDynamics). The cart's side is clear of it, so
+    // buying never spawns a box under your feet.
+    this.stoolCollider = boxFromCenter(5.25, 0.3, -5.7, 0.55, 0.6, 0.55);
+    this.colliders.push(this.stoolCollider);
+    this.colliders.push(this.barrierCollider);
     this.kidGround = this.buildPerson({
-      jacket: 0x514659, pants: 0x473e50, skin: 0xd9a06b, hair: 0x453b4c, style: 'flat',
+      jacket: 0x514659, pants: 0x473e50, skin: 0xd9a06b, hair: 0x453b4c, style: 'flat', shoe: 0xc0392b,
     });
     this.kidGround.name = 'TheKidDown';
     this.kidGround.scale.setScalar(0.78);
@@ -933,7 +1062,7 @@ export class World {
 
     // ---------------- Sal + Sunrise Laundry + the permit (docs/30) ---------
     this.sal = this.spawnActor('Sal', -7.0, 0.05, 7.85, {
-      jacket: PAL.teal, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x9a938c, style: 'flat',
+      jacket: PAL.teal, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x9a938c, style: 'flat', glasses: true,
     });
     this.sal.rotation.y = Math.PI; // faces the street, chest-up behind his counter
     this.permitReceipt = this.buildPermitReceipt();
@@ -958,7 +1087,23 @@ export class World {
     this.steamPoints.frustumCulled = false;
     this.scene.add(this.steamPoints);
 
+    // ---------------- ALDER HEIGHTS — the master world (docs/39–45) --------
+    // W1: the street grid, the skeleton, the Marlow row. Built BEFORE the
+    // bake so every static slab/curb/shell merges into its district tile.
+    this.buildAlderHeightsW1();
+    // W2: the Gable brownstone row, both interior parks, the two shortcuts.
+    // Also before the bake — and before LeafDrift (the playground trees
+    // join the leaf spots).
+    this.buildAlderHeightsW2();
+
+    // leaf drift, now over every tree on the block (shipped 12 + W1 rows)
+    this.leaves = new LeafDrift(this.scene, [...leafSpots, ...this.extraLeafSpots], 4);
+
     this.bakeStatics();
+
+    // instanced canopies for the new tree rows go up AFTER the bake — an
+    // InstancedMesh is a Mesh, and the bake must never swallow it
+    this.buildInstancedTreeRows();
 
     // ---- ambient pedestrians (Yuka steering) ----------------------------
     // Built AFTER the static bake so their rigs are never merge candidates;
@@ -968,9 +1113,11 @@ export class World {
     // sedan, the mailbox, cans, barrier, bus stop, benches, papers, poles —
     // the player and the cart register as DYNAMIC circles each frame.
     const pedLooks: PedLook[] = [
-      { jacket: 0x4a5568, pants: 0x3b3f4a, skin: 0xc98e5a, hair: 0x2b2730, style: 'cap' },
-      { jacket: 0x7d5a62, pants: 0x47404b, skin: 0xe8b08e, hair: 0x6e3b2a, style: 'bun' },
-      { jacket: 0x5d6b4a, pants: 0x39423a, skin: 0x8a5a3b, hair: 0x1f1b23, style: 'flat' },
+      // height + shoe variety so the three never read as clones (Doc 04:
+      // deliberate identity, bank-shared materials — scale is free)
+      { jacket: 0x4a5568, pants: 0x3b3f4a, skin: 0xc98e5a, hair: 0x2b2730, style: 'cap', shoe: 0x4a3428, scale: 1.05 },
+      { jacket: 0x7d5a62, pants: 0x47404b, skin: 0xe8b08e, hair: 0x6e3b2a, style: 'bun', scale: 0.95 },
+      { jacket: 0x5d6b4a, pants: 0x39423a, skin: 0x8a5a3b, hair: 0x1f1b23, style: 'flat', scale: 1.09 },
     ];
     const pedPaths: Array<Array<[number, number]>> = [
       // the commuter: full block, crossing only at the crosswalk (x ≈ -6.5,
@@ -982,48 +1129,90 @@ export class World {
       // the south-side local: laundry to the west end and back
       [[-34, -6.1], [18, -6.1], [18, -6.8], [-34, -6.8]],
     ];
+    // ---- their routines (Phase 4, Doc 37 §3E): the day's small beats ------
+    // Every trigger sits OFF the walk lanes (at the building line or the
+    // curb edge), so a pause never plugs both lanes; the beat is taken
+    // wherever the walker happens to be when the spot comes within reach.
+    // Round-robin per lap, so a commuter glances at the barber's pole one
+    // lap and reads the mail the next — a block, not a loop recording.
+    // The bench gossip pair (shopper + commuter) stops sit ~1.2 m apart on
+    // the north line: when both dwell at once they face each other — the
+    // block's occasional two-person conversation.
+    const pedRoutines: RoutineStop[][] = [
+      // the commuter: the barber's pole on the way east, the mailbox on the
+      // way west, and a chance word by the bus bench
+      [
+        { x: 34.5, z: 7.0, faceTo: [36.6, 7.9], dwell: 3.0 },
+        { x: -3.4, z: -6.9, faceTo: [-3.2, -6.1], dwell: 2.5 },
+        { x: -24.9, z: 7.0, faceTo: [-23.3, 7.62], dwell: 5.0 },
+      ],
+      // the window shopper: the bodega window (she's just looking — always),
+      // then the bench, where the gossip lives
+      [
+        { x: -17.0, z: 7.0, faceTo: [-18.5, 13.5], dwell: 4.0 },
+        { x: -26.1, z: 7.0, faceTo: [-23.3, 7.62], dwell: 5.0 },
+      ],
+      // the south-side local: watches the cart corner (opinions daily),
+      // reads the stoops at the quiet west end
+      [
+        { x: 5.4, z: -6.9, faceTo: [4.0, -6.6], dwell: 3.0 },
+        { x: -30.5, z: -6.9, faceTo: [-30.5, -9.0], dwell: 2.5 },
+      ],
+    ];
     this.peds = new Pedestrians(
       this.scene, pedLooks, (c) => this.bank.get(c), 20261030, pedPaths,
       [
         { x: -14, z: 3.05, r: 1.9 },   // delivery van, north curb
-        { x: 24, z: -3.05, r: 1.9 },   // parked sedan, south curb
-        { x: -3.2, z: -5.7, r: 0.45 }, // mailbox
+        { x: 24, z: 3.05, r: 1.9 },    // parked sedan — north curb (was -3.05:
+                                       // the curb move in 1bc2dac never reached
+                                       // this list, so walkers bowed around a
+                                       // ghost car in the cab lane — doc 35 §3)
+        { x: -3.2, z: -6.1, r: 0.45 }, // mailbox
         { x: 10.5, z: -5.6, r: 0.4 },  // trashcan (glb-wearable)
         { x: 2, z: -7.45, r: 0.4 },    // trashcan
         { x: 2.85, z: -7.45, r: 0.4 }, // recycle bin
-        { x: -19, z: 7.45, r: 0.4 },   // trashcan north
-        { x: -9.7, z: 7.5, r: 0.7 },   // barrier
-        { x: 34, z: -4.75, r: 0.35 },  // hydrant
-        { x: -24.5, z: 7.35, r: 1.0 }, // bus stop + bench
+        { x: -19, z: 7.66, r: 0.4 },   // trashcan north
+        { x: -9.7, z: 7.62, r: 0.7 },  // barrier
+        { x: 34, z: -4.75, r: 0.35 },  // hydrant east
+        { x: 5.7, z: -4.55, r: 0.35 }, // hydrant west (east of the cart, at the curb)
+        { x: -24.5, z: 7.35, r: 0.4 }, // bus stop sign pole (air — collider removed:
+                                       // its corner pocket could wedge a body)
+        { x: -23.3, z: 7.62, r: 1.1 }, // bus bench (at the building line)
         { x: -40.5, z: 4.55, r: 1.0 }, // plaza bench
         { x: -44.6, z: 6.6, r: 0.9 },  // newspaper boxes
         { x: -8.5, z: -7.35, r: 0.3 }, // utility poles
         { x: 20, z: -7.35, r: 0.3 },
         { x: 44.5, z: -7.35, r: 0.3 },
         { x: 13.5, z: -5.9, r: 0.3 },  // streetlamp
-        ...treeSpots.map(([tx, tz]) => ({ x: tx, z: tz, r: 0.3 })), // trunks join the weave
+        { x: 29.8, z: -4.55, r: 0.9 }, // dirty-water dog cart (docs/38)
+        { x: -46.6, z: 4.4, r: 0.6 },  // planter plaza (missing)
+        { x: -8.55, z: 7.55, r: 0.5 }, // shirt rack (missing)
+        { x: -4.0, z: 5.8, r: 0.5 },   // permit A-frame — it stands IN the
+                                       // north walk lane; walkers bow around it
+        { x: -34, z: 7.48, r: 0.35 },  // tree trunks — all twelve, so nobody
+        { x: -22, z: 7.48, r: 0.35 },  // brushes a trunk they could see coming
+        { x: -1.2, z: 7.48, r: 0.35 },
+        { x: 20, z: 7.48, r: 0.35 },
+        { x: 32, z: 7.48, r: 0.35 },
+        { x: -44, z: -7.0, r: 0.35 },
+        { x: -30, z: -7.0, r: 0.35 },
+        { x: -16, z: -7.0, r: 0.35 },
+        { x: 28, z: -7.0, r: 0.35 },
+        { x: 38, z: -7.0, r: 0.35 },
+        { x: -45, z: 4.7, r: 0.35 },
+        { x: -38.6, z: 4.5, r: 0.35 },
+        // W1: the Kestrel fill trees + the south control house + the new
+        // south lamp — everything the ambient walkers can meet on the lane
+        ...this.extraKestrelPedBodies.map(([x, z]) => ({ x, z, r: 0.35 })),
+        { x: -57, z: -6.25, r: 1.9 },  // SUB-02 control house
+        { x: 12, z: -7.35, r: 0.3 },   // new south lamp (walker band east end)
       ],
-      // The safety net's own list — tight, VISIBLE footprints (Agent-2):
-      // steering circles are deliberately generous, resolve circles correct
-      // only genuine overlap, capped so nothing ever snaps.
-      [
-        [-14, 3.05, 1.6], [24, -3.05, 1.6],            // parked cars
-        [-3.2, -5.7, 0.42], [10.5, -5.6, 0.36],        // mailbox, glb trashcan
-        [2, -7.45, 0.36], [2.85, -7.45, 0.42], [-19, 7.45, 0.36],
-        [-9.7, 7.5, 0.55],                              // barrier
-        [34, -4.75, 0.3], [-0.6, -4.6, 0.3],            // hydrants
-        [-24.5, 6.85, 0.95], [-40.5, 4.55, 0.95],       // benches
-        [-24.5, 7.35, 0.2],                             // bus pole
-        [-44.29, 6.62, 0.7],                            // newspaper boxes
-        [13.5, -5.9, 0.15],                             // streetlamp
-        [-31, 7.35, 0.15], [8, 7.35, 0.15],
-        [-19.5, -7.35, 0.15], [31.5, -7.35, 0.15],      // streetlights
-        [-8.5, -7.35, 0.15], [20, -7.35, 0.15], [44.5, -7.35, 0.15],
-        [-1.8, -7.55, 0.15],                            // signal pole
-        [37, 7.45, 0.65], [-46.6, 4.4, 0.65],           // planters
-        ...treeSpots.map(([tx, tz]) => [tx, tz, 0.2] as [number, number, number]),
-      ],
+      pedRoutines,
     );
+    // the walkers carry real bodies for the player's collision stack — the
+    // audit's "NPCs walking through the player" (doc 35 §1): one synced AABB
+    // each, registered once, moved by Pedestrians.update every frame
+    for (const box of this.peds.walkColliders) this.colliders.push(box);
   }
 
   // ------------------------------------------------- static-geometry bake
@@ -1049,11 +1238,15 @@ export class World {
       this.rosa, this.idris, this.kidGround, this.kidSil, this.stranger, this.sal,
       this.familiar, this.barrier, this.asphaltPatch,
       this.stool, this.permitReceipt,
+      this.ball, // the half-court ball flies (docs/38)
       this.pigeonFlock.group, this.pigeonFlockEast.group, this.squirrel.group,
       this.leaves.mesh,
       ...this.glbProps.values(),
       ...this.itemMeshes.values(),
-      ...this.trees.map((t) => t.group),
+      // W0: only the CANOPY stays out of the bake — the sway owns it. The
+      // trunk and root flare are static wood: they merge into their district
+      // tile like any other wall (−2 draw calls × 12 trees × 2 passes).
+      ...this.trees.map((t) => t.canopy),
     ]);
     // the windows whose MATERIALS are tweened (dusk, golden-hour beats) —
     // they share a signature with the plain dim windows and must not join
@@ -1061,7 +1254,11 @@ export class World {
     // ambient windows keep a day-keyed diary instead (dressing.ts) — same
     // exclusion, different author.
     const NAMED_SKIP = new Set(['GoldWindow', 'SecondWindow', 'ThirdWindow', 'FourthWindow', 'Bodega_Window',
-      'AmbientWindow_Late', 'AmbientWindow_New', 'AmbientWindow_Riser']);
+      'AmbientWindow_Late', 'AmbientWindow_New', 'AmbientWindow_Riser',
+      // the plaza decks stay named: probe-env6 verifies their proudness and
+      // clearances by name (the "plaza owns its paving" regression) — two
+      // receive-only slabs are a fair price for that identity
+      'Plaza_Deck_W', 'Plaza_Deck_E']);
     const excluded = (o: THREE.Object3D): boolean => {
       for (let p: THREE.Object3D | null = o; p !== null; p = p.parent) {
         if (skip.has(p) || NAMED_SKIP.has(p.name)) return true;
@@ -1069,7 +1266,7 @@ export class World {
       return false;
     };
 
-    interface BatchSrc { geo: THREE.BufferGeometry; mesh: THREE.Mesh; tile: number }
+    interface BatchSrc { geo: THREE.BufferGeometry; mesh: THREE.Mesh; tile: string }
     interface Batch { srcs: BatchSrc[]; cast: boolean; receive: boolean; mat: THREE.MeshLambertMaterial }
     const batches = new Map<string, Batch>();
 
@@ -1091,22 +1288,23 @@ export class World {
       for (const name of Object.keys(g.attributes)) {
         if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
       }
-      // Region-split: a whole-block batch would defeat frustum culling (the
-      // batch's bounding sphere spans the block, so nothing ever culls) —
-      // on software GL that cost more in rasterized triangles than the draw
-      // calls saved (playtest 2026-10-30: the e2e driver lost a third of its
-      // fps and its timed beats started missing). Batching per 25 m tile
-      // along the street keeps the draw-call win AND lets off-screen tiles
-      // cull exactly like the individual meshes did.
-      const tile = Math.max(0, Math.min(3, Math.floor((o.matrixWorld.elements[12] + 50) / 25)));
+      // Region-split (W0: now 2D district tiles): a whole-world batch would
+      // defeat frustum culling (the batch's bounding sphere spans the world,
+      // so nothing ever culls) — on software GL that cost more in rasterized
+      // triangles than the draw calls saved (playtest 2026-10-30: the e2e
+      // driver lost a third of its fps and its timed beats started missing).
+      // Batching per 28 m × 32 m district tile keeps the draw-call win AND
+      // lets off-screen tiles cull exactly like the individual meshes did —
+      // and gives the district visibility pass its unit of work.
+      const tile = World.districtKey(o.matrixWorld.elements[12], o.matrixWorld.elements[14]);
       b.srcs.push({ geo: g, mesh: o, tile });
     });
 
-    // commits happen per (signature, tile); a tile group of 1 stays as-is —
-    // merging it would save nothing
+    // commits happen per (signature, district); a district group of 1 stays
+    // as-is — merging it would save nothing
     const bySigTile = new Map<string, { batch: Batch; srcs: BatchSrc[] }>();
     for (const [key, b] of batches) {
-      const byTile = new Map<number, BatchSrc[]>();
+      const byTile = new Map<string, BatchSrc[]>();
       for (const s of b.srcs) {
         let list = byTile.get(s.tile);
         if (!list) byTile.set(s.tile, list = []);
@@ -1140,11 +1338,32 @@ export class World {
       for (const s of g.srcs) s.geo.dispose();
       merged.computeBoundingSphere();
       const mesh = new THREE.Mesh(merged, g.batch.mat);
-      mesh.name = `StaticBake_${batchIndex++}`;
+      mesh.name = `StaticBake_${g.srcs[0].tile}_${batchIndex++}`;
       mesh.castShadow = g.batch.cast;
       mesh.receiveShadow = g.batch.receive;
       this.scene.add(mesh);
+      const dk = g.srcs[0].tile;
+      let list = this.districtBatches.get(dk);
+      if (!list) this.districtBatches.set(dk, list = []);
+      list.push(mesh);
     }
+
+    // dynamic groups join their districts (the batch meshes above are
+    // already registered) — W0's ring covers the whole shipped street, so
+    // this changes nothing visible; it makes the system real and measured.
+    for (const t of this.trees) this.registerDistrictObject(t.group, t.group.position.x, t.group.position.z);
+    this.registerDistrictObject(this.pigeonFlock.group, this.pigeonFlock.group.position.x, this.pigeonFlock.group.position.z);
+    this.registerDistrictObject(this.pigeonFlockEast.group, this.pigeonFlockEast.group.position.x, this.pigeonFlockEast.group.position.z);
+    this.registerDistrictObject(this.squirrel.group, this.squirrel.group.position.x, this.squirrel.group.position.z);
+    this.registerDistrictObject(this.steamPoints, this.steamPoints.position.x, this.steamPoints.position.z);
+    this.registerDistrictObject(this.leaves.mesh, 0, 0);
+    // glb props join their district — EXCEPT the taxi: a rail vehicle spans
+    // every column on the street, so no district may own its visibility.
+    for (const [id, o] of this.glbProps) {
+      if (id === 'car_taxi') continue;
+      this.registerDistrictObject(o, o.position.x, o.position.z);
+    }
+    this.updateDistricts(-30, 6.2); // boot at the spawn — the E2E's first frame
   }
 
   // ------------------------------------------------------------------ helpers
@@ -1258,20 +1477,27 @@ export class World {
     const url = new URL(file, document.baseURI).href;
     try {
       const gltf = await loader.loadAsync(url);
-      const gltfScene = gltf.scene;
+      let visual: THREE.Object3D = gltf.scene;
       let hasMesh = false;
       const stray: THREE.Object3D[] = [];
-      gltfScene.traverse((o) => {
+      visual.traverse((o) => {
         if ((o as THREE.Mesh).isMesh) hasMesh = true;
         if ((o as THREE.Light).isLight || (o as THREE.Camera).isCamera) stray.push(o);
       });
       if (!hasMesh) throw new Error('no meshes in file');
       for (const o of stray) o.parent?.remove(o);
+      // W0: generated GLBs arrive node-per-part (the exporter writes one node
+      // per primitive) — a hydrant wore 12 draw calls, a car 18. Merge the
+      // scene's single-material meshes into one mesh per material; the world
+      // transforms are baked into the merged vertices, so the visual is
+      // bit-identical. Any mesh we can't merge (multi-material groups,
+      // mismatched attributes) keeps the original scene untouched.
+      visual = this.mergeGltfParts(visual);
 
       placeholder.updateWorldMatrix(true, false);
       const phBox = new THREE.Box3().setFromObject(placeholder);
       const phSize = phBox.getSize(new THREE.Vector3());
-      const box = new THREE.Box3().setFromObject(gltfScene);
+      const box = new THREE.Box3().setFromObject(visual);
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
       if (!(size.y > 0) || !Number.isFinite(size.y)) throw new Error('degenerate bounds');
@@ -1294,16 +1520,16 @@ export class World {
         || scaledZ < phSize.z * 0.5 || scaledZ > phSize.z * 1.9) {
         throw new Error(`footprint mismatch (${scaledX.toFixed(2)}×${scaledZ.toFixed(2)} vs ${phSize.x.toFixed(2)}×${phSize.z.toFixed(2)})`);
       }
-      gltfScene.scale.setScalar(s);
-      gltfScene.position.set(-center.x * s, -box.min.y * s, -center.z * s);
+      visual.scale.setScalar(s);
+      visual.position.set(-center.x * s, -box.min.y * s, -center.z * s);
 
       const wrapper = new THREE.Group();
       wrapper.name = `${placeholder.name || id}_glb`;
       wrapper.position.copy(worldPos);
       wrapper.quaternion.copy(worldQuat);
       wrapper.scale.copy(worldScale);
-      wrapper.add(gltfScene);
-      gltfScene.traverse((o) => {
+      wrapper.add(visual);
+      visual.traverse((o) => {
         if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.receiveShadow = true; }
       });
 
@@ -1314,6 +1540,11 @@ export class World {
       this.disposeTree(placeholder);
       this.glbProps.set(id, wrapper); // re-register so the upgrade is re-runnable
       this.glbUpgrades.set(id, file);
+      // the GLB wrapper inherits the placeholder's district seat (the bake
+      // registered the placeholder before the async upgrade swapped it)
+      if (this.districtOf.has(placeholder)) {
+        this.registerDistrictObject(wrapper, wrapper.position.x, wrapper.position.z);
+      }
       return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -1323,6 +1554,44 @@ export class World {
       }
       return false;
     }
+  }
+
+  /** Merge a loaded GLB scene's single-material meshes into one mesh per
+   *  material (world transforms baked in). Returns the ORIGINAL scene when
+   *  anything is not safely mergeable — the upgrade path never gambles. */
+  private mergeGltfParts(root: THREE.Object3D): THREE.Object3D {
+    const parts: THREE.Mesh[] = [];
+    root.updateMatrixWorld(true);
+    root.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) parts.push(m); });
+    if (parts.length < 2) return root;
+    const byMat = new Map<THREE.Material, THREE.BufferGeometry[]>();
+    let mergeable = 0;
+    for (const m of parts) {
+      const multi = Array.isArray(m.material)
+        || (m.geometry.groups && m.geometry.groups.length > 1);
+      if (multi || !m.geometry.index) return root; // keep the original scene
+      mergeable++;
+      const g = m.geometry.clone();
+      g.applyMatrix4(m.matrixWorld);
+      for (const name of Object.keys(g.attributes)) {
+        if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
+      }
+      const mat = m.material as THREE.Material;
+      let list = byMat.get(mat);
+      if (!list) byMat.set(mat, list = []);
+      list.push(g);
+    }
+    if (mergeable < 2 || parts.length <= byMat.size) return root;
+    const mergedRoot = new THREE.Group();
+    mergedRoot.name = root.name;
+    for (const [mat, geos] of byMat) {
+      const merged = geos.length === 1 ? geos[0] : mergeGeometries(geos, false);
+      if (!merged) return root;
+      merged.computeBoundingSphere();
+      mergedRoot.add(new THREE.Mesh(merged, mat));
+      for (const g of geos) if (g !== merged) g.dispose();
+    }
+    return mergedRoot;
   }
 
   private disposeTree(root: THREE.Object3D): void {
@@ -1451,12 +1720,8 @@ export class World {
     const awn = this.deco('Laundry_Awning', CX, 2.5, 7.1, 6.0, 0.09, 1.3, PAL.teal);
     awn.rotation.x = 0.3;
     awn.castShadow = true;
-    this.decoMesh(
-      'Laundry_Sign',
-      new THREE.BoxGeometry(5.4, 0.8, 0.12),
-      this.signMaterials(D4_LAUNDRY_SIGN, 768, 128, PAL.teal, PAL.cream, 56),
-      CX, 3.42, 7.7,
-    );
+    this.signBoard('Laundry_Sign', D4_LAUNDRY_SIGN, 5.4, 0.8, 0.12, 768, 128, PAL.teal, PAL.cream, 56)
+      .position.set(CX, 3.42, 7.7);
     // shirts on the sidewalk rack — west of the bay, tucked by the barrier
     const rack = this.makeShirtRack();
     rack.position.set(-8.55, 0.05, 7.55);
@@ -1470,6 +1735,846 @@ export class World {
     this.scene.add(notice);
     this.colliders.push(boxFromCenter(-4.0, 0.5, 5.8, 0.65, 1.0, 0.3));
   }
+
+  // ------------------------------------------------- the expanded block (docs/38)
+  // Doc 37 §3A: bodega (shipped), laundromat (shipped), and now — a
+  // barbershop, a real alley, a pocket park, a half-court, a street vendor.
+  // "A compact, rich block beats a vast empty one": every addition is east
+  // of x = 29, on land nothing authored uses.
+
+  /** THE ALLEY — a real cut between the split halves of Bldg_N_East_B:
+   *  side walls, a back wall, a lintel, gravel underfoot, open sky above.
+   *  The hidden corner the bulletin board's lost cat comes back to. */
+  private buildAlley(): void {
+    // gravel floor — flush with the sidewalk, no lip to trip a capsule.
+    // W2 (docs/47): raised proud of the W1 yard slab, which had buried
+    // these strips whole (top 0.1 over a floor that topped out at 0.06).
+    this.deco('Alley_Floor', 32.1, 0.125, 9.3, 2.8, 0.05, 2.6, 0x4a4552, {});
+    this.deco('Alley_Floor_2', 32.1, 0.125, 7.4, 2.8, 0.05, 1.2, 0x4a4552, {});
+    // side walls (y 0–3) + back wall; the slot above y = 3 stays open — a
+    // slice of sky between two sixteen-metre masses, exactly like a real
+    // alley gives you
+    this.solid('Alley_Wall_W', 30.85, 1.5, 9.3, 0.3, 3, 2.7, PAL.brick);
+    this.solid('Alley_Wall_E', 33.35, 1.5, 9.3, 0.3, 3, 2.7, PAL.brick);
+    this.solid('Alley_Back', 32.1, 1.5, 10.5, 2.8, 3, 0.3, 0x6e554e);
+    // the lintel ties the two building halves together over the mouth
+    this.solid('Alley_Lintel', 32.1, 3.45, 9.3, 3.2, 1.1, 3.4, PAL.bldg);
+    // one honest trash bag — the alley is somebody's Tuesday
+    this.decoMesh('Alley_Bag', new THREE.SphereGeometry(0.28, 8, 6), this.mat(PAL.ink), 31.6, 0.28, 9.9);
+    // a string of dead bulbs across the mouth (unlit: the city fixes these
+    // eventually) — one thin ink wire, two glass nubs
+    const wire = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.015, 0.015), this.mat(PAL.ink));
+    wire.position.set(32.1, 2.82, 8.1);
+    this.scene.add(wire);
+    for (const bx of [31.4, 32.8]) {
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 6), this.mat(PAL.cream));
+      bulb.position.set(bx, 2.74, 8.1);
+      this.scene.add(bulb);
+    }
+  }
+
+  /** FADE KING BARBERSHOP — a storefront on the north face (same builder as
+   *  the pizza joint), striped pole on the wall west of the glass. Air pole:
+   *  signs and poles stay non-solid, like every other pole on the block. */
+  private buildBarbershop(): void {
+    const shop = makeStorefront(this.bank, this.signMaterials.bind(this), 'FADE KING BARBERSHOP', PAL.brick, 5);
+    shop.position.set(36.6, 0.05, 8.02);
+    shop.rotation.y = Math.PI; // same lean-out fix as the pizza (W1)
+    this.scene.add(shop);
+    const pole = makeBarberPole(this.bank);
+    pole.position.set(33.85, 1.55, 7.93);
+    this.scene.add(pole);
+    // two folding chairs wait against the wall between pole and glass —
+    // the walk-in queue is furniture with a story
+    for (const cx of [35.0, 35.8]) {
+      const seat = this.deco('Barber_Chand_' + cx, cx, 0.42, 7.72, 0.5, 0.06, 0.5, 0x2b2730);
+      seat.castShadow = true;
+      const back = this.deco('Barber_Back_' + cx, cx, 0.72, 7.92, 0.5, 0.6, 0.06, 0x2b2730);
+      back.castShadow = true;
+    }
+    this.colliders.push(boxFromCenter(35.4, 0.5, 7.8, 1.3, 1.0, 0.5)); // the chair pair blocks
+  }
+
+  /** THE HALF-COURT — painted key and arc on the north-east sidewalk, hoop
+   *  against the building face. The commuter ped turns around at x = 38;
+   *  everything here is east of the turn and ped-free. */
+  private buildCourt(): void {
+    // paint: asphalt patch slightly darker than the walk, cream lines
+    this.deco('Court_Paint', 43.75, 0.035, 6.1, 7.3, 0.02, 3.4, 0x4a4552, {});
+    const line = this.mat(PAL.cream);
+    for (const [lx, lz, sx, sz] of [
+      [42.6, 5.9, 0.08, 2.6], [45.9, 5.9, 0.08, 2.6], // key sidelines
+      [44.25, 7.2, 3.4, 0.08],                          // free-throw line
+      [42.6, 4.6, 0.08, 0.6], [45.9, 4.6, 0.08, 0.6],  // key corners
+    ] as const) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(sx, 0.02, sz), line);
+      m.position.set(lx, 0.045, lz);
+      this.scene.add(m);
+    }
+    // the arc — half ring laid flat at the free-throw line, opening south
+    const arc = new THREE.Mesh(
+      new THREE.RingGeometry(1.75, 1.85, 26, 1, Math.PI, Math.PI),
+      line,
+    );
+    arc.rotation.x = -Math.PI / 2;
+    arc.position.set(44.25, 0.045, 7.2);
+    this.scene.add(arc);
+    // the hoop, against the face; the rim reads from the whole sidewalk
+    const hoop = makeHoop(this.bank);
+    hoop.position.set(44.25, 0.05, 7.9);
+    this.scene.add(hoop);
+    this.colliders.push(boxFromCenter(44.25, 1.65, 7.9, 0.24, 3.3, 0.24)); // the pole blocks
+    // the ball — orange, patient, at rest by the key. It moves when shot,
+    // so it is excluded from the static bake (see bakeStatics).
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), this.mat(0xd9772f));
+    ball.name = 'CourtBall';
+    ball.position.set(43.2, 0.13, 5.2);
+    ball.castShadow = true;
+    this.scene.add(ball);
+    this.ball = ball;
+  }
+
+  /** CORNER PARK — the south-east pocket: iron fence with a gate, lawn, a
+   *  gravel path, two benches (the south one is sittable), the Parks sign,
+   *  a trash can, and the planter that used to stand at (37, 7.6) — it
+   *  moved here (the barbershop needed its storefront), so its PED
+   *  bow-around entry moved with it (doc 35 §3's ghost-prop lesson). The
+   *  existing hydrant (34, −4.75) and tree (38, −7) stay: the park keeps
+   *  what the block already had. */
+  private buildPark(): void {
+    // lawn + path, receive-only, no collide (flush with the walk)
+    this.deco('Park_Lawn', 39.3, 0.04, -6.15, 17.0, 0.05, 3.5, 0x3a7355, {});
+    this.deco('Park_Path', 31.9, 0.045, -6.0, 2.4, 0.04, 1.1, PAL.stone, {});
+    // fence: west line at x = 30.6 with a 1.6 m gate at z −6.7…−5.1
+    const fenceW1 = makeFence(this.bank, 1.3);
+    fenceW1.position.set(30.6, 0.05, -7.35);
+    fenceW1.rotation.y = Math.PI / 2;
+    this.scene.add(fenceW1);
+    const fenceW2 = makeFence(this.bank, 0.8);
+    fenceW2.position.set(30.6, 0.05, -4.7);
+    fenceW2.rotation.y = Math.PI / 2;
+    this.scene.add(fenceW2);
+    this.colliders.push(boxFromCenter(30.6, 0.4, -7.35, 0.15, 0.8, 1.3));
+    this.colliders.push(boxFromCenter(30.6, 0.4, -4.7, 0.15, 0.8, 0.8));
+    // south fence closing the pocket at the curb line? No — the curb is the
+    // park's north edge; parks open to their street. A low fence runs the
+    // west line only; the lawn's ends fade into the walk.
+    // benches: the street one (sittable, faces the street) + a quiet one
+    const parkBench = makeBench(this.bank);
+    parkBench.position.set(41.5, 0.05, -5.05);
+    parkBench.rotation.y = Math.PI; // back to the lawn, face to the street
+    this.scene.add(parkBench);
+    this.colliders.push(boxFromCenter(41.5, 0.35, -5.05, 1.85, 0.7, 0.62));
+    const quietBench = makeBench(this.bank);
+    quietBench.position.set(33.7, 0.05, -7.15);
+    quietBench.rotation.y = Math.PI;
+    this.scene.add(quietBench);
+    this.colliders.push(boxFromCenter(33.7, 0.35, -7.15, 1.85, 0.7, 0.62));
+    // the Parks sign at the gate, facing the street (west)
+    const sign = makeParksSign(this.bank, this.signMaterials.bind(this), 'CORNER PARK');
+    sign.position.set(31.5, 0.05, -4.55);
+    sign.rotation.y = Math.PI / 2;
+    this.scene.add(sign);
+    this.colliders.push(boxFromCenter(31.5, 0.7, -4.55, 0.4, 1.5, 0.2));
+    // trash can + the relocated planter
+    const can = makeTrashCan(this.bank);
+    can.position.set(36.8, 0.05, -7.4);
+    this.scene.add(can);
+    this.colliders.push(boxFromCenter(36.8, 0.5, -7.4, 0.68, 1.0, 0.68));
+    const rngPark = seededRng(20261031);
+    const planterEast = makePlanter(this.bank, rngPark);
+    planterEast.position.set(45.0, 0.05, -7.4);
+    this.scene.add(planterEast);
+    this.colliders.push(boxFromCenter(45.0, 0.25, -7.4, 1.1, 0.55, 0.55));
+  }
+
+  /** The dirty-water dog cart — south curb by the park gate, amber
+   *  umbrella, gold sign. Lateral clearance to the cab's rail (z = −2) is
+   *  2.55 m: the cab's half-width plus the cart's cannot reach contact. */
+  private buildVendorCart(): void {
+    const cart = makeVendorCart(this.bank, this.signMaterials.bind(this), 'DIRTY WATER DOGS');
+    cart.position.set(29.8, 0.05, -4.55);
+    this.scene.add(cart);
+    this.colliders.push(boxFromCenter(29.8, 0.6, -4.55, 1.7, 1.2, 0.9));
+  }
+
+  // ================================================================
+  // ALDER HEIGHTS — W1: streets + skeleton + the Marlow row
+  // (docs/45 §1 W1; every coordinate from world-registry.json — no
+  // invented positions. Built before the bake: everything static here
+  // merges into its district tile.)
+  // ================================================================
+
+  /** New street trees (Gable/Marlow rows + both avenues) render as two
+   *  InstancedMeshes — one per leaf material — with per-tree sway and
+   *  per-tree blob data. The shipped 12 keep their fade-capable clones.
+   *  New trees do NOT join the fade pass (their camera guard is the
+   *  sidestep + z-clamp; docs/47 W1 records the tradeoff). */
+  private simpleTrees: Array<{ x: number; z: number; h: number; phase: number; top: number;
+    blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 }> }> = [];
+  private extraLeafSpots: Array<{ x: number; z: number; r: number; top: number; tints: number[] }> = [];
+  private treeLeafA: THREE.InstancedMesh | null = null;
+  private treeLeafB: THREE.InstancedMesh | null = null;
+  private readonly mSway = new THREE.Matrix4();
+  private readonly mBlob = new THREE.Matrix4();
+  private readonly mCanopy = new THREE.Matrix4();
+  private readonly tV = new THREE.Vector3();
+  private readonly tQ = new THREE.Quaternion();
+  private readonly tE = new THREE.Euler();
+  private readonly tS = new THREE.Vector3();
+  private readonly tOne = new THREE.Vector3(1, 1, 1);
+
+  /** One zebra crossing: `acrossEW` crosses an E–W road (ped walks N–S,
+   *  bars long in X marching in Z); `acrossNS` crosses a N–S avenue. */
+  private zebra(name: string, cx: number, cz: number, dir: 'acrossEW' | 'acrossNS'): void {
+    const bars = dir === 'acrossEW' ? 6 : 8; // the avenues are 10 m wide
+    for (let i = 0; i < bars; i++) {
+      const t = -((bars - 1) / 2) * 1.32 + i * 1.32;
+      if (dir === 'acrossEW') this.deco(`${name}_${i}`, cx, 0.03, cz + t, 3.4, 0.02, 0.6, PAL.cream, {});
+      else this.deco(`${name}_${i}`, cx + t, 0.03, cz, 0.6, 0.02, 3.4, PAL.cream, {});
+    }
+  }
+
+  /** One new street tree: bark trunk + root flare (bake candidates) and a
+   *  seeded blob record for the instanced canopy. Same shapes and rng
+   *  grammar as makeTree — the silhouette is identical, the draw cost is
+   *  shared. */
+  private buildSimpleTree(x: number, z: number, rng: () => number): void {
+    const bark = this.bank.get(0x6d5344);
+    const h = 2.1 + rng() * 1.3;
+    const trunk = new THREE.Mesh(SHARED_GEOS.trunk, bark);
+    trunk.scale.set(1, h, 1);
+    trunk.position.set(x, 0.05 + h / 2, z);
+    trunk.castShadow = true;
+    this.scene.add(trunk);
+    const flare = new THREE.Mesh(SHARED_GEOS.cone, bark);
+    flare.scale.set(0.62, 0.18, 0.62);
+    flare.position.set(x, 0.05 + 0.09, z);
+    this.scene.add(flare);
+    const pit = makeTreePit(this.bank);
+    pit.position.set(x, 0.07, z);
+    this.scene.add(pit);
+    const blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 }> = [];
+    let top = h;
+    for (let i = 0; i < 3; i++) {
+      const r = 0.85 + rng() * 0.55;
+      const cy = r * 0.45 + rng() * 0.5;
+      const ox = (rng() - 0.5) * 0.9;
+      const oz = (rng() - 0.5) * 0.9;
+      blobs.push({ ox, oy: cy, oz, r, mat: i === 0 ? 0 : (rng() < 0.5 ? 0 : 1) });
+      top = Math.max(top, h + cy + r * 0.9);
+    }
+    this.simpleTrees.push({ x, z, h, phase: rng() * Math.PI * 2, top, blobs });
+    this.extraLeafSpots.push({ x, z, r: 1.3, top, tints: [0x5d7d4a, 0x516e42, 0x516e42] });
+    // the trunk is wood — same collider grammar as the shipped row
+    this.colliders.push(boxFromCenter(x, 1.15, z, 0.36, 2.2, 0.36));
+    // the camera's sight-line guard sees every canopy
+    this.canopySpheresCache.push({ x, y: top - 0.9, z, r: 2.15 });
+  }
+
+  private buildAlderHeightsW1(): void {
+    const CURB = 0x8f8a82;
+    const rng = seededRng(20261101);
+
+    // ---- A. Kestrel slabs → ±84 (butt-jointed extensions, same levels) --
+    this.solid('Road_W', -67, -0.1, 0, 34, 0.2, 8, PAL.road, { receive: true, cast: false });
+    this.solid('Road_E', 67, -0.1, 0, 34, 0.2, 8, PAL.road, { receive: true, cast: false });
+    // sidewalks: the avenue road mouths (x −76..−68 / 68..76) cut the walks
+    for (const [sz, nm] of [[6, 'Sidewalk_N_ext'], [-6, 'Sidewalk_S_ext']] as const) {
+      this.solid(`${nm}_W1`, -80, -0.05, sz, 8, 0.3, 4, PAL.walk, { receive: true, cast: false });
+      this.solid(`${nm}_W2`, -59, -0.05, sz, 18, 0.3, 4, PAL.walk, { receive: true, cast: false });
+      this.solid(`${nm}_E1`, 80, -0.05, sz, 8, 0.3, 4, PAL.walk, { receive: true, cast: false });
+      this.solid(`${nm}_E2`, 59, -0.05, sz, 18, 0.3, 4, PAL.walk, { receive: true, cast: false });
+    }
+    // curbs: XW-COURT gap splits the shipped east run — the shipped curb
+    // solids are REPLACED by this full layout (same color/size/y grammar)
+    const deadCurbs: THREE.Object3D[] = [];
+    for (const c of this.scene.children) {
+      if (c.name.startsWith('Curb_')) deadCurbs.push(c);
+    }
+    for (const c of deadCurbs) {
+      this.scene.remove(c);
+      this.disposeTree(c);
+    }
+    const curbRuns: Array<[string, number, number, number]> = [
+      ['K_N_a', -80.6, 4.08, 6.8], ['K_N_b', -37.4, 4.08, 58.8],
+      ['K_N_c', 16.15, 4.08, 34.3], ['K_N_d', 51.75, 4.08, 30.1], ['K_N_e', 80.6, 4.08, 6.8],
+      ['K_S_a', -80.6, -4.08, 6.8], ['K_S_b', -37.4, -4.08, 58.8],
+      ['K_S_c', 16.15, -4.08, 34.3], ['K_S_d', 51.75, -4.08, 30.1], ['K_S_e', 80.6, -4.08, 6.8],
+    ];
+    for (const [nm, cx, cz, len] of curbRuns) {
+      this.solid(`Curb_${nm}`, cx, 0.065, cz, len, 0.13, 0.5, CURB, { collide: false });
+    }
+
+    // ---- B+C. the four new streets (roads dip 5 mm under the E–W roads
+    // at junctions — invisible, kills the coplanar shimmer) ----------------
+    for (const cx of [-72, 72]) {
+      const cn = cx < 0 ? 'J' : 'S';
+      this.solid(`Road_${cn}`, cx, -0.105, 0, 10, 0.19, 96, PAL.road, { receive: true, cast: false });
+      for (const side of [-1, 1] as const) {
+        const wx = cx + side * 8;
+        const wn = side < 0 ? 'W' : 'E';
+        // avenue walks live BETWEEN the E–W streets; the corners belong to
+        // Kestrel's/Gable's/Marlow's own walks
+        this.solid(`Walk_${cn}${wn}_a`, wx, -0.05, 22, 8, 0.3, 28, PAL.walk, { receive: true, cast: false });
+        this.solid(`Walk_${cn}${wn}_b`, wx, -0.05, -22, 8, 0.3, 28, PAL.walk, { receive: true, cast: false });
+        // avenue curbs: segments between the street mouths (roads ±4, 36..44, −44..−36)
+        for (const [z0, z1] of [[8, 35.83], [44.17, 48], [-35.83, -4], [-48, -44.17]] as const) {
+          this.solid(`Curb_${cn}${wn}_${z0}`, cx + side * 7.92, 0.065, (z0 + z1) / 2, 0.5, 0.13, z1 - z0, CURB, { collide: false });
+        }
+      }
+    }
+    for (const [cz, nm] of [[40, 'G'], [-40, 'M']] as const) {
+      this.solid(`Road_${nm}`, 0, -0.105, cz, 168, 0.19, 8, PAL.road, { receive: true, cast: false });
+      for (const [wz, side] of [[cz + 6, 'N'], [cz - 6, 'S']] as const) {
+        this.solid(`Walk_${nm}${side}_a`, -80, -0.05, wz, 8, 0.3, 4, PAL.walk, { receive: true, cast: false });
+        this.solid(`Walk_${nm}${side}_b`, 0, -0.05, wz, 136, 0.3, 4, PAL.walk, { receive: true, cast: false });
+        this.solid(`Walk_${nm}${side}_c`, 80, -0.05, wz, 8, 0.3, 4, PAL.walk, { receive: true, cast: false });
+      }
+      for (const [x0, x1] of [[-84, -77.2], [-66.8, 66.8], [77.2, 84]] as const) {
+        this.solid(`Curb_${nm}_N_${x0}`, (x0 + x1) / 2, 0.065, cz + 3.92, x1 - x0, 0.13, 0.5, CURB, { collide: false });
+        this.solid(`Curb_${nm}_S_${x0}`, (x0 + x1) / 2, 0.065, cz - 3.92, x1 - x0, 0.13, 0.5, CURB, { collide: false });
+      }
+    }
+
+    // ---- D. crosswalks (registry crosswalks[]; XW-CANON untouched) ------
+    for (const ix of [-72, 72] as const) {
+      this.zebra(`XW_K${ix < 0 ? 'J' : 'S'}_E`, ix + 3.5, 0, 'acrossEW');
+      this.zebra(`XW_K${ix < 0 ? 'J' : 'S'}_W`, ix - 3.5, 0, 'acrossEW');
+      this.zebra(`XW_K${ix < 0 ? 'J' : 'S'}_N`, ix, 4.5, 'acrossNS');
+      this.zebra(`XW_K${ix < 0 ? 'J' : 'S'}_S`, ix, -4.5, 'acrossNS');
+    }
+    for (const [ix, iz, tag] of [[-72, 40, 'GJ'], [72, 40, 'GS'], [-72, -40, 'MJ'], [72, -40, 'MS']] as const) {
+      this.zebra(`XW_${tag}_E`, ix + 3.5, iz, 'acrossEW');
+      this.zebra(`XW_${tag}_W`, ix - 3.5, iz, 'acrossEW');
+      this.zebra(`XW_${tag}_N`, ix, iz + 4.5, 'acrossNS');
+      this.zebra(`XW_${tag}_S`, ix, iz - 4.5, 'acrossNS');
+    }
+    this.zebra('XW_COURT', 35, 0, 'acrossEW');
+
+    // ---- E. block interior yards (W2 furnishes them; the ground reads now)
+    this.solid('Yard_N', 0, 0.0, 20, 120, 0.2, 24, 0x3a7355, { receive: true, cast: false });
+    this.solid('Yard_S', 0, 0.0, -20, 120, 0.2, 24, 0x3a7355, { receive: true, cast: false });
+
+    // ---- G. SUB-02 — the south control house (props.makeControlHouse) ----
+    const sub2 = makeControlHouse(this.bank, this.signMaterials.bind(this));
+    sub2.position.set(-57, 0.05, -6.25);
+    this.scene.add(sub2);
+    this.colliders.push(boxFromCenter(-57, 1.7, -6.25, 6, 3.4, 3.5));
+
+    // ---- H. the shells: corner infills + the Marlow row ------------------
+    // KTN-00W — the Corner House (chamfer pier toward the KJ intersection)
+    this.solid('KTN_00W', -55, 8, 14, 10, 16, 12, PAL.bldg2);
+    const ch = makeStorefront(this.bank, this.signMaterials.bind(this), 'CORNER HOUSE', PAL.brick, 8);
+    ch.position.set(-55, 0.05, 8.02);
+    ch.rotation.y = Math.PI;
+    this.scene.add(ch);
+    for (let f = 0; f < 3; f++) for (let c = 0; c < 3; c++) {
+      this.decoMesh(`KTN00W_Win_${f}_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), -58.4 + c * 3.4, 7.2 + f * 2.9, 7.92);
+    }
+    this.deco('KTN00W_Crown', -55, 15.4, 14, 10.2, 0.8, 12.2, PAL.stone, {});
+    // the corner-store cut: a 45° pier flush with the SW corner faces
+    const chamfer = this.deco('KTN00W_Chamfer', -59.68, 1.9, 8.32, 0.55, 3.8, 0.55, PAL.brick, {});
+    chamfer.rotation.y = Math.PI / 4;
+    this.waterTower(-55, 16, 12.5, 1.4); // LMK-03: the corners carry tanks too
+
+    // KTN-06 — 6 Kestrel St East, the café shell (papered, FOR RENT)
+    this.solid('KTN_06', 55, 8, 14, 10, 16, 12, PAL.brick);
+    for (let f = 0; f < 3; f++) for (let c = 0; c < 3; c++) {
+      this.decoMesh(`KTN06_Win_${f}_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), 51.6 + c * 3.4, 7.2 + f * 2.9, 7.92);
+    }
+    // the vacant ground floor: cream paper over the glass, day-keyed to lit
+    // when the café opens (dressing hooks ride the registry, W5)
+    this.deco('KTN06_Paper_L', 52.2, 1.6, 7.9, 2.6, 3.2, 0.06, PAL.cream, {});
+    this.deco('KTN06_Paper_R', 57.8, 1.6, 7.9, 2.6, 3.2, 0.06, PAL.cream, {});
+    this.signBoard('KTN06_ForRent', 'FOR RENT', 1.5, 1.0, 0.06, 256, 160, PAL.cream, PAL.ink, 42)
+      .position.set(55, 1.9, 7.86);
+    this.deco('KTN06_Door', 55, 1.4, 7.95, 1.4, 2.8, 0.12, 0x6e554e, {});
+    this.waterTower(55, 16, 12.5, 1.4);
+
+    // the Marlow row: three shopfronts + three walk-ups (doors and windows
+    // face Marlow — the registry's entrance rows are corrected to z −32)
+    const marlowShops: Array<[string, string, number, number, number]> = [
+      ['SMB_01', 'MARLOW BAKERY', -34, 8, PAL.bldg2],
+      ['SMB_02', 'B-SIDE RECORDS', -25, 6, PAL.brick],
+      ['SMB_03', 'KESTREL HARDWARE', -17, 6, PAL.bldg],
+    ];
+    for (const [id, label, x, w, col] of marlowShops) {
+      this.solid(id, x, 6, -26, w, 12, 12, col);
+      const shop = makeStorefront(this.bank, this.signMaterials.bind(this), label, PAL.teal, w - 1);
+      shop.position.set(x, 0.05, -32.02);
+      shop.rotation.y = Math.PI; // the street is SOUTH of the row
+      this.scene.add(shop);
+      for (let c = 0; c < 2; c++) {
+        this.decoMesh(`${id}_Win_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), x - w / 2 + 1.6 + c * (w - 3.2), 8.6, -31.94);
+      }
+    }
+    // the bakery's bagel silhouette in the window (Doc 04 object canon #8)
+    const bagel = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.13, 8, 18), this.bank.get(0xd9a05b));
+    bagel.position.set(-34, 1.7, -32.3);
+    this.scene.add(bagel);
+    const marlowWalkups: Array<[string, number, number, number]> = [
+      ['PWK_01', -44, 8, PAL.bldg], ['PWK_02', 5, 10, PAL.bldg2], ['PWK_03', 17, 10, PAL.bldg],
+    ];
+    const pwkDoors = [PAL.teal, PAL.coral, 0x6d4c7d];
+    let pwkDoorIdx = 0;
+    for (const [id, x, w, col] of marlowWalkups) {
+      this.solid(id, x, 7.5, -26, w, 15, 12, col);
+      for (let f = 0; f < 4; f++) for (let c = 0; c < 3; c++) {
+        this.decoMesh(`${id}_Win_${f}_${c}`, new THREE.BoxGeometry(1.1, 1.7, 0.08), this.bank.get(PAL.windowDim), x - w / 2 + 1.5 + c * ((w - 3) / 2), 3.4 + f * 2.9, -31.94);
+      }
+      const stoop = makeBrownstoneStoop(this.bank, pwkDoors[pwkDoorIdx++ % 3]);
+      stoop.position.set(x, 0, -32.6);
+      this.scene.add(stoop);
+    }
+
+    // ---- I. trees — the registry's Kestrel fills (full fade-capable trees)
+    const kestrelFillN: Array<[number, number]> = [[-58, 7.48], [-46, 7.48], [44, 7.48], [56, 7.48]];
+    const kestrelFillS: Array<[number, number]> = [[-56, -7.0], [8, -7.0], [48, -7.0]];
+    for (const [tx, tz] of [...kestrelFillN, ...kestrelFillS]) {
+      const pit = makeTreePit(this.bank);
+      pit.position.set(tx, 0.07, tz);
+      this.scene.add(pit);
+      const t = makeTree(this.bank, rng, false);
+      t.group.position.set(tx, 0.05, tz);
+      t.group.rotation.y = rng() * Math.PI * 2;
+      this.scene.add(t.group);
+      this.trees.push({ group: t.group, canopy: t.canopy, phase: rng() * Math.PI * 2, mats: t.mats, fade: 1 });
+      const trunkHalf = 0.18;
+      const zMax = tz > 6 ? 8.0 : tz + trunkHalf;
+      const zSpan = zMax - (tz - trunkHalf);
+      this.colliders.push(boxFromCenter(tx, 1.1, (tz - trunkHalf + zMax) / 2, 0.36, 2.2, zSpan));
+      this.canopySpheresCache.push({ x: tx, y: t.top - 0.9, z: tz, r: 2.15 });
+      this.extraKestrelPedBodies.push([tx, tz]);
+    }
+    // the rows: honey locusts on Gable/Marlow, plane trees on the avenues
+    const gableS = [-70, -58, -46, -38, -31, -23.5, -16, -4, 8, 20, 32, 44, 56, 64];
+    const gableN = [-70, -58, -46, -34, -22, -10, 6, 18, 30, 42, 54, 66];
+    const marlowN = [-70, -58, -44, -40, -29, -21, -12, 0, 11, 23, 35, 47, 59];
+    const marlowS = [-70, -58, -46, -34, -22, -10, 6, 18, 30, 42, 54, 66];
+    for (const tx of gableS) this.buildSimpleTree(tx, 32.6, rng);
+    for (const tx of gableN) this.buildSimpleTree(tx, 47.4, rng);
+    for (const tx of marlowN) this.buildSimpleTree(tx, -32.6, rng);
+    for (const tx of marlowS) this.buildSimpleTree(tx, -47.4, rng);
+    for (const ax of [-77.5, -66.5]) for (const tz of [-30, -18, 10, 22, 30]) this.buildSimpleTree(ax, tz, rng);
+    for (const ax of [66.5, 77.5]) for (const tz of [-30, -18, 10, 22, 30]) this.buildSimpleTree(ax, tz, rng);
+
+    // ---- J. lamps, hydrants, bins, the terminal curb bay -----------------
+    const lampFace = this.bank.get(PAL.taxi).clone();
+    lampFace.emissive = new THREE.Color(PAL.taxi);
+    lampFace.emissiveIntensity = 0.35;
+    const newLamps: Array<[number, number, number]> = [
+      [-66, 7.42, Math.PI / 2], [48, 7.42, Math.PI / 2], [78, 7.42, Math.PI / 2],
+      [-66, -7.35, -Math.PI / 2], [12, -7.35, -Math.PI / 2], [62, -7.35, -Math.PI / 2],
+      [-77.5, 28, 0], [-66.5, -28, Math.PI], [77.5, 28, Math.PI], [66.5, -28, 0],
+      [-24, 47.42, Math.PI / 2], [36, 32.58, -Math.PI / 2],
+      [-8, -32.58, Math.PI / 2], [28, -47.42, -Math.PI / 2],
+    ];
+    newLamps.forEach(([lx, lz, lyaw], li) => {
+      const lamp = makeStreetlight(this.bank, lampFace);
+      lamp.position.set(lx, 0.05, lz);
+      lamp.rotation.y = lyaw;
+      lamp.name = `Streetlight_${8 + li}`; // shipped 0..3 stay canonical
+      this.scene.add(lamp);
+      this.colliders.push(boxFromCenter(lx, 2.6, lz, 0.24, 5.2, 0.24));
+    });
+    for (const [hx, hz] of [[-60, -4.55], [-10, 43.45], [10, -35.25], [-30, 4.55]] as const) {
+      const hyd = makeHydrant(this.bank);
+      hyd.position.set(hx, 0.05, hz);
+      this.scene.add(hyd);
+      this.colliders.push(boxFromCenter(hx, 0.425, hz, 0.45, 0.85, 0.45));
+    }
+    for (const [bx, bz] of [[-69.5, 7.55], [69.5, -7.55]] as const) {
+      const can = makeTrashCan(this.bank); can.position.set(bx, 0.05, bz); this.scene.add(can);
+      const rec = makeRecycleBin(this.bank); rec.position.set(bx + 0.85, 0.05, bz); this.scene.add(rec);
+      this.colliders.push(boxFromCenter(bx + 0.42, 0.5, bz, 1.56, 1.0, 0.74));
+    }
+    // BUS-02 — the terminal curb bay: paint + the M121 flag (the bus is W4)
+    this.deco('BUS02_Bay', -30, 0.02, 3.4, 12, 0.02, 0.5, PAL.taxi, {});
+    const m121 = makePoleSign(this.bank, this.signMaterials.bind(this), 'M121', { w: 0.8, h: 0.3, y: 3.0 });
+    m121.position.set(-30, 0.05, 7.35);
+    this.scene.add(m121);
+  }
+
+  // ================================================================
+  // ALDER HEIGHTS — W2: the Gable row + the interior parks + shortcuts
+  // (docs/45 §1 W2; every footprint from world-registry.json. The two
+  // registry-vs-shipped conflicts this phase resolved are recorded in
+  // docs/47 W2 and corrected in the registry, same as W1's entrance law.)
+  // ================================================================
+
+  /** W2, section A — THE GARDEN SLOT (the real cut, x 6.5..9, z 8..20).
+   *  The registry planned this slot at x −3, which is inside the laundry
+   *  building: it would have sliced the shipped bay (Sal, the washers, the
+   *  permit beat) and the planned LAUNDRY-INT shell with it. The docs' own
+   *  words — "between the laundry and ginkgo buildings" — point at their
+   *  shared seam, so the cut lands at x 6.5..9: east of the bay (8.5 m
+   *  clear), west of the ginkgo building's windows, LAUNDRY-INT untouched.
+   *  Same grammar as the shipped alley: a party-wall slot with open sky
+   *  above, gravel underfoot, a lintel over the mouth. */
+  private buildGardenSlot(): void {
+    // the laundry mass loses its east 2.5 m: same material, same height
+    const old = this.scene.children.find((c) => c.name === 'Bldg_N_East_A');
+    if (old) {
+      this.scene.remove(old);
+      (old as THREE.Mesh).geometry.dispose();
+      const ci = this.colliders.findIndex((b) =>
+        Math.abs(b.minX + 11) < 0.01 && Math.abs(b.maxX - 9) < 0.01
+        && Math.abs(b.minZ - 8) < 0.01 && Math.abs(b.maxZ - 20) < 0.01);
+      if (ci >= 0) this.colliders[ci].maxX = 6.5; // the cut face IS the wall
+    }
+    this.solid('Bldg_N_East_A_West', -2.25, 9, 14, 17.5, 18, 12, PAL.bldg2);
+    // gravel floor, a hair PROUD of the yard slab (top 0.1 — the W1 yard
+    // buried the first draft at 0.085; the parks' proud-slab grammar applies)
+    this.deco('GardenSlot_Floor_a', 7.75, 0.125, 11, 2.5, 0.05, 6, 0x4a4552, {});
+    this.deco('GardenSlot_Floor_b', 7.75, 0.125, 17, 2.5, 0.05, 6, 0x4a4552, {});
+    // the lintel ties the two masses together over the mouth
+    this.solid('GardenSlot_Lintel', 7.75, 3.55, 8.4, 3.1, 1.1, 1.6, PAL.bldg2);
+  }
+
+  /** W2, section B — R-ALLEY: the shipped slot opens north. The back wall
+   *  (the alley's dead end since docs/38) retires and the lane runs between
+   *  the two split-mass faces to the yard, with the registry's iron gate at
+   *  z 14.5 pinned open. The cat corner keeps its bag and its dead bulbs. */
+  private buildAlleyLane(): void {
+    const back = this.scene.children.find((c) => c.name === 'Alley_Back');
+    if (back) {
+      this.scene.remove(back);
+      (back as THREE.Mesh).geometry.dispose();
+      const ci = this.colliders.findIndex((b) =>
+        Math.abs(b.minX - 30.7) < 0.01 && Math.abs(b.maxX - 33.5) < 0.01
+        && Math.abs(b.minZ - 10.35) < 0.01 && Math.abs(b.maxZ - 10.65) < 0.01);
+      if (ci >= 0) this.colliders.splice(ci, 1);
+    }
+    // the service lane: gravel, the buildings' own faces for walls (raised
+    // proud of the yard slab — same W1-burial fix as the slot floor)
+    this.deco('Alley_Lane_a', 32.1, 0.125, 13, 2.8, 0.05, 5, 0x4a4552, {});
+    this.deco('Alley_Lane_b', 32.1, 0.125, 18, 2.8, 0.05, 4, 0x4a4552, {});
+    // the alley gate (registry: 32.1, 14.5) — posts collide, wings pinned.
+    // NO rotation: the gate spans X (across the lane); rotating it π/2 put
+    // its posts mid-lane and the walk shot caught the jumble.
+    const gate = makeParkGate(this.bank, 1.8);
+    gate.position.set(32.1, 0.15, 14.5);
+    this.scene.add(gate);
+    for (const px of [31.08, 33.12]) {
+      this.colliders.push(boxFromCenter(px, 1.0, 14.5, 0.2, 2.0, 0.2));
+    }
+  }
+
+  /** W2, section C — KESTREL GREEN (PRK-GREEN): the reading park. Registry
+   *  layout verbatim: lawn, gravel path, three benches, four trees, the
+   *  pergola, three lights, two bins. Entries: the alley lane (SE), the
+   *  garden slot (W), and the Gable gate at (18, 31). */
+  private buildKestrelGreen(): void {
+    const rng = seededRng(20261102);
+    // tended lawn + path, a hair proud of the yard slab (top 0.1)
+    this.deco('Green_Lawn', 18.5, 0.125, 25.5, 25, 0.05, 11, 0x3a7355, { });
+    this.deco('Green_Path', 18.5, 0.155, 24, 21, 0.05, 1.4, PAL.stone, {});
+    // the Gable gate + the Parks sign facing the street
+    const gGate = makeParkGate(this.bank, 1.8);
+    gGate.position.set(18, 0.15, 31);
+    this.scene.add(gGate);
+    for (const px of [16.98, 19.02]) {
+      this.colliders.push(boxFromCenter(px, 1.0, 31, 0.2, 2.0, 0.2));
+    }
+    const sign = makeParksSign(this.bank, this.signMaterials.bind(this), 'KESTREL GREEN');
+    sign.position.set(19.9, 0.15, 31.2);
+    this.scene.add(sign);
+    this.colliders.push(boxFromCenter(19.9, 0.7, 31.2, 0.4, 1.5, 0.2));
+    // benches: (12, 22.5) faces the path; (24, 25.5) faces the lawn south;
+    // (18, 21.5) faces south (registry layout)
+    for (const [bx, bz, byaw] of [[12, 22.5, 0], [24, 25.5, Math.PI], [18, 21.5, Math.PI]] as const) {
+      const b = makeBench(this.bank);
+      b.position.set(bx, 0.15, bz);
+      b.rotation.y = byaw;
+      this.scene.add(b);
+      this.colliders.push(boxFromCenter(bx, 0.45, bz, 1.85, 0.7, 0.62));
+    }
+    // four full trees — fade-capable like the shipped 12, green like the row
+    const GREEN_TINTS = [0x5d7d4a, 0x516e42, 0x516e42];
+    for (const [tx, tz] of [[10, 28.5], [16, 29], [23, 28.8], [28.5, 27]] as const) {
+      const pit = makeTreePit(this.bank);
+      pit.position.set(tx, 0.16, tz);
+      this.scene.add(pit);
+      const t = makeTree(this.bank, rng, false);
+      t.group.position.set(tx, 0.15, tz);
+      t.group.rotation.y = rng() * Math.PI * 2;
+      this.scene.add(t.group);
+      this.trees.push({ group: t.group, canopy: t.canopy, phase: rng() * Math.PI * 2, mats: t.mats, fade: 1 });
+      this.colliders.push(boxFromCenter(tx, 1.2, tz, 0.36, 2.2, 0.36));
+      this.canopySpheresCache.push({ x: tx, y: t.top - 0.75, z: tz, r: 2.15 });
+      this.extraLeafSpots.push({ x: tx, z: tz, r: 1.5, top: t.top, tints: GREEN_TINTS });
+    }
+    // the pergola (19.5, 27.5, 4.5 × 3, h 2.6) — posts block, shade doesn't
+    const per = makePergola(this.bank);
+    per.position.set(19.5, 0.15, 27.5);
+    this.scene.add(per);
+    for (const px of [-1.95, 1.95]) for (const pz of [-1.2, 1.2]) {
+      this.colliders.push(boxFromCenter(19.5 + px, 1.3, 27.5 + pz, 0.24, 2.6, 0.24));
+    }
+    // three park lights + two bins (registry layout)
+    const lampFace = this.bank.get(PAL.taxi).clone();
+    lampFace.emissive = new THREE.Color(PAL.taxi);
+    lampFace.emissiveIntensity = 0.35;
+    for (const [lx, lz] of [[9, 23], [20, 21], [29, 23]] as const) {
+      const lamp = makeStreetlight(this.bank, lampFace);
+      lamp.position.set(lx, 0.15, lz);
+      this.scene.add(lamp);
+      this.colliders.push(boxFromCenter(lx, 2.65, lz, 0.24, 5.2, 0.24));
+    }
+    for (const [bx, bz] of [[11, 25.2], [27.5, 22]] as const) {
+      const can = makeTrashCan(this.bank);
+      can.position.set(bx, 0.15, bz);
+      this.scene.add(can);
+      this.colliders.push(boxFromCenter(bx, 0.55, bz, 0.68, 1.0, 0.68));
+    }
+  }
+
+  /** W2, section D — THE GABLE GARDEN (GRD-GABLE). Registry layout, with
+   *  two build corrections recorded in docs/47: the west fence sits at
+   *  x −8.4 (flush with GRB-05's face — the registry bbox x −10 overlapped
+   *  the row by 1.6 m), and the gate faces EAST at (4, 24) onto the strip
+   *  between the garden and Kestrel Green (the planned south gate at x −3
+   *  opened into the laundry building's rear wall). */
+  private buildGableGarden(): void {
+    const rng = seededRng(20261103);
+    // garden ground + the path from the gate to the beds
+    this.deco('Garden_Ground', -2.2, 0.125, 25, 12.4, 0.05, 10, 0x3a7355, {});
+    this.deco('Garden_Path', -2.2, 0.155, 24.4, 12, 0.05, 1.0, PAL.stone, {});
+    // the strip between garden and green: two parks, one step across
+    this.deco('Garden_Strip', 5, 0.135, 24, 2, 0.05, 6, PAL.stone, {});
+    // fences: north run + east run with the gate gap (W wall is GRB-05,
+    // S wall is the laundry building's rear)
+    const fN = makeFence(this.bank, 12.4);
+    fN.position.set(-2.2, 0.15, 30);
+    this.scene.add(fN);
+    this.colliders.push(boxFromCenter(-2.2, 0.55, 30, 12.4, 0.8, 0.15));
+    for (const [cz, len] of [[21.55, 3.1], [27.45, 5.1]] as const) {
+      const fE = makeFence(this.bank, len);
+      fE.position.set(4, 0.15, cz);
+      fE.rotation.y = Math.PI / 2;
+      this.scene.add(fE);
+      this.colliders.push(boxFromCenter(4, 0.55, cz, 0.15, 0.8, len));
+    }
+    const gGate = makeParkGate(this.bank, 1.6);
+    gGate.position.set(4, 0.15, 24);
+    gGate.rotation.y = Math.PI / 2;
+    this.scene.add(gGate);
+    for (const pz of [23.08, 24.92]) {
+      this.colliders.push(boxFromCenter(4, 1.0, pz, 0.2, 2.0, 0.2));
+    }
+    // the garden's own board (sign factory, mounted on the east fence)
+    const board = this.signBoard('Garden_Sign', 'GABLE GARDEN', 1.5, 0.42, 0.06, 320, 96, 0x1f6f5e, PAL.cream, 40);
+    board.position.set(4.05, 1.45, 25.6);
+    board.rotation.y = Math.PI / 2; // faces the strip / the green
+    this.scene.add(board);
+    // four raised beds (west pair at x −7.6: 0.8 m clear of GRB-05's face)
+    for (const [bx, bz] of [[-7.6, 23], [-4, 23], [-7.6, 27], [-4, 27]] as const) {
+      const bed = makeGardenBed(this.bank, rng);
+      bed.position.set(bx, 0.15, bz);
+      this.scene.add(bed);
+      this.colliders.push(boxFromCenter(bx, 0.4, bz, 1.2, 0.55, 1.6));
+    }
+    // shed, bench (faces the beds), compost, rain barrel
+    const shed = makeShed(this.bank);
+    shed.position.set(2, 0.15, 28.5);
+    this.scene.add(shed);
+    this.colliders.push(boxFromCenter(2, 1.05, 28.5, 2, 2.1, 2.4));
+    const bench = makeBench(this.bank);
+    bench.position.set(1, 0.15, 22.5);
+    bench.rotation.y = -Math.PI / 2; // the sitter faces the beds
+    this.scene.add(bench);
+    this.colliders.push(boxFromCenter(1, 0.45, 22.5, 0.62, 0.7, 1.85));
+    const compost = makeCompostBin(this.bank);
+    compost.position.set(-7.8, 0.15, 29);
+    this.scene.add(compost);
+    this.colliders.push(boxFromCenter(-7.8, 0.4, 29, 0.9, 0.56, 0.9));
+    const barrel = makeWaterBarrel(this.bank);
+    barrel.position.set(-6.8, 0.15, 29.2);
+    this.scene.add(barrel);
+    this.colliders.push(boxFromCenter(-6.8, 0.6, 29.2, 0.9, 0.95, 0.9));
+  }
+
+  /** W2, section E — THE MARLOW PLAYGROUND (PLY-MARLOW): swings, sandbox,
+   *  spray basin, benches, the 1.1 m iron fence and its gate. Registry
+   *  correction recorded in docs/47: the gate stands on the SOUTH fence at
+   *  (−7, −31) — the planned z −21 is the yard side, and the registry's own
+   *  law ("visible from Marlow for eyes-on safety") puts the gate where the
+   *  walk is. The spray basin sits 0.2 m north of the registry point to
+   *  clear the sandbox corner (a 0.05 m kiss on paper). */
+  private buildMarlowPlayground(): void {
+    // safety surface — poured-rubber dark, one honest pad
+    this.deco('Play_Pad', -7, 0.125, -26, 10, 0.05, 10, 0x4a4552, {});
+    // the fence: four runs, 1.1 m, gate gap at x −7±0.8 on the south line
+    // (the south run is TWO segments — the first draft ran one 8.4 m bar
+    // straight across its own gate and the walk probe caught it)
+    for (const [fx, fz, len, ew] of [
+      [-9.9, -31, 4.2, false], [-4.1, -31, 4.2, false], [-7, -21, 10, false],
+      [-12, -26, 10, true], [-2, -26, 10, true],
+    ] as const) {
+      const f = makeFence(this.bank, len, 1.1);
+      f.position.set(fx, 0.15, fz);
+      if (ew) f.rotation.y = Math.PI / 2;
+      this.scene.add(f);
+      this.colliders.push(boxFromCenter(fx, 0.65, fz, ew ? 0.15 : len, 1.1, ew ? len : 0.15));
+    }
+    const gate = makeParkGate(this.bank, 1.6);
+    gate.position.set(-7, 0.15, -31);
+    this.scene.add(gate);
+    for (const px of [-7.92, -6.08]) {
+      this.colliders.push(boxFromCenter(px, 1.0, -31, 0.2, 2.0, 0.2));
+    }
+    // the kit
+    const swings = makeSwingSet(this.bank);
+    swings.position.set(-10, 0.15, -28.5);
+    this.scene.add(swings);
+    for (const sx of [-1.1, 1.1]) {
+      this.colliders.push(boxFromCenter(-10 + sx, 1.1, -28.5, 0.7, 2.2, 0.5));
+    }
+    const sandbox = makeSandbox(this.bank);
+    sandbox.position.set(-4.5, 0.15, -27.5);
+    this.scene.add(sandbox);
+    for (const [rx, rz, sx, sz] of [
+      [-4.5, -29, 4, 0.14], [-4.5, -26, 4, 0.14],
+      [-6.5, -27.5, 0.14, 3], [-2.5, -27.5, 0.14, 3],
+    ] as const) {
+      this.colliders.push(boxFromCenter(rx, 0.3, rz, sx, 0.3, sz));
+    }
+    const basin = makeSprayBasin(this.bank);
+    basin.position.set(-7, 0.15, -24.3);
+    this.scene.add(basin);
+    this.colliders.push(boxFromCenter(-7, 0.3, -24.3, 3.1, 0.6, 3.1));
+    // caregivers' benches, facing the kids (south)
+    for (const [bx, bz] of [[-3, -22.5], [-11, -22.5]] as const) {
+      const b = makeBench(this.bank);
+      b.position.set(bx, 0.15, bz);
+      b.rotation.y = Math.PI;
+      this.scene.add(b);
+      this.colliders.push(boxFromCenter(bx, 0.45, bz, 1.85, 0.7, 0.62));
+    }
+    // two yard trees (simple row trees; trunks bake, canopies instance)
+    const rng = seededRng(20261104);
+    for (const [tx, tz] of [[-2.8, -29.5], [-11.2, -24]] as const) {
+      this.buildSimpleTree(tx, tz, rng);
+    }
+  }
+
+  /** W2, section F — THE GABLE ROW (GRB-01..05): five brownstones, 7.6 m
+   *  lots, 12.5 m, high stoops (six risers + landing), tall parlor windows,
+   *  cornices, door colours from the shipped stoopDoors set. GRB-03 is
+   *  Fatima's — under restoration, scaffold hint now, studio never (the
+   *  registry's exterior-only promise). */
+  private buildGableRow(): void {
+    const grb: Array<[string, number, number, boolean]> = [
+      // [id, center x, door color, scaffold]
+      ['GRB_01', -42.6, 0xff6b6b, false],   // the Okafor house — stoop-sale host
+      ['GRB_02', -35, 0x6d4c7d, false],     // plum door
+      ['GRB_03', -27.4, 0x6e554e, true],    // Fatima's — restoration scaffold
+      ['GRB_04', -19.8, PAL.teal, false],   // teal door
+      ['GRB_05', -12.2, PAL.coral, false],  // coral door
+    ];
+    for (const [id, cx, door, scaffold] of grb) {
+      this.solid(id, cx, 6.25, 26, 7.6, 12.5, 12, PAL.bldg2);
+      // the cornice caps the row (KTN00W crown grammar)
+      this.deco(`${id}_Cornice`, cx, 12.25, 26, 7.8, 0.5, 12.2, PAL.stone, {});
+      // tall parlor windows (y 4.6) + two upper floors (7.4 / 10.2)
+      for (const wx of [cx - 1.7, cx + 1.7]) {
+        this.decoMesh(`${id}_Parlor_${wx}`, new THREE.BoxGeometry(1.3, 2.2, 0.08),
+          this.bank.get(PAL.windowDim), wx, 4.6, 32.05); // floats proud of the z 32 face (W1 grammar)
+        for (const wy of [7.4, 10.2]) {
+          this.decoMesh(`${id}_Win_${wx}_${wy}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
+            this.bank.get(PAL.windowDim), wx, wy, 32.05);
+        }
+      }
+      // the high stoop — the door base at y 0.72, every riser ≤ 0.35
+      const stoop = makeBrownstoneStoop(this.bank, door, true);
+      stoop.position.set(cx, 0, 32.6);
+      this.scene.add(stoop);
+      if (scaffold) {
+        // restoration scaffold: two poles, a deck, a guard rail — the hint
+        // the GDD Regular hook needs, nothing more
+        for (const px of [cx - 1.8, cx + 1.8]) {
+          this.decoMesh(`GRB03_Pole_${px}`, new THREE.BoxGeometry(0.16, 5.0, 0.16),
+            this.bank.get(0x8a6a4a), px, 2.5, 32.3);
+          this.colliders.push(boxFromCenter(px, 2.5, 32.3, 0.18, 5.0, 0.18));
+        }
+        this.decoMesh('GRB03_Deck', new THREE.BoxGeometry(3.8, 0.1, 0.9),
+          this.bank.get(0x8a6a4a), cx, 3.3, 32.35);
+        this.decoMesh('GRB03_Rail', new THREE.BoxGeometry(3.8, 0.06, 0.06),
+          this.bank.get(0x3a3440), cx, 4.15, 32.7);
+      }
+    }
+  }
+
+  /** W2, section G — the BLK-N parking strip (docs/39: "plus one parking
+   *  strip"; docs/40: the x 22..50 rear yard). Asphalt pad off the service
+   *  lane's mouth, stall lines painted, wheel stops down. The cars are
+   *  W4's — the strip is ready for them. */
+  private buildParkingStrip(): void {
+    this.deco('Parking_Pad', 41.25, 0.125, 25, 15.5, 0.05, 6, 0x4a4552, {});
+    for (const lx of [36.5, 39.5, 42.5, 45.5]) {
+      this.deco(`Parking_Line_${lx}`, lx, 0.155, 23.75, 0.1, 0.02, 3.5, PAL.cream, {});
+    }
+    for (const wx of [35, 38, 41, 44, 47]) {
+      this.deco(`Parking_Stop_${wx}`, wx, 0.16, 22.35, 1.6, 0.12, 0.2, 0x8f8a82, {});
+    }
+  }
+
+  /** W2 — the phase build: slot + lane + both parks + the row + the strip. */
+  private buildAlderHeightsW2(): void {
+    this.buildGardenSlot();
+    this.buildAlleyLane();
+    this.buildKestrelGreen();
+    this.buildGableGarden();
+    this.buildMarlowPlayground();
+    this.buildGableRow();
+    this.buildParkingStrip();
+  }
+
+  /** The instanced canopies for every new-row tree (two draw calls total). */
+  private buildInstancedTreeRows(): void {
+    if (!this.simpleTrees.length) return;
+    const leafA = this.bank.get(0x5d7d4a);
+    const leafB = this.bank.get(0x516e42);
+    const countA = this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === 0).length, 0);
+    const countB = this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === 1).length, 0);
+    const mk = (mat: THREE.Material, n: number): THREE.InstancedMesh => {
+      const im = new THREE.InstancedMesh(SHARED_GEOS.sphere, mat, Math.max(1, n));
+      im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      im.castShadow = true;
+      this.scene.add(im);
+      return im;
+    };
+    this.treeLeafA = mk(leafA, countA);
+    this.treeLeafB = mk(leafB, countB);
+    this.updateTreeRows(0);
+  }
+
+  /** Sway + place every instanced canopy blob (called from updateAmbient). */
+  private updateTreeRows(time: number): void {
+    if (!this.treeLeafA || !this.treeLeafB) return;
+    let ia = 0, ib = 0;
+    for (const t of this.simpleTrees) {
+      const sz = Math.sin(time * 0.9 + t.phase) * 0.022;
+      const sx = Math.cos(time * 0.7 + t.phase) * 0.016;
+      this.tE.set(sx, 0, sz);
+      this.tQ.setFromEuler(this.tE);
+      this.tV.set(t.x, 0.05 + t.h, t.z);
+      this.mSway.compose(this.tV, this.tQ, this.tOne);
+      for (const b of t.blobs) {
+        this.mBlob.compose(this.tV.set(b.ox, b.oy, b.oz), this.tQ.identity(), this.tS.setScalar(b.r));
+        this.mCanopy.multiplyMatrices(this.mSway, this.mBlob);
+        if (b.mat === 0) this.treeLeafA.setMatrixAt(ia++, this.mCanopy);
+        else this.treeLeafB.setMatrixAt(ib++, this.mCanopy);
+      }
+    }
+    this.treeLeafA.instanceMatrix.needsUpdate = true;
+    this.treeLeafB.instanceMatrix.needsUpdate = true;
+  }
+
+  /** Kestrel-row trees inside the ambient walkers' band — Pedestrians reads
+   *  this after construction (filled by buildAlderHeightsW1). */
+  private readonly extraKestrelPedBodies: Array<[number, number]> = [];
 
   /** Rolling shirt rack — two uprights, a bar, four honest shirts. The
    *  frame is chunky on purpose: hairline posts read as floating shirts
@@ -1746,16 +2851,29 @@ export class World {
     return g;
   }
 
-  /** Wall-mounted sign: text on the two big faces, plain edges elsewhere
-   *  (a bare box map mirrors the text across the top face).
-   *  faces: 'z' = the ±z faces carry the text (wall sign), 'x' = the ±x faces
-   *  (blade sign read while walking along the street). */
-  private signMaterials(text: string, w: number, h: number, bg: number, fg: number, px: number, faces: 'z' | 'x' = 'z'): THREE.MeshLambertMaterial[] {
-    const face = new THREE.MeshLambertMaterial({ map: this.textTexture(text, w, h, bg, fg, px) });
-    const plain = new THREE.MeshLambertMaterial({ color: bg });
-    return faces === 'z'
-      ? [plain, plain, plain, plain, face, face] // +x, -x, +y, -y, +z, -z
-      : [face, face, plain, plain, plain, plain];
+  /** Wall/blade sign FACTORY: the unique canvas-texture face material + the
+   *  SHARED plain edge material (banked — every sign's edges bake-merge
+   *  with its district). W0: the old 6-material-array box cost 6 draw
+   *  calls per sign; a board (box + two face planes) costs 2. */
+  private signMaterials(text: string, w: number, h: number, bg: number, fg: number, px: number, _faces: 'z' | 'x' = 'z'): SignPair {
+    void _faces; // the board helper decides orientation; the pair is orientation-free
+    return {
+      face: new THREE.MeshLambertMaterial({ map: this.textTexture(text, w, h, bg, fg, px) }),
+      plain: this.bank.get(bg),
+    };
+  }
+
+  /** A placed sign board — plain shared-material box + two textured faces,
+   *  added to the scene. Returns the group so callers can position it. */
+  private signBoard(
+    name: string, text: string, sx: number, sy: number, sz: number,
+    w: number, h: number, bg: number, fg: number, px: number,
+    faces: 'z' | 'x' = 'z',
+  ): THREE.Group {
+    const g = makeSignBoard(sx, sy, sz, this.signMaterials(text, w, h, bg, fg, px), faces);
+    g.name = name;
+    this.scene.add(g);
+    return g;
   }
 
   /** Wall-mounted sign texture (block signs stopped being anonymous boxes).
@@ -2002,17 +3120,10 @@ export class World {
     this.ambientWindowMatLate.emissiveIntensity = plan.lateHome;
     this.ambientWindowMatNew.emissiveIntensity = plan.newFace;
     this.ambientWindowMatRiser.emissiveIntensity = plan.earlyRiser;
-    // the barrier's last day is Day 3; the asphalt remembers — and its BODY
-    // goes with it (an invisible collider guarding fresh asphalt would be a
-    // ghost wall on the Day 4 street)
+    // the barrier's last day is Day 3; the asphalt remembers
     const diary = barrierDiary(day);
     this.barrier.visible = diary.barrierVisible;
     this.asphaltPatch.visible = diary.patchVisible;
-    if (diary.barrierVisible) {
-      this.barrierCollider.minY = 0; this.barrierCollider.maxY = 0.85;
-    } else {
-      this.barrierCollider.minY = -999; this.barrierCollider.maxY = -998;
-    }
     // the board's slip rotates with the week
     this.flyerDay = day;
     const old = this.flyerMat.map;
@@ -2074,84 +3185,40 @@ export class World {
     box.maxZ = actor.position.z + halfW;
   }
 
-  /** One body per visible cast member, synced under them (Agent-2 frame-order
-   *  fix: Game calls this BEFORE the player moves, so the walker never
-   *  resolves against last frame's bodies — the residual one-frame staleness
-   *  the audit flagged behind "passed through the npc" while dismounting).
-   *  world.update syncs again after everyone has moved. The stool is furniture
-   *  on the same park-underground contract: no body until it exists. */
-  syncCastColliders(): void {
+  /**
+   * Phase 1 of the frame (Game calls this BEFORE the player's move): sync
+   * every dynamic collider to this frame's transforms, then advance the cab.
+   * The audit (doc 35 §1) found the old single update() ran AFTER
+   * player.update — the walker resolved against last frame's cab box, up to
+   * 0.9 m stale at the dt clamp, and visibly sank into a passing taxi.
+   * Dynamics-before-player fixes the ordering with no gameplay change.
+   */
+  updateDynamics(dt: number, player?: { x: number; y: number; z: number }, extra?: Array<{ x: number; z: number }>): void {
+    // the persistent cast owns a body each — no more ghosting through Rosa,
+    // Idris, or the kid (playtest 2026-10-30: "passed through the npc and rosa")
     this.syncPersonCollider(this.rosaCollider, this.rosa);
     this.syncPersonCollider(this.idrisCollider, this.idris);
     this.syncPersonCollider(this.kidCollider, this.kidGround, 0.25, 1.4);
-    this.syncPersonCollider(this.strangerCollider, this.stranger);
-    this.syncPersonCollider(this.salCollider, this.sal);
-    this.syncPersonCollider(this.familiarCollider, this.familiar);
-    if (this.stool.visible) {
-      this.stoolCollider.minY = 0; this.stoolCollider.maxY = 0.56;
-    } else {
-      this.stoolCollider.minY = -999; this.stoolCollider.maxY = -998;
-    }
+    this.syncPersonCollider(this.stoolCollider, this.stool, 0.275, 0.6);
+    // the barrier leaves on Day 4 — its body leaves with it (a box at y
+    // -999 can't overlap anything: the cheapest "gone")
+    this.syncPersonCollider(this.barrierCollider, this.barrier, 0.85, 0.9);
+    if (player) this.updateDistricts(player.x, player.z);
+    this.updateTaxi(dt, player, extra);
   }
 
-  update(dt: number, player?: { x: number; y: number; z: number }, dusk = false, extra?: Array<{ x: number; z: number }>) {
-    // the persistent cast owns a body each — no more ghosting through Rosa,
-    // Idris, or the kid (playtest 2026-10-30: "passed through the npc and rosa")
-    this.syncCastColliders();
-    // taxi loops the street (main.gd `_process`: x += 9*dt, wraps at ±46).
-    // NYC rules after playtest — the cab never drives through you:
-    //   1. crosswalk occupied → hold at the stop line (nose at x ≈ -10.7)
-    //      until it's clear, creeping up if it's still far;
-    //   2. anyone in the road ahead → brake to a stop ~4.5 m short.
-    // "Anyone" includes the kid on his walk (Day 3) — a cab through a
-    // child reads exactly as broken as a cab through you.
-    const road = this.taxi.position;
-    let speed = 9.0;
-    const bodies: Array<{ x: number; z: number }> = [];
-    if (player) bodies.push(player);
-    if (extra) bodies.push(...extra);
-    // ambient walkers join the yield list — a pedestrian mid-crosswalk holds
-    // the cab at the stop line, exactly like the kid or the stranger do
-    bodies.push(...this.peds.bodies());
-    // the walkers steer around you and the cart, and mind the furniture
-    this.peds.update(dt, player ? { x: player.x, z: player.z } : undefined,
-      { x: this.cartRoot.position.x, z: this.cartRoot.position.z });
-    for (const b of bodies) {
-      const onCrosswalk = b.x > -8.5 && b.x < -1.5 && b.z > -4.6 && b.z < 4.6;
-      if (onCrosswalk && road.x < -4.2) {
-        // cab nose = road.x + 2.2; hold it west of the crosswalk's west edge
-        speed = road.x > -10.7 ? 0 : Math.min(speed, 3.0);
-      } else {
-        const inRoad = Math.abs(b.z) < 4.2;
-        const gap = b.x - road.x; // cab travels +x; gap > 0 = body ahead
-        if (inRoad && gap > -2.3 && gap < 10) {
-          speed = gap < 4.5 ? 0 : Math.min(speed, 2.0);
-        }
-      }
-    }
-    const prevX = road.x;
-    road.x += dt * speed;
-    if (road.x > 46) road.x = -46;
-    this.taxiCollider.minX = road.x - 2.2;
-    this.taxiCollider.maxX = road.x + 2.2;
-    // Post-commit solidity (Agent-2 audit Q5): the yield logic above is
-    // predictive, not reactive. If anything it could not see would leave the
-    // cab INTERPENETRATING a tagged car or person, this frame's move is
-    // refused outright — vehicles never shove bodies, and a future lane edit
-    // or spawn-in can never silently reintroduce the probe-sweep7 ghosting.
-    // On today's authored lanes this guard never fires (the sedan and van
-    // park a full lane north of the cab's z-band).
-    for (const b of this.colliders) {
-      if (b === this.taxiCollider) continue;
-      if (b.kind !== 'car' && b.kind !== 'person') continue;
-      if (b.maxY <= 0.1 || b.minY >= 1.5) continue; // parked-underground = off
-      if (this.taxiCollider.maxX <= b.minX || this.taxiCollider.minX >= b.maxX) continue;
-      if (this.taxiCollider.maxZ <= b.minZ || this.taxiCollider.minZ >= b.maxZ) continue;
-      road.x = prevX;
-      this.taxiCollider.minX = road.x - 2.2;
-      this.taxiCollider.maxX = road.x + 2.2;
-      break;
-    }
+  /** Phase 2 of the frame (after the player's move): everything that only
+   *  reads the world — pedestrian steering, birds, steam, leaves. */
+  updateAmbient(dt: number, player?: { x: number; y: number; z: number }, dusk = false): void {
+    // the walkers steer around you and the cart, mind the furniture, and
+    // hold their ground against the cab's footprint
+    this.peds.update(
+      dt,
+      player ? { x: player.x, z: player.z } : undefined,
+      { x: this.cartRoot.position.x, z: this.cartRoot.position.z },
+      { x: this.taxi.position.x, z: this.taxi.position.z },
+      { x: this.rosa.position.x, z: this.rosa.position.z },
+    );
 
     // steam rises and wobbles — the Rule of Steam
     const posAttr = this.steamPoints.geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -2173,8 +3240,10 @@ export class World {
     // fade-on-occlude — the camera reports which canopies stand between it
     // and the player (GameCamera.updateOcclusion); a canopy that swallows
     // the player dissolves toward gauze instead of hiding them. Fast fade
-    // in (~8/s), so the lens never lingers behind full leaves.
-    if (this.canopyOcclusion && this.canopyOcclusion.length === this.trees.length) {
+    // in (~8/s), so the lens never lingers behind full leaves. The cache
+    // lists the SHIPPED trees first, so the first N entries map 1:1 onto
+    // this.trees (the W1 rows ride the same array without fading).
+    if (this.canopyOcclusion && this.canopyOcclusion.length >= this.trees.length) {
       for (let i = 0; i < this.trees.length; i++) {
         const t = this.trees[i];
         const target = 1 - 0.78 * this.canopyOcclusion[i]; // floor 0.22 gauze
@@ -2191,6 +3260,140 @@ export class World {
     this.pigeonFlockEast.update(dt, pp, dusk);
     this.squirrel.update(dt, pp, dusk);
     this.leaves.update(dt, this.ambientTime);
+    this.updateTreeRows(this.ambientTime); // the W1 rows sway with the block
+  }
+
+  /** Both phases, in order — kept for any caller that just wants "advance
+   *  the world" (tests, probes). Game.frame calls the phases separately. */
+  update(dt: number, player?: { x: number; y: number; z: number }, dusk = false, extra?: Array<{ x: number; z: number }>) {
+    this.updateDynamics(dt, player, extra);
+    this.updateAmbient(dt, player, dusk);
+  }
+
+  // ---- the cab: NYC rules on rails (doc 35 §1 "Vehicles") ---------------
+  // Preserved from the playtest fixes: crosswalk-only courtesy hold, yield
+  // to anyone in the path, wrap at ±46. Rebuilt on the traffic brain:
+  //   - progressive braking (the old 9→0 hard cut snapped on screen),
+  //   - lateral truth (a body 3 m clear on the curb no longer freezes the
+  //     cab from 10 m away — the old |z|<4.2 gate),
+  //   - bodies fully behind the tail never block (the old gap > -2.3 test
+  //     stopped the cab for things it had already passed),
+  //   - vehicle-vs-vehicle: the parked sedan and van are declared bodies,
+  //     so a car ahead in the lane is braked for, not driven through,
+  //   - a committed-move guard: the rail step is clamped by noseLimit()
+  //     BEFORE it lands, so no frame can end with the cab inside anyone.
+  private static readonly CAB = {
+    cruise: 9.0,       // main.gd: x += 9*dt
+    halfLen: 2.2,      // collider 4.4 × 1.95
+    halfWid: 0.975,
+    laneZ: -2,
+    stopGap: 2.5,      // air held between the nose and whatever it yields to —
+                       // generous on purpose: a nose-to-nose cab wall is
+                       // unnavigable for a diagonal-crossing pedestrian
+    gain: 2.2,         // braking curve (1/s) — decel ≈ gain × speed
+    pedRadius: 0.45,   // how much coat a body wears beyond its center
+    holdCenterX: -10.7 // crosswalk hold: nose at the crosswalk's west edge
+  } as const;
+
+  /** Preallocated yield bodies — the scan runs every frame; nothing in it
+   *  may allocate (perf rule: no per-frame garbage). */
+  private readonly trafficPool: TrafficBody[] = Array.from({ length: 16 }, () => ({ x: 0, z: 0, r: 0 }));
+  private readonly parkedSedanRect: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
+  private readonly parkedVanRect: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
+  private readonly cabRectScratch: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
+  private readonly sweepRectScratch: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
+
+  private updateTaxi(dt: number, player?: { x: number; y: number; z: number }, extra?: Array<{ x: number; z: number }>): void {
+    const CAB = World.CAB;
+    const road = this.taxi.position;
+    const noseX = road.x + CAB.halfLen;
+
+    // ---- gather today's street into the yield pool (preallocated) --------
+    let n = 0;
+    const pool = this.trafficPool;
+    const addBody = (x: number, z: number, r: number) => {
+      if (n >= pool.length) return;
+      pool[n].x = x; pool[n].z = z; pool[n].r = r; pool[n].rect = undefined;
+      n++;
+    };
+    if (player) addBody(player.x, player.z, CAB.pedRadius);
+    if (extra) for (const b of extra) addBody(b.x, b.z, CAB.pedRadius);
+    for (const b of this.peds.bodies()) addBody(b.x, b.z, 0.4);
+    // vehicles: rects, so car-vs-car is footprint-to-footprint. The parked
+    // pair sits off-lane (north curb) — declared anyway, so the day another
+    // car shares the lane the braking is already real. (The cab never
+    // yields to itself, and never to the invisible bounds — the wrap at
+    // ±46 is authored.)
+    const sedan = this.parkedSedanRect;
+    sedan.minX = 24 - 2.2; sedan.maxX = 24 + 2.2;
+    sedan.minZ = 3.05 - 0.975; sedan.maxZ = 3.05 + 0.975;
+    const van = this.parkedVanRect;
+    van.minX = -14 - 2.2; van.maxX = -14 + 2.2;
+    van.minZ = 3.05 - 0.975; van.maxZ = 3.05 + 0.975;
+    pool[n].x = 24; pool[n].z = 3.05; pool[n].r = 0; pool[n].rect = sedan; n++;
+    pool[n].x = -14; pool[n].z = 3.05; pool[n].r = 0; pool[n].rect = van; n++;
+
+    const cabRect = this.cabRectScratch;
+    cabRect.minX = road.x - CAB.halfLen; cabRect.maxX = road.x + CAB.halfLen;
+    cabRect.minZ = CAB.laneZ - CAB.halfWid; cabRect.maxZ = CAB.laneZ + CAB.halfWid;
+
+    // ---- courtesy rule 1: the crosswalk (trigger unchanged, curve new) ----
+    // Occupied = a body (never a parked car) stands inside the crosswalk
+    // paint; the cab brakes toward the same authored hold point, but on the
+    // curve now — a creep to the line instead of a 3 m/s lurch.
+    let speed: number = CAB.cruise;
+    let crosswalkOccupied = !!(player && player.x > -8.5 && player.x < -1.5 && player.z > -4.6 && player.z < 4.6);
+    if (!crosswalkOccupied && extra) {
+      crosswalkOccupied = extra.some((b) => b.x > -8.5 && b.x < -1.5 && b.z > -4.6 && b.z < 4.6);
+    }
+    for (let i = 0; i < n && !crosswalkOccupied; i++) {
+      const b = pool[i];
+      if (b.rect) continue;
+      if (b.x > -8.5 && b.x < -1.5 && b.z > -4.6 && b.z < 4.6) crosswalkOccupied = true;
+    }
+    if (crosswalkOccupied && road.x < -4.2) {
+      const gapToLine = CAB.holdCenterX - road.x; // center-based, as authored
+      speed = Math.min(speed, approachSpeed(CAB.cruise, gapToLine, CAB.stopGap, CAB.gain));
+    }
+
+    // ---- rule 2: anything actually in the path (lateral truth) ------------
+    // The sweep window covers the FULL braking distance (stopGap + the
+    // curve's stopping span), so the cab enters the curve already braking —
+    // a window sized to the nose alone would drop 9→2 m/s in one frame,
+    // which is exactly the snap this rewrite removes.
+    const sweepRect = this.sweepRectScratch;
+    sweepRect.minX = cabRect.minX;
+    sweepRect.maxX = noseX + CAB.stopGap + CAB.cruise / CAB.gain + 0.5;
+    sweepRect.minZ = cabRect.minZ;
+    sweepRect.maxZ = cabRect.maxZ;
+    for (let i = 0; i < n; i++) {
+      const b = pool[i];
+      if (b.rect) {
+        if (!bodyConflictsWithCab(b, cabRect)) continue; // laterally clear
+        const clearance = Math.max(b.rect.minX - noseX, 0);
+        if (b.rect.maxX <= road.x - CAB.halfLen) continue; // fully behind
+        speed = Math.min(speed, approachSpeed(CAB.cruise, clearance, CAB.stopGap, CAB.gain));
+      } else {
+        if (b.x + b.r <= road.x - CAB.halfLen) continue;   // fully behind
+        if (!bodyConflictsWithCab(b, sweepRect)) continue; // not in the path
+        const clearance = Math.max((b.x - b.r) - noseX, 0);
+        speed = Math.min(speed, approachSpeed(CAB.cruise, clearance, CAB.stopGap, CAB.gain));
+      }
+    }
+
+    // ---- committed-move guard: resolve BEFORE moving, never after ---------
+    const limit = noseLimit(noseX, pool, n, CAB.laneZ, CAB.halfWid);
+    const wantedNose = noseX + dt * speed;
+    road.x += Math.min(wantedNose, limit) - noseX;
+    if (road.x > 46) road.x = -46;
+    this.taxiCollider.minX = road.x - CAB.halfLen;
+    this.taxiCollider.maxX = road.x + CAB.halfLen;
+
+    // post-move truth: a body the cab slid beside (never through) gets the
+    // air it is owed — the pedestrian yields to the vehicle, pushed out
+    // along the shortest exit, capped so nobody slingshots
+    cabRect.minX = road.x - CAB.halfLen; cabRect.maxX = road.x + CAB.halfLen;
+    this.peds.resolveAgainstCab(cabRect);
   }
 
   dispose() {

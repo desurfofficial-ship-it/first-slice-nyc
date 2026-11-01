@@ -14,19 +14,17 @@
  * tween choreography, because their moves are story beats, not emergent
  * behaviour.
  *
- * Solidity (Agent-2 audit Q2/Q3): steering alone never made a walker a
- * BODY — the player could ghost straight through them, and a walker whose
- * avoidance lost the race could end a frame inside the furniture. Two
- * safety nets, both cheap and both subordinate to the steering:
- *   1. every walker owns an AABB in World's collider list (synced here each
- *      frame, the same contract as the cast's person colliders), so the
- *      PLAYER resolves against them;
- *   2. after Yuka integrates, each walker is pushed out of any furniture
- *      circle or fellow walker they are still intersecting — positionally,
- *      capped per frame so a deep overlap unwinds over a few frames instead
- *      of teleporting anyone.
- * Behaviours, paths and speeds are untouched: when steering succeeds the
- * resolve finds no penetration and does nothing.
+ * SOLIDITY (agent-2 collision pass, doc 35): steering asks, physics resolves.
+ * On top of Yuka's forces, every frame now ends with three hard guarantees —
+ *   1. walkers never overlap each other (pairwise half-pushes, capped),
+ *   2. a walker never overlaps YOU (you are king; the walker yields),
+ *   3. a walker never overlaps the cab's footprint (shortest-exit push),
+ * and every walker carries a real AABB in World.colliders, so the player's
+ * capsule is stopped by them exactly like by Rosa or the cart. The band
+ * clamp (x ±47.2, z ±7.5) is the block's invisible bounds for bodies that
+ * have no wall collision of their own. None of this overrides Yuka's
+ * authored routes: a pushed walker's FollowPathBehavior steers it back the
+ * moment the obstacle clears — slow, wait, edge around, resume.
  *
  * Identity rules (Doc 04): the walkers are built from the same articulated
  * person rig as the cast — shared palette bank materials, no new assets,
@@ -46,33 +44,90 @@ import {
   EntityManager, Vehicle, Path, FollowPathBehavior,
   ObstacleAvoidanceBehavior, SeparationBehavior, GameEntity, Vector3,
 } from 'yuka';
-import { buildArticulatedPerson, updatePersonAnim } from './personRig';
+import { buildArticulatedPerson, updatePersonAnim, type PersonLook } from './personRig';
 import { seededRng } from './ambient';
-import type { AABB } from '../engine/collide';
+import {
+  resolveCirclesXZ, pushCircleOutOfRectXZ, type AABB, type CirclePush,
+} from '../engine/collide';
 
-export interface PedLook {
-  jacket: number; pants: number; skin: number; hair: number;
-  style?: 'bun' | 'cap' | 'flat';
-}
+/** Walkers wear the same look schema as the cast — scale/shoe included. */
+export interface PedLook extends PersonLook {}
 
 /** Lane discipline: the sidewalk slabs top out at y = 0.1, the road at 0. */
 function groundY(z: number): number {
   return Math.abs(z) > 4.15 ? 0.1 : 0;
 }
 
+/** The block's walkable band (inside the invisible bounds, walls assumed). */
+const BAND = { minX: -47.2, maxX: 47.2, minZ: -7.5, maxZ: 7.5 };
+const PED_R = 0.3;        // a walker's physical half-width
+const PED_REACH = 0.28 * Math.SQRT2; // walk-collider CORNER reach — on the
+// diagonal a box touches at center-distance halfDiag, not halfWidth; the
+// player separation must clear the corner or depenetrate shoves the PLAYER
+// as a walker weaves past (the E2E caught a +1 m shove up a sidewalk)
+const PLAYER_R = 0.35;    // matches the player capsule exactly
+const MAX_PUSH = 0.25;    // per-frame cap — nobody slingshots, ever
+
+/**
+ * Overtake bias (doc 36 §8 handover, integrated): a walker we have caught
+ * FROM BEHIND — velocity aligned with the push, i.e. both heading the same
+ * way — must clear the lane immediately. The yield push alone can never
+ * unlock that pair: it pushes the walker along the player's own motion, so
+ * walker-forward and player-forward balance into a grind (the E2E's
+ * "follows at their pace instead of overtaking" serve-budget killer).
+ * The step-out direction is deterministic: toward the curb (z → 0), never
+ * toward the building line, so benches/trees at z ±7.5 can't become a new
+ * pocket. Pure so the choice is unit-testable.
+ *
+ * @param perpZ  z-component of the unit perpendicular to the player→walker line
+ * @param walkerZ the held walker's z
+ * @returns -1 | +1 — the slideSide whose perpendicular motion heads for the road
+ */
+export function curbSideSlide(perpZ: number, walkerZ: number): number {
+  const toRoad = walkerZ > 0 ? -1 : 1;       // toward z = 0
+  const perpSign = perpZ > 0 ? 1 : perpZ < 0 ? -1 : 1;
+  return perpSign === toRoad ? 1 : -1;
+}
+
+/**
+ * One scheduled beat in a walker's day (Doc 37 §3E — lightweight routines):
+ * a spot near their loop where they stop, stand, and look at something for
+ * a while — the barber's pole, the bodega window, the mail. Positions are
+ * TRIGGER points near the walking lane, not teleports: the walker pauses
+ * wherever they happen to be when the spot comes within reach, faces
+ * `faceTo`, and resumes when the dwell is spent. Deterministic by
+ * construction (position-triggered, seeded starts, no random).
+ */
+export interface RoutineStop {
+  x: number;
+  z: number;
+  /** The thing the beat is about — a shop window, a mailbox, a bench mate. */
+  faceTo: [number, number];
+  /** Seconds spent standing there. The block is not in a hurry. */
+  dwell: number;
+}
+
+const ROUTINE_TRIGGER_R = 0.9;   // close enough to the spot to take the beat
+const ROUTINE_RELEASE_R = 1.4;   // past this, the beat may fire again next lap
+const CHAT_RANGE = 1.7;          // two dwelling walkers this close talk (face each other)
+
 interface Ped {
   vehicle: Vehicle;
   group: THREE.Group;
   speed: number; // m/s — walk, never run; the block is not in a hurry
+  box: AABB;     // the walker's real body, synced under them every frame
+  holdTime: number;  // seconds spent held off a body (player/cab) this stand
+  slideSide: number; // locked sidestep direction while yielding (-1 | +1)
+  // ---- the day's routine (Phase 4) ----
+  stops: RoutineStop[];  // their scheduled beats, taken round-robin per lap
+  stopIdx: number;       // which beat is next
+  dwellLeft: number;     // > 0 → standing at a beat right now
+  faceTo: [number, number] | null; // what the current beat looks at
+  cooldown: number;      // seconds before another beat can fire
+  latched: boolean;      // this beat already fired — walk away before it re-arms
 }
 
 const MAX_DT = 0.1; // matches the game loop's clamp — Yuka integrates with the same dt
-
-/** Walker body radius — matches the cast's person-collider half width. */
-const PED_R = 0.28;
-/** Max distance the safety net may shove a walker per frame. A deep overlap
- *  (spawn-in, a cut corner) unwinds over a few frames — never a snap. */
-const MAX_PUSH = 0.12;
 
 export class Pedestrians {
   readonly group = new THREE.Group();
@@ -81,14 +136,12 @@ export class Pedestrians {
   private obstacles: GameEntity[] = [];
   private playerObstacle: GameEntity;
   private cartObstacle: GameEntity;
+  private taxiObstacle: GameEntity;
+  private castObstacle: GameEntity;
   private time = 0;
-  /** Tight resolve circles (x, z, r) — the VISIBLE footprint of each piece
-   *  of furniture plus the player and the cart. Deliberately tighter than
-   *  the steering circles above: the net corrects real overlaps, it does
-   *  not re-weave the lane. */
-  private readonly resolveCircles: Array<[number, number, number]> = [];
-  /** One body per walker, synced into World's collider list each frame. */
-  readonly colliders: AABB[] = [];
+  /** Real bodies for the player's collision stack (World registers these).
+   *  Parked underground until the first update puts each under its walker. */
+  readonly walkColliders: AABB[];
 
   constructor(
     scene: THREE.Scene,
@@ -97,11 +150,10 @@ export class Pedestrians {
     seed: number,
     paths: Array<Array<[number, number]>>,
     staticObstacles: Array<{ x: number; z: number; r: number }>,
-    resolveCircles: Array<[number, number, number]> = [],
+    routines: RoutineStop[][] = [],
   ) {
     this.group.name = 'Pedestrians';
     const rng = seededRng(seed);
-    this.resolveCircles.push(...resolveCircles);
 
     // invisible avoidance circles — the city's fixed furniture
     for (const o of staticObstacles) {
@@ -111,14 +163,28 @@ export class Pedestrians {
       this.obstacles.push(e);
       this.manager.add(e);
     }
-    // two circles that move with the world: you, and the cart
+    // circles that move with the world: you, the cart, the cab, the cast —
+    // Rosa stands on the shopper's lane, so she gets her own circle (the
+    // audit caught walkers ghosting straight through her)
     this.playerObstacle = new GameEntity();
     this.playerObstacle.radius = 0.5;
     this.cartObstacle = new GameEntity();
     this.cartObstacle.radius = 1.35;
-    this.obstacles.push(this.playerObstacle, this.cartObstacle);
+    this.taxiObstacle = new GameEntity();
+    this.taxiObstacle.radius = 2.4; // the cab's half-length is the danger zone
+    this.castObstacle = new GameEntity();
+    this.castObstacle.radius = 0.5;
+    this.obstacles.push(this.playerObstacle, this.cartObstacle, this.taxiObstacle, this.castObstacle);
     this.manager.add(this.playerObstacle);
     this.manager.add(this.cartObstacle);
+    this.manager.add(this.taxiObstacle);
+    this.manager.add(this.castObstacle);
+
+    // one real body per walker — parked at y −999 (the cast-collider trick:
+    // a box under the world can't overlap anything) until the first update
+    this.walkColliders = looks.map(() => ({
+      minX: 0, maxX: 0, minY: -999, maxY: -998, minZ: 0, maxZ: 0,
+    }));
 
     looks.forEach((look, i) => {
       const pts = paths[i % paths.length];
@@ -139,24 +205,36 @@ export class Pedestrians {
 
       // the same handcrafted rig the cast wears — bank-shared materials,
       // so three more neighbors cost three rigs, zero new materials
-      const { group } = buildArticulatedPerson(
-        { jacket: look.jacket, pants: look.pants, skin: look.skin, hair: look.hair, style: look.style },
-        mat,
-      );
+      const { group } = buildArticulatedPerson(look, mat);
       group.position.set(start[0], groundY(start[1]), start[1]);
       group.rotation.y = rng() * Math.PI * 2;
       this.group.add(group);
-      this.peds.push({ vehicle, group, speed: vehicle.maxSpeed });
-      // a parked-at-spawn body; update() syncs it under the walker forever
-      this.colliders.push({
-        minX: start[0] - PED_R, maxX: start[0] + PED_R,
-        minY: groundY(start[1]), maxY: groundY(start[1]) + 1.7,
-        minZ: start[1] - PED_R, maxZ: start[1] + PED_R,
-        kind: 'person',
+      this.peds.push({
+        vehicle, group, speed: vehicle.maxSpeed,
+        box: this.walkColliders[i],
+        holdTime: 0,
+        slideSide: 0,
+        // the day's beats — round-robin from wherever the seeded start landed
+        stops: routines[i % Math.max(1, routines.length)] ?? [],
+        stopIdx: i, // staggered so the block's beats don't all fire at once
+        dwellLeft: 0,
+        faceTo: null,
+        cooldown: 1.2 + i * 0.7, // don't pause in the first seconds a player sees them
+        latched: false,
       });
     });
 
     scene.add(this.group);
+  }
+
+  /** Live position of walker `i` — the interaction registry reads this every
+   *  frame (moving NPCs stay live, Doc 37 §3B). Out of range → parked below
+   *  the world, which the registry's y-band excludes. */
+  bodyAt(i: number): { x: number; y: number; z: number } {
+    const p = this.peds[i];
+    if (!p) return { x: 0, y: -100, z: 0 };
+    const v = p.vehicle.position;
+    return { x: v.x, y: 0, z: v.z };
   }
 
   /** XZ bodies for World's taxi-yield list — a crossing walker holds the cab. */
@@ -164,71 +242,200 @@ export class Pedestrians {
     return this.peds.map((p) => ({ x: p.vehicle.position.x, z: p.vehicle.position.z }));
   }
 
-  /** Push a walker out of one circle (radial, capped). Mutates vx/vz. */
-  private pushOutOfCircle(vx: number, vz: number, cx: number, cz: number, r: number): [number, number] {
-    const dx = vx - cx;
-    const dz = vz - cz;
-    const min = r + PED_R;
-    const d2 = dx * dx + dz * dz;
-    if (d2 >= min * min || d2 < 1e-9) return [vx, vz];
-    const d = Math.sqrt(d2);
-    const push = Math.min(min - d, MAX_PUSH);
-    return [vx + (dx / d) * push, vz + (dz / d) * push];
+  /**
+   * Push every walker out of the cab's footprint (shortest exit, capped).
+   * Called by World AFTER the cab's committed move — the pedestrian yields
+   * to the vehicle, never the reverse. Yuka's path steering resumes the
+   * route the moment the footprint clears.
+   */
+  resolveAgainstCab(cabRect: AABB): void {
+    const push: CirclePush = { x: 0, z: 0 };
+    for (const p of this.peds) {
+      if (pushCircleOutOfRectXZ(p.vehicle.position.x, p.vehicle.position.z, PED_R, cabRect, MAX_PUSH, push)) {
+        p.vehicle.position.x += push.x;
+        p.vehicle.position.z += push.z;
+      }
+    }
   }
 
-  update(dt: number, player?: { x: number; z: number }, cart?: { x: number; z: number }): void {
+  update(
+    dt: number,
+    player?: { x: number; z: number },
+    cart?: { x: number; z: number },
+    taxi?: { x: number; z: number },
+    cast?: { x: number; z: number },
+  ): void {
     this.time += dt;
     if (player) this.playerObstacle.position.set(player.x, 0, player.z);
     if (cart) this.cartObstacle.position.set(cart.x, 0, cart.z);
+    if (taxi) this.taxiObstacle.position.set(taxi.x, 0, taxi.z);
+    if (cast) this.castObstacle.position.set(cast.x, 0, cast.z);
+
+    // ---- routines (Phase 4, Doc 37 §3E): the day's scheduled beats -------
+    // Position-triggered, round-robin, no random: a walker near their next
+    // beat stops, stands, and looks at the thing for a while. While dwelling
+    // the vehicle is HARD-PINNED across the Yuka integration (the recorded
+    // pre-update position is restored after), so no steering force can
+    // accumulate drift under them — the path simply waits, and resumes the
+    // moment the dwell is spent. Deterministic, so the E2E meets the same
+    // street life every run.
+    for (const pd of this.peds) {
+      if (pd.dwellLeft > 0) {
+        pd.dwellLeft -= dt;
+        pd.cooldown = 1.2; // re-armed fresh when the beat ends
+        if (pd.dwellLeft <= 0) {
+          pd.dwellLeft = 0;
+          pd.faceTo = null;
+          pd.latched = true; // walk away before this beat can fire again
+        }
+        continue;
+      }
+      if (pd.cooldown > 0) pd.cooldown -= dt;
+      if (pd.stops.length === 0 || pd.cooldown > 0) continue;
+      const pi0 = pd.vehicle.position;
+      const stop = pd.stops[pd.stopIdx % pd.stops.length];
+      const d = Math.hypot(pi0.x - stop.x, pi0.z - stop.z);
+      if (d < ROUTINE_TRIGGER_R && !pd.latched) {
+        pd.dwellLeft = stop.dwell;
+        pd.faceTo = stop.faceTo;
+        pd.stopIdx += 1; // next lap takes the next beat
+        pd.latched = true;
+      } else if (d > ROUTINE_RELEASE_R) {
+        pd.latched = false;
+      }
+    }
+
+    // pinned walkers hold their exact spot through the integration step
+    const pinned = this.peds
+      .filter((p) => p.dwellLeft > 0)
+      .map((p) => ({ p, x: p.vehicle.position.x, z: p.vehicle.position.z }));
 
     this.manager.update(Math.min(dt, MAX_DT));
 
+    for (const pin of pinned) {
+      pin.p.vehicle.position.set(pin.x, 0, pin.z);
+      pin.p.vehicle.velocity.set(0, 0, 0);
+    }
+
+    // ---- hard guarantees (steering asked; physics resolves) --------------
+    // 1. walker ↔ walker: symmetric half-pushes. SeparationBehavior is a
+    //    force and can be overcome at route corners; this cannot.
+    // 2. walker ↔ player: the walker yields — you are never shoved.
+    // 3. walker ↔ world: the band clamp keeps everybody on the block.
+    const a: CirclePush = { x: 0, z: 0 };
+    const b: CirclePush = { x: 0, z: 0 };
     for (let i = 0; i < this.peds.length; i++) {
-      const p = this.peds[i];
-      const v = p.vehicle.position;
-      // safety net: unwinding any overlap steering failed to prevent. The
-      // walker yields to the world — furniture and the player never get
-      // shoved by a pedestrian.
-      for (const [cx, cz, r] of this.resolveCircles) {
-        const [nx, nz] = this.pushOutOfCircle(v.x, v.z, cx, cz, r);
-        v.x = nx; v.z = nz;
-      }
-      if (player) {
-        const [nx, nz] = this.pushOutOfCircle(v.x, v.z, player.x, player.z, 0.35);
-        v.x = nx; v.z = nz;
-      }
-      if (cart) {
-        const [nx, nz] = this.pushOutOfCircle(v.x, v.z, cart.x, cart.z, 1.1);
-        v.x = nx; v.z = nz;
-      }
-      // walker-vs-walker: SeparationBehavior handles the steering; this only
-      // breaks the rare dead stop where two bodies still touch.
+      const pd = this.peds[i];
+      const pi = pd.vehicle.position;
       for (let j = i + 1; j < this.peds.length; j++) {
-        const o = this.peds[j].vehicle.position;
-        const dx = v.x - o.x;
-        const dz = v.z - o.z;
-        const d2 = dx * dx + dz * dz;
-        const min = PED_R * 2;
-        if (d2 < min * min && d2 > 1e-9) {
-          const d = Math.sqrt(d2);
-          const push = Math.min((min - d) / 2, MAX_PUSH);
-          v.x += (dx / d) * push; v.z += (dz / d) * push;
-          o.x -= (dx / d) * push; o.z -= (dz / d) * push;
+        const pj = this.peds[j].vehicle.position;
+        if (resolveCirclesXZ(pi.x, pi.z, pj.x, pj.z, PED_R, PED_R, MAX_PUSH * 0.5, a, b)) {
+          pi.x += a.x; pi.z += a.z;
+          pj.x += b.x; pj.z += b.z;
         }
       }
-      // sync the visual rig AND the body — one walker, one truth
+      if (player) {
+        const held = resolveCirclesXZ(pi.x, pi.z, player.x, player.z, PED_REACH, PLAYER_R, MAX_PUSH, a, null);
+        if (held) {
+          pi.x += a.x; pi.z += a.z;
+          // "pardon me": held off a body for a beat, a walker STEPS ASIDE
+          // instead of leaning into the push forever — a slide perpendicular
+          // to the player line, on the side they were already passing.
+          // This is the head-on unlock: without it the pedestrian's forward
+          // pull and the hold cancel and both parties stall mid-sidewalk.
+          const plen = Math.hypot(a.x, a.z) || 1;
+          const px2 = -a.z / plen;
+          const pz2 = a.x / plen;
+          const vx = pd.vehicle.velocity.x;
+          const vz = pd.vehicle.velocity.z;
+          const vlen = Math.hypot(vx, vz);
+          // OVERTAKE BIAS (doc 36 §8 handover): a walker caught from behind —
+          // velocity aligned with the push — steps out NOW, curb-side. The
+          // 0.25 s head-on grace would only balance the grind here.
+          const sameDir = vlen > 0.2 && (vx * a.x + vz * a.z) / (vlen * plen) > 0.45;
+          if (sameDir) {
+            if (pd.slideSide === 0) pd.slideSide = curbSideSlide(pz2, pi.z);
+            pi.x += px2 * pd.slideSide * dt * 3.5;
+            pi.z += pz2 * pd.slideSide * dt * 3.5;
+            pd.holdTime = 0; // not a standoff; the grace clock stays fresh
+          } else {
+            pd.holdTime += dt;
+            if (pd.holdTime > 0.25) {
+              if (pd.slideSide === 0) {
+                // side = sign of the cross product(velocity, push-out) — the
+                // direction their own motion is already carrying them past
+                const cross = vx * a.z - vz * a.x;
+                pd.slideSide = cross >= 0 ? 1 : -1;
+                if (Math.abs(cross) < 1e-4) pd.slideSide = (i % 2 === 0) ? 1 : -1;
+              }
+              pi.x += px2 * pd.slideSide * dt * 3.0;
+              pi.z += pz2 * pd.slideSide * dt * 3.0;
+            }
+          }
+          // SWEEP-BACK GUARD (integration fix): the sidestep is displacement
+          // ON TOP of the yield push, and the player's capsule resolves
+          // against these boxes ONE FRAME STALE. At the dt clamp a 3.5 m/s
+          // sidestep sweeps the box ~0.35 m into where the capsule is — and
+          // the player's own depenetrate then shoves the PLAYER backwards,
+          // every frame (the e2e's "walks west at full speed" ghost). The
+          // walker yields twice: after ALL displacement, the yield distance
+          // is re-enforced — the box can never park inside the capsule.
+          if (resolveCirclesXZ(pi.x, pi.z, player.x, player.z, PED_REACH, PLAYER_R, MAX_PUSH, a, null)) {
+            pi.x += a.x; pi.z += a.z;
+          }
+        } else {
+          pd.holdTime = 0;
+          pd.slideSide = 0;
+        }
+      }
+      // the band clamp — the walkers have no wall collision of their own,
+      // so the block's bounds are applied to their bodies directly
+      pi.x = Math.max(BAND.minX, Math.min(BAND.maxX, pi.x));
+      pi.z = Math.max(BAND.minZ, Math.min(BAND.maxZ, pi.z));
+    }
+
+    for (const p of this.peds) {
+      const v = p.vehicle.position;
       p.group.position.set(v.x, groundY(v.z), v.z);
-      const box = this.colliders[i];
-      box.minX = v.x - PED_R; box.maxX = v.x + PED_R;
-      box.minY = groundY(v.z); box.maxY = groundY(v.z) + 1.7;
-      box.minZ = v.z - PED_R; box.maxZ = v.z + PED_R;
       // face the walking direction (velocity, not the steering force) —
       // and hold the last heading at waypoints so nobody snap-turns
       const vx = p.vehicle.velocity.x;
       const vz = p.vehicle.velocity.z;
       if (vx * vx + vz * vz > 0.01) p.group.rotation.y = Math.atan2(vx, vz);
+      // dwelling: face the beat — or a neighbor who stopped beside you
+      // (two dwelling walkers within CHAT_RANGE face each other: the
+      // block's occasional two-person conversations, emergent from the
+      // schedules, never scripted)
+      if (p.dwellLeft > 0) {
+        let tx: number | null = null;
+        let tz: number | null = null;
+        let bestD2 = CHAT_RANGE * CHAT_RANGE;
+        for (const other of this.peds) {
+          if (other === p || other.dwellLeft <= 0) continue;
+          const ov = other.vehicle.position;
+          const dx = ov.x - v.x;
+          const dz = ov.z - v.z;
+          const d2 = dx * dx + dz * dz;
+          if (d2 < bestD2) { bestD2 = d2; tx = ov.x; tz = ov.z; }
+        }
+        if (tx === null && p.faceTo) { tx = p.faceTo[0]; tz = p.faceTo[1]; }
+        if (tx !== null && tz !== null) {
+          const dx = tx - v.x;
+          const dz = tz - v.z;
+          if (dx * dx + dz * dz > 0.04) p.group.rotation.y = Math.atan2(dx, dz);
+        }
+      }
       // the rig measures its own position delta → the walk cycle is free
+      // (a dwelling walker's delta is zero → it reads as a natural idle)
       updatePersonAnim(p.group, dt);
+      // the walker's real body follows (feet on their ground; a box at the
+      // walker's feet height blocks the capsule exactly like the cast's)
+      p.box.minX = v.x - 0.28;
+      p.box.maxX = v.x + 0.28;
+      p.box.minZ = v.z - 0.28;
+      p.box.maxZ = v.z + 0.28;
+      p.box.minY = 0;
+      p.box.maxY = 1.7;
     }
   }
 }
