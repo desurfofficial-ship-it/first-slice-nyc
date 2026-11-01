@@ -87,6 +87,11 @@ export class World {
   /** The transient customer at the cart — Game syncs this one (it owns
    *  spawning/removal); World.update handles the persistent cast. */
   readonly customerCollider: AABB;
+  // Agent-2 solidity (doc 35 Q2): the rest of the walking cast gets bodies
+  // too — the stranger, Sal and the familiar face were ghosts in the audit.
+  readonly strangerCollider: AABB;
+  readonly salCollider: AABB;
+  readonly familiarCollider: AABB;
   /** The Day-3 stool's body — parked underground until the purchase makes
    *  it real; synced in updateDynamics like the cast. */
   readonly stoolCollider: AABB;
@@ -625,7 +630,13 @@ export class World {
     this.idrisCollider = boxFromCenter(-2, 0.85, -4.6, 0.56, 1.7, 0.56);
     this.kidCollider = boxFromCenter(15, 0.7, 6.35, 0.5, 1.4, 0.5);
     this.customerCollider = boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56);
-    this.colliders.push(this.rosaCollider, this.idrisCollider, this.kidCollider, this.customerCollider);
+    // stranger/Sal/familiar — parked underground until their beats make them
+    // visible (the customer's trick); updateDynamics syncs them with the cast
+    this.strangerCollider = boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56);
+    this.salCollider = boxFromCenter(-7, 0.85, 7.85, 0.56, 1.7, 0.56);
+    this.familiarCollider = boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56);
+    this.colliders.push(this.rosaCollider, this.idrisCollider, this.kidCollider, this.customerCollider,
+      this.strangerCollider, this.salCollider, this.familiarCollider);
 
     // ---------------- cast (Rosa, Idris, the kid) ---------------------------
     this.rosa = this.spawnActor('Rosa', -27, 0.05, 6.8, { jacket: 0xff6b6b, pants: PAL.ink, skin: 0xe8b08e, hair: 0x9a938c, style: 'bun', shawl: 0x7a5c68 });
@@ -3203,6 +3214,10 @@ export class World {
     // the barrier leaves on Day 4 — its body leaves with it (a box at y
     // -999 can't overlap anything: the cheapest "gone")
     this.syncPersonCollider(this.barrierCollider, this.barrier, 0.85, 0.9);
+    // the rest of the walking cast (Agent-2): no ghosts on the block
+    this.syncPersonCollider(this.strangerCollider, this.stranger);
+    this.syncPersonCollider(this.salCollider, this.sal);
+    this.syncPersonCollider(this.familiarCollider, this.familiar);
     if (player) this.updateDistricts(player.x, player.z);
     this.updateTaxi(dt, player, extra);
   }

@@ -280,12 +280,11 @@ export class Game {
       this.startDusk();
       this.lightGoldWindow();
     }
-    // Agent-2 frame-order fix: the whole cast gets bodies BEFORE the player
-    // moves, so the walker never resolves against last frame's positions
-    // (the residual one-frame staleness behind "passed through the npc").
-    this.world.syncCastColliders();
     // the customer at the cart owns a body too — synced fresh for this move
     this.world.syncPersonCollider(this.world.customerCollider, this.customer);
+    // (the frame-order fix lives in World.updateDynamics — called below, before
+    // the player moves — which syncs the cast, stool, barrier AND the rest of
+    // the walking cast: stranger, Sal, the familiar face)
     // Dynamic colliders sync BEFORE the walker moves (agent-2 audit, doc 35):
     // world.update used to run after player.update, so the walker resolved
     // against last frame's taxi box — up to 0.9 m stale at the dt clamp, and

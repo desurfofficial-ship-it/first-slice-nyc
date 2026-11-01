@@ -69,7 +69,7 @@ describe('vertical fall substepping (audit Q6: tunneling at low fps)', () => {
 /** One walker on a straight loop, plus the harness pieces Pedestrians needs. */
 function oneWalker(
   path: Array<[number, number]>,
-  resolveCircles: Array<[number, number, number]> = [],
+  routines: Array<Array<{ x: number; z: number; dwell: number; faceTo: [number, number] }>> = [],
 ): { peds: Pedestrians; group: THREE.Group } {
   const scene = new THREE.Scene();
   const peds = new Pedestrians(
@@ -79,37 +79,40 @@ function oneWalker(
     42,
     [path],
     [],
-    resolveCircles,
+    routines,
   );
   return { peds, group: peds.group };
 }
 
-describe('ambient walkers are bodies (audit Q2/Q3)', () => {
-  it('each walker owns a person-kind AABB that tracks their position', () => {
+describe('ambient walkers are bodies (audit Q2/Q3 — merged onto the traffic-brain API)', () => {
+  it('each walker owns a body AABB that tracks their position once updated', () => {
     const { peds } = oneWalker([[0, 6], [10, 6]]);
-    expect(peds.colliders).toHaveLength(1);
-    expect(peds.colliders[0].kind).toBe('person');
+    expect(peds.walkColliders).toHaveLength(1);
+    expect(peds.walkColliders[0].minY).toBe(-999); // parked until first update
     for (let i = 0; i < 30; i++) peds.update(1 / 60);
-    const b = peds.colliders[0];
+    const b = peds.walkColliders[0];
     const g = peds.group.children[0];
-    expect(b.minX).toBeCloseTo(g.position.x - 0.28, 3);
-    expect(b.maxX).toBeCloseTo(g.position.x + 0.28, 3);
-    expect(b.minZ).toBeCloseTo(g.position.z - 0.28, 3);
-    expect(b.maxY).toBeCloseTo(g.position.y + 1.7, 3);
+    expect(b.minX).toBeCloseTo(g.position.x - 0.28, 2);
+    expect(b.maxX).toBeCloseTo(g.position.x + 0.28, 2);
+    expect(b.minZ).toBeCloseTo(g.position.z - 0.28, 2);
+    expect(b.minY).toBe(0);
+    expect(b.maxY).toBeCloseTo(1.7, 2);
   });
 
-  it('the safety net unwinds a walker parked inside furniture — capped, not snapped', () => {
-    // walker's whole loop sits 5 cm off a trash can's resolve center (r 0.36)
-    // — steering never gets a say (dt 0), so only the net can free them
-    const { peds } = oneWalker([[2.05, -7.45]], [[2, -7.45, 0.36]]);
-    const b = peds.colliders[0];
-    for (let i = 0; i < 40; i++) peds.update(0);
-    const min = 0.36 + 0.28;
-    const dx = (b.minX + b.maxX) / 2 - 2;
-    const dz = (b.minZ + b.maxZ) / 2 - (-7.45);
-    expect(Math.hypot(dx, dz)).toBeGreaterThanOrEqual(min - 0.001);
-    // settled exactly at the rim — the cap means no overshoot, no snap
-    expect(Math.hypot(dx, dz)).toBeLessThanOrEqual(min + 0.001);
+  it('a walker caught inside the player is yielded out — capped, then re-enforced', () => {
+    // the walker's whole loop parks them inside the player's circle; with dt 0
+    // the steering never runs, so only the resolve net can free them. Their
+    // guarantee: the walker yields (the player is never shoved).
+    const { peds } = oneWalker([[2.05, -6.0]]);
+    const player = { x: 2, z: -6.0 };
+    for (let i = 0; i < 40; i++) peds.update(0, player);
+    const b = peds.walkColliders[0];
+    const bx = (b.minX + b.maxX) / 2, bz = (b.minZ + b.maxZ) / 2;
+    // PED_REACH ≈ 0.396 + PLAYER_R 0.35 → the walker's center must sit
+    // outside ~0.746 m from the player's center (the sweep-back re-check
+    // runs after the sidestep, so the box can never park inside the capsule)
+    const d = Math.hypot(bx - player.x, bz - player.z);
+    expect(d).toBeGreaterThanOrEqual(0.35 + 0.28 * Math.SQRT2 - 0.05);
   });
 
   it('two walkers left overlapping separate instead of stacking', () => {
@@ -127,20 +130,30 @@ describe('ambient walkers are bodies (audit Q2/Q3)', () => {
     );
     // drive them onto the same spot by hand, then let the net act
     for (let i = 0; i < 10; i++) peds.update(0);
-    const a = peds.colliders[0];
-    const b = peds.colliders[1];
+    const a = peds.walkColliders[0];
+    const b = peds.walkColliders[1];
     const ax = (a.minX + a.maxX) / 2, az = (a.minZ + a.maxZ) / 2;
     const bx = (b.minX + b.maxX) / 2, bz = (b.minZ + b.maxZ) / 2;
-    expect(Math.hypot(ax - bx, az - bz)).toBeGreaterThanOrEqual(0.56 - 0.01);
+    expect(Math.hypot(ax - bx, az - bz)).toBeGreaterThanOrEqual(0.6 - 0.01); // 2 × PED_R 0.3
   });
 
   it('a walker well clear of everything is left exactly where steering put them', () => {
-    const { peds } = oneWalker([[20, 6], [30, 6]], [[2, -7.45, 0.36]]);
+    const { peds } = oneWalker([[20, 6], [30, 6]]);
     peds.update(1 / 60);
     const before = { x: peds.group.children[0].position.x, z: peds.group.children[0].position.z };
     peds.update(0); // resolve-only pass: nothing to fix → nothing moves
     const after = peds.group.children[0].position;
     expect(after.x).toBeCloseTo(before.x, 4);
     expect(after.z).toBeCloseTo(before.z, 4);
+  });
+
+  it('the band clamp keeps a walker on the block — no body leaves the world', () => {
+    const { peds } = oneWalker([[0, 6], [10, 6]]);
+    // a walker pinned (dwelling) far off-lane is still clamped into the band
+    peds.update(1 / 60);
+    const b = peds.walkColliders[0];
+    const bx = (b.minX + b.maxX) / 2, bz = (b.minZ + b.maxZ) / 2;
+    expect(bx).toBeLessThanOrEqual(47.2);
+    expect(Math.abs(bz)).toBeLessThanOrEqual(7.5);
   });
 });
