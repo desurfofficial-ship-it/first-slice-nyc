@@ -56,6 +56,7 @@ export class LeafDrift {
     const leafMat = new THREE.MeshLambertMaterial({ vertexColors: false });
     // InstancedMesh + instanceColor gives every leaf its own tint
     this.mesh = new THREE.InstancedMesh(leafGeo, leafMat, count);
+    this.mesh.name = 'LeafDrift'; // probes find it by name (pigeon/canopy instanced meshes share the scene)
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.frustumCulled = false; // instances span the whole block
     this.mesh.castShadow = false;

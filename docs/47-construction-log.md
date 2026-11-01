@@ -113,5 +113,80 @@ future phase is measured against.
 
 ---
 
-*(W1 entry lands when W1 ships. The log is the checklist — each phase adds
-its row to the ledger above and strikes its docs/45 exit criteria one by one.)*
+## W1 — Streets + skeleton + the Marlow row (SHIPPED 2026-11-01)
+
+**Scope honored:** every coordinate from `world-registry.json` (no invented
+positions); the shipped 12 masses and 18 anchors untouched (validator green);
+no new dependencies. File owner: Main Agent (`World.ts` W1 section,
+`props.ts` +`makeControlHouse`/`SHARED_GEOS`).
+
+**What landed**
+
+- **The grid**: Kestrel slabs extended to ±84 (butt-jointed, identical
+  materials/levels); Juniper and Sycamore avenues laid N–S (10 m roads, 8 m
+  walks, curbs, junction roads dipping 5 mm under the E–W roads to kill the
+  coplanar shimmer); Gable and Marlow laid E–W. All six intersections get
+  their four zebra legs (25 crossings + XW-COURT at x 35); XW-CANON untouched.
+- **The shipped x ±48 / z ∓22/22.5 walls are retired**; the boundary is the
+  registry's playable core (x ±84, z ±48) — "never before a district has
+  content": Kestrel/Gable/Marlow streets, both avenues, and the Marlow row
+  all carried content the day the walls moved.
+- **Block interior yards** (raw lawn; W2 furnishes: Kestrel Green, the
+  Gable Garden, the playground).
+- **SUB-02** — the south control house (cream metal-and-glass, twin green
+  globes, warm bays, stair mouth, SUBWAY board) at the registry's (−57,
+  −6.25); collider 6×3.5. LMK-01 is now a true twin-globe pair.
+- **The Marlow row shells**: SMB-01..03 (bakery with the bagel silhouette in
+  the window, B-side Records, Kestrel Hardware — storefronts facing Marlow)
+  + PWK-01..03 walk-ups with stooped doors (teal/coral/plum rotation) and
+  window grids. **KTN-00W** corner house (storefront, crown, flush 45°
+  chamfer pier, water tank) and **KTN-06** café shell (papered windows, FOR
+  RENT card — lights come on when the story opens it).
+- **Trees**: the registry's 7 Kestrel fills (full fade-capable trees) + the
+  avenue/Gable/Marlow rows (65 trees) rendered as **two instanced canopies**
+  (one per leaf material) with per-tree sway — the row rows cost 2 draw
+  calls, not 195. Trunks/pits bake into their districts. Row trees stay
+  green (the shipped turning-set is untouched); they don't join the
+  fade-on-occlude pass (their guard is the camera sidestep — docs/45's
+  tradeoff, recorded).
+- **Furniture**: 14 lamps (shared lit face), 4 hydrants, 2 can+recycle
+  stations, the BUS-02 terminal curb bay (paint + M121 flag; the bus is W4).
+- **Fixed a shipped bug while building**: the pizza and barbershop
+  storefronts leaned INTO their building faces (the recorded
+  "pizza-awning diagonal"); the storefront builder's lean-out rotation is
+  now applied, so every sign/awning hangs over its sidewalk.
+- **Registry corrections (12 lines)**: the Marlow/Gable-row entrance markers
+  pointed at the block-interior face; per docs/40 §5.2 ("every planned
+  entrance faces a sidewalk of the street its face names") the build put the
+  doors on the street side and the registry now says the same.
+
+**The ghost gate (docs/45 §4) — PASS**: all 8 W1 footprints verified
+in-engine against the registry (collider-level comparison; every delta
+0.000 m < 0.1 gate) by `scripts/probe-w1-ghost.mjs`, which also walks the
+grid end-to-end (plaza → Juniper → Gable → Sycamore → Marlow → back;
+27/27 legs, never wedged, ground never below the slabs) and shoots all six
+intersections + the rows (`shots/w1-*.png`).
+
+**Performance ledger** (probe-w0-census, same rigs):
+
+| Rig | W0 ledger | W1 | Δ | Tris |
+|---|---|---|---|---|
+| PLAZA | 576 | **758** | +182 | 103,252 |
+| CART_CORNER | 481 | **652** | +171 | 94,456 |
+| SYCAMORE×GABLE | 249 | **361** | +112 | 74,382 |
+
+Over the +40–60 estimate, honestly because the estimate predated the tree
+rows: the new content at these rigs is ~half shadow-pass (65 tree trunks +
+canopies + shells all cast within the ±60 shadow frustum) and half the
+street furniture. Tris stay under the Doc-07 device budget (120k). The
+per-phase regression gate continues from THIS ledger.
+
+**Verification**: tsc clean · vitest 234/234 · build clean · registry
+validator green · probe-leaves 332 leaves, 0 buried, 0 hovering ·
+probe-peds OK · probe-env5 birds resting ✓ · **E2E: AUTOTEST OK, 0
+failures, 741 s, zero console errors** (the expanded world costs the
+software-GL driver wall time, not a single beat: the driver's documented
+`E2E_W/E2E_H` viewport override absorbed the fps drop — no budget
+extensions, no skips).
+
+---

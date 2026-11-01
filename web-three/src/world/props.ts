@@ -90,6 +90,10 @@ const geo = {
   cone: new THREE.ConeGeometry(0.5, 1, 8),
 };
 
+/** The three tree geometries, exported for World's instanced tree rows —
+ *  new-row canopies ARE the same shapes as makeTree's, one instance each. */
+export const SHARED_GEOS = { sphere: geo.sphere, trunk: geo.trunk, cone: geo.cone };
+
 function mesh(g: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number): THREE.Mesh {
   const out = new THREE.Mesh(g, m);
   out.position.set(x, y, z);
@@ -666,5 +670,54 @@ export function makeVendorCart(
   const s = makeSignBoard(1.3, 0.34, 0.06, sign(text, 512, 128, PAL_GOLD, PAL_INK, 36));
   s.position.set(0, 0.95, 0.4);
   g.add(s);
+  return g;
+}
+
+/** SUB-02 — the south control house (docs/42 §3): the cream metal-and-glass
+ *  pavilion type NYC puts on wide sidewalk corners. Twin GREEN globes (the
+ *  K's second front door — LMK-01 pairs it with the plaza's cast-iron
+ *  housing), a warm interior glow, a small SUBWAY board and the K bullet.
+ *  Registry: 6 × 3.5, h 3.4, collider carried by the caller. */
+export function makeControlHouse(bank: MatBank, sign: SignPairFactory): THREE.Group {
+  const g = new THREE.Group();
+  g.name = 'ControlHouse';
+  const cream = bank.get(PAL_CREAM);
+  const glass = bank.get(0x3b3346);
+  const body = unitBox(cream, 6, 3.0, 3.5, 0, 1.5, 0);
+  body.castShadow = true;
+  g.add(body);
+  // the glass band: three window bays on the street side (north, +z faces
+  // Kestrel) + a warm interior panel that reads after sundown
+  const warm = bank.get(0xd9c3a5);
+  for (const wx of [-1.9, 0, 1.9]) {
+    const pane = unitBox(glass, 1.5, 1.5, 0.08, wx, 1.55, 1.78);
+    g.add(pane);
+    const glow = unitBox(bank.get(0xd9c3a5), 1.3, 1.3, 0.04, wx, 1.55, 1.72);
+    glow.material = warm.clone() as THREE.MeshLambertMaterial;
+    (glow.material as THREE.MeshLambertMaterial).emissive = new THREE.Color(0xffb85c);
+    (glow.material as THREE.MeshLambertMaterial).emissiveIntensity = 0.4;
+    g.add(glow);
+  }
+  // the cornice + the roof cap
+  g.add(unitBox(bank.get(PAL_INK), 6.2, 0.16, 3.7, 0, 3.08, 0));
+  g.add(unitBox(cream, 5.6, 0.3, 3.1, 0, 3.31, 0));
+  // twin green globes on the corner posts — the K's signature (LMK-01)
+  const globeMat = bank.get(PAL_TEAL).clone() as THREE.MeshLambertMaterial;
+  globeMat.emissive = new THREE.Color(PAL_TEAL);
+  globeMat.emissiveIntensity = 0.55;
+  for (const gx of [-2.6, 2.6]) {
+    const post = unitCyl(bank.get(PAL_INK), 0.05, 0.55, gx, 3.75, 1.4);
+    g.add(post);
+    const globe = new THREE.Mesh(geo.sphere, globeMat);
+    globe.scale.setScalar(0.16);
+    globe.position.set(gx, 4.1, 1.4);
+    g.add(globe);
+  }
+  // the stair mouth on the north face + a small board
+  const mouth = unitBox(bank.get(0x241f26), 1.6, 2.2, 0.3, 0, 1.1, -1.78);
+  g.add(mouth);
+  const board = makeSignBoard(1.9, 0.5, 0.08, sign('SUBWAY', 320, 80, PAL_TEAL, PAL_CREAM, 48));
+  board.position.set(0, 2.55, -1.82);
+  g.add(board);
   return g;
 }
