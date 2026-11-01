@@ -208,7 +208,15 @@ export function runAutotest(game: Game): void {
       await walkTo(-27.8, 6.6);
       await interact();
       check(s.step === Step.ENTER_BODEGA, 'Rosa greeting advances flow');
-      await walkTo(-16, 7.0);
+      // the bus stop bench is SOLID now (Agent-2 furniture colliders) — the
+      // driver used to ghost straight through it; walk around it like the
+      // person the route is pretending to be: south of the bench, then back
+      // up to the bodega door.
+      await walkTo(-25.9, 5.95);
+      await walkTo(-22.8, 5.95);
+      // south of the north trashcan too (its body reaches z 7.09 — the old
+      // ghost route cut through it at z ~6.9), then in through the door
+      await walkTo(-17.5, 6.2);
       await walkTo(-16, 12.0);
       check(s.step === Step.COLLECT && !game.world.roof.visible, 'enter bodega: roof hides, collect step');
       for (const x of [-18.0, -16.0, -14.0]) {
@@ -231,8 +239,15 @@ export function runAutotest(game: Game): void {
       }
       await walkTo(-16, 6.0);
       await walkTo(-5, 5.0);
+      // step INTO the crosswalk (its trigger zone spans z ±3.75) before
+      // crossing — with the street solid, a walker or pole can end a walk a
+      // hair short of the far curb, and the beat needs the zone touched
+      await walkTo(-5, 0, 14);
       await walkTo(-5, -5.0);
       check(s.step === Step.CLAIM_CART, 'crosswalk trigger fires');
+      // north of the mailbox/hydrant row (mailbox z to -5.15, hydrant to
+      // -4.4 — both solid now, both sat on the old ghost lane)
+      await walkTo(0, -3.8);
       await walkTo(4, -5.2);
       await interact();
       check(!game.ui.nameBox.hidden && game.player.frozen, 'cart claim opens name box and freezes walker');
@@ -344,7 +359,10 @@ export function runAutotest(game: Game): void {
       const cupAttached = game.cupProp.parent === game.playerVisual;
       check(cupAttached, 'cup prop is still childed to the player visual');
       // the stoop is a sidewalk walk from here (same side of the street) —
-      // past the bodega, the bus stop, the trees
+      // past the bodega, the bus stop, the trees. Hug the curb lane: the
+      // street trees (trunk boxes, z 7.0+) sit on the old ghost lane.
+      await walkTo(-5, 6.3, 24);
+      await walkTo(8, 6.4, 24);
       await walkTo(15, 6.9, 24);
       await interact();
       check(s.kidKept && s.money === 117 && game.world.kidSil.visible, `kid kept: +$3, kid at the glass ($${s.money})`);
@@ -354,6 +372,7 @@ export function runAutotest(game: Game): void {
       await cabClear();
       await walkTo(-5, 4.85, 24);
       await walkTo(-5, -5.0, 24);
+      await walkTo(0, -3.8, 24);
       await walkTo(4, -5.2, 24);
       await interact();
       check(s.awningConfirm, 'awning offer asks for a confirm press');
@@ -455,6 +474,9 @@ export function runAutotest(game: Game): void {
       await cabClear();
       await walkTo(-5, 4.85, 24);
       await walkTo(-5, -5.0, 24);
+      // north of the mailbox/hydrant row — both solid now, both on the old
+      // ghost lane; the cart corner beat needs the player actually there
+      await walkTo(0, -3.8, 24);
       await walkTo(4, -5.45, 20);
       {
         // he closes the last meter at his own pace (sim time lags real time
@@ -474,19 +496,31 @@ export function runAutotest(game: Game): void {
       // meet a cab that parked mid-crosswalk; the crosswalk itself can't.)
       // Budgets are generous: the 43 m hauls outran single 48 s budgets
       // under the full sim load (leaves, signal, two flocks).
+      // westbound home lane: north of the cart corner, the hydrant, the
+      // mailbox — all solid, all on the old diagonal
+      await walkTo(1.5, -3.8, 24);
+      await walkTo(-2.2, -4.2, 24);
       await walkTo(-5, -5.0, 24);
       await cabClear();
       await walkTo(-5, 4.85, 24);
+      // south lane past the bus bench — its south face is at z 6.575 and the
+      // straight haul to the flyer board grazed it (Agent-2 solidity)
+      await walkTo(-24.5, 5.9, 30);
       await walkTo(-37.6, 6.9, 60);
       await interact();
       check(s.step === Step.D3_CLIMB3, 'flyer read \u2014 the block knows your name');
 
-      // back east — NORTH of the cart. The cart is solid (playtest: "passed
-      // through the cart") and its west face eats diagonal pushes from the
-      // south; the e2e caught the walker parked on it at (2.5, -7.4).
+      // back east — with the street solid, the straight x=9.4 crossing arcs
+      // on the camera flip and parks the walker on the cart's west face (the
+      // e2e caught it at (2.5, -6.8)). Cross at the stripes like a person,
+      // then east along the south lane that clears the mailbox, hydrant and
+      // the stool you bought this morning.
+      await walkTo(-28, 6.0, 30);   // the street tree at x -34 owns its trunk now
       await walkTo(-5, 4.85, 24);
       await cabClear();
-      await walkTo(9.4, 5.0, 60);
+      await walkTo(-5, -5.0, 24);
+      await walkTo(0, -3.8, 24);
+      await walkTo(8.2, -5.0, 24);
       await walkTo(9.4, -7.2, 30, true);
       check(game.player.ladder !== null, 'day 3: grabbed ladder 1' + snap());
       await holdUntil('KeyW', () => p().y > 4.2, 10); // ride to the rail — mid-ladder exits fall below the snap window (see Day 1 note)
@@ -557,6 +591,7 @@ export function runAutotest(game: Game): void {
           await walkTo(-5, 4.85, 24);
           await cabClear();
           await walkTo(-5, -5.0, 24);
+          await walkTo(0, -3.8, 24);
         }
         await walkTo(4, -5.2, i === 0 ? 30 : 10);
         await interact();
@@ -608,15 +643,20 @@ export function runAutotest(game: Game): void {
       await interact();
       check(s.permitFiled && s.money === 123, 'a repeat press at the A-frame spends nothing');
 
-      // the dusk climb, routed exactly like Day 3's proven approach: east
-      // along the north sidewalk, then south across at x=9.4 (the cab yields
-      // to a body in the road). The south-side variants all found furniture:
-      // the A-frame diagonal clipped Rosa's corner (run four), the south
-      // sidewalk wedged between the cart's west face and the trashcan at
-      // (2,-7.45) (run eight) — a 60 cm gap a 70 cm walker does not fit
-      // through. The north route has none of that.
+      // the dusk climb, routed like Day 3's corrected approach: the crosswalk
+      // (the cab yields to a body in the road), then the south lane that
+      // clears the mailbox, the hydrant and the stool. The south-side
+      // variants all found furniture: the A-frame diagonal clipped Rosa's
+      // corner (run four), the south sidewalk wedged between the cart's west
+      // face and the trashcan at (2,-7.45) (run eight), and the straight
+      // x=9.4 crossing arcs into the cart's west face (Agent-2 solidity —
+      // every one of these props is a body now).
       await cabClear();
-      await walkTo(9.4, 5.0, 40);
+      await walkTo(-5, 4.85, 24);
+      await cabClear();
+      await walkTo(-5, -5.0, 24);
+      await walkTo(0, -3.8, 24);
+      await walkTo(8.2, -5.0, 24);
       await walkTo(9.4, -7.2, 30, true);
       check(game.player.ladder !== null, 'day 4: grabbed ladder 1' + snap());
       await holdUntil('KeyW', () => p().y > 4.2, 10); // ride to the rail — mid-ladder exits fall below the snap window (see Day 1 note)

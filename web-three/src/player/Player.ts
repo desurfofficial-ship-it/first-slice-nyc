@@ -103,12 +103,25 @@ export class Player {
       this.onGround = true;
     } else {
       this.vy -= GRAVITY * dt;
-      this.capsule.y += this.vy * dt;
-      if (this.capsule.y < ground) {
-        this.capsule.y = ground;
-        this.vy = -0.5;
-        this.onGround = true;
-      } else {
+      // Sub-step the descent (Agent-2 solidity audit Q6): groundHeight only
+      // sees tops at/below the CURRENT feet, so a fall committed in one move
+      // can skip a slab whole — at the loop's dt clamp (0.1 s) terminal
+      // fall covers 1.8 m, and the landings are 0.15 m thick. That is the
+      // low-fps cousin of "he fell through the stairs". No probe commits
+      // more than 0.12 m of fall — under the thinnest slab, so any crossing
+      // is caught the frame it happens.
+      const fall = this.vy * dt;
+      const steps = Math.max(1, Math.ceil(Math.abs(fall) / 0.12));
+      const dy = fall / steps;
+      for (let i = 0; i < steps; i++) {
+        this.capsule.y += dy;
+        const g = groundHeight(this.boxes, this.capsule, GROUND_SNAP);
+        if (this.capsule.y < g) {
+          this.capsule.y = g;
+          this.vy = -0.5;
+          this.onGround = true;
+          break;
+        }
         this.onGround = false;
       }
     }

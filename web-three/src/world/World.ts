@@ -82,6 +82,17 @@ export class World {
   /** The transient customer at the cart — Game syncs this one (it owns
    *  spawning/removal); World.update handles the persistent cast. */
   readonly customerCollider: AABB;
+  // Agent-2 solidity: the rest of the walking cast gets bodies too — the
+  // audit found the stranger, Sal and the familiar face were ghosts.
+  readonly strangerCollider: AABB;
+  readonly salCollider: AABB;
+  readonly familiarCollider: AABB;
+  /** The stool blocks once bought; parked underground until then. */
+  readonly stoolCollider: AABB;
+  /** The water-main barrier — its body toggles with the prop in dressDay
+   *  (gone on Day 4; an invisible collider guarding fresh asphalt would be
+   *  a ghost wall). */
+  readonly barrierCollider: AABB;
   readonly rosa: THREE.Group;
   readonly idris: THREE.Group;
   readonly kidSil: THREE.Group;
@@ -330,6 +341,7 @@ export class World {
     this.taxi.position.set(-45, 0, -2);
     this.scene.add(this.taxi);
     this.taxiCollider = boxFromCenter(-45, 0.75, -2, 4.4, 1.5, 1.95);
+    this.taxiCollider.kind = 'car'; // the cab's own guard filters on this
     this.colliders.push(this.taxiCollider);
 
     // A parked sedan on the north curb (street life; collides — it's a car).
@@ -345,7 +357,9 @@ export class World {
     this.registerGlbProp('car_sedan', sedan); // same seam, parked car
     void this.upgradePropWithGLB('car_sedan');
     this.scene.add(sedan);
-    this.colliders.push(boxFromCenter(24, 0.75, 3.05, 4.4, 1.5, 1.95));
+    const sedanBox = boxFromCenter(24, 0.75, 3.05, 4.4, 1.5, 1.95);
+    sedanBox.kind = 'car';
+    this.colliders.push(sedanBox);
 
     // Player corner — "a waiting rectangle of different paving"
     this.deco('PlayerCorner', 4, 0.12, -6, 8, 0.02, 3.6, PAL.stone);
@@ -510,11 +524,17 @@ export class World {
     // the cart's body blocks — you lean on the counter, you don't stand in it
     this.cartCollider = boxFromCenter(4, 1.0, -6.6, 2.2, 2.0, 1.4);
     this.colliders.push(this.cartCollider);
-    this.rosaCollider = boxFromCenter(-27, 0.85, 6.8, 0.56, 1.7, 0.56);
-    this.idrisCollider = boxFromCenter(-2, 0.85, -4.6, 0.56, 1.7, 0.56);
-    this.kidCollider = boxFromCenter(15, 0.7, 6.35, 0.5, 1.4, 0.5);
-    this.customerCollider = boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56);
-    this.colliders.push(this.rosaCollider, this.idrisCollider, this.kidCollider, this.customerCollider);
+    // kind 'person' — the cab's post-commit guard filters on it (Agent-2)
+    const person = (b: AABB): AABB => { b.kind = 'person'; return b; };
+    this.rosaCollider = person(boxFromCenter(-27, 0.85, 6.8, 0.56, 1.7, 0.56));
+    this.idrisCollider = person(boxFromCenter(-2, 0.85, -4.6, 0.56, 1.7, 0.56));
+    this.kidCollider = person(boxFromCenter(15, 0.7, 6.35, 0.5, 1.4, 0.5));
+    this.customerCollider = person(boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56));
+    this.strangerCollider = person(boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56));
+    this.salCollider = person(boxFromCenter(-7, 0.85, 7.85, 0.56, 1.7, 0.56));
+    this.familiarCollider = person(boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56));
+    this.colliders.push(this.rosaCollider, this.idrisCollider, this.kidCollider,
+      this.customerCollider, this.strangerCollider, this.salCollider, this.familiarCollider);
 
     // ---------------- cast (Rosa, Idris, the kid) ---------------------------
     this.rosa = this.spawnActor('Rosa', -27, 0.05, 6.8, { jacket: 0xff6b6b, pants: PAL.ink, skin: 0xe8b08e, hair: 0x9a938c, style: 'bun' });
@@ -685,6 +705,10 @@ export class World {
       this.scene.add(t.group);
       this.trees.push({ group: t.group, canopy: t.canopy, phase: rng() * Math.PI * 2, mats: t.mats, fade: 1 });
       treeTops.push(t.top);
+      // trunk body (Agent-2 audit Q2): a 0.3 m box matching trunk + root
+      // flare — the canopy stays walk-under. The walkers get matching
+      // circles below; until now nobody collided with a tree on this block.
+      this.colliders.push(boxFromCenter(tx, 1.2, tz, 0.3, 2.4, 0.3));
     }
     // Canopy spheres for GameCamera's sidestep (see pickSideStep). One sphere
     // per tree, centred a blob-radius under the measured top. The widest
@@ -703,7 +727,9 @@ export class World {
     van.position.set(-14, 0, 3.05);
     van.rotation.y = Math.PI;
     this.scene.add(van);
-    this.colliders.push(boxFromCenter(-14, 0.75, 3.05, 4.4, 1.5, 1.95));
+    const vanBox = boxFromCenter(-14, 0.75, 3.05, 4.4, 1.5, 1.95);
+    vanBox.kind = 'car';
+    this.colliders.push(vanBox);
 
     // ---- utility poles + overhead wires (second-agent env pass) ----------
     // Three wooden poles on the south sidewalk, wires sagging between them
@@ -761,6 +787,42 @@ export class World {
     planterPlaza.position.set(-46.6, 0.05, 4.4);
     planterPlaza.rotation.y = Math.PI / 2;
     this.scene.add(planterPlaza);
+
+    // ---- street furniture colliders (Agent-2 audit Q2) -------------------
+    // The audit found the block's benches, cans, bins, boxes, poles and
+    // boards were visual-only — the player ghosted through every one. Sizes
+    // match the visible geometry (a bench is its seat + back, a can is its
+    // cylinder, a pole is its pole); nothing oversized, no invisible walls.
+    // Trees got their trunk boxes in the planting loop above.
+    this.colliders.push(
+      boxFromCenter(-40.5, 0.4, 4.55, 1.8, 0.8, 0.55),    // plaza bench
+      boxFromCenter(-24.5, 0.4, 6.85, 1.8, 0.8, 0.55),    // bus stop bench
+      boxFromCenter(-24.5, 1.6, 7.35, 0.12, 3.2, 0.12),   // bus stop pole
+      boxFromCenter(-44.29, 0.43, 6.62, 1.2, 0.86, 0.55), // newspaper boxes
+      boxFromCenter(-19, 0.49, 7.45, 0.72, 0.98, 0.72),   // trash can, north
+      boxFromCenter(2, 0.49, -7.45, 0.72, 0.98, 0.72),    // trash can, south
+      boxFromCenter(2.85, 0.5, -7.45, 0.62, 1.0, 0.52),   // recycle bin
+      boxFromCenter(34, 0.42, -4.75, 0.4, 0.84, 0.4),     // hydrant, east
+      boxFromCenter(-0.6, 0.45, -4.6, 0.4, 0.9, 0.4),     // hydrant, crosswalk corner
+      boxFromCenter(-3.2, 0.55, -5.7, 0.65, 1.1, 0.5),    // mailbox
+      boxFromCenter(10.5, 0.41, -5.6, 0.66, 0.82, 0.66),  // trash can (glb seam)
+      boxFromCenter(13.5, 2.2, -5.9, 0.18, 4.4, 0.18),    // streetlamp pole
+      boxFromCenter(-37.6, 1.0, 7.5, 1.7, 2.0, 0.25),     // bulletin board
+      boxFromCenter(37, 0.28, 7.45, 1.1, 0.5, 0.55),      // planter, east
+      boxFromCenter(-46.6, 0.28, 4.4, 0.55, 0.5, 1.1),    // planter, plaza (rot π/2)
+    );
+    // the four cobra-head streetlights — pole-matched boxes (the audit also
+    // flagged the one pre-existing lamp box as ~3× the visible pole)
+    for (const [lx, lz] of [[-31, 7.35], [8, 7.35], [-19.5, -7.35], [31.5, -7.35]]) {
+      this.colliders.push(boxFromCenter(lx, 2.6, lz, 0.2, 5.2, 0.2));
+    }
+    // barrier + stool exist conditionally — dressDay parks the barrier's body
+    // on its last day, update() parks the stool's until it is bought
+    this.barrierCollider = boxFromCenter(-9.7, 0.45, 7.5, 1.55, 0.85, 0.9);
+    this.colliders.push(this.barrierCollider);
+    this.stoolCollider = boxFromCenter(6.95, 0.28, -6.55, 0.5, 0.56, 0.5);
+    this.stoolCollider.minY = -999; this.stoolCollider.maxY = -998; // not bought yet
+    this.colliders.push(this.stoolCollider);
 
     // ---- one cast-iron fire-escape silhouette on the brownstone row ------
     // Decorative only — no colliders, no triggers. The climbable escape on
@@ -939,6 +1001,27 @@ export class World {
         { x: 20, z: -7.35, r: 0.3 },
         { x: 44.5, z: -7.35, r: 0.3 },
         { x: 13.5, z: -5.9, r: 0.3 },  // streetlamp
+        ...treeSpots.map(([tx, tz]) => ({ x: tx, z: tz, r: 0.3 })), // trunks join the weave
+      ],
+      // The safety net's own list — tight, VISIBLE footprints (Agent-2):
+      // steering circles are deliberately generous, resolve circles correct
+      // only genuine overlap, capped so nothing ever snaps.
+      [
+        [-14, 3.05, 1.6], [24, -3.05, 1.6],            // parked cars
+        [-3.2, -5.7, 0.42], [10.5, -5.6, 0.36],        // mailbox, glb trashcan
+        [2, -7.45, 0.36], [2.85, -7.45, 0.42], [-19, 7.45, 0.36],
+        [-9.7, 7.5, 0.55],                              // barrier
+        [34, -4.75, 0.3], [-0.6, -4.6, 0.3],            // hydrants
+        [-24.5, 6.85, 0.95], [-40.5, 4.55, 0.95],       // benches
+        [-24.5, 7.35, 0.2],                             // bus pole
+        [-44.29, 6.62, 0.7],                            // newspaper boxes
+        [13.5, -5.9, 0.15],                             // streetlamp
+        [-31, 7.35, 0.15], [8, 7.35, 0.15],
+        [-19.5, -7.35, 0.15], [31.5, -7.35, 0.15],      // streetlights
+        [-8.5, -7.35, 0.15], [20, -7.35, 0.15], [44.5, -7.35, 0.15],
+        [-1.8, -7.55, 0.15],                            // signal pole
+        [37, 7.45, 0.65], [-46.6, 4.4, 0.65],           // planters
+        ...treeSpots.map(([tx, tz]) => [tx, tz, 0.2] as [number, number, number]),
       ],
     );
   }
@@ -1919,10 +2002,17 @@ export class World {
     this.ambientWindowMatLate.emissiveIntensity = plan.lateHome;
     this.ambientWindowMatNew.emissiveIntensity = plan.newFace;
     this.ambientWindowMatRiser.emissiveIntensity = plan.earlyRiser;
-    // the barrier's last day is Day 3; the asphalt remembers
+    // the barrier's last day is Day 3; the asphalt remembers — and its BODY
+    // goes with it (an invisible collider guarding fresh asphalt would be a
+    // ghost wall on the Day 4 street)
     const diary = barrierDiary(day);
     this.barrier.visible = diary.barrierVisible;
     this.asphaltPatch.visible = diary.patchVisible;
+    if (diary.barrierVisible) {
+      this.barrierCollider.minY = 0; this.barrierCollider.maxY = 0.85;
+    } else {
+      this.barrierCollider.minY = -999; this.barrierCollider.maxY = -998;
+    }
     // the board's slip rotates with the week
     this.flyerDay = day;
     const old = this.flyerMat.map;
@@ -1984,12 +2074,30 @@ export class World {
     box.maxZ = actor.position.z + halfW;
   }
 
-  update(dt: number, player?: { x: number; y: number; z: number }, dusk = false, extra?: Array<{ x: number; z: number }>) {
-    // the persistent cast owns a body each — no more ghosting through Rosa,
-    // Idris, or the kid (playtest 2026-10-30: "passed through the npc and rosa")
+  /** One body per visible cast member, synced under them (Agent-2 frame-order
+   *  fix: Game calls this BEFORE the player moves, so the walker never
+   *  resolves against last frame's bodies — the residual one-frame staleness
+   *  the audit flagged behind "passed through the npc" while dismounting).
+   *  world.update syncs again after everyone has moved. The stool is furniture
+   *  on the same park-underground contract: no body until it exists. */
+  syncCastColliders(): void {
     this.syncPersonCollider(this.rosaCollider, this.rosa);
     this.syncPersonCollider(this.idrisCollider, this.idris);
     this.syncPersonCollider(this.kidCollider, this.kidGround, 0.25, 1.4);
+    this.syncPersonCollider(this.strangerCollider, this.stranger);
+    this.syncPersonCollider(this.salCollider, this.sal);
+    this.syncPersonCollider(this.familiarCollider, this.familiar);
+    if (this.stool.visible) {
+      this.stoolCollider.minY = 0; this.stoolCollider.maxY = 0.56;
+    } else {
+      this.stoolCollider.minY = -999; this.stoolCollider.maxY = -998;
+    }
+  }
+
+  update(dt: number, player?: { x: number; y: number; z: number }, dusk = false, extra?: Array<{ x: number; z: number }>) {
+    // the persistent cast owns a body each — no more ghosting through Rosa,
+    // Idris, or the kid (playtest 2026-10-30: "passed through the npc and rosa")
+    this.syncCastColliders();
     // taxi loops the street (main.gd `_process`: x += 9*dt, wraps at ±46).
     // NYC rules after playtest — the cab never drives through you:
     //   1. crosswalk occupied → hold at the stop line (nose at x ≈ -10.7)
@@ -2021,10 +2129,29 @@ export class World {
         }
       }
     }
+    const prevX = road.x;
     road.x += dt * speed;
     if (road.x > 46) road.x = -46;
     this.taxiCollider.minX = road.x - 2.2;
     this.taxiCollider.maxX = road.x + 2.2;
+    // Post-commit solidity (Agent-2 audit Q5): the yield logic above is
+    // predictive, not reactive. If anything it could not see would leave the
+    // cab INTERPENETRATING a tagged car or person, this frame's move is
+    // refused outright — vehicles never shove bodies, and a future lane edit
+    // or spawn-in can never silently reintroduce the probe-sweep7 ghosting.
+    // On today's authored lanes this guard never fires (the sedan and van
+    // park a full lane north of the cab's z-band).
+    for (const b of this.colliders) {
+      if (b === this.taxiCollider) continue;
+      if (b.kind !== 'car' && b.kind !== 'person') continue;
+      if (b.maxY <= 0.1 || b.minY >= 1.5) continue; // parked-underground = off
+      if (this.taxiCollider.maxX <= b.minX || this.taxiCollider.minX >= b.maxX) continue;
+      if (this.taxiCollider.maxZ <= b.minZ || this.taxiCollider.minZ >= b.maxZ) continue;
+      road.x = prevX;
+      this.taxiCollider.minX = road.x - 2.2;
+      this.taxiCollider.maxX = road.x + 2.2;
+      break;
+    }
 
     // steam rises and wobbles — the Rule of Steam
     const posAttr = this.steamPoints.geometry.getAttribute('position') as THREE.BufferAttribute;

@@ -14,6 +14,20 @@
  * tween choreography, because their moves are story beats, not emergent
  * behaviour.
  *
+ * Solidity (Agent-2 audit Q2/Q3): steering alone never made a walker a
+ * BODY — the player could ghost straight through them, and a walker whose
+ * avoidance lost the race could end a frame inside the furniture. Two
+ * safety nets, both cheap and both subordinate to the steering:
+ *   1. every walker owns an AABB in World's collider list (synced here each
+ *      frame, the same contract as the cast's person colliders), so the
+ *      PLAYER resolves against them;
+ *   2. after Yuka integrates, each walker is pushed out of any furniture
+ *      circle or fellow walker they are still intersecting — positionally,
+ *      capped per frame so a deep overlap unwinds over a few frames instead
+ *      of teleporting anyone.
+ * Behaviours, paths and speeds are untouched: when steering succeeds the
+ * resolve finds no penetration and does nothing.
+ *
  * Identity rules (Doc 04): the walkers are built from the same articulated
  * person rig as the cast — shared palette bank materials, no new assets,
  * nothing procedurally "generated". They keep to the sidewalk paving and
@@ -34,6 +48,7 @@ import {
 } from 'yuka';
 import { buildArticulatedPerson, updatePersonAnim } from './personRig';
 import { seededRng } from './ambient';
+import type { AABB } from '../engine/collide';
 
 export interface PedLook {
   jacket: number; pants: number; skin: number; hair: number;
@@ -53,6 +68,12 @@ interface Ped {
 
 const MAX_DT = 0.1; // matches the game loop's clamp — Yuka integrates with the same dt
 
+/** Walker body radius — matches the cast's person-collider half width. */
+const PED_R = 0.28;
+/** Max distance the safety net may shove a walker per frame. A deep overlap
+ *  (spawn-in, a cut corner) unwinds over a few frames — never a snap. */
+const MAX_PUSH = 0.12;
+
 export class Pedestrians {
   readonly group = new THREE.Group();
   private manager = new EntityManager();
@@ -61,6 +82,13 @@ export class Pedestrians {
   private playerObstacle: GameEntity;
   private cartObstacle: GameEntity;
   private time = 0;
+  /** Tight resolve circles (x, z, r) — the VISIBLE footprint of each piece
+   *  of furniture plus the player and the cart. Deliberately tighter than
+   *  the steering circles above: the net corrects real overlaps, it does
+   *  not re-weave the lane. */
+  private readonly resolveCircles: Array<[number, number, number]> = [];
+  /** One body per walker, synced into World's collider list each frame. */
+  readonly colliders: AABB[] = [];
 
   constructor(
     scene: THREE.Scene,
@@ -69,9 +97,11 @@ export class Pedestrians {
     seed: number,
     paths: Array<Array<[number, number]>>,
     staticObstacles: Array<{ x: number; z: number; r: number }>,
+    resolveCircles: Array<[number, number, number]> = [],
   ) {
     this.group.name = 'Pedestrians';
     const rng = seededRng(seed);
+    this.resolveCircles.push(...resolveCircles);
 
     // invisible avoidance circles — the city's fixed furniture
     for (const o of staticObstacles) {
@@ -117,6 +147,13 @@ export class Pedestrians {
       group.rotation.y = rng() * Math.PI * 2;
       this.group.add(group);
       this.peds.push({ vehicle, group, speed: vehicle.maxSpeed });
+      // a parked-at-spawn body; update() syncs it under the walker forever
+      this.colliders.push({
+        minX: start[0] - PED_R, maxX: start[0] + PED_R,
+        minY: groundY(start[1]), maxY: groundY(start[1]) + 1.7,
+        minZ: start[1] - PED_R, maxZ: start[1] + PED_R,
+        kind: 'person',
+      });
     });
 
     scene.add(this.group);
@@ -127,6 +164,18 @@ export class Pedestrians {
     return this.peds.map((p) => ({ x: p.vehicle.position.x, z: p.vehicle.position.z }));
   }
 
+  /** Push a walker out of one circle (radial, capped). Mutates vx/vz. */
+  private pushOutOfCircle(vx: number, vz: number, cx: number, cz: number, r: number): [number, number] {
+    const dx = vx - cx;
+    const dz = vz - cz;
+    const min = r + PED_R;
+    const d2 = dx * dx + dz * dz;
+    if (d2 >= min * min || d2 < 1e-9) return [vx, vz];
+    const d = Math.sqrt(d2);
+    const push = Math.min(min - d, MAX_PUSH);
+    return [vx + (dx / d) * push, vz + (dz / d) * push];
+  }
+
   update(dt: number, player?: { x: number; z: number }, cart?: { x: number; z: number }): void {
     this.time += dt;
     if (player) this.playerObstacle.position.set(player.x, 0, player.z);
@@ -134,9 +183,45 @@ export class Pedestrians {
 
     this.manager.update(Math.min(dt, MAX_DT));
 
-    for (const p of this.peds) {
+    for (let i = 0; i < this.peds.length; i++) {
+      const p = this.peds[i];
       const v = p.vehicle.position;
+      // safety net: unwinding any overlap steering failed to prevent. The
+      // walker yields to the world — furniture and the player never get
+      // shoved by a pedestrian.
+      for (const [cx, cz, r] of this.resolveCircles) {
+        const [nx, nz] = this.pushOutOfCircle(v.x, v.z, cx, cz, r);
+        v.x = nx; v.z = nz;
+      }
+      if (player) {
+        const [nx, nz] = this.pushOutOfCircle(v.x, v.z, player.x, player.z, 0.35);
+        v.x = nx; v.z = nz;
+      }
+      if (cart) {
+        const [nx, nz] = this.pushOutOfCircle(v.x, v.z, cart.x, cart.z, 1.1);
+        v.x = nx; v.z = nz;
+      }
+      // walker-vs-walker: SeparationBehavior handles the steering; this only
+      // breaks the rare dead stop where two bodies still touch.
+      for (let j = i + 1; j < this.peds.length; j++) {
+        const o = this.peds[j].vehicle.position;
+        const dx = v.x - o.x;
+        const dz = v.z - o.z;
+        const d2 = dx * dx + dz * dz;
+        const min = PED_R * 2;
+        if (d2 < min * min && d2 > 1e-9) {
+          const d = Math.sqrt(d2);
+          const push = Math.min((min - d) / 2, MAX_PUSH);
+          v.x += (dx / d) * push; v.z += (dz / d) * push;
+          o.x -= (dx / d) * push; o.z -= (dz / d) * push;
+        }
+      }
+      // sync the visual rig AND the body — one walker, one truth
       p.group.position.set(v.x, groundY(v.z), v.z);
+      const box = this.colliders[i];
+      box.minX = v.x - PED_R; box.maxX = v.x + PED_R;
+      box.minY = groundY(v.z); box.maxY = groundY(v.z) + 1.7;
+      box.minZ = v.z - PED_R; box.maxZ = v.z + PED_R;
       // face the walking direction (velocity, not the steering force) —
       // and hold the last heading at waypoints so nobody snap-turns
       const vx = p.vehicle.velocity.x;

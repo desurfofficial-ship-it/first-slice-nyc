@@ -265,6 +265,10 @@ export class Game {
       this.startDusk();
       this.lightGoldWindow();
     }
+    // Agent-2 frame-order fix: the whole cast gets bodies BEFORE the player
+    // moves, so the walker never resolves against last frame's positions
+    // (the residual one-frame staleness behind "passed through the npc").
+    this.world.syncCastColliders();
     // the customer at the cart owns a body too — synced fresh for this move
     this.world.syncPersonCollider(this.world.customerCollider, this.customer);
     if (!this.dayFading && this.ui.nameBox.hidden) {

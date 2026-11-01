@@ -12,6 +12,12 @@ export interface AABB {
   minX: number; maxX: number;
   minY: number; maxY: number;
   minZ: number; maxZ: number;
+  /** What the box belongs to. Lets movers filter instead of testing
+   *  everything: the cab's post-commit guard only ever refuses a move that
+   *  would interpenetrate another CAR or a PERSON — a bench never stops the
+   *  cab (the yield logic handles bodies, the lane keeps it off furniture).
+   *  Untagged boxes are static world; every consumer reads them. */
+  kind?: 'static' | 'car' | 'person';
 }
 
 export function boxFromCenter(
