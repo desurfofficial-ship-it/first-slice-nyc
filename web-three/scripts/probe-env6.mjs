@@ -88,16 +88,17 @@ if (deck.w && deck.e) {
 }
 
 // ---- 2. pigeon wings: folded on the ground, flapping mid-flight ------------
+// W0: the flocks render as InstancedMeshes — per-bird pose lives on the
+// state records now (restSnapshot), same facts as the old group walk.
 const wingState = () => page.evaluate(() => {
-  const scene = window.__game.world.scene;
-  const birdsOf = (name) => {
-    const root = scene.getObjectByName(name);
-    return root ? root.children.map((g) => {
-      const w = g.getObjectByName('Wings');
-      return { y: +g.position.y.toFixed(3), hasWings: !!w, wingsVisible: w ? w.visible : null };
-    }) : null;
+  const w = window.__game.world;
+  const birdsOf = (flock) => {
+    if (!flock) return null;
+    return flock.restSnapshot().map((s) => ({
+      y: +s.y.toFixed(3), hasWings: true, wingsVisible: s.wingsVisible, rot: s.wingRotZ,
+    }));
   };
-  return { plaza: birdsOf('Flock_Plaza'), east: birdsOf('Flock_East') };
+  return { plaza: birdsOf(w.pigeonFlock), east: birdsOf(w.pigeonFlockEast) };
 });
 
 const rest = await wingState();
@@ -115,16 +116,15 @@ for (const [label, flock] of [['plaza', rest.plaza], ['east', rest.east]]) {
 // world steps, the bird lifts — wings must appear, then fold on landing.
 const flush = await page.evaluate(() => {
   const world = window.__game.world;
-  const root = world.scene.getObjectByName('Flock_Plaza');
-  if (!root || !root.children.length) return { error: 'no flock' };
-  const bird = root.children[0];
-  const from = { x: bird.position.x, y: bird.position.y, z: bird.position.z };
-  const fake = { x: bird.position.x, y: 0, z: bird.position.z }; // stand ON the bird
+  const flock = world.pigeonFlock;
+  if (!flock || !flock.birds.length) return { error: 'no flock' };
+  const bird = flock.birds[0];
+  const from = { x: bird.pos.x, y: bird.y, z: bird.pos.z };
+  const fake = { x: bird.pos.x, y: 0, z: bird.pos.z }; // stand ON the bird
   for (let i = 0; i < 12; i++) world.update(1 / 60, fake, false); // ~0.2 s — flush begins
-  const w = bird.getObjectByName('Wings');
-  const mid = { y: +bird.position.y.toFixed(3), visible: w ? w.visible : null, rot: w ? +w.rotation.z.toFixed(3) : null };
+  const mid = { y: +bird.y.toFixed(3), visible: bird.wingsVisible, rot: +bird.wingRotZ.toFixed(3) };
   for (let i = 0; i < 80; i++) world.update(1 / 60, undefined, false); // ~1.3 s — arc completes
-  const end = { y: +bird.position.y.toFixed(3), visible: w ? w.visible : null };
+  const end = { y: +bird.y.toFixed(3), visible: bird.wingsVisible };
   return { from, mid, end };
 });
 if (flush.error) fails.push('flush drive: ' + flush.error);

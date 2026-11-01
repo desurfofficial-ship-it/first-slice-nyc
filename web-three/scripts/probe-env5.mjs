@@ -61,11 +61,11 @@ const TREES = [
 ];
 
 const sample = () => page.evaluate(([ground, reach, trees]) => {
-  const scene = window.__game.world.scene;
-  const flockRoot = (name) => {
-    const g = scene.getObjectByName(name);
-    return g ? g.children.map((c) => ({ x: c.position.x, y: c.position.y, z: c.position.z })) : null;
-  };
+  const w = window.__game.world;
+  const scene = w.scene;
+  // W0: the flocks render as InstancedMeshes now — the per-bird pose lives
+  // on the state records (restSnapshot), same facts as the old group walk.
+  const flockRoot = (flock) => flock ? flock.restSnapshot().map((s) => ({ x: 0, y: s.y, z: 0 })) : null;
   const lampClearance = () => {
     const out = [];
     for (let i = 0; i < 4; i++) {
@@ -81,8 +81,8 @@ const sample = () => page.evaluate(([ground, reach, trees]) => {
     return out;
   };
   return {
-    plaza: flockRoot('Flock_Plaza'),
-    east: flockRoot('Flock_East'),
+    plaza: flockRoot(w.pigeonFlock),
+    east: flockRoot(w.pigeonFlockEast),
     squirrel: (() => { const s = scene.getObjectByName('Squirrel'); return s ? { x: s.position.x, y: s.position.y, z: s.position.z } : null; })(),
     lamps: lampClearance(),
   };

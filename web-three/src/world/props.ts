@@ -35,6 +35,51 @@ export class MatBank {
   }
 }
 
+// ---- sign boards (W0 draw-call pass) -------------------------------------
+// The old signs were ONE box wearing a 6-material array (4 plain slots for
+// the edges, 2 face slots for the text) — three.js pays one draw call per
+// material GROUP, so every sign on the block cost 6 calls (18 signs ≈ 108
+// calls, measured). A board is now: a plain box (ONE shared bg material —
+// the static bake merges the edges of every sign in a district) + two thin
+// textured planes (front/back). Two calls per sign, same look.
+
+/** What the World's sign factory returns: the unique face material (canvas
+ *  texture) and the SHARED plain material for the board's edges. */
+export interface SignPair { face: THREE.MeshLambertMaterial; plain: THREE.MeshLambertMaterial }
+export type SignPairFactory = (text: string, w: number, h: number, bg: number, fg: number, px: number) => SignPair;
+
+/** A sign board: plain box + two textured faces. `faces 'z'` = text on the
+ *  ±z faces (wall signs); `'x'` = text on the ±x faces (blade signs). */
+export function makeSignBoard(
+  sx: number, sy: number, sz: number,
+  pair: SignPair,
+  faces: 'z' | 'x' = 'z',
+): THREE.Group {
+  const g = new THREE.Group();
+  const box = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), pair.plain);
+  g.add(box);
+  if (faces === 'z') {
+    const plane = new THREE.PlaneGeometry(sx, sy);
+    const front = new THREE.Mesh(plane, pair.face);
+    front.position.z = sz / 2 + 0.004;
+    const back = new THREE.Mesh(plane, pair.face);
+    back.position.z = -sz / 2 - 0.004;
+    back.rotation.y = Math.PI;
+    g.add(front, back);
+  } else {
+    // ±x faces of a box measure (sz × sy), not (sx × sy)
+    const plane = new THREE.PlaneGeometry(sz, sy);
+    const east = new THREE.Mesh(plane, pair.face);
+    east.rotation.y = Math.PI / 2;
+    east.position.x = sx / 2 + 0.004;
+    const west = new THREE.Mesh(plane, pair.face);
+    west.rotation.y = -Math.PI / 2;
+    west.position.x = -sx / 2 - 0.004;
+    g.add(east, west);
+  }
+  return g;
+}
+
 /** Lazily-created shared geometries — identical trees share one sphere. */
 const geo = {
   sphere: new THREE.SphereGeometry(1, 9, 7),
@@ -211,7 +256,7 @@ export function makeHydrant(bank: MatBank): THREE.Group {
  *  posts, and a raised sign. The stairs themselves are a box we DO collide —
  *  nobody walks into the earth. */
 export function makeSubwayEntrance(
-  bank: MatBank, sign: (text: string, w: number, h: number, bg: number, fg: number, px: number) => THREE.Material | THREE.Material[],
+  bank: MatBank, sign: SignPairFactory,
 ): THREE.Group {
   const iron = bank.get(PAL_INK);
   const g = new THREE.Group();
@@ -225,15 +270,17 @@ export function makeSubwayEntrance(
   }
   // posts + sign
   for (const sx of [-1.3, 1.3]) g.add(unitBox(iron, 0.09, 2.6, 0.09, sx, 1.3, -1.4));
-  const signMesh = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.7, 0.14), sign('SUBWAY', 512, 128, PAL_TEAL, PAL_CREAM, 64));
+  const signMesh = makeSignBoard(2.9, 0.7, 0.14, sign('SUBWAY', 512, 128, PAL_TEAL, PAL_CREAM, 64));
   signMesh.position.set(0, 2.7, -1.4);
   g.add(signMesh);
   // the F bullet rides the WEST POST, not the air beside it — the first
   // draft parked it 0.25 m past the post's edge and oblique angles turned
   // it into a floating white oval over the plaza (env-pass six found it
   // probing a stray pixel). Back face embedded 15 mm into the post: bolted,
-  // not glued to its silhouette.
-  const bullet = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.1, 16), sign('F', 64, 64, PAL_CREAM, PAL_INK, 44));
+  // not glued to its silhouette. A tiny disc — the F bullet is a plain
+  // canvas-texture box face, not a board (one call, not worth two planes).
+  const fPair = sign('F', 64, 64, PAL_CREAM, PAL_INK, 44);
+  const bullet = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.1, 16), fPair.face);
   bullet.rotation.x = Math.PI / 2;
   bullet.position.set(-1.3, 2.0, -1.48);
   g.add(bullet);
@@ -267,15 +314,15 @@ export function makeBench(bank: MatBank): THREE.Group {
   return g;
 }
 
-export function makeBusStop(bank: MatBank, sign: (text: string, w: number, h: number, bg: number, fg: number, px: number) => THREE.Material | THREE.Material[]): THREE.Group {
+export function makeBusStop(bank: MatBank, sign: SignPairFactory): THREE.Group {
   const g = new THREE.Group();
   const pole = unitCyl(bank.get(PAL_INK), 0.045, 3.2, 0, 1.6, 0);
   pole.castShadow = true;
   g.add(pole);
-  const s = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.08), sign('BUS', 128, 96, PAL_CREAM, PAL_INK, 44));
+  const s = makeSignBoard(0.7, 0.5, 0.08, sign('BUS', 128, 96, PAL_CREAM, PAL_INK, 44));
   s.position.set(0, 3.0, 0);
   g.add(s);
-  const chip = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.16, 0.08), sign('M15', 96, 32, PAL_TEAL, PAL_CREAM, 26));
+  const chip = makeSignBoard(0.7, 0.16, 0.08, sign('M15', 96, 32, PAL_TEAL, PAL_CREAM, 26));
   chip.position.set(0, 2.62, 0);
   g.add(chip);
   return g;
@@ -339,7 +386,7 @@ export function makeBrownstoneStoop(bank: MatBank, doorColor: number): THREE.Gro
 
 /** A storefront: display window, column, awning, and a real sign. */
 export function makeStorefront(
-  bank: MatBank, sign: (text: string, w: number, h: number, bg: number, fg: number, px: number) => THREE.Material | THREE.Material[],
+  bank: MatBank, sign: SignPairFactory,
   text: string, awningColor: number, width: number,
 ): THREE.Group {
   const g = new THREE.Group();
@@ -360,7 +407,7 @@ export function makeStorefront(
   awn.rotation.x = 0.32;
   awn.castShadow = true;
   g.add(awn);
-  const s = new THREE.Mesh(new THREE.BoxGeometry(width - 0.6, 0.62, 0.12), sign(text, Math.round(width * 128), 96, PAL_GOLD, PAL_INK, 52));
+  const s = makeSignBoard(width - 0.6, 0.62, 0.12, sign(text, Math.round(width * 128), 96, PAL_GOLD, PAL_INK, 52));
   s.position.set(0, 3.06, 0.22);
   g.add(s);
   return g;
@@ -411,7 +458,7 @@ export function makeStool(bank: MatBank): THREE.Group {
  *      the van's only dedicated draw calls. */
 export function makeVan(
   bank: MatBank,
-  sign?: (text: string, w: number, h: number, bg: number, fg: number, px: number) => THREE.Material | THREE.Material[],
+  sign?: SignPairFactory,
 ): THREE.Group {
   const g = new THREE.Group();
   g.name = 'delivery_van';
@@ -493,17 +540,16 @@ export function makeVan(
 
   // ---- branding: gold flanks + rear-door panel (never baked — canvas) ----
   if (sign) {
-    const flank = sign('GOLDEN ORCHARD\nPRODUCE CO \u00b7 NEW YORK, NY', 768, 208, PAL_GOLD, PAL_INK, 56);
     for (const sz of [-0.99, 0.99]) {
-      const panel = new THREE.Mesh(new THREE.BoxGeometry(2.30, 0.62, 0.04), flank);
+      const panel = makeSignBoard(2.30, 0.62, 0.04, sign('GOLDEN ORCHARD\nPRODUCE CO \u00b7 NEW YORK, NY', 768, 208, PAL_GOLD, PAL_INK, 56));
       panel.position.set(-0.90, 1.62, sz);
-      panel.castShadow = true;
+      panel.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
       g.add(panel);
     }
-    const rear = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.56, 0.04), sign('GOLDEN\nORCHARD', 256, 224, PAL_GOLD, PAL_INK, 66));
+    const rear = makeSignBoard(0.66, 0.56, 0.04, sign('GOLDEN\nORCHARD', 256, 224, PAL_GOLD, PAL_INK, 66));
     rear.rotation.y = -Math.PI / 2; // text face out through the tailgate
     rear.position.set(-2.22, 1.74, 0);
-    rear.castShadow = true;
+    rear.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
     g.add(rear);
   }
   return g;
@@ -576,7 +622,7 @@ export function makeFence(bank: MatBank, len: number): THREE.Group {
 /** The Parks-department sign — dark green plate, cream letters, two posts.
  *  Every pocket park in the city has exactly one of these. */
 export function makeParksSign(
-  bank: MatBank, sign: (text: string, w: number, h: number, bg: number, fg: number, px: number) => THREE.Material | THREE.Material[],
+  bank: MatBank, sign: SignPairFactory,
   text: string,
 ): THREE.Group {
   const g = new THREE.Group();
@@ -585,7 +631,7 @@ export function makeParksSign(
     post.castShadow = true;
     g.add(post);
   }
-  const plate = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.5, 0.06), sign(text, 512, 160, 0x1f6f5e, PAL_CREAM, 40));
+  const plate = makeSignBoard(1.6, 0.5, 0.06, sign(text, 512, 160, 0x1f6f5e, PAL_CREAM, 40));
   plate.position.set(0, 1.35, 0);
   g.add(plate);
   return g;
@@ -595,7 +641,7 @@ export function makeParksSign(
  *  and the amber umbrella every corner deserves. The umbrella is a cone on
  *  a stick: the silhouette does the work. */
 export function makeVendorCart(
-  bank: MatBank, sign: (text: string, w: number, h: number, bg: number, fg: number, px: number) => THREE.Material | THREE.Material[],
+  bank: MatBank, sign: SignPairFactory,
   text: string,
 ): THREE.Group {
   const g = new THREE.Group();
@@ -617,7 +663,7 @@ export function makeVendorCart(
   umbrella.position.set(0.45, 2.85, -0.1);
   umbrella.castShadow = true;
   g.add(umbrella);
-  const s = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.34, 0.06), sign(text, 512, 128, PAL_GOLD, PAL_INK, 36));
+  const s = makeSignBoard(1.3, 0.34, 0.06, sign(text, 512, 128, PAL_GOLD, PAL_INK, 36));
   s.position.set(0, 0.95, 0.4);
   g.add(s);
   return g;

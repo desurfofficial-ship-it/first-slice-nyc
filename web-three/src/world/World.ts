@@ -17,7 +17,8 @@ import { buildArticulatedPerson } from './personRig';
 import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecycleBin, makeHydrant,
   makeSubwayEntrance, makeBulletinBoard, makeBench, makeBusStop, makeNewspaperBoxes, makeBarrier,
   makeACUnit, makeBrownstoneStoop, makeStorefront, makeStool, makeVan,
-  makeBarberPole, makeHoop, makeFence, makeParksSign, makeVendorCart } from './props';
+  makeBarberPole, makeHoop, makeFence, makeParksSign, makeVendorCart,
+  makeSignBoard, type SignPair } from './props';
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
@@ -149,6 +150,79 @@ export class World {
   private steamSeed: Float32Array;
   private steamLife: Float32Array;
 
+  // ---- district system (docs/45 W0 — the culling prerequisite) ----------
+  // The master world spans x ±84 / z ±48 (registry bounds.playableCore).
+  // Static geometry bakes per DISTRICT TILE — 28 m columns × 32 m rows — and
+  // every tile plus registered dynamic groups belongs to a district. Each
+  // frame the player's district lights a RING of districts and everything
+  // outside it goes invisible (frustum culling then does the rest). The
+  // ring rule follows the registry's own law: a street is ONE sight line,
+  // so the ring spans every column along it (STREET_RING = all) and 1 row
+  // of depth each way (ROW_RING = 1 = the block behind each sidewalk).
+  // With the shipped single-street world every district sits inside the
+  // ring — zero visible change today; W1+ content lands district-tagged
+  // from birth, and far rows cull the moment they exist.
+  private static readonly DIST_COL_W = 28;   // x: −84..84 in 6 columns
+  private static readonly DIST_ROW_H = 32;   // z: −48..48 in 3 rows
+  private static readonly DIST_COLS = 6;
+  private static readonly DIST_ROWS = 3;
+  private static readonly STREET_RING = World.DIST_COLS; // one sight line, for now
+  private static readonly ROW_RING = 1;
+  /** Baked meshes keyed by district (c<col>r<row>). */
+  private readonly districtBatches = new Map<string, THREE.Mesh[]>();
+  /** Dynamic groups registered to a district (trees, flocks, glb props). */
+  private readonly districtProps = new Map<string, THREE.Object3D[]>();
+  /** Object → its district key (so a re-registration can move it). */
+  private readonly districtOf = new Map<THREE.Object3D, string>();
+  /** The district the visibility pass last applied (skip redundant writes). */
+  private lastDistrict = '';
+
+  /** A baked mesh's district from its world position (mesh center). */
+  private static districtKey(x: number, z: number): string {
+    const col = Math.max(0, Math.min(World.DIST_COLS - 1, Math.floor((x + 84) / World.DIST_COL_W)));
+    const row = Math.max(0, Math.min(World.DIST_ROWS - 1, Math.floor((z + 48) / World.DIST_ROW_H)));
+    return `c${col}r${row}`;
+  }
+
+  /** Register a dynamic group so the district pass owns its visibility.
+   *  Only ever-visible world content goes here — anything Game toggles
+   *  (cart wearables, cast, barrier diary) stays unregistered. Safe to call
+   *  again for the same object (moves it between districts). */
+  private registerDistrictObject(obj: THREE.Object3D, x: number, z: number): void {
+    const prev = this.districtOf.get(obj);
+    if (prev) {
+      const list = this.districtProps.get(prev);
+      if (list) {
+        const i = list.indexOf(obj);
+        if (i >= 0) list.splice(i, 1);
+      }
+    }
+    const key = World.districtKey(x, z);
+    this.districtOf.set(obj, key);
+    let list = this.districtProps.get(key);
+    if (!list) this.districtProps.set(key, list = []);
+    list.push(obj);
+  }
+
+  /** Light the ring of districts around the player, dark the rest.
+   *  Called from updateDynamics with the live player position. */
+  private updateDistricts(px: number, pz: number): void {
+    const col = Math.max(0, Math.min(World.DIST_COLS - 1, Math.floor((px + 84) / World.DIST_COL_W)));
+    const row = Math.max(0, Math.min(World.DIST_ROWS - 1, Math.floor((pz + 48) / World.DIST_ROW_H)));
+    const key = `c${col}r${row}`;
+    if (key === this.lastDistrict) return;
+    this.lastDistrict = key;
+    for (let c = 0; c < World.DIST_COLS; c++) {
+      const colIn = Math.abs(c - col) <= World.STREET_RING;
+      for (let r = 0; r < World.DIST_ROWS; r++) {
+        const inRing = colIn && Math.abs(r - row) <= World.ROW_RING;
+        const dk = `c${c}r${r}`;
+        for (const m of this.districtBatches.get(dk) ?? []) m.visible = inRing;
+        for (const o of this.districtProps.get(dk) ?? []) o.visible = inRing;
+      }
+    }
+  }
+
   /** Decorative props a generated .glb (public/models/<id>.glb) may replace. */
   private glbProps = new Map<string, THREE.Object3D>();
   /** Null after a failed load — one broken loader shouldn't retry all game long. */
@@ -159,6 +233,9 @@ export class World {
   constructor() {
     const scene = this.scene;
     scene.fog = this.fog = new THREE.Fog(PAL.amber, 40, 170);
+    // the material bank exists before anything is built — signs need its
+    // shared plain materials (W0: sign edges bake-merge per district)
+    this.bank = new MatBank((c) => this.mat(c));
 
     // ---------------- sky (ProceduralSkyMaterial counterpart) ----------------
     this.skyUniforms = {
@@ -247,12 +324,10 @@ export class World {
     // Terminal door + sign (west building, faces the street). The sign gets a
     // real label — the block stopped being a maze of anonymous boxes.
     this.deco('Terminal_Door', -30, 1.4, 7.95, 3, 2.8, 0.15, PAL.teal);
-    this.decoMesh(
-      'Terminal_Sign',
-      new THREE.BoxGeometry(5, 0.8, 0.15),
-      this.signMaterials('BUS TERMINAL', 640, 96, PAL.stone, PAL.ink, 56),
-      -30, 3.4, 7.95,
-    );
+    // The sign gets a real label — the block stopped being a maze of
+    // anonymous boxes. (signBoard: plain box + two textured faces — W0.)
+    this.signBoard('Terminal_Sign', 'BUS TERMINAL', 5, 0.8, 0.15, 640, 96, PAL.stone, PAL.ink, 56)
+      .position.set(-30, 3.4, 7.95);
 
     this.solid('Bldg_S_West', -25, 8, -14, 50, 16, 12, PAL.bldg2);
     this.solid('Bldg_S_FireEscape', 13, 7, -14, 26, 14, 12, PAL.brick);
@@ -279,20 +354,12 @@ export class World {
     //   2. a blade sign projecting over the sidewalk (readable walking up,
     //      when the facade board is above the frame),
     //   3. a rooftop billboard (readable from anywhere on the block).
-    this.decoMesh(
-      'Bodega_Sign',
-      new THREE.BoxGeometry(6.2, 1.35, 0.14),
-      this.signMaterials("ROSA'S\nDELI & GROCERY", 832, 176, PAL.gold, PAL.ink, 62),
-      -16, 4.0, 7.93,
-    );
+    this.signBoard('Bodega_Sign', "ROSA'S\nDELI & GROCERY", 6.2, 1.35, 0.14, 832, 176, PAL.gold, PAL.ink, 62)
+      .position.set(-16, 4.0, 7.93);
     // blade sign: perpendicular board over the door gap, text on the ±x faces
     this.decoMesh('Bodega_BladeBracket', new THREE.BoxGeometry(0.07, 0.5, 0.9), this.mat(PAL.ink), -14.9, 3.55, 7.55);
-    this.decoMesh(
-      'Bodega_BladeSign',
-      new THREE.BoxGeometry(0.12, 0.95, 1.7),
-      this.signMaterials("ROSA'S", 384, 192, PAL.gold, PAL.ink, 74, 'x'),
-      -14.9, 2.95, 7.1,
-    );
+    this.signBoard('Bodega_BladeSign', "ROSA'S", 0.12, 0.95, 1.7, 384, 192, PAL.gold, PAL.ink, 74, 'x')
+      .position.set(-14.9, 2.95, 7.1);
     // The warm window (emission 0.55 — main.gd comment: "the warm window, actually warm")
     this.rosaWindowMat = this.mat(PAL.amber, { emissive: PAL.amber, emissiveIntensity: 0.55 });
     this.decoMesh('Bodega_Window', new THREE.BoxGeometry(2.6, 1.6, 0.06), this.rosaWindowMat, -19.25, 1.8, 7.92);
@@ -303,13 +370,10 @@ export class World {
     // of the way exactly when the roof does (player steps inside).
     const bb = new THREE.Group();
     bb.name = 'Bodega_RoofSign';
-    const signBoard = new THREE.Mesh(
-      new THREE.BoxGeometry(7.4, 1.4, 0.16),
-      this.signMaterials("ROSA'S\nDELI & GROCERY", 896, 176, PAL.gold, PAL.ink, 62),
-    );
-    signBoard.position.y = 1.75;
-    signBoard.castShadow = true;
-    bb.add(signBoard);
+    const billboard = makeSignBoard(7.4, 1.4, 0.16, this.signMaterials("ROSA'S\nDELI & GROCERY", 896, 176, PAL.gold, PAL.ink, 62));
+    billboard.position.y = 1.75;
+    billboard.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
+    bb.add(billboard);
     for (const px of [-3.1, 3.1]) {
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.15, 6), this.mat(PAL.ink));
       pole.position.set(px, 0.55, 0);
@@ -572,9 +636,9 @@ export class World {
     this.kidSil.visible = false;
 
     // ---------------- the living street (docs/28 — workstreams A & B) ------
-    // Shared materials + geometry through the bank; seeded tree placement so
+    // Shared materials + geometry through the bank (created at the top of
+    // the constructor — signs need it first); seeded tree placement so
     // every run of the block is the same block.
-    this.bank = new MatBank((c) => this.mat(c));
     const rng = seededRng(20261029);
 
     // ---- brownstone row (south-west face): stoops, doors, windows, AC ----
@@ -1138,7 +1202,10 @@ export class World {
       this.leaves.mesh,
       ...this.glbProps.values(),
       ...this.itemMeshes.values(),
-      ...this.trees.map((t) => t.group),
+      // W0: only the CANOPY stays out of the bake — the sway owns it. The
+      // trunk and root flare are static wood: they merge into their district
+      // tile like any other wall (−2 draw calls × 12 trees × 2 passes).
+      ...this.trees.map((t) => t.canopy),
     ]);
     // the windows whose MATERIALS are tweened (dusk, golden-hour beats) —
     // they share a signature with the plain dim windows and must not join
@@ -1146,7 +1213,11 @@ export class World {
     // ambient windows keep a day-keyed diary instead (dressing.ts) — same
     // exclusion, different author.
     const NAMED_SKIP = new Set(['GoldWindow', 'SecondWindow', 'ThirdWindow', 'FourthWindow', 'Bodega_Window',
-      'AmbientWindow_Late', 'AmbientWindow_New', 'AmbientWindow_Riser']);
+      'AmbientWindow_Late', 'AmbientWindow_New', 'AmbientWindow_Riser',
+      // the plaza decks stay named: probe-env6 verifies their proudness and
+      // clearances by name (the "plaza owns its paving" regression) — two
+      // receive-only slabs are a fair price for that identity
+      'Plaza_Deck_W', 'Plaza_Deck_E']);
     const excluded = (o: THREE.Object3D): boolean => {
       for (let p: THREE.Object3D | null = o; p !== null; p = p.parent) {
         if (skip.has(p) || NAMED_SKIP.has(p.name)) return true;
@@ -1154,7 +1225,7 @@ export class World {
       return false;
     };
 
-    interface BatchSrc { geo: THREE.BufferGeometry; mesh: THREE.Mesh; tile: number }
+    interface BatchSrc { geo: THREE.BufferGeometry; mesh: THREE.Mesh; tile: string }
     interface Batch { srcs: BatchSrc[]; cast: boolean; receive: boolean; mat: THREE.MeshLambertMaterial }
     const batches = new Map<string, Batch>();
 
@@ -1176,22 +1247,23 @@ export class World {
       for (const name of Object.keys(g.attributes)) {
         if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
       }
-      // Region-split: a whole-block batch would defeat frustum culling (the
-      // batch's bounding sphere spans the block, so nothing ever culls) —
-      // on software GL that cost more in rasterized triangles than the draw
-      // calls saved (playtest 2026-10-30: the e2e driver lost a third of its
-      // fps and its timed beats started missing). Batching per 25 m tile
-      // along the street keeps the draw-call win AND lets off-screen tiles
-      // cull exactly like the individual meshes did.
-      const tile = Math.max(0, Math.min(3, Math.floor((o.matrixWorld.elements[12] + 50) / 25)));
+      // Region-split (W0: now 2D district tiles): a whole-world batch would
+      // defeat frustum culling (the batch's bounding sphere spans the world,
+      // so nothing ever culls) — on software GL that cost more in rasterized
+      // triangles than the draw calls saved (playtest 2026-10-30: the e2e
+      // driver lost a third of its fps and its timed beats started missing).
+      // Batching per 28 m × 32 m district tile keeps the draw-call win AND
+      // lets off-screen tiles cull exactly like the individual meshes did —
+      // and gives the district visibility pass its unit of work.
+      const tile = World.districtKey(o.matrixWorld.elements[12], o.matrixWorld.elements[14]);
       b.srcs.push({ geo: g, mesh: o, tile });
     });
 
-    // commits happen per (signature, tile); a tile group of 1 stays as-is —
-    // merging it would save nothing
+    // commits happen per (signature, district); a district group of 1 stays
+    // as-is — merging it would save nothing
     const bySigTile = new Map<string, { batch: Batch; srcs: BatchSrc[] }>();
     for (const [key, b] of batches) {
-      const byTile = new Map<number, BatchSrc[]>();
+      const byTile = new Map<string, BatchSrc[]>();
       for (const s of b.srcs) {
         let list = byTile.get(s.tile);
         if (!list) byTile.set(s.tile, list = []);
@@ -1225,11 +1297,32 @@ export class World {
       for (const s of g.srcs) s.geo.dispose();
       merged.computeBoundingSphere();
       const mesh = new THREE.Mesh(merged, g.batch.mat);
-      mesh.name = `StaticBake_${batchIndex++}`;
+      mesh.name = `StaticBake_${g.srcs[0].tile}_${batchIndex++}`;
       mesh.castShadow = g.batch.cast;
       mesh.receiveShadow = g.batch.receive;
       this.scene.add(mesh);
+      const dk = g.srcs[0].tile;
+      let list = this.districtBatches.get(dk);
+      if (!list) this.districtBatches.set(dk, list = []);
+      list.push(mesh);
     }
+
+    // dynamic groups join their districts (the batch meshes above are
+    // already registered) — W0's ring covers the whole shipped street, so
+    // this changes nothing visible; it makes the system real and measured.
+    for (const t of this.trees) this.registerDistrictObject(t.group, t.group.position.x, t.group.position.z);
+    this.registerDistrictObject(this.pigeonFlock.group, this.pigeonFlock.group.position.x, this.pigeonFlock.group.position.z);
+    this.registerDistrictObject(this.pigeonFlockEast.group, this.pigeonFlockEast.group.position.x, this.pigeonFlockEast.group.position.z);
+    this.registerDistrictObject(this.squirrel.group, this.squirrel.group.position.x, this.squirrel.group.position.z);
+    this.registerDistrictObject(this.steamPoints, this.steamPoints.position.x, this.steamPoints.position.z);
+    this.registerDistrictObject(this.leaves.mesh, 0, 0);
+    // glb props join their district — EXCEPT the taxi: a rail vehicle spans
+    // every column on the street, so no district may own its visibility.
+    for (const [id, o] of this.glbProps) {
+      if (id === 'car_taxi') continue;
+      this.registerDistrictObject(o, o.position.x, o.position.z);
+    }
+    this.updateDistricts(-30, 6.2); // boot at the spawn — the E2E's first frame
   }
 
   // ------------------------------------------------------------------ helpers
@@ -1343,20 +1436,27 @@ export class World {
     const url = new URL(file, document.baseURI).href;
     try {
       const gltf = await loader.loadAsync(url);
-      const gltfScene = gltf.scene;
+      let visual: THREE.Object3D = gltf.scene;
       let hasMesh = false;
       const stray: THREE.Object3D[] = [];
-      gltfScene.traverse((o) => {
+      visual.traverse((o) => {
         if ((o as THREE.Mesh).isMesh) hasMesh = true;
         if ((o as THREE.Light).isLight || (o as THREE.Camera).isCamera) stray.push(o);
       });
       if (!hasMesh) throw new Error('no meshes in file');
       for (const o of stray) o.parent?.remove(o);
+      // W0: generated GLBs arrive node-per-part (the exporter writes one node
+      // per primitive) — a hydrant wore 12 draw calls, a car 18. Merge the
+      // scene's single-material meshes into one mesh per material; the world
+      // transforms are baked into the merged vertices, so the visual is
+      // bit-identical. Any mesh we can't merge (multi-material groups,
+      // mismatched attributes) keeps the original scene untouched.
+      visual = this.mergeGltfParts(visual);
 
       placeholder.updateWorldMatrix(true, false);
       const phBox = new THREE.Box3().setFromObject(placeholder);
       const phSize = phBox.getSize(new THREE.Vector3());
-      const box = new THREE.Box3().setFromObject(gltfScene);
+      const box = new THREE.Box3().setFromObject(visual);
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
       if (!(size.y > 0) || !Number.isFinite(size.y)) throw new Error('degenerate bounds');
@@ -1379,16 +1479,16 @@ export class World {
         || scaledZ < phSize.z * 0.5 || scaledZ > phSize.z * 1.9) {
         throw new Error(`footprint mismatch (${scaledX.toFixed(2)}×${scaledZ.toFixed(2)} vs ${phSize.x.toFixed(2)}×${phSize.z.toFixed(2)})`);
       }
-      gltfScene.scale.setScalar(s);
-      gltfScene.position.set(-center.x * s, -box.min.y * s, -center.z * s);
+      visual.scale.setScalar(s);
+      visual.position.set(-center.x * s, -box.min.y * s, -center.z * s);
 
       const wrapper = new THREE.Group();
       wrapper.name = `${placeholder.name || id}_glb`;
       wrapper.position.copy(worldPos);
       wrapper.quaternion.copy(worldQuat);
       wrapper.scale.copy(worldScale);
-      wrapper.add(gltfScene);
-      gltfScene.traverse((o) => {
+      wrapper.add(visual);
+      visual.traverse((o) => {
         if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.receiveShadow = true; }
       });
 
@@ -1399,6 +1499,11 @@ export class World {
       this.disposeTree(placeholder);
       this.glbProps.set(id, wrapper); // re-register so the upgrade is re-runnable
       this.glbUpgrades.set(id, file);
+      // the GLB wrapper inherits the placeholder's district seat (the bake
+      // registered the placeholder before the async upgrade swapped it)
+      if (this.districtOf.has(placeholder)) {
+        this.registerDistrictObject(wrapper, wrapper.position.x, wrapper.position.z);
+      }
       return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -1408,6 +1513,44 @@ export class World {
       }
       return false;
     }
+  }
+
+  /** Merge a loaded GLB scene's single-material meshes into one mesh per
+   *  material (world transforms baked in). Returns the ORIGINAL scene when
+   *  anything is not safely mergeable — the upgrade path never gambles. */
+  private mergeGltfParts(root: THREE.Object3D): THREE.Object3D {
+    const parts: THREE.Mesh[] = [];
+    root.updateMatrixWorld(true);
+    root.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) parts.push(m); });
+    if (parts.length < 2) return root;
+    const byMat = new Map<THREE.Material, THREE.BufferGeometry[]>();
+    let mergeable = 0;
+    for (const m of parts) {
+      const multi = Array.isArray(m.material)
+        || (m.geometry.groups && m.geometry.groups.length > 1);
+      if (multi || !m.geometry.index) return root; // keep the original scene
+      mergeable++;
+      const g = m.geometry.clone();
+      g.applyMatrix4(m.matrixWorld);
+      for (const name of Object.keys(g.attributes)) {
+        if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
+      }
+      const mat = m.material as THREE.Material;
+      let list = byMat.get(mat);
+      if (!list) byMat.set(mat, list = []);
+      list.push(g);
+    }
+    if (mergeable < 2 || parts.length <= byMat.size) return root;
+    const mergedRoot = new THREE.Group();
+    mergedRoot.name = root.name;
+    for (const [mat, geos] of byMat) {
+      const merged = geos.length === 1 ? geos[0] : mergeGeometries(geos, false);
+      if (!merged) return root;
+      merged.computeBoundingSphere();
+      mergedRoot.add(new THREE.Mesh(merged, mat));
+      for (const g of geos) if (g !== merged) g.dispose();
+    }
+    return mergedRoot;
   }
 
   private disposeTree(root: THREE.Object3D): void {
@@ -1536,12 +1679,8 @@ export class World {
     const awn = this.deco('Laundry_Awning', CX, 2.5, 7.1, 6.0, 0.09, 1.3, PAL.teal);
     awn.rotation.x = 0.3;
     awn.castShadow = true;
-    this.decoMesh(
-      'Laundry_Sign',
-      new THREE.BoxGeometry(5.4, 0.8, 0.12),
-      this.signMaterials(D4_LAUNDRY_SIGN, 768, 128, PAL.teal, PAL.cream, 56),
-      CX, 3.42, 7.7,
-    );
+    this.signBoard('Laundry_Sign', D4_LAUNDRY_SIGN, 5.4, 0.8, 0.12, 768, 128, PAL.teal, PAL.cream, 56)
+      .position.set(CX, 3.42, 7.7);
     // shirts on the sidewalk rack — west of the bay, tucked by the barrier
     const rack = this.makeShirtRack();
     rack.position.set(-8.55, 0.05, 7.55);
@@ -1990,16 +2129,29 @@ export class World {
     return g;
   }
 
-  /** Wall-mounted sign: text on the two big faces, plain edges elsewhere
-   *  (a bare box map mirrors the text across the top face).
-   *  faces: 'z' = the ±z faces carry the text (wall sign), 'x' = the ±x faces
-   *  (blade sign read while walking along the street). */
-  private signMaterials(text: string, w: number, h: number, bg: number, fg: number, px: number, faces: 'z' | 'x' = 'z'): THREE.MeshLambertMaterial[] {
-    const face = new THREE.MeshLambertMaterial({ map: this.textTexture(text, w, h, bg, fg, px) });
-    const plain = new THREE.MeshLambertMaterial({ color: bg });
-    return faces === 'z'
-      ? [plain, plain, plain, plain, face, face] // +x, -x, +y, -y, +z, -z
-      : [face, face, plain, plain, plain, plain];
+  /** Wall/blade sign FACTORY: the unique canvas-texture face material + the
+   *  SHARED plain edge material (banked — every sign's edges bake-merge
+   *  with its district). W0: the old 6-material-array box cost 6 draw
+   *  calls per sign; a board (box + two face planes) costs 2. */
+  private signMaterials(text: string, w: number, h: number, bg: number, fg: number, px: number, _faces: 'z' | 'x' = 'z'): SignPair {
+    void _faces; // the board helper decides orientation; the pair is orientation-free
+    return {
+      face: new THREE.MeshLambertMaterial({ map: this.textTexture(text, w, h, bg, fg, px) }),
+      plain: this.bank.get(bg),
+    };
+  }
+
+  /** A placed sign board — plain shared-material box + two textured faces,
+   *  added to the scene. Returns the group so callers can position it. */
+  private signBoard(
+    name: string, text: string, sx: number, sy: number, sz: number,
+    w: number, h: number, bg: number, fg: number, px: number,
+    faces: 'z' | 'x' = 'z',
+  ): THREE.Group {
+    const g = makeSignBoard(sx, sy, sz, this.signMaterials(text, w, h, bg, fg, px), faces);
+    g.name = name;
+    this.scene.add(g);
+    return g;
   }
 
   /** Wall-mounted sign texture (block signs stopped being anonymous boxes).
@@ -2329,6 +2481,7 @@ export class World {
     // the barrier leaves on Day 4 — its body leaves with it (a box at y
     // -999 can't overlap anything: the cheapest "gone")
     this.syncPersonCollider(this.barrierCollider, this.barrier, 0.85, 0.9);
+    if (player) this.updateDistricts(player.x, player.z);
     this.updateTaxi(dt, player, extra);
   }
 

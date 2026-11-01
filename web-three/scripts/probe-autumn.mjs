@@ -80,13 +80,13 @@ const check = await page.evaluate(() => {
     else if (r < 0.16 && g > 0.13 && b < 0.08) green++;
   }
   // 2. plumage: the plaza flock must NOT be twelve clones — count distinct
-  //    body materials across the birds (children[0] is the body mesh)
+  //    body materials across the birds. W0: the flock renders instanced;
+  //    each bird's state record carries its own plumage material ref.
   const mats = new Set();
   let blazes = 0;
   for (const b of w.pigeonFlock.birds) {
-    mats.add(b.group.children[0].material.uuid);
-    // cream 0xfff8f0 → linear (1.0, 0.94, 0.87): only the blaze is that bright
-    if (b.group.children.some((c) => c.material?.color && c.material.color.r > 0.98 && c.material.color.b > 0.8)) blazes++;
+    mats.add(b.plumage.uuid);
+    if (b.hasBlaze) blazes++;
   }
   // 3. pit rims exist: every tree spot's pit group has 2 children (soil+rim)
   return {

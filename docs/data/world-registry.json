@@ -2,9 +2,11 @@
   "meta": {
     "title": "FIRST SLICE: A New York Story — Alder Heights Master World Registry",
     "version": "1.0.0",
-    "status": "design-approved-pending-review",
+    "status": "under-construction",
     "issued": "2026-11-01",
     "owner": "Master World Design milestone (docs/39–45)",
+    "constructionLog": "docs/47-construction-log.md",
+    "statusNote": "Construction ordered by the lead 2026-11-01; phases W0-W5 per docs/45, per-phase ledger in docs/47.",
     "coordSystem": {
       "axes": "x = east(+)/west(−), z = north(+)/south(−), y = up. Identical to the live web-three world; the origin does not move.",
       "units": "meters",
