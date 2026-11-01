@@ -68,6 +68,12 @@ The shipped systems generalize: day-keyed, deterministic, save-clean.
 - **The ghost sign** (LMK-06) and the **mural** (LMK-05) — the two painted walls;
   the mural is day-keyed progress (Lena & Odd paint it across the weeks).
 - **Stoop sales** (GDD §5.11) — GRB-01's stoop on weekends, phase W4+.
+- **The small-wear pass** (adopted from the external review pass, tonally
+  filtered): fire escapes carry one honest prop each — a potted plant, a single
+  drying towel; AC units vary in state (some with a box on top) instead of
+  cloning; flyer layers tear (the old slip stays as a corner under the new one);
+  the alley gets a hand-chalked note, never spray-paint — Doc 04's "warm, never
+  gritty" is the filter. All day-keyed, all on existing geometry.
 
 ## 6. Landmark design (the 1-Second Law audit)
 

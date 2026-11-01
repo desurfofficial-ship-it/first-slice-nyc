@@ -61,6 +61,12 @@ street window S with the **gold-window sight-line** (the game's oldest promise,
 now visible from the player's own bed), the Map's corkboard by the door, and the
 **roof hatch reserved at (12.2, −15.2)** — the stage-5 Rooftop's future stair.
 The room ships furnished sparse: the stool pattern (bought things appear).
+Reserved beat (from the external review pass, deferred to the lead's Days-5+
+writing): a **window-gaze interaction** — one quiet look out the S window that
+lets the skyline moment land before the postcard composes. NOT adopted from the
+same source: a sleep-to-advance-day mechanic — day transitions belong to the
+step machine and the postcard ritual, and a second day-end point would split
+the E2E's ending contract.
 
 ### 2.6 DINER-INT — Alder Heights Diner *(W5)*
 Shell 9.6 × 11.6 m, corner chamfer entrance NE. Counter bar with eight stools

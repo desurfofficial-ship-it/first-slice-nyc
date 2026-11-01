@@ -26,7 +26,7 @@
 | **W2** | **Gable Row + interior parks + shortcuts** | GRB-01..05; Kestrel Green; Gable Garden; alley lane R-ALLEY; garden slot R-GARDEN; parking strips | the residential street + both shortcuts walk end-to-end; park furniture colliders complete; ped loops pass a sustained no-stuck run | +30–45 |
 | **W3** | **Avenue walls + landmarks** | TEN-01, SRC-01/02, KTN-07, KCM-01 shell, SND-01 shell; VDN-D* backdrop rows; mural LMK-05; ghost sign LMK-06; marquee LMK-07; VND-02; poles/wires on avenues | avenues are places, not edges; all 7 landmarks present and 64-px readable; SKY-E/W/S cards live | +35–50 |
 | **W4** | **Life + traffic** | NPC zone wiring on the existing Yuka/dwell systems (NZ-* list); avenue rails + bus M121; parked cars; extended cab rail with new courtesy zones; busker | 13 zones populated day-keyed; bus loop completes with yields; no ped stuck states over a 30-min soak; story cast untouched | +15–25 |
-| **W5** | **Interiors batch** | LAUNDRY-INT, BARBER-INT, PIZZA-INT, DINER-INT, HALL-INT, BAKERY-INT, RECORD-INT, CECIL-ROOM (+ optional MEZZ-INT, CORNERHOUSE-INT) | every Class-A/B promise in docs/40 kept; interior anchors in the registry; interaction tests for each loop; portrait-viewport pass | +40–60 |
+| **W5** | **Interiors batch** | LAUNDRY-INT, BARBER-INT, PIZZA-INT, DINER-INT, HALL-INT, BAKERY-INT, RECORD-INT, CECIL-ROOM (+ optional MEZZ-INT, CORNERHOUSE-INT) | every Class-A/B promise in docs/40 kept; interior anchors in the registry; interaction tests for each loop; portrait-viewport pass; **interior groups carry a visibility toggle** (rendered when the player is inside or the camera sees through the glass — the bodega interior stays one room, not four districts of draw calls) | +40–60 |
 
 **Dependencies:** W0 → W1 → {W2, W3} → W4 → W5. W2/W3 may run in parallel by
 **file ownership** (Doc 37 red line 10): W2 owns `props.ts` row/park builders +
@@ -80,6 +80,12 @@ coherence (no orphan prompts in new districts) · collision integrity probes for
 every new mass (the doc 35 §2/§3 lesson: furniture collides, ghosts don't) ·
 portrait 720×1280 layout pass for any new prompt/UI · ped no-stuck soak ·
 registry validator green · maps re-rendered and re-embedded.
+
+**The ghost gate (adopted from the external review pass):** before W5 opens,
+all W1–W3 footprints are re-verified in-engine against the registry as a
+massing pass — position/height/footprint deltas < 0.1 m per ID, fire-escape
+sight-line screenshot approved (the gold window, the skyline line), every
+skyline edge reads. A detail pass never proceeds over an unverified ghost.
 
 ## 5. Open-source resource ledger (researched, licence-verified)
 

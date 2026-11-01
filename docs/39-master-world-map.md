@@ -55,6 +55,14 @@ continues its materials, levels, and laws outward. Units are meters; +x = east,
 +z = north; footprints are `{x, z, w, d}` = center + full size, exactly
 `boxFromCenter()` convention.
 
+**Every edge has a diegetic name, not just a card** (adopted from the external
+review pass): N = the heights (Gable row rising into the SKY-N card line);
+S = Marlow row stepping down to the SKY-S card; E/W = the avenues' vanishing
+glow — Manhattanhenge law — closed by SKY-E/SKY-W. A boundary the camera can
+*explain* is a boundary the player never tests; an invisible wall with a themed
+excuse (a terminal district past Juniper, the next heights past Gable) is the
+difference between a diorama and a place.
+
 ## 3. The grid (compressed from the real 1811 plan, ratios preserved)
 
 Reference: the Commissioners' Plan of 1811 — avenues 100 ft (30 m), cross streets
