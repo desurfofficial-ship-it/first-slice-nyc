@@ -1,0 +1,139 @@
+<!doctype html>
+<!-- Massing study viewer — NON-DESTRUCTIVE planning tool (docs/45 §W0 guidance).
+     Reads docs/data/world-registry.json and extrudes every building footprint
+     to its planned height with the game's own three.js. Not part of the game
+     build; never imported by src/. Serve the repo root and open this file.
+     Exposes window.__setView('overview'|'kestrel'|'plaza') for screenshots. -->
+<html>
+<head><meta charset="utf-8"><title>Alder Heights — massing</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#101018}
+  #hud{position:fixed;left:10px;top:10px;color:#fff8f0;font:600 13px "Trebuchet MS",sans-serif;
+       background:#3a3440cc;padding:8px 12px;border-radius:8px}
+</style></head>
+<body>
+<div id="hud">ALDER HEIGHTS — massing study (registry v1) · existing = solid · planned = glass</div>
+<script type="module">
+import * as THREE from '/node_modules/three/build/three.module.js';
+
+const reg = await (await fetch('/docs/data/world-registry.json')).json();
+const scene = new THREE.Scene();
+const skyTop = new THREE.Color(0x7fa7c9), skyHorizon = new THREE.Color(0xffb85c);
+const skyGeo = new THREE.SphereGeometry(400, 16, 12);
+const skyMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide,
+  uniforms: { top: { value: skyTop }, horizon: { value: skyHorizon } },
+  vertexShader: 'varying vec3 vp; void main(){ vp = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+  fragmentShader: 'varying vec3 vp; uniform vec3 top; uniform vec3 horizon; void main(){ float h = normalize(vp).y; gl_FragColor = vec4(mix(horizon, top, smoothstep(0.0,0.45,h)),1.0); }',
+});
+scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+const sun = new THREE.DirectionalLight(0xffb85c, 1.35);
+sun.position.set(-60, 80, -40);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -150; sun.shadow.camera.right = 150;
+sun.shadow.camera.top = 150; sun.shadow.camera.bottom = -150;
+scene.add(sun);
+scene.add(new THREE.AmbientLight(0xfff8f0, 0.78));
+
+// ground
+const ground = new THREE.Mesh(new THREE.BoxGeometry(230, 0.4, 190), new THREE.MeshLambertMaterial({ color: 0xb9b1a6 }));
+ground.position.y = -0.2; ground.receiveShadow = true;
+scene.add(ground);
+
+// streets as flat slabs
+for (const st of reg.streets) {
+  const m = new THREE.MeshLambertMaterial({ color: 0x4a4552 });
+  if (st.axis === 'EW') {
+    const road = new THREE.Mesh(new THREE.BoxGeometry(180, 0.08, st.road.width), m);
+    road.position.set(0, 0.05, st.centerline); road.receiveShadow = true; scene.add(road);
+  } else {
+    const road = new THREE.Mesh(new THREE.BoxGeometry(st.road.width, 0.08, 140), m);
+    road.position.set(st.centerline, 0.05, 0); road.receiveShadow = true; scene.add(road);
+  }
+}
+// parks
+const parkCols = { 'PRK-CORNER': 0x3a7355, 'PRK-GREEN': 0x3a7355, 'GRD-GABLE': 0x7a9c5a, 'PLY-MARLOW': 0xd9c3a5, 'PRK-PLAZA': 0x8f8a82 };
+for (const p of reg.parks) {
+  const bb = p.bbox;
+  const g = new THREE.Mesh(new THREE.BoxGeometry(bb.xMax - bb.xMin, 0.1, bb.zMax - bb.zMin),
+    new THREE.MeshLambertMaterial({ color: parkCols[p.id] ?? 0x3a7355 }));
+  g.position.set((bb.xMin + bb.xMax) / 2, 0.12, (bb.zMin + bb.zMax) / 2);
+  g.receiveShadow = true; scene.add(g);
+}
+
+// buildings from the registry
+const CLASS_FILL = { A: 0xf7b32b, B: 0x2a9d8f, C: 0xb23a48, D: 0x9c8aa5 };
+for (const b of reg.buildings) {
+  const f = b.footprint; if (!f) continue;
+  const planned = b.status === 'planned';
+  const mat = planned
+    ? new THREE.MeshLambertMaterial({ color: CLASS_FILL[b.class], transparent: true, opacity: 0.45 })
+    : new THREE.MeshLambertMaterial({ color: CLASS_FILL[b.class] });
+  const m = new THREE.Mesh(new THREE.BoxGeometry(f.w, b.height, f.d), mat);
+  m.position.set(f.x, b.height / 2, f.z);
+  m.castShadow = true; m.receiveShadow = true;
+  scene.add(m);
+  const corn = new THREE.Mesh(new THREE.BoxGeometry(f.w + 0.6, 0.35, f.d + 0.6),
+    new THREE.MeshLambertMaterial({ color: 0x3a3440 }));
+  corn.position.set(f.x, b.height + 0.17, f.z);
+  scene.add(corn);
+  // deterministic water-tank hint (object canon #3) on taller masses
+  let h = 0; for (const ch of b.id) h = (h * 31 + ch.charCodeAt(0)) & 0xffff;
+  if (b.height >= 11 && b.class !== 'D' && h % 10 < 6) {
+    const r = 1.1;
+    const tank = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.05, r * 1.6, 10), new THREE.MeshLambertMaterial({ color: 0x7a5c48 }));
+    body.position.y = r * 0.8;
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(r * 1.15, r * 0.7, 10), new THREE.MeshLambertMaterial({ color: 0x5d4536 }));
+    cone.position.y = r * 1.6 + r * 0.35;
+    tank.add(body, cone);
+    tank.position.set(f.x + ((h % 3) - 1) * f.w * 0.18, b.height + 0.4, f.z + ((h % 5) - 2) * f.d * 0.1);
+    scene.add(tank);
+  }
+}
+
+// skyline cards, the existing trick
+const cardMat = new THREE.MeshBasicMaterial({ color: 0x9c8aa5 });
+for (const [cx, cz, alongX] of [[0, 108, true], [0, -106, true], [-142, 0, false], [142, 0, false]]) {
+  const g = new THREE.Group();
+  const hs = [38, 62, 45, 80, 52, 70, 40, 58];
+  hs.forEach((h, i) => {
+    const t = new THREE.Mesh(new THREE.BoxGeometry(14, h, 8), cardMat);
+    t.position.set((i - 3.5) * 20, h / 2, 0);
+    g.add(t);
+  });
+  g.position.set(cx, 0, cz);
+  if (!alongX) g.rotation.y = Math.PI / 2;
+  scene.add(g);
+}
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 900);
+
+const VIEWS = {
+  overview: { pos: [148, 112, -148], at: [0, 0, 0] },
+  kestrel: { pos: [-60, 4.5, -3.0], at: [40, 7, -2.0] },
+  plaza: { pos: [-27, 6.5, -3.5], at: [-44, 2.2, 6.0] },
+};
+window.__setView = (name) => {
+  const v = VIEWS[name] ?? VIEWS.overview;
+  camera.position.set(...v.pos);
+  camera.lookAt(...v.at);
+};
+window.__setView('overview');
+
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+});
+renderer.setAnimationLoop(() => renderer.render(scene, camera));
+window.__ready = true;
+</script>
+</body>
+</html>

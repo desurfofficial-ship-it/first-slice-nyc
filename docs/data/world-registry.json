@@ -1,0 +1,544 @@
+{
+  "meta": {
+    "title": "FIRST SLICE: A New York Story — Alder Heights Master World Registry",
+    "version": "1.0.0",
+    "status": "design-approved-pending-review",
+    "issued": "2026-11-01",
+    "owner": "Master World Design milestone (docs/39–45)",
+    "coordSystem": {
+      "axes": "x = east(+)/west(−), z = north(+)/south(−), y = up. Identical to the live web-three world; the origin does not move.",
+      "units": "meters",
+      "footprint": "{x, z, w, d} = center + full width (x extent) + full depth (z extent), matching boxFromCenter() in engine/collide.ts",
+      "height": "y of the roof line above street grade (grade = 0)"
+    },
+    "law": [
+      "Every planned building must be constructed from this registry — no agent invents positions.",
+      "Existing entities carry status 'existing' and MUST NOT move: their numbers are copied from the shipped code (baseline main @ 1ea39c2) and are load-bearing for the story, the E2E driver, and Save v1.",
+      "IDs are permanent. New entries append; never renumber.",
+      "Class A = fully enterable (interior required). Class B = ground-floor interior/service bay. Class C = exterior-only. Class D = backdrop mass/skyline.",
+      "Streets follow the existing 'sidewalk law': north Kestrel walking lane z 4–7.2 stays clear of solids; south walking lane z −7.2…−4.3 likewise."
+    ],
+    "researchBasis": {
+      "grid": "1811 Commissioners' Plan reference proportions: avenues 100 ft (30 m), cross streets 60 ft (18 m), blocks 200 ft (61 m) N–S × 620–920 ft (189–280 m) E–W, 20 blocks per mile N–S (MCNY, thegreatestgrid.mcny.org). Alder Heights compresses these ~25% for game density; the ratio avenue > street is preserved.",
+      "typology": "25 × 100 ft (7.6 × 30 m) standard lots; brownstones 3–5 stories with high stoops; Old Law tenements on 25 ft lots; rooftop water tanks 5,000–10,000 gal on 4–6 story buildings (vitalcitynyc.org); NBA key 16 ft (4.9 m), FT line 15 ft from backboard, rim 10 ft (3.05 m) — the existing court already matches (key sidelines x 42.6/45.9 = 3.3 m apart, FT at z 7.2).",
+      "sources": ["thegreatestgrid.mcny.org/greatest-grid/making-the-plan/12", "vitalcitynyc.org/nyc-wooden-water-tanks-architecture-history", "pinestatecourts.com/post/basketball-court-dimensions-101-complete-guide", "osmfoundation.org/wiki/Licence/Attribution_Guidelines", "polyhaven.com (CC0)", "kenney.nl (CC0)"]
+    }
+  },
+
+  "bounds": {
+    "world": { "xMin": -96, "xMax": 96, "zMin": -64, "zMax": 64 },
+    "playableCore": { "xMin": -84, "xMax": 84, "zMin": -48, "zMax": 48 },
+    "currentShippedWalls": { "xMin": -48, "xMax": 48, "zMin": -22, "zMax": 22.5, "note": "temporary invisible walls (World.ts:496) — retired phase by phase per docs/45; never before a district has content" },
+    "skylineCards": [
+      { "id": "SKY-N", "line": "z = 90 (existing tower row + spire)", "role": "north backdrop, fog-exempt" },
+      { "id": "SKY-W", "line": "x = −110 card plane", "role": "Juniper Avenue vanishing point" },
+      { "id": "SKY-E", "line": "x = +110 card plane", "role": "Sycamore Avenue vanishing point" },
+      { "id": "SKY-S", "line": "z = −88 card plane", "role": "Marlow/downtown backdrop" }
+    ]
+  },
+
+  "neighbourhood": {
+    "name": "ALDER HEIGHTS",
+    "identity": "A compact upper-Manhattan-flavored heights neighbourhood: one commercial cross street (Kestrel) between two avenues, brownstone rows north, pre-war walk-ups south, a pocket park and a community garden, the K subway under Juniper Avenue. October, golden hour, forever.",
+    "canon": "NEW-CANON NAMING: the shipped story (docs 08/30/33/34, content.ts) never names the neighbourhood or streets. These names are this milestone's design decision; they are flagged as the master plan's one act of naming authority and are reversible before construction phase W1 ships signage.",
+    "cityContext": "Fictional pocket of upper Manhattan between Harlem and Washington Heights (keeps GDD Regulars' homes coherent: Rosa's bodega canon, Darnell's Harlem courts a subway stop away, Priya's line runs under Juniper)."
+  },
+
+  "streets": [
+    { "id": "STR-KESTREL", "name": "Kestrel Street", "axis": "EW", "centerline": 0, "spanX": [-84, 84],
+      "road": { "zMin": -4, "zMax": 4, "width": 8 }, "walkN": { "zMin": 4, "zMax": 8 }, "walkS": { "zMin": -8, "zMax": -4 },
+      "totalWidth": 16, "ways": "two-way, one 4 m lane each direction (evidence: cab drives eastbound in the south lane z = −2, right-hand traffic; the GOLDEN ORCHARD van parks nose-west on the north curb against the westbound lane)",
+      "character": "the story street — mixed-use row, awnings, the cart corner",
+      "notes": "Existing geometry is canon: road/sidewalk slabs span x −50..50 today and extend to ±84 in phase W1 with identical materials and y-levels." },
+    { "id": "STR-JUNIPER", "name": "Juniper Avenue", "axis": "NS", "centerline": -72, "spanZ": [-64, 64],
+      "road": { "xMin": -76, "xMax": -68, "width": 10 }, "walkW": { "xMin": -84, "xMax": -76 }, "walkE": { "xMin": -68, "xMax": -60 },
+      "totalWidth": 24, "ways": "two-way with MTA bus lay-over at the terminal; the K subway runs beneath (rumble is a sanctioned Doc 33 §2.5 effect)",
+      "character": "the local avenue — terminal, subway, community hall, tenements" },
+    { "id": "STR-SYCAMORE", "name": "Sycamore Avenue", "axis": "NS", "centerline": 72, "spanZ": [-64, 64],
+      "road": { "xMin": 68, "xMax": 76, "width": 10 }, "walkW": { "xMin": 60, "xMax": 68 }, "walkE": { "xMin": 76, "xMax": 84 },
+      "totalWidth": 24, "ways": "the busier commercial avenue; future phase-W4 vehicle rail x = +70 northbound",
+      "character": "storefronts with apartments above, the diner's corner sign, window-shopping walkers" },
+    { "id": "STR-GABLE", "name": "Gable Street", "axis": "EW", "centerline": 40, "spanX": [-84, 84],
+      "road": { "zMin": 36, "zMax": 44, "width": 8 }, "walkN": { "zMin": 44, "zMax": 48 }, "walkS": { "zMin": 32, "zMax": 36 },
+      "totalWidth": 16, "ways": "two-way, narrow residential",
+      "character": "the brownstone street — stoops, tree pits, quiet" },
+    { "id": "STR-MARLOW", "name": "Marlow Street", "axis": "EW", "centerline": -40, "spanX": [-84, 84],
+      "road": { "zMin": -44, "zMax": -36, "width": 8 }, "walkN": { "zMin": -36, "zMax": -32 }, "walkS": { "zMin": -48, "zMax": -44 },
+      "totalWidth": 16, "ways": "two-way, narrow residential/commercial edge",
+      "character": "bakery-and-record-shop street with the playground gate" }
+  ],
+
+  "intersections": [
+    { "id": "IX-KJ",  "streets": ["STR-KESTREL", "STR-JUNIPER"],   "x": -72, "z": 0, "cornerBuildings": ["KTN-00W", "SUB-02", "TEN-01", "KTN-01"] },
+    { "id": "IX-KS",  "streets": ["STR-KESTREL", "STR-SYCAMORE"],  "x": 72,  "z": 0, "cornerBuildings": ["KTN-05", "KTS-03", "KTN-06", "SND-01"] },
+    { "id": "IX-GJ",  "streets": ["STR-GABLE", "STR-JUNIPER"],     "x": -72, "z": 40 },
+    { "id": "IX-GS",  "streets": ["STR-GABLE", "STR-SYCAMORE"],    "x": 72,  "z": 40 },
+    { "id": "IX-MJ",  "streets": ["STR-MARLOW", "STR-JUNIPER"],    "x": -72, "z": -40 },
+    { "id": "IX-MS",  "streets": ["STR-MARLOW", "STR-SYCAMORE"],   "x": 72,  "z": -40 }
+  ],
+  "crosswalks": [
+    { "id": "XW-CANON", "x": -5, "z": 0, "w": 3.4, "note": "EXISTING — the signalized mid-block crossing with the mast-arm signal at (−1.8, −7.55) and the cab's courtesy hold. Untouchable." },
+    { "id": "XW-KJ-E", "x": -68.5, "z": 0, "w": 3.4, "note": "Kestrel×Juniper, east leg" },
+    { "id": "XW-KJ-W", "x": -75.5, "z": 0, "w": 3.4, "note": "west leg" },
+    { "id": "XW-KS-E", "x": 75.5, "z": 0, "w": 3.4 }, { "id": "XW-KS-W", "x": 68.5, "z": 0, "w": 3.4 },
+    { "id": "XW-KJ-N", "x": -72, "z": 4.5, "w": 3.4, "axis": "NS" }, { "id": "XW-KJ-S", "x": -72, "z": -4.5, "w": 3.4, "axis": "NS" },
+    { "id": "XW-KS-N", "x": 72, "z": 4.5, "w": 3.4, "axis": "NS" }, { "id": "XW-KS-S", "x": 72, "z": -4.5, "w": 3.4, "axis": "NS" },
+    { "id": "XW-GJ-*", "note": "Gable×Juniper and Gable×Sycamore and Marlow legs: same pattern (two E–W legs + two N–S legs per intersection), phase W1" },
+    { "id": "XW-COURT", "x": 35, "z": 0, "w": 3.4, "note": "planned mid-block crossing serving the court + park gate, phase W1 (cab yield zones extend to it)" }
+  ],
+
+  "blocks": [
+    { "id": "BLK-N", "name": "Gable–Kestrel block", "bbox": { "xMin": -60, "xMax": 60, "zMin": 8, "zMax": 32 },
+      "identity": "commercial story face (S) over brownstones (N), with the community hall on Juniper, the café shell on Sycamore, and Kestrel Green + the garden inside" },
+    { "id": "BLK-S", "name": "Kestrel–Marlow block", "bbox": { "xMin": -60, "xMax": 60, "zMin": -32, "zMax": -8 },
+      "identity": "the cart corner + Corner Park + the Cecil on Kestrel; bakery/record row and the playground on Marlow; the diner holding the Sycamore corner" }
+  ],
+
+  "buildings": [
+    { "id": "KTN-01", "name": "Alder Heights Terminal", "status": "existing", "class": "B", "face": "Kestrel N", "block": "BLK-N",
+      "footprint": { "x": -35.5, "z": 14, "w": 29, "d": 12 }, "height": 14, "floors": 4,
+      "style": "pre-war municipal slab, stone base (code ref Bldg_N_West)",
+      "exterior": "Terminal door + 'BUS TERMINAL' sign at x = −30 (existing). Water tower at (−30, 14, 12.5).",
+      "entrance": [{ "x": -30, "z": 8, "faces": "S" }],
+      "interior": "TERMINAL-INT (phase W5): waiting hall, ticket window, the arrival door the player steps out of in the story's first frame",
+      "storyRole": "Where Day 1 begins. The stranger stands near it on Day 4 (x −36.4).", "collider": true },
+
+    { "id": "ROS-01", "name": "Rosa's Deli & Grocery", "status": "existing", "class": "A", "face": "Kestrel N", "block": "BLK-N",
+      "footprint": { "x": -16, "z": 14, "w": 10, "d": 11.6 }, "height": 4.5, "floors": 1,
+      "style": "one-story corner-grocery volume with walkable roof (code refs Bodega_*, roof at y 4.65)",
+      "exterior": "Facade board + blade sign + rooftop billboard ('ROSA'S DELI & GROCERY'), teal awning, warm window at (−19.25, 1.8). Door gap x −17.5..−14.5.",
+      "entrance": [{ "x": -16, "z": 8.2, "faces": "S", "gapX": [-17.5, -14.5] }],
+      "interior": "BODEGA-INT (EXISTS — floor, counter (−19.6, 13.5), back shelf (−16, 19.3), shop shelves, interior zone box (−16, 2, 14) 9.4×11.4)",
+      "storyRole": "Rosa. The lease, the anniversary, the heart of the game.", "collider": true },
+
+    { "id": "KTN-02", "name": "Sunrise Laundry building", "status": "existing", "class": "B", "face": "Kestrel N", "block": "BLK-N",
+      "footprint": { "x": -1, "z": 14, "w": 20, "d": 12 }, "height": 18, "floors": 6,
+      "style": "pre-war walk-up over ground-floor laundry bay (code ref Bldg_N_East_A)",
+      "exterior": "Recessed laundry bay centered x = −5 (piers x −7.925/−2.075, recess z 7.4..8), awning, sign; permit A-frame at (−4, 5.8).",
+      "entrance": [{ "x": -5, "z": 7.4, "faces": "S", "type": "open bay" }],
+      "interior": "LAUNDRY-INT (bay exists: 2 washers, Sal's counter (−7, 7.55); phase W5 extends to a full 14×11 interior behind the glass)",
+      "storyRole": "Sal. Day 4's wash day. The washer_free loop.", "collider": true },
+
+    { "id": "KTN-03", "name": "The Ginkgo Walk-up", "status": "existing", "class": "C", "face": "Kestrel N", "block": "BLK-N",
+      "footprint": { "x": 15, "z": 14, "w": 12, "d": 12 }, "height": 11, "floors": 3,
+      "style": "brick walk-up (code ref Bldg_N_GoldWindow)",
+      "exterior": "The window grid (x 10.5..19.5, 3 rows) incl. the gold/second/third/fourth windows and two ambient diary windows; teal stoop door at x = 15 with two risers.",
+      "entrance": [{ "x": 15, "z": 7.55, "faces": "S", "type": "stoop door" }],
+      "interior": null,
+      "storyRole": "The kid's window (gold), the diary windows, the teal-door delivery.", "collider": true },
+
+    { "id": "KTN-04", "name": "Corner Slice Pizza", "status": "existing", "class": "B", "face": "Kestrel N", "block": "BLK-N",
+      "footprint": { "x": 25.85, "z": 14, "w": 9.7, "d": 12 }, "height": 16, "floors": 5,
+      "style": "mixed-use storefront building, west half of the split B mass (code ref Bldg_N_East_B_W)",
+      "exterior": "'CORNER SLICE PIZZA' storefront at x 24..30.",
+      "entrance": [{ "x": 27, "z": 8, "faces": "S" }],
+      "interior": "PIZZA-INT (phase W5): slice counter, deck oven, two booths",
+      "storyRole": "The dollar-slice tie to GDD §4.5; currently decorative front.", "collider": true },
+
+    { "id": "ALY-01", "name": "The Alley", "status": "existing", "class": "C", "face": "Kestrel N", "block": "BLK-N",
+      "footprint": { "x": 32.1, "z": 9.3, "w": 2.8, "d": 2.6 }, "height": 3, "floors": 0,
+      "style": "a real slot cut between the split halves of Bldg_N_East_B (gravel, open sky above y 3)",
+      "exterior": "Walls x 30.85/33.35, back wall z 10.5, lintel y 3.45, trash bag, dead bulb string.",
+      "entrance": [{ "x": 32.1, "z": 8, "faces": "S" }],
+      "interior": null,
+      "storyRole": "Station the cat's hideout (day-keyed). Phase W2 extends the cut north into the block interior as a real service lane (see routes R-ALLEY).", "collider": true },
+
+    { "id": "KTN-05", "name": "Fade King building", "status": "existing", "class": "B", "face": "Kestrel N", "block": "BLK-N",
+      "footprint": { "x": 41.25, "z": 14, "w": 15.5, "d": 12 }, "height": 16, "floors": 5,
+      "style": "mixed-use storefront building, east half of the split B mass (code ref Bldg_N_East_B_E)",
+      "exterior": "'FADE KING BARBERSHOP' storefront x 34.1..39.1, striped pole at (33.85, 1.55), two waiting chairs; half-court against its face (hoop x 44.25).",
+      "entrance": [{ "x": 36.6, "z": 8, "faces": "S" }],
+      "interior": "BARBER-INT (phase W5): two chairs, mirrors, wait bench",
+      "storyRole": "The trim ($12), the barber pole's cameo.", "collider": true },
+
+    { "id": "KTS-01", "name": "The Brownstone Row (south)", "status": "existing", "class": "C", "face": "Kestrel S", "block": "BLK-S",
+      "footprint": { "x": -25, "z": -14, "w": 50, "d": 12 }, "height": 16, "floors": 5,
+      "style": "one mass reading as a row of 4 brownstones (code ref Bldg_S_West); stooped doors teal/coral/plum at x −40/−34/−28, parlor window grid, AC units, cast-iron fire-escape silhouette at x −21.5",
+      "entrance": [{ "x": -40, "z": -7.4, "faces": "N" }, { "x": -34, "z": -7.4, "faces": "N" }, { "x": -28, "z": -7.4, "faces": "N" }],
+      "interior": null,
+      "storyRole": "Stoop life; the block's residential face. Phase W2 may split the mass into 4 individually-styled houses (visual only; collider stays).", "collider": true },
+
+    { "id": "KTS-02", "name": "The Cecil", "status": "existing", "class": "A", "face": "Kestrel S", "block": "BLK-S",
+      "footprint": { "x": 13, "z": -14, "w": 26, "d": 12 }, "height": 14, "floors": 4,
+      "style": "tenement-style walk-up with the climbable iron fire escape (code ref Bldg_S_FireEscape)",
+      "exterior": "Fire escape landings x 10..16 (y 4.0/8.0), ladders x 9.4/16.4, braces; climbing is a shipped system (trigger volumes unchanged). Ghost sign planned on the west gable (LMK-06).",
+      "entrance": [{ "x": 9.4, "z": -7.3, "faces": "N", "type": "fire-escape ladder 1" }, { "x": 16.4, "z": -7.3, "faces": "N", "type": "fire-escape ladder 2" }],
+      "interior": "CECIL-ROOM (phase W5): the player's top-floor room off the upper landing (y 8.35) — see interiors. The roof becomes the Slice-Ladder stage-5 Rooftop venue (GDD §6.1); design reserves the hatch position at (13, roof, −7.9).",
+      "storyRole": "The dusk climb, the gold window across the street, 'You are here. That's enough.' The player's home from Week 2 (Doc 33 weeks 2–3).", "collider": true },
+
+    { "id": "KTS-03", "name": "The East Tenement", "status": "existing", "class": "C", "face": "Kestrel S", "block": "BLK-S",
+      "footprint": { "x": 38, "z": -14, "w": 24, "d": 12 }, "height": 18, "floors": 6,
+      "style": "tenement mass (code ref Bldg_S_East); mural planned on its east gable facing Sycamore (LMK-05)",
+      "entrance": [{ "x": 38, "z": -8, "faces": "N" }],
+      "interior": null, "storyRole": "The mural wall; keeps the SE corner weight off the park.", "collider": true },
+
+    { "id": "KTN-00W", "name": "The Corner House", "status": "planned", "class": "B", "face": "Kestrel N", "block": "BLK-N",
+      "footprint": { "x": -55, "z": 14, "w": 10, "d": 12 }, "height": 16, "floors": 5,
+      "style": "corner mixed-use, chamfered corner entrance on the 45° (classic NYC corner-store cut), brick base",
+      "exterior": "Ground-floor storefront facing the Kestrel×Juniper intersection; painted stonework crown. Fills the infill gap x −60..−50 between the avenue walk and the terminal building.",
+      "entrance": [{ "x": -55, "z": 8, "faces": "S" }],
+      "interior": "CORNERHOUSE-INT (phase W5, optional): a dry-goods storefront the world can dress per season",
+      "storyRole": "Anchors the avenue corner so the subway plaza reads as a place, not an edge.", "collider": true },
+
+    { "id": "KTN-06", "name": "6 Kestrel Street East — the café shell", "status": "planned", "class": "A", "face": "Kestrel N", "block": "BLK-N",
+      "footprint": { "x": 55, "z": 14, "w": 10, "d": 12 }, "height": 16, "floors": 5,
+      "style": "corner mixed-use matching KTN-00W across the block; vacant ground floor",
+      "exterior": "Papered-over windows with 'FOR RENT' card (environmental storytelling, day-keyed dressing); lights come on the day the café opens (Doc 33 weeks 4–8).",
+      "entrance": [{ "x": 55, "z": 8, "faces": "S" }],
+      "interior": "CAFE-INT (phase W5 shell, activation later): counter, espresso station, seating, the cup that comes back",
+      "storyRole": "THE Slice-Ladder stage-3 location. Reserved by this registry so no other agent builds over it.", "collider": true },
+
+    { "id": "GRB-01", "name": "Gable Row 1 (the Okafor house)", "status": "planned", "class": "C", "face": "Gable S", "block": "BLK-N",
+      "footprint": { "x": -42.6, "z": 26, "w": 7.6, "d": 12 }, "height": 12.5, "floors": 3,
+      "style": "brownstone: high stoop (6 risers + landing), tall parlor windows, cornice", "entrance": [{ "x": -42.6, "z": 32, "faces": "S", "type": "stoop" }], "interior": null,
+      "storyRole": "Stoop-sale Saturday host (Doc 33 weeks 2–3).", "collider": true },
+    { "id": "GRB-02", "name": "Gable Row 2", "status": "planned", "class": "C", "face": "Gable S", "block": "BLK-N",
+      "footprint": { "x": -35, "z": 26, "w": 7.6, "d": 12 }, "height": 12.5, "floors": 3,
+      "style": "brownstone, plum door", "entrance": [{ "x": -35, "z": 32, "faces": "S", "type": "stoop" }], "interior": null, "collider": true },
+    { "id": "GRB-03", "name": "Gable Row 3 (Fatima's)", "status": "planned", "class": "C", "face": "Gable S", "block": "BLK-N",
+      "footprint": { "x": -27.4, "z": 26, "w": 7.6, "d": 12 }, "height": 12.5, "floors": 3,
+      "style": "brownstone under restoration (scaffold hint phase W2+ — GDD Regular hook)", "entrance": [{ "x": -27.4, "z": 32, "faces": "S", "type": "stoop" }], "interior": null,
+      "storyRole": "Fatima's future restoration (GDD §4.1) — exterior-only, her studio is out of scope for the neighbourhood.", "collider": true },
+    { "id": "GRB-04", "name": "Gable Row 4", "status": "planned", "class": "C", "face": "Gable S", "block": "BLK-N",
+      "footprint": { "x": -19.8, "z": 26, "w": 7.6, "d": 12 }, "height": 12.5, "floors": 3, "style": "brownstone, teal door",
+      "entrance": [{ "x": -19.8, "z": 32, "faces": "S", "type": "stoop" }], "interior": null, "collider": true },
+    { "id": "GRB-05", "name": "Gable Row 5", "status": "planned", "class": "C", "face": "Gable S", "block": "BLK-N",
+      "footprint": { "x": -12.2, "z": 26, "w": 7.6, "d": 12 }, "height": 12.5, "floors": 3, "style": "brownstone, coral door",
+      "entrance": [{ "x": -12.2, "z": 32, "faces": "S", "type": "stoop" }], "interior": null, "collider": true },
+
+    { "id": "KCM-01", "name": "Alder Works Hall", "status": "planned", "class": "A", "face": "Juniper E", "block": "BLK-N",
+      "footprint": { "x": -54, "z": 26, "w": 12, "d": 12 }, "height": 15, "floors": 3,
+      "style": "pre-war community hall: limestone base, brick upper, painted façade band, marquee board",
+      "exterior": "Main entrance on Juniper (E face); painted-tile address 'ALDER WORKS — EST. 1927'. Corner position commands Juniper×Gable.",
+      "entrance": [{ "x": -60, "z": 26, "faces": "E", "type": "main" }, { "x": -54, "z": 32, "faces": "S", "type": "Gable secondary" }],
+      "interior": "HALL-INT (phase W5): main hall, workshop room, kitchenette, the notice wall (the bulletin board's big sibling)",
+      "storyRole": "Neighbourhood landmark LMK-07; the block party's indoor rain plan (GDD finale).", "collider": true },
+
+    { "id": "KTN-07", "name": "Sycamore Studios", "status": "planned", "class": "C", "face": "Sycamore W", "block": "BLK-N",
+      "footprint": { "x": 54, "z": 26, "w": 12, "d": 12 }, "height": 15, "floors": 4,
+      "style": "walk-up with artist-studio ground floor (big north windows)", "entrance": [{ "x": 55, "z": 20, "faces": "S" }], "interior": null,
+      "storyRole": "Lena & Odd's world edge (mural apprentices), exterior-only.", "collider": true },
+
+    { "id": "SND-01", "name": "Alder Heights Diner", "status": "planned", "class": "A", "face": "Sycamore W", "block": "BLK-S",
+      "footprint": { "x": 55, "z": -14, "w": 10, "d": 12 }, "height": 13, "floors": 3,
+      "style": "corner diner: cream porcelain-coil band, coral neon sign on the Sycamore corner, band windows",
+      "exterior": "Corner entrance chamfer; rooftop 'DINER' sign readable down Kestrel — the avenue's 1-Second-Law anchor (LMK-04).",
+      "entrance": [{ "x": 55, "z": -8, "faces": "N" }, { "x": 60, "z": -14, "faces": "E", "type": "corner" }],
+      "interior": "DINER-INT (phase W5): counter bar, four booths, kitchen line, pie case by the register",
+      "storyRole": "Big Mike's future tie (GDD §4.1); the 'small diner' Doc 37 §3A asked for; late-night slice-run destination (GDD §5.10).", "collider": true },
+
+    { "id": "SRC-01", "name": "Sycamore Court", "status": "planned", "class": "C", "face": "Sycamore W / Marlow N corner", "block": "BLK-S",
+      "footprint": { "x": 55, "z": -26, "w": 10, "d": 12 }, "height": 17, "floors": 6,
+      "style": "pre-war corner walk-up, brick (holds the Sycamore×Marlow SW corner; fronts both streets)",
+      "entrance": [{ "x": 55, "z": -20, "faces": "N" }], "interior": null, "collider": true },
+
+    { "id": "TEN-01", "name": "Juniper Tenements", "status": "planned", "class": "C", "face": "Juniper E", "block": "BLK-S",
+      "footprint": { "x": -55, "z": -14, "w": 10, "d": 12 }, "height": 17, "floors": 6,
+      "style": "Old-Law-flavored tenement pair on 4.5 m lots with a 1 m light-slot between (the slot faces Juniper — a real tenement tell)",
+      "exterior": "Fire escapes (silhouette builder), laundry lines phase W4 dressing.",
+      "entrance": [{ "x": -57, "z": -8, "faces": "N" }, { "x": -51, "z": -8, "faces": "N" }], "interior": null,
+      "storyRole": "The heights' old bones behind the subway house.", "collider": true },
+
+    { "id": "SRC-02", "name": "Juniper Court", "status": "planned", "class": "C", "face": "Juniper E", "block": "BLK-S",
+      "footprint": { "x": -55, "z": -26, "w": 10, "d": 12 }, "height": 15, "floors": 5,
+      "style": "pre-war walk-up", "entrance": [{ "x": -55, "z": -20, "faces": "N" }], "interior": null, "collider": true },
+
+    { "id": "PWK-01", "name": "Marlow West Walk-up", "status": "planned", "class": "C", "face": "Marlow N", "block": "BLK-S",
+      "footprint": { "x": -44, "z": -26, "w": 8, "d": 12 }, "height": 15, "floors": 5, "style": "pre-war walk-up",
+      "entrance": [{ "x": -44, "z": -20, "faces": "N" }], "interior": null, "collider": true },
+
+    { "id": "SMB-01", "name": "Marlow Bakery ('the oven smell')", "status": "planned", "class": "B", "face": "Marlow N", "block": "BLK-S",
+      "footprint": { "x": -34, "z": -26, "w": 8, "d": 12 }, "height": 12, "floors": 3,
+      "style": "mixed-use with bakery front", "exterior": "Bagel silhouette in the window (Doc 04 object canon #8).",
+      "entrance": [{ "x": -34, "z": -20, "faces": "N" }], "interior": "BAKERY-INT (phase W5)", "storyRole": "Morning anchor smell; GDD starter-trinity tie.", "collider": true },
+
+    { "id": "SMB-02", "name": "B-side Records", "status": "planned", "class": "B", "face": "Marlow N", "block": "BLK-S",
+      "footprint": { "x": -25, "z": -26, "w": 6, "d": 12 }, "height": 12, "floors": 3,
+      "style": "narrow shopfront, hand-painted sign", "entrance": [{ "x": -25, "z": -20, "faces": "N" }],
+      "interior": "RECORD-INT (phase W5)", "storyRole": "THE Happy-Accident shop (GDD §4.3 Subway University) — the game's own lore plants it one street from the subway.", "collider": true },
+
+    { "id": "SMB-03", "name": "Kestrel Hardware", "status": "planned", "class": "B", "face": "Marlow N", "block": "BLK-S",
+      "footprint": { "x": -17, "z": -26, "w": 6, "d": 12 }, "height": 12, "floors": 3,
+      "style": "shopfront, awning", "entrance": [{ "x": -17, "z": -20, "faces": "N" }],
+      "interior": "HARDWARE-INT (phase W5, optional — can remain a dressed interior)", "storyRole": "The world's errand logic ('we need a part for the cart').", "collider": true },
+
+    { "id": "PWK-02", "name": "Marlow Mid Walk-up A", "status": "planned", "class": "C", "face": "Marlow N", "block": "BLK-S",
+      "footprint": { "x": 5, "z": -26, "w": 10, "d": 12 }, "height": 15, "floors": 5, "style": "pre-war walk-up",
+      "entrance": [{ "x": 5, "z": -20, "faces": "N" }], "interior": null, "collider": true },
+
+    { "id": "PWK-03", "name": "Marlow Mid Walk-up B", "status": "planned", "class": "C", "face": "Marlow N", "block": "BLK-S",
+      "footprint": { "x": 17, "z": -26, "w": 10, "d": 12 }, "height": 15, "floors": 5, "style": "pre-war walk-up",
+      "entrance": [{ "x": 17, "z": -20, "faces": "N" }], "interior": null, "collider": true },
+
+    { "id": "SUB-01", "name": "Alder Heights station (K) — north house", "status": "existing", "class": "B", "face": "Kestrel N / plaza", "block": null,
+      "sitsOn": "plaza sidewalk (street furniture by NYC law: sidewalk control structures)",
+      "footprint": { "x": -42, "z": 6.2, "w": 2.6, "d": 3.5 }, "height": 3.2, "floors": 0,
+      "style": "cast-iron stair housing with twin globes (code: makeSubwayEntrance at (−42, 6.2); collider 2.6×3.5)",
+      "exterior": "Existing: plaza decks W (−44.3, 6.55) & E (−39.3, 6.45), bulletin board (−37.6, 7.5), plaza bench (−40.5, 4.55), newsboxes (−44.6, 6.6), planter (−46.6, 4.4).",
+      "entrance": [{ "x": -42, "z": 6.2, "faces": "S", "type": "subway stair" }],
+      "interior": "MEZZ-INT (phase W5, optional): mezzanine slice — turnstiles, booth, tile name band 'ALDER HEIGHTS'",
+      "storyRole": "The front door. The player meets the block here; the stranger's bench is next to it.", "collider": true },
+
+    { "id": "SUB-02", "name": "Alder Heights station (K) — south control house", "status": "planned", "class": "B", "face": "Kestrel S / Juniper", "block": null,
+      "sitsOn": "SW corner sidewalk (z −8..−4.5 zone) — NYC control houses legally occupy sidewalk corners",
+      "footprint": { "x": -57, "z": -6.25, "w": 6, "d": 3.5 }, "height": 3.4, "floors": 0,
+      "style": "NYC control house: cream metal-and-glass pavilion ON the SW corner sidewalk (real type: sidewalk control house), green globes",
+      "exterior": "Sits in the corner sidewalk zone z −8..−4.5 (control houses legally occupy sidewalk corners); keeps 1.2 m clear of TEN-01's face.",
+      "entrance": [{ "x": -57, "z": -4.5, "faces": "N", "type": "subway stair into control house" }],
+      "interior": "Same mezzanine as SUB-01 (one station, two entrances — the NYC law).",
+      "storyRole": "The downtown door; balances the plaza across the street (LMK-01 twin).", "collider": true },
+
+    { "id": "VND-01", "name": "DIRTY WATER DOGS cart", "status": "existing", "class": "C", "face": "Kestrel S curb", "block": null,
+      "footprint": { "x": 29.8, "z": -4.55, "w": 1.7, "d": 0.9 }, "height": 2.2, "floors": 0,
+      "exterior": "Amber umbrella, gold sign; 2.55 m lateral clearance to the cab rail.", "entrance": [], "interior": null,
+      "storyRole": "The $2 dog.", "collider": true },
+
+    { "id": "VND-02", "name": "Fruit stand (Sycamore)", "status": "planned", "class": "C", "face": "Sycamore W walk", "block": null,
+      "sitsOn": "avenue sidewalk (street vendor)",
+      "footprint": { "x": 62.5, "z": -18, "w": 2.2, "d": 1.2 }, "height": 2.2, "floors": 0,
+      "exterior": "Crate stack + tarp canopy (GDD object canon #7); GOLDEN ORCHARD PRODUCE CO. is the block's existing produce brand — this is their avenue stand (brand continuity with the van).",
+      "entrance": [], "interior": null, "storyRole": "Avenue life; van brand continuity.", "collider": true },
+
+    { "id": "VDN-DW1a", "name": "Juniper backdrop W (Kestrel–Gable)", "status": "planned", "class": "D", "face": "Juniper W", "block": null,
+      "footprint": { "x": -78, "z": 20, "w": 8, "d": 24 }, "height": 16, "floors": 5,
+      "exterior": "Simplified masses (3 slabs h 14–19) lining the avenue between Kestrel and Gable; storefront hint band; NO interiors.", "entrance": [], "interior": null, "collider": true },
+    { "id": "VDN-DW1b", "name": "Juniper backdrop W (N of Gable)", "status": "planned", "class": "D", "face": "Juniper W", "block": null,
+      "footprint": { "x": -78, "z": 53.5, "w": 8, "d": 15 }, "height": 15, "floors": 4,
+      "exterior": "Continuation north; skyline card SKY-W closes the view.", "entrance": [], "interior": null, "collider": true },
+    { "id": "VDN-DW1c", "name": "Juniper backdrop W (Kestrel–Marlow)", "status": "planned", "class": "D", "face": "Juniper W", "block": null,
+      "footprint": { "x": -78, "z": -20, "w": 8, "d": 24 }, "height": 17, "floors": 5,
+      "exterior": "South segment; includes one tall slab h 21 (the avenue's own skyline note).", "entrance": [], "interior": null, "collider": true },
+    { "id": "VDN-DW1d", "name": "Juniper backdrop W (S of Marlow)", "status": "planned", "class": "D", "face": "Juniper W", "block": null,
+      "footprint": { "x": -78, "z": -53.5, "w": 8, "d": 15 }, "height": 14, "floors": 4,
+      "exterior": "Continuation south; card SKY-S visible past it.", "entrance": [], "interior": null, "collider": true },
+    { "id": "VDN-DE1a", "name": "Sycamore backdrop E (Kestrel–Gable)", "status": "planned", "class": "D", "face": "Sycamore E", "block": null,
+      "footprint": { "x": 80, "z": 20, "w": 8, "d": 24 }, "height": 17, "floors": 5,
+      "exterior": "Mirror of DW1a.", "entrance": [], "interior": null, "collider": true },
+    { "id": "VDN-DE1b", "name": "Sycamore backdrop E (N of Gable)", "status": "planned", "class": "D", "face": "Sycamore E", "block": null,
+      "footprint": { "x": 80, "z": 53.5, "w": 8, "d": 15 }, "height": 15, "floors": 4,
+      "exterior": "North continuation.", "entrance": [], "interior": null, "collider": true },
+    { "id": "VDN-DE1c", "name": "Sycamore backdrop E (Kestrel–Marlow)", "status": "planned", "class": "D", "face": "Sycamore E", "block": null,
+      "footprint": { "x": 80, "z": -20, "w": 8, "d": 24 }, "height": 22, "floors": 7,
+      "exterior": "South segment with the avenue's tall exception slab (h 22) — the Sycamore skyline note.", "entrance": [], "interior": null, "collider": true },
+    { "id": "VDN-DE1d", "name": "Sycamore backdrop E (S of Marlow)", "status": "planned", "class": "D", "face": "Sycamore E", "block": null,
+      "footprint": { "x": 80, "z": -53.5, "w": 8, "d": 15 }, "height": 14, "floors": 4,
+      "exterior": "South continuation.", "entrance": [], "interior": null, "collider": true },
+    { "id": "VDN-DN1", "name": "Gable backdrop row N", "status": "planned", "class": "D", "face": "Gable N", "block": null,
+      "footprint": { "x": 0, "z": 53.5, "w": 120, "d": 10 }, "height": 13, "floors": 4,
+      "exterior": "Rowhouse roofline silhouette strip (varied 11–15) between the avenues; skyline card SKY-N behind at z 90 (existing).", "entrance": [], "interior": null, "collider": true },
+    { "id": "VDN-DS1", "name": "Marlow backdrop row S", "status": "planned", "class": "D", "face": "Marlow S", "block": null,
+      "footprint": { "x": 0, "z": -53.5, "w": 120, "d": 10 }, "height": 14, "floors": 4,
+      "exterior": "Mirror strip; SKY-S card behind.", "entrance": [], "interior": null, "collider": true }
+  ],
+
+  "parks": [
+    { "id": "PRK-CORNER", "name": "Corner Park", "status": "existing", "bbox": { "xMin": 30.6, "xMax": 47.5, "zMin": -8, "zMax": -4.3 },
+      "elements": "iron fence + gate (x 30.6), lawn, gravel path (31.9, −6), street bench (41.5, −5.05, sittable), quiet bench (33.7, −7.15), Parks sign (31.5, −4.55), trash can (36.8, −7.4), planter (45, −7.4), kept hydrant (34, −4.75), kept tree (38, −7)",
+      "identity": "the pocket park — pigeons, bench gossip pairs, the dog corner",
+      "npcZones": ["NZ-DOG", "NZ-GOSSIP-E"] },
+    { "id": "PRK-GREEN", "name": "Kestrel Green", "status": "planned", "bbox": { "xMin": 6, "xMax": 31, "zMin": 20, "zMax": 31 },
+      "layout": { "lawn": { "xMin": 6, "xMax": 31, "zMin": 20, "zMax": 31 },
+        "gravelPath": { "from": [8, 24], "to": [29, 24], "width": 1.4 },
+        "gates": [{ "x": 32.1, "z": 14.5, "type": "alley gate (extends ALY-01 north)" }, { "x": 18, "z": 31, "type": "Gable St gate" }],
+        "benches": [{ "x": 12, "z": 22.5, "faces": "path" }, { "x": 24, "z": 25.5, "faces": "lawn" }, { "x": 18, "z": 21.5, "faces": "south" }],
+        "trees": [[10, 28.5], [16, 29], [23, 28.8], [28.5, 27]],
+        "pergola": { "x": 19.5, "z": 27.5, "w": 4.5, "d": 3, "h": 2.6 },
+        "lights": [[9, 23], [20, 21], [29, 23]],
+        "bins": [[11, 25.2], [27.5, 22]] },
+      "identity": "the reading park — benches, pergola shade, lawn lunches; entered through the alley (a real shortcut Kestrel→Gable)",
+      "npcZones": ["NZ-GOSSIP-G", "NZ-READERS"] },
+    { "id": "GRD-GABLE", "name": "The Gable Garden", "status": "planned", "bbox": { "xMin": -10, "xMax": 4, "zMin": 20, "zMax": 30 },
+      "layout": { "beds": [[-8, 23], [-4, 23], [-8, 27], [-4, 27]], "shed": { "x": 2, "z": 28.5, "w": 2, "d": 2.4, "h": 2.3 },
+        "gate": { "x": -3, "z": 20, "faces": "Kestrel-block interior via a 2.5 m slot between KTN-03 and KTN-02's rear (planned cut, phase W2)" },
+        "benches": [[1, 22.5]], "compost": [-8.5, 29], "waterBarrel": [-6.8, 29.2] },
+      "identity": "the growing park — beds the block tends; 'where the kitchens never end' (Map's first note) made literal",
+      "npcZones": ["NZ-GARDEN"] },
+    { "id": "PLY-MARLOW", "name": "Marlow Playground", "status": "planned", "bbox": { "xMin": -12, "xMax": -2, "zMin": -31, "zMax": -21 },
+      "layout": { "gate": { "x": -7, "z": -21, "faces": "Marlow N sidewalk" },
+        "swings": { "x": -10, "z": -28.5, "bays": 3 }, "sandbox": { "x": -4.5, "z": -27.5, "w": 4, "d": 3 },
+        "sprayBasin": { "x": -7, "z": -24.5, "r": 1.6, "note": "the hydrant-summer spot (GDD §5.5) — dry in October" },
+        "benches": [[-3, -22.5], [-11, -22.5]], "fence": "iron, 1.1 m, kid-height rails", "trees": [[-2.8, -29.5], [-11.2, -24]] },
+      "identity": "the loud park — swings, sandbox, caregivers on the benches; visible from Marlow for eyes-on safety (real playground law)",
+      "npcZones": ["NZ-PLAYGROUND"] },
+    { "id": "PRK-PLAZA", "name": "The Subway Plaza", "status": "existing", "bbox": { "xMin": -47.5, "xMax": -36.5, "zMin": 4, "zMax": 8 },
+      "elements": "plaza decks, subway entrance, bulletin board, bench, newsboxes, planter, two park trees (−45, 4.7)/(−38.6, 4.5), pigeon flock roost",
+      "identity": "the gathering point — where the block says hello (the stranger, the familiar face, the flocks)", "npcZones": ["NZ-PLAZA"] }
+  ],
+
+  "landmarks": [
+    { "id": "LMK-01", "name": "The K-Globes", "anchor": "SUB-01 + SUB-02", "reason": "twin green-globe subway entrances one block apart — the neighbourhood's front doors; every navigation conversation starts 'by the globe'" },
+    { "id": "LMK-02", "name": "Rosa's Rooftop Billboard", "anchor": "ROS-01", "reason": "the name over the block; readable from any chase-cam frame (existing)" },
+    { "id": "LMK-03", "name": "The Three Towers", "anchor": "water towers (−30 N), (−14 S), (31 N)", "reason": "the October silhouette line; phase W1 adds 2 more on new corner buildings so every district frame carries a tank (Doc 04 object canon #3)" },
+    { "id": "LMK-04", "name": "The Diner Sign", "anchor": "SND-01 corner", "reason": "coral neon on the Sycamore corner; the east landmark you navigate home by" },
+    { "id": "LMK-05", "name": "The Garden Mural", "anchor": "KTS-03 east gable (x 50 plane, faces Sycamore)", "reason": "a neighbourhood-scale painting (phase W3, authored canvas texture in the sign factory); Lena & Odd arc hook" },
+    { "id": "LMK-06", "name": "The Ghost Sign", "anchor": "KTS-02 west gable (x 0 plane)", "reason": "faded painted ad 'HOLLIS & DAUGHTERS — FINE TEAS EST. 1911' — environmental storytelling the camera finds at dusk" },
+    { "id": "LMK-07", "name": "Alder Works Marquee", "anchor": "KCM-01 Juniper face", "reason": "the hall's notice marquee doubles as the neighbourhood's message board (day-keyed dressing)" }
+  ],
+
+  "transit": {
+    "subway": { "line": "K", "bulletColor": "#F7B32B (Taxi Yellow — Doc 04)", "station": "Alder Heights", "under": "Juniper Avenue",
+      "entrances": ["SUB-01 (existing N plaza)", "SUB-02 (planned S control house)"],
+      "canon": "Priya's line (GDD §4.3 Subway University). Fictional letter K chosen from unused-in-service letters; K is retired/planned-real history, safe for fiction." },
+    "bus": { "route": "M121", "loop": "terminal lay-over → Gable St → Sycamore Ave → Kestrel St → Juniper Ave → terminal",
+      "stops": [{ "id": "BUS-01", "name": "Kestrel/West (existing stop)", "x": -24.5, "z": 7.35, "status": "existing" },
+                { "id": "BUS-02", "name": "Terminal", "x": -30, "z": 4.9, "status": "planned (curb bay)" },
+                { "id": "BUS-03", "name": "Sycamore/Diner", "x": 61.5, "z": 2, "status": "planned" }],
+      "schedule": "off-camera between player-visible arrivals; day-keyed, deterministic (existing law)" },
+    "taxi": { "rail": "existing: lane z = −2, x −46..46, eastbound, yield rules unchanged", "phaseW4": "rail extends to ±84 through both intersections; crosswalk courtesy zones gain XW-COURT and the intersection legs" },
+    "parkedCars": [ { "id": "CAR-SEDAN", "x": 24, "z": 3.05, "status": "existing" }, { "id": "CAR-VAN", "x": -14, "z": 3.05, "status": "existing" },
+      { "planned": "2 cars Kestrel N curb east end (x 44/−44), 3 cars avenue curbs, per phase W1/W4; every parked car gets a 4.4×1.95 collider at z ±3.05 outside the moving lanes" } ]
+  },
+
+  "npcZones": [
+    { "id": "NZ-PLAZA", "place": "Subway Plaza", "who": "morning commuters threading to the stair; the stranger (Day 4); the familiar face at her bench", "when": "rush band", "status": "existing/partial" },
+    { "id": "NZ-CART", "place": "The cart corner (4, −6.6)", "who": "the rush line, Idris, the kid at the stool", "when": "rush + lunch", "status": "existing" },
+    { "id": "NZ-DOG", "place": "Corner Park gate", "who": "dog walkers pausing at the gate; pigeons scatter-recover", "when": "midday", "status": "planned" },
+    { "id": "NZ-GOSSIP-E", "place": "Corner Park street bench", "who": "the existing two-person bench conversation extends here (Phase 4 system)", "when": "dusk", "status": "existing" },
+    { "id": "NZ-GOSSIP-G", "place": "Kestrel Green pergola", "who": "two neighbours; the round-robin dwell system reused", "when": "midday", "status": "planned" },
+    { "id": "NZ-READERS", "place": "Kestrel Green benches", "who": "one reader, one lunch; crumb spots for pigeons (Doc 33 §2.1)", "when": "midday", "status": "planned" },
+    { "id": "NZ-GARDEN", "place": "Gable Garden", "who": "one tender watering on a day-keyed rota", "when": "morning", "status": "planned" },
+    { "id": "NZ-STOOPS", "place": "Gable Row stoops", "who": "stoop sitters (1–2), the brownstone wave", "when": "dusk", "status": "planned" },
+    { "id": "NZ-PLAYGROUND", "place": "Marlow Playground", "who": "caregivers on the benches, kids in the sandbox (ambient-scale figures)", "when": "afternoon", "status": "planned" },
+    { "id": "NZ-COURT", "place": "The half-court", "who": "existing shoot-around; occasional pickup pair at dusk", "when": "dusk", "status": "existing/partial" },
+    { "id": "NZ-AVENUE", "place": "Sycamore Avenue walks", "who": "window shoppers past the diner and the fruit stand", "when": "midday", "status": "planned" },
+    { "id": "NZ-TERMINAL", "place": "Terminal door / curb bay", "who": "arrivals with duffels (the player's Day-1 mirror, endlessly)", "when": "morning", "status": "planned" },
+    { "id": "NZ-BUSKER", "place": "SUB-02 corner", "who": "the horn note from below (Doc 33 §2.5) + a busker body phase W4", "when": "dusk, rare", "status": "proposed" }
+  ],
+
+  "routes": {
+    "pedestrian": [
+      { "id": "R-KESTREL-N", "way": "north sidewalk z 6.1–6.9, x −84..84 (existing lanes 6.15/6.85 extend east/west)" },
+      { "id": "R-KESTREL-S", "way": "south sidewalk z −6.85..−6.15, x −84..84" },
+      { "id": "R-CROSS-CANON", "way": "the x = −5 crosswalk + the x = 9.4 street crossing (both existing, both load-bearing for the E2E)" },
+      { "id": "R-ALLEY", "way": "Kestrel N walk → ALY-01 (existing 2.8 m slot) → phase-W2 lane x 32.1, z 10.6..20 → Kestrel Green → Gable St gate — a real pedestrian shortcut" },
+      { "id": "R-GARDEN", "way": "interior slot between KTN-02/KTN-03 rears (x −3, z 8..20) → Gable Garden gate" },
+      { "id": "R-AVENUES", "way": "Juniper and Sycamore sidewalk spines x −82.5/−61.5 and 61.5/82.5, both sides" },
+      { "id": "R-GABLE-MARLOW", "way": "Gable and Marlow sidewalk spines both sides, z 33.5/46.5 and −33.5/−46.5" }
+    ],
+    "vehicle": [
+      { "id": "V-CAB", "way": "Kestrel south lane z = −2 eastbound, x −46..46 (existing; extends to ±84 phase W4)" },
+      { "id": "V-JUNIPER", "way": "Juniper: southbound rail x = −74, phase W4" },
+      { "id": "V-SYCAMORE", "way": "Sycamore: northbound rail x = +70, phase W4 (the busier avenue earns its motion)" },
+      { "id": "V-BUS", "way": "M121 loop per transit.bus; bus is a rail mover like the cab with a longer body and the same yield brain" }
+    ]
+  },
+
+  "interiors": [
+    { "id": "BODEGA-INT", "building": "ROS-01", "status": "existing (formalized)", "shell": { "xMin": -20.6, "xMax": -11.4, "zMin": 8.4, "zMax": 19.6, "clearH": 4.1 },
+      "plan": [
+        { "item": "entrance", "x": -16, "z": 8.4, "w": 3, "d": 0.6 },
+        { "item": "counter (L-shape, west wall)", "x": -19.6, "z": 13.5, "w": 1.2, "d": 6 },
+        { "item": "shopkeeper mark (Rosa)", "x": -19.2, "z": 13.5 },
+        { "item": "griddle/urn", "x": -19.4, "z": 16.2 },
+        { "item": "back shelf wall", "x": -16, "z": 19.3, "w": 6, "d": 0.6 },
+        { "item": "shelf gondolas (4)", "x": [-18.6, -16.8, -15, -13.2], "z": 17.2, "w": 1.4, "d": 0.5 },
+        { "item": "fridge wall (E)", "x": -11.8, "z": 12, "w": 0.6, "d": 5 },
+        { "item": "produce crates (window)", "x": -13.4, "z": 9.4, "w": 2.2, "d": 1 },
+        { "item": "cat spot (sack by the urn)", "x": -18.9, "z": 16.2 },
+        { "item": "customer aisle", "x": -16.4, "z": 11.5, "w": 3.2, "d": 5.4, "type": "clear zone" } ] },
+    { "id": "LAUNDRY-INT", "building": "KTN-02", "status": "planned (bay exists)", "shell": { "xMin": -11, "xMax": 1, "zMin": 8.2, "zMax": 19, "clearH": 3.2 },
+      "plan": [
+        { "item": "entrance (open bay)", "x": -5, "z": 8.2, "w": 5.85, "d": 0.6 },
+        { "item": "washers (6, W wall)", "x": -10.1, "z": [9.5, 11.2, 12.9, 14.6, 16.3, 18], "w": 0.95, "d": 0.75 },
+        { "item": "dryers (4, E wall)", "x": 0.1, "z": [10.5, 12.2, 13.9, 15.6], "w": 0.95, "d": 0.75 },
+        { "item": "folding tables (2)", "x": -5, "z": 12.5, "w": 2.4, "d": 0.9 },
+        { "item": "Sal's counter", "x": -7.9, "z": 9.2, "w": 1.5, "d": 0.4 },
+        { "item": "seating (2 chairs + cart)", "x": -2.5, "z": 9.5 },
+        { "item": "back room (shelf + carts)", "x": -5, "z": 18.2, "w": 4, "d": 1.4 },
+        { "item": "circulation", "x": -5, "z": 14.5, "w": 4.2, "d": 3, "type": "clear zone" } ] },
+    { "id": "BARBER-INT", "building": "KTN-05", "status": "planned", "shell": { "xMin": 34.2, "xMax": 39, "zMin": 8.2, "zMax": 19.6, "clearH": 3.4 },
+      "plan": [
+        { "item": "entrance", "x": 36.6, "z": 8.2, "w": 1.2, "d": 0.5 },
+        { "item": "barber chairs (2, facing E mirrors)", "x": 35.9, "z": [11, 13.6] },
+        { "item": "mirror wall + counters (E)", "x": 38.6, "z": 12.3, "w": 0.5, "d": 5.2 },
+        { "item": "waiting bench (W wall)", "x": 34.7, "z": 12.3, "w": 0.5, "d": 2 },
+        { "item": "powder room (NE)", "x": 38.2, "z": 18.6, "w": 1.6, "d": 2 },
+        { "item": "pole window", "x": 33.85, "z": 8.2 } ] },
+    { "id": "PIZZA-INT", "building": "KTN-04", "status": "planned", "shell": { "xMin": 24.1, "xMax": 29.9, "zMin": 8.2, "zMax": 19.6, "clearH": 3.4 },
+      "plan": [
+        { "item": "slice counter (S window)", "x": 27, "z": 9, "w": 4.6, "d": 0.7 },
+        { "item": "deck oven (NE)", "x": 28.8, "z": 17.8, "w": 1.8, "d": 2.2 },
+        { "item": "booths (2, W wall)", "x": 25.2, "z": [12.5, 15.5], "w": 1.6, "d": 2 },
+        { "item": "fridge/drink wall (E)", "x": 29.5, "z": 13.5, "w": 0.5, "d": 3 } ] },
+    { "id": "CECIL-ROOM", "building": "KTS-02", "status": "planned", "shell": { "xMin": 10.2, "xMax": 15.8, "zMin": -19.2, "zMax": -14.2, "level": "y 8.35 (top landing level)", "clearH": 2.9 },
+      "plan": [
+        { "item": "fire-escape door (N wall)", "x": 13, "z": -14.4, "w": 0.9, "d": 0.2 },
+        { "item": "bed (SW corner)", "x": 11.4, "z": -18.2, "w": 2, "d": 1.4 },
+        { "item": "kitchenette (E wall)", "x": 15.3, "z": -16.2, "w": 0.6, "d": 2 },
+        { "item": "bath (NE, 1.6×2)", "x": 14.9, "z": -18.2, "w": 1.6, "d": 2 },
+        { "item": "window (S, street view + gold window sight-line)", "x": 13, "z": -19.2 },
+        { "item": "roof hatch (reserved, stage-5 rooftop)", "x": 12.2, "z": -15.2, "w": 0.9, "d": 0.9 },
+        { "item": "the Map's corkboard", "x": 11.2, "z": -14.6 } ] },
+    { "id": "DINER-INT", "building": "SND-01", "status": "planned", "shell": { "xMin": 50.2, "xMax": 59.8, "zMin": -19.8, "zMax": -8.2, "clearH": 3.6 },
+      "plan": [
+        { "item": "corner entrance (chamfer, NE)", "x": 58.5, "z": -9.5 },
+        { "item": "counter bar (E wall, 8 stools)", "x": 58.9, "z": -14.5, "w": 0.7, "d": 8 },
+        { "item": "kitchen line (behind counter)", "x": 57.6, "z": -14.5, "w": 1.6, "d": 8 },
+        { "item": "booths (4, W wall)", "x": 51.6, "z": [-11.5, -14, -16.5, -18.5], "w": 2.4, "d": 1.8 },
+        { "item": "register + pie case (S end)", "x": 57, "z": -18.9, "w": 1.8, "d": 0.6 },
+        { "item": "circulation", "x": 55, "z": -14, "w": 3.4, "d": 8, "type": "clear zone" } ] },
+    { "id": "HALL-INT", "building": "KCM-01", "status": "planned", "shell": { "xMin": -59.8, "xMax": -48.2, "zMin": 20.2, "zMax": 31.8, "clearH": 3.8 },
+      "plan": [
+        { "item": "main entrance (Juniper, W face)", "x": -60, "z": 26, "w": 1.6, "d": 0.4 },
+        { "item": "main hall (folding chairs, open floor)", "x": -55, "z": 24, "w": 7, "d": 7, "type": "clear zone" },
+        { "item": "workshop room (N half)", "x": -54, "z": 29.8, "w": 6, "d": 3.4 },
+        { "item": "kitchenette (NE corner)", "x": -49.4, "z": 30.6, "w": 2.4, "d": 1.6 },
+        { "item": "notice wall (S, faces entrance)", "x": -55, "z": 20.4, "w": 6, "d": 0.3 },
+        { "item": "Gable secondary door", "x": -54, "z": 31.8, "w": 1, "d": 0.3 } ] },
+    { "id": "BAKERY-INT", "building": "SMB-01", "status": "planned", "shell": { "xMin": -37.8, "xMax": -30.2, "zMin": -31.8, "zMax": -20.2, "clearH": 3.2 },
+      "plan": [
+        { "item": "entrance", "x": -34, "z": -20.2, "w": 1.2, "d": 0.4 },
+        { "item": "service counter + case", "x": -34, "z": -21.6, "w": 5.4, "d": 0.8 },
+        { "item": "deck oven + racks (rear)", "x": -34, "z": -30, "w": 4.4, "d": 2.4 },
+        { "item": "two-top tables (2)", "x": [-36.2, -31.8], "z": -24.6 } ] },
+    { "id": "RECORD-INT", "building": "SMB-02", "status": "planned", "shell": { "xMin": -27.8, "xMax": -22.2, "zMin": -31.8, "zMax": -20.2, "clearH": 3.2 },
+      "plan": [
+        { "item": "entrance", "x": -25, "z": -20.2, "w": 1, "d": 0.4 },
+        { "item": "crate rows (3)", "x": -25, "z": [-23.5, -25.5, -27.5], "w": 4.4, "d": 0.6 },
+        { "item": "listening corner + player", "x": -26.4, "z": -30.4, "w": 2, "d": 1.8 },
+        { "item": "counter", "x": -23.4, "z": -30.6, "w": 1.6, "d": 0.7 } ] },
+    { "id": "MEZZ-INT", "building": "SUB-01/SUB-02", "status": "planned (optional slice)",
+      "shell": { "xMin": -48, "xMax": -36, "zMin": 9, "zMax": 19, "level": "below grade y −3.2, reached by the existing stair footprint ( SUB-01 stair at (−42, 6.2) )", "clearH": 3, "belowGrade": true },
+      "plan": [
+        { "item": "turnstile bank (4)", "x": -42, "z": 12, "w": 5, "d": 0.5 },
+        { "item": "booth", "x": -45, "z": 14.5, "w": 2, "d": 1.6 },
+        { "item": "tile name band", "x": -42, "z": 16, "w": 10, "d": 0.1, "note": "'ALDER HEIGHTS' in mosaics — the GDD's subway-tile canon" } ] }
+  ],
+
+  "furnitureStandards": {
+    "streetTrees": { "spacing": "10–14 m in granite-rimmed pits (existing pit builder), never in front of a door, canopy clear of lamp heads by ≥ 3 m (existing law)",
+      "rows": { "KestrelN": "z 7.48 (existing x −34,−22,−1.2,20,32 + phase-W1 fill x −58,−46,44,56)", "KestrelS": "z −7.0 (existing x −44,−30,−16,28,38 + fill 8, 48, −56)",
+        "Avenues": "z-side rows 12 m spacing both sides (plane trees, the avenue species)", "Gable/Marlow": "residential rows z 32.6/47.4 and −32.6/−47.4, honey locust" } },
+    "lamps": { "law": "alternate sides ~40 m; heads clear of canopies ≥ 3 m (existing)",
+      "existing": [[-31, 7.42], [8, 7.42], [-19.5, -7.35], [31.5, -7.35]] },
+    "binsAndHydrants": "hydrants at curbs ~every 50 m (existing (5.7, −4.55) + (34, −4.75)); cans paired with recycle bins at corners",
+    "signs": "all signage through the existing canvas sign factory (signMaterials) — no new text pipeline"
+  },
+
+  "performance": {
+    "measuredBaseline": { "commit": "1ea39c2", "sceneDrawCalls": 402, "sceneTriangles": 20100, "note": "probe-van census, one block, SwiftShader" },
+    "doc07Budget": "< 150 draw calls typical street scene, < 120k tris (vertical-slice device targets)",
+    "strategy": [
+      "W0 (prerequisite): extend bakeStatics to merge per district-tile; audit material count (every registry color must reuse PAL or an existing scene signature — the van pass's law)",
+      "District visibility: the player's block + both adjacent street faces render full detail; far avenue faces drop to their bake tile only; Class-D backdrop rows are single merged slabs",
+      "Skyline cards (existing trick) close every sight line beyond the core",
+      "Target after W0 + culling: ≤ 150 visible calls on Kestrel, ≤ 250 at an intersection; measured per phase and reported honestly (no device claims without a device)"
+    ]
+  },
+
+  "constructionPhases": [
+    { "id": "W0", "name": "Bake & culling prerequisite", "unlocks": "all", "budget": "no new content; measured call reduction" },
+    { "id": "W1", "name": "Streets + avenues skeleton + Marlow S-face row", "content": "extend Kestrel slabs ±84, lay Juniper/Sycamore/Gable/Marlow roads+walks+curbs+crosswalks, SUB-02 control house, SMB-01..03, PWK-01..03, corner infills KTN-00W/KTN-06 (shells), trees/lamps", "unlocks": "the grid is walkable" },
+    { "id": "W2", "name": "Gable Row + interior parks + alley extension", "content": "GRB-01..05, Kestrel Green, Gable Garden, alley lane R-ALLEY, garden slot R-GARDEN, parking strips", "unlocks": "the residential street + shortcuts" },
+    { "id": "W3", "name": "Avenue walls + landmarks", "content": "TEN-01, SRC-01..03, KTN-07, KCM-01 shell, SND-01 shell, VDN-D* backdrop rows, mural LMK-05, ghost sign LMK-06, marquee LMK-07, VND-02", "unlocks": "the avenues are places" },
+    { "id": "W4", "name": "Life + traffic", "content": "npcZones wiring on the existing Yuka/dwell systems, avenue rails + bus M121, parked cars, extended cab rail, busker", "unlocks": "the neighbourhood is inhabited" },
+    { "id": "W5", "name": "Interiors batch", "content": "LAUNDRY-INT, BARBER-INT, PIZZA-INT, DINER-INT, HALL-INT, BAKERY-INT, RECORD-INT, CECIL-ROOM, MEZZ-INT (optional), CORNERHOUSE-INT (optional)", "unlocks": "Class-A/B promises kept" }
+  ],
+
+  "openDecisions": [
+    "Street/neighbourhood names are NEW CANON pending lead approval (neighbourhood.canon note) — signage is the point of no return (phase W1).",
+    "Whether the pizza interior (PIZZA-INT) ships in W5 or stays a dressed bay is a scope call for the lead.",
+    "Bus M121 body: reuse the existing car-builder family scaled up, or a dedicated low-poly bus — W4 decision.",
+    "MEZZ-INT and CORNERHOUSE-INT are optional slices; confirm before W5 scheduling."
+  ]
+}
