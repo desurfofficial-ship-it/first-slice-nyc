@@ -362,28 +362,51 @@ export function makeACUnit(bank: MatBank): THREE.Mesh {
   return m;
 }
 
-/** A brownstone entrance: stoop steps, low railings, a door with a cornice. */
-export function makeBrownstoneStoop(bank: MatBank, doorColor: number): THREE.Group {
+/** A brownstone entrance: stoop steps, low railings, a door with a cornice.
+ *  `tall` is the GRB row's high stoop (docs/40 §4): six risers + landing —
+ *  each riser still inside the walker's 0.35 step tolerance, so the door
+ *  stays climbable; the stoop just owns 2.4 m of sidewalk like the real
+ *  rows do. */
+export function makeBrownstoneStoop(bank: MatBank, doorColor: number, tall = false): THREE.Group {
   const stone = bank.get(0xc9b8a6);
   const iron = bank.get(PAL_INK);
   const g = new THREE.Group();
-  // three risers up to the door (all inside the walker's 0.35 step tolerance)
-  g.add(unitBox(stone, 1.7, 0.11, 0.5, 0, 0.055, 0.75));
-  g.add(unitBox(stone, 1.7, 0.2, 0.5, 0, 0.1, 0.25));
-  g.add(unitBox(stone, 1.7, 0.3, 0.55, 0, 0.15, -0.3));
+  if (!tall) {
+    // three risers up to the door (all inside the walker's 0.35 step tolerance)
+    g.add(unitBox(stone, 1.7, 0.11, 0.5, 0, 0.055, 0.75));
+    g.add(unitBox(stone, 1.7, 0.2, 0.5, 0, 0.1, 0.25));
+    g.add(unitBox(stone, 1.7, 0.3, 0.55, 0, 0.15, -0.3));
+  } else {
+    // six risers + landing: landing top y 0.72, then 0.12-per-riser steps
+    // descending toward the street (run 0.24 each — real brownstone pitch)
+    g.add(unitBox(stone, 1.7, 0.72, 0.9, 0, 0.36, -0.35)); // the landing
+    for (let i = 0; i < 6; i++) {
+      const h = 0.72 - i * 0.12;
+      g.add(unitBox(stone, 1.7, h, 0.24, 0, h / 2, 0.22 + i * 0.24));
+    }
+  }
   // low iron railings
   for (const sx of [-0.82, 0.82]) {
     const rail = new THREE.Group();
-    rail.add(unitBox(iron, 0.05, 0.85, 0.05, 0, 0.42, 1.0));
-    rail.add(unitBox(iron, 0.05, 1.0, 0.05, 0, 0.5, -0.3));
-    rail.add(unitBox(iron, 0.05, 0.05, 1.35, 0, 0.85, 0.35));
+    if (tall) {
+      // a newel at the landing + the rake following the stairs down
+      rail.add(unitBox(iron, 0.05, 1.7, 0.05, 0, 0.85, -0.8));
+      for (let i = 0; i < 4; i++) {
+        rail.add(unitBox(iron, 0.05, 0.05, 0.36, 0, 0.88 - i * 0.16, 0.3 + i * 0.36));
+      }
+    } else {
+      rail.add(unitBox(iron, 0.05, 0.85, 0.05, 0, 0.42, 1.0));
+      rail.add(unitBox(iron, 0.05, 1.0, 0.05, 0, 0.5, -0.3));
+      rail.add(unitBox(iron, 0.05, 0.05, 1.35, 0, 0.85, 0.35));
+    }
     rail.position.x = sx;
     g.add(rail);
   }
-  const door = unitBox(bank.get(doorColor), 1.05, 2.3, 0.1, 0, 1.45, -0.62);
+  const doorY = tall ? 0.72 : 0;
+  const door = unitBox(bank.get(doorColor), 1.05, 2.3, 0.1, 0, 1.45 + doorY, -0.62);
   g.add(door);
-  g.add(unitBox(stone, 1.3, 0.18, 0.16, 0, 2.72, -0.6)); // door cornice
-  g.add(unitBox(bank.get(0xd9c3a5), 0.18, 0.18, 0.06, 0.38, 1.5, -0.55)); // knob chip
+  g.add(unitBox(stone, 1.3, 0.18, 0.16, 0, 2.72 + doorY, -0.6)); // door cornice
+  g.add(unitBox(bank.get(0xd9c3a5), 0.18, 0.18, 0.06, 0.38, 1.5 + doorY, -0.55)); // knob chip
   g.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
   return g;
 }
@@ -606,20 +629,25 @@ export function makeHoop(bank: MatBank): THREE.Group {
   return g;
 }
 
-/** One run of the park's iron fence — two rails and pickets. Low, on
- *  purpose: NYC park fences are seat-height furniture, and the block reads
- *  them that way. */
-export function makeFence(bank: MatBank, len: number): THREE.Group {
+/** Iron fence — rails + pickets, `len` long along local X. `h` lifts the
+ *  whole fence (the playground's 1.1 m kid-height rails per the registry;
+ *  the shipped parks keep the 0.78 default). W2 perf call (docs/47): the
+ *  0.045 m pickets stop casting — their shadows are sub-pixel noise and
+ *  they were the single biggest tri cost on the new fences; the RAILS
+ *  still cast, so the fence line still reads on the ground. */
+export function makeFence(bank: MatBank, len: number, h = 0.78): THREE.Group {
   const g = new THREE.Group();
   const iron = bank.get(PAL_INK);
-  g.add(unitBox(iron, len, 0.05, 0.05, 0, 0.72, 0));
-  g.add(unitBox(iron, len, 0.05, 0.05, 0, 0.4, 0));
+  const s = h / 0.78;
+  const railA = unitBox(iron, len, 0.05, 0.05, 0, 0.72 * s, 0);
+  const railB = unitBox(iron, len, 0.05, 0.05, 0, 0.4 * s, 0);
+  railA.castShadow = railB.castShadow = true;
+  g.add(railA, railB);
   const n = Math.max(2, Math.round(len / 0.22));
   for (let i = 0; i <= n; i++) {
     const x = -len / 2 + (len / n) * i;
-    g.add(unitBox(iron, 0.045, 0.78, 0.045, x, 0.39, 0));
+    g.add(unitBox(iron, 0.045, h, 0.045, x, h / 2, 0));
   }
-  g.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
   return g;
 }
 
@@ -719,5 +747,183 @@ export function makeControlHouse(bank: MatBank, sign: SignPairFactory): THREE.Gr
   const board = makeSignBoard(1.9, 0.5, 0.08, sign('SUBWAY', 320, 80, PAL_TEAL, PAL_CREAM, 48));
   board.position.set(0, 2.55, -1.82);
   g.add(board);
+  return g;
+}
+
+// ================================================================
+// W2 — Kestrel Green, the Gable Garden, the Marlow playground
+// (docs/45 §2: "new small builder, one file, banked materials". Every
+// color here is an existing scene signature — the W0 material law.)
+// ================================================================
+
+/** Kestrel Green's pergola — four posts, two beams, five open slats.
+ *  The reading park's shade. The caller collides the posts; the roof is
+ *  air you sit under, not a room. */
+export function makePergola(bank: MatBank): THREE.Group {
+  const wood = bank.get(0x8a6a4a);
+  const g = new THREE.Group();
+  for (const sx of [-1.95, 1.95]) {
+    for (const sz of [-1.2, 1.2]) {
+      const post = unitBox(wood, 0.22, 2.6, 0.22, sx, 1.3, sz);
+      post.castShadow = true;
+      g.add(post);
+    }
+  }
+  for (const sz of [-1.2, 1.2]) {
+    g.add(unitBox(wood, 4.5, 0.18, 0.24, 0, 2.62, sz));
+  }
+  for (let i = 0; i < 5; i++) {
+    g.add(unitBox(wood, 4.3, 0.07, 0.3, 0, 2.78, -1.2 + i * 0.6));
+  }
+  g.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
+  // the slats stop casting AFTER the blanket pass — the beams carry the
+  // shade line; slat shadows are noise (W2 perf, docs/47)
+  for (const c of g.children) {
+    if (c instanceof THREE.Mesh && Math.abs(c.position.y - 2.78) < 0.01) c.castShadow = false;
+  }
+  return g;
+}
+
+/** A raised garden bed: timber frame, soil, two seedling blobs. The
+ *  Gable Garden's four — "where the kitchens never end" made literal. */
+export function makeGardenBed(bank: MatBank, rng: () => number): THREE.Group {
+  const wood = bank.get(0x6e554e);
+  const soil = bank.get(0x4a3a30);
+  const g = new THREE.Group();
+  g.add(unitBox(wood, 1.2, 0.5, 1.6, 0, 0.25, 0));
+  g.add(unitBox(soil, 1.04, 0.08, 1.44, 0, 0.52, 0));
+  const leafA = bank.get(0x5d7d4a);
+  const leafB = bank.get(0x516e42);
+  for (let i = 0; i < 2; i++) {
+    const r = 0.16 + rng() * 0.1;
+    const b = new THREE.Mesh(SHARED_GEOS.sphere, i === 1 ? leafB : leafA);
+    b.scale.setScalar(r);
+    b.position.set(-0.22 + i * 0.44, 0.62, (rng() - 0.5) * 0.9);
+    g.add(b);
+  }
+  return g;
+}
+
+/** The garden shed — vertical boards, a metal lean-to, a latched door.
+ *  Registry: 2 × 2.4, h 2.3, at the garden's quiet corner. */
+export function makeShed(bank: MatBank): THREE.Group {
+  const wood = bank.get(0x6e554e);
+  const g = new THREE.Group();
+  g.add(unitBox(wood, 2, 2.1, 2.4, 0, 1.05, 0));
+  const roof = unitBox(bank.get(0x8f8a82), 2.3, 0.08, 2.7, 0, 2.24, 0);
+  roof.rotation.x = 0.09;
+  roof.castShadow = true;
+  g.add(roof);
+  g.add(unitBox(bank.get(0x4a3a30), 0.8, 1.75, 0.06, 0, 0.92, 1.21)); // door
+  g.add(unitBox(bank.get(0xb9b1a6), 0.1, 0.1, 0.05, 0.28, 1.0, 1.25)); // latch
+  g.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
+  return g;
+}
+
+/** Compost bin — slatted timber sides, one honest pile working inside. */
+export function makeCompostBin(bank: MatBank): THREE.Group {
+  const wood = bank.get(0x6e554e);
+  const g = new THREE.Group();
+  g.add(unitBox(bank.get(0x4a3a30), 0.82, 0.42, 0.82, 0, 0.24, 0));
+  for (const sz of [-0.43, 0.43]) g.add(unitBox(wood, 0.9, 0.07, 0.07, 0, 0.5, sz));
+  for (const sx of [-0.43, 0.43]) g.add(unitBox(wood, 0.07, 0.56, 0.9, sx, 0.28, 0));
+  g.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
+  return g;
+}
+
+/** Rain barrel with a spigot — the garden waters from the sky. */
+export function makeWaterBarrel(bank: MatBank): THREE.Group {
+  const wood = bank.get(0x6e554e);
+  const g = new THREE.Group();
+  const body = unitCyl(wood, 0.42, 0.9, 0, 0.45, 0);
+  body.castShadow = true;
+  g.add(body);
+  for (const by of [0.2, 0.72]) g.add(unitCyl(bank.get(PAL_INK), 0.435, 0.06, 0, by, 0));
+  g.add(unitBox(bank.get(0xb9b1a6), 0.07, 0.07, 0.14, 0, 0.28, 0.44)); // spigot
+  return g;
+}
+
+/** A park gate: two posts, a header, and the wings pinned open — the way
+ *  every park gate actually stands on a warm evening. Caller collides
+ *  the posts; the wings read, the gap walks. */
+export function makeParkGate(bank: MatBank, w = 1.8): THREE.Group {
+  const iron = bank.get(PAL_INK);
+  const g = new THREE.Group();
+  for (const sx of [-w / 2 - 0.12, w / 2 + 0.12]) {
+    const post = unitBox(iron, 0.14, 2.0, 0.14, sx, 1.0, 0);
+    post.castShadow = true;
+    g.add(post);
+  }
+  g.add(unitBox(iron, w + 0.5, 0.07, 0.07, 0, 2.0, 0));
+  for (const sx of [-1, 1]) {
+    const wing = makeFence(bank, w / 2);
+    wing.position.set(sx * (w / 4), 0, 0);
+    wing.rotation.y = sx * 1.25; // pinned open against the fence line
+    wing.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = false; });
+    g.add(wing);
+  }
+  return g;
+}
+
+/** The playground's swing set — a 3-bay A-frame, chains and seats hanging
+ *  still until the life pass (W4) gives the block its kids. */
+export function makeSwingSet(bank: MatBank): THREE.Group {
+  const iron = bank.get(PAL_INK);
+  const wood = bank.get(0x8a6a4a);
+  const g = new THREE.Group();
+  for (const sz of [-1.2, 1.2]) {
+    for (const sx of [-1.1, 1.1]) {
+      const leg = unitBox(iron, 0.09, 2.35, 0.09, sx, 1.1, sz);
+      leg.rotation.z = sx > 0 ? -0.28 : 0.28;
+      leg.castShadow = true;
+      g.add(leg);
+    }
+  }
+  const bar = unitBox(iron, 2.6, 0.11, 0.11, 0, 2.2, 0);
+  bar.castShadow = true;
+  g.add(bar);
+  for (let i = 0; i < 3; i++) {
+    const bx = -0.8 + i * 0.8;
+    for (const ch of [-0.22, 0.22]) {
+      g.add(unitBox(iron, 0.035, 1.55, 0.035, bx + ch, 1.38, 0)); // chains: no cast (W2 perf)
+    }
+    g.add(unitBox(wood, 0.5, 0.06, 0.22, bx, 0.56, 0));
+  }
+  return g;
+}
+
+/** Sandbox — timber rim, sand inside. Enterable by design: only the rim
+ *  blocks (the W4 kids play in it, not on it). */
+export function makeSandbox(bank: MatBank): THREE.Group {
+  const wood = bank.get(0x8a6a4a);
+  const g = new THREE.Group();
+  g.add(unitBox(bank.get(0xd9c3a5), 4, 0.05, 3, 0, 0.17, 0)); // the sand
+  for (const sz of [-1.5, 1.5]) g.add(unitBox(wood, 4, 0.3, 0.14, 0, 0.15, sz));
+  for (const sx of [-2, 2]) g.add(unitBox(wood, 0.14, 0.3, 3, sx, 0.15, 0));
+  g.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
+  return g;
+}
+
+/** Spray basin — the hydrant-summer spot, dry in October. Stone ring,
+ *  concrete bowl, a center post waiting for July. (GDD §5.5.) */
+export function makeSprayBasin(bank: MatBank): THREE.Group {
+  const stone = bank.get(0x8f8a82);
+  const conc = bank.get(0xb9b1a6);
+  const g = new THREE.Group();
+  const ring = new THREE.Mesh(new THREE.CylinderGeometry(1.55, 1.55, 0.5, 14, 1, true), stone);
+  ring.position.y = 0.25;
+  g.add(ring);
+  const floor = new THREE.Mesh(new THREE.CylinderGeometry(1.47, 1.47, 0.06, 14), conc);
+  floor.position.y = 0.1;
+  floor.receiveShadow = true;
+  g.add(floor);
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 1.05, 10), stone);
+  post.position.y = 0.55;
+  post.castShadow = true;
+  g.add(post);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.14, 0.12, 10), conc);
+  cap.position.y = 1.12;
+  cap.castShadow = true;
+  g.add(cap);
   return g;
 }

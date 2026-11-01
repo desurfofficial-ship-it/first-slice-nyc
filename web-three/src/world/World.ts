@@ -18,7 +18,9 @@ import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecy
   makeSubwayEntrance, makeBulletinBoard, makeBench, makeBusStop, makeNewspaperBoxes, makeBarrier,
   makeACUnit, makeBrownstoneStoop, makeStorefront, makeStool, makeVan,
   makeBarberPole, makeHoop, makeFence, makeParksSign, makeVendorCart,
-  makeSignBoard, makeControlHouse, SHARED_GEOS, type SignPair } from './props';
+  makeSignBoard, makeControlHouse, makePergola, makeGardenBed, makeShed,
+  makeCompostBin, makeWaterBarrel, makeParkGate, makeSwingSet, makeSandbox,
+  makeSprayBasin, SHARED_GEOS, type SignPair } from './props';
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
@@ -757,7 +759,11 @@ export class World {
     // lamp 3 -18 -> -19.5 and lamp 4 30 -> 31.5 (a metre of margin is not
     // margin when a seeded canopy blob can grow another half-metre).
     const lights: Array<[number, number, number]> = [
-      [-31, 7.42, Math.PI / 2], [8, 7.42, Math.PI / 2],
+      // lamp 2 sat at (8, 7.42) from M2 until W2 — the garden slot's mouth
+      // (ALY-02, x 6.5..9) opens exactly there, and a lamp post standing in
+      // a doorway is a wall with a light on it. Moved 2.1 m west, clear of
+      // the mouth and of every door and bay (registry canon list updated).
+      [-31, 7.42, Math.PI / 2], [5.9, 7.42, Math.PI / 2],
       [-19.5, -7.35, -Math.PI / 2], [31.5, -7.35, -Math.PI / 2],
     ];
     for (let li = 0; li < lights.length; li++) {
@@ -845,9 +851,13 @@ export class World {
       // it could never leave (the E2E proved it). Merging trunk and wall
       // removes the pocket without moving any usable space: nobody fit
       // there before. Plaza trees and the south row keep plain boxes (their
-      // backs are open or passable).
+      // backs are open or passable). W2 exception (docs/47): the alley-mouth
+      // tree (x 32) stops at the VISUAL trunk — the face line there opens
+      // into the R-ALLEY lane, and the old reach-to-the-wall box walled the
+      // shortcut's own door; the pocket it leaves is open on the lane side,
+      // a sidestep, not a trap.
       const trunkHalf = 0.18;
-      const zMax = tz > 6 ? 8.0 : tz + trunkHalf;
+      const zMax = tz > 6 ? (Math.abs(tx - 32) < 0.01 ? tz + trunkHalf : 8.0) : tz + trunkHalf;
       const zSpan = (zMax - (tz - trunkHalf));
       this.colliders.push(boxFromCenter(tx, 1.1, (tz - trunkHalf + zMax) / 2, 0.36, 2.2, zSpan));
     }
@@ -1081,6 +1091,10 @@ export class World {
     // W1: the street grid, the skeleton, the Marlow row. Built BEFORE the
     // bake so every static slab/curb/shell merges into its district tile.
     this.buildAlderHeightsW1();
+    // W2: the Gable brownstone row, both interior parks, the two shortcuts.
+    // Also before the bake — and before LeafDrift (the playground trees
+    // join the leaf spots).
+    this.buildAlderHeightsW2();
 
     // leaf drift, now over every tree on the block (shipped 12 + W1 rows)
     this.leaves = new LeafDrift(this.scene, [...leafSpots, ...this.extraLeafSpots], 4);
@@ -1732,9 +1746,11 @@ export class World {
    *  side walls, a back wall, a lintel, gravel underfoot, open sky above.
    *  The hidden corner the bulletin board's lost cat comes back to. */
   private buildAlley(): void {
-    // gravel floor — flush with the sidewalk, no lip to trip a capsule
-    this.deco('Alley_Floor', 32.1, 0.035, 9.3, 2.8, 0.05, 2.6, 0x4a4552, {});
-    this.deco('Alley_Floor_2', 32.1, 0.035, 7.4, 2.8, 0.05, 1.2, 0x4a4552, {});
+    // gravel floor — flush with the sidewalk, no lip to trip a capsule.
+    // W2 (docs/47): raised proud of the W1 yard slab, which had buried
+    // these strips whole (top 0.1 over a floor that topped out at 0.06).
+    this.deco('Alley_Floor', 32.1, 0.125, 9.3, 2.8, 0.05, 2.6, 0x4a4552, {});
+    this.deco('Alley_Floor_2', 32.1, 0.125, 7.4, 2.8, 0.05, 1.2, 0x4a4552, {});
     // side walls (y 0–3) + back wall; the slot above y = 3 stays open — a
     // slice of sky between two sixteen-metre masses, exactly like a real
     // alley gives you
@@ -2178,6 +2194,341 @@ export class World {
     const m121 = makePoleSign(this.bank, this.signMaterials.bind(this), 'M121', { w: 0.8, h: 0.3, y: 3.0 });
     m121.position.set(-30, 0.05, 7.35);
     this.scene.add(m121);
+  }
+
+  // ================================================================
+  // ALDER HEIGHTS — W2: the Gable row + the interior parks + shortcuts
+  // (docs/45 §1 W2; every footprint from world-registry.json. The two
+  // registry-vs-shipped conflicts this phase resolved are recorded in
+  // docs/47 W2 and corrected in the registry, same as W1's entrance law.)
+  // ================================================================
+
+  /** W2, section A — THE GARDEN SLOT (the real cut, x 6.5..9, z 8..20).
+   *  The registry planned this slot at x −3, which is inside the laundry
+   *  building: it would have sliced the shipped bay (Sal, the washers, the
+   *  permit beat) and the planned LAUNDRY-INT shell with it. The docs' own
+   *  words — "between the laundry and ginkgo buildings" — point at their
+   *  shared seam, so the cut lands at x 6.5..9: east of the bay (8.5 m
+   *  clear), west of the ginkgo building's windows, LAUNDRY-INT untouched.
+   *  Same grammar as the shipped alley: a party-wall slot with open sky
+   *  above, gravel underfoot, a lintel over the mouth. */
+  private buildGardenSlot(): void {
+    // the laundry mass loses its east 2.5 m: same material, same height
+    const old = this.scene.children.find((c) => c.name === 'Bldg_N_East_A');
+    if (old) {
+      this.scene.remove(old);
+      (old as THREE.Mesh).geometry.dispose();
+      const ci = this.colliders.findIndex((b) =>
+        Math.abs(b.minX + 11) < 0.01 && Math.abs(b.maxX - 9) < 0.01
+        && Math.abs(b.minZ - 8) < 0.01 && Math.abs(b.maxZ - 20) < 0.01);
+      if (ci >= 0) this.colliders[ci].maxX = 6.5; // the cut face IS the wall
+    }
+    this.solid('Bldg_N_East_A_West', -2.25, 9, 14, 17.5, 18, 12, PAL.bldg2);
+    // gravel floor, a hair PROUD of the yard slab (top 0.1 — the W1 yard
+    // buried the first draft at 0.085; the parks' proud-slab grammar applies)
+    this.deco('GardenSlot_Floor_a', 7.75, 0.125, 11, 2.5, 0.05, 6, 0x4a4552, {});
+    this.deco('GardenSlot_Floor_b', 7.75, 0.125, 17, 2.5, 0.05, 6, 0x4a4552, {});
+    // the lintel ties the two masses together over the mouth
+    this.solid('GardenSlot_Lintel', 7.75, 3.55, 8.4, 3.1, 1.1, 1.6, PAL.bldg2);
+  }
+
+  /** W2, section B — R-ALLEY: the shipped slot opens north. The back wall
+   *  (the alley's dead end since docs/38) retires and the lane runs between
+   *  the two split-mass faces to the yard, with the registry's iron gate at
+   *  z 14.5 pinned open. The cat corner keeps its bag and its dead bulbs. */
+  private buildAlleyLane(): void {
+    const back = this.scene.children.find((c) => c.name === 'Alley_Back');
+    if (back) {
+      this.scene.remove(back);
+      (back as THREE.Mesh).geometry.dispose();
+      const ci = this.colliders.findIndex((b) =>
+        Math.abs(b.minX - 30.7) < 0.01 && Math.abs(b.maxX - 33.5) < 0.01
+        && Math.abs(b.minZ - 10.35) < 0.01 && Math.abs(b.maxZ - 10.65) < 0.01);
+      if (ci >= 0) this.colliders.splice(ci, 1);
+    }
+    // the service lane: gravel, the buildings' own faces for walls (raised
+    // proud of the yard slab — same W1-burial fix as the slot floor)
+    this.deco('Alley_Lane_a', 32.1, 0.125, 13, 2.8, 0.05, 5, 0x4a4552, {});
+    this.deco('Alley_Lane_b', 32.1, 0.125, 18, 2.8, 0.05, 4, 0x4a4552, {});
+    // the alley gate (registry: 32.1, 14.5) — posts collide, wings pinned.
+    // NO rotation: the gate spans X (across the lane); rotating it π/2 put
+    // its posts mid-lane and the walk shot caught the jumble.
+    const gate = makeParkGate(this.bank, 1.8);
+    gate.position.set(32.1, 0.15, 14.5);
+    this.scene.add(gate);
+    for (const px of [31.08, 33.12]) {
+      this.colliders.push(boxFromCenter(px, 1.0, 14.5, 0.2, 2.0, 0.2));
+    }
+  }
+
+  /** W2, section C — KESTREL GREEN (PRK-GREEN): the reading park. Registry
+   *  layout verbatim: lawn, gravel path, three benches, four trees, the
+   *  pergola, three lights, two bins. Entries: the alley lane (SE), the
+   *  garden slot (W), and the Gable gate at (18, 31). */
+  private buildKestrelGreen(): void {
+    const rng = seededRng(20261102);
+    // tended lawn + path, a hair proud of the yard slab (top 0.1)
+    this.deco('Green_Lawn', 18.5, 0.125, 25.5, 25, 0.05, 11, 0x3a7355, { });
+    this.deco('Green_Path', 18.5, 0.155, 24, 21, 0.05, 1.4, PAL.stone, {});
+    // the Gable gate + the Parks sign facing the street
+    const gGate = makeParkGate(this.bank, 1.8);
+    gGate.position.set(18, 0.15, 31);
+    this.scene.add(gGate);
+    for (const px of [16.98, 19.02]) {
+      this.colliders.push(boxFromCenter(px, 1.0, 31, 0.2, 2.0, 0.2));
+    }
+    const sign = makeParksSign(this.bank, this.signMaterials.bind(this), 'KESTREL GREEN');
+    sign.position.set(19.9, 0.15, 31.2);
+    this.scene.add(sign);
+    this.colliders.push(boxFromCenter(19.9, 0.7, 31.2, 0.4, 1.5, 0.2));
+    // benches: (12, 22.5) faces the path; (24, 25.5) faces the lawn south;
+    // (18, 21.5) faces south (registry layout)
+    for (const [bx, bz, byaw] of [[12, 22.5, 0], [24, 25.5, Math.PI], [18, 21.5, Math.PI]] as const) {
+      const b = makeBench(this.bank);
+      b.position.set(bx, 0.15, bz);
+      b.rotation.y = byaw;
+      this.scene.add(b);
+      this.colliders.push(boxFromCenter(bx, 0.45, bz, 1.85, 0.7, 0.62));
+    }
+    // four full trees — fade-capable like the shipped 12, green like the row
+    const GREEN_TINTS = [0x5d7d4a, 0x516e42, 0x516e42];
+    for (const [tx, tz] of [[10, 28.5], [16, 29], [23, 28.8], [28.5, 27]] as const) {
+      const pit = makeTreePit(this.bank);
+      pit.position.set(tx, 0.16, tz);
+      this.scene.add(pit);
+      const t = makeTree(this.bank, rng, false);
+      t.group.position.set(tx, 0.15, tz);
+      t.group.rotation.y = rng() * Math.PI * 2;
+      this.scene.add(t.group);
+      this.trees.push({ group: t.group, canopy: t.canopy, phase: rng() * Math.PI * 2, mats: t.mats, fade: 1 });
+      this.colliders.push(boxFromCenter(tx, 1.2, tz, 0.36, 2.2, 0.36));
+      this.canopySpheresCache.push({ x: tx, y: t.top - 0.75, z: tz, r: 2.15 });
+      this.extraLeafSpots.push({ x: tx, z: tz, r: 1.5, top: t.top, tints: GREEN_TINTS });
+    }
+    // the pergola (19.5, 27.5, 4.5 × 3, h 2.6) — posts block, shade doesn't
+    const per = makePergola(this.bank);
+    per.position.set(19.5, 0.15, 27.5);
+    this.scene.add(per);
+    for (const px of [-1.95, 1.95]) for (const pz of [-1.2, 1.2]) {
+      this.colliders.push(boxFromCenter(19.5 + px, 1.3, 27.5 + pz, 0.24, 2.6, 0.24));
+    }
+    // three park lights + two bins (registry layout)
+    const lampFace = this.bank.get(PAL.taxi).clone();
+    lampFace.emissive = new THREE.Color(PAL.taxi);
+    lampFace.emissiveIntensity = 0.35;
+    for (const [lx, lz] of [[9, 23], [20, 21], [29, 23]] as const) {
+      const lamp = makeStreetlight(this.bank, lampFace);
+      lamp.position.set(lx, 0.15, lz);
+      this.scene.add(lamp);
+      this.colliders.push(boxFromCenter(lx, 2.65, lz, 0.24, 5.2, 0.24));
+    }
+    for (const [bx, bz] of [[11, 25.2], [27.5, 22]] as const) {
+      const can = makeTrashCan(this.bank);
+      can.position.set(bx, 0.15, bz);
+      this.scene.add(can);
+      this.colliders.push(boxFromCenter(bx, 0.55, bz, 0.68, 1.0, 0.68));
+    }
+  }
+
+  /** W2, section D — THE GABLE GARDEN (GRD-GABLE). Registry layout, with
+   *  two build corrections recorded in docs/47: the west fence sits at
+   *  x −8.4 (flush with GRB-05's face — the registry bbox x −10 overlapped
+   *  the row by 1.6 m), and the gate faces EAST at (4, 24) onto the strip
+   *  between the garden and Kestrel Green (the planned south gate at x −3
+   *  opened into the laundry building's rear wall). */
+  private buildGableGarden(): void {
+    const rng = seededRng(20261103);
+    // garden ground + the path from the gate to the beds
+    this.deco('Garden_Ground', -2.2, 0.125, 25, 12.4, 0.05, 10, 0x3a7355, {});
+    this.deco('Garden_Path', -2.2, 0.155, 24.4, 12, 0.05, 1.0, PAL.stone, {});
+    // the strip between garden and green: two parks, one step across
+    this.deco('Garden_Strip', 5, 0.135, 24, 2, 0.05, 6, PAL.stone, {});
+    // fences: north run + east run with the gate gap (W wall is GRB-05,
+    // S wall is the laundry building's rear)
+    const fN = makeFence(this.bank, 12.4);
+    fN.position.set(-2.2, 0.15, 30);
+    this.scene.add(fN);
+    this.colliders.push(boxFromCenter(-2.2, 0.55, 30, 12.4, 0.8, 0.15));
+    for (const [cz, len] of [[21.55, 3.1], [27.45, 5.1]] as const) {
+      const fE = makeFence(this.bank, len);
+      fE.position.set(4, 0.15, cz);
+      fE.rotation.y = Math.PI / 2;
+      this.scene.add(fE);
+      this.colliders.push(boxFromCenter(4, 0.55, cz, 0.15, 0.8, len));
+    }
+    const gGate = makeParkGate(this.bank, 1.6);
+    gGate.position.set(4, 0.15, 24);
+    gGate.rotation.y = Math.PI / 2;
+    this.scene.add(gGate);
+    for (const pz of [23.08, 24.92]) {
+      this.colliders.push(boxFromCenter(4, 1.0, pz, 0.2, 2.0, 0.2));
+    }
+    // the garden's own board (sign factory, mounted on the east fence)
+    const board = this.signBoard('Garden_Sign', 'GABLE GARDEN', 1.5, 0.42, 0.06, 320, 96, 0x1f6f5e, PAL.cream, 40);
+    board.position.set(4.05, 1.45, 25.6);
+    board.rotation.y = Math.PI / 2; // faces the strip / the green
+    this.scene.add(board);
+    // four raised beds (west pair at x −7.6: 0.8 m clear of GRB-05's face)
+    for (const [bx, bz] of [[-7.6, 23], [-4, 23], [-7.6, 27], [-4, 27]] as const) {
+      const bed = makeGardenBed(this.bank, rng);
+      bed.position.set(bx, 0.15, bz);
+      this.scene.add(bed);
+      this.colliders.push(boxFromCenter(bx, 0.4, bz, 1.2, 0.55, 1.6));
+    }
+    // shed, bench (faces the beds), compost, rain barrel
+    const shed = makeShed(this.bank);
+    shed.position.set(2, 0.15, 28.5);
+    this.scene.add(shed);
+    this.colliders.push(boxFromCenter(2, 1.05, 28.5, 2, 2.1, 2.4));
+    const bench = makeBench(this.bank);
+    bench.position.set(1, 0.15, 22.5);
+    bench.rotation.y = -Math.PI / 2; // the sitter faces the beds
+    this.scene.add(bench);
+    this.colliders.push(boxFromCenter(1, 0.45, 22.5, 0.62, 0.7, 1.85));
+    const compost = makeCompostBin(this.bank);
+    compost.position.set(-7.8, 0.15, 29);
+    this.scene.add(compost);
+    this.colliders.push(boxFromCenter(-7.8, 0.4, 29, 0.9, 0.56, 0.9));
+    const barrel = makeWaterBarrel(this.bank);
+    barrel.position.set(-6.8, 0.15, 29.2);
+    this.scene.add(barrel);
+    this.colliders.push(boxFromCenter(-6.8, 0.6, 29.2, 0.9, 0.95, 0.9));
+  }
+
+  /** W2, section E — THE MARLOW PLAYGROUND (PLY-MARLOW): swings, sandbox,
+   *  spray basin, benches, the 1.1 m iron fence and its gate. Registry
+   *  correction recorded in docs/47: the gate stands on the SOUTH fence at
+   *  (−7, −31) — the planned z −21 is the yard side, and the registry's own
+   *  law ("visible from Marlow for eyes-on safety") puts the gate where the
+   *  walk is. The spray basin sits 0.2 m north of the registry point to
+   *  clear the sandbox corner (a 0.05 m kiss on paper). */
+  private buildMarlowPlayground(): void {
+    // safety surface — poured-rubber dark, one honest pad
+    this.deco('Play_Pad', -7, 0.125, -26, 10, 0.05, 10, 0x4a4552, {});
+    // the fence: four runs, 1.1 m, gate gap at x −7±0.8 on the south line
+    // (the south run is TWO segments — the first draft ran one 8.4 m bar
+    // straight across its own gate and the walk probe caught it)
+    for (const [fx, fz, len, ew] of [
+      [-9.9, -31, 4.2, false], [-4.1, -31, 4.2, false], [-7, -21, 10, false],
+      [-12, -26, 10, true], [-2, -26, 10, true],
+    ] as const) {
+      const f = makeFence(this.bank, len, 1.1);
+      f.position.set(fx, 0.15, fz);
+      if (ew) f.rotation.y = Math.PI / 2;
+      this.scene.add(f);
+      this.colliders.push(boxFromCenter(fx, 0.65, fz, ew ? 0.15 : len, 1.1, ew ? len : 0.15));
+    }
+    const gate = makeParkGate(this.bank, 1.6);
+    gate.position.set(-7, 0.15, -31);
+    this.scene.add(gate);
+    for (const px of [-7.92, -6.08]) {
+      this.colliders.push(boxFromCenter(px, 1.0, -31, 0.2, 2.0, 0.2));
+    }
+    // the kit
+    const swings = makeSwingSet(this.bank);
+    swings.position.set(-10, 0.15, -28.5);
+    this.scene.add(swings);
+    for (const sx of [-1.1, 1.1]) {
+      this.colliders.push(boxFromCenter(-10 + sx, 1.1, -28.5, 0.7, 2.2, 0.5));
+    }
+    const sandbox = makeSandbox(this.bank);
+    sandbox.position.set(-4.5, 0.15, -27.5);
+    this.scene.add(sandbox);
+    for (const [rx, rz, sx, sz] of [
+      [-4.5, -29, 4, 0.14], [-4.5, -26, 4, 0.14],
+      [-6.5, -27.5, 0.14, 3], [-2.5, -27.5, 0.14, 3],
+    ] as const) {
+      this.colliders.push(boxFromCenter(rx, 0.3, rz, sx, 0.3, sz));
+    }
+    const basin = makeSprayBasin(this.bank);
+    basin.position.set(-7, 0.15, -24.3);
+    this.scene.add(basin);
+    this.colliders.push(boxFromCenter(-7, 0.3, -24.3, 3.1, 0.6, 3.1));
+    // caregivers' benches, facing the kids (south)
+    for (const [bx, bz] of [[-3, -22.5], [-11, -22.5]] as const) {
+      const b = makeBench(this.bank);
+      b.position.set(bx, 0.15, bz);
+      b.rotation.y = Math.PI;
+      this.scene.add(b);
+      this.colliders.push(boxFromCenter(bx, 0.45, bz, 1.85, 0.7, 0.62));
+    }
+    // two yard trees (simple row trees; trunks bake, canopies instance)
+    const rng = seededRng(20261104);
+    for (const [tx, tz] of [[-2.8, -29.5], [-11.2, -24]] as const) {
+      this.buildSimpleTree(tx, tz, rng);
+    }
+  }
+
+  /** W2, section F — THE GABLE ROW (GRB-01..05): five brownstones, 7.6 m
+   *  lots, 12.5 m, high stoops (six risers + landing), tall parlor windows,
+   *  cornices, door colours from the shipped stoopDoors set. GRB-03 is
+   *  Fatima's — under restoration, scaffold hint now, studio never (the
+   *  registry's exterior-only promise). */
+  private buildGableRow(): void {
+    const grb: Array<[string, number, number, boolean]> = [
+      // [id, center x, door color, scaffold]
+      ['GRB_01', -42.6, 0xff6b6b, false],   // the Okafor house — stoop-sale host
+      ['GRB_02', -35, 0x6d4c7d, false],     // plum door
+      ['GRB_03', -27.4, 0x6e554e, true],    // Fatima's — restoration scaffold
+      ['GRB_04', -19.8, PAL.teal, false],   // teal door
+      ['GRB_05', -12.2, PAL.coral, false],  // coral door
+    ];
+    for (const [id, cx, door, scaffold] of grb) {
+      this.solid(id, cx, 6.25, 26, 7.6, 12.5, 12, PAL.bldg2);
+      // the cornice caps the row (KTN00W crown grammar)
+      this.deco(`${id}_Cornice`, cx, 12.25, 26, 7.8, 0.5, 12.2, PAL.stone, {});
+      // tall parlor windows (y 4.6) + two upper floors (7.4 / 10.2)
+      for (const wx of [cx - 1.7, cx + 1.7]) {
+        this.decoMesh(`${id}_Parlor_${wx}`, new THREE.BoxGeometry(1.3, 2.2, 0.08),
+          this.bank.get(PAL.windowDim), wx, 4.6, 32.05); // floats proud of the z 32 face (W1 grammar)
+        for (const wy of [7.4, 10.2]) {
+          this.decoMesh(`${id}_Win_${wx}_${wy}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
+            this.bank.get(PAL.windowDim), wx, wy, 32.05);
+        }
+      }
+      // the high stoop — the door base at y 0.72, every riser ≤ 0.35
+      const stoop = makeBrownstoneStoop(this.bank, door, true);
+      stoop.position.set(cx, 0, 32.6);
+      this.scene.add(stoop);
+      if (scaffold) {
+        // restoration scaffold: two poles, a deck, a guard rail — the hint
+        // the GDD Regular hook needs, nothing more
+        for (const px of [cx - 1.8, cx + 1.8]) {
+          this.decoMesh(`GRB03_Pole_${px}`, new THREE.BoxGeometry(0.16, 5.0, 0.16),
+            this.bank.get(0x8a6a4a), px, 2.5, 32.3);
+          this.colliders.push(boxFromCenter(px, 2.5, 32.3, 0.18, 5.0, 0.18));
+        }
+        this.decoMesh('GRB03_Deck', new THREE.BoxGeometry(3.8, 0.1, 0.9),
+          this.bank.get(0x8a6a4a), cx, 3.3, 32.35);
+        this.decoMesh('GRB03_Rail', new THREE.BoxGeometry(3.8, 0.06, 0.06),
+          this.bank.get(0x3a3440), cx, 4.15, 32.7);
+      }
+    }
+  }
+
+  /** W2, section G — the BLK-N parking strip (docs/39: "plus one parking
+   *  strip"; docs/40: the x 22..50 rear yard). Asphalt pad off the service
+   *  lane's mouth, stall lines painted, wheel stops down. The cars are
+   *  W4's — the strip is ready for them. */
+  private buildParkingStrip(): void {
+    this.deco('Parking_Pad', 41.25, 0.125, 25, 15.5, 0.05, 6, 0x4a4552, {});
+    for (const lx of [36.5, 39.5, 42.5, 45.5]) {
+      this.deco(`Parking_Line_${lx}`, lx, 0.155, 23.75, 0.1, 0.02, 3.5, PAL.cream, {});
+    }
+    for (const wx of [35, 38, 41, 44, 47]) {
+      this.deco(`Parking_Stop_${wx}`, wx, 0.16, 22.35, 1.6, 0.12, 0.2, 0x8f8a82, {});
+    }
+  }
+
+  /** W2 — the phase build: slot + lane + both parks + the row + the strip. */
+  private buildAlderHeightsW2(): void {
+    this.buildGardenSlot();
+    this.buildAlleyLane();
+    this.buildKestrelGreen();
+    this.buildGableGarden();
+    this.buildMarlowPlayground();
+    this.buildGableRow();
+    this.buildParkingStrip();
   }
 
   /** The instanced canopies for every new-row tree (two draw calls total). */

@@ -190,3 +190,134 @@ software-GL driver wall time, not a single beat: the driver's documented
 extensions, no skips).
 
 ---
+
+## W2 — Gable Row + interior parks + the shortcuts (SHIPPED 2026-11-01)
+
+**Scope honored:** every footprint from `world-registry.json`; the shipped
+12 masses and 18 anchors untouched (validator 12/12 + 18/18); no new
+dependencies. File owner: Main Agent (`World.ts` W2 section, `props.ts`
++9 small banked builders, `makeFence` +`h` param, `makeBrownstoneStoop`
++`tall` variant — both backward-compatible, shipped calls byte-identical).
+
+**What landed**
+
+- **The Gable Row (GRB-01..05)**: five 7.6 m-lot brownstones, 12.5 m, on
+  the registry's Gable S footprints — cornices, tall parlor windows, two
+  upper floors, and the docs/40 §4 high stoop (six risers + landing, every
+  riser ≤ 0.35 so the doors stay climbable). Doors from the shipped
+  `stoopDoors` set: Okafor red, plum, unpainted wood (Fatima's), teal,
+  coral. **GRB-03 carries the restoration scaffold** (two poles, deck,
+  guard rail — the GDD Regular hook, exterior-only per the registry).
+- **Kestrel Green (PRK-GREEN)**: registry layout verbatim — tended lawn,
+  gravel path, three benches, four full fade-capable trees, the pergola,
+  three lit park lamps, two bins — plus the **Gable gate** (18, 31) with
+  its Parks sign.
+- **The Gable Garden (GRD-GABLE)**: four raised beds (seedlings), the
+  shed, the bench, compost, rain barrel, iron fence + the east gate, the
+  garden's own board through the sign factory.
+- **The Marlow Playground (PLY-MARLOW)**: the docs/45 §2 kit — 3-bay swing
+  set, sandbox (enterable: only the rim blocks), the dry spray basin
+  (GDD §5.5), two caregivers' benches, 1.1 m iron fence + south gate, two
+  yard trees (instanced-canopy grammar).
+- **R-ALLEY, the real shortcut**: the shipped alley's back wall retires
+  (the cat corner keeps its bag and bulbs; the peek interaction is
+  untouched) and the lane runs between the split-mass faces to the yard —
+  gravel proud of the yard slab, the registry's iron gate at (32.1, 14.5)
+  pinned open. Walked end-to-end by the probe.
+- **R-GARDEN → ALY-02, the garden slot**: the SECOND real cut — a
+  party-wall slot between the laundry building's east face and the ginkgo
+  building's west face, lintel over the mouth, opening onto Kestrel
+  Green's west lawn. Registry entry added (ALY-02, "built (W2)").
+- **The parking strip** (BLK-N east yard, docs/39 "plus one parking
+  strip"): asphalt pad off the lane's mouth, stall lines, wheel stops.
+  The cars are W4's.
+- **Fixed three shipped/first-draft bugs while building** (each caught by
+  the walk probe or the shots, each documented in code):
+  1. the **W1 yard slab had buried the alley's gravel floor** (yard top
+     0.1 over a floor topping at 0.06) — the alley floor, the lane, and
+     the slot now sit proud, the parks' own grammar;
+  2. the **alley-mouth tree** (32, 7.48) stopped its collider at the
+     visual trunk — the old reach-to-the-wall box walled the shortcut's
+     own door; the pocket it leaves is open on the lane side;
+  3. the canon **lamp at (8, 7.42) stood in the slot's mouth** — moved to
+     (5.9, 7.42) per the registry's own never-in-front-of-a-door law
+     (furnitureStandards.lamps updated with a note).
+
+**The registry corrections (7 lines, all docs/47-tracked)** — the W1
+entrance-law precedent: the build corrects the paper where the paper
+contradicts the shipped world or itself.
+
+1. **R-GARDEN's slot moved x −3 → the seam cut x 6.5..9 (ALY-02)**. The
+   planned x −3 slot is INSIDE the laundry building: it would have sliced
+   the shipped bay (Sal, the washers, the permit beat at (−4, 5.8)) AND
+   the planned LAUNDRY-INT shell (x −11..1, dryers at x 0.1). docs/39's
+   own words — "between the laundry and ginkgo buildings" — point at the
+   seam; the bay, its piers, and the W5 shell are untouched (verified:
+   laundry bay collider byte-identical).
+2. **GRD-GABLE west fence x −10 → −8.4**: the registry bbox overlapped
+   GRB-05's footprint by 1.6 m; the fence now sits flush with the row's
+   east face (beds/compost shifted accordingly).
+3. **GRD-GABLE gate → the east fence (4, 24)**: the planned south gate at
+   x −3 opened into the laundry building's rear wall; the garden now
+   enters from the 2 m strip between it and Kestrel Green.
+4. **PLY-MARLOW gate → the south fence (−7, −31)**: the planned z −21 was
+   the yard side; the registry's own eyes-on-safety law puts the gate
+   where the walk is, through the row gap. (The spray basin sits 0.2 m
+   north of the registry point — a 0.05 m kiss with the sandbox corner.)
+5. **R-GABLE-MARLOW spines z 33.5/−33.5 → 35/−34.6**: the high stoops own
+   z 32..34.4, so the walking lanes shift one metre clear (W4 wiring
+   detail corrected now).
+6. **KTN-02 footprint → the built mass (−2.25, w 17.5)** + validator line
+   updated in the same commit — the registry must describe the real game
+   (the validator's own red-line comment); the nominal 20 m mass note
+   stays in the entry text.
+7. **W2 content line** now names the playground (docs/45 §2 puts the kit
+   in W2), the built slot, and the one parking strip.
+
+**The ghost gate — PASS** (`scripts/probe-w2-ghost.mjs`): GRB-01..05 +
+KTN-02 cut mass verified at 0.000 m deltas (< 0.1 gate); 11 furniture
+collider spot-checks (fences, beds, shed, pergola post, bench, sandbox
+rim, basin, swing leg, scaffold pole) all present; **four end-to-end
+walks** — R-ALLEY (Kestrel → lane → green → Gable gate), R-GARDEN
+(Kestrel → slot → green → garden gate → beds), the playground gate and
+kit, and the stoop lane past all five stoops — never wedged, ground never
+below the slabs; 7 eye shots (`shots/w2-*.png`). The probe stands the
+player at each rig before shooting so the district ring lights the tiles
+a distant walk would honestly have culled.
+
+**Performance ledger** (probe-w0-census, same rigs; W1 → W2):
+
+| Rig | W1 | W2 | Δ | Tris (budget 120k) |
+|---|---|---|---|---|
+| PLAZA | 758 | **839** | +81 | **117,500** ✓ |
+| CART_CORNER | 652 | **696** | +44 | 100,760 ✓ |
+| SYCAMORE×GABLE | 361 | **395** | +34 | 79,822 ✓ |
+
+Honest accounting: two of three rigs land inside the docs/45 estimate
+(+30–45). The plaza rig is +81 — the estimate predated the row and the
+green both being visible from the plaza's ONE sight line (the registry's
+own law: a street is one sight line — this view now carries three
+districts). The first draft measured 124,580 plaza tris — OVER Doc 07's
+120k device line — and was fixed before shipping: W2's small props
+(pickets, seedling blobs, swing chains, pergola slats, gate wings) stopped
+casting sub-pixel shadows, the basin ring dropped to 14 segments, the
+stoop rake to 4 bars (each documented at the builder). Draw calls stay
+above the ledger and that is recorded, not hidden: the remaining levers
+are W4's (walker/cast instancing, folded pigeon wings, cast-shadow
+discipline for shipped props — all deferred in W0's ledger with owners).
+
+**Verification**: tsc clean · vitest 234/234 · build clean · registry
+validator green (117 IDs, 44 buildings, 12/12 masses, 18/18 anchors) ·
+probe-w2-ghost PASS · probe-leaves PASS (356 leaves, 0 buried, 0
+hovering — the two playground trees join the drift) · probe-peds OK ·
+probe-env5/env6 PASS · **E2E: AUTOTEST OK, 0 failures, 556 s, zero
+console errors** (the driver's documented `E2E_W/E2E_H` viewport
+override absorbed the software-GL fps drop; no budget extensions, no
+skips — the story plays beat-for-beat through the expanded world).
+
+**Explicitly NOT done (by phase law, not by omission)**: NPC zones
+(NZ-GOSSIP-G, NZ-READERS, NZ-GARDEN, NZ-PLAYGROUND) and the park bench
+sits wire in W4 with the life pass; parked cars in the strip, the bus,
+and the avenue rails are W4; GRB interiors do not exist (Class-C
+exterior-only, registry `interior: null`); stoop-sale Saturday is a W4+
+story hook.

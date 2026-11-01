@@ -96,7 +96,7 @@ for (const it of R.interiors) {
 const shipped = [
   ['KTN-01', -35.5, 14, 29, 12, 14],   // Bldg_N_West
   ['ROS-01', -16, 14, 10, 11.6, 4.5],  // bodega volume
-  ['KTN-02', -1, 14, 20, 12, 18],      // Bldg_N_East_A
+  ['KTN-02', -2.25, 14, 17.5, 12, 18], // Bldg_N_East_A (W2: east 2.5 m cut for ALY-02; built extent x −11..6.5, docs/47)
   ['KTN-03', 15, 14, 12, 12, 11],      // Bldg_N_GoldWindow
   ['KTN-04', 25.85, 14, 9.7, 12, 16],  // Bldg_N_East_B_W
   ['ALY-01', 32.1, 9.3, 2.8, 2.6, 3],  // alley slot
