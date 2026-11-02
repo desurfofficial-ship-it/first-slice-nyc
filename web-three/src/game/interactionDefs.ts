@@ -380,8 +380,10 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
       id: 'counter',
       pos: () => ({ x: -18.5, y: 0.5, z: 13.5 }),
       enabled: (s) => s.step === Step.RUSH,
-      prompt: () => 'Serve',
-      perform: (ctx) => act(ctx, (s) => s.serveCounter()),
+      // docs/11 + docs/12: the first press takes the order (the card opens);
+      // the card itself owns the conversation from there.
+      prompt: () => 'Take the order',
+      perform: (ctx) => act(ctx, (s) => s.openCounterOrder()),
     },
     {
       id: 'cart',
@@ -401,7 +403,8 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
       },
       prompt: (s) => {
         if (s.step === Step.CLAIM_CART) return 'Claim corner';
-        if (s.step === Step.SOLO || s.step === Step.D2_LUNCH) return 'Serve';
+        if (s.step === Step.SOLO) return 'Take the order';
+        if (s.step === Step.D2_LUNCH) return 'Serve';
         if (s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) return s.brewing ? BREWING_PROMPT : 'Serve';
         if (s.step === Step.D3_STOOL) return 'Stool \u2014 $10';
         if (s.day >= 2 && !s.awningUp && s.money >= 15) return 'Awning \u2014 $15';
@@ -409,7 +412,11 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
       },
       perform: (ctx) => act(ctx, (s) => {
         if (s.step === Step.CLAIM_CART) return s.claimCart();
-        if (s.step === Step.SOLO || s.step === Step.D2_LUNCH) {
+        if (s.step === Step.SOLO) {
+          // docs/11 + docs/12: your own customers get the conversation too
+          return ctx.game.customer ? s.openCartOrder() : [];
+        }
+        if (s.step === Step.D2_LUNCH) {
           return ctx.game.customer ? s.serveCart() : [];
         }
         if (s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) {

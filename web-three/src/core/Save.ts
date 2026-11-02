@@ -54,6 +54,12 @@ export interface SaveData {
   trims?: number;
   washes?: number;
   hoop_makes?: number;
+  // ---- the Map's notebook (docs/11 + docs/12 prototype 2) — optional v1-safe ----
+  /** Notes the Map has written down, order earned. Optional so pre-Map saves
+   *  parse unchanged; missing reads as []. Capped at 24 by the collector. */
+  map_notes?: string[];
+  /** Earned slang card ids for the margins (Doc 08's four). */
+  map_slang?: string[];
 }
 
 export function defaultSave(): SaveData {
@@ -75,10 +81,23 @@ export function defaultSave(): SaveData {
     trims: 0,
     washes: 0,
     hoop_makes: 0,
+    map_notes: [],
+    map_slang: [],
   };
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/** An optional string-list field, normalized to pages: present arrays pass
+ *  through (clamped, string-coerced); anything else — absent, corrupt, a
+ *  number — is an empty page. The Map never crashes a parse. */
+function strList(d: Record<string, unknown>, k: string, cap: number): string[] {
+  const arr = d[k];
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .filter((v): v is string => typeof v === 'string' && v.length > 0 && v.length <= 200)
+    .slice(0, cap);
+}
 
 /** Parse arbitrary stored text into a SaveData; corrupt => defaults (never a crash). */
 export function parseSave(raw: string | null): SaveData {
@@ -124,6 +143,10 @@ export function parseSave(raw: string | null): SaveData {
     trims: clamp(Math.trunc(num('trims', 0)), 0, 999),
     washes: clamp(Math.trunc(num('washes', 0)), 0, 999),
     hoop_makes: clamp(Math.trunc(num('hoop_makes', 0)), 0, 999),
+    // the Map's notebook — absent in old saves, reads as empty pages.
+    // A corrupted list is an empty page, never a crash (save.gd law).
+    map_notes: strList(d, 'map_notes', 24),
+    map_slang: strList(d, 'map_slang', 8),
   };
 }
 

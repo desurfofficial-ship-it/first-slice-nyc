@@ -315,6 +315,39 @@ export function runAutotest(game: Game): void {
     }
   };
 
+  // ---------------------------------------------- the order conversation ----
+  // docs/11 + docs/12: an order is a conversation. One interact() opens the
+  // card (the freeze breaks the volley); advanceOrder(reply) plays a choice;
+  // advanceOrder(null) folds. Every helper here rides the REAL input path —
+  // the same route a keypress or a thumb takes.
+
+  /** Play one full conversation: open, optionally choose, fold. Returns the
+   *  card id that was played (or null when no card opened). */
+  const orderCard = async (reply: number | null, what: string): Promise<string | null> => {
+    await interact();
+    const card = game.state.pendingCard;
+    check(card !== null, `order card opens \u2014 ${what} (got ${card?.id ?? 'none'})`);
+    if (!card) return null;
+    if (reply !== null) {
+      game.advanceOrder(reply);
+      await waitFrames(4);
+    }
+    game.advanceOrder(null); // the response read, the paper folds
+    await waitFrames(6);
+    return card.id;
+  };
+
+  /** Poll until the toast (or the Map's pages) carries a fragment. */
+  const noteSays = async (frag: string, timeout = 9000): Promise<boolean> => {
+    const t0 = performance.now();
+    for (;;) {
+      if (game.debug.noteText().includes(frag)) return true;
+      if (game.debug.mapNotes().some((n) => n.includes(frag))) return true;
+      if (performance.now() - t0 > timeout) return false;
+      await nextFrame();
+    }
+  };
+
   /** Wait for the cab to be east of the crosswalk and moving away. Road
    *  crossings in this suite cross at the crosswalk (x=-5), and a cab that
    *  parked on the diagonal under load is the one real flake this suite
@@ -394,9 +427,33 @@ export function runAutotest(game: Game): void {
       }
       check(s.step === Step.RUSH, '3 shelf items collected');
       await walkTo(-18.0, 13.0);
-      for (let i = 0; i < 5; i++) await interact();
-      check(s.step === Step.CROSS && s.rushServed === 5, '5-order rush served');
+      // ---------------------------------- the rush as a conversation (docs/12)
+      // Card 1 — the regular — via the ASK path: the teach is the point.
+      await interact();
+      check(s.pendingCard?.id === 'regular', 'card 1: "Regular coffee."');
+      game.advanceOrder(2); // ask what "regular" means
+      await waitFrames(4);
+      check(game.debug.orderResponseText().includes('regular means here'),
+        'asking teaches \u2014 "Milk and two sugars. That\u2019s what regular means here."');
+      game.advanceOrder(null); // fold
+      await waitFrames(6);
+      // Cards 2\u20134 \u2014 make it, repeat it back, ask about the hero. Every reply
+      // serves the same honest cup (the no-fail law).
+      await orderCard(0, 'card 2: bacon egg and cheese');
+      await orderCard(1, 'card 3: everything bagel (repeat it back)');
+      await orderCard(2, 'card 4: chopped cheese (ask what a hero is)');
+      // Card 5 \u2014 Mr. Idris, the usual. Rosa\u2019s nine-years line is the payoff.
+      await interact();
+      check(s.pendingCard?.id === 'idris', 'card 5: Mr. Idris \u2014 "The usual, please."');
+      game.advanceOrder(0); // two sugars, no asking
+      await waitFrames(4);
+      check(await noteSays('nine years'), 'Rosa, quietly: two sugars, nine years \u2014 the continuity beat');
+      game.advanceOrder(null);
+      await waitFrames(6);
+      check(s.step === Step.CROSS && s.rushServed === 5, '5-order rush served \u2014 as five conversations');
       check(s.money === 112, `day 1 rush pays $87 \u2192 $112 (Doc 08) (got $${s.money})`);
+      check(game.debug.mapSlang().includes('regular') && game.debug.mapSlang().includes('hero'),
+        'the Map margins hold: regular, hero');
       // the cab now REALLY yields (collider + stop line) — a pedestrian waits
       // for the car to clear the crossing before stepping off the curb
       {
@@ -433,8 +490,38 @@ export function runAutotest(game: Game): void {
       check(Math.hypot(p().x - before.x, p().z - before.z) < 0.05, "typing WASD/Space doesn't move the walker");
       game.confirmName(game.ui.nameInput.value);
       check(s.step === Step.SOLO && s.cartName === "Wade's Spot", 'cart named');
-      for (let i = 0; i < 3; i++) await interact();
-      check(s.step === Step.CLIMB && s.soloServed === 3, '3 solo serves incl. Mr. Idris');
+      // --------------------------- the solo rush as three conversations (Doc 02)
+      // 1 \u2014 the stroller woman: "oh, finally, SOMETHING on this corner."
+      await orderCard(2, 'solo card 1: the stroller woman (ask what she meant)');
+      // 2 \u2014 the kid: "Whatever's cold\u2026 I don't really know." No wrong answer.
+      await interact();
+      check(s.pendingCard?.id === 'kid', 'solo card 2: "Whatever\u2019s cold\u2026"');
+      game.advanceOrder(1); // ask what he usually likes
+      await waitFrames(4);
+      check(game.debug.orderResponseText().includes('don\u2019t know either'),
+        'the kid answers "I don\u2019t know either!" \u2014 kindness always available (VS-F03)');
+      game.advanceOrder(null);
+      await waitFrames(6);
+      check(s.kidDay1Served, 'the kid got his cold cup \u2014 the gold window\u2019s referent');
+      // 3 \u2014 Mr. Idris returns: "Rosa said you'd be here."
+      await interact();
+      check(s.pendingCard?.id === 'idris_solo', 'solo card 3: Mr. Idris, back like he said');
+      game.advanceOrder(0);
+      await waitFrames(4);
+      check(game.debug.orderResponseText().includes('Rosa said you\u2019d be here'),
+        'Idris: "Rosa said you\u2019d be here. She\u2019s usually right. It\u2019s annoying."');
+      game.advanceOrder(null);
+      await waitFrames(6);
+      check(s.step === Step.CLIMB && s.soloServed === 3, '3 solo conversations served incl. Mr. Idris');
+      check(s.money === 112, 'the solo rush pays nothing \u2014 Rosa counts $112 exactly');
+
+      // ---- the Map, as a notebook (docs/12): it opens ONLY when asked
+      game.toggleMap();
+      check(game.debug.mapOpen() && !game.ui.mapPanel.hidden, 'the Map opens when asked \u2014 a notebook, not a quest log');
+      check(game.debug.mapNotes().length >= 5,
+        `the margins hold the morning (${game.debug.mapNotes().length} notes written down)`);
+      game.toggleMap();
+      check(!game.debug.mapOpen(), 'the Map folds again \u2014 it never nags, never gates');
 
       await walkTo(9.4, -7.2, 12, true);
       check(game.player.ladder !== null, 'grabbed ladder 1');
@@ -476,13 +563,22 @@ export function runAutotest(game: Game): void {
       // wide of the zone and every dusk beat starves behind it)
       await walkTo(12.5, -6.8, 10);
       // poll, don't sleep: sim time lags real time under software rendering,
-      // so a fixed wait can sample mid-flick (the dip is the POINT of the beat)
+      // so a fixed wait can sample mid-flick (the dip is the POINT of the beat).
+      // The two Rosa lines play DURING the dusk sequence — watch for them live.
+      let sawFirstWarm = false;
+      let sawLightsOut = false;
       {
         const t0 = performance.now();
-        while (performance.now() - t0 < 30000 && !(s.step === Step.DONE && !game.ui.postcardPanel.hidden)) await nextFrame();
+        while (performance.now() - t0 < 45000 && !(s.step === Step.DONE && !game.ui.postcardPanel.hidden)) {
+          if (dbg.noteText().includes('first warm thing')) sawFirstWarm = true;
+          if (dbg.noteText().includes('Lights out, rookie')) sawLightsOut = true;
+          await nextFrame();
+        }
       }
-      check(s.step === Step.DONE && !game.ui.postcardPanel.hidden, 'gold window + Postcard compose');
+      check(s.step === Step.DONE && !game.ui.postcardPanel.hidden, 'gold window + Rosa\u2019s payoff lines + Postcard compose');
       check(dbg.goldIntensity() > 3.0, 'gold window holds lit');
+      check(sawFirstWarm, 'Rosa, quieter: "You were their first warm thing today." (the kid\u2019s window)');
+      check(sawLightsOut, 'Rosa, from below: "They\u2019re gonna want the usual." \u2014 the open loop');
       check(s.money === 112, 'money label reads $112');
 
       // -- seam 3: the end breathes — postcard closes, lingering is allowed --

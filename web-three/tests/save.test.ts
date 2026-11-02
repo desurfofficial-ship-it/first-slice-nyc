@@ -63,10 +63,12 @@ describe('save v1 — write/read roundtrip', () => {
     const loaded = loadSave(store);
     // day_start_money defaults to the saved money when absent (web v1 extension);
     // the memory counters default to 0 when absent (Doc 37 §3F migration —
-    // optional trailing fields, the spec's own roundtrip shape)
+    // optional trailing fields, the spec's own roundtrip shape); the Map's
+    // pages default to empty (docs/12 — same optional-trailing law)
     expect(loaded).toEqual({
       ...data, day_start_money: 111,
       shelf_buys: 0, dog_buys: 0, trims: 0, washes: 0, hoop_makes: 0,
+      map_notes: [], map_slang: [],
     });
   });
 

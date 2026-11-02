@@ -164,6 +164,315 @@ export const IDRIS_SPAWN_NOTE = 'Mr. Idris: \u201CCoffee. Regular. I\u2019ll be 
 export const TOP_NOTE_DAY1 = 'Stoop = outdoor living room. You\u2019re invited. That\u2019s the important part.'; // Doc 08 note #9
 export const TOP_NOTE_DAY2 = 'Same seat. The city kept it warm for you.';
 
+// ------------------------------------------------------------ the order cards ----
+// The serving conversation (docs/11 + docs/12 — the paper prototypes, and
+// Doc 07 VS-F03): an order is a CONVERSATION, not a press. Every card keeps
+// the paper kit's contract —
+//   · the always-available replies: just make it / repeat it back / ask / chef's welcome
+//   · teaching happens only when the player asks (never a lecture otherwise)
+//   · one piece explained at a time, never all at once
+//   · wrong guesses can never offend — the kid answers "I don't know either!"
+//   · no timers, no fail states, no score: every choice serves the cup.
+// Money math is sacred (E2E): a serve is a serve regardless of the choice.
+// Map notes inside responses are EXACT Doc 08 note text (collected in the Map).
+
+/** One way an order can go. `note`/`slang` are written into the Map when
+ *  the choice teaches something. */
+export interface OrderReply {
+  /** The button — what you say or do. Short, plain, first person. */
+  label: string;
+  /** What happens / what comes back. The card's response line. */
+  response: string;
+  /** A Doc 08 Map note this choice earns (collected in the Map margins). */
+  note?: string;
+  /** A slang card for the Map margins (Doc 08's four). */
+  slang?: string;
+}
+
+/** One customer, one order, one conversation. `bubble` is the short
+ *  world-space order text; `line` is what the customer actually says. */
+export interface OrderCard {
+  id: string;
+  bubble: string;
+  line: string;
+  replies: OrderReply[];
+  /** Reply index used by Space/Enter — "just make it" whenever it exists. */
+  defaultReply: number;
+}
+
+// The bodega counter — Rosa's first rush, five cards straight from the
+// paper kit (Doc 12 §2 cards 1–5, Doc 02 §5:00–10:00).
+export const RUSH_CARDS: OrderCard[] = [
+  {
+    id: 'regular',
+    bubble: 'REGULAR COFFEE',
+    line: '\u201CRegular coffee.\u201D',
+    defaultReply: 0,
+    replies: [
+      {
+        label: 'Say nothing. Just make it.',
+        response: 'You pour, two sugars, milk. She takes the cup: \u201CYou\u2019re new. Rosa trains \u2019em right though. You\u2019ll do fine.\u201D',
+        note: RUSH_NOTE_1,
+      },
+      {
+        label: 'Repeat the order back.',
+        response: '\u201CRegular coffee,\u201D you say, like you\u2019ve said it before. She grins. \u201CQuick ear. You\u2019ll do fine.\u201D',
+        note: RUSH_NOTE_1,
+      },
+      {
+        label: 'Ask what \u201Cregular\u201D means.',
+        response: 'Rosa, from the griddle: \u201CMilk and two sugars. That\u2019s what regular means here.\u201D No hurry in her voice at all.',
+        note: RUSH_NOTE_1,
+        slang: 'regular',
+      },
+      {
+        label: '\u201CChef\u2019s welcome.\u201D',
+        response: 'The cook picks. Rosa slides you the regular \u2014 milk, two sugars. \u201CGood call. That\u2019s the house.\u201D',
+        note: RUSH_NOTE_1,
+      },
+    ],
+  },
+  {
+    id: 'bec',
+    bubble: 'BACON EGG & CHEESE',
+    line: '\u201CBacon egg and cheese. Salt, pepper, ketchup.\u201D',
+    defaultReply: 0,
+    replies: [
+      {
+        label: 'Say nothing. Just make it.',
+        response: 'Salt, pepper, ketchup. The roll hits the griddle and the counter smells like Saturday. \u201CThat whole sentence is a complete order,\u201D Rosa says. \u201CYou speak New York now.\u201D',
+        note: 'That whole sentence is a complete order. Salt, pepper, ketchup. You speak New York now.',
+      },
+      {
+        label: 'Repeat the order back.',
+        response: '\u201CBacon egg and cheese \u2014 salt, pepper, ketchup.\u201D He nods, slow, like a man heard. \u201CFirst try. You\u2019re speaking New York now.\u201D',
+        note: 'That whole sentence is a complete order. Salt, pepper, ketchup. You speak New York now.',
+      },
+      {
+        label: 'Ask about the ketchup.',
+        response: '\u201CKetchup?\u201D He says it kindly, like it\u2019s obvious. \u201CIt\u2019s breakfast, not a funeral.\u201D The whole sentence is a complete order. You speak New York now.',
+        note: 'That whole sentence is a complete order. Salt, pepper, ketchup. You speak New York now.',
+      },
+      {
+        label: '\u201CChef\u2019s welcome.\u201D',
+        response: 'You build it the way the griddle wants: salt, pepper, ketchup. He bites, nods, holds up one finger \u2014 that good. You speak New York now.',
+        note: 'That whole sentence is a complete order. Salt, pepper, ketchup. You speak New York now.',
+      },
+    ],
+  },
+  {
+    id: 'bagel',
+    bubble: 'EVERYTHING BAGEL',
+    line: '\u201CEverything bagel, scallion cream cheese, toasted.\u201D',
+    defaultReply: 0,
+    replies: [
+      {
+        label: 'Say nothing. Just make it.',
+        response: 'The bagel is genuinely enormous. Nobody comments on this. New York does not explain itself.',
+        note: 'Folding it is part of the recipe.',
+      },
+      {
+        label: 'Repeat the order back.',
+        response: '\u201CEverything, scallion, toasted.\u201D She nods. \u201CSee? Easy. Everything but the explaining.\u201D',
+        note: 'Folding it is part of the recipe.',
+      },
+      {
+        label: 'Ask what \u201Ceverything\u201D is.',
+        response: '\u201CSesame, poppy, garlic, salt,\u201D she says. \u201CEverything. Hence, you know.\u201D She doesn\u2019t finish. She doesn\u2019t have to.',
+        note: 'Folding it is part of the recipe.',
+      },
+      {
+        label: '\u201CChef\u2019s welcome.\u201D',
+        response: 'You toast it, schmear it, hand over something the size of a frisbee. She carries it off two-handed, delighted.',
+        note: 'Folding it is part of the recipe.',
+      },
+    ],
+  },
+  {
+    id: 'chopped',
+    bubble: 'CHOPPED CHEESE',
+    line: '\u201CChopped cheese on a hero, letta, tomahta, hots.\u201D',
+    defaultReply: 0,
+    replies: [
+      {
+        label: 'Say nothing. Just make it.',
+        response: 'You do not ask about the hots. You chop, you pile, you roll. He takes it like it\u2019s a normal Tuesday, which it is.',
+      },
+      {
+        label: 'Repeat the order back.',
+        response: '\u201CChopped cheese on a hero \u2014 letta, tomahta, hots.\u201D He grins. \u201CAccent\u2019s already coming in. That\u2019s fast.\u201D',
+        slang: 'hero',
+      },
+      {
+        label: 'Ask what a hero is.',
+        response: 'He holds his hands a foot apart. \u201CA big sub roll. A hero.\u201D One piece explained. The rest you\u2019ll learn by eating.',
+        slang: 'hero',
+      },
+      {
+        label: '\u201CChef\u2019s welcome.\u201D',
+        response: 'You make it the way the man behind him mouths it: letta, tomahta, hots. The line knows. The line always knows.',
+        slang: 'hero',
+      },
+    ],
+  },
+  {
+    id: 'idris',
+    bubble: 'THE USUAL',
+    line: 'A quiet older man. Just: \u201CThe usual, please.\u201D',
+    defaultReply: 0,
+    replies: [
+      {
+        label: 'Two sugars. Just make it.',
+        response: 'Two sugars. You didn\u2019t ask. It felt like the answer to a question you hadn\u2019t heard yet.',
+      },
+      {
+        label: 'Repeat the order back.',
+        response: '\u201CThe usual,\u201D you say. He looks up for the first time. Something in his face settles.',
+      },
+      {
+        label: 'Ask what the usual is.',
+        response: 'Rosa answers before he can, quietly. Mr. Idris takes his cup like the nine years were the point.',
+      },
+      {
+        label: '\u201CChef\u2019s welcome.\u201D',
+        response: 'Rosa is already sliding the cup to you \u2014 two sugars. \u201CSome orders you learn by heart before you learn by asking.\u201D',
+      },
+    ],
+  },
+];
+
+/** Rosa's line after the rush's last cup — Doc 12 card 3's continuity beat.
+ *  It lands on EVERY card-5 choice (it is the payoff, not a branch). */
+export const IDRIS_NINE_YEARS_NOTE =
+  'Rosa, quietly: \u201CThat\u2019s Mr. Idris. Two sugars. Every day for nine years. You\u2019ll see him tomorrow.\u201D';
+
+// Your own cart — the first solo rush (Doc 02 §20:00–26:00): the stroller,
+// the kid, and Mr. Idris, who said he'd be back and meant it.
+export const SOLO_CARDS: OrderCard[] = [
+  {
+    id: 'stroller',
+    bubble: 'REGULAR',
+    line: '\u201COh, finally, SOMETHING on this corner.\u201D A stroller, a diaper bag, a look of earned relief.',
+    defaultReply: 0,
+    replies: [
+      {
+        label: 'Make her a regular.',
+        response: 'Milk, two sugars. She takes a sip and closes her eyes. \u201CCorner coffee. The city\u2019s mine again.\u201D',
+        note: RUSH_NOTE_3,
+      },
+      {
+        label: 'Repeat the order back.',
+        response: '\u201CRegular \u2014 milk, two sugars.\u201D She raises the cup to you. \u201CSomebody was listening.\u201D',
+        note: RUSH_NOTE_3,
+      },
+      {
+        label: 'Ask what she meant.',
+        response: '\u201CYou\u2019ve been here one day and you\u2019re asking ME?\u201D She laughs. \u201COne regular, hon. It\u2019s the whole city in a cup.\u201D',
+        note: RUSH_NOTE_3,
+        slang: 'regular',
+      },
+      {
+        label: '\u201CChef\u2019s welcome.\u201D',
+        response: 'You make the only thing this corner serves so far. \u201CBold strategy,\u201D she says, drinking it anyway.',
+        note: RUSH_NOTE_3,
+      },
+    ],
+  },
+  {
+    id: 'kid',
+    bubble: 'WHATEVER\u2019S COLD',
+    line: 'A teenager, hood up: \u201CWhatever\u2019s cold\u2026 I don\u2019t really know.\u201D',
+    defaultReply: 0,
+    replies: [
+      {
+        label: 'Just make something cold.',
+        response: 'You hand over something cold. He looks at it, then at you. \u201COh. Okay. Thanks.\u201D He holds it with both hands, like it might leave.',
+      },
+      {
+        label: 'Ask what he usually likes.',
+        response: '\u201CI don\u2019t know either!\u201D He shrugs, honest. You both stand there a second \u2014 two people new to this block. \u201CSurprise me?\u201D You do. It\u2019s cold. It\u2019s good.',
+      },
+      {
+        label: '\u201CChef\u2019s welcome \u2014 I\u2019ll pick for you.\u201D',
+        response: 'He shrugs, agreeable. You pick something cold. \u201CIt\u2019s good,\u201D he says, surprised, like the corner did it on purpose.',
+      },
+    ],
+  },
+  {
+    id: 'idris_solo',
+    bubble: 'THE USUAL',
+    line: 'Mr. Idris. He looks at the cart, looks at you, nods once.',
+    defaultReply: 0,
+    replies: [
+      {
+        label: 'Two sugars. Just make it.',
+        response: 'He takes the cup. \u201CRosa said you\u2019d be here. She\u2019s usually right. It\u2019s annoying.\u201D',
+      },
+      {
+        label: 'Repeat the order back.',
+        response: '\u201CThe usual,\u201D you say. He nods once, almost a smile. \u201CRosa said you\u2019d be here. She\u2019s usually right. It\u2019s annoying.\u201D',
+      },
+      {
+        label: 'Ask: \u201CTwo sugars?\u201D',
+        response: '\u201CThat\u2019s the usual,\u201D he says. \u201CRosa told you, right?\u201D She did. It shows. \u201CRosa said you\u2019d be here. She\u2019s usually right. It\u2019s annoying.\u201D',
+      },
+      {
+        label: '\u201CChef\u2019s welcome.\u201D',
+        response: 'He watches your hand take the sugar \u2014 two \u2014 and nods once. \u201CRosa said you\u2019d be here. She\u2019s usually right. It\u2019s annoying.\u201D',
+      },
+    ],
+  },
+];
+
+/** The REGULAR UNLOCKED line — Idris converts from stranger to promise
+ *  (Doc 02 §20:00–26:00). Fires on every choice of his card, once. */
+export const IDRIS_UNLOCK_NOTE =
+  'Regular unlocked \u2014 Mr. Idris. Two sugars. Every day. You\u2019ll see him tomorrow.';
+
+/** The gold window's payoff (Doc 02 §26:00–30:00). Rosa's quiet line lands
+ *  while the window holds, and the send-off closes the session's open loop. */
+export const GOLD_WINDOW_NOTE =
+  'Rosa, quieter, following your eyes: \u201CThat one\u2019s the kid who ordered \u2018whatever\u2019s cold.\u2019\u201D A beat. \u201CYou were their first warm thing today.\u201D';
+export const LIGHTS_OUT_NOTE =
+  'Rosa, from below, calling up: \u201CLights out, rookie! Big day tomorrow. They\u2019re gonna want the usual.\u201D';
+
+/** The water towers, from the fire escape (Doc 08 note #7 — first clear
+ *  view of the wooden hats). */
+export const WATER_TOWERS_NOTE =
+  'The buildings wear wooden hats. I don\u2019t know why yet. I like them.';
+
+// ------------------------------------------------------- the Map margins ----
+// Slang cards (Doc 08 §1 — the four). Earned by asking; the margins hold
+// them. Feelings first, ordinary words, never a dictionary entry.
+export interface SlangCard {
+  id: string;
+  word: string;
+  meaning: string;
+}
+
+export const SLANG_CARDS: Record<string, SlangCard> = {
+  regular: {
+    id: 'regular',
+    word: 'regular',
+    meaning: 'A small coffee with milk and two sugars. Also: the person who orders it.',
+  },
+  bodega: {
+    id: 'bodega',
+    word: 'bodega',
+    meaning: 'The corner shop that knows your order before you do. The cat may outrank the owner.',
+  },
+  hero: {
+    id: 'hero',
+    word: 'hero',
+    meaning: 'A big sub roll. Not a sandwich. A hero.',
+  },
+  online: {
+    id: 'online',
+    word: 'on line',
+    meaning: 'How New Yorkers stand. Not \u201Cin line.\u201D',
+  },
+};
+
 export const LINGER_NOTE = 'Stay a while. The window is in no rush.';
 export const LINGER_OBJECTIVE = 'Stay as long as you like. The rail is a good spot. [Space] there when you\u2019re ready for tomorrow.';
 export const RAIL_GOODNIGHT_NOTE =
