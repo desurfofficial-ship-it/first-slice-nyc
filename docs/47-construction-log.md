@@ -559,3 +559,80 @@ identity intact).
 yields, the cab rail to ±84 with XW-COURT courtesy zones, the busker's
 horn note, NZ-COURT's dusk pair, the 30-minute ped soak (the exit gate
 for the full phase), laundry lines and the marquee's day-keyed notices.
+
+---
+
+## The First Session, in paper (SHIPPED 2026-11-02, branch `feat/first-session-paper-kit`)
+
+**Scope honored:** the ORIGINAL first session (Docs 02/06/07) brought into
+compliance with the paper prototypes (Docs 11/12) — the mandatory design
+reference. Zero world geometry changed; the living block (W0–W4) is
+untouched. Every change is content, conversation, or paper surface.
+
+### The seven requirements, each verified
+
+1. **Map is a notebook, not a quest menu.** A folded-paper surface (M key /
+   the corner button): page 1 is the star and *"You are here. That's
+   enough."*; page 2 is "Things I noticed" margins that collect the Doc 08
+   notes and slang cards as they are earned. It opens only when asked,
+   wiggles once when it writes, never gates, never nags (probe screenshots,
+   desktop + 390×844).
+2. **The city is patient.** The conversation has no timer anywhere; the
+   card's own hint says *"the counter waits."* Escape steps back from an
+   order with no penalty; nothing can fail.
+3. **Customers are people.** Five authored rush cards + three solo cards
+   (Doc 12 §2 cards 1–5, Doc 02 §5:00–10:00 and §20:00–26:00) with order
+   bubbles legible from across the counter — the stroller woman's earned
+   relief, the kid's honest shrug, Idris's nod.
+4. **Natural dialogue choices.** The kit's four replies on every card:
+   just make it / repeat it back / ask one question / chef's welcome (the
+   kid's card carries the kit's three). Teaching fires only on ask; one
+   piece explained at a time; wrong guesses can never offend.
+5. **The Idris "usual" continuity.** Rosa's *"Two sugars. Every day for
+   nine years. You'll see him tomorrow."* lands on EVERY card-5 reply
+   (Map-notebook asserted in E2E); at your own cart Idris says *"Rosa said
+   you'd be here. She's usually right. It's annoying."* and unlocks as a
+   Regular; Day 2's "Told you I'd be back" now has its setup.
+6. **The kid connects to the gold window.** His cold cup is served and
+   flagged (`kidDay1Served`); at dusk Rosa names him: *"That one's the kid
+   who ordered 'whatever's cold.' You were their first warm thing today."*
+7. **The fire-escape payoff stands.** Flicker ×3 → hold gold, Rosa's quiet
+   line, then the send-off — *"Lights out, rookie! Big day tomorrow.
+   They're gonna want the usual."* — then the postcard composes with the
+   open loop intact. The E2E watches both lines land live.
+
+### What landed (files)
+
+- `content.ts` — the eight order cards (voice-checked against Doc 02/08/12),
+  `IDRIS_NINE_YEARS_NOTE`, `IDRIS_UNLOCK_NOTE`, `GOLD_WINDOW_NOTE`,
+  `LIGHTS_OUT_NOTE`, `WATER_TOWERS_NOTE`, the four Doc 08 slang cards.
+- `GameState.ts` — the conversation machine (`openCounterOrder` /
+  `openCartOrder` / `chooseReply`): money math untouched ($87 → $112, the
+  E2E's specification); the Map's page state (`collectNote` dedupes, caps
+  at 24); `map_notes`/`map_slang` save fields.
+- `Save.ts` — optional trailing fields, same migration law as the Doc 37
+  counters (corrupt list = empty page, never a crash).
+- `interactionDefs.ts` — counter/cart take orders (the conversation owns
+  the press); D2 lunch and D3/D4 brews unchanged.
+- `Game.ts` — effect application, the note queue (two notes in one breath
+  queue instead of stampeding — the city is patient), the Day-1 dusk
+  sequence, Map toggle, E2E debug reads.
+- `UI.ts` + `index.html` + `style.css` — the order card (paper, deckled,
+  numbered replies, the patience hint) and the Map notebook (folded-corner
+  button, two-page spread, margins).
+
+### Verification
+
+tsc clean · vitest 258/258 (new: `map-notebook.test.ts` — the notebook
+rules as assertions; `state.test.ts` now plays the conversations) ·
+E2E OK — **0 failures, 124 checks, 362 s** (Day-1 legs PLAY the kit: ask
+the regular, repeat the bagel, ask the hero, Idris's usual; the kid's
+"I don't know either!"; the Map opens with the morning in it; both Rosa
+dusk lines observed) · `probe-doc12.mjs` screenshots reviewed at 900×700
+and 390×844 (Vertical-First Law): card and notebook compose on both.
+
+**Explicitly NOT done (deferred on purpose):** repeat-back as the 3-item
+memory mini-game (v0 ships the plain echo, per Doc 07's "tiny memory
+moment"); the Map's writing animation stroke-by-stroke (VS-F01 v1);
+VO of the five signature lines (Doc 07 TBD-1); Times Square and Subway
+University remain Doc 02 beats outside the greybox block.
