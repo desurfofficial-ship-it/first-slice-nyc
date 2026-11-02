@@ -24,7 +24,7 @@ import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecy
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
-import { Pedestrians, type PedLook, type RoutineStop } from './peds';
+import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay } from './dressing';
 import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT } from '../core/content';
 
@@ -1108,6 +1108,10 @@ export class World {
     this.buildAlderHeightsW2();
     // W3: the avenue walls, the landmarks, the painted gables. Also pre-bake.
     this.buildAlderHeightsW3();
+    // W4 part 1: the district's static life — zone figures, parked cars,
+    // the BUS-03 stop — all pre-bake so the W0 merge swallows them (the
+    // perf law: the zones cost merges, not draw calls).
+    this.buildAlderHeightsW4Life();
 
     // leaf drift, now over every tree on the block (shipped 12 + W1 rows)
     this.leaves = new LeafDrift(this.scene, [...leafSpots, ...this.extraLeafSpots], 4);
@@ -1134,13 +1138,30 @@ export class World {
     ];
     const pedPaths: Array<Array<[number, number]>> = [
       // the commuter: full block, crossing only at the crosswalk (x ≈ -6.5,
-      // inside the cab's yield zone), two lanes per direction
+      // inside the cab's yield zone), two lanes per direction. LAW (probe-peds
+      // caught it): Yuka spawns each walker targeting pts[0] — so pts[0] must
+      // be reachable LEGALLY from every point. The crossing's north mouth is
+      // that point; the west district reach belongs to the shopper's loop.
       [[-6.5, 6.15], [38, 6.15], [38, 6.85], [-6.5, 6.85],
        [-6.5, -6.15], [26, -6.15], [26, -6.85], [-6.5, -6.85]],
-      // the window shopper: north sidewalk out-and-back, past the bodega
-      [[10, 6.1], [-28, 6.1], [-28, 6.75], [10, 6.75]],
-      // the south-side local: laundry to the west end and back
-      [[-34, -6.1], [18, -6.1], [18, -6.8], [-34, -6.8]],
+      // the window shopper: north walk out-and-back — W4: extended west to
+      // the plaza/terminal end (NZ-TERMINAL's bay, NZ-PLAZA's stair beats).
+      // The turnaround parks at x −42, not the wall: the −44 curb car's
+      // avoidance circle squeezed the U-turn into the building-line trunks
+      // (probe-solid's 0.35 m trunk approach — the gate is 0.42).
+      [[10, 6.1], [-42, 6.1], [-42, 6.75], [10, 6.75]],
+      // the south-side local: laundry to the district's east end and back.
+      // W4: the return lane rides −6.35, not the old −6.8 — the east-end
+      // trunks (28/38, −7.0) held the extended loop at their circle radius
+      // (0.35 m, probe-solid's gate is 0.42); 0.65 m lateral clears them.
+      [[-34, -6.1], [44, -6.1], [44, -6.35], [-34, -6.35]],
+      // W4 — the garden tender (NZ-GARDEN): the gate to the beds and back,
+      // inside GRD-GABLE's fence line (x −8.4..4, z 20..30)
+      [[4.4, 24.1], [-0.5, 24.4], [-6.5, 24.4], [-6.9, 26],
+       [-4, 26.8], [0, 26.2], [2.8, 25], [4.4, 24.1]],
+      // W4 — the avenue shopper (NZ-AVENUE): the Sycamore Ave west walk,
+      // past the diner window and the fruit stand (x 61.5/62.2 lanes)
+      [[61.5, -18], [61.5, 18], [62.2, 18], [62.2, -18]],
     ];
     // ---- their routines (Phase 4, Doc 37 §3E): the day's small beats ------
     // Every trigger sits OFF the walk lanes (at the building line or the
@@ -1153,23 +1174,42 @@ export class World {
     // block's occasional two-person conversation.
     const pedRoutines: RoutineStop[][] = [
       // the commuter: the barber's pole on the way east, the mailbox on the
-      // way west, and a chance word by the bus bench
+      // way west, a chance word by the bus bench (its ring is unchanged —
+      // the spawn law above keeps the crossing legal from every seed)
       [
         { x: 34.5, z: 7.0, faceTo: [36.6, 7.9], dwell: 3.0 },
         { x: -3.4, z: -6.9, faceTo: [-3.2, -6.1], dwell: 2.5 },
         { x: -24.9, z: 7.0, faceTo: [-23.3, 7.62], dwell: 5.0 },
       ],
-      // the window shopper: the bodega window (she's just looking — always),
-      // then the bench, where the gossip lives
+      // the window shopper: the bodega window, the bench — and W4's west
+      // beats: the terminal curb bay (NZ-TERMINAL), the plaza stair (NZ-PLAZA)
       [
         { x: -17.0, z: 7.0, faceTo: [-18.5, 13.5], dwell: 4.0 },
         { x: -26.1, z: 7.0, faceTo: [-23.3, 7.62], dwell: 5.0 },
+        { x: -30.6, z: 6.9, faceTo: [-30, 3.4], dwell: 3.0 },
+        { x: -41.2, z: 6.9, faceTo: [-42, 6.2], dwell: 3.5 },
       ],
       // the south-side local: watches the cart corner (opinions daily),
-      // reads the stoops at the quiet west end
+      // reads the stoops at the quiet west end — and W4: pauses at the
+      // Corner Park gate (NZ-DOG), where the pigeons scatter-recover
       [
         { x: 5.4, z: -6.9, faceTo: [4.0, -6.6], dwell: 3.0 },
         { x: -30.5, z: -6.9, faceTo: [-30.5, -9.0], dwell: 2.5 },
+        { x: 31.5, z: -6.5, faceTo: [34, -6.3], dwell: 5.0 },
+      ],
+      // W4 — the garden tender (NZ-GARDEN): watering the beds, a word to
+      // the bench, back to the gate
+      [
+        { x: -6.2, z: 24.6, faceTo: [-7.6, 23], dwell: 6.0 },
+        { x: -1.8, z: 25.8, faceTo: [-4, 27], dwell: 5.0 },
+        { x: 2.4, z: 24.6, faceTo: [1, 22.5], dwell: 3.0 },
+      ],
+      // W4 — the avenue shopper (NZ-AVENUE): the diner window, the Golden
+      // Orchard's crates, the M121 pole
+      [
+        { x: 61.6, z: -12, faceTo: [60.1, -12], dwell: 5.0 },
+        { x: 61.7, z: -16.5, faceTo: [63.3, -18], dwell: 4.0 },
+        { x: 61.6, z: 2.2, faceTo: [61.5, 2], dwell: 2.0 },
       ],
     ];
     this.peds = new Pedestrians(
@@ -1219,8 +1259,32 @@ export class World {
         ...this.extraKestrelPedBodies.map(([x, z]) => ({ x, z, r: 0.35 })),
         { x: -57, z: -6.25, r: 1.9 },  // SUB-02 control house
         { x: 12, z: -7.35, r: 0.3 },   // new south lamp (walker band east end)
+        // W4: the parked cars (built in buildAlderHeightsW4Life, below) and
+        // the park/garden furniture the new district walkers can meet
+        ...this.w4ParkedCarBodies.map(([x, z]) => ({ x, z, r: 1.9 })),
+        { x: 10, z: 28.5, r: 0.4 }, { x: 16, z: 29, r: 0.4 },   // Kestrel Green trees
+        { x: 23, z: 28.8, r: 0.4 }, { x: 28.5, z: 27, r: 0.4 },
+        { x: 17.55, z: 26.3, r: 0.3 }, { x: 21.45, z: 26.3, r: 0.3 }, // pergola posts
+        { x: 17.55, z: 28.7, r: 0.3 }, { x: 21.45, z: 28.7, r: 0.3 },
+        { x: 12, z: 22.5, r: 0.95 }, { x: 24, z: 25.5, r: 0.95 }, { x: 18, z: 21.5, r: 0.95 }, // green benches
+        { x: 9, z: 23, r: 0.3 }, { x: 20, z: 21, r: 0.3 }, { x: 29, z: 23, r: 0.3 },  // green lamps
+        { x: 11, z: 25.2, r: 0.45 }, { x: 27.5, z: 22, r: 0.45 },  // green bins
+        { x: 16.98, z: 31, r: 0.3 }, { x: 19.02, z: 31, r: 0.3 },  // green gate posts
+        { x: -7.6, z: 23, r: 0.9 }, { x: -4, z: 23, r: 0.9 },      // garden beds
+        { x: -7.6, z: 27, r: 0.9 }, { x: -4, z: 27, r: 0.9 },
+        { x: 2, z: 28.5, r: 1.4 }, { x: 1, z: 22.5, r: 0.9 },      // shed, garden bench
+        { x: -10, z: -28.5, r: 1.2 }, { x: -4.5, z: -27.5, r: 1.6 }, // swings, sandbox
       ],
       pedRoutines,
+      // W4: the district's five road rectangles — ground truth for every
+      // walker's feet (registry streets, verbatim)
+      [
+        { xMin: -84, xMax: 84, zMin: -4, zMax: 4 },    // Kestrel Street
+        { xMin: -84, xMax: 84, zMin: 36, zMax: 44 },   // Gable Street
+        { xMin: -84, xMax: 84, zMin: -44, zMax: -36 }, // Marlow Street
+        { xMin: -76, xMax: -68, zMin: -64, zMax: 64 }, // Juniper Avenue
+        { xMin: 68, xMax: 76, zMin: -64, zMax: 64 },   // Sycamore Avenue
+      ] as RoadRect[],
     );
     // the walkers carry real bodies for the player's collision stack — the
     // audit's "NPCs walking through the player" (doc 35 §1): one synced AABB
@@ -1245,6 +1309,100 @@ export class World {
   // Signs stay out automatically (their materials carry canvas textures),
   // as do anything transparent or non-Lambert. Batches under 2 meshes are
   // left alone — merging them would save nothing.
+  /** W4, part 1 — the district's STATIC life (docs/45 §1 W4; every zone
+   *  from the registry's npcZones). Perf law: dwellers are posed figures on
+   *  bank-shared materials added BEFORE the bake, so the W0 merge swallows
+   *  them — the zones cost merges, not draw calls. Walking zones ride the
+   *  existing Yuka system (the Pedestrians roster, below). The two registry
+   *  readings this phase makes are recorded in docs/47: the parking-strip
+   *  stalls take their W4 cars (the W2 pad was built ready for them), and
+   *  NZ-BUSKER's horn note ships with the M121 in W4 part 2. */
+  private buildAlderHeightsW4Life(): void {
+    // ---- static zone figures (posed once; merged into district tiles) ----
+    const figure = (
+      name: string, look: PedLook, x: number, y: number, z: number, yaw: number, sit = false,
+    ): void => {
+      const { group, rig } = buildArticulatedPerson(look, (c) => this.bank.get(c));
+      // batch discipline (the census caught it): each novel (color, cast,
+      // receive) signature opens a new baked batch per district tile — so a
+      // tile's figures SHARE one palette and receive shadows like the
+      // world's own solids, and the district's static life costs a handful
+      // of batches, not a handful per figure
+      group.traverse((o) => { if (o instanceof THREE.Mesh) o.receiveShadow = true; });
+      if (sit) {
+        // seated: thighs folded forward (the rig faces +z at yaw 0), arms
+        // resting — the low-poly sit, hips ~0.17 above the seat
+        rig.hipL.rotation.x = -Math.PI / 2 + 0.18;
+        rig.hipR.rotation.x = -Math.PI / 2 + 0.12;
+        rig.armL.rotation.x = -0.45;
+        rig.armR.rotation.x = -0.45;
+        y -= 0.55 * (look.scale ?? 1);
+      }
+      group.name = name;
+      group.position.set(x, y, z);
+      group.rotation.y = yaw;
+      this.scene.add(group);
+    };
+    // NZ-GOSSIP-G + NZ-READERS — four figures, ONE shared palette (the
+    // Kestrel Green tile merges them into a handful of batches); identity
+    // comes from silhouette (style/scale), never new colors
+    const greenLook = (style: 'bun' | 'flat' | 'cap', scale: number): PedLook =>
+      ({ jacket: 0x7d5a62, pants: 0x47404b, skin: 0xe8b08e, hair: 0x6e3b2a, style, scale });
+    figure('NZGossip_A', greenLook('bun', 0.95),
+      18.3, 0.15, 27.2, Math.atan2(20.7 - 18.3, 27.5 - 27.2));
+    figure('NZGossip_B', greenLook('flat', 1.02),
+      20.7, 0.15, 27.5, Math.atan2(18.3 - 20.7, 27.2 - 27.5));
+    figure('NZReader', greenLook('bun', 0.93), 12, 0.15, 21.4, 0);
+    figure('NZLunch', greenLook('cap', 1.06), 24, 0.15, 26.4, Math.PI);
+    // NZ-STOOPS — the row's pair, one shared palette (their own tile)
+    const stoopLook = (style: 'bun' | 'flat', scale: number): PedLook =>
+      ({ jacket: 0x5d6b4a, pants: 0x39423a, skin: 0x8a5a3b, hair: 0x6e3b2a, style, scale });
+    figure('NZStoop_A', stoopLook('bun', 0.98), -41.5, 0.2, 32.3, 0.3, true);
+    figure('NZStoop_B', stoopLook('flat', 1.04), -18.7, 0.2, 32.3, -0.25, true);
+    // NZ-PLAYGROUND — kid + caregiver, one shared palette (Marlow tile);
+    // the kid keeps the row's coral and ambient scale
+    figure('NZKid_Sandbox', { jacket: 0xff6b6b, pants: 0x47404b, skin: 0xe8b08e, hair: 0x6e3b2a, style: 'cap', scale: 0.78 },
+      -4.2, 0.2, -27.2, -1.8);
+    figure('NZCaregiver', { jacket: 0xff6b6b, pants: 0x47404b, skin: 0xc98e5a, hair: 0x1f1b23, style: 'bun', scale: 0.99 },
+      -7.2, 0.12, -29.8, -1.13);
+    // NZ-BUSKER — the horn man at the SUB-02 corner, case open at his feet
+    figure('NZBusker', { jacket: 0x3a3440, pants: 0x1f1b23, skin: 0x8a5a3b, hair: 0x2b2730, style: 'cap', scale: 1.01 },
+      -52.6, 0.1, -5.5, 0);
+    this.decoMesh('Busker_Case', new THREE.BoxGeometry(0.65, 0.12, 0.42),
+      this.bank.get(0x8a6a4a), -52.6, 0.16, -4.95);
+
+    // ---- the parked cars (registry transit.parkedCars + the W2 strip) ----
+    const car = (name: string, x: number, z: number, yaw: number, alongZ = false): void => {
+      const c = this.buildCar('sedan');
+      c.name = name;
+      c.position.set(x, 0, z);
+      c.rotation.y = yaw;
+      this.scene.add(c);
+      this.colliders.push(alongZ
+        ? boxFromCenter(x, 0.75, z, 1.95, 1.5, 4.4)
+        : boxFromCenter(x, 0.75, z, 4.4, 1.5, 1.95));
+      this.w4ParkedCarBodies.push([x, z]);
+    };
+    // Kestrel N curb ends (registry: z ±3.05, outside both moving lanes)
+    car('Parked_Kestrel_E', 44, 3.05, Math.PI);
+    car('Parked_Kestrel_W', -44, 3.05, Math.PI);
+    // avenue curbs — hugging the road edge, clear of the x ±70/±74 rails
+    car('Parked_Sycamore_S', 68.98, 10, -Math.PI / 2, true);
+    car('Parked_Sycamore_N', 68.98, 34, -Math.PI / 2, true);
+    car('Parked_Juniper', -68.98, 14, -Math.PI / 2, true);
+    // the W2 strip's stalls (the pad was built ready for them)
+    car('Parked_Strip_E', 38, 25, 0);
+    car('Parked_Strip_W', 43, 25, Math.PI);
+
+    // ---- BUS-03, Sycamore/Diner (registry transit.bus.stops) -------------
+    // The flag rides the west walk at the pinned corner; the bay paint
+    // mirrors BUS-02's curb pattern on the Kestrel north curb it serves.
+    this.deco('BUS03_Bay', 61.5, 0.02, 3.4, 12, 0.02, 0.5, PAL.taxi, {});
+    const m121b = makePoleSign(this.bank, this.signMaterials.bind(this), 'M121', { w: 0.8, h: 0.3, y: 3.0 });
+    m121b.position.set(61.5, 0.05, 2);
+    this.scene.add(m121b);
+  }
+
   private bakeStatics(): void {
     const skip = new Set<THREE.Object3D>([
       this.cartRoot, this.cartAwning, this.roof,
@@ -2964,6 +3122,8 @@ export class World {
   /** Kestrel-row trees inside the ambient walkers' band — Pedestrians reads
    *  this after construction (filled by buildAlderHeightsW1). */
   private readonly extraKestrelPedBodies: Array<[number, number]> = [];
+  /** W4: the parked cars' centers, fed to the walkers as avoidance circles. */
+  private readonly w4ParkedCarBodies: Array<[number, number]> = [];
 
   /** Rolling shirt rack — two uprights, a bar, four honest shirts. The
    *  frame is chunky on purpose: hairline posts read as floating shirts
@@ -3690,7 +3850,7 @@ export class World {
 
   /** Preallocated yield bodies — the scan runs every frame; nothing in it
    *  may allocate (perf rule: no per-frame garbage). */
-  private readonly trafficPool: TrafficBody[] = Array.from({ length: 16 }, () => ({ x: 0, z: 0, r: 0 }));
+  private readonly trafficPool: TrafficBody[] = Array.from({ length: 28 }, () => ({ x: 0, z: 0, r: 0 }));
   private readonly parkedSedanRect: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
   private readonly parkedVanRect: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
   private readonly cabRectScratch: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };

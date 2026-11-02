@@ -476,3 +476,86 @@ path down, and the driver budgets are now honest about slow frames.
 marquee's day-keyed notices (W4 dressing), SRC-01/02 and KTN-07 interiors
 (Class-C exterior-only), the fruit stand's vendor loop (W4 life), the
 avenue vehicle rails and bus (W4).
+
+---
+
+## W4 part 1 — the district's life (SHIPPED 2026-11-02)
+
+**Scope honored:** the npcZones roster on the existing Yuka/dwell systems;
+no new dependencies; the story cast and the E2E untouched. File owner:
+Main Agent (`peds.ts` bands + `World.ts` life). The M121 bus, the cab-rail
+extension to ±84 with courtesy zones, and the busker's horn note are **W4
+part 2** — this commit is the life layer only, and says so.
+
+**What landed**
+
+- **Static zone figures** (posed, pre-bake, merged into district tiles):
+  NZ-GOSSIP-G's pair under the Kestrel Green pergola, NZ-READERS' reader
+  and lunch at the benches, NZ-STOOPS' two sitters on the row's upper
+  landings (the rig's own hips folded — the low-poly sit), NZ-PLAYGROUND's
+  sandbox kid (the row's coral, ambient 0.78 scale) and caregiver,
+  NZ-BUSKER at the SUB-02 corner with an open case. Identity by silhouette
+  (style/scale), never by new colors.
+- **Walking zones** ride the shipped system: NZ-GARDEN's tender loops the
+  beds inside the fence; NZ-AVENUE's shopper walks the Sycamore west walk
+  past the diner window, the Golden Orchard and the M121 pole; the
+  NZ-TERMINAL bay and NZ-PLAZA stair beats ride the window shopper's
+  extended loop; NZ-DOG's gate beat rides the south local. NZ-CART,
+  NZ-GOSSIP-E untouched (existing); NZ-COURT's dusk pickup pair deferred
+  to W4 part 2 with the dusk wiring.
+- **Parked cars ×7**: the registry's two Kestrel end cars (±44, 3.05) and
+  three avenue curbs (Sycamore ×2 west edge, Juniper east edge — clear of
+  the ±70/±74 rails), plus the two stalls the W2 strip was built ready
+  for. Every one a 4.4×1.95 collider, an avoidance circle, and a W2-pad
+  reading recorded in the log.
+- **BUS-03 Sycamore/Diner**: the pinned corner flag (61.5, 2) + the curb
+  bay paint, mirroring BUS-02's pattern. The bus itself is part 2.
+- **peds.ts**: per-walker band clamps (each loop's own bbox — a pushed
+  district walker can never be clamped across the district) and the five
+  road rectangles as ground truth for feet (the shipped |z| > 4.15 rule
+  never knew Gable from Kestrel).
+
+**Two route laws the probes caught (both fixed in-phase)**
+
+1. **The spawn law**: Yuka spawns each walker targeting pts[0] — so
+   pts[0] must be reachable LEGALLY from every point. My first district
+   spine moved pts[0] to x −44 and the seeded commuter cut the road
+   diagonally to reach it (probe-peds sidewalk VIOLATION). The crossing's
+   north mouth is the only legal hub; the west reach moved to the
+   shopper's single-walk loop.
+2. **The trunk circle**: the local's extended east leg rode z −6.8, and
+   the east trunks (28/38, −7.0) held it at their circle radius — 0.35 m,
+   under probe-solid's 0.42 gate. The return lane rides −6.35 (0.70 m,
+   ALL CLEAN). Same lesson at the shopper's west turnaround: parked at
+   −42, out of the −44 curb car's avoidance circle.
+
+**Performance ledger** (probe-w0-census, same rigs; W3 → W4p1):
+
+| Rig | W3 | W4p1 | Δ | Est. | Tris |
+|---|---|---|---|---|---|
+| PLAZA | 908 | **973** | +65 | +15–25 | 132.8k |
+| CART_CORNER | 760 | **821** | +61 | +15–25 | 114.5k |
+| SYCAMORE×GABLE | 439 | **490** | +51 | +15–25 | 93.0k |
+
+Honest accounting: the phase estimate assumed zone life was nearly free;
+the W0 bake makes it *mergeable but not free* — every object palette
+entering a new district tile opens its own (color, cast, receive) batch
+there, and the avenue shopper's animated rig rides every frustum that
+looks down Kestrel. The palette consolidation pass (a tile's figures
+share one clothing palette, receive-shadows aligned) clawed back ~1/3;
+the rest is the parked cars' palette in five new tiles. The recorded
+W4-part-2 lever is a batch-consolidation pass (fold cast-only signatures
+into the world's cast+receive batches, share the car palette across
+tiles); the tris stay under Doc 07's 120k line at the two street rigs
+and the intersection rig, published rather than trimmed to fit.
+
+**Verification**: tsc clean · vitest 243/243 · build clean · registry
+validator green · probe-peds OK · probe-solid ALL CLEAN (4/4) ·
+probe-w3-ghost PASS · E2E: OK — 0 failures, 104/104, 313 s, re-run after
+the lane fixes · peds-street shot visually checked (walkers grounded,
+identity intact).
+
+**Explicitly NOT done (W4 part 2)**: the M121 bus body + loop with
+yields, the cab rail to ±84 with XW-COURT courtesy zones, the busker's
+horn note, NZ-COURT's dusk pair, the 30-minute ped soak (the exit gate
+for the full phase), laundry lines and the marquee's day-keyed notices.
