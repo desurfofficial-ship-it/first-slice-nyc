@@ -811,6 +811,121 @@ export const BARBER_LINES: string[] = [
   'A trim and fifteen minutes of the radio. You walk out squinting at how sharp the afternoon got.',
 ];
 
+// -------------------------------------------------------------- W5: the rooms ----
+// docs/41 planned every interior to fixture level before a wall went up;
+// these lines are the loops' voices. All additive — the shipped constants
+// above are the contract, these are the rooms speaking.
+
+/** SUNRISE LAUNDRY — the wash's second beat (docs/41 §2.2): dry-and-fold at
+ *  the dryer wall. $2, the same wash-day rhythm, no new state — the drum
+ *  hum carries it. */
+export const DRYER_PRICE = 2;
+export const DRYER_OFFER =
+  'The dryer wall takes quarters and patience \u2014 dry & fold, $2. [Space] again to run it.';
+export const DRYER_BROKE =
+  'Dry & fold is $2. The basket can air out one more day.';
+export const DRYER_LINES: string[] = [
+  'Warm cotton, the smell of someone else\u2019s detergent. The folding tables wait. Two dollars, well tumbled.',
+  'You fold at the far table. A stranger\u2019s sock rides your basket home. The laundromat keeps its secrets.',
+  'The dryer door sticks, then gives. Everything comes out softer than it went in, including you.',
+  'Sal nods at the folding tables. The dryers tick like a clock that only counts clean things.',
+];
+
+/** CORNER SLICE — the dollar slice, a standing order (docs/41 §2.4, the GDD
+ *  §4.5 starter trinity). The sign says a dollar; the fold-in says two —
+ *  the honest NYC arithmetic, said out loud in the offer line. */
+export const PIZZA_PRICE = 2;
+export const PIZZA_OFFER =
+  'The sign says a dollar. The sign is from 2019 \u2014 it\u2019s two now, folded, ready. [Space] again to take it.';
+export const PIZZA_BROKE =
+  'Two bucks for the fold. The wallet says the slice waits.';
+export const PIZZA_LINES: string[] = [
+  'Grease through the paper, the crust holding its one long note. You eat it in four steps and look for more.',
+  'The man behind the counter folds the box without being asked. Regulars don\u2019t order; they nod.',
+  'The deck oven hums at a temperature the block respects. Two dollars, one napkin, zero regrets.',
+  'A dollar\u2019s slice would have fed the doubt. Two dollars\u2019 feeds the walk home.',
+];
+
+/** ALDER HEIGHTS DINER — the counter seat, the booth, and the pie case
+ *  (docs/41 §2.6). Coffee is $2; the booth is free; the pie case teaches. */
+export const DINER_COFFEE_PRICE = 2;
+export const DINER_COFFEE_OFFER =
+  'A stool with a view of the griddle \u2014 bottomless cup, $2. [Space] again to sit in.';
+export const DINER_COFFEE_BROKE =
+  'The cup is $2. The counter will keep your stool shape until tomorrow.';
+export const DINER_COFFEE_LINES: string[] = [
+  'The cup refills before you ask. The regulars\u2019 section is three stools down and they\u2019ve noticed your cart.',
+  'Big Mike\u2019s shift ends at four. The counter says the block runs on this griddle and the K train.',
+  'You learn the waitress\u2019s name the same way she learned yours: the third cup, unprompted.',
+  'The coffee is diner coffee \u2014 which is to say, a promise the morning keeps.',
+];
+export const DINER_BOOTH_NOTES: string[] = [
+  'Vinyl that remembers a thousand waits. The window booth watches Kestrel go by.',
+  'The booth by the window: where the block\u2019s arguments end up, at breakfast, with forks.',
+  'Someone carved a tiny map into the table edge. It\u2019s this block. It\u2019s accurate.',
+  'You sit long enough to see the lunch shift take over like a tide.',
+];
+export const PIE_CASE_NOTES: string[] = [
+  'The pie case glows like a jukebox. Cherry today. The rule at the counter: order like a local \u2014 pie first, arguments after.',
+  'The case rotates the way the day does: fruit in the morning, cream by the afternoon. The locals know which.',
+];
+
+/** ALDER WORKS HALL — the notice wall and the workshop table (docs/41 §2.7).
+ *  The notice wall rides the shipped day-keyed dressing; these lines are
+ *  the workshop\u2019s. */
+export const HALL_WORKSHOP_NOTES: string[] = [
+  'Sawdust and PVC glue. The table holds half a birdhouse and all of somebody\u2019s weekend.',
+  'The workshop keeps two rules on the wall: measure twice, and sweep after \u2014 not tomorrow.',
+  'A crate of donated tools with a sign: TAKE WHAT YOU NEED, LEAVE WHAT YOU FIXED.',
+  'The folding chairs stack themselves by 9 sharp. The hall always knows what day it is.',
+];
+
+/** THE CECIL, ROOM 3 — the window-gaze beat (docs/41 §2.5, the reserved
+ *  note adopted in W5): one quiet look out the north window, the gold one
+ *  across the street answering. Day-keyed, free, no state. NOT adopted:
+ *  any sleep mechanic — days end at the rail, the way the story wrote it. */
+export const CECIL_GAZE_NOTES: string[] = [
+  'The gold window across the street is lit. From here, on your side of the road, it looks like the block is keeping a light on for you.',
+  'The street below does its evening arithmetic \u2014 cabs, headlights, the crosswalk\u2019s white bars. Yours is the only window that counts them.',
+  'The skyline wears its dusk gauze. You stand a minute longer than the coffee needed.',
+  'From here the street reads like the postcard it is. You\u2019ll take that with you tomorrow.',
+];
+
+/** MARLOW BAKERY — the morning anchor (docs/41 §2.8): the bagel silhouette
+ *  in the window, the counter just inside. $4 does it honestly. */
+export const BAKERY_PRICE = 4;
+export const BAKERY_OFFER =
+  'The morning anchor \u2014 bagel, coffee, the paper\u2019s crossword page, $4. [Space] again to make it yours.';
+export const BAKERY_BROKE =
+  'The anchor is $4. Tomorrow it\u2019s still the morning, somehow.';
+export const BAKERY_LINES: string[] = [
+  'The bagel is warm through the bag. The line behind you already knows what they\u2019re having.',
+  'Deck-oven heat rolls out the door like the shop is breathing. Four dollars, the whole morning in paper.',
+  'The racks behind the counter click as they cool. The crossword page came out good today.',
+  'You take it to the two-top by the window and eat like the block isn\u2019t watching. It is. It approves.',
+];
+
+/** B-SIDE RECORDS — the Happy-Accident shop (docs/41 §2.9, GDD §4.3): the
+ *  listening corner is free; the used bin is $3. */
+export const RECORD_BIN_PRICE = 3;
+export const RECORD_BIN_OFFER =
+  'The used bin knows things \u2014 three dollars and it\u2019s yours. [Space] again to flip through.';
+export const RECORD_BIN_BROKE =
+  'The bin is $3 a record. The bin has patience; so does the crate of doubts.';
+export const RECORD_BIN_LINES: string[] = [
+  'The bin coughs up a record with someone else\u2019s initials on the sleeve. It plays like it was waiting for you.',
+  'Three dollars. The B-side is better. That\u2019s the whole shop\u2019s philosophy in one purchase.',
+  'The needle drops on a song the radio forgot on purpose. The listening corner sways.',
+  'You leave with a record you\u2019d never have searched for. Getting lost is finding somewhere.',
+];
+export const RECORD_LISTEN_NOTES: string[] = [
+  'The shop plays whatever the owner is arguing with. Today it wins.',
+  'Crate three, second row: the corner where the good covers hide. The headphones hang like a dare.',
+  'One street from the subway and you\u2019d never find it twice by accident. That\u2019s the point.',
+  'The listening corner\u2019s chair knows every record in the shop by weight.',
+];
+
+
 /** CORNER PARK — the sittable bench by the lawn. The bus bench notes live
  *  on the bus bench; these belong to the lawn. */
 export const PARK_SIT_NOTES: string[] = [

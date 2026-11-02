@@ -415,6 +415,7 @@ export function makeBrownstoneStoop(bank: MatBank, doorColor: number, tall = fal
 export function makeStorefront(
   bank: MatBank, sign: SignPairFactory,
   text: string, awningColor: number, width: number,
+  glassName?: string,
 ): THREE.Group {
   const g = new THREE.Group();
   const glass = bank.get(0x3b3346);
@@ -423,6 +424,10 @@ export function makeStorefront(
   glassMat.emissiveIntensity = 0.22;
   const face = new THREE.Mesh(new THREE.BoxGeometry(width - 0.5, 2.1, 0.1), glassMat);
   face.position.set(0, 1.35, 0);
+  // W5: a named glass face is the room's FAR pane — World detaches it
+  // (scene.attach keeps the world transform) and swaps it for the clear
+  // pane while the player is near the room (docs/47 W5).
+  if (glassName) face.name = glassName;
   g.add(face);
   for (const sx of [-(width - 0.5) / 2 - 0.12, (width - 0.5) / 2 + 0.12]) {
     const col = unitBox(bank.get(0x8e6f66), 0.24, 2.6, 0.22, sx, 1.3, 0.02);

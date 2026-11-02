@@ -45,6 +45,26 @@ import { COURT_BALL_REST } from '../game/interactionDefs';
 
 export interface LadderInfo { area: AABB; top: number; }
 
+/** A W5 interior's toggle handle (docs/47 W5): the room's fit-out group,
+ *  its shell rect, the near/far pane parts, and the tower pieces that duck
+ *  while the player is inside. Declared at module level — classes can't
+ *  host interfaces. */
+interface InteriorHandle {
+  id: string;
+  x0: number; x1: number; z0: number; z1: number; // the registry shell
+  /** The inside test's y-band (CECIL-ROOM rides y 8.35; shops ride y 0). */
+  yBand?: [number, number];
+  /** Extra near-band margin on the z1 side — the Cecil's top landing sits
+   *  2.5 m past the shell (the room shows while you stand at the rail). */
+  padZ1?: number;
+  group: THREE.Group;                 // the fit-out (near only)
+  nearParts: THREE.Object3D[];        // clear panes (near only)
+  farParts: THREE.Object3D[];         // shipped glass faces (far only)
+  duck: THREE.Object3D[];             // the tower above, hidden while inside
+  near?: boolean;
+  inside?: boolean;
+}
+
 export class World {
   readonly scene = new THREE.Scene();
   readonly colliders: AABB[] = [];
@@ -758,7 +778,7 @@ export class World {
     // local +z; the street is on the −z side of the north-face row. (This
     // also fixes the recorded "pizza-awning diagonal" — the shipped copies
     // leaned INTO their building faces; the awning now hangs over the walk.)
-    const pizza = makeStorefront(this.bank, this.signMaterials.bind(this), 'CORNER SLICE PIZZA', PAL.coral, 6);
+    const pizza = makeStorefront(this.bank, this.signMaterials.bind(this), 'CORNER SLICE PIZZA', PAL.coral, 6, 'Pizza_Glass');
     pizza.position.set(27, 0.05, 8.02);
     pizza.rotation.y = Math.PI;
     this.scene.add(pizza);
@@ -1188,6 +1208,11 @@ export class World {
     // laundry (static, bakes free) and the hall's notice board (the face
     // carries a canvas texture, so it stays out of the bake by itself).
     this.buildAlderHeightsW4Traffic();
+    // W5: the interiors batch (docs/45 §1 W5) — the rooms hollow their
+    // masses' ground floors, furnish to the registry's fixture level, and
+    // every room carries the visibility toggle (near = fit-out + clear
+    // glass; far = the shipped lit-glass face; inside = the tower ducks).
+    this.buildAlderHeightsW5();
 
 
     // leaf drift, now over every tree on the block (shipped 12 + W1 rows)
@@ -1502,9 +1527,13 @@ export class World {
     // Kestrel N curb ends (registry: z ±3.05, outside both moving lanes)
     car('Parked_Kestrel_E', 44, 3.05, Math.PI);
     car('Parked_Kestrel_W', -44, 3.05, Math.PI);
-    // avenue curbs — hugging the road edge, clear of the x ±70/±74 rails
+    // avenue curbs — hugging the road edge, clear of the x ±70/±74 rails.
+    // The north Sycamore car rides z 24, mid-block: its first draft sat at
+    // z 34, inside the Gable S walk's crossing desire line (z 32..36) — the
+    // W5 ghost gate walked the junction and wedged the capsule against its
+    // west flank. NYC parks mid-block, not in the crosswalk. (docs/47 W5)
     car('Parked_Sycamore_S', 68.98, 10, -Math.PI / 2, true);
-    car('Parked_Sycamore_N', 68.98, 34, -Math.PI / 2, true);
+    car('Parked_Sycamore_N', 68.98, 24, -Math.PI / 2, true);
     car('Parked_Juniper', -68.98, 14, -Math.PI / 2, true);
     // the W2 strip's stalls (the pad was built ready for them)
     car('Parked_Strip_E', 38, 25, 0);
@@ -1738,10 +1767,765 @@ export class World {
     this.buildHallNotice();
   }
 
+  // ------------------------------------------------------- W5: the rooms ----
+  // docs/45 §1 W5 + docs/41: eight interiors, planned to fixture level in
+  // the registry, built here. The law each room obeys:
+  //
+  //   1. The shell matches the exterior. Hollowing decomposes the shipped
+  //      mass into wall boxes with the SAME outer envelope (footprint,
+  //      height, silhouette identical — the ghost probes still pass).
+  //   2. The door matches the shipped entrance (docs/41 §1 law 2).
+  //   3. Interior groups carry a visibility TOGGLE (docs/45 W5 exit): far,
+  //      the room hides and the facade keeps its lit-glass look (zero
+  //      draw-call cost at street scale); near (the shell + ~1.5 m), the
+  //      fit-out shows and the clear panes swap in — the camera "sees
+  //      through the glass" without raycasts. While the player is INSIDE,
+  //      the tower above the room ducks (the shipped bodega-roof grammar).
+  //   4. Toggleables stay OUT of the W0 bake (skip set below) — a baked
+  //      batch cannot be hidden per-room.
+  //
+  // Palette law: signature colors only; the two new glass materials reuse
+  // the storefront glass signature (0x3b3346 + the warm emissive), one
+  // translucent, one clear.
+
+  private readonly interiorHandles: InteriorHandle[] = [];
+  /** Warm translucent facade glass — the single-pane look for openings with
+   *  no shipped glass face (the hall's windows, the diner band, the Cecil's
+   *  room window). Lit from the street, see-through up close. */
+  private roomGlassMat!: THREE.MeshLambertMaterial;
+  /** Clear glass for the near state behind a shipped opaque face. */
+  private roomClearMat!: THREE.MeshLambertMaterial;
+  /** The warm interior wall band (the shipped Laundry_Back grammar). */
+  private roomWarmMat!: THREE.MeshLambertMaterial;
+
+  /** Remove a shipped mass mesh by name (the W2 garden-slot precedent:
+   *  find → remove → dispose; the collider is the caller's business). */
+  private retireMass(name: string): void {
+    const old = this.scene.children.find((c) => c.name === name);
+    if (old) {
+      this.scene.remove(old);
+      this.disposeTree(old);
+    }
+  }
+
+  /** Splice the shipped mass's collider (matched by its x/z bounds, the
+   *  buildGardenSlot pattern) — the decomposition below pushes its own.
+   *  ALL matches: the W2 slot cut mutated the original box in place AND
+   *  pushed the replacement solid's, so KTN-02 carries two identical
+   *  envelopes — leave one behind and the room's doorway stays walled. */
+  private retireCollider(x0: number, x1: number, z0: number, z1: number): void {
+    for (let ci = this.colliders.length - 1; ci >= 0; ci--) {
+      const b = this.colliders[ci];
+      if (Math.abs(b.minX - x0) < 0.01 && Math.abs(b.maxX - x1) < 0.01
+        && Math.abs(b.minZ - z0) < 0.01 && Math.abs(b.maxZ - z1) < 0.01) {
+        this.colliders.splice(ci, 1);
+      }
+    }
+  }
+
+  /** A solid box from BOUNDS — the decomposition reads in extents, not
+   *  center/size math. Collides by default (bakes like any solid). */
+  private roomBox(name: string, x0: number, x1: number, y0: number, y1: number,
+    z0: number, z1: number, color: number, collide = true): THREE.Mesh {
+    return this.solid(name, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2,
+      x1 - x0, y1 - y0, z1 - z0, color, collide ? {} : { collide: false });
+  }
+
+  /** The DUCK piece — the tower above a room. Same box as roomBox, but it
+   *  never joins the bake: the bake removes its source meshes, and a duck
+   *  has to stay hideable per-room (the bodega roof is the shipped
+   *  precedent — it sits in the skip set too). Collider stays on: a hidden
+   *  box 3 m over your head never stops anyone. */
+  private duckBox(name: string, x0: number, x1: number, y0: number, y1: number,
+    z0: number, z1: number, color: number): THREE.Mesh {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), this.mat(color));
+    m.name = name;
+    m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    this.scene.add(m);
+    this.colliders.push(boxFromCenter(m.position.x, m.position.y, m.position.z, x1 - x0, y1 - y0, z1 - z0));
+    return m;
+  }
+
+  /** One wall run with rectangular openings (piers, sills, lintels).
+   *  axis 'x': the wall runs along X at z = `at` (thickness t in z);
+   *  axis 'z': runs along Z at x = `at`. Piers and sills collide; lintels
+   *  ride above the capsule and don't. Everything pre-bake (bake merges). */
+  private wallRun(name: string, axis: 'x' | 'z', at: number,
+    a0: number, a1: number, y0: number, y1: number, t: number,
+    color: number,
+    openings: Array<{ from: number; to: number; y0?: number; y1?: number }> = []): void {
+    const ops = [...openings].sort((p, q) => p.from - q.from);
+    let cur = a0;
+    const piece = (nm: string, from: number, to: number, py0: number, py1: number, collide: boolean): void => {
+      if (to - from < 0.01 || py1 - py0 < 0.01) return;
+      const mid = (from + to) / 2;
+      const yMid = (py0 + py1) / 2;
+      if (axis === 'x') this.solid(nm, mid, yMid, at, to - from, py1 - py0, t, color, collide ? {} : { collide: false });
+      else this.solid(nm, at, yMid, mid, t, py1 - py0, to - from, color, collide ? {} : { collide: false });
+    };
+    ops.forEach((op, i) => {
+      piece(`${name}_pier_${i}`, cur, op.from, y0, y1, true);
+      piece(`${name}_sill_${i}`, op.from, op.to, y0, op.y0 ?? y0, true);
+      piece(`${name}_lintel_${i}`, op.from, op.to, op.y1 ?? y1, y1, false);
+      cur = op.to;
+    });
+    piece(`${name}_pier_${ops.length}`, cur, a1, y0, y1, true);
+  }
+
+  /** A thin translucent pane on a facade plane (axis 'z' faces ±z). */
+  private facadePane(name: string, axis: 'x' | 'z', at: number,
+    a0: number, a1: number, y0: number, y1: number, mat: THREE.MeshLambertMaterial): THREE.Mesh {
+    const geo = axis === 'x'
+      ? new THREE.BoxGeometry(a1 - a0, y1 - y0, 0.06)
+      : new THREE.BoxGeometry(0.06, y1 - y0, a1 - a0);
+    const m = new THREE.Mesh(geo, mat);
+    m.name = name;
+    if (axis === 'x') m.position.set((a0 + a1) / 2, (y0 + y1) / 2, at);
+    else m.position.set(at, (y0 + y1) / 2, (a0 + a1) / 2);
+    return m;
+  }
+
+  /** A simple fixture box inside a room group (cast+receive, no bake). */
+  private fixture(g: THREE.Group, name: string, x: number, y: number, z: number,
+    sx: number, sy: number, sz: number, color: number): THREE.Mesh {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), this.bank.get(color));
+    m.name = name;
+    m.position.set(x, y, z);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    g.add(m);
+    return m;
+  }
+
+  private roomKit(id: string): THREE.Group {
+    const g = new THREE.Group();
+    g.name = `INT_${id}`;
+    g.visible = false; // far state until the first updateInteriors
+    this.scene.add(g);
+    return g;
+  }
+
+  private registerInterior(h: InteriorHandle): void {
+    for (const o of h.nearParts) o.visible = false;
+    h.near = false;
+    h.inside = false;
+    this.interiorHandles.push(h as InteriorHandle & { near: boolean; inside: boolean });
+  }
+
+  /** The W5 room visibility toggle — docs/45 W5's exit criterion. Hysteresis
+   *  on the near band (enter 1.6 m, exit 0.8 m past the shell) so a player
+   *  loitering on the sill never flickers the room. */
+  private updateInteriors(px: number, py: number, pz: number): void {
+    const inRect = (x0: number, x1: number, z0: number, z1: number): boolean =>
+      px >= x0 && px <= x1 && pz >= z0 && pz <= z1;
+    for (const h of this.interiorHandles) {
+      const m = h.near ? 0.8 : 1.6;
+      const z1e = h.z1 + m + (h.padZ1 ?? 0);
+      const near = inRect(h.x0 - m, h.x1 + m, h.z0 - m, z1e);
+      const [y0, y1] = h.yBand ?? [-1, 5];
+      const inside = inRect(h.x0, h.x1, h.z0, h.z1) && py >= y0 && py <= y1;
+      if (near !== h.near) {
+        h.near = near;
+        h.group.visible = near;
+        for (const o of h.nearParts) o.visible = near;
+        for (const o of h.farParts) o.visible = !near;
+      }
+      if (inside !== h.inside) {
+        h.inside = inside;
+        for (const o of h.duck) o.visible = !inside;
+      }
+    }
+  }
+
+  /** W5 assembly — the eight rooms. Wall decompositions carry the shipped
+   *  masses' outer envelopes exactly (the ghost gate re-verifies them). */
+  private buildAlderHeightsW5(): void {
+    this.roomGlassMat = this.mat(0x3b3346, { emissive: 0xffb85c, emissiveIntensity: 0.22 });
+    this.roomGlassMat.transparent = true;
+    this.roomGlassMat.opacity = 0.42;
+    this.roomClearMat = this.mat(0x3b3346, { emissive: 0xffb85c, emissiveIntensity: 0.05 });
+    this.roomClearMat.transparent = true;
+    this.roomClearMat.opacity = 0.16;
+    this.roomWarmMat = this.mat(PAL.interior, { emissive: PAL.amber, emissiveIntensity: 0.42 });
+
+    this.buildW5Laundry();
+    this.buildW5Barber();
+    this.buildW5Pizza();
+    this.buildW5Bakery();
+    this.buildW5Records();
+    this.buildW5Hall();
+    this.buildW5Diner();
+    this.buildW5CecilRoom();
+  }
+
+  /** LAUNDRY-INT (registry: KTN-02, x −11..1, z 8.2..19, clear 3.2). The
+   *  shipped bay (washers, Sal, the alcove) stays byte-identical — the room
+   *  hollows behind it, the bay's warm back wall becomes the far state's
+   *  curtain (it hides while the room shows). The Bldg_N_East_A_West mass
+   *  (W2's x −11..6.5 cut) decomposes around the cavity. */
+  private buildW5Laundry(): void {
+    this.retireMass('Bldg_N_East_A_West');
+    this.retireCollider(-11, 6.5, 8, 20);
+    // the mass: upper tower (splits at the cavity's east wall x 0.85), the
+    // ground solid east of the room, the west skin, the north wall, and the
+    // south facade with the shipped bay opening (x −7.925..−2.075, y 0..2.8)
+    this.duckBox('KTN02_Upper_W', -11, 0.85, 3.2, 18, 8, 20, PAL.bldg2);
+    const duckUpper = this.scene.children[this.scene.children.length - 1] as THREE.Mesh;
+    this.roomBox('KTN02_Upper_E', 0.85, 6.5, 3.2, 18, 8, 20, PAL.bldg2);
+    this.roomBox('KTN02_Gnd_E', 0.85, 6.5, 0, 3.2, 8, 20, PAL.bldg2);
+    this.roomBox('KTN02_Wall_W', -11, -10.85, 0, 3.2, 8, 20, PAL.bldg2);
+    this.roomBox('KTN02_Wall_N', -11, 0.85, 0, 3.2, 18.85, 20, PAL.bldg2);
+    this.wallRun('KTN02_Facade', 'x', 8.15, -11, 0.85, 0, 3.2, 0.3, PAL.bldg2,
+      [{ from: -7.925, to: -2.075, y1: 2.8 }]);
+
+    const g = this.roomKit('LAUNDRY');
+    // floor: from the facade line back, warm plaster — continuous with the
+    // shipped bay floor (0xb9b1a6, the alcove's own gray)
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(11.7, 0.06, 10.8), this.bank.get(0xb9b1a6));
+    floor.name = 'LaundryRoom_Floor';
+    floor.position.set(-5.15, 0.13, 13.45);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // warm band on the north wall (the room's light source, Laundry_Back's
+    // grammar carried inward)
+    const warm = new THREE.Mesh(new THREE.BoxGeometry(11.5, 2.4, 0.06), this.roomWarmMat);
+    warm.name = 'LaundryRoom_Warm';
+    warm.position.set(-5.15, 1.7, 18.82);
+    g.add(warm);
+    // the registry's machines: 6 washers west wall, 4 dryers east
+    for (const wz of [9.5, 11.2, 12.9, 14.6, 16.3, 18]) {
+      const b = this.fixture(g, `LW_${wz}`, -10.35, 0.9, wz, 0.95, 1.5, 0.75, 0x9a938c);
+      const door = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.04, 14), this.bank.get(0x2b2730));
+      door.rotation.z = Math.PI / 2;
+      door.position.set(-9.86, 0.85, wz);
+      g.add(door);
+      this.colliders.push(boxFromCenter(-10.35, 0.9, wz, 0.95, 1.5, 0.75));
+      void b;
+    }
+    for (const dz of [10.5, 12.2, 13.9, 15.6]) {
+      this.fixture(g, `LD_${dz}`, 0.35, 0.8, dz, 0.95, 1.35, 0.75, 0x9a938c);
+      this.fixture(g, `LDT_${dz}`, 0.35, 1.52, dz, 0.99, 0.08, 0.79, PAL.teal);
+      this.colliders.push(boxFromCenter(0.35, 0.8, dz, 0.95, 1.35, 0.75));
+    }
+    // folding tables (2), seating (2 chairs + cart), back room (shelf+carts)
+    for (const tz of [12.1, 13.1]) {
+      this.fixture(g, `LT_${tz}`, -5, 0.85, tz, 2.4, 0.07, 0.9, PAL.cream);
+      this.fixture(g, `LTleg_${tz}`, -5, 0.42, tz, 0.12, 0.85, 0.7, 0x8e6f66);
+      this.colliders.push(boxFromCenter(-5, 0.5, tz, 2.4, 1.0, 0.9));
+    }
+    for (const cz of [9.3, 9.9]) {
+      this.fixture(g, `LC_${cz}`, -2.9, 0.42, cz, 0.5, 0.06, 0.5, 0x2b2730);
+      this.fixture(g, `LCb_${cz}`, -2.9, 0.71, cz + 0.2, 0.5, 0.55, 0.06, 0x2b2730);
+    }
+    this.fixture(g, 'LCart', -2.1, 0.45, 9.6, 0.6, 0.9, 0.45, PAL.teal);
+    this.colliders.push(boxFromCenter(-2.6, 0.5, 9.6, 1.6, 1.0, 1.0));
+    this.fixture(g, 'LShelf', -5, 1.0, 18.5, 4, 1.8, 0.45, PAL.bldg2);
+    this.fixture(g, 'LLinen_a', -6.4, 0.5, 17.9, 0.7, 1.0, 0.5, PAL.cream);
+    this.fixture(g, 'LLinen_b', -3.6, 0.5, 17.9, 0.7, 1.0, 0.5, PAL.cream);
+    this.colliders.push(boxFromCenter(-5, 1.0, 18.5, 4, 2.0, 0.5));
+
+    // the far state: the shipped bay back wall (extracted — it was baked)
+    const back = this.scene.children.find((c) => c.name === 'Laundry_Back');
+    const farParts: THREE.Object3D[] = [];
+    if (back) {
+      this.scene.attach(back);
+      farParts.push(back);
+    }
+    this.registerInterior({
+      id: 'LAUNDRY-INT', x0: -11, x1: 1, z0: 8.2, z1: 19,
+      group: g, nearParts: [], farParts, duck: [duckUpper],
+    });
+  }
+
+  /** BARBER-INT (KTN-05: x 34.2..39, z 8.2..19.6, clear 3.4). Two chairs
+   *  face the mirror wall; the trim's anchor lives at the chair now. The
+   *  shipped FADE KING glass face is the far pane. */
+  private buildW5Barber(): void {
+    this.retireMass('Bldg_N_East_B_E');
+    this.retireCollider(33.5, 49, 8, 20);
+    this.duckBox('KTN05_Upper_W', 33.5, 39, 3.4, 16, 8, 20, PAL.bldg);
+    const duckUpper = this.scene.children[this.scene.children.length - 1];
+    this.roomBox('KTN05_Upper_E', 39, 49, 3.4, 16, 8, 20, PAL.bldg);
+    this.roomBox('KTN05_Gnd_E', 39, 49, 0, 3.4, 8, 20, PAL.bldg);
+    this.roomBox('KTN05_Wall_W', 33.5, 34.4, 0, 3.4, 8, 20, PAL.bldg);
+    this.roomBox('KTN05_Wall_N', 34.4, 38.8, 0, 3.4, 19.4, 20, PAL.bldg);
+    this.wallRun('KTN05_Facade', 'x', 8.1, 34.4, 38.8, 0, 3.4, 0.2, PAL.bldg, [
+      { from: 34.4, to: 35.9, y0: 0.5, y1: 2.6 },  // window W
+      { from: 36.1, to: 37.1, y1: 2.8 },           // the door
+      { from: 37.2, to: 38.8, y0: 0.5, y1: 2.6 },  // window E
+    ]);
+
+    const g = this.roomKit('BARBER');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.06, 11.0), this.bank.get(PAL.interior));
+    floor.name = 'Barber_Floor';
+    floor.position.set(36.6, 0.13, 13.9);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // mirror wall + counter (E), the room's light
+    const mirror = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.0, 5.0), this.roomWarmMat);
+    mirror.name = 'Barber_Mirror';
+    mirror.position.set(38.74, 1.55, 12.3);
+    g.add(mirror);
+    this.fixture(g, 'Barber_Counters', 38.45, 0.45, 12.3, 0.5, 0.9, 5.0, PAL.teal);
+    this.colliders.push(boxFromCenter(38.45, 0.45, 12.3, 0.5, 0.9, 5.0));
+    // the two chairs (the registry's 35.9 / z 11 & 13.6), facing the mirror
+    for (const cz of [11.0, 13.6]) {
+      this.fixture(g, `Barber_Chair_${cz}`, 35.9, 0.3, cz, 0.7, 0.6, 0.7, 0x2b2730);
+      this.fixture(g, `Barber_ChairBack_${cz}`, 35.65, 0.75, cz, 0.16, 0.9, 0.7, 0x2b2730);
+      this.colliders.push(boxFromCenter(35.9, 0.45, cz, 0.75, 0.9, 0.75));
+    }
+    // waiting bench (W wall)
+    this.fixture(g, 'Barber_Bench', 34.75, 0.25, 12.3, 0.45, 0.5, 2.0, PAL.teal);
+    this.colliders.push(boxFromCenter(34.75, 0.3, 12.3, 0.5, 0.6, 2.0));
+    // powder room (NE): two stall walls with a gap
+    this.fixture(g, 'Barber_Pow_W', 37.3, 1.2, 18.4, 0.1, 2.4, 2.0, PAL.stone);
+    this.fixture(g, 'Barber_Pow_S_a', 37.65, 1.2, 17.4, 0.8, 2.4, 0.1, PAL.stone);
+    this.fixture(g, 'Barber_Pow_S_b', 38.45, 1.2, 17.4, 0.8, 2.4, 0.1, PAL.stone);
+    this.colliders.push(boxFromCenter(37.3, 1.2, 18.4, 0.12, 2.4, 2.0));
+    this.colliders.push(boxFromCenter(38.05, 1.2, 17.4, 1.6, 2.4, 0.12));
+
+    const farParts: THREE.Object3D[] = [];
+    const glass = this.scene.getObjectByName('Barber_Glass');
+    if (glass) {
+      this.scene.attach(glass);
+      farParts.push(glass);
+    }
+    this.registerInterior({
+      id: 'BARBER-INT', x0: 34.2, x1: 39, z0: 8.2, z1: 19.6,
+      group: g,
+      nearParts: [
+        this.facadePane('Barber_Clear_W', 'x', 8.1, 34.45, 35.85, 0.55, 2.55, this.roomClearMat),
+        this.facadePane('Barber_Clear_E', 'x', 8.1, 37.25, 38.75, 0.55, 2.55, this.roomClearMat),
+      ],
+      farParts, duck: [duckUpper],
+    });
+    for (const p of (this.interiorHandles[this.interiorHandles.length - 1].nearParts)) this.scene.add(p);
+  }
+
+  /** PIZZA-INT (KTN-04: x 24.1..29.9, z 8.2..19.6, clear 3.4). The slice
+   *  counter at the S window, the deck oven NE, two booths W. */
+  private buildW5Pizza(): void {
+    this.retireMass('Bldg_N_East_B_W');
+    this.retireCollider(21, 30.7, 8, 20);
+    this.roomBox('KTN04_Upper_W', 21, 24.3, 3.4, 16, 8, 20, PAL.bldg);
+    this.duckBox('KTN04_Upper_C', 24.3, 29.7, 3.4, 16, 8, 20, PAL.bldg);
+    const duckUpper = this.scene.children[this.scene.children.length - 1];
+    this.roomBox('KTN04_Upper_E', 29.7, 30.7, 3.4, 16, 8, 20, PAL.bldg);
+    this.roomBox('KTN04_Gnd_W', 21, 24.3, 0, 3.4, 8, 20, PAL.bldg);
+    this.roomBox('KTN04_Gnd_E', 29.7, 30.7, 0, 3.4, 8, 20, PAL.bldg);
+    this.roomBox('KTN04_Wall_N', 24.3, 29.7, 0, 3.4, 19.4, 20, PAL.bldg);
+    this.wallRun('KTN04_Facade', 'x', 8.1, 24.3, 29.7, 0, 3.4, 0.2, PAL.bldg, [
+      { from: 24.5, to: 26.4, y0: 0.5, y1: 2.6 },  // window W
+      { from: 26.6, to: 27.6, y1: 2.8 },           // the door
+      { from: 27.8, to: 29.5, y0: 0.5, y1: 2.6 },  // the slice window (E)
+    ]);
+
+    const g = this.roomKit('PIZZA');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.06, 11.0), this.bank.get(PAL.interior));
+    floor.name = 'Pizza_Floor';
+    floor.position.set(27, 0.13, 13.9);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // slice counter (S window line)
+    this.fixture(g, 'Pizza_SliceCounter', 27, 0.55, 9.0, 4.6, 1.1, 0.7, PAL.teal);
+    this.fixture(g, 'Pizza_SliceTop', 27, 1.12, 9.0, 4.7, 0.06, 0.8, PAL.stone);
+    this.colliders.push(boxFromCenter(27, 0.55, 9.0, 4.6, 1.1, 0.7));
+    // deck oven (NE) + the warm mouth
+    this.fixture(g, 'Pizza_Oven', 28.8, 0.9, 17.8, 1.8, 1.8, 2.2, 0x9a938c);
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 0.06), this.roomWarmMat);
+    mouth.position.set(28.8, 1.1, 16.68);
+    g.add(mouth);
+    this.colliders.push(boxFromCenter(28.8, 0.9, 17.8, 1.8, 1.8, 2.2));
+    // booths (2, W wall): table + two benches each
+    for (const bz of [12.5, 15.5]) {
+      this.fixture(g, `Pizza_BoothT_${bz}`, 25.2, 0.72, bz, 0.8, 0.06, 1.1, PAL.cream);
+      this.fixture(g, `Pizza_BoothLeg_${bz}`, 25.2, 0.36, bz, 0.12, 0.72, 0.12, 0x8e6f66);
+      this.fixture(g, `Pizza_BoothB1_${bz}`, 24.55, 0.3, bz, 0.5, 0.6, 2.0, PAL.coral);
+      this.fixture(g, `Pizza_BoothB2_${bz}`, 25.85, 0.3, bz, 0.5, 0.6, 2.0, PAL.coral);
+      this.colliders.push(boxFromCenter(25.2, 0.5, bz, 1.7, 1.0, 2.0));
+    }
+    // drink fridge (E wall)
+    this.fixture(g, 'Pizza_Fridge', 29.45, 0.9, 13.5, 0.5, 1.8, 3.0, 0x2b2730);
+    this.colliders.push(boxFromCenter(29.45, 0.9, 13.5, 0.5, 1.8, 3.0));
+
+    const farParts: THREE.Object3D[] = [];
+    const glass = this.scene.getObjectByName('Pizza_Glass');
+    if (glass) {
+      this.scene.attach(glass);
+      farParts.push(glass);
+    }
+    this.registerInterior({
+      id: 'PIZZA-INT', x0: 24.1, x1: 29.9, z0: 8.2, z1: 19.6,
+      group: g,
+      nearParts: [
+        this.facadePane('Pizza_Clear_W', 'x', 8.1, 24.55, 26.35, 0.55, 2.55, this.roomClearMat),
+        this.facadePane('Pizza_Clear_E', 'x', 8.1, 27.85, 29.45, 0.55, 2.55, this.roomClearMat),
+      ],
+      farParts, duck: [duckUpper],
+    });
+    for (const p of (this.interiorHandles[this.interiorHandles.length - 1].nearParts)) this.scene.add(p);
+  }
+
+  /** BAKERY-INT (SMB-01: full-width cavity, x −37.8..−30.2, z −31.8..−20.2,
+   *  clear 3.2). Counter just inside the S storefront (the W5 orientation
+   *  fix), deck oven + racks at the rear. */
+  private buildW5Bakery(): void {
+    this.retireMass('SMB_01');
+    this.retireCollider(-38, -30, -32, -20);
+    this.duckBox('SMB01_Upper', -38, -30, 3.2, 12, -32, -20, PAL.bldg2);
+    const duckUpper = this.scene.children[this.scene.children.length - 1];
+    this.roomBox('SMB01_Wall_N', -38, -30, 0, 3.2, -20.2, -20, PAL.bldg2);
+    this.roomBox('SMB01_Wall_W', -38, -37.8, 0, 3.2, -32, -20, PAL.bldg2);
+    this.roomBox('SMB01_Wall_E', -30.2, -30, 0, 3.2, -32, -20, PAL.bldg2);
+    this.wallRun('SMB01_Facade', 'x', -31.9, -37.8, -30.2, 0, 3.2, 0.2, PAL.bldg2, [
+      { from: -37.2, to: -34.9, y0: 0.5, y1: 2.6 },  // window W
+      { from: -34.6, to: -33.4, y1: 2.8 },           // the door
+      { from: -33.1, to: -30.8, y0: 0.5, y1: 2.6 },  // window E (the bagel window)
+    ]);
+
+    const g = this.roomKit('BAKERY');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.06, 11.6), this.bank.get(PAL.interior));
+    floor.name = 'Bakery_Floor';
+    floor.position.set(-34, 0.13, -26);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // service counter + case (just inside)
+    this.fixture(g, 'Bakery_Counter', -34, 0.55, -30.4, 5.4, 1.1, 0.8, PAL.teal);
+    this.fixture(g, 'Bakery_Case', -34, 1.22, -30.4, 5.4, 0.35, 0.7, 0x3b3346);
+    for (const bx of [-35.6, -34.8, -34, -33.2]) {
+      const bun = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.09, 10), this.bank.get(0xd9a05b));
+      bun.position.set(bx, 1.44, -30.4);
+      g.add(bun);
+    }
+    this.colliders.push(boxFromCenter(-34, 0.55, -30.4, 5.4, 1.1, 0.8));
+    // deck oven + racks (rear, z −22.2)
+    this.fixture(g, 'Bakery_Oven', -34, 0.9, -22.2, 4.4, 1.8, 2.4, 0x9a938c);
+    const ovenMouth = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.7, 0.06), this.roomWarmMat);
+    ovenMouth.position.set(-34, 1.0, -23.42);
+    g.add(ovenMouth);
+    this.colliders.push(boxFromCenter(-34, 0.9, -22.2, 4.4, 1.8, 2.4));
+    this.fixture(g, 'Bakery_Rack_W', -36.9, 0.9, -22.2, 0.7, 1.8, 1.4, 0x8e6f66);
+    this.fixture(g, 'Bakery_Rack_E', -31.1, 0.9, -22.2, 0.7, 1.8, 1.4, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-36.9, 0.9, -22.2, 0.7, 1.8, 1.4));
+    this.colliders.push(boxFromCenter(-31.1, 0.9, -22.2, 0.7, 1.8, 1.4));
+    // two two-top tables
+    for (const tx of [-36.2, -31.8]) {
+      this.fixture(g, `Bakery_Table_${tx}`, tx, 0.72, -27.4, 1.1, 0.06, 1.1, PAL.cream);
+      this.fixture(g, `Bakery_TableLeg_${tx}`, tx, 0.36, -27.4, 0.14, 0.72, 0.14, 0x8e6f66);
+      this.colliders.push(boxFromCenter(tx, 0.4, -27.4, 1.1, 0.8, 1.1));
+    }
+
+    const farParts: THREE.Object3D[] = [];
+    const glass = this.scene.getObjectByName('Bakery_Glass');
+    if (glass) {
+      this.scene.attach(glass);
+      farParts.push(glass);
+    }
+    this.registerInterior({
+      id: 'BAKERY-INT', x0: -37.8, x1: -30.2, z0: -31.8, z1: -20.2,
+      group: g,
+      nearParts: [
+        this.facadePane('Bakery_Clear_W', 'x', -31.9, -37.15, -34.95, 0.55, 2.55, this.roomClearMat),
+        this.facadePane('Bakery_Clear_E', 'x', -31.9, -33.05, -30.85, 0.55, 2.55, this.roomClearMat),
+      ],
+      farParts, duck: [duckUpper],
+    });
+    for (const p of (this.interiorHandles[this.interiorHandles.length - 1].nearParts)) this.scene.add(p);
+  }
+
+  /** RECORD-INT (SMB-02: full-width cavity). Three crate rows, the
+   *  listening corner, the counter at the south end. */
+  private buildW5Records(): void {
+    this.retireMass('SMB_02');
+    this.retireCollider(-28, -22, -32, -20);
+    this.duckBox('SMB02_Upper', -28, -22, 3.2, 12, -32, -20, PAL.brick);
+    const duckUpper = this.scene.children[this.scene.children.length - 1];
+    this.roomBox('SMB02_Wall_N', -28, -22, 0, 3.2, -20.2, -20, PAL.brick);
+    this.roomBox('SMB02_Wall_W', -28, -27.8, 0, 3.2, -32, -20, PAL.brick);
+    this.roomBox('SMB02_Wall_E', -22.2, -22, 0, 3.2, -32, -20, PAL.brick);
+    this.wallRun('SMB02_Facade', 'x', -31.9, -27.8, -22.2, 0, 3.2, 0.2, PAL.brick, [
+      { from: -27.2, to: -25.9, y0: 0.5, y1: 2.6 },  // window W
+      { from: -25.6, to: -24.4, y1: 2.8 },           // the door
+      { from: -24.1, to: -22.8, y0: 0.5, y1: 2.6 },  // window E
+    ]);
+
+    const g = this.roomKit('RECORDS');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.06, 11.6), this.bank.get(PAL.interior));
+    floor.name = 'Records_Floor';
+    floor.position.set(-25, 0.13, -26);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // crate rows (3)
+    for (const rz of [-23.5, -25.5, -27.5]) {
+      this.fixture(g, `Records_Crate_${rz}`, -25, 0.55, rz, 4.4, 1.1, 0.6, 0x8e6f66);
+      this.fixture(g, `Records_CrateTop_${rz}`, -25, 1.12, rz, 4.4, 0.06, 0.62, 0x2b2730);
+      this.colliders.push(boxFromCenter(-25, 0.55, rz, 4.4, 1.1, 0.6));
+    }
+    // the listening corner: chair, speaker stacks, the player's spot
+    this.fixture(g, 'Records_Chair', -26.4, 0.42, -30.2, 0.7, 0.85, 0.7, 0x2b2730);
+    this.fixture(g, 'Records_Spk_W', -27.4, 0.6, -30.9, 0.5, 1.2, 0.5, 0x2b2730);
+    this.fixture(g, 'Records_Spk_E', -25.4, 0.6, -30.9, 0.5, 1.2, 0.5, 0x2b2730);
+    this.colliders.push(boxFromCenter(-26.4, 0.5, -30.4, 0.9, 1.0, 0.9));
+    this.colliders.push(boxFromCenter(-27.4, 0.6, -30.9, 0.5, 1.2, 0.5));
+    this.colliders.push(boxFromCenter(-25.4, 0.6, -30.9, 0.5, 1.2, 0.5));
+    // the counter
+    this.fixture(g, 'Records_Counter', -23.4, 0.55, -30.6, 1.6, 1.1, 0.7, PAL.teal);
+    this.colliders.push(boxFromCenter(-23.4, 0.55, -30.6, 1.6, 1.1, 0.7));
+
+    const farParts: THREE.Object3D[] = [];
+    const glass = this.scene.getObjectByName('Records_Glass');
+    if (glass) {
+      this.scene.attach(glass);
+      farParts.push(glass);
+    }
+    this.registerInterior({
+      id: 'RECORD-INT', x0: -27.8, x1: -22.2, z0: -31.8, z1: -20.2,
+      group: g,
+      nearParts: [
+        this.facadePane('Records_Clear_W', 'x', -31.9, -27.15, -25.95, 0.55, 2.55, this.roomClearMat),
+        this.facadePane('Records_Clear_E', 'x', -31.9, -24.05, -22.85, 0.55, 2.55, this.roomClearMat),
+      ],
+      farParts, duck: [duckUpper],
+    });
+    for (const p of (this.interiorHandles[this.interiorHandles.length - 1].nearParts)) this.scene.add(p);
+  }
+
+  /** HALL-INT (KCM-01: full footprint, x −59.8..−48.2, z 20.2..31.8,
+   *  clear 3.8). Main hall + folding chairs, workshop N, kitchenette NE,
+   *  the notice wall by the entrance. Both shipped doors become real
+   *  gaps (open doorways, the bodega grammar). */
+  private buildW5Hall(): void {
+    this.retireMass('KCM_01_base');
+    this.retireMass('KCM_01_upper');
+    this.retireMass('KCM01_Door_Main');
+    this.retireMass('KCM01_Door_N');
+    this.retireCollider(-60.05, -47.95, 19.95, 32.05);
+    this.retireCollider(-60, -48, 20, 32);
+    this.duckBox('KCM01_Upper', -60, -48, 3.8, 15, 20, 32, PAL.brick);
+    const duckUpper = this.scene.children[this.scene.children.length - 1];
+    // ground walls y 0..3.8 (the base's own 12.1 envelope): E/S walls, the
+    // N wall with the Gable door, the W wall with door + two tall windows
+    this.roomBox('KCM01_Wall_E', -48.2, -47.95, 0, 3.8, 20, 32, PAL.stone);
+    this.roomBox('KCM01_Wall_S', -60.05, -48.2, 0, 3.8, 19.95, 20.2, PAL.stone);
+    this.wallRun('KCM01_Wall_N', 'x', 31.925, -60.05, -48.2, 0, 3.8, 0.25, PAL.stone,
+      [{ from: -54.5, to: -53.5, y1: 2.8 }]);
+    this.wallRun('KCM01_Wall_W', 'z', -59.9, 20.2, 31.8, 0, 3.8, 0.3, PAL.stone, [
+      { from: 22.0, to: 23.6, y0: 0.9, y1: 2.9 },  // window S
+      { from: 25.2, to: 26.8, y1: 2.8 },           // the main door (Juniper)
+      { from: 28.4, to: 30.0, y0: 0.9, y1: 2.9 },  // window N
+    ]);
+
+    const g = this.roomKit('HALL');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(11.3, 0.06, 11.3), this.bank.get(PAL.interior));
+    floor.name = 'Hall_Floor';
+    floor.position.set(-54.1, 0.13, 26.1);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // warm band on the S wall (faces the entrance)
+    const warm = new THREE.Mesh(new THREE.BoxGeometry(10.8, 2.2, 0.06), this.roomWarmMat);
+    warm.name = 'Hall_Warm';
+    warm.position.set(-54.1, 1.8, 20.42);
+    g.add(warm);
+    // the notice wall (S, faces the door)
+    this.fixture(g, 'Hall_NoticeWall', -55, 1.5, 20.55, 6, 1.9, 0.12, 0x8e6f66);
+    for (let i = 0; i < 5; i++) {
+      this.fixture(g, `Hall_Note_${i}`, -57.4 + i * 1.2, 1.5 + (i % 2) * 0.25, 20.48, 0.55, 0.7, 0.02, PAL.cream);
+    }
+    this.colliders.push(boxFromCenter(-55, 1.5, 20.55, 6, 1.9, 0.14));
+    // folding-chair stacks around the hall's clear zone
+    for (const [cx, cz] of [[-58.6, 22.2], [-58.6, 29.6], [-50.6, 22.2], [-50.6, 29.6]] as const) {
+      this.fixture(g, `Hall_Chairs_${cx}_${cz}`, cx, 0.45, cz, 0.55, 0.9, 0.55, PAL.teal);
+      this.colliders.push(boxFromCenter(cx, 0.45, cz, 0.6, 0.9, 0.6));
+    }
+    // workshop (N half): table + shelves
+    this.fixture(g, 'Hall_WorkTable', -54, 0.45, 29.5, 2.2, 0.9, 1.0, 0x8e6f66);
+    this.fixture(g, 'Hall_WorkVise', -53.4, 0.98, 29.5, 0.3, 0.16, 0.3, 0x2b2730);
+    this.colliders.push(boxFromCenter(-54, 0.45, 29.5, 2.2, 0.9, 1.0));
+    this.fixture(g, 'Hall_Shelves', -54, 1.0, 31.5, 5, 1.8, 0.4, PAL.bldg2);
+    this.colliders.push(boxFromCenter(-54, 1.0, 31.5, 5, 1.8, 0.4));
+    // kitchenette (NE corner)
+    this.fixture(g, 'Hall_Kitchenette', -49.4, 0.45, 30.6, 2.4, 0.9, 1.6, PAL.teal);
+    this.colliders.push(boxFromCenter(-49.4, 0.45, 30.6, 2.4, 0.9, 1.6));
+
+    // the hall's tall windows: single warm translucent panes, always on —
+    // lit from the street, see-through up close (the swap-free pane)
+    for (const wz of [22.8, 29.2]) {
+      this.scene.add(this.facadePane(`Hall_Glass_${wz}`, 'z', -60.04, wz - 0.8, wz + 0.8, 0.9, 2.9, this.roomGlassMat));
+    }
+    this.registerInterior({
+      id: 'HALL-INT', x0: -59.8, x1: -48.2, z0: 20.2, z1: 31.8,
+      group: g, nearParts: [], farParts: [], duck: [duckUpper],
+    });
+  }
+
+  /** DINER-INT (SND-01: x 50.2..59.8, z −19.8..−8.2, clear 3.6). Counter
+   *  bar + 8 stools down the E wall, kitchen line, 4 booths W, register +
+   *  pie case S. The band windows become real openings with warm panes. */
+  private buildW5Diner(): void {
+    this.retireMass('SND_01_band');
+    this.retireMass('SND_01_upper');
+    this.retireMass('SND01_Chamfer');
+    this.retireMass('SND01_BandWin_52.4');
+    this.retireMass('SND01_BandWin_57.6');
+    this.retireCollider(49.95, 60.05, -20.05, -7.95);
+    this.retireCollider(50, 60, -20, -8);
+    this.duckBox('SND01_Upper', 50, 60, 3.6, 13, -20, -8, PAL.brick);
+    const duckUpper = this.scene.children[this.scene.children.length - 1];
+    this.roomBox('SND01_Wall_W', 49.95, 50.2, 0, 3.6, -20, -8, PAL.cream);
+    this.roomBox('SND01_Wall_S', 50.2, 59.8, 0, 3.6, -20.05, -19.8, PAL.cream);
+    this.wallRun('SND01_Facade_N', 'x', -8.075, 50.2, 59.8, 0, 3.6, 0.25, PAL.cream, [
+      { from: 50.7, to: 54.1, y0: 0.95, y1: 2.45 },  // band window W
+      { from: 54.3, to: 55.7, y1: 2.8 },             // the Kestrel-walk door
+      { from: 55.9, to: 59.3, y0: 0.95, y1: 2.45 },  // band window E
+    ]);
+    this.wallRun('SND01_Wall_E', 'z', 59.925, -20, -8, 0, 3.6, 0.25, PAL.cream, [
+      { from: -18.3, to: -16.5, y0: 0.95, y1: 2.45 },  // avenue window
+      { from: -14.7, to: -13.3, y1: 2.8 },             // the Sycamore-walk door
+    ]);
+
+    const g = this.roomKit('DINER');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(9.6, 0.06, 11.6), this.bank.get(PAL.interior));
+    floor.name = 'Diner_Floor';
+    floor.position.set(55, 0.13, -14);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // counter bar (E wall) + 8 stools
+    this.fixture(g, 'Diner_CounterBar', 58.9, 0.55, -14.5, 0.7, 1.1, 8, PAL.teal);
+    this.fixture(g, 'Diner_CounterTop', 58.9, 1.12, -14.5, 0.8, 0.06, 8.1, PAL.stone);
+    this.colliders.push(boxFromCenter(58.9, 0.55, -14.5, 0.7, 1.1, 8));
+    for (let i = 0; i < 8; i++) {
+      const sz = -10.9 - i * 1.03;
+      const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.55, 8), this.bank.get(PAL.cream));
+      stool.position.set(58.35, 0.28, sz);
+      stool.castShadow = true;
+      g.add(stool);
+    }
+    // kitchen line behind the counter
+    this.fixture(g, 'Diner_Kitchen', 57.6, 0.5, -14.5, 1.6, 1.0, 8, 0x9a938c);
+    const griddle = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 2.2), this.roomWarmMat);
+    griddle.position.set(57.6, 1.04, -13.2);
+    g.add(griddle);
+    this.colliders.push(boxFromCenter(57.6, 0.5, -14.5, 1.6, 1.0, 8));
+    // booths (4, W wall)
+    for (const bz of [-11.5, -14, -16.5, -18.5]) {
+      this.fixture(g, `Diner_BoothT_${bz}`, 51.6, 0.72, bz, 0.8, 0.06, 1.1, PAL.cream);
+      this.fixture(g, `Diner_BoothB1_${bz}`, 50.95, 0.3, bz, 0.5, 0.6, 1.8, PAL.coral);
+      this.fixture(g, `Diner_BoothB2_${bz}`, 52.25, 0.3, bz, 0.5, 0.6, 1.8, PAL.coral);
+      this.colliders.push(boxFromCenter(51.6, 0.5, bz, 2.0, 1.0, 1.8));
+    }
+    // register + pie case (S end)
+    this.fixture(g, 'Diner_Register', 57, 0.55, -18.9, 1.8, 1.1, 0.6, PAL.teal);
+    const pieGlass = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.45, 0.45), this.roomClearMat);
+    pieGlass.position.set(57, 1.33, -18.9);
+    g.add(pieGlass);
+    for (const px of [56.7, 57, 57.3]) {
+      const pie = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.07, 10), this.bank.get(0xd9a05b));
+      pie.position.set(px, 1.2, -18.9);
+      g.add(pie);
+    }
+    this.colliders.push(boxFromCenter(57, 0.55, -18.9, 1.8, 1.1, 0.6));
+
+    // warm translucent panes in the three real openings (always visible)
+    this.scene.add(this.facadePane('Diner_Glass_NW', 'x', -8.075, 50.75, 54.05, 0.98, 2.42, this.roomGlassMat));
+    this.scene.add(this.facadePane('Diner_Glass_NE', 'x', -8.075, 55.95, 59.25, 0.98, 2.42, this.roomGlassMat));
+    this.scene.add(this.facadePane('Diner_Glass_E', 'z', 59.925, -18.25, -16.55, 0.98, 2.42, this.roomGlassMat));
+    this.registerInterior({
+      id: 'DINER-INT', x0: 50.2, x1: 59.8, z0: -19.8, z1: -8.2,
+      group: g, nearParts: [], farParts: [], duck: [duckUpper],
+    });
+  }
+
+  /** CECIL-ROOM (KTS-02: x 10.2..15.8, z −14.1..−9.1, y 8.35, clear 2.9).
+   *  The W5 re-lay: the room abuts the top fire-escape landing (the
+   *  registry note holds the docs/41 §1 door-law reasoning). Bed by the
+   *  window wall — the gold-window sight-line from the pillow. */
+  private buildW5CecilRoom(): void {
+    this.retireMass('Bldg_S_FireEscape');
+    this.retireCollider(0, 26, -20, -8);
+    // below the room: solid
+    this.roomBox('KTS02_Lower', 0, 26, 0, 8.35, -20, -8, PAL.brick);
+    // the room's band (y 8.35..11.25): S slab, W slab, E slab, the N wall
+    // with the fire-escape door and the street window
+    this.roomBox('KTS02_Band_S', 0, 26, 8.35, 11.25, -20, -14.1, PAL.brick);
+    this.roomBox('KTS02_Band_W', 0, 10.2, 8.35, 11.25, -14.1, -8, PAL.brick);
+    this.roomBox('KTS02_Band_E', 15.8, 26, 8.35, 11.25, -14.1, -8, PAL.brick);
+    this.wallRun('KTS02_Band_N', 'x', -8.55, 0, 26, 8.35, 11.25, 1.1, PAL.brick, [
+      { from: 12.55, to: 13.45, y1: 10.55 },          // the fire-escape door
+      { from: 14.3, to: 15.5, y0: 9.35, y1: 10.75 },  // the window (the sight-line)
+    ]);
+    // above the room: the duck piece + the rest of the tower
+    this.duckBox('KTS02_Above_Room', 10.2, 15.8, 11.25, 14, -14.1, -9.1, PAL.brick);
+    const duckAbove = this.scene.children[this.scene.children.length - 1];
+    this.roomBox('KTS02_Above_S', 0, 26, 11.25, 14, -20, -14.1, PAL.brick);
+    this.roomBox('KTS02_Above_W', 0, 10.2, 11.25, 14, -14.1, -8, PAL.brick);
+    this.roomBox('KTS02_Above_E', 15.8, 26, 11.25, 14, -14.1, -8, PAL.brick);
+    this.roomBox('KTS02_Above_N', 10.2, 15.8, 11.25, 14, -9.1, -8, PAL.brick);
+
+    const g = this.roomKit('CECIL');
+    // the floor (through the door zone — a 0.2 step up from the landing)
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 6.1), this.bank.get(PAL.interior));
+    floor.name = 'Cecil_Floor';
+    floor.position.set(13, 8.34, -11.05);
+    floor.receiveShadow = true;
+    g.add(floor);
+    this.colliders.push(boxFromCenter(13, 8.34, -11.05, 5.6, 0.12, 6.1));
+    // warm band on the room's S wall (opposite the window — the lamp wall)
+    const warm = new THREE.Mesh(new THREE.BoxGeometry(5.4, 2.2, 0.06), this.roomWarmMat);
+    warm.name = 'Cecil_Warm';
+    warm.position.set(13, 9.8, -14.07);
+    g.add(warm);
+    // the bed (NW, head at the window wall — the sight-line from the pillow)
+    this.fixture(g, 'Cecil_BedFrame', 14.6, 8.55, -10.6, 1.4, 0.35, 2.0, 0x6e554e);
+    this.fixture(g, 'Cecil_Mattress', 14.6, 8.82, -10.6, 1.3, 0.18, 1.9, PAL.cream);
+    this.fixture(g, 'Cecil_Pillow', 14.6, 8.95, -9.75, 0.5, 0.12, 0.35, PAL.cream);
+    this.colliders.push(boxFromCenter(14.6, 8.7, -10.6, 1.4, 0.7, 2.0));
+    // kitchenette (W wall)
+    this.fixture(g, 'Cecil_Kitchenette', 10.5, 8.8, -11.5, 0.6, 0.9, 2.0, PAL.teal);
+    this.fixture(g, 'Cecil_Hotplate', 10.5, 9.28, -11.1, 0.4, 0.05, 0.4, 0x2b2730);
+    this.fixture(g, 'Cecil_KShelf', 10.5, 10.1, -11.5, 0.5, 0.7, 1.6, 0x8e6f66);
+    this.colliders.push(boxFromCenter(10.5, 8.8, -11.5, 0.6, 0.9, 2.0));
+    // bath (SE, 1.6×2): two stall walls with a gap
+    this.fixture(g, 'Cecil_Bath_W', 14.25, 9.4, -13.1, 0.1, 2.0, 2.0, PAL.stone);
+    this.fixture(g, 'Cecil_Bath_S_a', 14.6, 9.4, -12.15, 0.75, 2.0, 0.1, PAL.stone);
+    this.fixture(g, 'Cecil_Bath_S_b', 15.45, 9.4, -12.15, 0.65, 2.0, 0.1, PAL.stone);
+    this.fixture(g, 'Cecil_Toilet', 15.5, 8.6, -13.6, 0.4, 0.4, 0.6, PAL.cream);
+    this.fixture(g, 'Cecil_Sink', 14.55, 8.85, -13.75, 0.45, 0.3, 0.4, PAL.cream);
+    this.colliders.push(boxFromCenter(14.25, 9.4, -13.1, 0.12, 2.0, 2.0));
+    this.colliders.push(boxFromCenter(15.0, 9.4, -12.15, 1.6, 2.0, 0.12));
+    // the roof hatch (reserved, stage-5 Rooftop — registry (12.2, −12.0))
+    this.fixture(g, 'Cecil_Hatch', 12.2, 8.43, -12.0, 0.9, 0.06, 0.9, 0x2b2730);
+    // the Map's corkboard (by the door)
+    this.fixture(g, 'Cecil_Corkboard', 11.2, 9.5, -9.42, 1.1, 0.8, 0.06, 0x8e6f66);
+    this.fixture(g, 'Cecil_CorkNote', 11.2, 9.5, -9.38, 0.5, 0.6, 0.02, PAL.cream);
+    // rug
+    const rug = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.02, 1.4), this.bank.get(PAL.teal));
+    rug.position.set(12.6, 8.41, -11.0);
+    rug.receiveShadow = true;
+    g.add(rug);
+    // the window's warm translucent pane (always visible — lit from inside)
+    this.scene.add(this.facadePane('Cecil_Glass', 'x', -8.03, 14.32, 15.48, 9.37, 10.73, this.roomGlassMat));
+    this.registerInterior({
+      id: 'CECIL-ROOM', x0: 10.2, x1: 15.8, z0: -14.1, z1: -9.1,
+      yBand: [7.8, 12.0],
+      padZ1: 2.7, // the top landing (z −8..−6.6) is outside the shell — the room shows from the rail
+      group: g, nearParts: [], farParts: [], duck: [duckAbove],
+    });
+  }
+
 
   private bakeStatics(): void {
     const skip = new Set<THREE.Object3D>([
       this.cartRoot, this.cartAwning, this.roof,
+      // W5: the interior fit-outs toggle per-room — a baked batch can't be
+      // hidden. The extracted far faces (the shipped glass panels) toggle
+      // with them, and the duck towers must stay hideable while inside.
+      // The WALLS bake normally.
+      ...this.interiorHandles.map((h) => h.group),
+      ...this.interiorHandles.flatMap((h) => h.farParts),
+      ...this.interiorHandles.flatMap((h) => h.nearParts),
+      ...this.interiorHandles.flatMap((h) => h.duck),
       this.busGroup,   // the M121 runs its rail every frame (W4 p2)
       this.courtDusk,  // the pickup pair toggles at dusk (W4 p2)
       this.rosa, this.idris, this.kidGround, this.kidSil, this.stranger, this.sal,
@@ -2217,8 +3001,14 @@ export class World {
     const backMat = this.mat(PAL.interior, { emissive: PAL.amber, emissiveIntensity: 0.42 });
     this.decoMesh('Laundry_Back', new THREE.BoxGeometry(5.85, 2.8, 0.06), backMat, CX, 1.4, 7.93);
     this.deco('Laundry_Floor', CX, 0.12, 7.7, 5.85, 0.05, 0.6, 0xb9b1a6);
-    // two front-loaders, portholes to the street; the near drum spins on wash day
-    for (const [i, wx] of [[0, CX - 0.9], [1, CX + 0.3]] as const) {
+    // two front-loaders, portholes to the street; the near drum spins on
+    // wash day. W5 (docs/47): the pair flanks the bay's east side — the
+    // first draft straddled x −5, and the full room behind the bay (the
+    // registry's "entrance (open bay), w 5.85") had no walk-in: the gap
+    // between the two machines was 0.25 m. The center now reads as the
+    // doorway it always claimed to be; the spinning near washer keeps its
+    // role (the drum the E2E watches rides washer 0 wherever it stands).
+    for (const [i, wx] of [[0, CX + 1.1], [1, CX + 2.3]] as const) {
       const body = this.deco(`Laundry_Washer_${i}`, wx, 0.9, 7.75, 0.95, 1.5, 0.5, 0x9a938c);
       body.castShadow = true;
       const ring = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.045, 8, 18), this.mat(PAL.ink));
@@ -2310,7 +3100,7 @@ export class World {
    *  the pizza joint), striped pole on the wall west of the glass. Air pole:
    *  signs and poles stay non-solid, like every other pole on the block. */
   private buildBarbershop(): void {
-    const shop = makeStorefront(this.bank, this.signMaterials.bind(this), 'FADE KING BARBERSHOP', PAL.brick, 5);
+    const shop = makeStorefront(this.bank, this.signMaterials.bind(this), 'FADE KING BARBERSHOP', PAL.brick, 5, 'Barber_Glass');
     shop.position.set(36.6, 0.05, 8.02);
     shop.rotation.y = Math.PI; // same lean-out fix as the pizza (W1)
     this.scene.add(shop);
@@ -2656,14 +3446,14 @@ export class World {
 
     // the Marlow row: three shopfronts + three walk-ups (doors and windows
     // face Marlow — the registry's entrance rows are corrected to z −32)
-    const marlowShops: Array<[string, string, number, number, number]> = [
-      ['SMB_01', 'MARLOW BAKERY', -34, 8, PAL.bldg2],
-      ['SMB_02', 'B-SIDE RECORDS', -25, 6, PAL.brick],
-      ['SMB_03', 'KESTREL HARDWARE', -17, 6, PAL.bldg],
+    const marlowShops: Array<[string, string, number, number, number, string]> = [
+      ['SMB_01', 'MARLOW BAKERY', -34, 8, PAL.bldg2, 'Bakery_Glass'],
+      ['SMB_02', 'B-SIDE RECORDS', -25, 6, PAL.brick, 'Records_Glass'],
+      ['SMB_03', 'KESTREL HARDWARE', -17, 6, PAL.bldg, ''],
     ];
-    for (const [id, label, x, w, col] of marlowShops) {
+    for (const [id, label, x, w, col, glassName] of marlowShops) {
       this.solid(id, x, 6, -26, w, 12, 12, col);
-      const shop = makeStorefront(this.bank, this.signMaterials.bind(this), label, PAL.teal, w - 1);
+      const shop = makeStorefront(this.bank, this.signMaterials.bind(this), label, PAL.teal, w - 1, glassName || undefined);
       shop.position.set(x, 0.05, -32.02);
       shop.rotation.y = Math.PI; // the street is SOUTH of the row
       this.scene.add(shop);
@@ -4158,7 +4948,10 @@ export class World {
     this.syncPersonCollider(this.strangerCollider, this.stranger);
     this.syncPersonCollider(this.salCollider, this.sal);
     this.syncPersonCollider(this.familiarCollider, this.familiar);
-    if (player) this.updateDistricts(player.x, player.z);
+    if (player) {
+      this.updateDistricts(player.x, player.z);
+      this.updateInteriors(player.x, player.y, player.z);
+    }
     this.updateTaxi(dt, player, extra);
     // the M121 runs AFTER the cab: its pool reads the cab's fresh rect, and
     // the cab's next pool reads the bus's (each mover yields to the other

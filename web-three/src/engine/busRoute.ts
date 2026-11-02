@@ -80,7 +80,7 @@ export const PARKED_CAR_RECTS: ReadonlyArray<{ x: number; z: number; alongZ: boo
   { x: 44, z: 3.05, alongZ: false },      // Kestrel N curb east end
   { x: -44, z: 3.05, alongZ: false },     // Kestrel N curb west end
   { x: 68.98, z: 10, alongZ: true },      // Sycamore west edge
-  { x: 68.98, z: 34, alongZ: true },      // Sycamore west edge
+  { x: 68.98, z: 24, alongZ: true },      // Sycamore west edge (z 24 — mid-block; z 34 sat in the Gable walk's crossing, the W5 ghost gate moved it, docs/47)
   { x: -68.98, z: 14, alongZ: true },     // Juniper east edge
   { x: 38, z: 25, alongZ: false },        // W2 strip stall east
   { x: 43, z: 25, alongZ: false },        // W2 strip stall west

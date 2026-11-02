@@ -87,6 +87,16 @@ for (const it of R.interiors) {
   const sz0 = Math.min(s.zMin, s.zMax), sz1 = Math.max(s.zMin, s.zMax);
   ok(s.xMin >= f.x0 - 0.01 && s.xMax <= f.x1 + 0.01 && sz0 >= f.z0 - 0.01 && sz1 <= f.z1 + 0.01,
     `INTERIOR ${it.id} outside its building ${b.id}: shell [${s.xMin},${s.xMax}]x[${sz0},${sz1}] vs bldg [${f.x0},${f.x1}]x[${f.z0},${f.z1}]`);
+  // W5: every interaction anchor lives INSIDE its room (registry §6 — the
+  // anchors are the build contract for interactionDefs; an anchor outside
+  // the shell would be a prompt in a wall). Facade anchors (`facade: true`)
+  // are the documented exception — shipped positions at a bay mouth or a
+  // window line that the room arranges itself around (docs/41 §1 law 2).
+  for (const a of it.anchors ?? []) {
+    if (a.facade) continue;
+    ok(a.x >= s.xMin - 0.01 && a.x <= s.xMax + 0.01 && a.z >= sz0 - 0.01 && a.z <= sz1 + 0.01,
+      `INTERIOR ${it.id} anchor ${a.id} outside its shell: (${a.x},${a.z})`);
+  }
 }
 
 // ---------- 7. THE LOAD-BEARING CHECK: shipped world fidelity ----------

@@ -778,3 +778,187 @@ re-run — card, notebook and the golden window compose correctly under the
 court HUD.
 
 ---
+=======
+## W5 — the interiors batch (SHIPPED 2026-11-02)
+
+**Scope honored:** docs/45 §1 W5 minus the two optional slices the lead
+never confirmed (§7.4: MEZZ-INT and CORNERHOUSE-INT stay open decisions —
+explicitly NOT built). Eight rooms: LAUNDRY-INT, BARBER-INT, PIZZA-INT,
+DINER-INT, HALL-INT, BAKERY-INT, RECORD-INT, CECIL-ROOM. Every Class-A/B
+promise in docs/40 kept; interior anchors in the registry (validator-
+checked); interaction tests for each loop; a portrait-viewport pass; and
+the W5 exit line's own law — **interior groups carry a visibility toggle**.
+File owner: Main Agent (World.ts rooms + interactionDefs free-roam set +
+content lines; zero story files touched).
+
+**The ghost gate, first (docs/45 §4) — and what it caught.** Before W5
+opened, the W1–W3 footprints re-verified in-engine against the registry.
+W2 and W3 passed. W1's mass checks passed but its WALK failed — twice,
+and both were real finds, not probe flake:
+
+1. **The stale walk route.** The W1 probe's route predates the avenues:
+   it walked x ±80 through where the W3 backdrops (VDN-DW1a/c, VDN-DE1a/c,
+   x −82..−74 / 74..82) legally own the outer 6 m of the corridor, and it
+   crossed Kestrel mid-block at x 40, where the W4 rails now run. The
+   route moved to the shipped legal walks — the W3 spine at x ±82.5 and
+   the XW-COURT paint at x 35, where both the M121 and the cab yield. The
+   MASS checks are byte-identical; only the route reconciled.
+2. **A parked car in a crossing.** Parked_Sycamore_N sat at (68.98, 34) —
+   inside the Gable S walk's desire line (z 32..36): the ghost walker
+   wedged dead against its west flank with no legal way past. NYC parks
+   mid-block, not in the crosswalk. The car moved to z 24 (busRoute.
+   PARKED_CAR_RECTS with it — the bus's lateral clearance is unchanged,
+   and the bus tests never asserted the z). W4 p1's own "clear of the
+   rails" law held; the crossing desire line was the miss.
+
+**Three registry data fixes (docs/40 §6: fix the data, never the doc).**
+All three are planned-interior plans contradicting shipped facts, per
+docs/41 §1 law 2 (the door matches the shipped entrance):
+
+- **CECIL-ROOM re-laid to the north strip.** The first draft put the room
+  at z −19.2..−14.2 — 6.2 m of solid mass between its own fire-escape
+  door and the shipped top landing (z −7.3, y 8.35), and its "street
+  window" faced the rear yards, not the gold window. The room now abuts
+  the landing (door at x 13, window at x 14.9), and the game's oldest
+  promise — the gold-window sight-line — reads north across Kestrel from
+  the bed. The reserved roof hatch re-pins to (12.2, −12.0).
+- **BAKERY-INT mirrored to the Marlow storefront.** The plan's entrance
+  faced the yard; the shipped MARLOW BAKERY sign and the bagel-silhouette
+  window face SOUTH. Counter just inside the street door, oven at the rear.
+- **RECORD-INT's entrance** moved to the shipped storefront; the counter
+  and listening corner already sat at the right (south) end.
+
+Each fix carries its reasoning in the registry entry itself, so the next
+agent reads the law where the number used to be wrong.
+
+**What landed (the rooms).** Each hollow decomposes its shipped mass into
+wall boxes with the SAME outer envelope — footprint, height, silhouette
+identical, and the ghost probes re-verify them post-hollow (the w1/w2
+matchers moved to the W3 envelope method to read decomposed masses; KTN-02
+checks pass at 0.000). The shipped bay (washers, Sal, alcove) stays
+byte-identical in the laundry; the shipped glass faces become each room's
+FAR pane (extracted with scene.attach, un-baked, one draw call each as
+before). Fixtures per the registry plans: 6 washers + 4 dryers + folding
+tables + back room (laundry), 2 chairs facing the mirror wall + waiting
+bench + powder room (barber), slice counter + deck oven + 2 booths (pizza),
+counter + case + deck oven + racks + 2 two-tops (bakery), 3 crate rows +
+listening corner + counter (records), counter bar + 8 stools + kitchen
+line + 4 booths + register & pie case (diner), folding chairs + workshop
+table + kitchenette + the day-keyed notice wall (hall), bed + kitchenette
++ bath + the reserved hatch + the Map's corkboard (Cecil). Palette law:
+signature colors only; the two new glass materials reuse the storefront
+glass signature (0x3b3346 + the warm emissive).
+
+**The toggle (the W5 exit line, made mechanical).** Each room is an
+`InteriorHandle`: the fit-out group shows only within the shell + 1.6 m
+(0.8 m to exit — hysteresis, so a player on the sill never flickers the
+room); the clear panes swap in near, the shipped lit glass swaps out; and
+while the player is INSIDE, the tower above the room ducks — the shipped
+bodega-roof grammar. Two laws the implementation had to learn:
+
+- **A baked batch cannot hide.** The bake removes its source meshes, so
+  the duck towers (and the far faces, and the fit-outs) live in the bake
+  skip set; only the WALLS bake (they merge into their district tiles at
+  zero marginal draw calls — the envelope proof above covers them).
+- **W2 left two colliders.** The garden-slot cut mutated the original
+  KTN-02 box in place AND pushed the replacement solid's — two identical
+  envelopes. retireCollider now splices ALL matches; leaving one behind
+  had walled the laundry's doorway shut (the probe's walk-in caught it).
+
+The laundry walk-in also moved the two shipped bay washers east to flank
+the doorway (x −3.9 / −2.7): the registry's "entrance (open bay), w 5.85"
+had a 0.25 m gap between machines — a door nobody could use. The spinning
+near washer keeps its role; the E2E's drum check rides washer 0 wherever
+it stands.
+
+**The loops.** All in the free-roam set (the authored 4-day chain
+untouched): dry & fold $2 (the wash's second beat), dollar slice $2 (the
+sign says a dollar; the offer says 2019), counter coffee $2, the booth +
+pie case notes, the hall's notice wall (wearing the SAME hallNoticeForDay
+dressing as the shipped exterior board) + workshop notes, the bakery's
+morning anchor $4, the used bin $3 + the listening corner, and the Cecil's
+two: the corkboard and the **window-gaze** — docs/41's reserved beat,
+adopted: one quiet look out the north window, day-keyed, free, no state.
+The barber's trim moved from a facade prompt to the chair (docs/41 §2.3);
+its y-band makes the chair unreachable from the sidewalk, the room's door
+the only way in. The Cecil anchors ride y 8.35 — the default 3 m y-band
+keeps the room out of the street's reach entirely. No new save fields;
+the buy loops reuse buyConfirm/spend/recordChoice exactly as shipped.
+
+**Performance ledger** (probe-w0-census, same rigs; W4p2 → W5):
+
+| Rig | W4p2 | W5 | Δ | Tris |
+|---|---|---|---|---|
+| PLAZA | 969 | **996** | +27 | 136.3k |
+| CART_CORNER | 816 | **835** | +19 | 118.0k |
+| SYCAMORE×GABLE | 483 | **497** | +14 | 95.8k |
+
+Inside the phase's +40–60 estimate: the boot state carries the unbaked
+duck towers (8, always visible until entered), the always-on warm
+translucent panes (7), and the re-batched facade walls — every fit-out
+group boots HIDDEN (the probe counts them at zero). The Doc 07 budget
+line (150/250) remains failed and remains published: the debt is W3's
++100 dusk calls plus the avenue walls' tile granularity; W5 adds eight
+rooms that cost nothing until you walk up to them.
+
+**The merge (the same-day concurrent lands).** While W5 was being built,
+agent2 landed two merges on main (e5d4567 the first-session world — the
+K line, Times Square, the M121 arrival bus; 87599e4 the half-court game):
++8,251 lines against W5's uncommitted tree. The stash → ff-merge → pop
+resolved with THREE conflict files (docs/47, the registry, the free-roam
+list) and World.ts clean. The registry was resolved semantically: their
+restructured registry (129 IDs, 11 interiors — their MEZZ-INT and MEZZ-TS
+are built slices) taken whole, and W5's three data fixes + the anchors
+contract reapplied programmatically (scripts/design/apply-w5-registry-
+fixes.py, kept as the record of the replay). The performance ledger above
+is W5's own pre-merge measurement; their content stacks further draw
+calls on top of it (the post-merge census reads 1070/904/512 — their
+subway + Times Square + court content, measured by their own gates).
+
+**The ghost gate vs the merged world.** Re-run post-merge, the W1 walk
+found four more pieces of street truth — all documented here so the next
+agent reads them where the walker tripped: the K-line stairwell legally
+owns the north walk's full depth at x −48.5..−45.9 (the route crosses
+Kestrel at the XW-CANON paint and rides the south walk); the terminal
+bay's M121 poles stand ON the old walk centerline at (−27, 6.8) and
+(−30, −7.0) (the route offsets to z ±5.6); a TEN-01 bay box (x −60..−54,
+z −8..−4.5) fills the south walk's whole depth (the route borrows the
+road shoulder at z −3.4, clear of the cab's lane); and the half-court's
+net (x 40.45, z 4.5..7.8) pinches the north walk shut against the W4
+parked car's z 2.075..4.025 — **no capsule fits between them**, so the
+through-walk crosses at the KS junction paint instead. The pinch and the
+bay box are agent2's content and are flagged for its agent; the route
+works around all four. The Gable-junction mouth legs run patient (the
+M121's leg 1 transits the mouth; the yield brain releases an abeam body,
+and 15 s of budget covers the wait).
+
+**Verification (on the merged tree)**: tsc clean · vitest **367/367**
+(their subway/court suites + the paper kit + W5's 28) · build clean ·
+registry validator green (129 IDs, 12/12 masses, 18/18 anchors,
+anchors-inside-shells) · ghost gates W1/W2/W3 PASS post-hollow and
+post-merge (envelopes 0.000–0.05) · probe-w0-census OK (W5's own ledger
+above) · probe-solid ALL CLEAN (4/4) · probe-peds OK · probe-court ALL
+PASS · **probe-w5-interiors PASS** (boot: all 8 fit-outs hidden, far
+panes visible; the laundry walk-in stands in the room at ground y 0.10
+with the tower ducked; the curtain and tower restore on exit; the Cecil
+shows from the rail and ducks inside at floor y 8.40; the bakery interior
+portrait shot) · **E2E: OK — 0 failures, 355 s**, console clean ·
+probe-subway 2 FAIL ("the M121 floor holds", "the bus interior is
+enterable") — **verified pre-existing on agent2's own tip** (their clean
+tree, their dist, same two failures; not a merge regression, flagged for
+its agent).
+
+**Explicitly NOT done (open, lead's call)**: MEZZ-INT and CORNERHOUSE-INT
+(the §7.4 optional slices — no confirmation, no build); the Kestrel
+Hardware and terminal interiors (docs/40 allows dressed-only; SMB-03's
+shell stays as shipped); steering NPCs inside rooms (docs/41 §3 leaves it
+a W5 engineering call — the proximity registry carries the rooms, and
+that is what shipped). The TEN-01 laundry lines remain unframeable from
+the walk camera — now visible in passing through the bakery window's
+grammar, not yet given their own shot.
+
+**W5 phase exit**: the interiors batch is the last docs/45 phase. The
+construction arc W0→W5 is complete: every registry ID exists in the scene
+or carries its explicit deferral note, the 7 landmarks read, the 12
+masses and 18 anchors verify, the per-phase performance ledgers are
+published, and the E2E stayed green through every phase.

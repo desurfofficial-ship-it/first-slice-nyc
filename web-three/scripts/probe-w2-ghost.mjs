@@ -61,13 +61,23 @@ const ghosts = await page.evaluate((REG) => {
   for (const id of Object.keys(REG)) {
     const r = REG[id];
     if (r.h === null) continue; // the slot is verified by walking it, below
-    const hit = boxes.find((b) =>
-      Math.abs((b.minX + b.maxX) / 2 - r.x) < 0.05
-      && Math.abs((b.minZ + b.maxZ) / 2 - r.z) < 0.05
-      && Math.abs(b.maxX - b.minX - r.w) < 0.05
-      && Math.abs(b.maxZ - b.minZ - r.d) < 0.05
-      && Math.abs(b.maxY - r.h) < 0.05);
-    if (hit) found[id] = { cx: (hit.minX + hit.maxX) / 2, cz: (hit.minZ + hit.maxZ) / 2, w: hit.maxX - hit.minX, d: hit.maxZ - hit.minZ, h: hit.maxY };
+    // W5 note (docs/47): the ENVELOPE over the colliders inside the
+    // footprint (the W3 probe's method) — KTN-02's laundry hollow
+    // decomposes the mass into wall boxes whose envelope IS the mass.
+    const x0 = r.x - r.w / 2, x1 = r.x + r.w / 2, z0 = r.z - r.d / 2, z1 = r.z + r.d / 2;
+    const inside = boxes.filter((b) =>
+      b.minX >= x0 - 0.06 && b.maxX <= x1 + 0.06
+      && b.minZ >= z0 - 0.06 && b.maxZ <= z1 + 0.06
+      && b.maxY > 3); // real masses, not furniture chips
+    if (inside.length) {
+      found[id] = {
+        cx: (Math.min(...inside.map((b) => b.minX)) + Math.max(...inside.map((b) => b.maxX))) / 2,
+        cz: (Math.min(...inside.map((b) => b.minZ)) + Math.max(...inside.map((b) => b.maxZ))) / 2,
+        w: Math.max(...inside.map((b) => b.maxX)) - Math.min(...inside.map((b) => b.minX)),
+        d: Math.max(...inside.map((b) => b.maxZ)) - Math.min(...inside.map((b) => b.minZ)),
+        h: Math.max(...inside.map((b) => b.maxY)),
+      };
+    }
   }
   // furniture spot checks: [label, minX, maxX, minZ, maxZ] — the parks must
   // be furnished AND colliding (the doc 35 lesson: furniture collides)

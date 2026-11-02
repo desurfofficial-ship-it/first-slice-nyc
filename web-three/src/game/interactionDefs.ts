@@ -34,7 +34,18 @@ import {
   ALLEY_NOTES,
   FREE_WASH_PRICE, FREE_WASH_OFFER, FREE_WASH_BROKE,
   WALKER_CHAT, MEMORY_LINES, type MemoryLine,
+  // W5 — the rooms (docs/41 loops)
+  DRYER_PRICE, DRYER_OFFER, DRYER_BROKE, DRYER_LINES,
+  PIZZA_PRICE, PIZZA_OFFER, PIZZA_BROKE, PIZZA_LINES,
+  DINER_COFFEE_PRICE, DINER_COFFEE_OFFER, DINER_COFFEE_BROKE, DINER_COFFEE_LINES,
+  DINER_BOOTH_NOTES, PIE_CASE_NOTES,
+  HALL_WORKSHOP_NOTES,
+  CECIL_GAZE_NOTES,
+  BAKERY_PRICE, BAKERY_OFFER, BAKERY_BROKE, BAKERY_LINES,
+  RECORD_BIN_PRICE, RECORD_BIN_OFFER, RECORD_BIN_BROKE, RECORD_BIN_LINES,
+  RECORD_LISTEN_NOTES,
 } from '../core/content';
+import { hallNoticeForDay } from '../world/dressing';
 import { NEVER_NEAR, type Interaction, type InteractionCtx, type Vec3Like } from './interactions';
 import type { SubwaySystem } from '../world/subway';
 
@@ -218,7 +229,11 @@ const hotdog = gatedBuy({
 
 const barber = gatedBuy({
   id: 'barber',
-  pos: () => ({ x: 36.6, y: 1.4, z: 7.9 }),
+  // W5 (docs/41 §2.3): the trim moves from a facade prompt to a chair you
+  // sit in — the anchor now lives at the chair, inside the room (the
+  // registry's BARBER-INT anchor `chair`). The y-band keeps it out of
+  // reach from the sidewalk; the room's door is the only way in.
+  pos: () => ({ x: 35.9, y: 0.9, z: 11.0 }),
   price: BARBER_PRICE,
   label: 'Get a trim',
   offer: BARBER_OFFER,
@@ -448,9 +463,144 @@ export function walkerChats(src: InteractionSources): Interaction[] {
   }));
 }
 
+// ------------------------------------------------------------ W5: the rooms ----
+// The docs/41 loops, living entirely in the free-roam set — the authored
+// 4-day chain is untouched (the E2E's specification). Anchors read the
+// registry's interiors[].anchors verbatim; the y-bands keep the second-
+// floor room out of the street's reach and the shops out of the sidewalk's.
+
+/** Sunrise Laundry, the wash's second beat — dry-and-fold at the dryer
+ *  wall. The washer_free gate stays as shipped; this one lives INSIDE the
+ *  room (registry anchor `dryer`), so it can only fire past the bay. */
+const dryer = gatedBuy({
+  id: 'dryer',
+  pos: () => ({ x: -0.9, y: 0.9, z: 12.2 }),
+  radius: 2.2,
+  price: DRYER_PRICE,
+  label: 'Dry & fold',
+  offer: DRYER_OFFER,
+  broke: DRYER_BROKE,
+  dayLines: DRYER_LINES,
+});
+
+const pizza = gatedBuy({
+  id: 'pizza',
+  pos: () => ({ x: 27.0, y: 1.1, z: 9.7 }),
+  radius: 2.2,
+  price: PIZZA_PRICE,
+  label: 'Dollar slice',
+  offer: PIZZA_OFFER,
+  broke: PIZZA_BROKE,
+  dayLines: PIZZA_LINES,
+});
+
+const dinerCoffee = gatedBuy({
+  id: 'diner_coffee',
+  pos: () => ({ x: 58.2, y: 0.65, z: -11.0 }),
+  radius: 2.2,
+  price: DINER_COFFEE_PRICE,
+  label: 'Counter coffee',
+  offer: DINER_COFFEE_OFFER,
+  broke: DINER_COFFEE_BROKE,
+  dayLines: DINER_COFFEE_LINES,
+});
+
+const dinerBooth: Interaction = {
+  id: 'diner_booth',
+  pos: () => ({ x: 52.6, y: 0.5, z: -14.0 }),
+  radius: 2.2,
+  enabled: () => true,
+  prompt: () => 'Sit in the booth',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(DINER_BOOTH_NOTES, state.day) }],
+};
+
+const pieCase: Interaction = {
+  id: 'pie_case',
+  pos: () => ({ x: 57.0, y: 1.0, z: -18.4 }),
+  radius: 2.1,
+  enabled: () => true,
+  prompt: () => 'Read the pie case',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(PIE_CASE_NOTES, state.day) }],
+};
+
+/** The hall's notice wall — the exterior board's big sibling, wearing the
+ *  SAME day-keyed notices the shipped dressing re-letters (dressing.ts). */
+const hallNotice: Interaction = {
+  id: 'hall_notice',
+  pos: () => ({ x: -55.0, y: 1.5, z: 20.9 }),
+  radius: 2.4,
+  enabled: () => true,
+  prompt: () => 'Read the notice wall',
+  perform: ({ state }) => [{ kind: 'note', text: hallNoticeForDay(state.day) }],
+};
+
+const hallWorkshop: Interaction = {
+  id: 'hall_workshop',
+  pos: () => ({ x: -54.0, y: 1.0, z: 29.5 }),
+  radius: 2.2,
+  enabled: () => true,
+  prompt: () => 'Poke the workshop',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(HALL_WORKSHOP_NOTES, state.day) }],
+};
+
+const bakery = gatedBuy({
+  id: 'bakery',
+  pos: () => ({ x: -34.0, y: 1.05, z: -29.9 }),
+  radius: 2.2,
+  price: BAKERY_PRICE,
+  label: 'The morning anchor',
+  offer: BAKERY_OFFER,
+  broke: BAKERY_BROKE,
+  dayLines: BAKERY_LINES,
+});
+
+const recordBin = gatedBuy({
+  id: 'record_bin',
+  pos: () => ({ x: -23.4, y: 1.0, z: -30.1 }),
+  radius: 2.2,
+  price: RECORD_BIN_PRICE,
+  label: 'Used bin',
+  offer: RECORD_BIN_OFFER,
+  broke: RECORD_BIN_BROKE,
+  dayLines: RECORD_BIN_LINES,
+});
+
+const recordListen: Interaction = {
+  id: 'record_listen',
+  pos: () => ({ x: -26.4, y: 0.5, z: -30.0 }),
+  radius: 2.2,
+  enabled: () => true,
+  prompt: () => 'Listen a minute',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(RECORD_LISTEN_NOTES, state.day) }],
+};
+
+/** The reserved beat (docs/41 §2.5), adopted: one quiet look out the north
+ *  window — the gold one across the street answering. The anchor rides the
+ *  room's own y (8.35): the default y-band (3) makes it unreachable from
+ *  the street below, so the look only exists at the landing level. */
+const cecilGaze: Interaction = {
+  id: 'cecil_gaze',
+  pos: () => ({ x: 14.9, y: 8.35, z: -10.4 }),
+  radius: 2.1,
+  enabled: () => true,
+  prompt: () => 'Look out the window',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(CECIL_GAZE_NOTES, state.day) }],
+};
+
+const cecilCorkboard: Interaction = {
+  id: 'cecil_corkboard',
+  pos: () => ({ x: 11.2, y: 8.35, z: -9.9 }),
+  radius: 2.1,
+  enabled: () => true,
+  prompt: () => 'Check the corkboard',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(BULLETIN_NOTES, state.day) }],
+};
+
 export function freeRoamInteractions(src: InteractionSources): Interaction[] {
   return [bench, parkBench, court, hotdog, barber, alley, washerFree, board, newsbox, subway,
     trainA, trainB, priya, busker, buskerCoin, usher, driver, duffel,
+    // W5 — the rooms (docs/41): every loop anchored inside its registry shell
+    dryer, pizza, dinerCoffee, dinerBooth, pieCase, hallNotice, hallWorkshop, bakery, recordBin, recordListen, cecilGaze, cecilCorkboard,
     ...walkerChats(src), ...shelfInteractions(src)];
 }
 
