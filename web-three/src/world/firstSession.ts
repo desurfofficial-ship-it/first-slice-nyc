@@ -64,6 +64,29 @@ const CEIL = -1.4;                           // hall ceiling soffit
 /** Warm screen cycle (the Doc 02 "screens turn warm" grammar, ambient). */
 const SCREEN_HUES = [0.09, 0.075, 0.02, 0.48]; // gold → amber → coral → teal
 
+// ---- wonder beat #1 — the sync (Doc 02: "the screens all turn at once") ----
+// On the player's first walk into the plaza, every animated screen and every
+// billboard face turns warm TOGETHER for a held beat, then releases back to
+// the ambient cycle. Pure envelope so tests can pin the shape.
+export const SYNC_RAMP_IN = 0.9;
+export const SYNC_HOLD = 6.0;
+export const SYNC_RELEASE = 2.2;
+/** Fires a step into the plaza proper, past the headhouse stair mouth —
+ *  AND at street level (the update gate adds y > −0.5, so the beat lands
+ *  when you step out into the light, not while still on the stairs). */
+export const SYNC_TRIGGER_Z = -61;
+/** The warm every lit face converges to (PAL.amber's neighbourhood). */
+export const SYNC_WARM = { r: 1, g: 0.78, b: 0.42 };
+export function syncEnvelope(t: number): number {
+  if (t < 0) return 0;
+  if (t < SYNC_RAMP_IN) return t / SYNC_RAMP_IN;
+  if (t < SYNC_RAMP_IN + SYNC_HOLD) return 1;
+  if (t < SYNC_RAMP_IN + SYNC_HOLD + SYNC_RELEASE) {
+    return 1 - (t - SYNC_RAMP_IN - SYNC_HOLD) / SYNC_RELEASE;
+  }
+  return 0;
+}
+
 export class FirstSessionWorld {
   /** Below-grade station: gated on player y. */
   readonly station = new THREE.Group();
@@ -74,6 +97,12 @@ export class FirstSessionWorld {
   /** The always-visible shaft + the terminal bake with the street. */
   private flickers: THREE.MeshBasicMaterial[] = [];
   private screens: THREE.MeshBasicMaterial[] = [];
+  /** Billboard faces — they wash warm during the sync beat. */
+  private readonly syncFaces: THREE.MeshBasicMaterial[] = [];
+  private syncFired = false;
+  /** < 0 = idle; 0..~9 = the sync envelope clock. */
+  private syncT = -1;
+  private readonly syncScratch = new THREE.Color();
   private steam: THREE.Points | null = null;
   private steamSeed: number[] = [];
   private time = 0;
@@ -752,7 +781,8 @@ export class FirstSessionWorld {
     const back = this.box(g, 'A5_TSBillBack', this.mat(PAL.ink),
       x - Math.sin(ry) * 0.125, y, z - Math.cos(ry) * 0.125, w + 0.5, h + 0.5, 0.24);
     back.rotation.y = ry;
-    this.textPlane(g, 'A5_TSBill', text, w, h, bg, fg, x, y, z, ry);
+    const face = this.textPlane(g, 'A5_TSBill', text, w, h, bg, fg, x, y, z, ry);
+    this.syncFaces.push(face.material as THREE.MeshBasicMaterial);
   }
 
   /** One animated screen — hue cycles warm in update(). */
@@ -926,13 +956,37 @@ export class FirstSessionWorld {
       }
     }
     if (this.square.visible) {
-      // the screens turn warm — a slow cycle through the documented hues
+      // the ambient cycle runs UNDER the sync — the release lands seamlessly
+      // on whatever hue each screen reached
       for (let i = 0; i < this.screens.length; i++) {
         const t = (this.time * 0.05 + i * 0.5) % SCREEN_HUES.length;
         const a = Math.floor(t), b = (a + 1) % SCREEN_HUES.length;
         const k = t - a;
         const h = SCREEN_HUES[a] + (SCREEN_HUES[b] - SCREEN_HUES[a]) * k;
         this.screens[i].color.setHSL(h, 0.62, 0.6);
+      }
+      // wonder beat #1 — the sync: once, on the first walk in, every lit
+      // face turns warm at the same moment (Doc 02). One scratch color, no
+      // allocations (§1c hot path).
+      if (!this.syncFired && player && player.z < SYNC_TRIGGER_Z && player.y > -0.5) {
+        this.syncFired = true;
+        this.syncT = 0;
+      }
+      if (this.syncT >= 0) {
+        this.syncT += dt;
+        const k = syncEnvelope(this.syncT);
+        if (k <= 0) {
+          this.syncT = -1;
+          for (const f of this.syncFaces) f.color.setRGB(1, 1, 1);
+        } else {
+          for (const m of this.screens) {
+            this.syncScratch.setRGB(SYNC_WARM.r, SYNC_WARM.g, SYNC_WARM.b);
+            m.color.lerp(this.syncScratch, k);
+          }
+          for (const f of this.syncFaces) {
+            f.color.setRGB(1, 1 - 0.22 * k, 1 - 0.42 * k);
+          }
+        }
       }
       // the steam plume rises and wobbles
       if (this.steam) {
