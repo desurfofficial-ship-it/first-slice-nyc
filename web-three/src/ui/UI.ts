@@ -34,6 +34,9 @@ export class UI {
   readonly loading = el<HTMLDivElement>('loading');
   readonly errorBanner = el<HTMLDivElement>('error-banner');
   readonly touchUI = el<HTMLDivElement>('touch-ui');
+  private chargeMeter = el<HTMLDivElement>('court-charge');
+  private chargeFill = el<HTMLDivElement>('court-charge-fill');
+  private chargeBand = el<HTMLDivElement>('court-charge-band');
 
   isTouch = false;
 
@@ -123,6 +126,27 @@ export class UI {
     // the touch interact button glows while something is actually in range —
     // the CSS hook existed but nothing ever wired it
     this.interactBtn.classList.add('occupied');
+  }
+
+  /** The half-court's shot meter (docs/49): a transient skill read, not
+   *  HUD chrome — visible only while the ball is in your shot pocket.
+   *  band = [lo, hi] charge values of the gold release band. */
+  setCourtCharge(q: number | null, band: [number, number] | null) {
+    if (q === null || band === null) {
+      this.chargeMeter.hidden = true;
+      return;
+    }
+    this.chargeMeter.hidden = false;
+    this.chargeFill.style.width = `${(q * 100).toFixed(1)}%`;
+    const lo = Math.max(0, band[0]) * 100;
+    const hi = Math.min(1, band[1]) * 100;
+    this.chargeBand.style.left = `${lo}%`;
+    this.chargeBand.style.width = `${Math.max(0, hi - lo)}%`;
+    // the fill reads gold inside the band, cream outside — you SEE the
+    // release window as you cross it
+    this.chargeFill.style.background = q >= band[0] && q <= band[1]
+      ? 'var(--court-band, #f7b32b)'
+      : '#fff8f0';
   }
 
   // ---------------- name box ----------------

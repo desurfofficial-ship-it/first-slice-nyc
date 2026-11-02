@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { GameState, Step, START_MONEY } from '../src/core/GameState';
 import { parseSave, defaultSave } from '../src/core/Save';
 import { InteractionRegistry, NEVER_NEAR, type Interaction } from '../src/game/interactions';
-import { buildInteractions, byDay, BUS_BENCH_SEAT, hoopOutcome } from '../src/game/interactionDefs';
+import { buildInteractions, byDay, BUS_BENCH_SEAT } from '../src/game/interactionDefs';
 import { BULLETIN_NOTES, SHELF_GOODS, NEWSPAPER_NOTES } from '../src/core/content';
 import type { Game } from '../src/game/Game';
 
@@ -43,6 +43,7 @@ const STUB_GAME = {
   standUp: () => {},
   shootHoop: () => {},
   hoopInFlight: false,
+  courtHolding: false,
   freeWashRunning: false,
   customer: null,
 } as unknown as Game;
@@ -315,28 +316,20 @@ describe('the expanded block (docs/38 — new locations, new loops)', () => {
     expect(it.prompt(state, seated)).toBe('Stand up');
   });
 
-  it('hoopOutcome is deterministic and day-keyed — a 6-in-10 shooter', () => {
-    // same inputs, same rim: the E2E and every player meet the same result
-    expect(hoopOutcome(1, 0)).toBe(hoopOutcome(1, 0));
-    // shot index changes the form; the pattern is a pure function
-    const day1 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((shot) => hoopOutcome(1, shot));
-    expect(day1).toContain('make');
-    expect(day1).toContain('miss');
-    // day 2 reads a different game
-    expect(hoopOutcome(2, 0)).toBe(hoopOutcome(2, 0));
-  });
-
-  it('the court disables mid-flight and its perform hands off to the game', () => {
+  it('the court hands the ball to the game and steps aside in flight or in hand', () => {
     const { registry, state } = fullRegistry();
     const it = probe('court', registry);
     let shots = 0;
-    const ctx = { state, game: { ...STUB_GAME, hoopInFlight: false, shootHoop: () => { shots += 1; } } as unknown as Game };
+    const ctx = { state, game: { ...STUB_GAME, hoopInFlight: false, courtHolding: false, shootHoop: () => { shots += 1; } } as unknown as Game };
     expect(it.enabled(state, ctx)).toBe(true);
     it.perform(ctx);
     expect(shots).toBe(1);
     // in flight: nothing to press
     const flying = { state, game: { ...STUB_GAME, hoopInFlight: true } as unknown as Game };
     expect(it.enabled(state, flying)).toBe(false);
+    // in your hands: the hold-to-shoot charge owns the button
+    const holding = { state, game: { ...STUB_GAME, courtHolding: true } as unknown as Game };
+    expect(it.enabled(state, holding)).toBe(false);
   });
 
   it('the hot dog cart: offer, then a real $2 through the confirm gate', () => {

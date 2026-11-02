@@ -115,6 +115,32 @@ html, body {
   white-space: nowrap;
   animation: note-in 0.25s ease-out;
 }
+
+/* ---- the half-court's shot meter (docs/49) — sits just above the prompt,
+   same pill language, gone the moment the ball leaves your hands ---- */
+#court-charge {
+  position: absolute;
+  left: 50%; bottom: calc(max(150px, 22vh) + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(240px, 46vw);
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(26, 20, 32, 0.78);
+  border: 1px solid rgba(255, 248, 240, 0.32);
+  overflow: hidden;
+}
+#court-charge-band {
+  position: absolute; top: 0; bottom: 0;
+  background: rgba(247, 179, 43, 0.42);
+  border-left: 1px solid rgba(247, 179, 43, 0.85);
+  border-right: 1px solid rgba(247, 179, 43, 0.85);
+}
+#court-charge-fill {
+  position: absolute; top: 0; bottom: 0; left: 0;
+  width: 0%;
+  background: var(--cream);
+  border-radius: 999px 0 0 999px;
+}
 #prompt .key {
   display: inline-block;
   font-family: var(--mono-font);

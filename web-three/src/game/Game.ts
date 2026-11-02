@@ -26,9 +26,10 @@ import { capturePostcard, downloadPostcard } from '../postcard/PostcardCapture';
 import { updatePersonAnim, type PersonRig } from '../world/personRig';
 import { FAMILIAR_SPEED, familiarBeatForDay } from '../world/dressing';
 import { InteractionRegistry, NEVER_NEAR, type InteractionCtx } from './interactions';
-import { buildInteractions, byDay, BUS_BENCH_SEAT, PARK_BENCH_SEAT, COURT_BALL_REST, HOOP_RIM, hoopOutcome } from './interactionDefs';
-import { BENCH_SIT_NOTES, PARK_SIT_NOTES, COURT_MAKE, COURT_MISS, COURT_STREAK_NOTE, FREE_WASH_NOTES, MEMORY_LINES } from '../core/content';
+import { buildInteractions, byDay, BUS_BENCH_SEAT, PARK_BENCH_SEAT } from './interactionDefs';
+import { BENCH_SIT_NOTES, PARK_SIT_NOTES, FREE_WASH_NOTES } from '../core/content';
 import { gameAudio } from './audio';
+import { CourtGame } from '../court/CourtGame';
 
 /** One waypoint on the familiar face's daily walk. dwell = seconds she
  *  stands there (the nod, the word); sit/hide = what happens on arrival. */
@@ -106,6 +107,9 @@ export class Game {
    *  harnesses. */
   readonly registry = new InteractionRegistry();
   private readonly ictx: InteractionCtx;
+  /** The half-court (docs/49) — pickup, dribble, hold-to-shoot, flight,
+   *  the chalk tally. The old scripted shot lives here now as a game. */
+  readonly court: CourtGame;
   private lastTime = performance.now();
   private running = true;
   private autotestStarted = false;
@@ -198,6 +202,19 @@ export class Game {
     this.world.addItem('mango', -18, 2.25, 19.2, PAL.amber);
     this.world.addItem('coffee', -16, 2.25, 19.2, PAL.teal);
     this.world.addItem('bread', -14, 2.25, 19.2, PAL.cream);
+
+    // ---------------- the half-court (docs/49) ----------------
+    // The world built the visuals (paint, net, fence, tally); the court
+    // game owns the loop. One wiring, one owner.
+    this.court = new CourtGame({
+      ball: this.world.ball,
+      ui: this.ui,
+      state: this.state,
+      net: this.world.courtNet,
+      tally: this.world.courtTally,
+      camera: this.cam.camera,
+      weaves: this.world.courtWeaves,
+    });
 
     // ---------------- boot (main.gd `_ready`) ----------------
     const save = loadSave();
@@ -313,6 +330,21 @@ export class Game {
     );
     this.playerVisual.rotation.y = this.player.rotationY;
 
+    // the half-court (docs/49): pickup, dribble, charge, flight, tally.
+    // Runs after the walker moves (the ball reads a fresh capsule) and
+    // never while a day fade owns the screen.
+    if (!this.dayFading) {
+      this.court.update(dt, {
+        interactPressed: inp.interactPressed,
+        interactHeld: inp.interactHeld,
+        moveMag: Math.min(1, Math.hypot(inp.move.x, inp.move.y)),
+        px: this.player.capsule.x,
+        pz: this.player.capsule.z,
+        rotY: this.player.rotationY,
+      });
+      this.court.applySpinToMesh(dt);
+    }
+
     // zones
     this.checkZones();
     this.perFrameChecks(dt);
@@ -396,7 +428,15 @@ export class Game {
     const ss = Math.floor(s.elapsed % 60);
     this.ui.setTimer(`${mm}:${ss.toString().padStart(2, '0')}`);
     const near = this.nearestInteraction();
-    this.ui.setPrompt(near ? near.prompt(s, this.ictx) : null);
+    // while the ball rides with you, the court owns the prompt — the shot
+    // charge is on the same button, so the words say what the button does
+    if (this.court.holding) {
+      this.ui.setPrompt(this.court.phase === 'charging'
+        ? (this.ui.isTouch ? 'Release!' : 'Release in the gold band')
+        : 'Hold to shoot');
+    } else {
+      this.ui.setPrompt(near ? near.prompt(s, this.ictx) : null);
+    }
     // an offer you walked away from is an offer you declined
     if (s.buyConfirm !== null && near?.id !== s.buyConfirm) s.buyConfirm = null;
 
@@ -412,6 +452,11 @@ export class Game {
     (this.world.thirdGlow.material as THREE.SpriteMaterial).opacity = g3 * 0.8;
     const g4 = clamp01((this.world.fourthWindowMat.emissiveIntensity ?? 0) / 3.2);
     (this.world.fourthGlow.material as THREE.SpriteMaterial).opacity = g4 * 0.8;
+    // the court's gooseneck warms as the day cools (docs/49) — it reads as
+    // the street light it is by dusk, and stays quiet at noon
+    const duskAmt = clamp01(1 - (this.world.goldWindowMat.emissiveIntensity ?? 0) / 4);
+    (this.world.courtGlow.material as THREE.MeshLambertMaterial).emissiveIntensity
+      = (1 - duskAmt) * 1.6;
   }
 
   // ------------------------------------------------------------------ zones
@@ -589,69 +634,28 @@ export class Game {
     }
   }
 
-  // ------------------------------------------------------------------ the half-court (docs/38)
-  // The hoop keeps score in notes, not UI. Outcomes are deterministic per
-  // (day, shot index) — hoopOutcome — so the E2E and every player meet the
-  // same rim. No save fields: a streak is a moment, not a possession.
+  // ------------------------------------------------------------------ the half-court (docs/49)
+  // The court game owns the loop now — pickup, dribble, hold-to-shoot,
+  // physics flight, the chalk tally (CourtGame.ts). These three hooks keep
+  // the old public shape the registry and the probe harnesses read.
 
-  /** A shot is in the air — the court interaction disables itself until it
-   *  lands. */
-  hoopInFlight = false;
-  private hoopShots = 0;
-  private hoopStreak = 0;
-
+  /** The `court` interaction hands off here. What it MEANS depends on the
+   *  court's phase: the ball at rest → pick it up. Everything after that
+   *  is hold-to-shoot on the same button. */
   shootHoop(): void {
-    if (this.hoopInFlight) return;
-    this.hoopInFlight = true;
-    const ball = this.world.ball;
-    const made = hoopOutcome(this.state.day, this.hoopShots);
-    this.hoopShots += 1;
-    // the court's score now survives the save (Doc 37 §3F): cumulative
-    // makes are a choice the block remembers (the 5th make gets its line)
-    if (made) this.state.recordChoice('hoop');
-    // launch from beside the player toward the rim — two tweens per axis
-    // (up-and-over, then the drop), the honest lowpoly arc
-    const rx = HOOP_RIM.x, ry = HOOP_RIM.y, rz = HOOP_RIM.z;
-    const flight = 0.55; // seconds to the rim
-    const land = made
-      ? { x: rx, z: rz + 0.05, y: 0.13, note: this.hoopMadeNote() } // drops clean through
-      : { x: rx - 0.5, z: rz - 0.9, y: 0.13, note: byDay(COURT_MISS, this.state.day) }; // off the front iron
-    this.tweens.sequence(
-      this.tweens.parallel(
-        this.tweens.num(() => ball.position.x, (v) => { ball.position.x = v; }, rx, flight, (t) => t),
-        this.tweens.num(() => ball.position.z, (v) => { ball.position.z = v; }, rz, flight, (t) => t),
-        this.tweens.num(() => ball.position.y, (v) => { ball.position.y = v; }, ry + 0.35, flight),
-      ),
-      this.tweens.parallel(
-        this.tweens.num(() => ball.position.x, (v) => { ball.position.x = v; }, land.x, 0.42, (t) => t),
-        this.tweens.num(() => ball.position.z, (v) => { ball.position.z = v; }, land.z, 0.42, (t) => t),
-        this.tweens.num(() => ball.position.y, (v) => { ball.position.y = v; }, land.y, 0.42),
-      ),
-      this.tweens.call(() => {
-        this.ui.showNote(land.note);
-      }),
-      this.tweens.wait(0.7),
-      this.tweens.call(() => {
-        // the ball rolls back to its spot by the key — the court resets
-        // itself, no inventory, no state
-        ball.position.set(COURT_BALL_REST.x, COURT_BALL_REST.y, COURT_BALL_REST.z);
-        this.hoopInFlight = false;
-      }),
-    );
+    this.court.pickUp();
   }
 
-  /** Made-basket lines escalate with the streak; the third is the brag.
-   *  And once the save's cumulative makes cross the memory threshold
-   *  (Doc 37 §3F — recorded in shootHoop before this renders), the pole
-   *  stops counting out loud: it respects you now. */
-  private hoopMadeNote(): string {
-    this.hoopStreak += 1;
-    if (this.hoopStreak >= 3) {
-      // a run of three gets its own line once, then the normal rotation
-      return this.hoopStreak === 3 ? COURT_STREAK_NOTE : byDay(COURT_MAKE, this.state.day);
-    }
-    if (this.state.hoopMakes >= MEMORY_LINES.hoop.at) return MEMORY_LINES.hoop.line;
-    return COURT_MAKE[(this.hoopStreak - 1) % COURT_MAKE.length];
+  /** A shot is in the air — the court interaction disables itself until it
+   *  comes down (the registry reads this). */
+  get hoopInFlight(): boolean {
+    return this.court.inFlight;
+  }
+
+  /** The ball rides with the player (held or charging) — the court
+   *  interaction steps aside while the shot button charges. */
+  get courtHolding(): boolean {
+    return this.court.holding;
   }
 
   // ------------------------------------------------------------------ the free wash (docs/38)
@@ -1540,13 +1544,10 @@ export class Game {
     }
     s.idrisArrived = false;
     this.removeCustomer();
-    // the new block's morning resets (docs/38): a fresh day is a fresh
-    // streak, an uncut head, an idle drum. The ball lands wherever it was —
-    // snap it home before the fade lifts.
-    this.hoopInFlight = false;
-    this.hoopShots = 0;
-    this.hoopStreak = 0;
-    this.world.ball.position.set(COURT_BALL_REST.x, COURT_BALL_REST.y, COURT_BALL_REST.z);
+    // the new block's morning resets (docs/38/49): a fresh day is a fresh
+    // streak, an uncut head, an idle drum. The ball lands wherever the last
+    // day left it — the court rolls it home before the fade lifts.
+    this.court.resetForNewDay();
     if (this.freeWashRunning) {
       // a wash left running when the day rolled over finishes quietly
       this.freeWashRunning = false;

@@ -9,6 +9,9 @@ export interface InputState {
   move: { x: number; y: number };   // y: +1 forward
   camTurn: number;                   // -1..1 (Z/left = +? see main.gd get_axis(cam_left, cam_right))
   interactPressed: boolean;          // edge — consumed by the game
+  /** Held, not edge — the half-court's shot charge reads this (press and
+   *  HOLD to charge, release to shoot). Keyboard OR touch button. */
+  interactHeld: boolean;
   restartPressed: boolean;           // edge
 }
 
@@ -18,6 +21,7 @@ export class InputManager {
   private interactQueued = false;
   private restartQueued = false;
   private touchInteractQueued = false;
+  private touchInteractHeld = false;
 
   private onKeyDown = (e: KeyboardEvent) => {
     if (this.isTypingTarget(e.target)) return;
@@ -88,11 +92,18 @@ export class InputManager {
     this.joyZone.addEventListener('pointerup', joyEnd);
     this.joyZone.addEventListener('pointercancel', joyEnd);
 
-    // ---- interact button (edge-triggered on press) ----
-    this.btnInteract.addEventListener('pointerdown', (e) => {
+    // ---- interact button (edge on press; HELD state feeds the shot charge
+    // —— the half-court's hold-to-shoot works with one thumb on this) ----
+    const interactDown = (e: PointerEvent) => {
       e.preventDefault();
       this.touchInteractQueued = true;
-    });
+      this.touchInteractHeld = true;
+    };
+    const interactUp = () => { this.touchInteractHeld = false; };
+    this.btnInteract.addEventListener('pointerdown', interactDown);
+    this.btnInteract.addEventListener('pointerup', interactUp);
+    this.btnInteract.addEventListener('pointercancel', interactUp);
+    this.btnInteract.addEventListener('pointerleave', interactUp);
 
     // ---- camera turn buttons (held) ----
     const hold = (el: HTMLElement, set: (v: boolean) => void) => {
@@ -144,12 +155,13 @@ export class InputManager {
       + (this.turnRHeld ? 1 : 0) - (this.turnLHeld ? 1 : 0);
 
     const interact = this.interactQueued || this.touchInteractQueued;
+    const held = this.keys.has('Space') || this.keys.has('KeyE') || this.touchInteractHeld;
     const restart = this.restartQueued;
     this.interactQueued = false;
     this.touchInteractQueued = false;
     this.restartQueued = false;
 
-    return { move: { x: mx, y: my }, camTurn, interactPressed: interact, restartPressed: restart };
+    return { move: { x: mx, y: my }, camTurn, interactPressed: interact, interactHeld: held, restartPressed: restart };
   }
 
   /** Direct key state probe (debug keys). */
