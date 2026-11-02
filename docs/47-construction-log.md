@@ -995,3 +995,43 @@ notebook's two pages stack correctly on the phone width.
 [main]` read as `ain]` in one terminal capture) and was cleared by a
 byte-exact check before any "fix" was attempted. The workflow was never
 broken; the terminal output was.
+
+## The court you can put down, the stick that waits its turn (SHIPPED 2026-11-02, branch `fix/map-button-reachable`)
+
+**Scope:** the open-bugs ledger (docs/51) — B3 and B7 fixed, B6 tripwired,
+B4 re-verified. The half-court's own probe drove the work.
+
+**B3 — the ball that could not be picked up.** The probe forensics (a
+phase-walk sampler installed around the failing press) showed the truth:
+the state machine was still in `flight` with the ball parked on the
+slab. The sim's rest detector required `speed < 0.35` for 0.45 s, but a
+ball rolling into the chain-link reflected at ANY speed — an endless
+micro-bounce — and even the `age > 7` escape still demanded
+`speed < 0.8`. The court's own referee (7.5 **game**-seconds) is an
+eternity on a dt-clamped machine: ≈20+ wall-seconds of unpickable ball.
+Fixed in three layers: crawl-speed wall contacts die instead of
+reflecting; a grounded ball at age 7 rests, whatever the jitter says;
+the flight referee drops to 4 game-seconds (a real flight resolves in
+≤3). The promised mid-return intercept works now too — the interaction's
+live spot follows the rolling ball. **probe-court: ALL PASS**, including
+the mobile touch-shot.
+
+**B7 — the stick that stole the screen.** The `hidden-when-panel` CSS
+hook shipped on day one and nothing ever set the class. One private
+`UI.syncPanelOverTouch()`, wired to all four paper surfaces (name box,
+postcard, order card, Map). Verified on an emulated phone: Map open →
+`#touch-ui` display none.
+
+**B6 — the tripwire, not the refactor.** Verified structurally safe
+today: every canopy push happens in the World constructor, before the
+camera exists. The E2E driver now carries `occlusionInSync()` — if
+anyone ever grows canopies after boot, the suite fails instead of the
+fade silently missing trees.
+
+**B4 — re-verified:** full 4-day E2E on this tip — AUTOTEST OK, 0
+failures, 432 s, zero console errors, POINTER guard 3/3, occlusion
+tripwire PASS.
+
+**Verification:** tsc clean · vitest **367/367** · build clean ·
+probe-court ALL PASS · E2E green (above). B1/B2/B5 remain open — they
+need an owner decision (two bus systems, one bay), not a drive-by fix.

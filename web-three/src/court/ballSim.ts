@@ -213,12 +213,17 @@ function stepSim(s: SimState, b: SimBoundary, events: SimEvent[]): void {
 
   // ---- the chain-link enclosure: a ball cannot leave the court —
   // except through the open gate, exactly like the real fence ----
+  // A crawl-speed contact DIES instead of reflecting: a real ball doesn't
+  // bounce off chain-link at 0.2 m/s, and an endless micro-bounce kept the
+  // speed oscillating above the rest detector's calm threshold — the ball
+  // sat against the fence "flying" forever, unpickable (docs/51 B3).
+  const WALL_DEAD = 0.5; // m/s — slower than this, the fence just stops it
   const inGate = b.gateX0 !== undefined && b.gateX1 !== undefined
     && p.x > b.gateX0 && p.x < b.gateX1;
-  if (p.x - BALL_R < b.minX) { p.x = b.minX + BALL_R; if (v.x < 0) { v.x = -v.x * 0.4; events.push({ kind: 'wall' }); } }
-  if (p.x + BALL_R > b.maxX) { p.x = b.maxX - BALL_R; if (v.x > 0) { v.x = -v.x * 0.4; events.push({ kind: 'wall' }); } }
-  if (p.z - BALL_R < b.minZ && !inGate) { p.z = b.minZ + BALL_R; if (v.z < 0) { v.z = -v.z * 0.4; events.push({ kind: 'wall' }); } }
-  if (p.z + BALL_R > b.maxZ) { p.z = b.maxZ - BALL_R; if (v.z > 0) { v.z = -v.z * 0.4; events.push({ kind: 'wall' }); } }
+  if (p.x - BALL_R < b.minX) { p.x = b.minX + BALL_R; if (v.x < 0) { if (-v.x > WALL_DEAD) { v.x = -v.x * 0.4; events.push({ kind: 'wall' }); } else v.x = 0; } }
+  if (p.x + BALL_R > b.maxX) { p.x = b.maxX - BALL_R; if (v.x > 0) { if (v.x > WALL_DEAD) { v.x = -v.x * 0.4; events.push({ kind: 'wall' }); } else v.x = 0; } }
+  if (p.z - BALL_R < b.minZ && !inGate) { p.z = b.minZ + BALL_R; if (v.z < 0) { if (-v.z > WALL_DEAD) { v.z = -v.z * 0.4; events.push({ kind: 'wall' }); } else v.z = 0; } }
+  if (p.z + BALL_R > b.maxZ) { p.z = b.maxZ - BALL_R; if (v.z > 0) { if (v.z > WALL_DEAD) { v.z = -v.z * 0.4; events.push({ kind: 'wall' }); } else v.z = 0; } }
 
   // ---- score: downward crossing of the rim plane inside the aperture ----
   if (!s.scored && s.prevY > RIM.y && p.y <= RIM.y && v.y < -0.5
@@ -238,7 +243,11 @@ function stepSim(s: SimState, b: SimBoundary, events: SimEvent[]): void {
   const groundedish = p.y <= GROUND_Y + BALL_R + 0.02;
   const speed = Math.hypot(v.x, v.y, v.z);
   if (groundedish && speed < 0.35) s.calmFor += STEP; else s.calmFor = 0;
-  if ((s.calmFor > 0.45 || s.age > 7) && speed < 0.8) {
+  // the age escape is UNCONDITIONAL once grounded: a slow roll pressed
+  // against the fence can hold speed above the calm window forever, and
+  // "flying" for 7+ seconds while standing still reads broken. A grounded
+  // ball this old is at rest, whatever the jitter says (docs/51 B3).
+  if (s.calmFor > 0.45 || (s.age > 7 && groundedish)) {
     s.phase = 'rest';
     v.x = 0; v.y = 0; v.z = 0;
   }

@@ -60,15 +60,24 @@ else is open for a follow-up agent.
 - **Owner hint:** Needs a single owner for “the bus the player boards at the
   terminal” — merge or clearly separate the two.
 
-### B3. Court ball re-pickup after miss (probe-court)
-- **Symptom:** `FAIL re-pickup works wherever the ball came down`. Make /
+### B3. Court ball re-pickup after miss (probe-court) — FIXED 2026-11-02
+- **Was:** `FAIL re-pickup works wherever the ball came down`. Make /
   rebound / mobile paths pass; reclaim after a short miss is flaky.
-- **Likely cause:** Interact range vs ball rest position after rebound;
-  `CourtGame` phase not returning to `idle`/`loose` cleanly; or the ball’s
-  world position drifts outside the court’s interact AABB.
-- **Where:** `web-three/src/court/CourtGame.ts`, `ballSim.ts`,
-  `interactionDefs.ts` court interaction, `scripts/probe-court.mjs`.
-- **Owner hint:** Half-court agent / Agent 2.
+- **Root cause (probe forensics):** NOT the interact range. The sim's rest
+  detector could never fire for a ball rolling into the chain-link: wall
+  contacts reflected at any speed (endless micro-bounce above the calm
+  threshold), and the `age > 7` escape still demanded `speed < 0.8`. The
+  court sat in `flight` for the full 7.5 **game**-second referee window
+  ≈ 20+ wall-seconds on a dt-clamped machine — interaction disabled,
+  ball unpickable, prompt frozen. The probe's one press landed mid-stuck.
+- **Fix (three honest layers):** `ballSim.ts` — wall contacts below
+  0.5 m/s die instead of reflecting; the grounded `age > 7` rest escape is
+  unconditional. `CourtGame.updateFlight` — the referee drops 7.5 → 4
+  game-seconds (a real flight resolves in ≤3; 7.5 held the court hostage
+  on low-fps machines). `updateReturn` — the interaction's live spot now
+  follows the ROLL, so the promised mid-return intercept actually works.
+  `probe-court.mjs` — pickup retries like a thumb would + failure
+  forensics (phase walk + registry dump). **probe-court: ALL PASS.**
 
 ---
 
@@ -79,6 +88,11 @@ else is open for a follow-up agent.
   first-session + half-court + W5 interiors, the 4-day autotest needs a
   clean machine pass at the harness default viewport.
 - **Where:** `scripts/e2e.mjs`, `?autotest=1`.
+- **2026-11-02:** full 4-day E2E re-run green on the post-W5 + first-session
+  + half-court + Map-fix tip — AUTOTEST OK, 0 failures, 432 s, zero console
+  errors, POINTER guard 3/3 (at the documented `E2E_W/E2E_H` 480×360
+  slow-sandbox viewport; the default-viewport pass remains for a fast
+  machine).
 
 ### B5. Two bus implementations coexist
 - W4p2 district bus (route brain, yield, dusk) and docs/50 arrival bus
@@ -86,17 +100,25 @@ else is open for a follow-up agent.
   bay, double colliders, or interact targeting the wrong one.
 - **Action:** One design decision + one code path for “player-enterable bus.”
 
-### B6. Camera canopy list length vs occlusion buffer
-- `GameCamera` builds `occlusion: Float32Array(canopies?.length ?? 0)` at
+### B6. Camera canopy list length vs occlusion buffer — TRIPWIRED 2026-11-02
+- Verified structurally safe today: every canopy push happens inside the
+  World constructor (`buildAlderHeightsW2` → `buildKestrelGreen` included),
+  BEFORE the camera exists at `Game` field-init. The E2E driver now carries
+  a `occlusionInSync()` tripwire (“the camera occlusion buffer covers every
+  canopy”) so a late-growing canopy path fails the suite instead of
+  silently never fading.
+- Original note: `GameCamera` builds `occlusion: Float32Array(canopies?.length ?? 0)` at
   construct time. If World adds trees after camera construction without
   resizing the buffer, fade-on-occlude silently no-ops for new canopies.
 - **Where:** `GameCamera` constructor, `Game.ts` boot wiring,
   `World.canopySpheres()`.
 
-### B7. Touch UI hidden logic vs order card / map
-- `#touch-ui` uses `hidden` and `hidden-when-panel`. Confirm order-card and
-  map-notebook open states still hide the joystick (otherwise the stick
-  steals taps from paper UI on phones).
+### B7. Touch UI hidden logic vs order card / map — FIXED 2026-11-02
+- The `hidden-when-panel` CSS hook existed since day one; NOTHING ever set
+  the class. `UI.syncPanelOverTouch()` now wires it to all four paper
+  surfaces (name box, postcard, order card, Map) — the stick cannot steal
+  taps from paper UI on phones. Verified on an emulated phone: Map open →
+  `#touch-ui` display none.
 - **Where:** `ui/UI.ts`, `style.css`, `Game.ts` mapOpen / orderCard.
 
 ### B8. KeyQ is camera-left only; some players expect strafe

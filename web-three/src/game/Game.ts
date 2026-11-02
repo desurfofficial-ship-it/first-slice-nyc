@@ -1431,6 +1431,11 @@ export class Game {
     mapSlang: () => [...this.state.mapSlang],
     mapOpen: () => this.mapOpen,
     kidDay1Served: () => this.state.kidDay1Served,
+    // docs/51 B6 tripwire: the occlusion buffer is sized once, at camera
+    // construction. True today because every canopy push happens inside the
+    // World constructor — if anyone grows canopies after boot, this goes
+    // false and the fade silently misses the new trees.
+    occlusionInSync: () => this.cam.occlusion.length === this.world.canopySpheres().length,
     // the living block (Doc 33) — reads only, for the visual probes
     ambientWindows: () => [
       this.world.ambientWindowMatLate.emissiveIntensity,

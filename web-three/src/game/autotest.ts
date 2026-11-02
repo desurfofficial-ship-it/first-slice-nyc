@@ -409,6 +409,11 @@ export function runAutotest(game: Game): void {
 
       await waitFrames(30);
       check(game.player.onGround && p().y < 0.2, `player stands on the sidewalk (y=${p().y.toFixed(2)})`);
+      // docs/51 B6 tripwire: the occlusion buffer is sized at camera
+      // construction; every canopy push must have happened by now (all of
+      // them live in the World constructor). If this ever goes false, a
+      // late-growing canopy path landed and the fade will miss new trees.
+      check(game.debug.occlusionInSync(), 'the camera occlusion buffer covers every canopy');
 
       // the walk cycle itself (playtest 2026-10-29: "the characters doesn't
       // walk, they move") — real key input, hips must swing while moving

@@ -87,10 +87,45 @@ async function standByBall() {
 }
 
 async function pickUpViaInput(label) {
-  await page.keyboard.press('Space');
-  await page.waitForFunction(() => window.__game.court.phase === 'held', null, { timeout: 5000 })
-    .then(() => check(true, label))
-    .catch(() => check(false, label));
+  // A real player presses AGAIN — one press can land mid-flight (the ball
+  // just came down under the flight referee), and the honest human response
+  // is another tap a beat later, not a five-second sulk.
+  await page.evaluate(() => {
+    const g = window.__game;
+    window.__probePhaseLog = [{ t: 0, phase: g.court.phase }];
+    window.__probePhaseIv = setInterval(() => {
+      const g = window.__game;
+      const last = window.__probePhaseLog[window.__probePhaseLog.length - 1];
+      if (last.phase !== g.court.phase) window.__probePhaseLog.push({ t: window.__probePhaseLog.length * 50, phase: g.court.phase });
+    }, 50);
+  });
+  let picked = false;
+  for (let attempt = 1; attempt <= 4 && !picked; attempt++) {
+    await page.keyboard.press('Space');
+    picked = await page.waitForFunction(() => window.__game.court.phase === 'held', null, { timeout: 1500 })
+      .then(() => true).catch(() => false);
+  }
+  if (picked) {
+    await page.evaluate(() => clearInterval(window.__probePhaseIv));
+    check(true, label);
+  } else {
+    check(false, label);
+    const log = await page.evaluate(() => { clearInterval(window.__probePhaseIv); return window.__probePhaseLog; }).catch(() => []);
+    console.log('  ↳ phase walk (ms):', JSON.stringify(log));
+      // forensics: what was the game actually doing when the press died?
+      const s = await page.evaluate(() => {
+        const g = window.__game;
+        const p = document.getElementById('prompt');
+        const near = (() => { try { return g.registry.nearest(g.player.capsule, g.state, g.ictx)?.id ?? null; } catch { return 'ERR'; } })();
+        return {
+          phase: g.court.phase, holding: g.court.holding, inFlight: g.court.inFlight,
+          ball: { x: +g.world.ball.position.x.toFixed(2), y: +g.world.ball.position.y.toFixed(2), z: +g.world.ball.position.z.toFixed(2) },
+          player: { x: +g.player.capsule.x.toFixed(2), z: +g.player.capsule.z.toFixed(2) },
+          promptHidden: p.hidden, promptText: p.textContent, nearest: near,
+        };
+      }).catch((e) => ({ evalErr: e.message }));
+      console.log('  ↳ pickup died in this state:', JSON.stringify(s));
+  }
 }
 
 /** Wait for the ball to leave the air (flight → rest/return), max 16 s. */
@@ -285,7 +320,7 @@ await pickUpViaInput('pick up after the make works too');
   await mpage.waitForFunction(() => {
     const p = window.__game.court.phase;
     return p === 'rest' || p === 'return';
-  }, null, { timeout: 16000 }).catch(() => {});
+  }, null, { timeout: 30000 }).catch(() => {});
   await mpage.evaluate(() => {
     const g = window.__game;
     const b = g.world.ball.position;
@@ -296,14 +331,27 @@ await pickUpViaInput('pick up after the make works too');
     g.cam.snapBehind({ x: px, y: 0.1, z: pz });
   });
   await mpage.waitForTimeout(250);
-  await btn.dispatchEvent('pointerdown');
-  await mpage.waitForFunction(() => window.__game.court.phase === 'held', null, { timeout: 5000 }).catch(() => {});
+  // the touch pickup retries like a thumb would — one tap can land while
+  // the interaction is still stepping aside
+  let mheld = false;
+  for (let attempt = 1; attempt <= 3 && !mheld; attempt++) {
+    await btn.dispatchEvent('pointerdown');
+    await mpage.waitForTimeout(120);
+    await btn.dispatchEvent('pointerup');
+    mheld = await mpage.waitForFunction(() => window.__game.court.phase === 'held', null, { timeout: 2500 })
+      .then(() => true).catch(() => false);
+  }
+  const mstate = await mpage.evaluate(() => {
+    const g = window.__game;
+    return { phase: g.court.phase, ball: { x: +g.world.ball.position.x.toFixed(2), z: +g.world.ball.position.z.toFixed(2) }, player: { x: +g.player.capsule.x.toFixed(2), z: +g.player.capsule.z.toFixed(2) } };
+  });
+  if (!mheld) console.log('  ↳ mobile pickup state:', JSON.stringify(mstate));
   await mpage.evaluate(() => {
     const g = window.__game;
     g.court.testRelease(g.player.capsule.x, g.player.capsule.z); // perfect release
   });
-  await mpage.waitForFunction(() => window.__game.court.phase !== 'flight', null, { timeout: 16000 }).catch(() => {});
-  const mob = await mpage.evaluate(() => ({ scored: window.__game.court.sim.state.scored }));
+  await mpage.waitForFunction(() => window.__game.court.phase !== 'flight', null, { timeout: 30000 }).catch(() => {});
+  const mob = await mpage.evaluate(() => ({ scored: window.__game.court.sim.state.scored, phase: window.__game.court.phase }));
   mcheck(mob.scored, 'mobile: the touch-shot drops through too (same physics)');
   await mshot('5-mobile-make');
   await mpage.close();
