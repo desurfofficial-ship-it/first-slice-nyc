@@ -291,6 +291,13 @@ export class GameCamera {
     return this.probe.set(from.x + dx * pull, from.y + dy * pull, from.z + dz * pull).clone();
   }
 
+  /** Controlled-interior override (docs/50 far world): below grade the
+   *  station is a cutaway diorama — the boom must not bounce off the
+   *  yard slab that roofs it (the bodega dodges the same class of hit
+   *  only because its walls sit under the boom's height skip). World
+   *  flips this from the subway's underground state. */
+  interiorMode = false;
+
   update(
     dt: number,
     playerPos: { x: number; y: number; z: number },
@@ -353,7 +360,7 @@ export class GameCamera {
     this.desired.x += this.sideStep;
 
     const k = Math.min(1, dt * POS_LERP);
-    const goal = this.shortenBoom(this.focusTarget, this.desired);
+    const goal = this.interiorMode ? this.desired : this.shortenBoom(this.focusTarget, this.desired);
     this.camera.position.x += (goal.x - this.camera.position.x) * k;
     this.camera.position.y += (goal.y - this.camera.position.y) * k;
     this.camera.position.z += (goal.z - this.camera.position.z) * k;

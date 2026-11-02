@@ -116,3 +116,27 @@ describe('trigger volumes', () => {
     expect(capsuleInBox(capsule(13.4, 4.075, -7.2), zone)).toBe(false);
   });
 });
+
+// docs/50 — the below-grade law: an underground floor under the capsule IS
+// the ground; the implicit 0 only rules when nothing is in reach.
+describe('groundHeight below grade (the K-line station law)', () => {
+  const platform = boxFromCenter(-44, -3.25, 11, 16, 0.1, 6); // top −3.2
+  it('stands on a below-grade platform instead of snapping to the street', () => {
+    const c = { x: -44, y: -3.1, z: 11, radius: 0.35, height: 1.75 };
+    expect(groundHeight([platform], c, 0.45)).toBeCloseTo(-3.2, 6);
+  });
+  it('the street still wins at the pit lip (highest top under the feet)', () => {
+    const sidewalk = boxFromCenter(-44, -0.05, 6, 20, 0.3, 4); // top 0.1
+    const c = { x: -44, y: 0.1, z: 6, radius: 0.35, height: 1.75 };
+    expect(groundHeight([platform, sidewalk], c, 0.45)).toBeCloseTo(0.1, 6);
+  });
+  it('nothing in reach keeps the shipped implicit zero', () => {
+    const c = { x: 500, y: 0.05, z: 0, radius: 0.35, height: 1.75 };
+    expect(groundHeight([platform], c, 0.45)).toBe(0);
+  });
+  it('a deep trench floor catches the descent (the tracks)', () => {
+    const trench = boxFromCenter(-44, -4.55, 16, 16, 0.1, 3); // top −4.5
+    const c = { x: -44, y: -4.4, z: 16, radius: 0.35, height: 1.75 };
+    expect(groundHeight([platform, trench], c, 0.45)).toBeCloseTo(-4.5, 6);
+  });
+});

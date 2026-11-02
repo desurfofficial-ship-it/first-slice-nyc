@@ -29,6 +29,7 @@ import { InteractionRegistry, NEVER_NEAR, type InteractionCtx } from './interact
 import { buildInteractions, byDay, BUS_BENCH_SEAT, PARK_BENCH_SEAT, COURT_BALL_REST, HOOP_RIM, hoopOutcome } from './interactionDefs';
 import { BENCH_SIT_NOTES, PARK_SIT_NOTES, COURT_MAKE, COURT_MISS, COURT_STREAK_NOTE, FREE_WASH_NOTES, MEMORY_LINES } from '../core/content';
 import { gameAudio } from './audio';
+import { RIDE_BEAT_TEXT, TS_SYNC_NOTE } from '../core/content';
 
 /** One waypoint on the familiar face's daily walk. dwell = seconds she
  *  stands there (the nod, the word); sit/hide = what happens on arrival. */
@@ -294,6 +295,8 @@ export class Game {
     if (this.world.stranger.visible) peds.push({ x: this.world.stranger.position.x, z: this.world.stranger.position.z });
     if (this.world.familiar.visible) peds.push({ x: this.world.familiar.position.x, z: this.world.familiar.position.z });
     this.world.updateDynamics(dt, this.player.capsule, peds);
+    this.cam.interiorMode = this.world.subway.underground;
+    this.drainFarWorld(dt);
     if (!this.dayFading && this.ui.nameBox.hidden) {
       // movement — paused on the bench (Doc 37 §3C: the seat holds you;
       // physics would drag the capsule off it, so the walker simply rests)
@@ -709,6 +712,43 @@ export class Game {
   }
 
   // ------------------------------------------------------------------ effects
+
+  /** The far world's per-frame accounting (docs/50): beats become notes,
+   *  ride phases become voices, the busker plays when you're near. All of
+   *  it cheap — the buffers drain to empty every frame. */
+  private lastRidePhase: string = 'idle';
+  private saxOn = false;
+  private drainFarWorld(_dt: number): void {
+    const w = this.world;
+    // ride phase transitions → the train's own voice
+    const phase = w.subway.ride.phase;
+    if (phase !== this.lastRidePhase) {
+      if (phase === 'closing') gameAudio.doorChime();
+      if (phase === 'riding') gameAudio.rumbleStart();
+      if (phase === 'departing') { gameAudio.doorChime(); gameAudio.rumbleStop(); }
+      if (phase === 'arrived') { gameAudio.announce(); gameAudio.rumbleStop(); }
+      if (phase === 'idle') gameAudio.rumbleStop();
+      this.lastRidePhase = phase;
+    }
+    // the busker plays when the 42nd St platform is lit and you can hear it
+    const nearBusker = w.subway.lit.has('stationB')
+      && Math.hypot(this.player.capsule.x - w.subway.anchors.busker.x, this.player.capsule.z - w.subway.anchors.busker.z) < 13;
+    if (nearBusker !== this.saxOn) {
+      this.saxOn = nearBusker;
+      if (nearBusker) gameAudio.saxStart();
+      else gameAudio.saxStop();
+    }
+    // beats → notes (the ride's teach, the square's sync)
+    while (w.subwayBeats.length > 0) {
+      const key = w.subwayBeats.shift()!;
+      const text = RIDE_BEAT_TEXT[key];
+      if (text) this.ui.showNote(text);
+    }
+    while (w.tsBeats.length > 0) {
+      w.tsBeats.shift();
+      this.ui.showNote(TS_SYNC_NOTE);
+    }
+  }
 
   applyEffect(e: Effect): void {
     switch (e.kind) {
@@ -1515,6 +1555,7 @@ export class Game {
     await this.ui.fadeOut(700);
 
     s.day = n;
+    this.world.setWorldDay(n); // the sync beat is day-keyed (docs/50)
     s.onDay2 = n >= 2;
     s.dayComplete = false;
     s.elapsed = 0;
