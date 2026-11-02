@@ -962,3 +962,36 @@ construction arc W0→W5 is complete: every registry ID exists in the scene
 or carries its explicit deferral note, the 7 landmarks read, the 12
 masses and 18 anchors verify, the per-phase performance ledgers are
 published, and the E2E stayed green through every phase.
+
+## The Map, reachable by thumb (SHIPPED 2026-11-02, branch `fix/map-button-reachable`)
+
+**The bug a player found, not a test:** the HUD is click-through by design
+(`#hud { pointer-events: none }` — the city gets every tap), and the Map
+button never opted back in. Every keyboard test passed because the driver
+opens the Map with **M**. A thumb tap landed on the canvas and vanished —
+and on a phone there is no M key, so the Map was unreachable on the
+device this game is shaped for. The ★ icon made it worse: it read as
+"favorites", not as the Map.
+
+**What landed**
+
+- `#hud button { pointer-events: auto; }` — every button in the HUD takes
+  its own clicks, with a comment that states the law so the next HUD
+  control cannot inherit the same blindness.
+- The Map button now says **Map** — the word, in Map's own handwriting, on
+  the folded paper chip with a dotted rule. The affordance is the label.
+- `scripts/e2e.mjs` grows a **pointer-path guard**: a plain page (no
+  autotest driver) that clicks `#btn-map` open, folds it, and toggles
+  sound — Playwright refuses to click a covered element, so the class of
+  bug "button invisible to the pointer while green in every keyboard
+  test" cannot ship again.
+
+**Verification**: tsc clean · vitest **367/367** · build clean · **E2E:
+AUTOTEST OK, 0 failures, 427 s, zero console errors, POINTER guard 3/3
+PASS** · clicked open in a live browser at 900×700 and 390×844 — the
+notebook's two pages stack correctly on the phone width.
+
+**Honest note**: the deploy workflow was suspected broken (`branches:
+[main]` read as `ain]` in one terminal capture) and was cleared by a
+byte-exact check before any "fix" was attempted. The workflow was never
+broken; the terminal output was.

@@ -39,6 +39,13 @@ html, body {
   color: var(--cream);
 }
 
+/* The HUD is click-through so the city gets every tap — but a button that
+   ignores the thumb is furniture, not a button (the Map was unreachable on
+   phones for weeks because of exactly this). Every button in the HUD opts
+   back in. If you add a HUD control, it is clickable by this line; if you
+   ever need one NOT clickable, it must not be a <button>. */
+#hud button { pointer-events: auto; }
+
 #hud-top-left {
   position: absolute;
   top: calc(14px + env(safe-area-inset-top));
@@ -208,8 +215,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   min-width: 44px;
   min-height: 44px;
   margin: 0 0 6px 6px;
-  padding: 6px 10px;
-  font-size: 18px;
+  padding: 8px 14px;
   line-height: 1;
   color: var(--ink);
   background: var(--cream);
@@ -221,7 +227,20 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 }
 #btn-map:hover { transform: translateY(-1px); }
 #btn-map:active { transform: scale(0.94); }
-#map-peek { font-family: var(--hand-font); font-size: 20px; }
+/* The label IS the affordance: the word, in Map's own handwriting.
+   A bare star read as "favorites" — nobody knew this was the Map. */
+#map-peek {
+  font-family: var(--hand-font);
+  font-size: 21px;
+  color: var(--ink);
+  letter-spacing: 0.5px;
+}
+#map-peek::after {
+  content: "";
+  display: block;
+  margin-top: 1px;
+  border-bottom: 2px dotted rgba(58, 52, 64, 0.35);
+}
 #btn-map.wiggle { animation: map-wiggle 1.1s ease-in-out; }
 @keyframes map-wiggle {
   0%, 100% { transform: rotate(0deg); }

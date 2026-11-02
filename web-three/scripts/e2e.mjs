@@ -60,6 +60,43 @@ page.on('pageerror', (err) => consoleErrors.push(`PAGEERROR: ${err.message}`));
 const WALKLOG = process.env.E2E_WALKLOG === '1' ? '&walklog=1' : '';
 await page.goto(`http://localhost:${PORT}/?autotest=1&fx=off${WALKLOG}`, { waitUntil: 'load' });
 
+// ---- The pointer-path guard (runs on its own page, before the driver) ----
+// The driver rides the KEYBOARD path (M opens the Map). This guard rides
+// the THUMB path: it clicks the real HUD buttons on a plain page. Playwright
+// refuses to fire a click when another element covers the button — which is
+// exactly how the Map sat click-dead behind the click-through HUD (#hud has
+// pointer-events: none) while every keyboard test stayed green. Phones had
+// no M key, so on mobile the Map was unreachable, period.
+{
+  const p = await browser.newPage({ viewport: { width: VW, height: VH } });
+  const pointerFails = [];
+  const ok = (cond, what) => {
+    console.log(`${cond ? 'POINTER: PASS' : 'POINTER: FAIL'} ${what}`);
+    if (!cond) pointerFails.push(what);
+  };
+  const attempt = async (what, fn) => {
+    try { await fn(); return true; } catch (e) { pointerFails.push(`${what}: ${e.message}`); console.log(`POINTER: FAIL ${what}`); return false; }
+  };
+  p.on('pageerror', (err) => pointerFails.push(`PAGEERROR: ${err.message}`));
+  await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'load' });
+  await p.waitForSelector('#hud:not([hidden])', { timeout: 60000 });
+  await attempt('click the Map button', () => p.click('#btn-map', { timeout: 5000 }));
+  ok(await p.isVisible('#map-sheet'), 'the Map opens by CLICK on the HUD button');
+  await attempt('click fold-it', () => p.click('#map-close', { timeout: 5000 }));
+  ok(!(await p.isVisible('#map-sheet')), 'the Map folds again by click');
+  await attempt('click the audio button', () => p.click('#btn-audio', { timeout: 5000 }));
+  ok((await p.getAttribute('#btn-audio', 'aria-pressed')) === 'true', 'the audio button toggles by click');
+  await p.close();
+  if (pointerFails.length > 0) {
+    console.error('POINTER GUARD FAILED:\n' + pointerFails.join('\n'));
+    console.log('=== SUMMARY ===');
+    console.log('AUTOTEST NOT RUN — the thumb path is broken');
+    await browser.close();
+    server.close();
+    process.exit(1);
+  }
+}
+
 try {
   // The four-day journey is longer now (Day 4 afternoon included) and this
   // suite must survive a LOADED machine — the 340 s ceiling once cut Day 4
