@@ -60,7 +60,16 @@ const bus = () => page.evaluate(() => {
     if (c.position.x > b.minX - 0.28 && c.position.x < b.maxX + 0.28
       && c.position.z > b.minZ - 0.28 && c.position.z < b.maxZ + 0.28) walkerInBus++;
   }
-  return { ...d, walkerInBus, cabBusOverlap: overlap(b, cab) };
+  // ONE BAY, ONE BUS: while the loop body's rect intersects the registry's
+  // enterable BUS-04 (docs/47), BUS-04's shell must be hidden — and while
+  // the player stands inside it, it must be visible. Sampled per tick.
+  const r04 = { minX: -37.65, maxX: -26.65, minZ: 0.75, maxZ: 3.25 };
+  let arrivalVisible = null;
+  g.world.scene.traverse((o) => { if (o.name === 'BUS_M121') arrivalVisible = o.visible; });
+  const p = g.player.capsule;
+  const inside04 = p.x > r04.minX && p.x < r04.maxX && p.z > r04.minZ && p.z < r04.maxZ && p.y > 0.4;
+  const bayCoexistence = overlap(b, r04) && arrivalVisible === true && !inside04;
+  return { ...d, walkerInBus, cabBusOverlap: overlap(b, cab), bayCoexistence, arrivalVisible };
 });
 
 let failures = 0;
@@ -81,12 +90,15 @@ const until = async (ms, probe, cond) => {
 
 // ---- 1. the bay -----------------------------------------------------------
 const t0 = await bus();
-check('boot: the bus lays over at the terminal bay', t0.leg === 0 && t0.legName === 'Kestrel west'
-  && t0.x < -20 && t0.x > -38 && t0.dwell > 0, `x ${t0.x.toFixed(1)} dwell ${t0.dwell.toFixed(1)}`);
+check('boot: the loop wakes mid-lap, the bay holds BUS-04', t0.leg === 3 && t0.dwell === 0
+  && t0.arrivalVisible === true, `leg ${t0.leg} x ${t0.x.toFixed(1)} arrival ${t0.arrivalVisible}`);
 
-const dep = await until(45000, bus, (d) => d.dwell <= 0 && (d.a > 101.3 || d.leg !== 0 || d.x < -30));
-check('the bus departs the bay (dwell spent, advance moves)', dep.ok,
-  dep.ok ? `a ${dep.last.a.toFixed(1)} x ${dep.last.x.toFixed(1)}` : `stuck a ${dep.last.a.toFixed(1)}`);
+const dep = await until(120000, bus, (d) => d.dwell > 0 && d.leg === 0 && d.x < -25 && d.x > -40);
+check('the first bay lay-over lands in the paint (dwell armed)', dep.ok,
+  dep.ok ? `a ${dep.last.a.toFixed(1)} x ${dep.last.x.toFixed(1)} dwell ${dep.last.dwell.toFixed(1)}` : `stuck ${JSON.stringify(dep.last).slice(0, 120)}`);
+const dep2 = await until(60000, bus, (d) => d.dwell <= 0 && (d.a > 105.3 || d.leg !== 0 || d.x < -40));
+check('the bus departs the bay (dwell spent, advance moves)', dep2.ok,
+  dep2.ok ? `a ${dep2.last.a.toFixed(1)} x ${dep2.last.x.toFixed(1)}` : `stuck a ${dep2.last.a.toFixed(1)}`);
 
 // ---- 2. the XW-COURT courtesy zone ----------------------------------------
 await page.evaluate(() => {
@@ -105,7 +117,11 @@ if (arrive.ok) {
   // the rest: x stable across two consecutive 3 s windows, parked at the
   // zone line's rest spot (46.85 ± 1.35 — the player-yield variant 43.05
   // can't win here: the zone's line sits 4.25 m EAST of the player, so the
-  // zone's braking curve always bites first)
+  // zone's braking curve always bites first). One settle beat first — the
+  // sighting can catch the last decimetres of the approach (the leg-3 boot
+  // shifted the schedule's phase; the probe once read its first window
+  // mid-creep and called a good rest unstable).
+  await page.waitForTimeout(3000);
   const rest0 = (await bus()).x;
   await page.waitForTimeout(3000);
   const rest1 = (await bus()).x;
@@ -158,8 +174,11 @@ const dwells = samples.filter((s) => s.dwell > 0.2 && s.legName === 'Kestrel wes
 check('the bus dwells at its Kestrel stops', dwells.length >= 2, `${dwells.length} dwell samples`);
 const dwx = dwells.map((s) => s.x);
 const nearStop = (x) => dwx.some((v) => Math.abs(v - x) < 7);
-check('dwells land near the registry stops (61.5 / −24.5 / bay −30)', nearStop(61.5) && nearStop(-24.5),
+check('dwells land near the registry stops (61.5 / −24.5 / bay −32.15)', nearStop(61.5) && nearStop(-24.5),
   `dwell x: ${dwx.map((v) => v.toFixed(0)).join(', ')}`);
+const bayCoexist = samples.filter((s) => s.bayCoexistence).length;
+check('the bay never holds two M121 bodies (BUS-04 yield law)', bayCoexist === 0,
+  `${bayCoexist} coexistence samples across ${samples.length}`);
 
 // ---- 5. footprint truths ----------------------------------------------------
 const final = await bus();

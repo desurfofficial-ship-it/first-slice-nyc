@@ -167,7 +167,9 @@ const run = await page.evaluate(async () => {
   out.usher = nearUsher ? nearUsher.id : null;
 
   // 12. the M121: settle, then walk south through the door gap
-  tp(-25.5, 0.1, 4.6, Math.PI);
+  // (the door rides the registry's BUS-04 bay at cx −32.15: the gap
+  // x −28.2..−27.1, the step top 0.3, the floor 0.55 — docs/47)
+  tp(-27.65, 0.1, 4.6, Math.PI);
   await sleep(1100);
   g.input.injectKey(keyToward(false), true);
   await sleep(1500);

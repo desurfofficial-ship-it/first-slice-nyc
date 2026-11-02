@@ -8,6 +8,14 @@
  * a ball game, look west through the windshield down the avenue (the
  * skyline card at x −110 is already there — the reveal costs nothing).
  *
+ * The body stands at cx −32.15 (the registry's BUS-04 bay, moved 2.15 m
+ * west of its first pin): its TAIL must clear the loop M121's BUS-01 halt
+ * nose (−26.5, forced east by the door-at-the-pole law and the van) and
+ * its DOOR must sit west of that halt body — see docs/47 "the terminal
+ * bay, made honest". One bay, one bus: while the loop M121 occupies the
+ * bay this shell yields (World swaps visibility by BUS04_RECT); the tail
+ * gap 0.15 m is what keeps the two rects disjoint through every halt.
+ *
  * Names live under the BUS_M121 group; the bake skips that exact name
  * (the rig and duffel are dynamic dressing; the shell could bake, but one
  * name in the skip list is simpler than a split).
@@ -18,7 +26,13 @@ import { PAL } from '../core/palette';
 import { buildArticulatedPerson, updatePersonAnim } from './personRig';
 import type { ColliderSpec } from './subway/stationKit';
 
-const BUS = { cx: -30, z: 2.0, len: 11, halfW: 1.25, floorTop: 0.55, roof: 2.75 } as const;
+const BUS = { cx: -32.15, z: 2.0, len: 11, halfW: 1.25, floorTop: 0.55, roof: 2.75 } as const;
+
+/** The body's world footprint (the registry's BUS-04 interior bounds):
+ *  the one bay's occupancy test — World hides this shell exactly while
+ *  the loop M121's collider rect intersects it and the player is not
+ *  standing inside. */
+export const BUS04_RECT = { minX: -37.65, maxX: -26.65, minZ: 0.75, maxZ: 3.25 } as const;
 
 export interface ArrivalBus {
   group: THREE.Group;
@@ -83,13 +97,13 @@ export function buildArrivalBus(
   box('BUS_Tail', xE, bodyY, z, 0.15, bodyH, halfW * 2, PAL.taxi);
   box('BUS_Stripe', cx, 1.1, z, len, 0.18, halfW * 2 + 0.06, PAL.ink, { collide: false });
 
-  // north (curbside) face: the door opening at x −25.5 + windows
-  box('BUS_WallN_W', (xW + -26.05) / 2, bodyY, zN, (-26.05) - xW, bodyH, 0.12, PAL.taxi);
-  box('BUS_WallN_E', (-24.95 + xE) / 2, bodyY, zN, xE - (-24.95), bodyH, 0.12, PAL.taxi);
-  box('BUS_DoorHeader', -25.5, 2.55, zN, 1.1, 0.4, 0.12, PAL.taxi, { collide: false });
+  // north (curbside) face: the door opening at x −27.65 + windows
+  box('BUS_WallN_W', (xW + -28.2) / 2, bodyY, zN, (-28.2) - xW, bodyH, 0.12, PAL.taxi);
+  box('BUS_WallN_E', (-27.1 + xE) / 2, bodyY, zN, xE - (-27.1), bodyH, 0.12, PAL.taxi);
+  box('BUS_DoorHeader', -27.65, 2.55, zN, 1.1, 0.4, 0.12, PAL.taxi, { collide: false });
   // south face: wall with window insets (dark glass reads fine outside)
   box('BUS_WallS', cx, bodyY, zS, len, bodyH, 0.12, PAL.taxi);
-  for (const wx of [-33, -31, -29, -27]) {
+  for (const wx of [-35.15, -33.15, -31.15, -29.15]) {
     box(`BUS_WinS_${wx}`, wx, 1.55, zS - 0.02, 1.2, 0.85, 0.04, 0x2c3440, { collide: false });
   }
   // west end: the windshield (an OPENING — the reveal looks through it)
@@ -104,25 +118,25 @@ export function buildArrivalBus(
   }
 
   // curb-side entry steps (the law: every rise ≤ 0.35)
-  box('BUS_Step_1', -25.5, 0.15, zN + 0.35, 1.0, 0.3, 0.6, 0x8f8a82);
-  col(-25.5, 0.15, zN + 0.35, 1.0, 0.3, 0.6);
+  box('BUS_Step_1', -27.65, 0.15, zN + 0.35, 1.0, 0.3, 0.6, 0x8f8a82);
+  col(-27.65, 0.15, zN + 0.35, 1.0, 0.3, 0.6);
 
   // interior: driver cab bulkhead, seat benches, pole, rail
-  box('BUS_CabWall', -33.6, bodyY, z, 0.12, bodyH, halfW * 2 - 0.3, 0xd8d8d8);
-  box('BUS_CabGap', -33.6, bodyY, zN - 0.55, 0.12, bodyH, 0.8, 0xd8d8d8, { collide: false });
-  const seats: Array<[number, number]> = [[-32.2, z + 0.72], [-30.6, z - 0.72], [-29.0, z + 0.72], [-27.4, z - 0.72], [-25.9, z + 0.72]];
+  box('BUS_CabWall', -35.75, bodyY, z, 0.12, bodyH, halfW * 2 - 0.3, 0xd8d8d8);
+  box('BUS_CabGap', -35.75, bodyY, zN - 0.55, 0.12, bodyH, 0.8, 0xd8d8d8, { collide: false });
+  const seats: Array<[number, number]> = [[-34.35, z + 0.72], [-32.75, z - 0.72], [-31.15, z + 0.72], [-29.55, z - 0.72], [-28.05, z + 0.72]];
   seats.forEach(([sx, sz], i) => {
     box(`BUS_Seat_${i}`, sx, floorTop + 0.5, sz, 0.95, 0.1, 0.45, 0x2A9D8F);
     box(`BUS_SeatBack_${i}`, sx + (sz > z ? 0.45 : -0.45), floorTop + 0.85, sz, 0.1, 0.75, 0.45, 0x2A9D8F, { collide: false });
     col(sx, floorTop + 0.3, sz, 0.95, 0.6, 0.45);
   });
-  box('BUS_Pole', -25.0, floorTop + 0.95, zN - 0.35, 0.06, 1.9, 0.06, 0x9aa0a6, { collide: false });
+  box('BUS_Pole', -27.15, floorTop + 0.95, zN - 0.35, 0.06, 1.9, 0.06, 0x9aa0a6, { collide: false });
   box('BUS_Rail', cx, roof - 0.15, z, len - 1.2, 0.05, 0.05, 0xd8d8d8, { collide: false });
 
   // the duffel — somebody's whole biography on a seat (the player's Day-1
   // mirror, the way the stranger carries hers)
-  box('BUS_Duffel', -27.4, floorTop + 0.72, z - 0.72, 0.75, 0.35, 0.4, 0x6a4a3a, { collide: false });
-  box('BUS_DuffelStrap', -27.4, floorTop + 0.9, z - 0.72, 0.77, 0.06, 0.42, 0x3a2a20, { collide: false });
+  box('BUS_Duffel', -29.55, floorTop + 0.72, z - 0.72, 0.75, 0.35, 0.4, 0x6a4a3a, { collide: false });
+  box('BUS_DuffelStrap', -29.55, floorTop + 0.9, z - 0.72, 0.77, 0.06, 0.42, 0x3a2a20, { collide: false });
 
   // the driver, behind the cab wall gap, radio murmuring somewhere off-map
   const { group: driver, rig: driverRig } = buildArticulatedPerson(
@@ -130,18 +144,18 @@ export function buildArrivalBus(
     (c) => M(c),
   );
   driver.name = 'BUS_Driver';
-  driver.position.set(-34.35, floorTop, z - 0.1);
+  driver.position.set(-36.5, floorTop, z - 0.1);
   driver.rotation.y = Math.PI / 2; // faces west, down the avenue
   group.add(driver);
-  col(-34.35, floorTop + 0.9, z - 0.1, 0.9, 1.8, 0.9);
+  col(-36.5, floorTop + 0.9, z - 0.1, 0.9, 1.8, 0.9);
 
   const api: ArrivalBus = {
     group,
     colliders,
     anchors: {
-      driver: { x: -33.2, y: floorTop, z: z - 0.1 },
-      duffel: { x: -27.4, y: floorTop + 0.72, z: z - 0.72 },
-      door: { x: -25.5, y: 0.1, z: zN + 0.7 },
+      driver: { x: -35.35, y: floorTop, z: z - 0.1 },
+      duffel: { x: -29.55, y: floorTop + 0.72, z: z - 0.72 },
+      door: { x: -27.65, y: 0.1, z: zN + 0.7 },
     },
     update(dt) {
       updatePersonAnim(driver, dt); // the idle breathe; the rig does the rest
@@ -153,6 +167,6 @@ export function buildArrivalBus(
 
 /** Static anchors for the registry (driver chat + the duffel). */
 export const BUS_SPOTS = {
-  driver: { x: -33.2, y: 0.55, z: 1.9 },
-  duffel: { x: -27.4, y: 1.0, z: 1.28 },
+  driver: { x: -35.35, y: 0.55, z: 1.9 },
+  duffel: { x: -29.55, y: 1.0, z: 1.28 },
 } as const;

@@ -97,7 +97,9 @@ export function parkedCarRect(c: { x: number; z: number; alongZ: boolean }):
 // ---- the four legs (all numbers from the registry streets, verbatim) ------
 
 // Kestrel westbound drive lane rides z +0.8; the curb pull-out sits 1.6 m
-// north of it (body edge at z 3.55, kissing the bay paint at 3.4).
+// north of it (body edge at z 3.55, kissing the bay paint at 3.4). The BAY
+// stop pulls 1.2 instead — it parks on BUS-04's registry line (center
+// z 2.0, the body 0.85..3.15 inside the shell's 0.75..3.25), the swap pose.
 const KESTREL_LANE = 0.8;
 const BAY_PULL = 1.6;
 // Avenue lanes ride the centerline: Juniper northbound x −71.6, Sycamore
@@ -114,11 +116,15 @@ const GABLE_LANE_Z = 38.0;
 // the first authored mark (the bay paint's east edge, a 4.7) sat CLOSER to
 // the corner than the nose itself and was unreachable after every wrap.
 // BUS-02 is the lay-over: the bay paint's containment law wins over the
-// door law (nose x −33.8, body −33.8..−24.2 inside the paint −36..−24;
-// the van at x −14 keeps 0.7 m of air off BUS-01's tail).
+// door law (nose x −35.9, body −35.9..−26.3 inside the paint −36..−24;
+// the van at x −14 keeps 0.7 m of air off BUS-01's tail). The pose is
+// ALSO the BUS-04 yield pose: the registry's enterable M121 stands at
+// cx −32.15 (its tail −26.65 clears the BUS-01 halt nose −26.5 by 0.15),
+// and this parked body takes the bay exactly while that shell yields —
+// one bay, one bus (docs/47 "the terminal bay, made honest").
 const STOP_BUS03_A = 72.2 - 59.5;  // 12.7 — the door at the Sycamore/Diner pole
 const STOP_BUS01_A = 72.2 + 26.5;  // 98.7 — the door at the Kestrel/West pole
-const STOP_BAY_A = 72.2 + 33.8;    // 106.0 — parked inside the terminal bay
+const STOP_BAY_A = 72.2 + 35.9;    // 108.1 — parked inside the terminal bay
 
 /** The M121 loop, built once. Read it as the registry's own sentence:
  *  terminal lay-over → (Juniper) → Gable St → Sycamore Ave → Kestrel St →
@@ -139,7 +145,7 @@ export function buildM121(): BusLeg[] {
     stops: [
       { id: 'BUS-03', a: STOP_BUS03_A, lateral: BAY_PULL, dwell: 4 },
       { id: 'BUS-01', a: STOP_BUS01_A, lateral: BAY_PULL, dwell: 4 },
-      { id: BUS_BAY_ID, a: STOP_BAY_A, lateral: BAY_PULL, dwell: 9 },
+      { id: BUS_BAY_ID, a: STOP_BAY_A, lateral: 1.2, dwell: 9 },
     ],
   };
 

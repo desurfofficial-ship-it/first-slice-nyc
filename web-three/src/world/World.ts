@@ -32,7 +32,7 @@ import { LeafDrift } from './leaves';
 import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
 import { buildSubwaySystem, STATION, type SubwaySystem, type ColliderSpec } from './subway';
 import { buildTimesSquare, type TimesSquare } from './timesSquare';
-import { buildArrivalBus, type ArrivalBus } from './arrivalBus';
+import { buildArrivalBus, BUS04_RECT, type ArrivalBus } from './arrivalBus';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay } from './dressing';
 import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT } from '../core/content';
 // the half-court upgrade (docs/48/49) — basketball-owned module, the one
@@ -111,11 +111,6 @@ export class World {
   /** The cab's collider — boxFromCenter once, then moved every frame. */
   readonly taxiCollider: AABB;
   // ---- W4 part 2: the M121 (registry transit.bus, routes V-BUS) ----------
-  /** The bay halt's nose advance — the boot state parks the bus there. */
-  private static readonly M121_BAY_A = 72.2 + 33.8;
-  /** The boot layover: the full bay dwell (the district wakes mid-morning;
-   *  the bus pulls out shortly after you do). */
-  private static readonly M121_BAY_DWELL = 9;
   /** The route law, built once (engine/busRoute). */
   private readonly M121_LEGS = buildM121();
   /** The district's bus — the dedicated low-poly body (the open §7 decision:
@@ -129,11 +124,22 @@ export class World {
   /** The rail state: which leg, the CENTER's advance, the lateral offset
    *  (0 = drive lane, + = the curb pull-out), the stop dwell left, laps
    *  done, the eased yaw, and the night flag (the bay dwells through the
-   *  night — the dusk law). Deterministic: authored dwells, no randomness. */
+   *  night — the dusk law). Deterministic: authored dwells, no randomness.
+   *  BOOT: leg 3 a 10 — the bus wakes mid-lap on Sycamore Ave, ~26 game-s
+   *  from its first bay visit. It does NOT boot in the bay: the bay holds
+   *  the registry's enterable BUS-04 (the bus that delivered you), and
+   *  probe-subway's fixed-time boarding must always find it standing —
+   *  the old boot-in-bay parked the loop body on top of BUS-04 (docs/47
+   *  "the terminal bay, made honest"). */
   private readonly busState = {
-    leg: 0, a: World.M121_BAY_A - BUS_BODY.halfLen, lat: 1.6,
-    dwell: World.M121_BAY_DWELL, laps: 0, yaw: Math.PI, night: false, servedStop: null as string | null,
+    leg: 3, a: 10, lat: 0,
+    dwell: 0, laps: 0, yaw: Math.PI / 2, night: false, servedStop: null as string | null,
+    baySkipped: false,
   };
+  /** BUS-04's colliders, captured at boot — retired while the loop body
+   *  occupies the bay, re-pushed when the bay is its own again. */
+  private readonly arrivalBoxes: AABB[] = [];
+  private arrivalHidden = false;
   /** The cart is furniture now: it has a collider, so "he passed through the
    *  cart" is over (playtest 2026-10-30). Static — it never moves. */
   readonly cartCollider: AABB;
@@ -1256,7 +1262,9 @@ export class World {
     this.arrivalBus = buildArrivalBus((c, opts) => this.mat(c, opts));
     this.scene.add(this.arrivalBus.group);
     for (const c of this.arrivalBus.colliders) {
-      this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d));
+      const box = boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d);
+      this.colliders.push(box);
+      this.arrivalBoxes.push(box);
     }
     this.collectTerminalShell();
     this.buildSubwayCast();
@@ -1754,10 +1762,13 @@ export class World {
   /** W4 part 2 assembly (see the block comment above buildBus). */
   private buildAlderHeightsW4Traffic(): void {
     this.busGroup = this.buildBus();
-    this.busGroup.position.set(-29.0, 0, 2.4); // the bay: laid over at boot
-    this.busGroup.rotation.y = Math.PI;
+    // the boot pose = the boot state (leg 3 a 10 lat 0): mid-lap on
+    // Sycamore Ave, ~26 game-s from the first bay visit — the bay itself
+    // holds BUS-04 (the registry's enterable M121) until the loop arrives.
+    this.busGroup.position.set(72.2, 0, 28);
+    this.busGroup.rotation.y = Math.PI / 2; // travelYaw(0, −1), leg 3 south
     this.scene.add(this.busGroup);
-    this.busCollider = boxFromCenter(-29.0, 1.3, 2.4, 9.6, 2.6, 2.3);
+    this.busCollider = boxFromCenter(72.2, 1.3, 28, 9.6, 2.6, 2.3);
     this.colliders.push(this.busCollider);
 
     this.courtDusk = this.buildCourtDuskPair();
@@ -5389,6 +5400,7 @@ export class World {
         this.busGroup.position.set(this.busPointScratch.x, 0, this.busPointScratch.z);
         this.busGroup.rotation.y = st.yaw;
         this.syncBusCollider();
+        this.syncBayOccupancy(player);
         this.peds.resolveAgainstCab(this.busWorldRectScratch);
         return;
       }
@@ -5398,14 +5410,33 @@ export class World {
     let speed: number = BUS.cruise;
 
     if (stop && st.servedStop !== stop.id) {
-      const clearance = Math.max(stop.a - noseA, 0);
-      speed = Math.min(speed, approachSpeed(BUS.cruise, clearance, BUS.haltGap, BUS.gain));
-      if (clearance <= BUS.haltGap + BUS.haltEps) {
-        // snap the last whisker so the halt is ON the mark (the Zeno guard)
-        st.a += Math.max(clearance - BUS.haltGap, 0);
-        st.dwell = stop.dwell;
-        st.servedStop = stop.id;
-        speed = 0;
+      // ONE BAY, ONE BUS (docs/47 "the terminal bay, made honest"): while
+      // the player stands inside the registry's enterable BUS-04, the bay
+      // is occupied. Before first contact (nose advance < 98.85 ↔ the nose
+      // east of BUS-04's tail −26.65) the arriving bus HOLDS in place —
+      // the same stall the yield brain gives any body in the lane — and
+      // serves the moment the player steps out. Past that line the
+      // approach is committed: roll through and try again next lap
+      // (baySkipped also keeps the pull-out from driving through the paint).
+      if (stop.id === BUS_BAY_ID && player && this.playerInsideArrival(player)) {
+        if (noseA < 72.2 + BUS04_RECT.maxX) {
+          speed = 0;
+        } else {
+          st.servedStop = stop.id;
+          st.baySkipped = true;
+          speed = BUS.cruise;
+        }
+      } else {
+        const clearance = Math.max(stop.a - noseA, 0);
+        speed = Math.min(speed, approachSpeed(BUS.cruise, clearance, BUS.haltGap, BUS.gain));
+        if (clearance <= BUS.haltGap + BUS.haltEps) {
+          // snap the last whisker so the halt is ON the mark (the Zeno guard)
+          st.a += Math.max(clearance - BUS.haltGap, 0);
+          st.dwell = stop.dwell;
+          st.servedStop = stop.id;
+          if (stop.id === BUS_BAY_ID) st.baySkipped = false;
+          speed = 0;
+        }
       }
     }
 
@@ -5453,7 +5484,7 @@ export class World {
     // (the terminal bay's partner car is only 8 m west — a late merge would
     // kiss it; the probe caught the exact stutter).
     let latTarget = 0;
-    if (stop) {
+    if (stop && !(st.baySkipped && stop.id === BUS_BAY_ID)) {
       const dist = stop.a - noseA;
       if (dist < 9 && dist > -2) latTarget = stop.lateral;
     }
@@ -5481,6 +5512,7 @@ export class World {
       st.a -= f.len;
       st.leg = (st.leg + 1) % legs.length;
       st.servedStop = null;
+      st.baySkipped = false;
       if (st.leg === 0) st.laps++;
     }
 
@@ -5494,8 +5526,54 @@ export class World {
     this.busGroup.position.set(this.busPointScratch.x, 0, this.busPointScratch.z);
     this.busGroup.rotation.y = st.yaw;
     this.syncBusCollider();
+    this.syncBayOccupancy(player);
     // post-move truth: walkers get the air they are owed (the cab's law)
     this.peds.resolveAgainstCab(this.busWorldRectScratch);
+  }
+
+  /** ONE BAY, ONE BUS (docs/47 "the terminal bay, made honest"). The bay
+   *  holds the registry's enterable M121 (BUS-04, arrivalBus.ts) AND is the
+   *  loop's lay-over — the two bodies must never stand there together (the
+   *  merge had them fused, the door walled shut). The rule, evaluated from
+   *  the body's just-synced collider: while the loop's rect intersects
+   *  BUS-04's footprint and the player is NOT standing inside, BUS-04
+   *  yields (hidden, colliders retired); the moment the rects part again
+   *  — ~1.5 s after the loop pulls out — the shell is restored. The
+   *  player-inside guard is what keeps the floor under your feet through
+   *  the skip pass (the bus rolls past the standing shell it may not have). */
+  private syncBayOccupancy(player?: { x: number; y: number; z: number }): void {
+    const b = this.busCollider;
+    const hit = b.maxX > BUS04_RECT.minX && b.minX < BUS04_RECT.maxX
+      && b.maxZ > BUS04_RECT.minZ && b.minZ < BUS04_RECT.maxZ;
+    const wantHidden = hit && !this.playerInsideArrival(player);
+    if (wantHidden !== this.arrivalHidden) this.setArrivalHidden(wantHidden);
+  }
+
+  /** Is the player standing inside BUS-04's registry interior? (The y band
+   *  keeps the street out — only the floor at 0.55 counts as inside.) */
+  private playerInsideArrival(player?: { x: number; y: number; z: number }): boolean {
+    if (!player) return false;
+    return player.x > BUS04_RECT.minX && player.x < BUS04_RECT.maxX
+      && player.z > BUS04_RECT.minZ && player.z < BUS04_RECT.maxZ
+      && player.y > 0.4;
+  }
+
+  /** Swap BUS-04's shell + its colliders as one unit. The AABB objects are
+   *  the same instances the player's collision list holds, so the splice
+   *  is the whole truth (the player reads this.colliders by reference). */
+  private setArrivalHidden(hidden: boolean): void {
+    this.arrivalHidden = hidden;
+    this.arrivalBus.group.visible = !hidden;
+    if (hidden) {
+      for (const b of this.arrivalBoxes) {
+        const i = this.colliders.indexOf(b);
+        if (i >= 0) this.colliders.splice(i, 1);
+      }
+    } else {
+      for (const b of this.arrivalBoxes) {
+        if (!this.colliders.includes(b)) this.colliders.push(b);
+      }
+    }
   }
 
   /** Sync the bus's collider + world rect from the group's current pose —
