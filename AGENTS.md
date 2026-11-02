@@ -78,6 +78,29 @@ Prefer a **smaller number of distinctive, well-integrated New York details** ove
 
 **Do not call the build finished merely because it compiles.** It must be playable, visually inspected, and regression-tested.
 
+## 1c. Agent Engineering Discipline (non-negotiable craft)
+
+Lessons adapted from high-output agent game builds (notably [@poteto](https://x.com/poteto/status/2117043478140276847) on shipping a full browser game with bots). Apply them to FIRST SLICE without cargo-culting unrelated tech.
+
+1. **Issue → permanent guard.** Every time you find a real bug or a bad pattern in review, do not only fix the instance. Add a **test, assertion, or lint-style rule** so the class of mistake cannot return quietly. Prefer a failing unit/e2e check over a comment.
+
+2. **State machines are sacred.** Story steps, free-roam vs authored beats, serve/confirm gates, day transitions, and save flags are machines. Change them with explicit inputs/outputs. Do not patch “just this once” mid-frame. If a system is hard to reason about, write the transitions down before coding.
+
+3. **Hot path stays cold.** Code that runs every frame or every tick must not allocate casually (no throwaway objects, closures, or `new` in the steady loop when avoidable). Prefer reused vectors, preallocated arrays, and pure data updates. If a file is frame-critical, name and treat it that way.
+
+4. **Determinism where it matters.** Autotest, money math, step advances, and save parse must be repeatable from known inputs. Random flavor is fine for ambience; core progression is not a dice roll.
+
+5. **Names over comments.** Prefer a clearer function/file name or a test with a sentence-long title to a paragraph comment. Comments that restate the code are noise. Comments that encode a non-obvious law may stay — better still, encode the law in a test.
+
+6. **Budget honesty.** Mobile/browser performance and payload size are real constraints. Do not ship features that only work on a desktop workstation. Prefer shared geometry, instancing, and fewer distinctive props (see §1b) over denser garbage.
+
+7. **Headless proof.** Story-critical paths must be exercisable without a human watching (`?autotest=1`, unit tests, probes). “It worked when I clicked once” is not evidence.
+
+8. **Small coherent PRs.** Many focused commits beat one giant dump. Each PR should name the law or gate it serves and how it was verified.
+
+**Do not import** unrelated stacks from other games (formal TLA+ models, custom chip synths, pixel atlases) unless the GDD and roadmap ask for them. Import the *discipline*, not the costume.
+
+
 ## 2. Voice & Terminology
 
 **Writing voice (all docs, dialogue, captions, commit messages):** short sentences. Plain words. Warm, wry, unhurried — like Rosa, not like a wiki. Concrete nouns over abstractions. Humor is dry and kind, never sarcastic. Never "users," "players" where "you" will do.
@@ -149,6 +172,7 @@ git status && git log --oneline -5     # orient first, always
 - [ ] **§0 GDD pillars respected** (daily loop, Map, Regulars, Postcard, Slice Ladder, Passport, cozy low-poly) — expansion did not replace the concept
 - [ ] Laws §1 respected (which ones apply? name them in the description)
 - [ ] Anti-Slop Quality Gate §1b respected (inspected in-game; no filler; owner + behavior + style + verification)
+- [ ] Engineering discipline §1c respected (guards for bugs found; no hot-path waste; headless proof where story-critical)
 - [ ] Voice guide §2 respected
 - [ ] Terminology consistent with §2 table
 - [ ] No secrets, no fabricated data, TBDs marked `[TBD]` with owner + date
