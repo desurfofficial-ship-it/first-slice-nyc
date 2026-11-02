@@ -778,7 +778,7 @@ re-run — card, notebook and the golden window compose correctly under the
 court HUD.
 
 ---
-=======
+
 ## W5 — the interiors batch (SHIPPED 2026-11-02)
 
 **Scope honored:** docs/45 §1 W5 minus the two optional slices the lead
@@ -1035,3 +1035,93 @@ tripwire PASS.
 **Verification:** tsc clean · vitest **367/367** · build clean ·
 probe-court ALL PASS · E2E green (above). B1/B2/B5 remain open — they
 need an owner decision (two bus systems, one bay), not a drive-by fix.
+---
+
+## Post-arc repair — the terminal bay, made honest (SHIPPED 2026-11-03)
+
+**How this surfaced.** W5 closed with `probe-subway 2 FAIL` ("the M121
+floor holds", "the bus interior is enterable"), dispositioned as
+pre-existing on agent2's tip and flagged onward. Re-opening the flag on
+the merged tree found a REAL merged-world defect behind it — and the
+disposition was wrong for this tree. diag-bay (kept:
+`scripts/diag-bay.mjs`) walked the probe's exact corridor and dumped the
+colliders: the loop M121's collider — a solid box, y 0→2.6 — sat across
+BUS-04's doorway, and the walk trace showed the player mounting BUS-04's
+step (top 0.3) and stopping nose-first against it.
+
+**The root cause is a three-way contradiction the merge baked in.**
+
+1. **Two M121s, one bay.** The registry pins the enterable arrival bus
+   (BUS-04: bay x −30, z 2.0, len 11, floorTop 0.55, interior
+   −35.5..−24.5) — agent2's first-session content. W4 p2's loop parks its
+   lay-over at center x −29.0, z 2.4 (collider −33.8..−24.2 × 1.25..3.55).
+   The rects overlap by 9.3 × 2.0 m: every bay dwell fused the two buses,
+   and the loop body walled BUS-04's only door (gap x −26.05..−24.95).
+2. **The registry pinned BUS-04, but the W4 code contradicted it** — the
+   W4 bay pose predated the arrival bus and was never reconciled.
+3. **BUS-01's halt rams BUS-04's tail.** The door-at-the-pole law stops
+   the loop's NOSE at x −26.5 (door at the pole −24.5); BUS-04's tail
+   reached −24.5 — a 2 m interpenetration every BUS-01 halt, and the halt
+   body covered the door gap too. The north curb (−36..−24 paint, the van
+   at −14, the parked Kestrel car at −44) cannot hold an 11 m standing
+   bus plus a 9.6 m loop body at either mark: every alternative placement
+   was checked and fails (west = the parked car; east = BUS-01's mark +
+   the van; south = the cab's lane).
+
+**The fix — one bay, one bus, the code now obeys the registry.**
+
+- **BUS-04 moves 2.15 m west** (registry data fix: bay x −32.15, interior
+  −37.65..−26.65; docs/40 §6 law). Its tail now clears the BUS-01 halt
+  nose by 0.15 m (disjoint rects through every halt), and its door
+  (gap −28.2..−27.1) sits west of every halt body — enterable in ALL
+  loop states except the dwell, when the shell itself yields. The
+  terminal-door desire line (x −30) is unchanged truth: the bus stood in
+  front of it before the shift too; the walks already route it.
+- **The loop's bay pose re-pinned onto BUS-04's line**: nose −35.9 (mark
+  a 108.1), lateral 1.2 (center z 2.0 — body 0.85..3.15 inside the
+  shell's 0.75..3.25), still inside the paint (containment law kept, the
+  bus.test paint assertion passes on the new mark).
+- **The occupancy swap** (World.syncBayOccupancy, run at both body
+  placement points): while the loop's rect intersects BUS-04's footprint
+  and the player is NOT inside, BUS-04's shell hides and its colliders
+  retire (the same AABB instances spliced from the player's list); when
+  the rects part — ~1.5 s after departure — the shell restores. The
+  swap fires at first contact on approach, so no fused frames.
+- **A player inside BUS-04 owns the bay**: before first contact (nose
+  advance < 98.85) the arriving bus HOLDS in place — the yield brain's
+  own stall — and serves when they step out; past that line the pass is
+  committed, so it rolls through (`baySkipped` keeps the pull-out from
+  driving the paint) and tries again next lap. The dusk night park
+  self-heals the same way on the following lap.
+- **The boot moved out of the bay** (leg 3, a 10 — mid-lap on Sycamore,
+  ~26 game-s from the first bay visit): at boot the bay holds BUS-04 —
+  "the bus that delivered you" — and probe-subway's fixed-time boarding
+  finds it standing at any frame rate. The old boot-in-bay was itself a
+  double-park for the first 9 s.
+- BUS_SPOTS / the door anchor / the driver / duffel / seats shift with
+  the body (interactionDefs imports BUS_SPOTS — the driver chat and the
+  duffel loop ride along untouched).
+
+**Probe harness fixes (the harness, not the world).** probe-subway's
+boarding tp moves to the new door x −27.65. probe-w4-bus re-specified
+for the new law: boot = mid-lap + BUS-04 standing; the first bay
+lay-over caught at its true halt (x < −25 — the old window matched
+BUS-01's halt first); departure past a 105.3; a new standing assertion
+**"the bay never holds two M121 bodies"** (0 coexistence samples across
+96); the XW-COURT rest check gained one settle beat (the leg-3 boot
+shifted the schedule's phase and the first 3 s window read a good rest
+mid-creep as unstable — the rest itself was 46.9 vs the authored 46.85).
+
+**Performance ledger** (probe-w0-census, same rigs; pre-fix → post-fix):
+PLAZA 1071 → 1071, CART_CORNER 904 → 898 (−6), SYCAMORE×GABLE 512 → 518
+(+6) — the shift moves meshes between rig frustums; net wash. The Doc 07
+budget line remains failed and remains published.
+
+**Verification (on the fixed tree)**: tsc clean · vitest **367/367** ·
+build clean · registry validator green (129 IDs, 12/12 masses, 18/18
+anchors) · **probe-subway ALL PASS** (the two standing failures fixed:
+"the M121 floor holds (y 0.55)", "the bus interior is enterable") ·
+**probe-w4-bus OK 13/13** (boot mid-lap, the bay lay-over at x −30.7
+dwell 8.5, the yield law 0/96, 2 laps in 149 s) · probe-solid ALL CLEAN
+(4/4) · probe-peds OK · probe-w3-ghost PASS · probe-w0-census OK ·
+**E2E: OK — 0 failures, 351 s**, console clean.
