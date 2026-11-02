@@ -5,7 +5,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { GameState, Step } from '../src/core/GameState';
-import { composeCaption, rosaChatLine } from '../src/core/content';
+import { composeCaption, rosaChatLine, RUSH_CARDS, SOLO_CARDS, IDRIS_NINE_YEARS_NOTE,
+  USUAL_NOTE } from '../src/core/content';
 
 function day1ThroughRush(): GameState {
   const s = new GameState();
@@ -17,9 +18,20 @@ function day1ThroughRush(): GameState {
   return s;
 }
 
+/** One conversation at the counter: open, choose, read, fold. The reply is
+ *  the card's default unless a test picks one — money never cares. */
+function serveCard(s: GameState, reply?: number): void {
+  if (!s.pendingCard) throw new Error('no order card open');
+  s.chooseReply(reply ?? s.pendingCard.defaultReply);
+  s.chooseReply(-1); // the response read, the card folds
+}
+
 function day1Served(): GameState {
   const s = day1ThroughRush();
-  for (let i = 0; i < 5; i++) s.serveCounter(); // → CROSS, $112
+  for (let i = 0; i < RUSH_CARDS.length; i++) {
+    expect(s.openCounterOrder().length).toBeGreaterThan(0);
+    serveCard(s);
+  }
   return s;
 }
 
@@ -38,10 +50,10 @@ function day1ThroughNaming(): GameState {
 function day1ToClimb(): GameState {
   const s = day1ThroughNaming();
   s.confirmName("Wade's Spot");                 // → SOLO + first solo customer
-  s.serveCart();                                 // 1
-  s.serveCart();                                 // 2 → Idris spawns next
-  s.spawnSoloCustomer();
-  s.serveCart();                                 // 3 → CLIMB
+  for (let i = 0; i < SOLO_CARDS.length; i++) {
+    expect(s.openCartOrder().length).toBeGreaterThan(0);
+    serveCard(s);
+  }
   return s;
 }
 
@@ -73,20 +85,65 @@ describe('Day 1 — the exact journey (Doc 02 / Doc 10 contract)', () => {
     expect(s.collect('mango')).toEqual([]);
   });
 
-  it('5-order rush pays $87 → $112 (Doc 08), then CROSS', () => {
+  it('5-order rush pays $87 → $112 (Doc 08), then CROSS — any replies', () => {
     const s = day1ThroughRush();
     for (let i = 0; i < 4; i++) {
-      expect(s.serveCounter().length).toBeGreaterThan(0);
+      expect(s.openCounterOrder().length).toBeGreaterThan(0);
+      serveCard(s, i % 4); // every path serves the same honest cup
       expect(s.step).toBe(Step.RUSH);
     }
-    s.serveCounter();
+    s.openCounterOrder();
+    serveCard(s);
     expect(s.step).toBe(Step.CROSS);
     expect(s.money).toBe(112);
   });
 
-  it('serving past 5 does nothing (no duplicate rewards)', () => {
+  it('the rush is a conversation: cards open in order and refuse double-open', () => {
     const s = day1ThroughRush();
-    for (let i = 0; i < 7; i++) s.serveCounter();
+    expect(s.openCounterOrder().some((e) => e.kind === 'order-open')).toBe(true);
+    expect(s.pendingCard?.id).toBe('regular');
+    expect(s.openCounterOrder()).toEqual([]); // already open
+    serveCard(s);
+    expect(s.pendingCard).toBeNull();
+    // the second card is the bacon-egg-and-cheese (Doc 12 card 2)
+    s.openCounterOrder();
+    expect(s.pendingCard?.id).toBe('bec');
+    serveCard(s);
+  });
+
+  it('asking is the teach path: the regular-coffee note lands in the Map', () => {
+    const s = day1ThroughRush();
+    s.openCounterOrder();
+    s.chooseReply(2); // "Ask what regular means"
+    expect(s.mapNotes).toContain(RUSH_CARDS[0].replies[2].note);
+    expect(s.mapSlang).toContain('regular');
+    s.chooseReply(-1);
+  });
+
+  it('card 5 keeps the continuity beat: Rosa\u2019s nine-years line always lands', () => {
+    const s = day1ThroughRush();
+    for (let i = 0; i < 4; i++) { s.openCounterOrder(); serveCard(s, i % 4); }
+    s.openCounterOrder();
+    expect(s.pendingCard?.id).toBe('idris');
+    s.chooseReply(2); // ask what the usual is
+    expect(s.mapNotes).toContain(IDRIS_NINE_YEARS_NOTE);
+    s.chooseReply(-1);
+    expect(s.step).toBe(Step.CROSS);
+    // the same line lands whichever way you answer the usual
+    const t = day1ThroughRush();
+    for (let i = 0; i < 4; i++) { t.openCounterOrder(); serveCard(t); }
+    t.openCounterOrder();
+    t.chooseReply(0); // just make it
+    expect(t.mapNotes).toContain(IDRIS_NINE_YEARS_NOTE);
+    t.chooseReply(-1);
+  });
+
+  it('serving past 5 does nothing (no duplicate rewards)', () => {
+    const s = day1Served();
+    for (let i = 0; i < 3; i++) {
+      expect(s.openCounterOrder()).toEqual([]); // the counter is done for the morning
+      expect(s.chooseReply(0)).toEqual([]);
+    }
     expect(s.money).toBe(112);
     expect(s.rushServed).toBe(5);
   });
@@ -113,19 +170,44 @@ describe('Day 1 — the exact journey (Doc 02 / Doc 10 contract)', () => {
     expect(s.step).toBe(Step.SOLO);
   });
 
-  it('third solo customer is Mr. Idris; three serves reach CLIMB', () => {
+  it('the kid\u2019s card has no wrong answer, and Idris converts to a Regular', () => {
     const s = day1ThroughNaming();
     s.confirmName("Wade's Spot");
     expect(s.step).toBe(Step.SOLO);
-    s.serveCart();
-    s.serveCart();
-    const spawn = s.spawnSoloCustomer();
-    expect(spawn.some((e) => e.kind === 'spawn-customer' && e.who === 'idris')).toBe(true);
-    s.serveCart();
+    // stroller woman — the second regular coffee teaches the "small" note
+    s.openCartOrder();
+    expect(s.pendingCard?.id).toBe('stroller');
+    serveCard(s);
+    expect(s.mapNotes).toContain(SOLO_CARDS[0].replies[0].note);
+    // the kid — "whatever's cold" — every choice serves the cup
+    s.openCartOrder();
+    expect(s.pendingCard?.id).toBe('kid');
+    s.chooseReply(1); // ask what he usually likes → "I don't know either!"
+    expect(s.kidDay1Served).toBe(true);
+    s.chooseReply(-1);
+    // the kid's serve spawns Idris next (the visual conversion, cap + glasses)
+    s.openCartOrder();
+    expect(s.pendingCard?.id).toBe('idris_solo');
+    serveCard(s);
+    expect(s.kidDay1Served).toBe(true);
     expect(s.step).toBe(Step.CLIMB);
     expect(s.soloServed).toBe(3);
-    // money unchanged by solo serves on day 1 (reference: no earn at the cart)
+    // the Map keeps the love-letter note; the unlock line is the toast
+    expect(s.mapNotes).toContain(USUAL_NOTE);
+    // money unchanged by solo serves on day 1 (Rosa counts $112 exactly)
     expect(s.money).toBe(112);
+  });
+
+  it('the kid answers \u201CI don\u2019t know either!\u201D on the ask path (VS-F03)', () => {
+    const s = day1ThroughNaming();
+    s.confirmName('X');
+    s.openCartOrder(); serveCard(s);
+    s.openCartOrder();
+    const effects = s.chooseReply(1);
+    const respond = effects.find((e) => e.kind === 'order-respond');
+    expect(respond && 'text' in respond ? respond.text : '').toContain('I don\u2019t know either');
+    s.chooseReply(-1);
+    s.openCartOrder(); serveCard(s);
   });
 });
 
@@ -220,8 +302,6 @@ describe('Day 2 — the neighborhood comes alive (Doc 22)', () => {
   it('replay day: rewards rest, warmth does not', () => {
     const s = day2Start();
     s.replayDay = true;
-    const effects = s.serveCounter; // not in replay flow, use earn directly
-    void effects;
     const before = s.money;
     const out = s.earn(5);
     expect(s.money).toBe(before);

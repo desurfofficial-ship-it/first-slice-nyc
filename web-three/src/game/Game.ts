@@ -12,7 +12,9 @@ import { composeCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE_OBJECTIVE,
   D3_ORDERS, D4_ORDERS, BREWING_NOTE, STOOL_OFFER_NOTE, STOOL_UP_NOTE, D3_GOLDEN_NOTE,
   D3_CLIMB_NOTE, DAY3_BEGIN_NOTE, D4_GOLDEN_NOTE, D4_CLIMB_NOTE, DAY4_BEGIN_NOTE,
   D4_STRANGER_ONHOUSE_NOTE, D4_STRANGER_WATCH_NOTE, D4_STRANGER_DEPART_NOTE,
-  D4_KID_APRON_NOTE, D4_APRON_CLEAN_NOTE, FAMILIAR_NOD_NOTE, FAMILIAR_WORD_NOTE } from '../core/content';
+  D4_KID_APRON_NOTE, D4_APRON_CLEAN_NOTE, FAMILIAR_NOD_NOTE, FAMILIAR_WORD_NOTE,
+  RUSH_CARDS, SOLO_CARDS, GOLD_WINDOW_NOTE, LIGHTS_OUT_NOTE, WATER_TOWERS_NOTE,
+} from '../core/content';
 import { loadSave, writeSave, type SaveData } from '../core/Save';
 import { PAL } from '../core/palette';
 import { World, phys } from '../world/World';
@@ -90,6 +92,16 @@ export class Game {
   private brewTimer = 0;
   private brewingNoteShown = false;
   private washTimer = 0;
+
+  // ---- notes don't stampede (docs/12: the city is patient) ----
+  // Two notes arriving together queue instead of replacing: Rosa's quiet
+  // line gets its two seconds before the rush-end note lands.
+  private noteAge = 999;
+  private noteQueue: string[] = [];
+  /** A note holds the toast this long before the next may replace it. */
+  private static readonly NOTE_MIN_SHOW = 2.4;
+  private mapOpen = false;
+  private mapKeyWasDown = false;
 
   // ---- the familiar face (Doc 33 §2.2): one waypoint walk per day ----
   private familiarPath: FamiliarStop[] = [];
@@ -213,6 +225,8 @@ export class Game {
       this.ui.setMoneyQuiet(this.state.money);
     }
     this.ui.onNameSubmit = () => this.confirmName(this.ui.nameInput.value);
+    this.ui.onOrderChoose = (reply) => this.advanceOrder(reply);
+    this.ui.onMapToggle = () => this.toggleMap();
     this.ui.postcardKeep.addEventListener('click', () => {
       if (this.lastPostcardUrl) {
         downloadPostcard(this.lastPostcardUrl, `first_slice_postcard_day${this.state.day}.png`);
@@ -265,14 +279,23 @@ export class Game {
     this.tweens.update(dt);
     const inp = this.input.sample();
 
-    if (inp.restartPressed && !this.dayFading && this.ui.nameBox.hidden) {
+    if (inp.restartPressed && !this.dayFading && this.ui.nameBox.hidden
+      && this.ui.orderCard.hidden) {
       location.reload(); // R = restart the day (save rules decide what resumes)
       return;
     }
     if (inp.interactPressed && !this.dayFading && this.ui.nameBox.hidden) {
       if (!this.ui.postcardPanel.hidden) this.dismissPostcard();
-      else this.tryInteract();
+      else if (this.state.pendingCard) this.advanceOrder(null); // the card owns the counter
+      else if (!this.mapOpen) this.tryInteract();
     }
+    // M folds / opens the Map — the notebook is always available, never forced
+    const mapDown = this.input.isDown('KeyM');
+    if (mapDown && !this.mapKeyWasDown && !this.dayFading && this.ui.nameBox.hidden
+      && this.ui.orderCard.hidden) {
+      this.toggleMap();
+    }
+    this.mapKeyWasDown = mapDown;
 
     // debug (greybox README): G forces dusk + the gold window
     if (this.input.isDown('KeyG') && !this.goldDebugFired && !this.dayFading) {
@@ -294,7 +317,7 @@ export class Game {
     if (this.world.stranger.visible) peds.push({ x: this.world.stranger.position.x, z: this.world.stranger.position.z });
     if (this.world.familiar.visible) peds.push({ x: this.world.familiar.position.x, z: this.world.familiar.position.z });
     this.world.updateDynamics(dt, this.player.capsule, peds);
-    if (!this.dayFading && this.ui.nameBox.hidden) {
+    if (!this.dayFading && this.ui.nameBox.hidden && this.ui.orderCard.hidden && !this.mapOpen) {
       // movement — paused on the bench (Doc 37 §3C: the seat holds you;
       // physics would drag the capsule off it, so the walker simply rests)
       if (!this.sitting) this.player.update(dt, inp.move);
@@ -316,6 +339,7 @@ export class Game {
     // zones
     this.checkZones();
     this.perFrameChecks(dt);
+    this.updateNotes(dt);
 
     // camera — the walker steers by `moveYaw` (the frozen reference during an
     // auto-flip), the boom swings by camYaw. See GameCamera for the split.
@@ -698,6 +722,8 @@ export class Game {
   }
 
   private tryInteract(): void {
+    if (this.state.pendingCard) return; // the conversation owns the counter
+    if (this.mapOpen) return; // the notebook holds the hands
     const it = this.nearestInteraction();
     if (!it) return;
     // A confirm offer is bound to its own interaction: walking away, or
@@ -706,6 +732,66 @@ export class Game {
       this.state.buyConfirm = null;
     }
     for (const e of it.perform(this.ictx)) this.applyEffect(e);
+  }
+
+  // ------------------------------------------------ the order conversation ----
+  // One beat per call: a reply before responding, a fold after. The E2E
+  // driver and the UI buttons meet here (the state machine lives in
+  // GameState.chooseReply — this only applies its effects).
+
+  advanceOrder(reply: number | null): void {
+    const s = this.state;
+    if (!s.pendingCard || this.ui.orderCard.hidden) return;
+    const effects = s.orderResponded
+      ? s.chooseReply(-1) // any press folds the card once the reply landed
+      : s.chooseReply(reply ?? s.pendingCard.defaultReply);
+    for (const e of effects) this.applyEffect(e);
+  }
+
+  // ------------------------------------------------------ the Map notebook ----
+  // Doc 12 prototype 2: a patient friend, not a system. It opens only when
+  // asked (M / the folded corner), never blocks progress, never nags. Its
+  // only self-expression is a small wiggle when it writes something down.
+
+  toggleMap(): void {
+    if (this.mapOpen) {
+      this.mapOpen = false;
+      this.ui.closeMap();
+      return;
+    }
+    // an order conversation holds the hands — the Map can wait (it would)
+    if (this.state.pendingCard) return;
+    this.mapOpen = true;
+    this.ui.openMap(this.state.mapNotes, this.state.mapSlang);
+  }
+
+  /** The Map wrote something down — the toast tells the player it happened,
+   *  the folded corner wiggles once. Opening is optional; the page is kept. */
+  private mapNote(text: string): void {
+    this.pushNote(text);
+    this.ui.wiggleMap();
+    if (this.mapOpen) this.ui.refreshMap(this.state.mapNotes, this.state.mapSlang);
+  }
+
+  // ------------------------------------------------------ the note queue ----
+  // Two notes in one breath queue instead of replacing: the city is patient,
+  // and Rosa's quiet line gets its two seconds before the next line lands.
+
+  private pushNote(text: string): void {
+    if (this.noteAge < Game.NOTE_MIN_SHOW && this.noteQueue.length < 4) {
+      this.noteQueue.push(text);
+      return;
+    }
+    this.ui.showNote(text);
+    this.noteAge = 0;
+  }
+
+  private updateNotes(dt: number): void {
+    this.noteAge += dt;
+    if (this.noteQueue.length > 0 && this.noteAge >= Game.NOTE_MIN_SHOW) {
+      this.ui.showNote(this.noteQueue.shift()!);
+      this.noteAge = 0;
+    }
   }
 
   // ------------------------------------------------------------------ effects
@@ -718,7 +804,27 @@ export class Game {
         if (e.step === Step.D2_IDRIS) this.startIdrisWalk();
         break;
       case 'note':
-        this.ui.showNote(e.text);
+        this.pushNote(e.text);
+        break;
+      case 'map-note':
+        // the Map writes it down AND says so — a note is a small event
+        this.mapNote(e.text);
+        break;
+      case 'map-slang':
+        // the state already filed the card; the margins refresh if open
+        this.ui.wiggleMap();
+        if (this.mapOpen) this.ui.refreshMap(this.state.mapNotes, this.state.mapSlang);
+        break;
+      case 'order-open':
+        this.player.frozen = true;
+        this.ui.showOrderCard(e.card);
+        break;
+      case 'order-respond':
+        this.ui.showOrderResponse(e.text);
+        break;
+      case 'order-close':
+        this.ui.hideOrderCard();
+        this.player.frozen = false;
         break;
       case 'money':
         this.ui.setMoney(this.state.money);
@@ -1047,6 +1153,11 @@ export class Game {
       t.num(() => this.rigLook.y, (v) => { this.rigLook.y = v; }, lookEnd.y, 2),
       t.num(() => this.rigLook.z, (v) => { this.rigLook.z = v; }, lookEnd.z, 2),
     );
+    // Day 1 keeps the paper kit's ending beat (docs/12 §2 step 5, Doc 02
+    // §26:00–30:00): the window flickers, holds gold — and ROSA SAYS WHY.
+    // The kid's cold cup connects to the window; the send-off plants
+    // tomorrow's usual. The emotional payoff is authored, never UI.
+    const day1 = !day4 && !day3 && !day2;
     t.sequence(
       glide,
       t.wait(1.0),
@@ -1055,8 +1166,21 @@ export class Game {
         if (day4) { this.goldenBeat4(); gameAudio.bell(); }
         else if (day3) this.goldenBeat3();
         else if (day2) this.kidDuskWave();
+        else {
+          // the stoop note already rode the arrival — the wooden hats ride
+          // the view up (Doc 08 note #7, first clear look from the escape)
+          this.pushNote(WATER_TOWERS_NOTE);
+        }
       }),
-      t.wait(2.6),
+      ...(day1 ? [
+        t.wait(1.6),
+        t.call(() => this.pushNote(GOLD_WINDOW_NOTE)), // "their first warm thing today"
+        t.wait(3.2),
+        t.call(() => this.pushNote(LIGHTS_OUT_NOTE)),  // "they're gonna want the usual"
+        t.wait(2.4),
+      ] : [
+        t.wait(2.6),
+      ]),
       t.call(() => this.composePostcard()),
     );
   }
@@ -1233,6 +1357,16 @@ export class Game {
     washerRunning: () => this.world.isWasherRunning(),
     permitConfirm: () => this.state.permitConfirm,
     permitFiled: () => this.state.permitFiled,
+    // the serving conversation + the Map notebook (docs/12) — reads only
+    pendingCardId: () => this.state.pendingCard?.id ?? null,
+    orderResponded: () => this.state.orderResponded,
+    orderCardHidden: () => this.ui.orderCard.hidden,
+    orderResponseText: () => this.ui.orderResponseText,
+    noteText: () => document.getElementById('note')?.textContent ?? '',
+    mapNotes: () => [...this.state.mapNotes],
+    mapSlang: () => [...this.state.mapSlang],
+    mapOpen: () => this.mapOpen,
+    kidDay1Served: () => this.state.kidDay1Served,
     // the living block (Doc 33) — reads only, for the visual probes
     ambientWindows: () => [
       this.world.ambientWindowMatLate.emissiveIntensity,
@@ -1280,8 +1414,18 @@ export class Game {
     // along his route, so this default never fights the choreography.
     g.rotation.y = Math.PI;
     g.name = isIdris ? 'MrIdris' : 'Customer';
-    // Day 3+4 rush: every order is a real order — the bubble says what's wanted
+    // Day 3+4 rush: every order is a real order — the bubble says what's wanted.
+    // Day 1 too now: the paper-kit cards (docs/12) — the customer's order is
+    // legible from across the counter, and the conversation carries the rest.
     const s = this.state;
+    let day1Bubble: string | null = null;
+    if (s.step === Step.RUSH) day1Bubble = RUSH_CARDS[s.rushServed]?.bubble ?? null;
+    else if (s.step === Step.SOLO) day1Bubble = SOLO_CARDS[s.soloServed]?.bubble ?? null;
+    if (day1Bubble) {
+      const bubble = this.world.makeOrderBubble(day1Bubble);
+      bubble.position.set(0, 2.35, 0);
+      g.add(bubble);
+    }
     const queue = s.step === Step.D4_RUSH ? D4_ORDERS : D3_ORDERS;
     const order = queue[s.rushIndex];
     if ((s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) && order) {
@@ -1554,6 +1698,15 @@ export class Game {
       this.world.setWasherRunning(false);
     }
     s.trimToday = false;
+    // a fresh morning never starts mid-conversation, and the notebook stays
+    // shut until asked (docs/12: Map never opens itself)
+    s.pendingCard = null;
+    s.orderResponded = false;
+    this.ui.hideOrderCard();
+    this.mapOpen = false;
+    this.ui.closeMap();
+    this.noteQueue.length = 0;
+    this.noteAge = 999;
     if (sd !== null) {
       s.cartName = sd.cart_name;
       s.money = sd.money;
@@ -1562,6 +1715,10 @@ export class Game {
       s.stoolUp = sd.stool ?? false;
       s.mapGiven = sd.map_given ?? false;
       s.permitFiled = sd.permit ?? false;
+      // the Map's pages come with it (optional v1-safe fields — an old save
+      // is an empty notebook, by the same migration law as the counters)
+      s.mapNotes = (sd.map_notes ?? []).slice(0, 24);
+      s.mapSlang = (sd.map_slang ?? []).slice(0, 8);
       // the block remembers (Doc 37 §3F): cumulative free-roam choices
       // survive the night — absent in an old save reads as 0, by migration
       s.shelfBuys = sd.shelf_buys ?? 0;

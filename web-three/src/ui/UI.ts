@@ -5,6 +5,8 @@
  */
 
 import { gameAudio } from '../game/audio';
+import type { OrderCard } from '../core/content';
+import { SLANG_CARDS } from '../core/content';
 
 function el<T extends HTMLElement>(id: string): T {
   const e = document.getElementById(id);
@@ -29,6 +31,20 @@ export class UI {
   readonly postcardCaption = el<HTMLDivElement>('postcard-caption');
   readonly postcardKeep = el<HTMLButtonElement>('postcard-keep');
   readonly postcardStay = el<HTMLButtonElement>('postcard-stay');
+  // ---- the serving conversation (docs/11 + docs/12) ----
+  readonly orderCard = el<HTMLDivElement>('order-card');
+  private orderBubble = el<HTMLDivElement>('order-bubble');
+  private orderLine = el<HTMLDivElement>('order-line');
+  private orderReplies = el<HTMLDivElement>('order-replies');
+  private orderResponse = el<HTMLDivElement>('order-response');
+  private orderHint = el<HTMLDivElement>('order-hint');
+  // ---- the Map, as a notebook ----
+  readonly mapPanel = el<HTMLDivElement>('map-panel');
+  readonly mapBtn = el<HTMLButtonElement>('btn-map');
+  private mapNotesList = el<HTMLUListElement>('map-notes');
+  private mapSlangList = el<HTMLUListElement>('map-slang');
+  private mapEmpty = el<HTMLDivElement>('map-empty');
+  private mapClose = el<HTMLButtonElement>('map-close');
   private fade = el<HTMLDivElement>('fade');
   private titleCard = el<HTMLDivElement>('title-card');
   readonly loading = el<HTMLDivElement>('loading');
@@ -48,6 +64,30 @@ export class UI {
       gameAudio.setMuted(!gameAudio.isMuted());
       this.syncAudioButton();
     });
+    // the Map's folded corner: a tap opens the notebook (M on keyboard)
+    this.mapBtn.addEventListener('click', () => this.onMapToggle?.());
+    this.mapClose.addEventListener('click', () => this.onMapToggle?.());
+    // the order card's buttons; after a response, a tap anywhere is "done"
+    this.orderCard.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('[data-reply]');
+      if (btn) this.onOrderChoose?.(Number((btn as HTMLElement).dataset.reply));
+      else if (this.orderRespondedShown) this.onOrderChoose?.(null);
+    });
+    // keyboard on the conversation: 1–4 choose, Space/Enter advances,
+    // Escape steps back from the counter without penalty (nothing can fail)
+    window.addEventListener('keydown', (e) => {
+      if (this.orderCard.hidden) return;
+      if (e.code.startsWith('Digit')) {
+        const i = Number(e.code.slice(5)) - 1;
+        if (i >= 0) { e.preventDefault(); this.onOrderChoose?.(i); }
+      } else if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') {
+        e.preventDefault();
+        this.onOrderChoose?.(null);
+      } else if (e.code === 'Escape') {
+        e.preventDefault();
+        this.onOrderChoose?.(-1);
+      }
+    });
     this.detectTouch();
     window.addEventListener('resize', () => this.detectTouch());
   }
@@ -59,6 +99,10 @@ export class UI {
   }
 
   onNameSubmit: (() => void) | null = null;
+  /** Reply picked on the open order card — Game applies the conversation. */
+  onOrderChoose: ((reply: number | null) => void) | null = null;
+  /** The Map folded / opened — Game owns the state side. */
+  onMapToggle: (() => void) | null = null;
 
   private detectTouch() {
     const coarse = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -110,9 +154,11 @@ export class UI {
 
   /** The prompt line is decided by the interaction registry (Doc 37 §3B);
    *  the UI only renders it. `null` hides the prompt and dims the touch
-   *  button — nothing is in reach. */
+   *  button — nothing is in reach. The conversation, the Map and the
+   *  panels swallow the prompt too: the card owns the counter while open. */
   setPrompt(verb: string | null) {
-    if (verb === null || !this.nameBox.hidden || !this.postcardPanel.hidden) {
+    if (verb === null || !this.nameBox.hidden || !this.postcardPanel.hidden
+      || !this.orderCard.hidden || !this.mapPanel.hidden) {
       this.prompt.hidden = true;
       this.interactBtn.classList.remove('occupied');
       return;
@@ -137,6 +183,98 @@ export class UI {
   closeNameBox() {
     this.nameBox.hidden = true;
     this.nameInput.blur();
+  }
+
+  // ---------------- the serving conversation (docs/11 + docs/12) ----------------
+
+  private orderRespondedShown = false;
+
+  /** The order card opens: what they said, what you can do about it.
+   *  Replies are numbered; the paper waits — there is no timer anywhere. */
+  showOrderCard(card: OrderCard) {
+    this.orderBubble.textContent = card.bubble;
+    this.orderLine.textContent = card.line;
+    this.orderReplies.innerHTML = '';
+    card.replies.forEach((r, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.reply = String(i);
+      b.className = 'order-reply';
+      b.innerHTML = `<span class="reply-key">${i + 1}</span>${escapeHtml(r.label)}`;
+      this.orderReplies.appendChild(b);
+    });
+    this.orderResponse.hidden = true;
+    this.orderResponse.textContent = '';
+    this.orderHint.hidden = true;
+    this.orderRespondedShown = false;
+    this.orderCard.hidden = false;
+    this.prompt.hidden = true;
+    this.interactBtn.classList.remove('occupied');
+  }
+
+  /** The reply landed — what comes back, in the same paper. */
+  showOrderResponse(text: string) {
+    this.orderReplies.hidden = true;
+    this.orderResponse.textContent = text;
+    this.orderResponse.hidden = false;
+    this.orderHint.hidden = false;
+    this.orderRespondedShown = true;
+  }
+
+  /** Read-only, for the E2E harness. */
+  get orderResponseText(): string {
+    return this.orderResponse.textContent ?? '';
+  }
+
+  hideOrderCard() {
+    this.orderCard.hidden = true;
+    this.orderReplies.hidden = false;
+    this.orderResponse.hidden = true;
+    this.orderHint.hidden = true;
+    this.orderRespondedShown = false;
+  }
+
+  // ---------------- the Map, as a notebook (docs/11 + docs/12) ----------------
+
+  openMap(notes: readonly string[], slang: readonly string[]) {
+    this.mapPanel.hidden = false;
+    this.refreshMap(notes, slang);
+    this.mapBtn.setAttribute('aria-pressed', 'true');
+    this.prompt.hidden = true;
+  }
+
+  closeMap() {
+    this.mapPanel.hidden = true;
+    this.mapBtn.setAttribute('aria-pressed', 'false');
+  }
+
+  /** Redraw page 2 — the margins hold what the city taught you. */
+  refreshMap(notes: readonly string[], slang: readonly string[]) {
+    this.mapNotesList.innerHTML = '';
+    for (const n of notes) {
+      const li = document.createElement('li');
+      li.textContent = n;
+      this.mapNotesList.appendChild(li);
+    }
+    this.mapSlangList.innerHTML = '';
+    for (const id of slang) {
+      const card = SLANG_CARDS[id];
+      if (!card) continue;
+      const li = document.createElement('li');
+      li.className = 'map-slang-card';
+      li.innerHTML = `<b>${escapeHtml(card.word)}</b> — ${escapeHtml(card.meaning)}`;
+      this.mapSlangList.appendChild(li);
+    }
+    this.mapEmpty.hidden = notes.length > 0 || slang.length > 0;
+  }
+
+  /** "Map wants to write this down" — the folded corner does a small
+   *  honest wiggle. Once per note; it never opens itself (Doc 12 rule). */
+  wiggleMap() {
+    this.mapBtn.classList.remove('wiggle');
+    void this.mapBtn.offsetWidth;
+    this.mapBtn.classList.add('wiggle');
+    window.setTimeout(() => this.mapBtn.classList.remove('wiggle'), 1200);
   }
 
   // ---------------- postcard ----------------
