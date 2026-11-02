@@ -29,6 +29,7 @@ import { InteractionRegistry, NEVER_NEAR, type InteractionCtx } from './interact
 import { buildInteractions, byDay, BUS_BENCH_SEAT, PARK_BENCH_SEAT, COURT_BALL_REST, HOOP_RIM, hoopOutcome } from './interactionDefs';
 import { BENCH_SIT_NOTES, PARK_SIT_NOTES, COURT_MAKE, COURT_MISS, COURT_STREAK_NOTE, FREE_WASH_NOTES, MEMORY_LINES } from '../core/content';
 import { gameAudio } from './audio';
+import { ArrivalCinematic } from './arrival';
 
 /** One waypoint on the familiar face's daily walk. dwell = seconds she
  *  stands there (the nod, the word); sit/hide = what happens on arrival. */
@@ -105,6 +106,9 @@ export class Game {
    *  by scattered checks in this loop anymore. Public for the E2E/probe
    *  harnesses. */
   readonly registry = new InteractionRegistry();
+  /** The Doc 02 opening — fresh boots ride the bus in (see arrival.ts).
+   *  Autotest/probe boots skip it; saves resume without it. */
+  readonly arrival: ArrivalCinematic;
   private readonly ictx: InteractionCtx;
   private lastTime = performance.now();
   private running = true;
@@ -186,6 +190,19 @@ export class Game {
     // The old four-place wiring (array + isRelevant + promptVerb + a switch)
     // is folded into per-interaction records.
     this.ictx = { state: this.state, game: this };
+    this.arrival = new ArrivalCinematic({
+      scene: this.world.scene,
+      tweens: this.tweens,
+      ui: this.ui,
+      cam: this.cam,
+      rigPos: this.rigPos,
+      rigLook: this.rigLook,
+      player: this.player,
+      playerVisual: this.playerVisual,
+      rosa: this.world.rosa,
+      openCoachDoor: () => this.openCoachDoor(),
+      onHandover: () => this.onArrivalHandover(),
+    });
     this.registry.register(...buildInteractions({
       rosa: () => this.world.rosa.position,
       idris: () => this.world.idris.position,
@@ -209,10 +226,23 @@ export class Game {
       this.state.dayStartMoney = START_MONEY;
       this.state.setStep(Step.MEET_ROSA);
       this.world.dressDay(1); // Day 1 is dressed by construction defaults; this makes it honest
-      this.ui.showNote(MAP_NOTE_BOOT);
       this.ui.setMoneyQuiet(this.state.money);
+      const params = new URLSearchParams(location.search);
+      if (params.has('autotest') || params.has('probe')) {
+        // headless drivers skip the film — same rules, same street, and the
+        // SAME default camera yaw: the probes drive the walker with a
+        // hard-coded input convention calibrated to camYaw 0. The real
+        // first frame belongs to the arrival's handover, which sets its
+        // own clean boom (west of the coach door, facing down the walk).
+        this.ui.showNote(MAP_NOTE_BOOT);
+      } else {
+        // the arrival — Doc 02's opening, staged on the terminal coach
+        this.arrival.begin();
+      }
     }
     this.ui.onNameSubmit = () => this.confirmName(this.ui.nameInput.value);
+    this.ui.onCineTap = () => { if (this.arrival.active) this.arrival.tap(); };
+    this.ui.onCineSkip = () => { if (this.arrival.active) this.arrival.skip(); };
     this.ui.postcardKeep.addEventListener('click', () => {
       if (this.lastPostcardUrl) {
         downloadPostcard(this.lastPostcardUrl, `first_slice_postcard_day${this.state.day}.png`);
@@ -245,7 +275,7 @@ export class Game {
     requestAnimationFrame(loop);
 
     this.ui.dismissLoading();
-    this.ui.showGame();
+    if (!this.arrival.active) this.ui.showGame(); // the arrival shows it at the handover
 
     // debug/E2E handle
     (window as unknown as { __game: Game }).__game = this;
@@ -263,13 +293,18 @@ export class Game {
     const s = this.state;
 
     this.tweens.update(dt);
+    // the arrival rides its own clock while active (machine, strip, phases)
+    if (this.arrival.active) this.arrival.frame(dt);
     const inp = this.input.sample();
 
-    if (inp.restartPressed && !this.dayFading && this.ui.nameBox.hidden) {
+    if (this.arrival.active) {
+      // the film owns the input: taps advance it, everything else waits
+      if (inp.interactPressed) this.arrival.tap();
+      if (inp.restartPressed) this.arrival.skip();
+    } else if (inp.restartPressed && !this.dayFading && this.ui.nameBox.hidden) {
       location.reload(); // R = restart the day (save rules decide what resumes)
       return;
-    }
-    if (inp.interactPressed && !this.dayFading && this.ui.nameBox.hidden) {
+    } else if (inp.interactPressed && !this.dayFading && this.ui.nameBox.hidden) {
       if (!this.ui.postcardPanel.hidden) this.dismissPostcard();
       else this.tryInteract();
     }
@@ -294,7 +329,7 @@ export class Game {
     if (this.world.stranger.visible) peds.push({ x: this.world.stranger.position.x, z: this.world.stranger.position.z });
     if (this.world.familiar.visible) peds.push({ x: this.world.familiar.position.x, z: this.world.familiar.position.z });
     this.world.updateDynamics(dt, this.player.capsule, peds);
-    if (!this.dayFading && this.ui.nameBox.hidden) {
+    if (!this.dayFading && this.ui.nameBox.hidden && !this.arrival.active) {
       // movement — paused on the bench (Doc 37 §3C: the seat holds you;
       // physics would drag the capsule off it, so the walker simply rests)
       if (!this.sitting) this.player.update(dt, inp.move);
@@ -319,7 +354,10 @@ export class Game {
 
     // camera — the walker steers by `moveYaw` (the frozen reference during an
     // auto-flip), the boom swings by camYaw. See GameCamera for the split.
-    const rig = this.postcardRig ? { pos: this.rigPos, look: this.rigLook } : undefined;
+    // The arrival rides the same rig override the postcard uses.
+    const rig = (this.postcardRig || this.arrival.active)
+      ? { pos: this.rigPos, look: this.rigLook }
+      : undefined;
     this.cam.update(dt, this.player.capsule, inp.camTurn, inp.move, this.player.rotationY, rig?.pos, rig?.look);
     this.player.camYaw = this.cam.moveYaw;
 
@@ -729,7 +767,12 @@ export class Game {
       case 'rosa-moved-behind-counter':
         // playtest 2026-10-29: she used to TELEPORT behind the counter —
         // "I pressed one key and Rosa vanished." Now she walks there, out
-        // loud, and the player follows her through the door.
+        // loud, and the player follows her through the door. (And her
+        // arrival-wave ends — arms come down for the walk.)
+        {
+          const rosaRig = this.world.rosa.userData.rig as { mode: string } | undefined;
+          if (rosaRig && rosaRig.mode === 'wave') rosaRig.mode = 'auto';
+        }
         this.startRosaWalk();
         break;
       case 'collect':
@@ -909,6 +952,25 @@ export class Game {
       this.rosaWalking = false;
     }));
     t.sequence(...seq);
+  }
+
+  /** The arrival's step-off: the coach door leaf slides into the body
+   *  (firstSession names the pair). Cosmetic staging — nothing gameplay-
+   *  bearing; the bay was built with the door closed. */
+  private openCoachDoor(): void {
+    const door = this.world.scene.getObjectByName('CoachDoor');
+    const glass = this.world.scene.getObjectByName('CoachDoorGlass');
+    const t = this.tweens;
+    if (door) t.num(() => door.position.z, (v) => { door.position.z = v; }, door.position.z + 0.66, 0.9);
+    if (glass) t.num(() => glass.position.z, (v) => { glass.position.z = v; }, glass.position.z + 0.66, 0.9);
+  }
+
+  /** Arrival handover, Game-side extras: the step-off checkpoint and the
+   *  Map's first note. (The cinematic itself placed the player, Rosa's
+   *  wave, and the follow camera.) */
+  private onArrivalHandover(): void {
+    this.checkpoint = { x: this.player.capsule.x, y: this.player.capsule.y, z: this.player.capsule.z };
+    this.ui.showNote(MAP_NOTE_BOOT);
   }
 
   /** Day 4: the stranger appears at the terminal — the spot where the whole

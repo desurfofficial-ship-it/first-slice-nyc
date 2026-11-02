@@ -37,6 +37,20 @@ export class UI {
 
   isTouch = false;
 
+  // ---------------- the arrival (Doc 02 opening) ----------------
+  // Render-only: the cinematic owns its machine; Game wires the callbacks.
+
+  private cine = el<HTMLDivElement>('cine');
+  private cineBox = el<HTMLDivElement>('cine-box');
+  private cineSpeaker = el<HTMLDivElement>('cine-speaker');
+  private cineText = el<HTMLDivElement>('cine-text');
+  private cineChips = el<HTMLDivElement>('cine-chips');
+  private cineTitleCard = el<HTMLDivElement>('cine-title');
+  private cineSkipBtn = el<HTMLButtonElement>('cine-skip');
+
+  onCineTap: (() => void) | null = null;
+  onCineSkip: (() => void) | null = null;
+
   constructor() {
     this.nameOk.addEventListener('click', () => this.onNameSubmit?.());
     this.nameInput.addEventListener('keydown', (e) => {
@@ -47,6 +61,15 @@ export class UI {
     this.audioBtn.addEventListener('click', () => {
       gameAudio.setMuted(!gameAudio.isMuted());
       this.syncAudioButton();
+    });
+    // the arrival overlay is the advance button: any tap moves the scene on
+    this.cine.addEventListener('pointerdown', (e) => {
+      if (e.target === this.cineSkipBtn) return; // the skip chip has its own job
+      this.onCineTap?.();
+    });
+    this.cineSkipBtn.addEventListener('click', (e: Event) => {
+      e.stopPropagation();
+      this.onCineSkip?.();
     });
     this.detectTouch();
     window.addEventListener('resize', () => this.detectTouch());
@@ -174,6 +197,69 @@ export class UI {
     this.titleCard.textContent = text;
     this.titleCard.hidden = false;
     window.setTimeout(() => { this.titleCard.hidden = true; }, holdMs);
+  }
+
+  // ---------------- the arrival (Doc 02 opening) ----------------
+
+  /** Letterbox in — the film starts. HUD stays hidden until the handover. */
+  showCine() {
+    this.cine.hidden = false;
+    this.cineTitleCard.hidden = true;
+    this.cineBox.hidden = true;
+    // restart the bar slide
+    this.cine.classList.remove('on');
+    void this.cine.offsetWidth;
+    this.cine.classList.add('on');
+  }
+
+  /** Bars stay after the dip-to-black swap (the terminal is still the film). */
+  cineVisible() {
+    this.cine.hidden = false;
+    this.cine.classList.add('on');
+  }
+
+  cineHide() {
+    this.cine.hidden = true;
+    this.cine.classList.remove('on');
+    this.cineTitleCard.hidden = true;
+  }
+
+  /** One dialogue line; speaker label above. Chips never outlive their line. */
+  cineLine(speaker: string, text: string) {
+    this.cineBox.hidden = false;
+    this.cineChips.hidden = true;
+    this.cineSpeaker.textContent = speaker;
+    this.cineText.textContent = text;
+    // restart the line-in animation
+    this.cineBox.style.animation = 'none';
+    void this.cineBox.offsetWidth;
+    this.cineBox.style.animation = '';
+  }
+
+  /** The Doc 02 one-tap responses — personality, never penalty. */
+  cineChoices(lines: readonly string[], onPick: (i: number) => void) {
+    this.cineChips.hidden = false;
+    this.cineChips.textContent = '';
+    lines.forEach((line, i) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.textContent = line;
+      chip.addEventListener('pointerdown', (e) => {
+        e.stopPropagation(); // a chip pick is not also an overlay tap
+        onPick(i);
+      });
+      this.cineChips.appendChild(chip);
+    });
+  }
+
+  cineHideBox() {
+    this.cineBox.hidden = true;
+    this.cineChips.hidden = true;
+  }
+
+  /** The title over the terminal face — holds until the handover clears it. */
+  cineTitle() {
+    this.cineTitleCard.hidden = false;
   }
 
   dismissLoading() {

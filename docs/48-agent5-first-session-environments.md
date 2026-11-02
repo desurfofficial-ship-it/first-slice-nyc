@@ -89,3 +89,30 @@ The first draft of this work compiled but had never actually been **looked at** 
 ## 8. Screenshots (web-three/shots/, from the probe)
 
 `a5-plaza-shaft` (the descendable entrance from above) · `a5-station-hall` (platform, columns, edge strip) · `a5-station-train` (through the open door) · `a5-station-tunnel` (barrier + lights) · `a5-passage` (the south leg, posters, exit mouth) · `a5-headhouse-exit` (the TIMES SQ stairway through the door) · `a5-times-square-south` (steps, kiosk, walkers) · `a5-times-square-canyon` (the billboards + animated screens) · `a5-times-square-steps` · `a5-terminal-coach` (the arrival, golden hour).
+
+---
+
+## 9. Addendum — A5b: the arrival, on screen (same session, next commit)
+
+The directive that came back: *first session above anything else — it needs to grab the player.* Doc 48 built the stages; the opening minutes still booted cold on the street, and the literal first frame was the follow camera collapsed into the back of the player's head against the terminal facade. Doc 02's minute 0 — the bus window, the skyline tease, the driver, the title — was a page of design with no film. It is a film now.
+
+### What was built
+
+`web-three/src/game/arrival.ts` — the ArrivalCinematic. A fresh boot (no save, no `?autotest`/`?probe`) now opens on a bus window staged 150 m west of the map: countryside slides past a parallax-free window frame parented to the camera, the skyline **lights up far off** at ~4 s (one material's emissiveIntensity tweens — every tower wakes at once), city blocks glide in, the driver asks **"First time?"** with Doc 02's three one-tap responses (chips, or Space picks the shy "...Yeah."), the driver's reply lands, dip to black, and the parked coach takes the lens — door leaf sliding open, push-in on the NEW YORK roll, the title card — then the handover: you step off at the coach door, Rosa waves 7 m up the sidewalk (her rig in `wave` until the meet flips it to `auto`), HUD + Map note arrive, and the follow camera owns the lens from clean air. One tap advances any beat; a SKIP chip jumps everything; the machine (`ArrivalMachine`, pure) is unit-tested — transitions, tap gates, skip-from-any-phase.
+
+### The five staging lessons (each one broke a probe or a screenshot first)
+
+1. **The sky has a far plane.** The first ride staged at z 300 was 680 m from the sky shell on the view side — beyond the camera's 500 far plane — so the sky clipped to black behind the towers. The ride now lives at (−150, 100): empty world, inside the shell, far side at 480 m.
+2. **Everything rides relative to the lens.** The second staging moved the camera to x −150 and left the strip centered on x 0 — the countryside slid past 150 m east of the window. Strip and skyline are now placed relative to `RIDE_POS.x`.
+3. **Far things never move.** The skyline sat 17 m out in draft two: a 28 m wall of flat purple filling the frame. At 40 m with windows baked into the tower texture (body map + black/amber `emissiveMap`, so the light-up tween glows only windows) it reads as the promise Doc 02 wrote.
+4. **The boom ray is a physics object.** The handover spawn clipped the luggage cart's collider (the player stood ON it at y 0.5) and, once off the cart, the street-side idle settle (yaw → 0) parked the lens south of the player — with the coach between — collapsing the boom to 2.3 m of neck-cam. The step-off spawn is now clear of the cart and faces 1.95 rad, past `TURNED_AROUND`, so the settle keeps the heading and the lens keeps the clear air west of the bay.
+5. **Boot yaw is a probe contract.** Giving the headless boot the clean heading broke `probe-a5-first-session` — its walker drives `player.update` with an input convention calibrated to camYaw 0, so a rotated boot yaw walks everyone into walls. The headless boot keeps the default yaw; the real first frame belongs to the handover.
+
+### Files
+
+**Created** — `src/game/arrival.ts` (machine + view), `tests/arrival.test.ts` (9 tests), `scripts/probe-a5c-arrival.mjs` (the film, evidenced phase by phase), `scripts/probe-a5b-boot-first-minute.mjs`, `scripts/dbg-a5n-handover-cam.mjs`.
+**Modified** — `src/game/Game.ts` (arrival wiring, fresh-boot branch, the film owns input while active, coach-door tween, handover checkpoint + Map note, Rosa's wave→auto on the meet), `src/ui/UI.ts` (letterbox/line/chips/title render methods), `index.html` + `src/style.css` (the `#cine` overlay), `src/world/firstSession.ts` (named door pair + doorway recess), `scripts/probe-a5-first-session.mjs` (boots with `?probe=1`).
+
+### Gates
+
+tsc clean · **260/260 tests** (251 + 9 arrival) · `probe-a5` **PASS** (10/10 walks, colliders, visibility gates) · solidity 4/4 · W1 grid PASS · `probe-a5c` **PASS** — the full film driven end-to-end with real taps: ride → driver → reply → title → handover (player at the door, Rosa waving, HUD live, checkpoint set, 0 page errors) · e2e: 94 checks PASS through Day-4 dusk, no FAILs, capped by this sandbox's 600 s shell (the driver needs ~10 min; unchanged from §7's note — the `?autotest=1` path itself is untouched by this work).

@@ -848,8 +848,15 @@ export class FirstSessionWorld {
     }
     // door (curb side = north = +z in coach space… rotation π flips it south;
     // the bay's boarding side is the sidewalk, so door on the coach's −z)
-    add(mk(teal, 4.35, 1.5, -1.2, 1.05, 1.9, 0.06));
-    add(mk(glass, 4.35, 1.5, -1.24, 0.85, 1.5, 0.03));
+    // The arrival cinematic slides the leaf open at the bay — the recess
+    // reads as the doorway once the panel pockets into the body.
+    add(mk(dark, 4.35, 1.5, -1.29, 1.05, 1.9, 0.05)); // doorway recess
+    const doorLeaf = mk(teal, 4.35, 1.5, -1.36, 1.05, 1.9, 0.06);
+    doorLeaf.name = 'CoachDoor';
+    add(doorLeaf);
+    const doorGlass = mk(glass, 4.35, 1.5, -1.41, 0.85, 1.5, 0.03);
+    doorGlass.name = 'CoachDoorGlass';
+    add(doorGlass);
     // destination roll over the windshield — the Doc 02 arrival, named
     const dest = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.34),
       new THREE.MeshBasicMaterial({ map: this.destTexture('NEW YORK') }));
