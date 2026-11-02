@@ -116,3 +116,13 @@ The directive that came back: *first session above anything else — it needs to
 ### Gates
 
 tsc clean · **260/260 tests** (251 + 9 arrival) · `probe-a5` **PASS** (10/10 walks, colliders, visibility gates) · solidity 4/4 · W1 grid PASS · `probe-a5c` **PASS** — the full film driven end-to-end with real taps: ride → driver → reply → title → handover (player at the door, Rosa waving, HUD live, checkpoint set, 0 page errors) · e2e: 94 checks PASS through Day-4 dusk, no FAILs, capped by this sandbox's 600 s shell (the driver needs ~10 min; unchanged from §7's note — the `?autotest=1` path itself is untouched by this work).
+
+---
+
+## 10. Addendum — A5c: wonder beat #1, the sync + the meet-flow proof (same session, commit three)
+
+**The sync.** Doc 02's Times Square moment — *"the screens all turn at once — a designed moment where every billboard syncs to warm light, just for you"* — existed only as an ambient hue cycle. Now the first walk into the plaza fires it: all animated screens converge to one warm hue and all 11 billboard faces wash warm together (0.9 s ramp / 6 s hold / 2.2 s release, `syncEnvelope()` pure and test-pinned), then hand back to the ambient cycle with no snap — the release blends from whatever hue each screen reached. Trigger: past the headhouse stair mouth **and at street level** (z < −61 AND y > −0.5) — the beat lands stepping into the light, not on the stairs. Hot path clean: one scratch color, zero allocations. Evidence (`probe-a5e`): same composed rig, three frames — the teal SHOW board measures RGB(124,143,121) synced vs (124,160,156) released; faces return to `ffffff`.
+
+**The meet-flow proof.** `probe-a5f` plays the first minute of real gameplay from the film's handover: SKIP chip → step-off → walk to Rosa (she is WAVING under the BUS TERMINAL sign — the `wave` rig, visually confirmed) → interact → step 1 "Follow Rosa…" → her wave flips to `auto` and she walks the counter route at full 2 m/s. The story machine, the walk, and the new spawn all agree.
+
+**Gates at session end:** tsc clean · **265/265 tests** · `probe-a5` PASS · `probe-a5c` PASS (film end-to-end) · `probe-a5e` PASS (sync, measured) · `probe-a5f` PASS (meet flow from the handover) · solidity 4/4 · W1 grid PASS · e2e 94 PASS / 0 FAIL through Day-4 dusk (sandbox shell cap).
