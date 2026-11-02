@@ -228,7 +228,14 @@ export class GameCamera {
       this.focusTarget.y + camH,
       this.focusTarget.z - fwdZ * dist,
     );
-    this.desired.z = THREE.MathUtils.clamp(this.desired.z, CAM_Z_MIN, CAM_Z_MAX);
+    // A5: the corridor clamp is a HOME-STREET law (Kestrel's z band). Below
+    // grade (Alder Station) and south of the core (Times Square) the clamp
+    // would park the boom 30 m away from the player; those spaces lean on
+    // shortenBoom against their own walls instead, exactly like the bodega.
+    const homeStreet = playerPos.y > -0.5 && playerPos.z >= -48 && playerPos.z <= 48;
+    if (homeStreet) {
+      this.desired.z = THREE.MathUtils.clamp(this.desired.z, CAM_Z_MIN, CAM_Z_MAX);
+    }
     // keep the boom humane when the clamp bites (see BOOM_FLOOR)
     const hdx = this.desired.x - this.focusTarget.x;
     const hdz = this.desired.z - this.focusTarget.z;

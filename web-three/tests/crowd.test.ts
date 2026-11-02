@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveCirclesXZ, pushCircleOutOfRectXZ, circleRectGapXZ, type CirclePush,
 } from '../src/engine/collide';
-import { curbSideSlide } from '../src/world/peds';
+import { curbSideSlide, clampToBand } from '../src/world/peds';
 
 const push = (): CirclePush => ({ x: 0, z: 0 });
 
@@ -141,5 +141,32 @@ describe('overtake bias (curbSideSlide)', () => {
     const s = curbSideSlide(0, 6.2);
     expect(s === 1 || s === -1).toBe(true);
     expect(curbSideSlide(0, 6.2)).toBe(s); // same inputs, same side
+  });
+});
+
+describe('zone band clamp (clampToBand — the A5 first-session law)', () => {
+  const plaza = { minX: -83.2, maxX: -56.8, minZ: -79.4, maxZ: -49.6 };
+
+  it('a walker stays inside its own zone band', () => {
+    const c = clampToBand(-62.6, -54.2, plaza);
+    expect(c.x).toBe(-62.6);
+    expect(c.z).toBe(-54.2);
+  });
+
+  it('a walker past the band is pulled back INSIDE the band, not to the block', () => {
+    // the first draft clamped every zone to the home street's band — the
+    // plaza walkers teleported to (−47.2, −7.5) and parked their invisible
+    // colliders there as permanent ghosts on the home block
+    const c = clampToBand(-90, -45, plaza);
+    expect(c.x).toBe(-83.2);
+    expect(c.z).toBe(-49.6);
+    expect(c.x).toBeLessThan(-47.2); // never the home street's corner
+  });
+
+  it('the home band still clamps to the block bounds by default', () => {
+    const block = { minX: -47.2, maxX: 47.2, minZ: -7.5, maxZ: 7.5 };
+    const c = clampToBand(-60, -20, block);
+    expect(c.x).toBe(-47.2);
+    expect(c.z).toBe(-7.5);
   });
 });

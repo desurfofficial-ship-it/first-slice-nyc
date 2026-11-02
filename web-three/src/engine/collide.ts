@@ -170,14 +170,45 @@ export function depenetrate(boxes: AABB[], c: Capsule, stepUp: number): void {
 
 /**
  * Ground height under the capsule: the highest box top at/below (feet + snap)
- * whose footprint overlaps the player circle, or 0 (the street) if none.
+ * whose footprint overlaps the player circle. A5: the default was 0 — "the
+ * street" — which made every top ≤ 0 unreadable and welded an invisible
+ * void-floor at y 0 across any opening: the Doc 02 subway (descend into the
+ * entrance, ride, surface at Times Square) is physically impossible with a
+ * global floor. Now: no qualifying box = no ground (−Infinity) and the
+ * walker's gravity does exactly what it does everywhere else. The shipped
+ * world is fully slabbed (roads, walks, yards, parks, interiors — the W1-W3
+ * walk probes prove it end-to-end), so street-level behavior is unchanged;
+ * the new below-grade geometry (firstSession.ts) carries its own floors.
+ *
+ * A5 stair law (optional dirX/dirZ, passed only by the grounded walker): the
+ * generous sample circle (radius + 0.6·radius reach) that forgives slab edges
+ * also keeps touching the tread a walker just LEFT — and since a tread's top
+ * sits within GROUND_SNAP of the feet, that behind-tread kept winning the
+ * "highest top ≤ feet + snap" contest and GLUED the walker at its height
+ * while they walked on air over the next tread down (the Alder Station shaft
+ * hung the descent a full riser short; stopping mid-stair floated the rig).
+ * Fix: a top ABOVE the feet (− 5 cm slack, i.e. a step-up candidate, not the
+ * slab supporting you) only qualifies when its nearest point lies AHEAD of
+ * the motion — walking INTO a riser still snaps you up, walking OFF a tread
+ * hands you to the tread below. Standing still (no direction) keeps the old
+ * rule, and every other caller is unchanged (defaults 0).
  * Also reports whether the feet are currently inside any box volume (tunnel check).
  */
-export function groundHeight(boxes: AABB[], c: Capsule, snap: number): number {
-  let best = 0;
+export function groundHeight(
+  boxes: AABB[], c: Capsule, snap: number, dirX = 0, dirZ = 0,
+): number {
+  let best = Number.NEGATIVE_INFINITY;
+  const moving = dirX !== 0 || dirZ !== 0;
   for (const b of boxes) {
     if (!circleOverlapsRectXZ(c, b, c.radius * 0.6)) continue;
-    if (b.maxY <= c.y + snap && b.maxY > best) best = b.maxY;
+    if (b.maxY <= c.y + snap && b.maxY > best) {
+      if (moving && b.maxY > c.y - 0.05) {
+        const nx = Math.max(b.minX, Math.min(c.x, b.maxX));
+        const nz = Math.max(b.minZ, Math.min(c.z, b.maxZ));
+        if ((nx - c.x) * dirX + (nz - c.z) * dirZ < -1e-3) continue;
+      }
+      best = b.maxY;
+    }
   }
   return best;
 }

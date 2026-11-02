@@ -53,13 +53,26 @@ await page.waitForTimeout(2500);
 const walk = await page.evaluate(() => {
   const g = window.__game;
   const route = [
-    [-42, 6.2], [-60, 6.5], [-72, 6.5], [-80, 6.5],      // plaza → Juniper N walk
-    [-80, 20], [-80, 33.5], [-72, 33.5], [-40, 33.5],    // Gable S walk westward
-    [-10, 33.5], [30, 33.5], [61.5, 33.5], [80, 33.5],   // → Sycamore
-    [80, 20], [80, 6.5], [61.5, 6.5], [40, 6.5],         // Sycamore → Kestrel E
-    [40, -6.5], [61.5, -6.5], [80, -6.5], [80, -20],     // Kestrel → Sycamore S
-    [61.5, -33.5], [30, -33.5], [-10, -33.5], [-44, -33.5], // Marlow N walk
-    [-61.5, -33.5], [-80, -33.5], [-80, -20], [-80, -6.5],  // → Juniper S
+    // A5: the walk now starts at the plaza's EAST half — the decorative stair
+    // at (−42, 6.2) became Alder Station's real stairwell (firstSession.ts),
+    // and the old first waypoint walked straight into it. The plaza lane
+    // west of the entrance is fenced by its colliding side railings (the
+    // W1 rerun caught a sidewalk walk falling in), so the westward leg
+    // detours via the road at z 3.4 and climbs back at x −60 — the grammar
+    // a real New Yorker uses: you walk AROUND a subway house.
+    [-39, 6.5], [-37.5, 6.5], [-37.5, 3.4], [-60, 3.4], [-60, 6.5],
+    // A5/W3 reconciliation: the old x ±80 legs walked INTO the main agent's
+    // W3 avenue walls (the blocks x 76..84 / −84..−76 are buildings now —
+    // "the avenues are places, not edges"). The north–south legs follow the
+    // avenue roads themselves (x ±72), which is how the grid is meant to be
+    // walked.
+    [-72, 6.5], [-72, 20], [-72, 33.5],                  // the west avenue north
+    [-40, 33.5], [-10, 33.5], [30, 33.5], [61.5, 33.5], [72, 33.5], // Gable S east
+    [72, 20], [72, 6.5],                                 // the east avenue south
+    [61.5, 6.5], [40, 6.5],                              // Kestrel E walk
+    [40, -6.5], [61.5, -6.5], [72, -6.5], [72, -20], [72, -33.5], // → Sycamore S
+    [30, -33.5], [-10, -33.5], [-44, -33.5], [-72, -33.5], // Marlow N walk west
+    [-72, -20], [-72, -6.5],                             // → Juniper S
   ];
   const out = { steps: 0, minGround: 99, wedged: false, log: [] };
   const p = g.player.capsule;

@@ -264,9 +264,10 @@ export function makeSubwayEntrance(
 ): THREE.Group {
   const iron = bank.get(PAL_INK);
   const g = new THREE.Group();
-  // stair cut: dark box flush with the sidewalk + lighter first step
-  g.add(unitBox(bank.get(0x241f26), 2.4, 0.16, 3.4, 0, -0.08, 0));
-  g.add(unitBox(bank.get(0x3b3346), 2.2, 0.1, 0.5, 0, -0.02, 1.4));
+  // A5: the placeholder stair-cut boxes (dark cut + first step) are retired —
+  // the real descendable stairwell lives below (firstSession.ts, Alder
+  // Station); these two boxes interpenetrated its top steps. The railings,
+  // posts, sign and F bullet are the entrance's identity and stay.
   // railings both sides + cross rails
   for (const sx of [-1.3, 1.3]) {
     g.add(unitBox(iron, 0.07, 0.95, 3.4, sx, 0.48, 0));

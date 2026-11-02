@@ -60,6 +60,23 @@ function groundY(z: number): number {
 
 /** The block's walkable band (inside the invisible bounds, walls assumed). */
 const BAND = { minX: -47.2, maxX: 47.2, minZ: -7.5, maxZ: 7.5 };
+
+/**
+ * The clamp itself, pure (A5): the home street is not the only walked zone —
+ * the first-session square (firstSession.ts) runs its own walkers on the
+ * Times Square plaza, and their band is the plaza's, not the block's. The
+ * first draft clamped every Pedestrians instance to BAND, which teleported
+ * the plaza walkers to the home street's south-west corner every frame and
+ * parked their invisible walk colliders there as permanent ghosts.
+ */
+export function clampToBand(
+  x: number, z: number, band: { minX: number; maxX: number; minZ: number; maxZ: number },
+): { x: number; z: number } {
+  return {
+    x: Math.max(band.minX, Math.min(band.maxX, x)),
+    z: Math.max(band.minZ, Math.min(band.maxZ, z)),
+  };
+}
 const PED_R = 0.3;        // a walker's physical half-width
 const PED_REACH = 0.28 * Math.SQRT2; // walk-collider CORNER reach — on the
 // diagonal a box touches at center-distance halfDiag, not halfWidth; the
@@ -139,6 +156,10 @@ export class Pedestrians {
   private taxiObstacle: GameEntity;
   private castObstacle: GameEntity;
   private time = 0;
+  /** The zone's walkable band and ground line (A5): the block by default,
+   *  the Times Square plaza for the first-session square's own walkers. */
+  private band = BAND;
+  private groundAt: (z: number) => number = groundY;
   /** Real bodies for the player's collision stack (World registers these).
    *  Parked underground until the first update puts each under its walker. */
   readonly walkColliders: AABB[];
@@ -151,7 +172,11 @@ export class Pedestrians {
     paths: Array<Array<[number, number]>>,
     staticObstacles: Array<{ x: number; z: number; r: number }>,
     routines: RoutineStop[][] = [],
+    band?: { minX: number; maxX: number; minZ: number; maxZ: number },
+    groundAt?: (z: number) => number,
   ) {
+    if (band) this.band = band;
+    if (groundAt) this.groundAt = groundAt;
     this.group.name = 'Pedestrians';
     const rng = seededRng(seed);
 
@@ -389,14 +414,15 @@ export class Pedestrians {
         }
       }
       // the band clamp — the walkers have no wall collision of their own,
-      // so the block's bounds are applied to their bodies directly
-      pi.x = Math.max(BAND.minX, Math.min(BAND.maxX, pi.x));
-      pi.z = Math.max(BAND.minZ, Math.min(BAND.maxZ, pi.z));
+      // so the zone's bounds are applied to their bodies directly
+      const clamped = clampToBand(pi.x, pi.z, this.band);
+      pi.x = clamped.x;
+      pi.z = clamped.z;
     }
 
     for (const p of this.peds) {
       const v = p.vehicle.position;
-      p.group.position.set(v.x, groundY(v.z), v.z);
+      p.group.position.set(v.x, this.groundAt(v.z), v.z);
       // face the walking direction (velocity, not the steering force) —
       // and hold the last heading at waypoints so nobody snap-turns
       const vx = p.vehicle.velocity.x;

@@ -23,6 +23,7 @@ import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecy
   makeSprayBasin, SHARED_GEOS, type SignPair } from './props';
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
+import { FirstSessionWorld } from './firstSession';
 import { LeafDrift } from './leaves';
 import { Pedestrians, type PedLook, type RoutineStop } from './peds';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay } from './dressing';
@@ -139,6 +140,9 @@ export class World {
   private readonly squirrel: Squirrel;
   private leaves!: LeafDrift;
   private peds: Pedestrians;
+  /** Agent-5 — first-session environments (Alder Station, Times Square,
+   *  the terminal coach). Public read-only for the probe tooling. */
+  readonly firstSession: FirstSessionWorld;
   private ambientTime = 0;
 
   /** Read-only XZ of every ambient walker (diagnostics + probes). */
@@ -173,6 +177,11 @@ export class World {
   private static readonly DIST_ROW_H = 32;   // z: −48..48 in 3 rows
   private static readonly DIST_COLS = 6;
   private static readonly DIST_ROWS = 3;
+  // Agent-5 (first-session environments): one southern row for the Times
+  // Square district (z −80..−48, reached through the subway). Rows 0..2 are
+  // byte-identical to the W0 grid — the extension only ADDS row −1 south of
+  // the playable core, so every existing district key is unchanged.
+  private static readonly DIST_MIN_ROW = -1;
   private static readonly STREET_RING = World.DIST_COLS; // one sight line, for now
   private static readonly ROW_RING = 1;
   /** Baked meshes keyed by district (c<col>r<row>). */
@@ -187,7 +196,9 @@ export class World {
   /** A baked mesh's district from its world position (mesh center). */
   private static districtKey(x: number, z: number): string {
     const col = Math.max(0, Math.min(World.DIST_COLS - 1, Math.floor((x + 84) / World.DIST_COL_W)));
-    const row = Math.max(0, Math.min(World.DIST_ROWS - 1, Math.floor((z + 48) / World.DIST_ROW_H)));
+    // Agent-5: rows may go negative (the Times Square district, z −80..−48);
+    // clamping below at DIST_MIN_ROW keeps every W0 key byte-identical.
+    const row = Math.max(World.DIST_MIN_ROW, Math.min(World.DIST_ROWS - 1, Math.floor((z + 48) / World.DIST_ROW_H)));
     return `c${col}r${row}`;
   }
 
@@ -215,13 +226,13 @@ export class World {
    *  Called from updateDynamics with the live player position. */
   private updateDistricts(px: number, pz: number): void {
     const col = Math.max(0, Math.min(World.DIST_COLS - 1, Math.floor((px + 84) / World.DIST_COL_W)));
-    const row = Math.max(0, Math.min(World.DIST_ROWS - 1, Math.floor((pz + 48) / World.DIST_ROW_H)));
+    const row = Math.max(World.DIST_MIN_ROW, Math.min(World.DIST_ROWS - 1, Math.floor((pz + 48) / World.DIST_ROW_H)));
     const key = `c${col}r${row}`;
     if (key === this.lastDistrict) return;
     this.lastDistrict = key;
     for (let c = 0; c < World.DIST_COLS; c++) {
       const colIn = Math.abs(c - col) <= World.STREET_RING;
-      for (let r = 0; r < World.DIST_ROWS; r++) {
+      for (let r = World.DIST_MIN_ROW; r < World.DIST_ROWS; r++) {
         const inRing = colIn && Math.abs(r - row) <= World.ROW_RING;
         const dk = `c${c}r${r}`;
         for (const m of this.districtBatches.get(dk) ?? []) m.visible = inRing;
@@ -303,7 +314,12 @@ export class World {
 
     // ---------------- ground & street (street runs along X) ----------------
     this.solid('Road', 0, -0.1, 0, 100, 0.2, 8, PAL.road, { receive: true, cast: false });
-    this.solid('Sidewalk_N', 0, -0.05, 6, 100, 0.3, 4, PAL.walk, { receive: true, cast: false });
+    // Sidewalk_N is split at the subway stair shaft (Agent-5): the opening
+    // x −43.5..−40.5, z 5.0..8.0 is the REAL descendable stairwell into
+    // Alder Station (firstSession.ts). The W1 butt-joints at x ±50 are
+    // untouched; both new slabs keep the old center y, height and material.
+    this.solid('Sidewalk_N_W', -46.75, -0.05, 6, 6.5, 0.3, 4, PAL.walk, { receive: true, cast: false });
+    this.solid('Sidewalk_N_E', 4.75, -0.05, 6, 90.5, 0.3, 4, PAL.walk, { receive: true, cast: false });
     this.solid('Sidewalk_S', 0, -0.05, -6, 100, 0.3, 4, PAL.walk, { receive: true, cast: false });
     for (let i = 0; i < 6; i++) {
       // lifted clear of the road top (coplanar bottoms shimmered at grazing angles)
@@ -569,9 +585,17 @@ export class World {
     // "retire the x ±48 walls"; the grid is walkable now, Gable and Marlow
     // sit outside the old z walls). The boundary moves to the registry's
     // playable core: x ±84, z ±48 — never before a district has content.
+    // Agent-5: the south wall is split at x −72..−66 so the Alder Station's
+    // below-grade passage (space y −5.9..−1.6) can pass under it toward the
+    // Times Square district. The gap is enclosed floor-to-soffit by the
+    // passage's own walls; at street level a plug box (y −1.4..18) keeps the
+    // boundary solid — the core law holds at grade, the corridor is the only
+    // way through, and no void is reachable.
     this.colliders.push(boxFromCenter(-84, 5, 0, 1, 20, 96));
     this.colliders.push(boxFromCenter(84, 5, 0, 1, 20, 96));
-    this.colliders.push(boxFromCenter(0, 6, -48, 168, 24, 1)); // south wall behind Marlow
+    this.colliders.push(boxFromCenter(-79.5, 6, -48, 9, 24, 1));   // south wall west of the passage (x −84..−75)
+    this.colliders.push(boxFromCenter(7.5, 6, -48, 153, 24, 1));   // south wall east of the passage (x −69..84)
+    this.colliders.push(boxFromCenter(-72, 8.3, -48, 6, 19.4, 1)); // passage gap plug (y −1.4..18)
     this.colliders.push(boxFromCenter(0, 6, 48, 168, 24, 1));  // north wall behind Gable
 
     // zones
@@ -722,7 +746,11 @@ export class World {
     const subway = makeSubwayEntrance(this.bank, this.signMaterials.bind(this));
     subway.position.set(-42, 0.05, 6.2);
     this.scene.add(subway);
-    this.colliders.push(boxFromCenter(-42, 0.4, 6.2, 2.6, 1.0, 3.5)); // nobody walks into the earth
+    // Agent-5: the "nobody walks into the earth" blocker retires — the earth
+    // is open now. The shaft below (Alder Station's stairwell) carries the
+    // real walls; the plaza decks, benches and the interaction anchor at
+    // (−42, 4.55) keep their clearances (opening z starts at 5.0, south of
+    // the bench's 4.9 edge).
     this.flyerMat = new THREE.MeshLambertMaterial({ map: this.flyerTexture('YOUR CORNER') });
     const board = makeBulletinBoard(this.bank, this.flyerMat);
     board.position.set(-37.6, 0.05, 7.5);
@@ -1112,6 +1140,16 @@ export class World {
     // leaf drift, now over every tree on the block (shipped 12 + W1 rows)
     this.leaves = new LeafDrift(this.scene, [...leafSpots, ...this.extraLeafSpots], 4);
 
+    // Agent-5 — the first-session environments (docs/02 + docs/07): Alder
+    // Station below the plaza, the Times Square district south of the core,
+    // and the terminal arrival coach. One module, one owner, one update
+    // hook; the shipped world is untouched apart from the three cuts above.
+    this.firstSession = new FirstSessionWorld(this.scene, {
+      bank: this.bank,
+      colliders: this.colliders,
+      sign: (text, w, h, bg, fg, px) => this.signMaterials(text, w, h, bg, fg, px),
+    });
+
     this.bakeStatics();
 
     // instanced canopies for the new tree rows go up AFTER the bake — an
@@ -1276,6 +1314,12 @@ export class World {
       for (let p: THREE.Object3D | null = o; p !== null; p = p.parent) {
         if (skip.has(p) || NAMED_SKIP.has(p.name)) return true;
       }
+      // Agent-5 first-session environments (Alder Station below grade, the
+      // Times Square district south of the core) carry their OWN visibility
+      // gate — the bodega-interior pattern, one group per zone. Merging them
+      // into a district batch would weld their visibility to the street's,
+      // so they stay out of the bake entirely and merge among themselves.
+      if (o.name.startsWith('A5_')) return true;
       return false;
     };
 
@@ -3654,6 +3698,10 @@ export class World {
     this.squirrel.update(dt, pp, dusk);
     this.leaves.update(dt, this.ambientTime);
     this.updateTreeRows(this.ambientTime); // the W1 rows sway with the block
+    // Agent-5 first-session environments: visibility gates (below grade /
+    // south of the core), billboard screens, tunnel-light flicker, the
+    // Times Square walkers. One call, zero allocations, no-ops at home.
+    this.firstSession.update(dt, player);
   }
 
   /** Both phases, in order — kept for any caller that just wants "advance
