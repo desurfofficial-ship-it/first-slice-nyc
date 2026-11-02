@@ -101,6 +101,49 @@ Lessons adapted from high-output agent game builds (notably [@poteto](https://x.
 **Do not import** unrelated stacks from other games (formal TLA+ models, custom chip synths, pixel atlases) unless the GDD and roadmap ask for them. Import the *discipline*, not the costume.
 
 
+## 1d. Trust, memory, and the paved path
+
+Lessons adapted from [@poteto on shipping at agent scale](https://x.com/poteto/status/2102050467505430555): you do not trust agents by hoping — you trust them by making the repo teach and check them.
+
+### Whenever you correct an agent
+
+Put the correction in the **most permanent place that fits**, in this order:
+
+1. **Codebase** — the real fix lands in source.
+2. **Static proof** — a test, type edge, lint, or CI check so the class of mistake cannot return quietly.
+3. **Rules** — `AGENTS.md`, milestone briefs, red lines (what must never happen again).
+4. **Skills** — a loadable procedure in §6 when the work is a repeatable workflow (audit → change → prove → PR).
+5. **Voice / style** — only for writing tone and terminology, not architecture.
+
+A correction that lives **only in chat** is lost to the next agent. Chat is ephemeral; the repo is memory.
+
+### The codebase is the agent's memory
+
+Agents see a small context window. Durable truth must live in the tree:
+
+- this file, the GDD, Doc 07, Doc 37, and living-neighborhood docs
+- unit tests, probes, and `?autotest=1`
+- clear module boundaries (registry vs story steps vs save vs world)
+
+If a rule matters and it is not in the repo, assume the next agent will not know it.
+
+### One paved path — garden the tree
+
+- Prefer **one** supported way to do a thing (e.g. all interactions through the registry; one money path; one save schema).
+- When you replace a pattern, **delete or clearly deprecate** the old path so it cannot be copied.
+- Each leftover alternate makes the next wrong copy more likely. The team needs gardeners, not only builders.
+
+### Trust is verification plus agent-readable structure
+
+You may ship faster with agents only when:
+
+- correctness is **checked** (tests, e2e, probes — not "I clicked once")
+- skills teach **real software habits** (small change, prove it, PR)
+- architecture is **readable**: obvious owners, few hidden globals, story machines explicit, process boundaries visible in the file tree
+
+Automations and scheduled bots are optional later. They do not replace a paved path or headless proof.
+
+
 ## 2. Voice & Terminology
 
 **Writing voice (all docs, dialogue, captions, commit messages):** short sentences. Plain words. Warm, wry, unhurried — like Rosa, not like a wiki. Concrete nouns over abstractions. Humor is dry and kind, never sarcastic. Never "users," "players" where "you" will do.
@@ -173,6 +216,7 @@ git status && git log --oneline -5     # orient first, always
 - [ ] Laws §1 respected (which ones apply? name them in the description)
 - [ ] Anti-Slop Quality Gate §1b respected (inspected in-game; no filler; owner + behavior + style + verification)
 - [ ] Engineering discipline §1c respected (guards for bugs found; no hot-path waste; headless proof where story-critical)
+- [ ] Trust & memory §1d respected (correction hierarchy; one paved path; no chat-only fixes for durable rules)
 - [ ] Voice guide §2 respected
 - [ ] Terminology consistent with §2 table
 - [ ] No secrets, no fabricated data, TBDs marked `[TBD]` with owner + date
