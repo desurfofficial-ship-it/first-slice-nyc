@@ -264,6 +264,7 @@ export class GameCamera {
     let bestT = 1;
     for (const b of this.boxes) {
       if (b.maxY <= from.y + 0.2) continue;
+      if (b.seeThroughCamera) continue; // chain-link: bodies stop, lenses don't
       let tmin = 0, tmax = 1;
       let miss = false;
       const axes: Array<[number, number, number, number]> = [

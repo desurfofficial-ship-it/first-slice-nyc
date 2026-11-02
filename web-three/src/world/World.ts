@@ -35,6 +35,13 @@ import { buildTimesSquare, type TimesSquare } from './timesSquare';
 import { buildArrivalBus, type ArrivalBus } from './arrivalBus';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay } from './dressing';
 import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT } from '../core/content';
+// the half-court upgrade (docs/48/49) — basketball-owned module, the one
+// sanctioned import seam between the world and the court
+import { paintCourtCanvas, makeCourtSurface } from '../court/courtPaint';
+import { makeNet, makePolePad, makeCourtLight, makeTallyBoard, buildBackstop,
+  type CourtNet, type TallyBoard } from '../court/courtDressing';
+import { makeBasketball } from '../court/Basketball';
+import { COURT_BALL_REST } from '../game/interactionDefs';
 
 export interface LadderInfo { area: AABB; top: number; }
 
@@ -181,6 +188,11 @@ export class World {
   private terminalCollider: AABB | null = null;
   /** Door colliders by spec, so a re-open can find and splice them out. */
   private readonly subwayColliderBySpec = new Map<ColliderSpec, AABB>();
+  // ---- the half-court upgrade (docs/48/49) ----
+  courtNet!: CourtNet;      // swishes on a make
+  courtTally!: TallyBoard;  // the chalk score on the wall
+  courtGlow!: THREE.Mesh;   // the gooseneck's warm disc (dusk)
+  courtWeaves: THREE.Mesh[] = []; // camera fades these point-blank
   /** The day the flyer board is currently dressed for (slips rotate by day). */
   private flyerDay = 1;
   private washerLoad: THREE.Mesh | null = null;
@@ -2318,39 +2330,68 @@ export class World {
 
   /** THE HALF-COURT — painted key and arc on the north-east sidewalk, hoop
    *  against the building face. The commuter ped turns around at x = 38;
-   *  everything here is east of the turn and ped-free. */
+   *  everything here is east of the turn and ped-free.
+   *  Docs/49 upgrade: the six separate paint meshes became ONE canvas-texture
+   *  plane (a real court: key, FT circle, three-point arc, hash marks, wear);
+   *  the hoop gained a net (it swishes), a pole pad, a caged light and the
+   *  chalk tally board; chain-link encloses west + south (gate gap on the
+   *  south-east — the ball can roll out of it, and the court rolls it back);
+   *  the ball wears its leather and seams now. */
   private buildCourt(): void {
-    // paint: asphalt patch slightly darker than the walk, cream lines
-    this.deco('Court_Paint', 43.75, 0.035, 6.1, 7.3, 0.02, 3.4, 0x4a4552, {});
-    const line = this.mat(PAL.cream);
-    for (const [lx, lz, sx, sz] of [
-      [42.6, 5.9, 0.08, 2.6], [45.9, 5.9, 0.08, 2.6], // key sidelines
-      [44.25, 7.2, 3.4, 0.08],                          // free-throw line
-      [42.6, 4.6, 0.08, 0.6], [45.9, 4.6, 0.08, 0.6],  // key corners
-    ] as const) {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(sx, 0.02, sz), line);
-      m.position.set(lx, 0.045, lz);
-      this.scene.add(m);
-    }
-    // the arc — half ring laid flat at the free-throw line, opening south
-    const arc = new THREE.Mesh(
-      new THREE.RingGeometry(1.75, 1.85, 26, 1, Math.PI, Math.PI),
-      line,
-    );
-    arc.rotation.x = -Math.PI / 2;
-    arc.position.set(44.25, 0.045, 7.2);
-    this.scene.add(arc);
+    // one textured plane instead of six meshes — fewer draw calls, more court
+    const courtTex = new THREE.CanvasTexture(paintCourtCanvas());
+    courtTex.anisotropy = 4;
+    const courtMat = new THREE.MeshLambertMaterial({ map: courtTex, fog: true });
+    this.scene.add(makeCourtSurface(courtMat));
+
     // the hoop, against the face; the rim reads from the whole sidewalk
     const hoop = makeHoop(this.bank);
     hoop.position.set(44.25, 0.05, 7.9);
     this.scene.add(hoop);
     this.colliders.push(boxFromCenter(44.25, 1.65, 7.9, 0.24, 3.3, 0.24)); // the pole blocks
-    // the ball — orange, patient, at rest by the key. It moves when shot,
-    // so it is excluded from the static bake (see bakeStatics).
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), this.mat(0xd9772f));
-    ball.name = 'CourtBall';
-    ball.position.set(43.2, 0.13, 5.2);
-    ball.castShadow = true;
+    // the net hangs from the rim (rim center per interactionDefs: z 7.64)
+    this.courtNet = makeNet(this.bank);
+    this.courtNet.group.position.set(44.25, 2.6, 7.64);
+    this.scene.add(this.courtNet.group);
+    // the foam pad and the caged gooseneck — the corner dresses like itself
+    const pad = makePolePad(this.bank);
+    pad.position.set(44.25, 0.05, 7.9);
+    this.scene.add(pad);
+    const light = makeCourtLight(this.bank);
+    light.group.position.set(44.25, 3.42, 7.93);
+    this.scene.add(light.group);
+    this.courtGlow = light.glow;
+    // the chalk tally — the block keeps score on the wall by the hoop
+    this.courtTally = makeTallyBoard({ makes: 0 });
+    this.courtTally.mesh.position.set(45.55, 2.3, 7.92);
+    this.courtTally.mesh.rotation.y = Math.PI;
+    this.scene.add(this.courtTally.mesh);
+
+    // the chain-link: west run + south run, with the open gate on the
+    // south-east (the ball can escape there; CourtGame rolls it back home)
+    const backstop = buildBackstop(this.scene, this.bank, {
+      wx: 40.45, wz0: 4.55, wz1: 7.8,
+      sx0: 40.45, sx1: 45.3, sz: 4.55,
+      h: 3.0,
+    });
+    this.courtWeaves = backstop.weaves;
+    // the fence lines are solid to bodies, transparent to the camera boom
+    // (chain-link — the lens looks through the diamonds, docs/49)
+    this.colliders.push({ ...boxFromCenter(40.45, 1.5, 6.175, 0.12, 3.0, 3.25), seeThroughCamera: true });
+    this.colliders.push({ ...boxFromCenter(42.875, 1.5, 4.55, 4.85, 3.0, 0.12), seeThroughCamera: true });
+    // the gate posts stand free (air between them — the way in)
+    for (const gx of [45.3, 47.3]) {
+      const gp = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 3.12, 8), this.bank.get(PAL.ink));
+      gp.position.set(gx, 1.56, 4.55);
+      gp.castShadow = true;
+      this.scene.add(gp);
+    }
+
+    // the ball — leather and seams now, resting properly ON the slab
+    // (ground 0.1 + radius 0.13). It moves when shot, so it is excluded
+    // from the static bake (see bakeStatics).
+    const ball = makeBasketball();
+    ball.position.set(COURT_BALL_REST.x, COURT_BALL_REST.y, COURT_BALL_REST.z);
     this.scene.add(ball);
     this.ball = ball;
   }
@@ -2650,7 +2691,11 @@ export class World {
     }
 
     // ---- I. trees — the registry's Kestrel fills (full fade-capable trees)
-    const kestrelFillN: Array<[number, number]> = [[-58, 7.48], [-46, 7.48], [44, 7.48], [56, 7.48]];
+    // (44, 7.48) → (48.8, 7.48): the fill landed INSIDE the half-court
+    // (docs/49) — a street tree growing through the key, in front of the
+    // rim. Same row, same law, just east of the court's east fence line.
+    // One-line coordinate move for Main Agent review (docs/49 §6).
+    const kestrelFillN: Array<[number, number]> = [[-58, 7.48], [-46, 7.48], [48.8, 7.48], [56, 7.48]];
     const kestrelFillS: Array<[number, number]> = [[-56, -7.0], [8, -7.0], [48, -7.0]];
     for (const [tx, tz] of [...kestrelFillN, ...kestrelFillS]) {
       const pit = makeTreePit(this.bank);

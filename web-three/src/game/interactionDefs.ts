@@ -127,24 +127,22 @@ const parkBench: Interaction = {
   },
 };
 
-/** The rim's mouth and the ball's rest spot, in world space — Game's hoop
- *  flight and the probe both read these. */
+/** The rim's mouth and the ball's rest spot, in world space — the court
+ *  upgrade (docs/49) reads and MUTATES the rest spot: after a shot the ball
+ *  stays where it came down, and the court interaction follows it there
+ *  (pos is a live getter over this object). y = ground 0.1 + ball 0.13. */
 export const HOOP_RIM: Vec3Like = { x: 44.25, y: 2.6, z: 7.64 };
-export const COURT_BALL_REST: Vec3Like = { x: 43.2, y: 0.13, z: 5.2 };
-
-/** Deterministic day-seeded outcome — a 6-in-10 shooter whose form comes
- *  and goes by day. Pure, so tests and the E2E both know the answer. */
-export function hoopOutcome(day: number, shot: number): 'make' | 'miss' {
-  return ((Math.max(1, day) * 7 + shot * 13) % 10) < 6 ? 'make' : 'miss';
-}
+export const COURT_BALL_REST: Vec3Like = { x: 43.2, y: 0.23, z: 5.2 };
 
 const court: Interaction = {
   id: 'court',
   pos: () => COURT_BALL_REST,
   radius: 2.1,
-  // the ball flies alone: no second press can interrupt a shot mid-arc
-  enabled: (_s, ctx) => !ctx.game.hoopInFlight,
-  prompt: () => 'Shoot around',
+  // the ball flies alone: no press can interrupt a shot mid-arc, and the
+  // interaction steps aside while the ball rides in your hands (the hold-
+  // to-shoot charge owns the button then — docs/49 §4)
+  enabled: (_s, ctx) => !ctx.game.hoopInFlight && !ctx.game.courtHolding,
+  prompt: () => 'Pick up the ball',
   perform: (ctx) => {
     ctx.game.shootHoop();
     return [];

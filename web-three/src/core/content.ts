@@ -847,7 +847,7 @@ export const ALLEY_NOTES: string[] = [
 /** THE HALF-COURT — free, repeatable, deterministic. The hoop keeps score
  *  in notes, not UI. */
 export const COURT_MAKE: string[] = [
-  'Off the backboard and through \u2014 the net that isn\u2019t there still swishes.',
+  'Off the glass and through \u2014 the net snaps like it meant it.',
   'Clean. The rim doesn\u2019t move. Somewhere a man on a bench nods without looking up.',
   'It rolls the rim\u2019s whole diameter and drops. The crowd is three pigeons and they go wild.',
   'One more. The court starts keeping your secret: you might be okay at this.',

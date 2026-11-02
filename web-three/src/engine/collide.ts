@@ -18,6 +18,10 @@ export interface AABB {
    *  cab (the yield logic handles bodies, the lane keeps it off furniture).
    *  Untagged boxes are static world; every consumer reads them. */
   kind?: 'static' | 'car' | 'person';
+  /** Bodies collide with this box, but the CAMERA sees through it — the
+   *  half-court's chain-link (docs/49): a see-through fence between the
+   *  lens and the player must not slam the boom into the player's neck. */
+  seeThroughCamera?: boolean;
 }
 
 /** A ground-plane footprint — the XZ slice of an AABB that crowd/traffic

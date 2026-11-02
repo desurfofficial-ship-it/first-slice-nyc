@@ -637,6 +637,7 @@ moment"); the Map's writing animation stroke-by-stroke (VS-F01 v1);
 VO of the five signature lines (Doc 07 TBD-1); Times Square and Subway
 University remain Doc 02 beats outside the greybox block.
 
+
 ## W4 part 2 — the traffic + dusk layer (SHIPPED 2026-11-02)
 
 **Scope honored:** everything the part-1 entry listed as explicitly NOT
@@ -766,3 +767,14 @@ populated day-keyed (part 1), the bus loop completes with yields (this
 part), no ped stuck states over the 30-min soak (this part), the story
 cast untouched (both). Remaining per the plan: **W5 (interiors batch —
 8–10 interior spaces + visibility toggles)**.
+
+**Ported to `agent2/half-court-upgrade` (same day, branch `paper-kit-on-half-court`):** the
+feat and docs commits re-applied onto the half-court tip with the court
+game untouched (`src/court/` byte-identical, `tests/court.test.ts` green).
+Re-verified on THIS branch: tsc clean · vitest **309/309** (the paper kit
+and the court suites pass together) · build clean · **E2E: AUTOTEST OK,
+0 failures, 124 checks, 351 s, zero console errors** · `probe-doc12.mjs`
+re-run — card, notebook and the golden window compose correctly under the
+court HUD.
+
+---

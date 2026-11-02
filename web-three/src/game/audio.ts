@@ -364,6 +364,41 @@ class GameAudio {
     if (this.saxTimer !== null) { window.clearTimeout(this.saxTimer); this.saxTimer = null; }
   }
 
+  // ---------------- the half-court (docs/49 — the court upgrade) ----------------
+  // Five one-shot voices, same house rules: synthesized, gain-enveloped,
+  // never stacking the same sound. The court sounds like the street.
+
+  /** The ball hits asphalt — dribbles, bounces. strength 0..1 scales it. */
+  dribble(strength = 0.6): void {
+    const s = Math.max(0.08, Math.min(1, strength));
+    this.tone(105, 0.09, 0.10 * s, 'sine', 55);
+    this.blip({ dur: 0.05, type: 'lowpass', freq: 900, peak: 0.05 * s, attack: 0.004 });
+  }
+
+  /** A floor bounce mid-flight — deeper the harder it lands. */
+  bounce(strength = 0.5): void {
+    this.dribble(strength);
+  }
+
+  /** Rim steel — two detuned partials with a fast decay, the honest CLANG. */
+  rim(): void {
+    this.tone(620, 0.28, 0.055, 'triangle');
+    this.tone(934, 0.20, 0.035, 'triangle');
+    this.blip({ dur: 0.06, type: 'bandpass', freq: 2100, q: 6, peak: 0.04, attack: 0.004 });
+  }
+
+  /** Backboard knock — wood-and-glass thud. */
+  board(): void {
+    this.tone(180, 0.13, 0.10, 'sine', 95);
+    this.blip({ dur: 0.08, type: 'lowpass', freq: 700, peak: 0.06, attack: 0.004 });
+  }
+
+  /** The swish — a short, soft band-passed whoosh, the best sound in sports. */
+  swish(): void {
+    this.blip({ dur: 0.22, type: 'bandpass', freq: 1500, q: 1.1, peak: 0.09, attack: 0.03 });
+    this.tone(330, 0.18, 0.02, 'sine', 210);
+  }
+
   /** Page teardown — stop every scheduled voice. Nothing gameplay-bearing
    *  lives here, so a disposed layer is just a quiet one. */
   dispose(): void {
