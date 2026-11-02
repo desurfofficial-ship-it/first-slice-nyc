@@ -81,7 +81,7 @@ mute-respecting, nothing stacked.
 | `bun run build` | clean (925 kB bundle, +4 kB) |
 | `scripts/probe-court.mjs` (real game, desktop + mobile) | **29/29 PASS**, console clean |
 | `scripts/probe-court-routes.mjs` (real game) | **8/8 PASS** — traversals, gate, interior, ped exclusion |
-| Full 4-day E2E | attempted 3× on this sandbox (600 s foreground cap; 900 s driver ceiling; detached run) — **could not complete in-sandbox** (stalls at beat 4 under SwiftShader load; see §5 for why the court cannot be the cause, and what still owes a run) |
+| Full 4-day E2E | **104/104 PASS, 0 failures, console clean** (`AUTOTEST OK: 0 failures, 317 s`, exit 0) — run on this sandbox at a 256×192 viewport, the harness's documented slow-machine mitigation for software GL (driver is viewport-agnostic; defaults unchanged at 900×700). See §5.1 for the attempt log. |
 
 Probe highlights (in-engine, desktop AND mobile touch context):
 - interact press picks the ball up; the ball rides the hands (0.42 m);
@@ -120,13 +120,17 @@ Probe highlights (in-engine, desktop AND mobile touch context):
 
 ## 5. Honest limitations & the one design decision for Main Agent
 
-1. **The full E2E still owes a clean run.** Three attempts stalled at the
-   same early beat on this sandbox (SwiftShader, 2 cores, concurrent
-   builds) — beat 4 is a walk 40 m WEST of the court. The court cannot be
-   the cause: the authored walk targets max out at x 16.2 (checked), and
-   `probe-court-routes` walks every lane the court touches. But the rule
-   is the rule: the 104/104 green run needs a quieter machine before this
-   branch merges.
+1. **The full E2E debt is PAID (this session).** `AUTOTEST OK: 0 failures,
+   317 s` — **104/104 PASS, exit 0, console clean**, including every
+   day-4 leg. The earlier stalls were the sandbox, not the branch: two
+   background runs were reaped by the environment's process reaper, one
+   foreground run at 320×240 got 92/104 before the 600 s command cap cut
+   it mid-goodnight-rail, and the original three stalled under
+   concurrent build load. The green run uses the 256×192 viewport — the
+   mitigation scripts/e2e.mjs itself documents for software-GL machines
+   (small viewport raises fps until dt stops clamping; the driver is
+   viewport-agnostic; defaults stay 900×700). No game or driver code was
+   touched to make it pass.
 2. **Design decision flagged for review:** the chain-link enclosure means
    through-traffic passes the court via the south lane edge + the gate —
    the fenced court owns its block of sidewalk, like the real ones. The
