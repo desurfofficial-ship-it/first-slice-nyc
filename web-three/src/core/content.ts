@@ -787,7 +787,7 @@ export const BENCH_SIT_NOTES: string[] = [
 
 /** The subway stairs — a glance down. The kid had it right on Day 3. */
 export const SUBWAY_NOTE =
-  'The stairs go down. F and M both work \u2014 the kid had that right. The city keeps its promises underground.';
+  'The stairs go down for real now. The K runs local \u2014 the city keeps its promises underground.';
 
 // ---------------------------------------------------- the expanded block ----
 // docs/38 §4 — the free-roam loops east of the crosswalk. Same law as the
@@ -937,3 +937,50 @@ export const MEMORY_LINES: Record<'shelf' | 'dog' | 'trim' | 'wash' | 'hoop', Me
     line: 'The pole has stopped counting your makes out loud. That\u2019s how you know it respects you.',
   },
 };
+
+// ---------------------------------------------------- docs/50 far world ----
+// The K line, Times Square, the M121 — the first-session world's missing
+// rooms (Agent 2). Same diary law: day-keyed where it rotates, fixed where
+// it's a lesson, no save fields anywhere.
+
+/** The ride's teach beats, in order (ride.ts pins the times). Priya's
+ *  lesson rides the tunnel; Map's crooked copy rides right behind it. */
+export const RIDE_BEAT_TEXT: Record<string, string> = {
+  'priya-uptown':
+    'Priya: "Rules of the road. Trains go two ways \u2014 uptown and downtown. Downtown is where everything new happens."',
+  'priya-lines':
+    'Priya draws two lines on the window with one swipe of her glove. "One goes under the river. One stays with the lights."',
+  'map-copies':
+    'Map copies her lines badly. She taps the crooked copy anyway: "See? You already can read it."',
+  'announce':
+    'The speaker crackles: "42nd Street\u2013Times Square." The doors open on a saxophone.',
+};
+
+/** The sync beat — Doc 02's wonder beat #1, word for word where it counts. */
+export const TS_SYNC_NOTE =
+  'The screens all turn at once \u2014 warm light, just for you. Times Square. 300,000 people cross here every day. Today, so did you.';
+
+export const BUSKER_LINES = [
+  'The sax does the thing saxophones do to a tile room. You stay for the whole phrase.',
+  'The busker nods at your tapping foot. "You got it, rookie. The city dances first, explains later."',
+  'Same corner, new verse. He plays like the station asked him to.',
+];
+export const BUSKER_COIN_OFFER = 'Leave a dollar in the cup?';
+export const BUSKER_COIN_BROKE = 'The cup gets a nod instead. The nod is accepted.';
+export const BUSKER_COIN_NOTE =
+  'The coin rings the cup. The sax doesn\u2019t stop, but the nod says heard.';
+
+export const USHER_LINES = [
+  'The usher takes the coffee, looks at you exactly like Rosa did. "First day? Come back when you\u2019re somebody. They all come back when they\u2019re somebody."',
+  '"House opens at eight," the usher says. "The show\u2019s fine. The lobby\u2019s better."',
+  '"You\u2019re back," the usher says, like a promise being kept. "Somebody\u2019s getting closer."',
+];
+
+export const DRIVER_LINES = [
+  'The driver glances in the big mirror. "First time? Everybody\u2019s got a look. Like they\u2019re memorizin\u2019 it already. Don\u2019t worry \u2014 it\u2019ll still be there when you get off."',
+  '"Ball game\u2019s on," the driver says, nodding at the radio. "Ninth inning. Nobody on this bus is going anywhere till it\u2019s over."',
+  '"M121," the driver says. "Terminal to terminal. Same as everybody\u2019s story, if you think about it."',
+];
+
+export const DUFFEL_NOTE =
+  'A duffel on the seat, packed the way you pack your first day. You leave it exactly where it is.';

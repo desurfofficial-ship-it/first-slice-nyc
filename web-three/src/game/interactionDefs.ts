@@ -17,6 +17,13 @@ import {
   type GameState,
 } from '../core/GameState';
 import {
+  BUSKER_LINES, BUSKER_COIN_OFFER, BUSKER_COIN_BROKE, BUSKER_COIN_NOTE,
+  USHER_LINES, DRIVER_LINES, DUFFEL_NOTE,
+} from '../core/content';
+import { SUBWAY_SPOTS } from '../world/subway';
+import { TS_SPOTS } from '../world/timesSquare';
+import { BUS_SPOTS } from '../world/arrivalBus';
+import {
   BREWING_PROMPT,
   BULLETIN_NOTES,
   NEWSPAPER_NOTES,
@@ -29,6 +36,21 @@ import {
   WALKER_CHAT, MEMORY_LINES, type MemoryLine,
 } from '../core/content';
 import { NEVER_NEAR, type Interaction, type InteractionCtx, type Vec3Like } from './interactions';
+import type { SubwaySystem } from '../world/subway';
+
+/** The far world through the interaction ctx, tolerating registry-test
+ *  stubs (the walker-conversation law: no world, no interaction). */
+function farSubway(ctx: InteractionCtx): SubwaySystem | null {
+  return (ctx.game as { world?: { subway?: SubwaySystem | null } }).world?.subway ?? null;
+}
+
+/** Priya's platform lines (the ride carries her big teach; these are the
+ *  day-keyed hellos by the fare bank). */
+const PRIYA_LINES = [
+  'Priya: "Go on. It’s one stop. You’re with me."',
+  'Priya: "Stand clear of the closing doors — and of Idris’s elbows. Two sugars, that one."',
+  'Priya: "Still riding? Good. The subway’s the only museum that runs every four minutes."',
+] as const;
 
 /** Day-keyed pick: index by (day − 1) mod the list — the living block's
  *  rotation rule (Doc 33 §2.3), deterministic, never random. */
@@ -271,6 +293,102 @@ const subway: Interaction = {
   perform: () => [{ kind: 'note', text: SUBWAY_NOTE }],
 };
 
+// ---- docs/50: the K line, the square, the M121 --------------------------
+// Positions come from the builders' own static spots (single source of
+// truth); enables read the ride machine through the orchestrator.
+
+/** Inside the aligned car at Alder Heights: press to ride downtown. */
+const trainA: Interaction = {
+  id: 'trainA',
+  pos: () => ({ ...SUBWAY_SPOTS.rideA }),
+  radius: 1.7,
+  yBand: 2.2,
+  enabled: (_s, ctx) => {
+    const sub = farSubway(ctx);
+    return !!sub && sub.doorsOpen && sub.ride.phase === 'idle';
+  },
+  prompt: () => 'Ride to Times Square',
+  perform: (ctx) => {
+    ctx.game.world.subway?.requestRide('A');
+    return [];
+  },
+};
+
+/** Inside the aligned car at 42nd St: press to ride home. */
+const trainB: Interaction = {
+  id: 'trainB',
+  pos: () => ({ ...SUBWAY_SPOTS.rideB }),
+  radius: 1.7,
+  yBand: 2.2,
+  enabled: (_s, ctx) => {
+    const sub = farSubway(ctx);
+    return !!sub && sub.doorsOpen && sub.ride.phase === 'idle';
+  },
+  prompt: () => 'Ride back to Alder Heights',
+  perform: (ctx) => {
+    ctx.game.world.subway?.requestRide('B');
+    return [];
+  },
+};
+
+/** Priya — the conductor's platform line, day-keyed (Doc 02's teach). */
+const priya: Interaction = {
+  id: 'priya',
+  pos: () => ({ ...SUBWAY_SPOTS.priya }),
+  enabled: () => true,
+  prompt: () => 'Say hi to Priya',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(PRIYA_LINES, state.day) }],
+};
+
+/** The busker — the listen is free; the coin is the gated $1. */
+const busker: Interaction = {
+  id: 'busker',
+  pos: () => ({ ...SUBWAY_SPOTS.busker }),
+  enabled: () => true,
+  prompt: () => 'Stop and listen',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(BUSKER_LINES, state.day) }],
+};
+
+const buskerCoin: Interaction = gatedBuy({
+  id: 'busker_coin',
+  pos: () => ({ x: SUBWAY_SPOTS.busker.x + 0.9, y: SUBWAY_SPOTS.busker.y, z: SUBWAY_SPOTS.busker.z }),
+  radius: 1.6,
+  price: 1,
+  label: 'Leave a dollar — $1',
+  offer: BUSKER_COIN_OFFER,
+  broke: BUSKER_COIN_BROKE,
+  dayLines: [BUSKER_COIN_NOTE],
+});
+
+/** The usher — Doc 02's promise line, day-keyed. */
+const usher: Interaction = {
+  id: 'usher',
+  pos: () => ({ ...TS_SPOTS.usher }),
+  enabled: () => true,
+  prompt: () => 'Hand over the coffee',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(USHER_LINES, state.day) }],
+};
+
+/** The M121's driver — the "First time?" lines from the arrival. */
+const driver: Interaction = {
+  id: 'driver',
+  pos: () => ({ ...BUS_SPOTS.driver }),
+  radius: 1.9,
+  enabled: () => true,
+  prompt: () => 'Talk to the driver',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(DRIVER_LINES, state.day) }],
+};
+
+/** Somebody's duffel on a bus seat — the player's Day-1 mirror. */
+const duffel: Interaction = {
+  id: 'duffel',
+  pos: () => ({ ...BUS_SPOTS.duffel }),
+  radius: 1.7,
+  enabled: () => true,
+  prompt: () => 'Look at the duffel',
+  perform: () => [{ kind: 'note', text: DUFFEL_NOTE }],
+};
+
 /** The shelf as a shop. The confirm gate follows the awning/stool pattern:
  *  first press offers (and flips `state.buyConfirm`), second press buys.
  *  A real `spend()` — the money HUD pulses, the day-end save carries it.
@@ -333,7 +451,9 @@ export function walkerChats(src: InteractionSources): Interaction[] {
 }
 
 export function freeRoamInteractions(src: InteractionSources): Interaction[] {
-  return [bench, parkBench, court, hotdog, barber, alley, washerFree, board, newsbox, subway, ...walkerChats(src), ...shelfInteractions(src)];
+  return [bench, parkBench, court, hotdog, barber, alley, washerFree, board, newsbox, subway,
+    trainA, trainB, priya, busker, buskerCoin, usher, driver, duffel,
+    ...walkerChats(src), ...shelfInteractions(src)];
 }
 
 // ------------------------------------------------------------------ authored ----

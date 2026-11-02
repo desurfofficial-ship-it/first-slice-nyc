@@ -18,7 +18,7 @@ import {
   PARKED_CAR_RECTS, parkedCarRect, BUS_BODY, BUS_BAY_ID, KESTREL_COURTESY_ZONES,
   type BusZone, type LegCoords,
 } from '../engine/busRoute';
-import { buildArticulatedPerson } from './personRig';
+import { buildArticulatedPerson, updatePersonAnim } from './personRig';
 import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecycleBin, makeHydrant,
   makeSubwayEntrance, makeBulletinBoard, makeBench, makeBusStop, makeNewspaperBoxes, makeBarrier,
   makeACUnit, makeBrownstoneStoop, makeStorefront, makeStool, makeVan,
@@ -30,6 +30,9 @@ import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
 import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
+import { buildSubwaySystem, STATION, type SubwaySystem, type ColliderSpec } from './subway';
+import { buildTimesSquare, type TimesSquare } from './timesSquare';
+import { buildArrivalBus, type ArrivalBus } from './arrivalBus';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay } from './dressing';
 import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT } from '../core/content';
 
@@ -155,6 +158,29 @@ export class World {
   /** The half-court ball (docs/38): rests by the key, flies when shot.
    *  Excluded from the static bake — it moves. (Assigned by buildCourt.) */
   ball!: THREE.Mesh;
+  // ---- the far world (docs/50): the K line, Times Square, the M121 ----
+  readonly subwayRoot = new THREE.Group();
+  subway!: SubwaySystem;
+  timesSquare!: TimesSquare;
+  arrivalBus!: ArrivalBus;
+  /** The subway cast rigs (Priya, the busker, riders) — one breathe tick. */
+  private readonly subwayCast: THREE.Group[] = [];
+  /** Beat buffers Game drains each frame (ride notes, the sync beat). */
+  readonly subwayBeats: string[] = [];
+  readonly tsBeats: string[] = [];
+  /** The day the far world was last told about (the sync is day-keyed). */
+  private worldDay = 1;
+  /** Terminal meshes the dollhouse lifts when the player is underground —
+   *  collected by position at build time, so Main Agent's dressing needs
+   *  no naming cooperation. */
+  private readonly terminalShell: THREE.Mesh[] = [];
+  private dollhouseOn = false;
+  /** The terminal mass's collider — lifted with the dollhouse (the boom
+   *  ray-cast must see the cutaway the lens sees, and the player below
+   *  grade never needs a building's collision anyway). */
+  private terminalCollider: AABB | null = null;
+  /** Door colliders by spec, so a re-open can find and splice them out. */
+  private readonly subwayColliderBySpec = new Map<ColliderSpec, AABB>();
   /** The day the flyer board is currently dressed for (slips rotate by day). */
   private flyerDay = 1;
   private washerLoad: THREE.Mesh | null = null;
@@ -332,7 +358,11 @@ export class World {
 
     // ---------------- ground & street (street runs along X) ----------------
     this.solid('Road', 0, -0.1, 0, 100, 0.2, 8, PAL.road, { receive: true, cast: false });
-    this.solid('Sidewalk_N', 0, -0.05, 6, 100, 0.3, 4, PAL.walk, { receive: true, cast: false });
+    // Sidewalk_N is split around the subway stairwell slot (x -45.9..-43.3,
+    // docs/50): same material, same top, two slabs — the descent opens the
+    // walking lane exactly where the headhouse always stood beside it.
+    this.solid('Sidewalk_N_W', -49.25, -0.05, 6, 1.5, 0.3, 4, PAL.walk, { receive: true, cast: false });
+    this.solid('Sidewalk_N_E', 2.05, -0.05, 6, 95.9, 0.3, 4, PAL.walk, { receive: true, cast: false });
     this.solid('Sidewalk_S', 0, -0.05, -6, 100, 0.3, 4, PAL.walk, { receive: true, cast: false });
     for (let i = 0; i < 6; i++) {
       // lifted clear of the road top (coplanar bottoms shimmered at grazing angles)
@@ -1157,6 +1187,43 @@ export class World {
     // InstancedMesh is a Mesh, and the bake must never swallow it
     this.buildInstancedTreeRows();
 
+    // ---- the far world (docs/50): the K line, Times Square, the M121 ----
+    // All zone-owned, all bake-excluded by root name, all far from any
+    // authored beat. The subway's static colliders land here once; the
+    // door colliders the ride toggles come and go by identity.
+    this.subwayRoot.name = 'SUB_Root';
+    this.scene.add(this.subwayRoot);
+    this.subway = buildSubwaySystem(
+      this.subwayRoot,
+      (c, opts) => this.mat(c, opts),
+      (c) => {
+        const b = boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d);
+        this.subwayColliderBySpec.set(c, b);
+        this.colliders.push(b);
+      },
+      (c) => {
+        const b = this.subwayColliderBySpec.get(c);
+        if (!b) return;
+        const i = this.colliders.indexOf(b);
+        if (i >= 0) this.colliders.splice(i, 1);
+        this.subwayColliderBySpec.delete(c);
+      },
+    );
+    const tsRoot = new THREE.Group();
+    tsRoot.name = 'TSS_Group';
+    this.scene.add(tsRoot);
+    this.timesSquare = buildTimesSquare(tsRoot, (c, opts) => this.mat(c, opts));
+    for (const c of this.timesSquare.colliders) {
+      this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d));
+    }
+    this.arrivalBus = buildArrivalBus((c, opts) => this.mat(c, opts));
+    this.scene.add(this.arrivalBus.group);
+    for (const c of this.arrivalBus.colliders) {
+      this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d));
+    }
+    this.collectTerminalShell();
+    this.buildSubwayCast();
+
     // ---- ambient pedestrians (Yuka steering) ----------------------------
     // Built AFTER the static bake so their rigs are never merge candidates;
     // bank-shared materials keep them material-free to add. Three walkers on
@@ -1688,7 +1755,12 @@ export class World {
       // the plaza decks stay named: probe-env6 verifies their proudness and
       // clearances by name (the "plaza owns its paving" regression) — two
       // receive-only slabs are a fair price for that identity
-      'Plaza_Deck_W', 'Plaza_Deck_E']);
+      'Plaza_Deck_W', 'Plaza_Deck_E',
+      // docs/50 far world: the terminal lifts off when the player is
+      // underground (the dollhouse), and the zone groups manage their own
+      // visibility — none of it may join a district tile (the street ring
+      // would light the tunnel forever)
+      'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121']);
     const excluded = (o: THREE.Object3D): boolean => {
       for (let p: THREE.Object3D | null = o; p !== null; p = p.parent) {
         if (skip.has(p) || NAMED_SKIP.has(p.name)) return true;
@@ -4109,6 +4181,112 @@ export class World {
     this.squirrel.update(dt, pp, dusk);
     this.leaves.update(dt, this.ambientTime);
     this.updateTreeRows(this.ambientTime); // the W1 rows sway with the block
+
+    // ---- the far world: zones, the dollhouse, the square, the bus ----
+    if (player && this.subway) {
+      const feet = player as { x: number; y: number; z: number };
+      this.subway.update(dt, feet, (key) => this.subwayBeats.push(key));
+      if (this.subway.underground !== this.dollhouseOn) {
+        this.dollhouseOn = this.subway.underground;
+        for (const m of this.terminalShell) m.visible = !this.dollhouseOn;
+        // the mass collider rides with the shell: the camera's boom ray-cast
+        // sees the cutaway the lens sees, or shortenBoom parks the lens on
+        // the (invisible) wall and the player fills the frame
+        if (this.dollhouseOn && this.terminalCollider) {
+          const i = this.colliders.indexOf(this.terminalCollider);
+          if (i >= 0) this.colliders.splice(i, 1);
+        } else if (!this.dollhouseOn && this.terminalCollider && !this.colliders.includes(this.terminalCollider)) {
+          this.colliders.push(this.terminalCollider);
+        }
+      }
+      this.timesSquare.group.visible = this.subway.lit.has('tsSurface');
+      const tsBeat = this.timesSquare.update(dt, feet, this.worldDay);
+      if (tsBeat) this.tsBeats.push(tsBeat);
+      this.arrivalBus.update(dt);
+      for (const person of this.subwayCast) {
+        updatePersonAnim(person, dt); // the idle breathe
+      }
+    }
+  }
+
+  /** Game calls this when the day changes — the sync beat is day-keyed. */
+  setWorldDay(day: number): void {
+    this.worldDay = day;
+  }
+
+  /** The K line's cast: Priya at the fare bank, the busker on the 42nd St
+   *  platform, and the riders who make a train a train. All ride their
+   *  zone groups' visibility; one breathe tick each from updateDynamics. */
+  private buildSubwayCast(): void {
+    const S = this.subway;
+    const place = (name: string, look: Parameters<typeof buildArticulatedPerson>[0],
+      g: THREE.Group, x: number, y: number, z: number, yaw: number): THREE.Group => {
+      const person = this.buildPerson(look);
+      person.name = name;
+      person.position.set(x, y, z);
+      person.rotation.y = yaw;
+      g.add(person);
+      this.subwayCast.push(person);
+      this.colliders.push(boxFromCenter(x, y + 0.9, z, 0.85, 1.8, 0.85));
+      return person;
+    };
+    // Priya — the conductor who waves you through (Doc 02: "Go on. It's
+    // one stop. You're with me.") — by the fare bank, facing the stairs
+    place('Priya', { jacket: 0x2A9D8F, pants: 0x3a3a42, skin: 0xe8b08e, hair: 0x2b2730, style: 'cap' },
+      S.groups.stationA, S.anchors.priya.x, S.anchors.priya.y, S.anchors.priya.z, Math.PI);
+    // the busker — 42nd St platform, sax up, coin cup out
+    const busker = place('TheBusker', { jacket: 0x6D4C7D, pants: 0x3a3a42, skin: 0xd9a06b, hair: 0x1a1a22, style: 'flat' },
+      S.groups.stationB, S.anchors.busker.x, S.anchors.busker.y, S.anchors.busker.z, Math.PI * 0.9);
+    const brass = (c: number) => this.mat(c);
+    const sax = new THREE.Group();
+    sax.name = 'SUB_Sax';
+    const pipe = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.5, 0.07), brass(0xB08D3C));
+    pipe.position.set(0.18, 1.05, 0.22);
+    const bell = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.2), brass(0xB08D3C));
+    bell.position.set(0.3, 0.72, 0.28);
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.22), brass(0x2b2430));
+    mouth.position.set(0.08, 1.32, 0.14);
+    sax.add(pipe, bell, mouth);
+    busker.add(sax);
+    // riders: two in the aligned car (the ride reads through the windows),
+    // one waiting on the 42nd St platform
+    const riderLook = { jacket: 0xB23A48, pants: 0x3a3a42, skin: 0xe8b08e, hair: 0x453b4c, style: 'bun' } as const;
+    place('SUB_Rider_A1', riderLook, S.groups.trainA, -46.2, STATION.floorTop, 16.5, Math.PI / 2);
+    place('SUB_Rider_A2', { jacket: 0x514659, pants: 0x473e50, skin: 0x8a5a3a, hair: 0x2b2730, style: 'cap' },
+      S.groups.trainA, -39.6, STATION.floorTop, 16.5, -Math.PI / 2);
+    place('SUB_Wait_B1', { jacket: 0x2A9D8F, pants: 0x473e50, skin: 0xd9a06b, hair: 0x1a1a22, style: 'flat' },
+      S.groups.stationB, -327.2, STATION.floorTop, 11.6, Math.PI);
+  }
+
+  /** Terminal-dressing collection for the dollhouse: every mesh whose
+   *  position sits over the station box (x -50.5..-20.5, z 7.7..20.2,
+   *  above grade) lifts off with the terminal mass. Zone groups manage
+   *  their own visibility and are skipped outright. */
+  private collectTerminalShell(): void {
+    const SKIP = new Set(['SUB_Root', 'TSS_Group', 'BUS_M121']);
+    const inZone = (o: THREE.Object3D): boolean => {
+      for (let p: THREE.Object3D | null = o; p; p = p.parent) {
+        if (SKIP.has(p.name)) return false;
+      }
+      return true;
+    };
+    this.scene.traverse((o) => {
+      if (!(o instanceof THREE.Mesh) || !inZone(o)) return;
+      const p = o.position;
+      if (p.x > -50.5 && p.x < -20.5 && p.z > 7.7 && p.z < 20.2 && p.y > -0.2) {
+        this.terminalShell.push(o);
+      }
+      // the north yard slab roofs the whole block (x −60..60, z 8..32) —
+      // without it in the shell, the cutaway looks at 120 m of lawn
+      if (o.name === 'Yard_N') this.terminalShell.push(o);
+    });
+    // the terminal mass's own collider, by its geometry (one 29×14×12 box)
+    for (const b of this.colliders) {
+      if (b.minX === -50 && b.maxX === -21 && b.maxY === 14 && b.minZ === 8) {
+        this.terminalCollider = b;
+        break;
+      }
+    }
   }
 
   /** Both phases, in order — kept for any caller that just wants "advance

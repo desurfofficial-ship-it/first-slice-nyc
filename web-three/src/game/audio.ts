@@ -23,6 +23,8 @@ class GameAudio {
   private trafficTimer: number | null = null;
   private cooTimer: number | null = null;
   private washNodes: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
+  private rumbleNodes: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
+  private saxTimer: number | null = null;
   private muted = false;
   private tried = false;
 
@@ -289,12 +291,87 @@ class GameAudio {
     } catch { /* one silent note is not a failure */ }
   }
 
+  // ---- docs/50 far world: the K line, the square, the bus ----------------
+  // House rules hold: synthesized, gain-enveloped, mute-respecting, and
+  // the two loops (rumble, sax) each keep a single owner.
+
+  /** The turnstile pass — two quick metallic ticks, arm-then-arm. */
+  turnstile(): void {
+    this.blip({ dur: 0.06, type: 'bandpass', freq: 2400, peak: 0.06, attack: 0.004 });
+    window.setTimeout(() => this.blip({ dur: 0.08, type: 'bandpass', freq: 1800, peak: 0.05, attack: 0.004 }), 110);
+  }
+
+  /** The door chime — the two-note "stand clear of the closing doors". */
+  doorChime(): void {
+    this.tone(987.77, 0.22, 0.05);
+    window.setTimeout(() => this.tone(659.25, 0.3, 0.045), 180);
+  }
+
+  /** The PA — three ascending notes, the arrival announcement's bell. */
+  announce(): void {
+    this.tone(523.25, 0.18, 0.04);
+    window.setTimeout(() => this.tone(659.25, 0.18, 0.04), 160);
+    window.setTimeout(() => this.tone(783.99, 0.34, 0.045), 320);
+  }
+
+  /** The ride's rumble — a loop with one owner, like the washer. */
+  rumbleStart(): void {
+    if (!this.ctx || !this.master || this.rumbleNodes) return;
+    const len = 2;
+    const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * len, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < d.length; i++) {
+      const white = Math.random() * 2 - 1;
+      last = (last + 0.04 * white) / 1.04; // brown-ish
+      d[i] = last * 3.2;
+    }
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    const gain = this.ctx.createGain();
+    gain.gain.value = 0;
+    gain.gain.linearRampToValueAtTime(0.16, this.ctx.currentTime + 1.2);
+    src.connect(gain).connect(this.master);
+    src.start();
+    this.rumbleNodes = { src, gain };
+  }
+
+  rumbleStop(): void {
+    if (!this.rumbleNodes || !this.ctx) return;
+    const { src, gain } = this.rumbleNodes;
+    this.rumbleNodes = null;
+    gain.gain.cancelScheduledValues(this.ctx.currentTime);
+    gain.gain.setValueAtTime(gain.gain.value, this.ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.9);
+    window.setTimeout(() => { try { src.stop(); } catch { /* stopped */ } }, 1000);
+  }
+
+  /** The busker's sax — a soft two-note phrase on a timer while you're
+   *  near the 42nd St platform. Single owner: saxStart/saxStop. */
+  saxStart(): void {
+    if (this.saxTimer !== null || !this.ctx) return;
+    const phrase = () => {
+      const base = 293.66 + [0, 0, 43.65, 65.41][Math.floor(Math.random() * 4)];
+      this.tone(base, 0.5, 0.028, 'triangle', 500);
+      window.setTimeout(() => this.tone(base * 1.25, 0.62, 0.024, 'triangle', 500), 480);
+      this.saxTimer = window.setTimeout(phrase, 2600 + Math.random() * 1800);
+    };
+    phrase();
+  }
+
+  saxStop(): void {
+    if (this.saxTimer !== null) { window.clearTimeout(this.saxTimer); this.saxTimer = null; }
+  }
+
   /** Page teardown — stop every scheduled voice. Nothing gameplay-bearing
    *  lives here, so a disposed layer is just a quiet one. */
   dispose(): void {
     if (this.trafficTimer !== null) { window.clearTimeout(this.trafficTimer); this.trafficTimer = null; }
     if (this.cooTimer !== null) { window.clearTimeout(this.cooTimer); this.cooTimer = null; }
+    if (this.saxTimer !== null) { window.clearTimeout(this.saxTimer); this.saxTimer = null; }
     this.washStop();
+    this.rumbleStop();
     try { this.ctx?.close(); } catch { /* already closed */ }
     this.ctx = null;
     this.master = null;

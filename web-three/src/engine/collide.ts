@@ -174,12 +174,23 @@ export function depenetrate(boxes: AABB[], c: Capsule, stepUp: number): void {
  * Also reports whether the feet are currently inside any box volume (tunnel check).
  */
 export function groundHeight(boxes: AABB[], c: Capsule, snap: number): number {
+  // docs/50: the world grew a BELOW GRADE (the K-line station). The old law
+  // — best starts at 0 — made every underground floor invisible to the
+  // walker (a platform at −3.2 snapped the player back up to the street).
+  // The law now: the HIGHEST box top under the capsule qualifies even when
+  // it is below the y=0 grade; the implicit 0 only returns when NO box top
+  // is in reach (the shipped over-the-map default, unchanged for every
+  // above-grade surface — all existing tops are ≥ 0 and still win).
   let best = 0;
+  let found = false;
   for (const b of boxes) {
     if (!circleOverlapsRectXZ(c, b, c.radius * 0.6)) continue;
-    if (b.maxY <= c.y + snap && b.maxY > best) best = b.maxY;
+    if (b.maxY <= c.y + snap && (!found || b.maxY > best)) {
+      best = b.maxY;
+      found = true;
+    }
   }
-  return best;
+  return found ? best : 0;
 }
 
 /** Highest box top under a circle, regardless of feet height (for camera/kill checks). */
