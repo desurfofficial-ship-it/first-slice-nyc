@@ -316,7 +316,7 @@ export class Game {
     if (this.world.kidGround.visible) peds.push({ x: this.world.kidGround.position.x, z: this.world.kidGround.position.z });
     if (this.world.stranger.visible) peds.push({ x: this.world.stranger.position.x, z: this.world.stranger.position.z });
     if (this.world.familiar.visible) peds.push({ x: this.world.familiar.position.x, z: this.world.familiar.position.z });
-    this.world.updateDynamics(dt, this.player.capsule, peds);
+    this.world.updateDynamics(dt, this.player.capsule, peds, this.duskStarted);
     if (!this.dayFading && this.ui.nameBox.hidden && this.ui.orderCard.hidden && !this.mapOpen) {
       // movement — paused on the bench (Doc 37 §3C: the seat holds you;
       // physics would drag the capsule off it, so the walker simply rests)
@@ -349,10 +349,11 @@ export class Game {
 
     // world life (Rule of Steam) — phase 2 only here: the walkers steer
     // around the fresh player position, trees breathe, pigeons worry about
-    // your shoes. (Phase 1 — colliders + the cab, yielding to the kid AND
-    // the stranger AND the familiar face — ran before the walker.)
+    // your shoes. (Phase 1 — colliders + the cab + the M121, yielding to the
+    // kid AND the stranger AND the familiar face — ran before the walker.)
     this.world.updateAmbient(dt, this.player.capsule, this.duskStarted);
     this.syncGlows();
+    this.maybeBuskerHorn(dt);
 
     // Day 3+4: the urn runs on its own clock; the kid walks at your hip
     if (s.brewing) {
@@ -1087,6 +1088,25 @@ export class Game {
     ], 2.0, () => {
       she.visible = false;
     });
+  }
+
+  // ---- the busker's horn (docs/33 §2.5, W4 p2) ---------------------------
+  // "Rarely, a busker's horn note from below" — the SUB-02 corner's voice.
+  // Dusk-law compliant: it only plays while dusk lasts (the plaza settles
+  // at night), only within earshot of the control house, and rarely — a few
+  // notes an evening. Garnish like the pigeons' coo: no state, no gates,
+  // nothing the E2E waits on.
+  private hornCooldown = 14; // the first dusk note comes early enough to be heard
+
+  private maybeBuskerHorn(dt: number): void {
+    if (!this.duskStarted) return;
+    const dx = this.player.capsule.x - (-57);
+    const dz = this.player.capsule.z - (-6.25);
+    if (dx * dx + dz * dz > 26 * 26) return; // the horn lives at SUB-02's corner
+    this.hornCooldown -= dt;
+    if (this.hornCooldown > 0) return;
+    this.hornCooldown = 55 + Math.random() * 60;
+    gameAudio.hornNote();
   }
 
   private startDusk(): void {

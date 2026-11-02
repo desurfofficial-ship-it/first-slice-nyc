@@ -252,6 +252,43 @@ class GameAudio {
     this.tone(420 + Math.random() * 60, 0.22, 0.02, 'sine', 300);
   }
 
+  /** The busker's horn from below (docs/33 §2.5, W4 p2) — one muffled
+   *  brass-ish note, lowpassed hard so it reads as coming up through the
+   *  grate, with a soft fifth above it. Rare by its caller's law; the voice
+   *  itself is one-shot and gain-enveloped like every other here. */
+  hornNote(): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.master || this.muted) return;
+    try {
+      const t = ctx.currentTime;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 420; // "from below" — the street between you and it
+      lp.Q.value = 0.6;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.032, t + 0.09);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 1.5);
+      lp.connect(g).connect(this.master);
+      const root = ctx.createOscillator();
+      root.type = 'triangle';
+      root.frequency.setValueAtTime(228, t);
+      root.frequency.linearRampToValueAtTime(238, t + 0.55); // a breath up
+      root.frequency.linearRampToValueAtTime(232, t + 1.4);
+      const fifth = ctx.createOscillator();
+      fifth.type = 'triangle';
+      fifth.frequency.setValueAtTime(342, t);
+      const fg = ctx.createGain();
+      fg.gain.setValueAtTime(0, t);
+      fg.gain.linearRampToValueAtTime(0.011, t + 0.14);
+      fg.gain.exponentialRampToValueAtTime(0.0001, t + 1.3);
+      root.connect(lp);
+      fifth.connect(fg).connect(lp);
+      root.start(t); root.stop(t + 1.55);
+      fifth.start(t); fifth.stop(t + 1.35);
+    } catch { /* one silent note is not a failure */ }
+  }
+
   /** Page teardown — stop every scheduled voice. Nothing gameplay-bearing
    *  lives here, so a disposed layer is just a quiet one. */
   dispose(): void {

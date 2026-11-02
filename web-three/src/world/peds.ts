@@ -148,6 +148,7 @@ export class Pedestrians {
   private playerObstacle: GameEntity;
   private cartObstacle: GameEntity;
   private taxiObstacle: GameEntity;
+  private busObstacle: GameEntity;
   private castObstacle: GameEntity;
   private time = 0;
   private roads: readonly RoadRect[];
@@ -186,12 +187,16 @@ export class Pedestrians {
     this.cartObstacle.radius = 1.35;
     this.taxiObstacle = new GameEntity();
     this.taxiObstacle.radius = 2.4; // the cab's half-length is the danger zone
+    this.busObstacle = new GameEntity();
+    this.busObstacle.radius = 3.4; // the M121 (W4 p2): half its 9.6 m length
+    // plus a stride — walkers part around it earlier than around the cab
     this.castObstacle = new GameEntity();
     this.castObstacle.radius = 0.5;
-    this.obstacles.push(this.playerObstacle, this.cartObstacle, this.taxiObstacle, this.castObstacle);
+    this.obstacles.push(this.playerObstacle, this.cartObstacle, this.taxiObstacle, this.busObstacle, this.castObstacle);
     this.manager.add(this.playerObstacle);
     this.manager.add(this.cartObstacle);
     this.manager.add(this.taxiObstacle);
+    this.manager.add(this.busObstacle);
     this.manager.add(this.castObstacle);
 
     // one real body per walker — parked at y −999 (the cast-collider trick:
@@ -271,10 +276,10 @@ export class Pedestrians {
   }
 
   /**
-   * Push every walker out of the cab's footprint (shortest exit, capped).
-   * Called by World AFTER the cab's committed move — the pedestrian yields
-   * to the vehicle, never the reverse. Yuka's path steering resumes the
-   * route the moment the footprint clears.
+   * Push every walker out of a vehicle's footprint (shortest exit, capped).
+   * Called by World AFTER the cab's — and the M121's — committed move: the
+   * pedestrian yields to the vehicle, never the reverse. Yuka's path
+   * steering resumes the route the moment the footprint clears.
    */
   resolveAgainstCab(cabRect: AABB): void {
     const push: CirclePush = { x: 0, z: 0 };
@@ -292,12 +297,14 @@ export class Pedestrians {
     cart?: { x: number; z: number },
     taxi?: { x: number; z: number },
     cast?: { x: number; z: number },
+    bus?: { x: number; z: number },
   ): void {
     this.time += dt;
     if (player) this.playerObstacle.position.set(player.x, 0, player.z);
     if (cart) this.cartObstacle.position.set(cart.x, 0, cart.z);
     if (taxi) this.taxiObstacle.position.set(taxi.x, 0, taxi.z);
     if (cast) this.castObstacle.position.set(cast.x, 0, cast.z);
+    if (bus) this.busObstacle.position.set(bus.x, 0, bus.z);
 
     // ---- routines (Phase 4, Doc 37 §3E): the day's scheduled beats -------
     // Position-triggered, round-robin, no random: a walker near their next

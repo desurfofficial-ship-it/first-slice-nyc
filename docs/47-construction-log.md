@@ -636,3 +636,133 @@ memory mini-game (v0 ships the plain echo, per Doc 07's "tiny memory
 moment"); the Map's writing animation stroke-by-stroke (VS-F01 v1);
 VO of the five signature lines (Doc 07 TBD-1); Times Square and Subway
 University remain Doc 02 beats outside the greybox block.
+
+## W4 part 2 — the traffic + dusk layer (SHIPPED 2026-11-02)
+
+**Scope honored:** everything the part-1 entry listed as explicitly NOT
+done. The M121 (registry transit.bus, routes V-BUS), the cab rail to ±84
+with the extended courtesy zones, the busker's horn note, NZ-COURT's dusk
+pair, the TEN-01 laundry, the hall's day-keyed notice board, and the
+30-minute ped soak. The §7 open decision is CLOSED: the bus is a dedicated
+low-poly body (six draw calls: cream slab+roof, teal livery stripe, window
+band + curb door, wheels, hubs+bumpers, the one canvas rollsign) — a
+scaled car reads as a stretched car; a long box with a window band reads
+as a bus. Not glb-upgradable: the seam is the cab's experiment, not the
+fleet's.
+
+**Architecture — the route law (engine/busRoute.ts, pure, no THREE):**
+the loop folds into four axis-aligned legs so the cab's own traffic brain
+(approachSpeed / noseLimit / bodyConflictsWithCab) runs UNCHANGED in leg
+space — advance = along travel, lateral = right of it, and the cab's
+world-space math is numerically identical in shape. That reuse IS the
+registry's "a rail mover like the cab with the same yield brain". Leg 0
+Kestrel westbound carries the three stops; lanes are laws (the Kestrel
+drive lane rides z +0.8 — 12.5 cm of air past the parked Kestrel cars;
+the curb pull-outs happen only at bays). The cab reads the same
+PARKED_CAR_RECTS list and brakes for the bus exactly like a parked car;
+the bus's pool reads the cab's fresh rect one frame stale (the stopGap
+absorbs the closing at these speeds). Arrivals deterministic: authored
+dwells (BUS-03 4 s, BUS-01 4 s, the bay 9 s), no randomness; the bay
+dwell never expires while dusk lasts (the dusk law — the last evening bus
+goes home and the district settles).
+
+**Two route laws the probes caught (both fixed in-phase):**
+
+1. **The Zeno halt (the 110-second stall).** The first full-lap probe
+   stall-traced the bus frozen at nose x −26.1 — exactly haltGap short of
+   the BUS-01 mark, dwell −0.1, for 110+ s with an EMPTY lane. Root cause:
+   the braking curve is v = gain·air, so closing speed decays with the
+   air — the nose approaches the halt line geometrically and the serve
+   test `clearance <= haltGap` compares against an asymptote; once the
+   per-frame creep sinks under the float ULP the bus stands ~4e-13 m
+   short of the line forever. Fix: the dwell arms within `haltEps`
+   (0.02 m) of the line too, and the serve snaps the last whisker — the
+   halt lands ON the mark, deterministically, every lap.
+2. **The unreachable mark.** BUS-03 was authored at the bay paint's east
+   edge (a 4.7) — CLOSER to the Sycamore corner than the nose itself
+   (halfLen 4.8 + wrap overshoot), so the per-leg stop scan could never
+   see it after a wrap: the stop was skipped every lap. The registry
+   pins POLES, not paint edges — and BUS-01's own comment already held
+   the law ("the front door at the pole", nose 2 m short of the pole).
+   BUS-03 now follows the same door law: nose x 59.5 (a 12.7), fully
+   post-wrap, servable every lap. The door law also puts the halt where
+   a player reads "the bus is at the stop" — the pole.
+
+**Also landed**
+
+- **Cab rail to ±84** (registry taxi.phaseW4) with the extended courtesy
+  zones (busRoute.KESTREL_COURTESY_ZONES: XW-COURT, XW-CANON numbers
+  preserved, both junction boxes) — the cab and the bus yield at the
+  same paint, one shared list.
+- **The batch-consolidation lever** (the recorded path down from W4
+  p1's +177): fold (color, cast=1, receive=0) batches into the same
+  tile's (color, cast=1, receive=1) batch — the parked cars stopped
+  opening cast-only batches in every district tile; buildCar and the
+  bus/court figures now carry receiveShadow like the world's solids.
+  Deliberately narrow: receive-only and flat batches stay put.
+- **NZ-COURT's dusk pickup pair**: two posed rigs MERGED BY MATERIAL
+  into five meshes (a dusk-toggled figure would ride ~10 rig parts
+  each), visible only while dusk lasts. Shooter hands-up, defender
+  arms-out; identity by silhouette.
+- **TEN-01's laundry**: lines strung from the Old-Law pair's fire-escape
+  rails over the Juniper walk, garments in the world's palette. Static —
+  the bake swallows every box, zero draw calls.
+- **The hall's notice board** (LMK-07's dressing): the plain box joins
+  the bake; the canvas face re-letters per day (dressDay → one canvas
+  fill — no geometry churn). Authored set for days 1–4, the fair repeats
+  beyond it.
+- **The busker's horn** (docs/33 §2.5): one muffled brass note from
+  below, lowpassed hard, a soft fifth above. Dusk-law compliant (only
+  while dusk lasts, only within earshot of SUB-02's corner, a few notes
+  an evening). Garnish — no state, nothing the E2E waits on.
+- **peds.ts**: the bus obstacle (radius 3.4 — walkers part around the
+  M121 earlier than around the cab) + resolveAgainstCab now post-move
+  truth for both movers.
+
+**Performance ledger** (probe-w0-census, same rigs; W4p1 → W4p2):
+
+| Rig | W4p1 | W4p2 | Δ | Tris |
+|---|---|---|---|---|
+| PLAZA | 973 | **969** | −4 | 134.0k |
+| CART_CORNER | 821 | **816** | −5 | 115.9k |
+| SYCAMORE×GABLE | 490 | **483** | −7 | 94.1k |
+
+Honest accounting: the fold clawed back the W4 p1 debt's first slice
+(net DOWN across all three rigs) while ADDING the bus (6 calls, dynamic)
+and the dusk pair (9 calls, dusk-only) — the census counts the boot state,
+where both are hidden or off-rig. The Doc 07 budget line (150/250) remains
+failed and remains published: the debt is W3's +100 dusk calls plus the
+avenue walls' tile granularity, and the next lever is recorded (per-tile
+figure palette sharing), not promised.
+
+**Verification**: tsc clean · vitest **257/257** (243 + 14 bus tests —
+the loop closes, the lanes legally clear the parked cars, the marks land
+where the registry pins them, the bus and the cab yield at the same
+paint) · build clean · registry validator green (117 IDs, 12/12 masses,
+18/18 anchors) · probe-w0-census OK (ledger above) · probe-peds OK ·
+probe-solid ALL CLEAN (4/4) · probe-w3-ghost PASS · **probe-w4-bus OK
+12/12** (boot lay-over, departure, the XW-COURT rest at 46.9 vs the
+authored 46.85, the lane yield Δa 0.00, all four legs, 2 laps in 145 s,
+19 dwell samples landing at the three registry stops, zero walker-in-bus,
+zero cab-bus interpenetration) · **probe-w4-soak OK** — 30.8 sim-minutes
+(1846 sim-s at the app's own 0.1 dt, 8 steps per 150 ms wall, 42 samples):
+no NaN, no roadway violations, no persistent vehicle/cart overlaps, no
+stuck walkers (two-window stillness < 5 cm against a 6 s max dwell), no
+page errors · E2E: OK — 0 failures, 104/104, 344 s · visual evidence:
+w4-bus-stop01.png (the M121 halted at BUS-01, door side to the curb),
+w4-bus-gable.png (mid-lap in its lane), w4-court-dusk-pair.png (the
+pickup pair posed at the barbershop court). The TEN-01 laundry is bake-
+verified (the census batch names) but not frameable from the walk
+camera — it hangs 5–9 m up a wall the isometric camera meets edge-on;
+flagged for the W5 interior pass's window views.
+
+**Probe forensics kept**: scripts/probe-w4-trace.mjs (the 180 s stall
+trace that caught the Zeno) and scripts/probe-w4-stall.mjs (the pool
+forensics that cleared the walkers/cab/player) — the honest-accounting
+path from "5 failures" to two named route laws.
+
+**W4 phase exit**: all four docs/45 acceptance lines met — 13 zones
+populated day-keyed (part 1), the bus loop completes with yields (this
+part), no ped stuck states over the 30-min soak (this part), the story
+cast untouched (both). Remaining per the plan: **W5 (interiors batch —
+8–10 interior spaces + visibility toggles)**.

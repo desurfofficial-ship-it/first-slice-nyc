@@ -11,8 +11,13 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PAL } from '../core/palette';
 import { ITEM_LABELS } from '../core/content';
-import { boxFromCenter, type AABB } from '../engine/collide';
+import { boxFromCenter, type AABB, type RectXZ } from '../engine/collide';
 import { approachSpeed, bodyConflictsWithCab, noseLimit, type TrafficBody } from '../engine/traffic';
+import {
+  buildM121, travelYaw, worldToLeg, legToWorld, aabbToLeg,
+  PARKED_CAR_RECTS, parkedCarRect, BUS_BODY, BUS_BAY_ID, KESTREL_COURTESY_ZONES,
+  type BusZone, type LegCoords,
+} from '../engine/busRoute';
 import { buildArticulatedPerson } from './personRig';
 import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecycleBin, makeHydrant,
   makeSubwayEntrance, makeBulletinBoard, makeBench, makeBusStop, makeNewspaperBoxes, makeBarrier,
@@ -25,7 +30,7 @@ import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
 import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
-import { ambientWindowPlan, barrierDiary, flyerSlipForDay } from './dressing';
+import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay } from './dressing';
 import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT } from '../core/content';
 
 export interface LadderInfo { area: AABB; top: number; }
@@ -75,6 +80,30 @@ export class World {
   private taxiBase: THREE.Group;
   /** The cab's collider — boxFromCenter once, then moved every frame. */
   readonly taxiCollider: AABB;
+  // ---- W4 part 2: the M121 (registry transit.bus, routes V-BUS) ----------
+  /** The bay halt's nose advance — the boot state parks the bus there. */
+  private static readonly M121_BAY_A = 72.2 + 33.8;
+  /** The boot layover: the full bay dwell (the district wakes mid-morning;
+   *  the bus pulls out shortly after you do). */
+  private static readonly M121_BAY_DWELL = 9;
+  /** The route law, built once (engine/busRoute). */
+  private readonly M121_LEGS = buildM121();
+  /** The district's bus — the dedicated low-poly body (the open §7 decision:
+   *  a scaled car reads as a stretched car; a long box with a window band,
+   *  a curb-side door and the M121 rollsign reads as a bus). NOT glb-
+   *  upgradable — the seam is the cab's experiment, not the fleet's. */
+  private busGroup!: THREE.Group;   // built in buildAlderHeightsW4Traffic (constructor)
+  /** The bus's collider — the yaw-aligned body's AABB superset, synced
+   *  every frame like the cab's (a body you can ghost through reads broken). */
+  busCollider!: AABB;
+  /** The rail state: which leg, the CENTER's advance, the lateral offset
+   *  (0 = drive lane, + = the curb pull-out), the stop dwell left, laps
+   *  done, the eased yaw, and the night flag (the bay dwells through the
+   *  night — the dusk law). Deterministic: authored dwells, no randomness. */
+  private readonly busState = {
+    leg: 0, a: World.M121_BAY_A - BUS_BODY.halfLen, lat: 1.6,
+    dwell: World.M121_BAY_DWELL, laps: 0, yaw: Math.PI, night: false, servedStop: null as string | null,
+  };
   /** The cart is furniture now: it has a collider, so "he passed through the
    *  cart" is over (playtest 2026-10-30). Static — it never moves. */
   readonly cartCollider: AABB;
@@ -1112,6 +1141,12 @@ export class World {
     // the BUS-03 stop — all pre-bake so the W0 merge swallows them (the
     // perf law: the zones cost merges, not draw calls).
     this.buildAlderHeightsW4Life();
+    // W4 part 2: the M121's body (dynamic, never baked), the half-court's
+    // dusk pickup pair (dusk-toggled, merged by material), the TEN-01
+    // laundry (static, bakes free) and the hall's notice board (the face
+    // carries a canvas texture, so it stays out of the bake by itself).
+    this.buildAlderHeightsW4Traffic();
+
 
     // leaf drift, now over every tree on the block (shipped 12 + W1 rows)
     this.leaves = new LeafDrift(this.scene, [...leafSpots, ...this.extraLeafSpots], 4);
@@ -1368,8 +1403,10 @@ export class World {
     // NZ-BUSKER — the horn man at the SUB-02 corner, case open at his feet
     figure('NZBusker', { jacket: 0x3a3440, pants: 0x1f1b23, skin: 0x8a5a3b, hair: 0x2b2730, style: 'cap', scale: 1.01 },
       -52.6, 0.1, -5.5, 0);
-    this.decoMesh('Busker_Case', new THREE.BoxGeometry(0.65, 0.12, 0.42),
+    const buskerCase = this.decoMesh('Busker_Case', new THREE.BoxGeometry(0.65, 0.12, 0.42),
       this.bank.get(0x8a6a4a), -52.6, 0.16, -4.95);
+    buskerCase.castShadow = true;   // the fold: cast+receive like the world's solids
+    buskerCase.receiveShadow = true;
 
     // ---- the parked cars (registry transit.parkedCars + the W2 strip) ----
     const car = (name: string, x: number, z: number, yaw: number, alongZ = false): void => {
@@ -1403,9 +1440,231 @@ export class World {
     this.scene.add(m121b);
   }
 
+  // ------------------------------------------------------- W4, part 2 -----
+  // The traffic + dusk layer: the M121's body, the half-court's dusk pickup
+  // pair, the TEN-01 laundry and the hall's day-keyed notice. Build order is
+  // the perf law: everything static goes in BEFORE bakeStatics (the merge
+  // swallows it); the bus and the dusk pair are dynamic and carry their own
+  // skip entries below.
+
+  /** The M121's body — the dedicated low-poly bus (doc 45 §7 open decision
+   *  closed: a scaled car reads as a stretched car; a long cream box with a
+   *  window band, a teal stripe, a curb-side door and the M121 rollsign
+   *  reads as a bus). Six draw calls when visible, all bank-shared but the
+   *  rollsign's canvas face. Geometry faces +x (the car-builder convention,
+   *  travelYaw() maps legs onto it). receiveShadow ON — the W4 p2 batch
+   *  fold starts here: the cars and the bus share the world's cast+receive
+   *  signatures instead of opening cast-only batches in every tile. */
+  private buildBus(): THREE.Group {
+    const g = new THREE.Group();
+    g.name = 'M121_Bus';
+    const merged = (geos: THREE.BufferGeometry[], color: number): THREE.Mesh => {
+      const m = new THREE.Mesh(mergeGeometries(geos, false)!, this.bank.get(color));
+      m.castShadow = true;
+      m.receiveShadow = true;
+      g.add(m);
+      return m;
+    };
+    // body slab + roof cap (one cream batch)
+    merged([
+      new THREE.BoxGeometry(9.6, 2.2, 2.3).translate(0, 1.45, 0),
+      new THREE.BoxGeometry(9.6, 0.14, 2.3).translate(0, 2.62, 0),
+    ], PAL.cream);
+    // the livery stripe
+    merged([new THREE.BoxGeometry(9.64, 0.34, 2.32).translate(0, 1.05, 0)], PAL.teal);
+    // window band + the curb-side door (the door rides local −z: the right
+    // of travel — check it with the westbound leg: yaw π maps −z to +z, the
+    // north curb every Kestrel stop pulls toward)
+    merged([
+      new THREE.BoxGeometry(9.0, 0.78, 2.34).translate(-0.1, 2.05, 0),
+      new THREE.BoxGeometry(0.06, 1.75, 0.95).translate(2.9, 1.12, -1.14),
+    ], PAL.windowDim);
+    // wheels, then hubs + bumpers (two stone/manhole batches)
+    const wheelGeos: THREE.BufferGeometry[] = [];
+    const hubGeos: THREE.BufferGeometry[] = [];
+    for (const wx of [-3.4, 3.4]) {
+      for (const wz of [-0.98, 0.98]) {
+        wheelGeos.push(new THREE.CylinderGeometry(0.4, 0.4, 0.24, 12)
+          .rotateX(Math.PI / 2).translate(wx, 0.4, wz));
+        hubGeos.push(new THREE.CylinderGeometry(0.18, 0.18, 0.26, 10)
+          .rotateX(Math.PI / 2).translate(wx, 0.4, wz));
+      }
+    }
+    hubGeos.push(new THREE.BoxGeometry(0.12, 0.2, 2.2).translate(4.78, 0.55, 0));
+    hubGeos.push(new THREE.BoxGeometry(0.12, 0.2, 2.2).translate(-4.78, 0.55, 0));
+    merged(wheelGeos, PAL.manhole);
+    merged(hubGeos, PAL.stone);
+    // the rollsign — the one canvas face, above the windshield
+    const sign = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.1, 0.36),
+      new THREE.MeshLambertMaterial({ map: this.textTexture('M121', 128, 42, PAL.taxi, PAL.ink, 30) }),
+    );
+    sign.rotation.y = Math.PI / 2;
+    sign.position.set(4.81, 2.42, 0);
+    g.add(sign);
+    return g;
+  }
+
+  /** The half-court's dusk pickup pair (registry npcZones NZ-COURT, "when:
+   *  dusk"). Two posed rigs MERGED BY MATERIAL into five meshes — a
+   *  dusk-toggled figure would otherwise ride ~10 rig parts each. Visible
+   *  only while dusk lasts (updateAmbient); hidden at boot. */
+  private buildCourtDuskPair(): THREE.Group {
+    const g = new THREE.Group();
+    g.name = 'NZCourt_Dusk';
+    // one shared palette for the whole pair — identity by silhouette
+    const looks: Array<[PedLook, number, number, number, (rig: { armL: THREE.Group; armR: THREE.Group; hipL: THREE.Group; hipR: THREE.Group }) => void]> = [
+      [{ jacket: 0x7d5a62, pants: 0x47404b, skin: 0xc98e5a, hair: 0x2b2730, style: 'cap', scale: 0.99 },
+        42.0, 6.3, Math.atan2(44.25 - 42.0, 7.9 - 6.3),
+        (r) => { r.armL.rotation.x = -2.55; r.armR.rotation.x = -2.4; }], // the shooter, hands up
+      [{ jacket: 0x5d6b4a, pants: 0x39423a, skin: 0x8a5a3b, hair: 0x6e3b2a, style: 'flat', scale: 1.04 },
+        43.5, 5.4, Math.atan2(42.0 - 43.5, 6.3 - 5.4),
+        (r) => { r.armL.rotation.z = 0.85; r.armR.rotation.z = -0.85; }], // the defender, arms out
+    ];
+    const byMat = new Map<THREE.MeshLambertMaterial, THREE.BufferGeometry[]>();
+    for (const [look, x, z, yaw, pose] of looks) {
+      const { group, rig } = buildArticulatedPerson(look, (c) => this.bank.get(c));
+      pose(rig);
+      group.position.set(x, 0.1, z);
+      group.rotation.y = yaw;
+      group.updateWorldMatrix(true, true);
+      group.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        const mat = o.material as THREE.MeshLambertMaterial;
+        const geo = o.geometry.clone();
+        geo.applyMatrix4(o.matrixWorld);
+        for (const name of Object.keys(geo.attributes)) {
+          if (name !== 'position' && name !== 'normal' && name !== 'uv') geo.deleteAttribute(name);
+        }
+        let list = byMat.get(mat);
+        if (!list) byMat.set(mat, list = []);
+        list.push(geo);
+      });
+    }
+    for (const [mat, geos] of byMat) {
+      const m = new THREE.Mesh(mergeGeometries(geos, false)!, mat);
+      m.castShadow = true;
+      m.receiveShadow = true;
+      g.add(m);
+    }
+    g.visible = false;
+    return g;
+  }
+
+  /** TEN-01's laundry (docs/47 W3 "explicitly NOT done"): lines strung from
+   *  the Old-Law pair's fire-escape rails over the Juniper walk, garments
+   *  in the world's own palette. Static — the bake swallows every box, so
+   *  the dressing costs zero draw calls. */
+  private buildTen01Laundry(): void {
+    // the escape hangs on the west face: wall x −60.02, rail at x −60.82,
+    // platforms y 4.4 / 8.2 (rail tops +0.97), spanning z −16.5..−11.5
+    const line = (y: number): void => {
+      const l = this.decoMesh(`TEN01_Line_${y}`, new THREE.BoxGeometry(0.025, 0.025, 4.7),
+        this.bank.get(PAL.ink), -60.8, y, -14);
+      l.castShadow = true;
+      l.receiveShadow = true;
+    };
+    line(9.17);
+    line(5.37);
+    // wall anchors (the little pulley knobs the lines tie to)
+    for (const y of [9.17, 5.37]) {
+      for (const z of [-16.3, -11.7]) {
+        const knob = this.decoMesh(`TEN01_Pulley_${y}_${z}`, new THREE.BoxGeometry(0.07, 0.07, 0.07),
+          this.bank.get(PAL.ink), -60.02, y, z);
+        knob.castShadow = true;
+        knob.receiveShadow = true;
+      }
+    }
+    // the wash — thin boxes read as cloth from the walk; cream/stone/teal
+    // keep every signature inside the batches the tile already runs
+    const wash: Array<[number, number, number, number]> = [
+      // [z, y-line, color, tilt]
+      [-15.6, 9.17, PAL.cream, 0.05],
+      [-14.5, 9.17, PAL.stone, -0.07],
+      [-13.3, 9.17, PAL.teal, 0.04],
+      [-12.4, 9.17, PAL.cream, -0.05],
+      [-14.9, 5.37, PAL.amber, 0.06],
+      [-13.0, 5.37, PAL.stone, -0.04],
+    ];
+    for (const [z, y, color, tilt] of wash) {
+      const piece = this.decoMesh(`TEN01_Wash_${z}_${y}`, new THREE.BoxGeometry(0.035, 0.62, 0.44),
+        this.bank.get(color), -60.78, y - 0.34, z);
+      piece.rotation.x = tilt;
+      piece.castShadow = true;
+      piece.receiveShadow = true;
+    }
+  }
+
+  /** The Alder Works Hall's notice board (LMK-07's dressing): a small ink
+   *  board under the marquee whose canvas face dressDay() re-letters. The
+   *  plain box joins the bake; the face stays out by itself (map). */
+  private buildHallNotice(): void {
+    const box = this.decoMesh('LMK07_Notice', new THREE.BoxGeometry(0.12, 0.62, 2.2),
+      this.bank.get(PAL.ink), -60.07, 5.15, 26);
+    box.castShadow = true;
+    box.receiveShadow = true;
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 112;
+    this.noticeCanvas = c;
+    this.noticeTex = new THREE.CanvasTexture(c);
+    this.noticeTex.colorSpace = THREE.SRGBColorSpace;
+    this.noticeMat = new THREE.MeshLambertMaterial({ map: this.noticeTex });
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(2.05, 0.5), this.noticeMat);
+    face.name = 'LMK07_Notice_Face';
+    face.rotation.y = -Math.PI / 2; // faces west, at the Juniper walk
+    face.position.set(-60.14, 5.15, 26);
+    this.scene.add(face);
+    this.dressHallNotice(1); // Game calls dressDay(1) at boot — this is the pre-bake default
+  }
+
+  /** Redraw the hall's notice for a day (called from dressDay). One canvas
+   *  fill on the day roll — no geometry, no draw-call churn. */
+  private dressHallNotice(day: number): void {
+    const c = this.noticeCanvas;
+    const ctx = c?.getContext('2d');
+    if (!c || !ctx || !this.noticeTex) return;
+    ctx.fillStyle = '#' + PAL.ink.toString(16).padStart(6, '0');
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.strokeStyle = '#' + PAL.cream.toString(16).padStart(6, '0');
+    ctx.lineWidth = 6;
+    ctx.strokeRect(8, 8, c.width - 16, c.height - 16);
+    ctx.fillStyle = '#' + PAL.cream.toString(16).padStart(6, '0');
+    ctx.font = '800 40px "Trebuchet MS", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(hallNoticeForDay(day), c.width / 2, c.height / 2 + 2, c.width - 48);
+    this.noticeTex.needsUpdate = true;
+  }
+
+  private noticeCanvas: HTMLCanvasElement | null = null;
+  private noticeTex: THREE.CanvasTexture | null = null;
+  private noticeMat: THREE.MeshLambertMaterial | null = null;
+
+  /** The court's dusk pair — visible only while dusk lasts. */
+  private courtDusk!: THREE.Group;
+
+  /** W4 part 2 assembly (see the block comment above buildBus). */
+  private buildAlderHeightsW4Traffic(): void {
+    this.busGroup = this.buildBus();
+    this.busGroup.position.set(-29.0, 0, 2.4); // the bay: laid over at boot
+    this.busGroup.rotation.y = Math.PI;
+    this.scene.add(this.busGroup);
+    this.busCollider = boxFromCenter(-29.0, 1.3, 2.4, 9.6, 2.6, 2.3);
+    this.colliders.push(this.busCollider);
+
+    this.courtDusk = this.buildCourtDuskPair();
+    this.scene.add(this.courtDusk);
+
+    this.buildTen01Laundry();
+    this.buildHallNotice();
+  }
+
+
   private bakeStatics(): void {
     const skip = new Set<THREE.Object3D>([
       this.cartRoot, this.cartAwning, this.roof,
+      this.busGroup,   // the M121 runs its rail every frame (W4 p2)
+      this.courtDusk,  // the pickup pair toggles at dusk (W4 p2)
       this.rosa, this.idris, this.kidGround, this.kidSil, this.stranger, this.sal,
       this.familiar, this.barrier, this.asphaltPatch,
       this.stool, this.permitReceipt,
@@ -1470,6 +1729,25 @@ export class World {
       const tile = World.districtKey(o.matrixWorld.elements[12], o.matrixWorld.elements[14]);
       b.srcs.push({ geo: g, mesh: o, tile });
     });
+
+    // ---- the W4 p2 consolidation lever: fold CAST-ONLY batches -------------
+    // A (color, cast=1, receive=0) batch sitting next to the same
+    // (color, cast=1, receive=1) batch in the same tile is two draw calls
+    // for one material — the W4 p1 parked cars opened five of these per
+    // tile (buildCar never set receiveShadow). The fold sends the cast-only
+    // sources into the cast+receive batch: they start RECEIVING shadows,
+    // which is the look every world solid already has. Deliberately narrow:
+    // receive-only (0,1) and flat (0,0) batches stay put — their flags were
+    // chosen (ground slabs must not cast).
+    for (const [key, b] of [...batches]) {
+      if (!(b.cast && !b.receive)) continue;
+      const foldKey = `${key.slice(0, key.lastIndexOf('|'))}|1`;
+      const target = batches.get(foldKey);
+      if (target && target !== b) {
+        target.srcs.push(...b.srcs);
+        batches.delete(key);
+      }
+    }
 
     // commits happen per (signature, district); a district group of 1 stays
     // as-is — merging it would save nothing
@@ -3374,6 +3652,9 @@ export class World {
       const m = new THREE.Mesh(geo, this.mat(color));
       m.position.set(x, y, z);
       m.castShadow = true;
+      m.receiveShadow = true; // W4 p2 batch fold: cast+receive like the world's
+      // own solids — the parked cars stopped opening cast-only batches in
+      // every district tile they touch
       g.add(m);
     };
     mk(new THREE.BoxGeometry(4.15, 0.52, 1.86), bodyCol, 0, 0.56, 0);
@@ -3385,9 +3666,11 @@ export class World {
         w.rotation.x = Math.PI / 2;
         w.position.set(sx, 0.33, sz);
         w.castShadow = true;
+        w.receiveShadow = true; // the fold (see mk above)
         const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.24, 10), this.mat(PAL.stone));
         hub.rotation.x = Math.PI / 2;
         hub.position.set(sx, 0.33, sz);
+        hub.receiveShadow = true;
         g.add(w, hub);
       }
     }
@@ -3679,6 +3962,8 @@ export class World {
     this.flyerMat.map = this.flyerTexture(this.currentFlyerName, day);
     this.flyerMat.needsUpdate = true;
     old?.dispose();
+    // the hall re-letters its notice (W4 p2: the marquee's day-keyed dressing)
+    this.dressHallNotice(day);
   }
 
   /** The cart name currently on the flyer (kept so dressDay can redraw). */
@@ -3742,7 +4027,7 @@ export class World {
    * 0.9 m stale at the dt clamp, and visibly sank into a passing taxi.
    * Dynamics-before-player fixes the ordering with no gameplay change.
    */
-  updateDynamics(dt: number, player?: { x: number; y: number; z: number }, extra?: Array<{ x: number; z: number }>): void {
+  updateDynamics(dt: number, player?: { x: number; y: number; z: number }, extra?: Array<{ x: number; z: number }>, dusk = false): void {
     // the persistent cast owns a body each — no more ghosting through Rosa,
     // Idris, or the kid (playtest 2026-10-30: "passed through the npc and rosa")
     this.syncPersonCollider(this.rosaCollider, this.rosa);
@@ -3758,20 +4043,30 @@ export class World {
     this.syncPersonCollider(this.familiarCollider, this.familiar);
     if (player) this.updateDistricts(player.x, player.z);
     this.updateTaxi(dt, player, extra);
+    // the M121 runs AFTER the cab: its pool reads the cab's fresh rect, and
+    // the cab's next pool reads the bus's (each mover yields to the other
+    // one frame stale — the stopGap absorbs a frame of closing at these
+    // speeds). dusk = the night flag: the bay dwell never expires after
+    // dark, so the last bus goes home and the district settles.
+    this.updateBus(dt, player, extra, dusk);
   }
 
   /** Phase 2 of the frame (after the player's move): everything that only
    *  reads the world — pedestrian steering, birds, steam, leaves. */
   updateAmbient(dt: number, player?: { x: number; y: number; z: number }, dusk = false): void {
     // the walkers steer around you and the cart, mind the furniture, and
-    // hold their ground against the cab's footprint
+    // hold their ground against the cab's — and now the M121's — footprint
     this.peds.update(
       dt,
       player ? { x: player.x, z: player.z } : undefined,
       { x: this.cartRoot.position.x, z: this.cartRoot.position.z },
       { x: this.taxi.position.x, z: this.taxi.position.z },
       { x: this.rosa.position.x, z: this.rosa.position.z },
+      { x: this.busGroup.position.x, z: this.busGroup.position.z },
     );
+    // NZ-COURT's pickup pair takes the court while dusk lasts (registry:
+    // "when: dusk" — the plaza settles at night, so does the game)
+    this.courtDusk.visible = dusk;
 
     // steam rises and wobbles — the Rule of Steam
     const posAttr = this.steamPoints.geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -3825,16 +4120,22 @@ export class World {
 
   // ---- the cab: NYC rules on rails (doc 35 §1 "Vehicles") ---------------
   // Preserved from the playtest fixes: crosswalk-only courtesy hold, yield
-  // to anyone in the path, wrap at ±46. Rebuilt on the traffic brain:
+  // to anyone in the path, wrap at the district's edge. Rebuilt on the
+  // traffic brain:
   //   - progressive braking (the old 9→0 hard cut snapped on screen),
   //   - lateral truth (a body 3 m clear on the curb no longer freezes the
   //     cab from 10 m away — the old |z|<4.2 gate),
   //   - bodies fully behind the tail never block (the old gap > -2.3 test
   //     stopped the cab for things it had already passed),
-  //   - vehicle-vs-vehicle: the parked sedan and van are declared bodies,
-  //     so a car ahead in the lane is braked for, not driven through,
+  //   - vehicle-vs-vehicle: the parked cars are declared bodies (one list,
+  //     busRoute.PARKED_CAR_RECTS — the bus reads the same), so a car ahead
+  //     in the lane is braked for, not driven through,
   //   - a committed-move guard: the rail step is clamped by noseLimit()
   //     BEFORE it lands, so no frame can end with the cab inside anyone.
+  // W4 part 2: the rail runs the FULL district, x ±84 (registry taxi.
+  // phaseW4: "rail extends to ±84 through both intersections"), and the
+  // courtesy zones grow XW-COURT and both junction boxes (busRoute.
+  // KESTREL_COURTESY_ZONES — the M121's leg 0 yields at the same paint).
   private static readonly CAB = {
     cruise: 9.0,       // main.gd: x += 9*dt
     halfLen: 2.2,      // collider 4.4 × 1.95
@@ -3847,12 +4148,13 @@ export class World {
     pedRadius: 0.45,   // how much coat a body wears beyond its center
     holdCenterX: -10.7 // crosswalk hold: nose at the crosswalk's west edge
   } as const;
+  /** The courtesy hold's occupied z-band — the roadway plus a stride. */
+  private static readonly COURTESY_Z = { zMin: -4.6, zMax: 4.6 } as const;
 
   /** Preallocated yield bodies — the scan runs every frame; nothing in it
-   *  may allocate (perf rule: no per-frame garbage). */
-  private readonly trafficPool: TrafficBody[] = Array.from({ length: 28 }, () => ({ x: 0, z: 0, r: 0 }));
-  private readonly parkedSedanRect: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
-  private readonly parkedVanRect: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
+   *  may allocate (perf rule: no per-frame garbage). Each slot owns its rect
+   *  object so the bus's leg-space pool can reuse the same pattern. */
+  private readonly trafficPool: TrafficBody[] = Array.from({ length: 30 }, () => ({ x: 0, z: 0, r: 0, rect: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 } }));
   private readonly cabRectScratch: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
   private readonly sweepRectScratch: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
 
@@ -3872,41 +4174,60 @@ export class World {
     if (player) addBody(player.x, player.z, CAB.pedRadius);
     if (extra) for (const b of extra) addBody(b.x, b.z, CAB.pedRadius);
     for (const b of this.peds.bodies()) addBody(b.x, b.z, 0.4);
-    // vehicles: rects, so car-vs-car is footprint-to-footprint. The parked
-    // pair sits off-lane (north curb) — declared anyway, so the day another
-    // car shares the lane the braking is already real. (The cab never
-    // yields to itself, and never to the invisible bounds — the wrap at
-    // ±46 is authored.)
-    const sedan = this.parkedSedanRect;
-    sedan.minX = 24 - 2.2; sedan.maxX = 24 + 2.2;
-    sedan.minZ = 3.05 - 0.975; sedan.maxZ = 3.05 + 0.975;
-    const van = this.parkedVanRect;
-    van.minX = -14 - 2.2; van.maxX = -14 + 2.2;
-    van.minZ = 3.05 - 0.975; van.maxZ = 3.05 + 0.975;
-    pool[n].x = 24; pool[n].z = 3.05; pool[n].r = 0; pool[n].rect = sedan; n++;
-    pool[n].x = -14; pool[n].z = 3.05; pool[n].r = 0; pool[n].rect = van; n++;
+    // vehicles: rects, so car-vs-car is footprint-to-footprint. One declared
+    // list (busRoute.PARKED_CAR_RECTS — the M121's pool reads the same), and
+    // the M121 itself: the cab brakes for the bus exactly like for a parked
+    // car. (The cab never yields to itself, and never to the invisible
+    // bounds — the wrap at ±84 is authored.)
+    for (const c of PARKED_CAR_RECTS) {
+      if (n >= pool.length) break;
+      const r = parkedCarRect(c);
+      const slot = pool[n];
+      slot.x = c.x; slot.z = c.z; slot.r = 0;
+      slot.rect = slot.rect ?? { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+      slot.rect.minX = r.minX; slot.rect.maxX = r.maxX;
+      slot.rect.minZ = r.minZ; slot.rect.maxZ = r.maxZ;
+      n++;
+    }
+    if (n < pool.length) {
+      const slot = pool[n];
+      slot.x = this.busGroup.position.x; slot.z = this.busGroup.position.z; slot.r = 0;
+      slot.rect = slot.rect ?? { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+      slot.rect.minX = this.busCollider.minX; slot.rect.maxX = this.busCollider.maxX;
+      slot.rect.minZ = this.busCollider.minZ; slot.rect.maxZ = this.busCollider.maxZ;
+      n++;
+    }
 
     const cabRect = this.cabRectScratch;
     cabRect.minX = road.x - CAB.halfLen; cabRect.maxX = road.x + CAB.halfLen;
     cabRect.minZ = CAB.laneZ - CAB.halfWid; cabRect.maxZ = CAB.laneZ + CAB.halfWid;
 
-    // ---- courtesy rule 1: the crosswalk (trigger unchanged, curve new) ----
-    // Occupied = a body (never a parked car) stands inside the crosswalk
-    // paint; the cab brakes toward the same authored hold point, but on the
-    // curve now — a creep to the line instead of a 3 m/s lurch.
+    // ---- courtesy rule 1: the crosswalks and junction boxes ---------------
+    // Occupied = a body (never a parked car) stands inside the zone's paint
+    // band; the cab brakes toward the zone's west edge on the curve — a
+    // creep to the line. The shipped XW-CANON numbers are preserved exactly
+    // (holdCenterX −10.7 = zone xMin −8.5 minus the halfLen); W4 p2 adds
+    // XW-COURT and both junction boxes from the one shared list. Commit law
+    // unchanged: once the nose has reached the zone's line the cab goes —
+    // a lurch stop inside the paint is its own hazard.
     let speed: number = CAB.cruise;
-    let crosswalkOccupied = !!(player && player.x > -8.5 && player.x < -1.5 && player.z > -4.6 && player.z < 4.6);
-    if (!crosswalkOccupied && extra) {
-      crosswalkOccupied = extra.some((b) => b.x > -8.5 && b.x < -1.5 && b.z > -4.6 && b.z < 4.6);
-    }
-    for (let i = 0; i < n && !crosswalkOccupied; i++) {
-      const b = pool[i];
-      if (b.rect) continue;
-      if (b.x > -8.5 && b.x < -1.5 && b.z > -4.6 && b.z < 4.6) crosswalkOccupied = true;
-    }
-    if (crosswalkOccupied && road.x < -4.2) {
-      const gapToLine = CAB.holdCenterX - road.x; // center-based, as authored
-      speed = Math.min(speed, approachSpeed(CAB.cruise, gapToLine, CAB.stopGap, CAB.gain));
+    for (const zone of KESTREL_COURTESY_ZONES) {
+      let occupied = !!(player && player.x > zone.xMin && player.x < zone.xMax
+        && player.z > World.COURTESY_Z.zMin && player.z < World.COURTESY_Z.zMax);
+      if (!occupied && extra) {
+        occupied = extra.some((b) => b.x > zone.xMin && b.x < zone.xMax
+          && b.z > World.COURTESY_Z.zMin && b.z < World.COURTESY_Z.zMax);
+      }
+      for (let i = 0; i < n && !occupied; i++) {
+        const b = pool[i];
+        if (b.rect) continue;
+        if (b.x > zone.xMin && b.x < zone.xMax
+          && b.z > World.COURTESY_Z.zMin && b.z < World.COURTESY_Z.zMax) occupied = true;
+      }
+      if (occupied && road.x < zone.xMin) {
+        const gapToLine = (zone.xMin - CAB.halfLen) - road.x; // nose holds at xMin
+        speed = Math.min(speed, approachSpeed(CAB.cruise, gapToLine, CAB.stopGap, CAB.gain));
+      }
     }
 
     // ---- rule 2: anything actually in the path (lateral truth) ------------
@@ -3938,7 +4259,7 @@ export class World {
     const limit = noseLimit(noseX, pool, n, CAB.laneZ, CAB.halfWid);
     const wantedNose = noseX + dt * speed;
     road.x += Math.min(wantedNose, limit) - noseX;
-    if (road.x > 46) road.x = -46;
+    if (road.x > 84) road.x = -84; // the district's edge: the rail wraps (W4 p2: was ±46)
     this.taxiCollider.minX = road.x - CAB.halfLen;
     this.taxiCollider.maxX = road.x + CAB.halfLen;
 
@@ -3947,6 +4268,243 @@ export class World {
     // along the shortest exit, capped so nobody slingshots
     cabRect.minX = road.x - CAB.halfLen; cabRect.maxX = road.x + CAB.halfLen;
     this.peds.resolveAgainstCab(cabRect);
+  }
+
+  // ---- the M121: the district's bus on the cab's own yield brain ---------
+  // Registry transit.bus: loop "terminal lay-over → Gable St → Sycamore Ave
+  // → Kestrel St → Juniper Ave → terminal", "a rail mover like the cab with
+  // a longer body and the same yield brain", arrivals deterministic. The
+  // route law (engine/busRoute) folds the loop into four axis-aligned legs
+  // so approachSpeed / noseLimit / bodyConflictsWithCab run UNCHANGED in leg
+  // space; this step adds only what a bus is and a cab is not: stop dwells,
+  // the curb pull-out, and the night park (the bay dwells through the dusk —
+  // the district settles, the last bus goes home). No randomness anywhere:
+  // same seed, same arrivals, the E2E meets the same bus every run.
+  private static readonly BUS = {
+    cruise: 7.0,    // the bus is not in a hurry either
+    stopGap: 2.8,   // longer body, longer air
+    gain: 1.8,      // heavier — a lazier braking curve
+    pedRadius: 0.45,
+    latRate: 1.4,   // the curb pull-out speed (m/s)
+    turnRate: 4.0,  // the corner yaw ease (rad/s)
+    haltGap: 0.4,   // "at the mark" — begin the dwell when this close
+    // The Zeno guard (probe-w4-bus + the 180 s stall trace found it): the
+    // braking curve is v = gain·air, so the closing speed decays with the
+    // air — the nose approaches the halt line GEOMETRICALLY, never quite
+    // reaching it, and once the per-frame creep sinks under the float ULP
+    // the bus stands a hair above `haltGap` forever (observed: 110+ s at
+    // 4 mm... 4e-13 m short of BUS-01). The dwell therefore arms within
+    // haltEps of the line too, and the serve snaps the last whisker — the
+    // halt lands exactly on the mark, deterministically, every lap.
+    haltEps: 0.02,
+  } as const;
+
+  private readonly busPool: TrafficBody[] = Array.from({ length: 32 }, () => ({ x: 0, z: 0, r: 0, rect: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 } }));
+  private readonly busFootScratch: RectXZ = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+  private readonly busSweepScratch: RectXZ = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+  private readonly busWorldRectScratch: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
+  private readonly busZoneScratch: BusZone = { a0: 0, a1: 0, l0: 0, l1: 0 };
+  private readonly busCoordScratch: LegCoords = { a: 0, l: 0 };
+  private readonly busPointScratch: { x: number; z: number } = { x: 0, z: 0 };
+
+  private updateBus(dt: number, player?: { x: number; y: number; z: number }, extra?: Array<{ x: number; z: number }>, night = false): void {
+    const BUS = World.BUS;
+    const legs = this.M121_LEGS;
+    const st = this.busState;
+    const leg = legs[st.leg];
+    const f = leg.frame;
+    st.night = night;
+
+    // ---- the yield pool, in LEG SPACE (x = advance, z = lateral) ----------
+    // player + peds as circles; the parked cars AND the cab as rects. The
+    // bus never yields to itself — each mover's pool is built per call,
+    // exactly like the cab's.
+    let n = 0;
+    const pool = this.busPool;
+    const addCircle = (x: number, z: number, r: number) => {
+      if (n >= pool.length) return;
+      worldToLeg(x, z, f, this.busCoordScratch);
+      pool[n].x = this.busCoordScratch.a; pool[n].z = this.busCoordScratch.l;
+      pool[n].r = r; pool[n].rect = undefined;
+      n++;
+    };
+    if (player) addCircle(player.x, player.z, BUS.pedRadius);
+    if (extra) for (const b of extra) addCircle(b.x, b.z, BUS.pedRadius);
+    for (const b of this.peds.bodies()) addCircle(b.x, b.z, 0.4);
+    const addWorldRect = (minX: number, maxX: number, minZ: number, maxZ: number) => {
+      if (n >= pool.length) return;
+      aabbToLeg(minX, maxX, minZ, maxZ, f, this.busZoneScratch);
+      const slot = pool[n];
+      slot.x = (this.busZoneScratch.a0 + this.busZoneScratch.a1) / 2;
+      slot.z = (this.busZoneScratch.l0 + this.busZoneScratch.l1) / 2;
+      slot.r = 0;
+      slot.rect = slot.rect ?? { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+      slot.rect.minX = this.busZoneScratch.a0; slot.rect.maxX = this.busZoneScratch.a1;
+      slot.rect.minZ = this.busZoneScratch.l0; slot.rect.maxZ = this.busZoneScratch.l1;
+      n++;
+    };
+    for (const c of PARKED_CAR_RECTS) {
+      const r = parkedCarRect(c);
+      addWorldRect(r.minX, r.maxX, r.minZ, r.maxZ);
+    }
+    addWorldRect(this.taxiCollider.minX, this.taxiCollider.maxX, this.taxiCollider.minZ, this.taxiCollider.maxZ);
+
+    const foot = this.busFootScratch;
+    foot.minX = st.a - BUS_BODY.halfLen;
+    foot.maxX = st.a + BUS_BODY.halfLen;
+    foot.minZ = st.lat - BUS_BODY.halfWid;
+    foot.maxZ = st.lat + BUS_BODY.halfWid;
+    const noseA = foot.maxX;
+
+    // ---- the next stop: the mark the nose is approaching or parked at -----
+    let stopIdx = -1;
+    for (let i = 0; i < leg.stops.length; i++) {
+      if (leg.stops[i].a >= noseA - BUS.haltGap) { stopIdx = i; break; }
+    }
+    const stop = stopIdx >= 0 ? leg.stops[stopIdx] : null;
+
+    // ---- the dwell: parked at the mark; the bay dwells through the night --
+    if (st.dwell > 0) {
+      const atBay = stop !== null && stop.id === BUS_BAY_ID;
+      if (!atBay || !night) st.dwell -= dt;
+      if (st.dwell > 0) {
+        // parked: no advance this frame — place the body and leave
+        legToWorld(st.a, st.lat, f, this.busPointScratch);
+        this.busGroup.position.set(this.busPointScratch.x, 0, this.busPointScratch.z);
+        this.busGroup.rotation.y = st.yaw;
+        this.syncBusCollider();
+        this.peds.resolveAgainstCab(this.busWorldRectScratch);
+        return;
+      }
+    }
+
+    // ---- speed: the stop line, the courtesy zones, then the yield scan ----
+    let speed: number = BUS.cruise;
+
+    if (stop && st.servedStop !== stop.id) {
+      const clearance = Math.max(stop.a - noseA, 0);
+      speed = Math.min(speed, approachSpeed(BUS.cruise, clearance, BUS.haltGap, BUS.gain));
+      if (clearance <= BUS.haltGap + BUS.haltEps) {
+        // snap the last whisker so the halt is ON the mark (the Zeno guard)
+        st.a += Math.max(clearance - BUS.haltGap, 0);
+        st.dwell = stop.dwell;
+        st.servedStop = stop.id;
+        speed = 0;
+      }
+    }
+
+    // courtesy rule: occupied paint holds the nose at the zone's line (a0)
+    for (const z of leg.zones) {
+      let occupied = false;
+      for (let i = 0; i < n && !occupied; i++) {
+        const b = pool[i];
+        if (b.rect) continue;
+        if (b.x > z.a0 - 0.3 && b.x < z.a1 + 0.3 && b.z > z.l0 && b.z < z.l1) occupied = true;
+      }
+      if (!occupied || noseA >= z.a0) continue; // empty, or committed past the line
+      speed = Math.min(speed, approachSpeed(BUS.cruise, z.a0 - noseA, BUS.stopGap, BUS.gain));
+    }
+
+    // rule 2: anything actually in the path (lateral truth, the cab's own
+    // sweep shape — full braking distance, not the nose alone)
+    const sweep = this.busSweepScratch;
+    sweep.minX = foot.minX;
+    sweep.maxX = noseA + BUS.stopGap + BUS.cruise / BUS.gain + 0.5;
+    sweep.minZ = foot.minZ;
+    sweep.maxZ = foot.maxZ;
+    for (let i = 0; i < n; i++) {
+      const b = pool[i];
+      if (b.rect) {
+        if (!bodyConflictsWithCab(b, foot)) continue;      // laterally clear
+        if (b.rect.maxX <= foot.minX) continue;            // fully behind
+        const clearance = Math.max(b.rect.minX - noseA, 0);
+        speed = Math.min(speed, approachSpeed(BUS.cruise, clearance, BUS.stopGap, BUS.gain));
+      } else {
+        if (b.x + b.r <= foot.minX) continue;              // fully behind
+        if (!bodyConflictsWithCab(b, sweep)) continue;     // not in the path
+        const clearance = Math.max((b.x - b.r) - noseA, 0);
+        speed = Math.min(speed, approachSpeed(BUS.cruise, clearance, BUS.stopGap, BUS.gain));
+      }
+    }
+
+    // ---- the committed-move guard, then the pull-out, then the wrap -------
+    const limit = noseLimit(noseA, pool, n, st.lat, BUS_BODY.halfWid);
+    const move = Math.max(Math.min(dt * speed, limit - noseA), 0);
+    st.a += move;
+
+    // the curb pull-out: ease toward the bay from 9 m before the mark, hold
+    // it through the dwell, and ease back to the lane from the mark itself
+    // (the terminal bay's partner car is only 8 m west — a late merge would
+    // kiss it; the probe caught the exact stutter).
+    let latTarget = 0;
+    if (stop) {
+      const dist = stop.a - noseA;
+      if (dist < 9 && dist > -2) latTarget = stop.lateral;
+    }
+    const maxLat = dt * BUS.latRate;
+    let latNext = st.lat + Math.max(-maxLat, Math.min(maxLat, latTarget - st.lat));
+    // THE PULL-OUT GATE (probe-w4-bus found the deadlock): the bus never
+    // DEEPENS its pull while the body at the would-be offset would overlap
+    // a vehicle rect — at BUS-01 the van sits abeam when the pull window
+    // opens, and a vehicle yields to no vehicle, so an ungated pull wedges
+    // forever. The gate holds the offset; the pull completes the moment the
+    // tail clears — exactly a real bus's move. Returning to the lane is
+    // never gated (the lane is the bus's own road).
+    if (latNext > st.lat) {
+      foot.minX = st.a - BUS_BODY.halfLen; foot.maxX = st.a + BUS_BODY.halfLen;
+      foot.minZ = latNext - BUS_BODY.halfWid; foot.maxZ = latNext + BUS_BODY.halfWid;
+      for (let i = 0; i < n && latNext > st.lat; i++) {
+        const b = pool[i];
+        if (b.rect && bodyConflictsWithCab(b, foot)) latNext = st.lat; // hold
+      }
+    }
+    st.lat = latNext;
+
+    if (st.a >= f.len) {
+      // the center rounds the corner: carry the overshoot into the next leg
+      st.a -= f.len;
+      st.leg = (st.leg + 1) % legs.length;
+      st.servedStop = null;
+      if (st.leg === 0) st.laps++;
+    }
+
+    // face the leg (the yaw eases at corners — a pivot, not a snap), then place
+    const targetYaw = travelYaw(f.ax, f.az);
+    let dy = targetYaw - st.yaw;
+    while (dy > Math.PI) dy -= 2 * Math.PI;
+    while (dy < -Math.PI) dy += 2 * Math.PI;
+    st.yaw += Math.max(-BUS.turnRate * dt, Math.min(BUS.turnRate * dt, dy));
+    legToWorld(st.a, st.lat, legs[st.leg].frame, this.busPointScratch);
+    this.busGroup.position.set(this.busPointScratch.x, 0, this.busPointScratch.z);
+    this.busGroup.rotation.y = st.yaw;
+    this.syncBusCollider();
+    // post-move truth: walkers get the air they are owed (the cab's law)
+    this.peds.resolveAgainstCab(this.busWorldRectScratch);
+  }
+
+  /** Sync the bus's collider + world rect from the group's current pose —
+   *  the yaw-aligned body's AABB superset (|cos|·hl + |sin|·hw per axis). */
+  private syncBusCollider(): void {
+    const c = Math.abs(Math.cos(this.busGroup.rotation.y));
+    const s = Math.abs(Math.sin(this.busGroup.rotation.y));
+    const ex = c * BUS_BODY.halfLen + s * BUS_BODY.halfWid;
+    const ez = s * BUS_BODY.halfLen + c * BUS_BODY.halfWid;
+    const px = this.busGroup.position.x, pz = this.busGroup.position.z;
+    this.busCollider.minX = px - ex; this.busCollider.maxX = px + ex;
+    this.busCollider.minZ = pz - ez; this.busCollider.maxZ = pz + ez;
+    const w = this.busWorldRectScratch;
+    w.minX = this.busCollider.minX; w.maxX = this.busCollider.maxX;
+    w.minZ = this.busCollider.minZ; w.maxZ = this.busCollider.maxZ;
+  }
+
+  /** Probe/driver handle: the bus's rail state in one object. */
+  busDebug(): { leg: number; legName: string; a: number; x: number; z: number; yaw: number; dwell: number; laps: number; night: boolean } {
+    const st = this.busState;
+    return {
+      leg: st.leg, legName: this.M121_LEGS[st.leg].name, a: st.a,
+      x: this.busGroup.position.x, z: this.busGroup.position.z, yaw: st.yaw,
+      dwell: st.dwell, laps: st.laps, night: st.night,
+    };
   }
 
   dispose() {
