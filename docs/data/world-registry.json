@@ -227,7 +227,7 @@
 
     { "id": "KTN-07", "name": "Sycamore Studios", "status": "planned", "class": "C", "face": "Sycamore W", "block": "BLK-N",
       "footprint": { "x": 54, "z": 26, "w": 12, "d": 12 }, "height": 15, "floors": 4,
-      "style": "walk-up with artist-studio ground floor (big north windows)", "entrance": [{ "x": 55, "z": 20, "faces": "S" }], "interior": null,
+      "style": "walk-up with artist-studio ground floor (big north windows)", "entrance": [{ "x": 55, "z": 20, "faces": "S" }, { "x": 60, "z": 24, "faces": "E", "note": "added in W3 (docs/47): the walk-up needs its Sycamore-walk door; the yard door stays the studio entrance" }], "interior": null,
       "storyRole": "Lena & Odd's world edge (mural apprentices), exterior-only.", "collider": true },
 
     { "id": "SND-01", "name": "Alder Heights Diner", "status": "planned", "class": "A", "face": "Sycamore W", "block": "BLK-S",
@@ -241,7 +241,7 @@
     { "id": "SRC-01", "name": "Sycamore Court", "status": "planned", "class": "C", "face": "Sycamore W / Marlow N corner", "block": "BLK-S",
       "footprint": { "x": 55, "z": -26, "w": 10, "d": 12 }, "height": 17, "floors": 6,
       "style": "pre-war corner walk-up, brick (holds the Sycamore×Marlow SW corner; fronts both streets)",
-      "entrance": [{ "x": 55, "z": -20, "faces": "N" }], "interior": null, "collider": true },
+      "entrance": [{ "x": 55, "z": -32, "faces": "S", "note": "W3 correction (docs/47): the planned north door opened into SND-01; the corner court fronts Marlow and Sycamore" }], "interior": null, "collider": true },
 
     { "id": "TEN-01", "name": "Juniper Tenements", "status": "planned", "class": "C", "face": "Juniper E", "block": "BLK-S",
       "footprint": { "x": -55, "z": -14, "w": 10, "d": 12 }, "height": 17, "floors": 6,
@@ -252,7 +252,7 @@
 
     { "id": "SRC-02", "name": "Juniper Court", "status": "planned", "class": "C", "face": "Juniper E", "block": "BLK-S",
       "footprint": { "x": -55, "z": -26, "w": 10, "d": 12 }, "height": 15, "floors": 5,
-      "style": "pre-war walk-up", "entrance": [{ "x": -55, "z": -20, "faces": "N" }], "interior": null, "collider": true },
+      "style": "pre-war walk-up", "entrance": [{ "x": -55, "z": -32, "faces": "S", "note": "W3 correction (docs/47): the planned north door opened into TEN-01; the walk-up fronts Marlow" }], "interior": null, "collider": true },
 
     { "id": "PWK-01", "name": "Marlow West Walk-up", "status": "planned", "class": "C", "face": "Marlow N", "block": "BLK-S",
       "footprint": { "x": -44, "z": -26, "w": 8, "d": 12 }, "height": 15, "floors": 5, "style": "pre-war walk-up",
@@ -306,7 +306,7 @@
 
     { "id": "VND-02", "name": "Fruit stand (Sycamore)", "status": "planned", "class": "C", "face": "Sycamore W walk", "block": null,
       "sitsOn": "avenue sidewalk (street vendor)",
-      "footprint": { "x": 62.5, "z": -18, "w": 2.2, "d": 1.2 }, "height": 2.2, "floors": 0,
+      "footprint": { "x": 63.3, "z": -18, "w": 2.2, "d": 1.2, "note": "W3 correction (docs/47): the planned x 62.5 straddled the R-AVENUES spine at x 61.5; the stand sits 0.8 m east, clear of the walking lane" }, "height": 2.2, "floors": 0,
       "exterior": "Crate stack + tarp canopy (GDD object canon #7); GOLDEN ORCHARD PRODUCE CO. is the block's existing produce brand — this is their avenue stand (brand continuity with the van).",
       "entrance": [], "interior": null, "storyRole": "Avenue life; van brand continuity.", "collider": true },
 
@@ -323,16 +323,16 @@
       "footprint": { "x": -78, "z": -53.5, "w": 8, "d": 15 }, "height": 14, "floors": 4,
       "exterior": "Continuation south; card SKY-S visible past it.", "entrance": [], "interior": null, "collider": true },
     { "id": "VDN-DE1a", "name": "Sycamore backdrop E (Kestrel–Gable)", "status": "planned", "class": "D", "face": "Sycamore E", "block": null,
-      "footprint": { "x": 80, "z": 20, "w": 8, "d": 24 }, "height": 17, "floors": 5,
-      "exterior": "Mirror of DW1a.", "entrance": [], "interior": null, "collider": true },
+      "footprint": { "x": 78, "z": 20, "w": 8, "d": 24 }, "height": 17, "floors": 5,
+      "exterior": "Mirror of DW1a (x 78 built — the registry's x 80 consumed the whole Sycamore E walk and the R-AVENUES spine; corrected W3, docs/47).", "entrance": [], "interior": null, "collider": true },
     { "id": "VDN-DE1b", "name": "Sycamore backdrop E (N of Gable)", "status": "planned", "class": "D", "face": "Sycamore E", "block": null,
-      "footprint": { "x": 80, "z": 53.5, "w": 8, "d": 15 }, "height": 15, "floors": 4,
+      "footprint": { "x": 78, "z": 53.5, "w": 8, "d": 15 }, "height": 15, "floors": 4,
       "exterior": "North continuation.", "entrance": [], "interior": null, "collider": true },
     { "id": "VDN-DE1c", "name": "Sycamore backdrop E (Kestrel–Marlow)", "status": "planned", "class": "D", "face": "Sycamore E", "block": null,
-      "footprint": { "x": 80, "z": -20, "w": 8, "d": 24 }, "height": 22, "floors": 7,
+      "footprint": { "x": 78, "z": -20, "w": 8, "d": 24 }, "height": 22, "floors": 7,
       "exterior": "South segment with the avenue's tall exception slab (h 22) — the Sycamore skyline note.", "entrance": [], "interior": null, "collider": true },
     { "id": "VDN-DE1d", "name": "Sycamore backdrop E (S of Marlow)", "status": "planned", "class": "D", "face": "Sycamore E", "block": null,
-      "footprint": { "x": 80, "z": -53.5, "w": 8, "d": 15 }, "height": 14, "floors": 4,
+      "footprint": { "x": 78, "z": -53.5, "w": 8, "d": 15 }, "height": 14, "floors": 4,
       "exterior": "South continuation.", "entrance": [], "interior": null, "collider": true },
     { "id": "VDN-DN1", "name": "Gable backdrop row N", "status": "planned", "class": "D", "face": "Gable N", "block": null,
       "footprint": { "x": 0, "z": 53.5, "w": 120, "d": 10 }, "height": 13, "floors": 4,
@@ -381,8 +381,8 @@
     { "id": "LMK-02", "name": "Rosa's Rooftop Billboard", "anchor": "ROS-01", "reason": "the name over the block; readable from any chase-cam frame (existing)" },
     { "id": "LMK-03", "name": "The Three Towers", "anchor": "water towers (−30 N), (−14 S), (31 N)", "reason": "the October silhouette line; phase W1 adds 2 more on new corner buildings so every district frame carries a tank (Doc 04 object canon #3)" },
     { "id": "LMK-04", "name": "The Diner Sign", "anchor": "SND-01 corner", "reason": "coral neon on the Sycamore corner; the east landmark you navigate home by" },
-    { "id": "LMK-05", "name": "The Garden Mural", "anchor": "KTS-03 east gable (x 50 plane, faces Sycamore)", "reason": "a neighbourhood-scale painting (phase W3, authored canvas texture in the sign factory); Lena & Odd arc hook" },
-    { "id": "LMK-06", "name": "The Ghost Sign", "anchor": "KTS-02 west gable (x 0 plane)", "reason": "faded painted ad 'HOLLIS & DAUGHTERS — FINE TEAS EST. 1911' — environmental storytelling the camera finds at dusk" },
+    { "id": "LMK-05", "name": "The Garden Mural", "anchor": "KTS-03 south face (z −20 plane, faces the Marlow yard) — W3 correction (docs/47): the planned east gable is walled in, SND-01 (h 13) directly in front and the DE1c backdrop behind the only viewing street; the painting lands on the yard side where the playground and Marlow walk actually see it", "reason": "a neighbourhood-scale painting (phase W3, authored canvas texture in the sign factory); Lena & Odd arc hook" },
+    { "id": "LMK-06", "name": "The Ghost Sign", "anchor": "KTS-02 north face at the west seam (x 0..7, z −7.94 plane) — W3 correction (docs/47): the planned x 0 gable plane is buried under the 16 m KTS-01 mass; the faded paint lands where the dusk camera actually looks", "reason": "faded painted ad 'HOLLIS & DAUGHTERS — FINE TEAS EST. 1911' — environmental storytelling the camera finds at dusk" },
     { "id": "LMK-07", "name": "Alder Works Marquee", "anchor": "KCM-01 Juniper face", "reason": "the hall's notice marquee doubles as the neighbourhood's message board (day-keyed dressing)" }
   ],
 

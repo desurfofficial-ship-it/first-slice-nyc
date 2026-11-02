@@ -297,6 +297,13 @@ export function runAutotest(game: Game): void {
     // (-$15) in the same breath. One reaction per interact() call.
     const step0 = game.state.step;
     const awning0 = game.state.awningConfirm;
+    // the postcard is also a one-reaction beat: dismissPostcard LIFTS the
+    // freeze (so `frozen` below never trips) and changes no step — without
+    // watching the panel, presses 2/3 chain into the linger world and one
+    // volley eats goodnight AND the day roll (the docs/47 W3 day-3 knife
+    // edge: the chain only connected when the mid-leg freeze parked the
+    // capsule inside the rail's 2.4 m — a 6 cm coin flip per run)
+    const panel0 = game.ui.postcardPanel.hidden;
     // integration: the stool and permit use the same awning-style confirm
     // gate — a slow note render must not let presses 2/3 fire, or one volley
     // opens AND confirms (and unsets) the offer in a single breath. The
@@ -309,7 +316,8 @@ export function runAutotest(game: Game): void {
       game.input.injectInteract();
       await waitFrames(6);
       if (game.state.step !== step0 || !game.ui.nameBox.hidden
-        || game.player.frozen || game.state.awningConfirm !== awning0
+        || game.player.frozen || game.ui.postcardPanel.hidden !== panel0
+        || game.state.awningConfirm !== awning0
         || game.state.stoolConfirm !== stool0 || game.state.permitConfirm !== permit0
         || game.state.buyConfirm !== buy0) break;
     }
@@ -457,13 +465,13 @@ export function runAutotest(game: Game): void {
       // what the comment always said and what a player does: from the cap,
       // the fall to the landing top is 0.275 — inside the snap window at any
       // dt the loop can produce.
-      await holdUntil('KeyW', () => p().y > 4.2, 10);   // ride to the rail
+      await holdUntil('KeyW', () => p().y > 4.2, 20);   // ride to the rail — budget is patience, the condition is the verifier; at software-render fps the dt clamp halves sim speed (see the harness note), and the W3 avenues pushed the dusk frustum onto that edge
       await holdUntil('KeyD', () => game.player.ladder === null, 4); // step east onto the landing
       await waitFrames(20);
       check(p().y > 3.9 && game.player.onGround, `standing on landing 1 (y=${p().y.toFixed(2)})`);
       await walkTo(16.2, -7.2, 8, true);
       check(game.player.ladder !== null, `grabbed ladder 2 (pos=${p().x.toFixed(1)},${p().z.toFixed(1)})`);
-      await holdUntil('KeyW', () => p().y >= 8.34, 10);
+      await holdUntil('KeyW', () => p().y >= 8.34, 24);
       check(p().y <= 8.36, `ladder caps at the rail — no overshoot (y=${p().y.toFixed(2)})`);
       await holdUntil('KeyA', () => game.player.ladder === null, 4);
       await waitFrames(20);
@@ -486,6 +494,7 @@ export function runAutotest(game: Game): void {
       check(s.money === 112, 'money label reads $112');
 
       // -- seam 3: the end breathes — postcard closes, lingering is allowed --
+      await waitFrames(30); // settle pad: a press mid-transition is eaten at software-render fps (docs/47 W3)
       await interact();
       check(game.ui.postcardPanel.hidden && !game.player.frozen && !dbg.postcardRig(), 'postcard dismisses \u2014 the end lingers');
       await walkTo(12.5, -6.8, 8);
@@ -550,11 +559,11 @@ export function runAutotest(game: Game): void {
       check(s.step === Step.D2_CLIMB2, 'dusk climb offered');
 
       await walkTo(9.4, -7.2, 12, true);
-      await holdUntil('KeyW', () => p().y > 4.2, 10); // ride to the rail — mid-ladder exits fall below the snap window (see Day 1 note)
+      await holdUntil('KeyW', () => p().y > 4.2, 20); // ride to the rail — mid-ladder exits fall below the snap window (see Day 1 note); 20 s: the condition verifies, the budget only waits out slow-frame sim time (W3 dusk knife-edge, docs/47)
       await holdUntil('KeyD', () => game.player.ladder === null, 4);
       await waitFrames(20);
       await walkTo(16.2, -7.2, 8, true);
-      await holdUntil('KeyW', () => p().y >= 8.34, 10);
+      await holdUntil('KeyW', () => p().y >= 8.34, 24);
       await holdUntil('KeyA', () => game.player.ladder === null, 4);
       await walkTo(12.5, -6.8, 10); // walk into the reach-top trigger — the dismount parks outside it (see Day 1 note)
       {
@@ -569,6 +578,7 @@ export function runAutotest(game: Game): void {
       }
       check(s.step === Step.D2_POSTCARD && !game.ui.postcardPanel.hidden, 'day 2 postcard composes');
       check(dbg.caption().includes('Day 2'), 'postcard says Day 2');
+      await waitFrames(30); // settle pad (docs/47 W3)
       await interact();
       check(!game.player.frozen, 'day 2 end lingers too');
 
@@ -671,12 +681,12 @@ export function runAutotest(game: Game): void {
       await walkTo(9.4, 5.0, 60);
       await walkTo(9.4, -7.2, 30, true);
       check(game.player.ladder !== null, 'day 3: grabbed ladder 1' + snap());
-      await holdUntil('KeyW', () => p().y > 4.2, 10); // ride to the rail — mid-ladder exits fall below the snap window (see Day 1 note)
+      await holdUntil('KeyW', () => p().y > 4.2, 20); // ride to the rail — mid-ladder exits fall below the snap window (see Day 1 note); 20 s: the condition verifies, the budget only waits out slow-frame sim time (W3 dusk knife-edge, docs/47)
       await holdUntil('KeyD', () => game.player.ladder === null, 4);
       await waitFrames(20);
       await walkTo(16.2, -7.2, 12, true);
       check(game.player.ladder !== null, `day 3: grabbed ladder 2 (pos=${p().x.toFixed(1)},${p().z.toFixed(1)})` + snap());
-      await holdUntil('KeyW', () => p().y >= 8.34, 14);
+      await holdUntil('KeyW', () => p().y >= 8.34, 24);
       check(p().y <= 8.36, `day 3: ladder caps at the rail (y=${p().y.toFixed(2)})` + snap());
       await holdUntil('KeyA', () => game.player.ladder === null, 4);
       await walkTo(12.5, -6.8, 10); // walk into the reach-top trigger — the dismount parks outside it (see Day 1 note)
@@ -688,6 +698,7 @@ export function runAutotest(game: Game): void {
       check(dbg.caption().includes('Day 3'), 'postcard says Day 3' + snap());
       check(dbg.thirdIntensity() > 2.5, 'the third window lights \u2014 golden-hour payoff' + snap());
       check(game.world.kidGround.visible, 'the kid is at the corner below, on his stool');
+      await waitFrames(30); // settle pad (docs/47 W3)
       await interact();
       check(!game.player.frozen, 'day 3 end lingers too' + snap());
 
@@ -801,12 +812,12 @@ export function runAutotest(game: Game): void {
       await walkTo(9.4, 5.0, 40);
       await walkTo(9.4, -7.2, 30, true);
       check(game.player.ladder !== null, 'day 4: grabbed ladder 1' + snap());
-      await holdUntil('KeyW', () => p().y > 4.2, 10); // ride to the rail — mid-ladder exits fall below the snap window (see Day 1 note)
+      await holdUntil('KeyW', () => p().y > 4.2, 20); // ride to the rail — mid-ladder exits fall below the snap window (see Day 1 note); 20 s: the condition verifies, the budget only waits out slow-frame sim time (W3 dusk knife-edge, docs/47)
       await holdUntil('KeyD', () => game.player.ladder === null, 4);
       await waitFrames(20);
       await walkTo(16.2, -7.2, 12, true);
       check(game.player.ladder !== null, `day 4: grabbed ladder 2 (pos=${p().x.toFixed(1)},${p().z.toFixed(1)})` + snap());
-      await holdUntil('KeyW', () => p().y >= 8.34, 14);
+      await holdUntil('KeyW', () => p().y >= 8.34, 24);
       check(p().y <= 8.36, `day 4: ladder caps at the rail (y=${p().y.toFixed(2)})` + snap());
       await holdUntil('KeyA', () => game.player.ladder === null, 4);
       // walk to the landing's middle — the reach-top trigger (x 10.25..14.75)
@@ -821,6 +832,7 @@ export function runAutotest(game: Game): void {
       check(dbg.caption().includes('Day 4'), 'postcard says Day 4' + snap());
       check(dbg.fourthIntensity() > 2.5, 'the lamp next door stays on \u2014 the light stays' + snap());
       check(game.world.kidGround.visible, 'the kid is at the corner below, on his stool');
+      await waitFrames(30); // settle pad (docs/47 W3)
       await interact();
       check(!game.player.frozen, 'day 4 end lingers too' + snap());
 

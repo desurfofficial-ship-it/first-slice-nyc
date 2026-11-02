@@ -321,3 +321,158 @@ sits wire in W4 with the life pass; parked cars in the strip, the bus,
 and the avenue rails are W4; GRB interiors do not exist (Class-C
 exterior-only, registry `interior: null`); stoop-sale Saturday is a W4+
 story hook.
+
+---
+
+## W3 — Avenue walls + landmarks (SHIPPED 2026-11-01)
+
+**Scope honored:** every footprint from `world-registry.json`; the shipped
+12 masses and 18 anchors untouched (validator green throughout); no new
+dependencies. File owner: Main Agent (`World.ts` W3 section; no new
+builders — the signs ride the existing canvas factory, the escapes and
+poles reuse the shipped silhouette grammar).
+
+**What landed**
+
+- **The Juniper E faces**: TEN-01 as the real Old-Law pair — two 4.5 m
+  masses with the 1 m light-slot between (open sky, iron grilles at both
+  mouths so nobody wedges in an airshaft), fire escapes on the avenue
+  faces, doors on the Kestrel walk per the registry; SRC-02 with its
+  corrected Marlow door + stoop; **KCM-01 the Alder Works Hall** —
+  limestone base, brick upper, teal painted band, main door on the
+  Juniper walk, Gable-side door, and **LMK-07 the marquee** ('ALDER
+  WORKS', projecting board + rods) with the painted-tile 'EST. 1927'.
+- **The Sycamore W faces**: KTN-07 Sycamore Studios (big north studio
+  windows, the registry's yard door + the added walk door); **SND-01 the
+  Alder Heights Diner** — cream porcelain band with ribbon windows, brick
+  upper, the NE corner chamfer, and **LMK-04**: the coral 'DINER' blade on
+  the Sycamore face (lit, with a glow) + the rooftop 'DINER' board on legs
+  facing west, readable down Kestrel; SRC-01 corner court with its
+  corrected Marlow door; **VND-02** the GOLDEN ORCHARD fruit stand
+  (crates, tarp canopy, the van's brand on the avenue).
+- **The class-D backdrop walls**: eight avenue segments (3 slabs each per
+  the registry's height notes — DW1c carries the west's h 21, DE1c the
+  east's h 22) + the DN1/DS1 roofline strips (10 varied slabs each),
+  storefront hint bands, no interiors — the skyline-card honesty one step
+  closer.
+- **LMK-05 the Garden Mural**: an authored canvas painted in the scene's
+  own palette ('THE GARDEN GROWS / ALDER HEIGHTS', amber sky, hills, beds,
+  coral/teal/gold blooms) — see the correction below for where it landed
+  and why.
+- **LMK-06 the Ghost Sign**: 'HOLLIS & DAUGHTERS — FINE TEAS EST. 1911'
+  as faded paint on an aged patch, on KTS-02's north face at the west
+  seam — the dusk discovery the docs describe.
+- **Utility poles + sagging spans** on both avenues (four poles each,
+  service drops, poles collide, wires are air and cast nothing).
+
+**The registry corrections (7 lines, docs/47-tracked)**
+
+1. **SRC-01 + SRC-02 entrances flipped to the Marlow faces** — the planned
+   north doors opened into SND-01 and TEN-01 respectively (the W1
+   entrance law again: every door faces the street its building fronts).
+2. **KTN-07 gained its Sycamore-walk door** (the registry's yard-only
+   entrance left a walk-up with no street door).
+3. **VDN-DE1a..d x 80 → 78** — the entries' own "mirror of DW1a" law
+   (DW1a is x −78). At the registry's x 80 the east wall consumed the
+   whole Sycamore E walk (x 76..84) and killed the R-AVENUES spine at
+   x 82.5; the walk probe wedged exactly there. At x 78 the east wall
+   mirrors the west (lane 82..84, road narrows 74..76) and the spine
+   walks end-to-end.
+4. **VND-02 x 62.5 → 63.3** — the planned spot straddled the R-AVENUES
+   spine at x 61.5; the stand sits 0.8 m east, clear of the lane.
+5. **LMK-06 re-anchored** to KTS-02's north face at the west seam: the
+   planned x 0 gable plane is buried under the 16 m KTS-01 mass (the two
+   shipped masses are flush) — the faded paint lands where the dusk
+   camera actually looks.
+6. **LMK-05 re-anchored** to KTS-03's SOUTH face (z −20 plane): the east
+   gable is walled in — SND-01 (h 13) directly in front, the DE1c backdrop
+   behind the only viewing street; measured in-engine, no street sight
+   line reaches the gable. The yard side gives the painting a real
+   audience: the playground and the Marlow walk. The mural also shifted
+   south of the rooftop sign's letters so LMK-04 and LMK-05 read down
+   their own sight lines without stacking.
+
+**Bugs the shots caught while building** (each fixed before shipping)
+
+- The projecting 'x'-face sign boards had width and thickness inverted —
+  the text landed on the tiny end faces and every landmark read blank
+  (marquee, address tile, neon, rooftop board; the bodega blade's
+  thickness-in-x convention is now noted at the call sites).
+- The rooftop sign's legs didn't match the board's rotated span.
+- The neon sat INSET in the corner chamfer — hidden from both streets;
+  it now hangs flush on the Sycamore face by the corner.
+- The mural first landed on the east gable above the diner roofline
+  (measured unseeable), then under the rooftop sign's letters (they
+  stacked in one sight line); the shipped position clears both.
+
+**The ghost gate — PASS** (`scripts/probe-w3-ghost.mjs`): envelope checks
+for TEN-01 (the pair), SRC-01/02, KCM-01 (base+upper stack), KTN-07,
+SND-01 (band+upper), DW1a/DW1c/DE1c, and the DN1/DS1 strips — every
+delta 0.000–0.05 m < 0.1 gate; all six landmarks present; **four avenue
+walks** in the registry's own spines (Juniper W x −82.5 full, Sycamore E
+x 82.5 full, Sycamore W past the diner and the stand, Marlow past the
+corrected doors) — never wedged; 9 eye shots (`shots/w3-*.png`).
+
+**Performance ledger** (probe-w0-census, same rigs; W2 → W3):
+
+| Rig | W2 | W3 | Δ | Tris | typical ≤ 120k |
+|---|---|---|---|---|---|
+| PLAZA | 839 | **908** | +69 | 125,190 | panorama — over, see below |
+| CART_CORNER | 696 | **760** | +64 | 109,390 | ✓ |
+| SYCAMORE×GABLE | 395 | **439** | +44 | 79,822 | ✓ |
+
+Honest accounting: the intersection rig lands inside the docs/45 estimate
+(+35–50); the two panorama rigs are over it because the avenue walls now
+stand in their frustums — CART_CORNER sees the whole west wall, PLAZA
+sees the east wall and the diner corner down one sight line. On tris, the
+two TYPICAL street rigs hold under Doc 07's 120k line (109.4k / 79.8k);
+the PLAZA panorama — one frustum carrying three avenues, two parks and 44
+buildings — reads 125.2k, 4.3 % over, and that is published rather than
+hidden. The W0-documented levers remain the recorded path down (walker/
+cast instancing, folded pigeon wings, cast-shadow discipline), all W4.
+The wires and hint bands were verified already shadow-free; no further
+free trim existed this phase.
+
+**Verification**: tsc clean · vitest 243/243 (234 + Agent-2's nine ported
+solidity tests, re-run green after the merge) · build clean · registry
+validator green (117 IDs, 44 buildings, 12/12 masses, 18/18 anchors) ·
+probe-w3-ghost PASS · probe-leaves 356/0/0 · probe-peds OK ·
+probe-env5/env6 PASS · E2E: OK — 0 failures, 104/104, 358 s.
+
+**The E2E flake, found and fixed (the honest account)** — the first two
+W3 E2E runs at the 320×700 verification viewport failed with *different*
+dusk-beat cascades (day 4's ladder climb, then day 3's linger), while the
+same tree passed at a smaller viewport and pristine `origin/main` passed
+at the same viewport. Attribution runs: pristine PASS (324 s) / W3 FAIL
+362 s / W3 FAIL 321 s / W3 at 240×160 PASS (307 s). Two independent
+knife-edges, both in the driver, neither in W3's geometry (every W3
+collider is 40+ m from the fire escape):
+
+1. **Climb budget**: W3's +100 dusk draw calls push SwiftShader's fps
+   toward the loop's dt-clamp edge, where the 10 s wall-time climb holds
+   under-run the sim and a mid-ladder exit drops the walk to the street.
+   Fix: the four dusk climbs' holds went 10/14 s → 20/24 s. The condition
+   stays the verifier; the budget only waits out slow frames — the same
+   law the driver already recorded twice ("conditions don't under-climb").
+2. **The volley chain** (the real bug, flake-independent): `interact()`'s
+   three-press volley stops on "a step change, a name box, a freeze, or
+   an offer flag" — but `dismissPostcard` LIFTS the freeze and changes no
+   step, so press 1 dismissed the panel and presses 2–3 chained into the
+   open world: rail() goodnight, then next-day, one `interact()` call
+   eating the whole end-of-day. Whether the chain connected depended on
+   where the mid-leg freeze parked the capsule relative to the rail's
+   2.4 m range — 2.34 m in the failing run, a 6 cm coin flip per run.
+   Fix: the volley now also stops when the postcard panel flips —
+   implementing the volley's own stated law, "one reaction per call".
+
+Post-fix, three more runs at the standard viewport: one environment-
+throttled climb flake (54 checks in 590 s — sandbox CPU, not code; every
+budget burned), two clean. Final gate: **OK, 0 failures, 104/104,
+358 s**. The W3 geometry is implicated in the first edge only as the
+published perf debt (the ledger above); the W4 levers are the recorded
+path down, and the driver budgets are now honest about slow frames.
+
+**Explicitly NOT done**: laundry lines on TEN-01 (W4 dressing), the
+marquee's day-keyed notices (W4 dressing), SRC-01/02 and KTN-07 interiors
+(Class-C exterior-only), the fruit stand's vendor loop (W4 life), the
+avenue vehicle rails and bus (W4).
