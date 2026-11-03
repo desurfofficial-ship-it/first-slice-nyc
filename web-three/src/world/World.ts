@@ -288,6 +288,37 @@ export class World {
   /** The district the visibility pass last applied (skip redundant writes). */
   private lastDistrict = '';
 
+  // ---- the shadow follow (docs/47 lever 1 — Doc 07's reaching lever) ----
+  // The sun's shadow camera was a FIXED ±60 m box over the whole street:
+  // every caster inside it re-rendered into the shadow map every frame,
+  // view-independent — a corner rig paid ~430 calls for a map it never
+  // sampled, and the shadow pass measured 44–84% of every census rig.
+  // The box now follows the player at SHADOW_HALF (the recorded ±35–40
+  // range's tighter end — the recorded est). Near-field shadows,
+  // the ones the player actually stands in, keep their exact texels; casters
+  // beyond the box edge no longer render into the map, which is the recorded
+  // art trade (long dusk shadows fade out ~SHADOW_HALF m from the player).
+  private static readonly SHADOW_HALF = 35;
+  /** The authored light offset (position − target): the reference's rotation
+   *  (-28, -60). The follow moves BOTH poles by the same snapped delta, so
+   *  the light direction never changes by a thousandth of a degree. */
+  private readonly sunOffset = new THREE.Vector3(-38, 23, 22);
+  /** The shadow camera's own basis (Matrix4.lookAt, world-up), precomputed
+   *  once — the follow snaps the target onto this lattice so the map's texel
+   *  grid stays world-aligned while the box moves (no edge shimmer as the
+   *  player walks). At 2048 px / 80 m the light-space texel is 0.039 m; the
+   *  ground projection at the sun's ~28° elevation stretches it to ~0.084 m
+   *  along the shadow direction — snapping in LIGHT SPACE handles both. */
+  private readonly sunBasis = {
+    back: new THREE.Vector3(),
+    right: new THREE.Vector3(),
+    up: new THREE.Vector3(),
+    texel: 0,
+  };
+  /** The lattice coords the shadow box last snapped to (skip redundant writes). */
+  private sunU = Number.NaN;
+  private sunV = Number.NaN;
+
   /** A baked mesh's district from its world position (mesh center). */
   private static districtKey(x: number, z: number): string {
     const col = Math.max(0, Math.min(World.DIST_COLS - 1, Math.floor((x + 84) / World.DIST_COL_W)));
@@ -332,6 +363,31 @@ export class World {
         for (const o of this.districtProps.get(dk) ?? []) o.visible = inRing;
       }
     }
+  }
+
+  /** Move the sun's shadow box to the player, snapped onto the shadow map's
+   *  texel lattice (docs/47 lever 1). Snapping in LIGHT SPACE — round the
+   *  target's (u, v) on the shadow camera's own basis to whole texels —
+   *  keeps the map's texel grid world-aligned while the box moves, so shadow
+   *  edges never shimmer as the player walks. The light direction is the
+   *  authored offset vector, bit-for-bit, on every frame. */
+  private updateSunFollow(px: number, pz: number): void {
+    const b = this.sunBasis;
+    // light-space coords of the desired target (y folded into the basis dots)
+    const u = px * b.right.x + pz * b.right.z;
+    const v = px * b.up.x + pz * b.up.z;
+    const us = Math.round(u / b.texel) * b.texel;
+    const vs = Math.round(v / b.texel) * b.texel;
+    if (us === this.sunU && vs === this.sunV) return; // same texel cell — skip
+    this.sunU = us;
+    this.sunV = vs;
+    const w = px * b.back.x + pz * b.back.z; // depth along the light (unsnapped)
+    this.sun.target.position.set(
+      b.right.x * us + b.up.x * vs + b.back.x * w,
+      b.right.y * us + b.up.y * vs + b.back.y * w,
+      b.right.z * us + b.up.z * vs + b.back.z * w,
+    );
+    this.sun.position.copy(this.sun.target.position).add(this.sunOffset);
   }
 
   /** Decorative props a generated .glb (public/models/<id>.glb) may replace. */
@@ -390,13 +446,13 @@ export class World {
     this.hemi = new THREE.HemisphereLight(0xfff3dd, 0x8a7666, phys(1.0));
     scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight(PAL.amber, phys(1.3));
-    this.sun.position.set(-38, 23, 22);      // rotation (-28, -60) in the reference
+    this.sun.position.copy(this.sunOffset);  // rotation (-28, -60) in the reference
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
-    this.sun.shadow.camera.left = -60;
-    this.sun.shadow.camera.right = 60;
-    this.sun.shadow.camera.top = 60;
-    this.sun.shadow.camera.bottom = -60;
+    this.sun.shadow.camera.left = -World.SHADOW_HALF;
+    this.sun.shadow.camera.right = World.SHADOW_HALF;
+    this.sun.shadow.camera.top = World.SHADOW_HALF;
+    this.sun.shadow.camera.bottom = -World.SHADOW_HALF;
     this.sun.shadow.camera.near = 1;
     this.sun.shadow.camera.far = 160;
     this.sun.shadow.camera.updateProjectionMatrix();
@@ -404,6 +460,13 @@ export class World {
     this.sun.shadow.normalBias = 0.03; // large flat walls — kill shadow acne crawl
     scene.add(this.sun);
     scene.add(this.sun.target);
+    // the follow lattice (the basis Object3D.lookAt builds: back = toward the
+    // light, right = up × back, up = back × right) — computed once, the sun
+    // never rotates
+    this.sunBasis.back.copy(this.sunOffset).normalize();
+    this.sunBasis.right.set(0, 1, 0).cross(this.sunBasis.back).normalize();
+    this.sunBasis.up.crossVectors(this.sunBasis.back, this.sunBasis.right);
+    this.sunBasis.texel = (2 * World.SHADOW_HALF) / this.sun.shadow.mapSize.x;
 
     // ---------------- ground & street (street runs along X) ----------------
     this.solid('Road', 0, -0.1, 0, 100, 0.2, 8, PAL.road, { receive: true, cast: false });
@@ -5147,6 +5210,7 @@ export class World {
     if (player) {
       this.updateDistricts(player.x, player.z);
       this.updateInteriors(player.x, player.y, player.z);
+      this.updateSunFollow(player.x, player.z);
     }
     this.updateTaxi(dt, player, extra);
     // the M121 runs AFTER the cab: its pool reads the cab's fresh rect, and
