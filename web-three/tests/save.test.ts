@@ -166,3 +166,37 @@ describe('the block remembers — optional counters, Save v1 stays v1 (Doc 37 §
     expect(s.hoop_makes).toBe(5);
   });
 });
+
+describe('save v1 — the fuzz wall: no garbage anywhere can crash the day', () => {
+  /** Every field, every wrong shape: the parser returns a SAVE, never an
+   *  exception. The expanded districts made this file load-bearing — a
+   *  resume that throws strands the player on a black screen. */
+  const wrongs = [null, undefined, 42, 'banana', [], {}, [NaN], [Infinity], { a: 1 }, -1, 1e9];
+
+  it('every field swallowed by every wrong shape parses to a valid save', () => {
+    const base = defaultSave();
+    for (const field of Object.keys(base)) {
+      for (const wrong of wrongs) {
+        const raw = JSON.stringify({ ...base, [field]: wrong });
+        expect(() => parseSave(raw), `${field} = ${JSON.stringify(wrong)}`).not.toThrow();
+        const s = parseSave(raw);
+        expect(s.day).toBeGreaterThanOrEqual(1);
+        expect(Number.isFinite(s.money)).toBe(true);
+        expect(Array.isArray(s.map_notes)).toBe(true);
+        expect(Array.isArray(s.map_places)).toBe(true);
+      }
+    }
+  });
+
+  it('truncated and mutated JSON never throws — the half-written save is a fresh day', () => {
+    const full = JSON.stringify({ ...defaultSave(), day: 4, money: 123, map_places: ['court'] });
+    for (let cut = 1; cut < full.length; cut += Math.max(1, Math.floor(full.length / 60))) {
+      expect(() => parseSave(full.slice(0, cut))).not.toThrow();
+    }
+    // byte flips: any single-character corruption parses (maybe to defaults)
+    for (let i = 0; i < full.length; i += Math.max(1, Math.floor(full.length / 40))) {
+      const mutated = full.slice(0, i) + '"' + full.slice(i + 1);
+      expect(() => parseSave(mutated)).not.toThrow();
+    }
+  });
+});

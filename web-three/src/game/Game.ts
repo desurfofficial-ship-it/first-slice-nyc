@@ -1498,6 +1498,7 @@ export class Game {
       url = '';
     }
     this.ui.showPostcard(url, caption);
+    gameAudio.dayKept(); // the day was held — the postcard slides out to it
     // the day card owns the panel from here — if the Wow card was somehow
     // still up, its light-path Stay must never eat the day-end's cleanup
     // (postcardRig lives on the day path; losing it strands the camera)

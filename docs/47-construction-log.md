@@ -1520,3 +1520,42 @@ reaches the meet) · probe-subway ALL PASS 22/22 · probe-w4-bus OK 13/13
 Kestrel gate line stays published FAIL > 150) · **E2E: OK — 0 failures,
 356 s**, console clean (E2E_W=320 E2E_H=700). docs/51 B15 carries the
 ledger entry; B13 carries the vertex-bake update.
+
+## The audit pass — thin places, thickened (SHIPPED 2026-11-03, on main)
+
+**The serving conversation is zero-fail, and now it is PROVEN:** the new
+sweep plays every card through every reply — all five rush orders and
+all three solo beats, every choice including the clamp cases (a press
+at -9 or 99 still serves) — and asserts the money law at each step
+(+5 at the counter, never a cent at the corner). The kit's reply-count
+shape (3-4 per card) is pinned too. 404 → 416 assertions on the
+conversation alone.
+
+**The Map's Words margin can finally hold all four Doc-08 cards.** Two
+of them — `bodega` and `on line` — sat in the deck with no trigger;
+unreachable since they shipped. Wired to the moments that teach them:
+`bodega` lands when Rosa walks you behind her counter; `on line` when
+the rush line forms behind the first order. The driver now proves all
+four by name.
+
+**The save grew a fuzz wall.** Every field × eleven wrong shapes
+(null, 42, 'banana', arrays of NaN, objects, ±infinities), plus sixty
+truncations and forty single-byte corruptions of a real save — the
+parser returns a valid save every time, never an exception. A resume
+that throws strands a player on a black screen; now the class of bug
+is guarded, not just the instances.
+
+**The day-kept jingle** — the audit's "key jingle" ask, synthesized by
+the same three-oscillator synth as the rest of the block's sounds (no
+stems to license or ship): three unhurried notes under the day-end
+postcard.
+
+**The dusk-rail flake family, closed driver-side:** the reach-top
+trigger re-parks the capsule east after it fires, so the day-3
+goodnight pad sat out of range and the day rolled mid-sequence. The
+driver walks back in and pressUntil lands the press; the dismount
+camera re-pins its yaw (it had drifted far enough that KeyA walked
+east). Two deterministic failures became two green runs.
+
+**Verification:** tsc clean · vitest **430/430** · build clean ·
+E2E AUTOTEST OK, 0 failures, 351 s, zero console errors.

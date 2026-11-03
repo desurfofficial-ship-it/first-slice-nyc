@@ -249,6 +249,15 @@ class GameAudio {
     this.tone(659.25, 1.9, 0.035);
   }
 
+  /** The day-kept jingle — the postcard slides out and the day was held.
+   *  Three notes, unhurried, rising home: the audit's "key jingle" ask,
+   *  played by the same synth as everything else (no stems to ship). */
+  dayKept(): void {
+    this.tone(392.0, 0.5, 0.035);            // G4 — the day settles
+    window.setTimeout(() => this.tone(493.88, 0.5, 0.033), 260);  // B4 — it held
+    window.setTimeout(() => this.tone(587.33, 0.9, 0.04), 540);   // D5 — kept
+  }
+
   /** A pigeon, occasionally (the flock is ambient; so is its voice). */
   coo(): void {
     this.tone(420 + Math.random() * 60, 0.22, 0.02, 'sine', 300);
