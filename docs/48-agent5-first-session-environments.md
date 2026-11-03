@@ -126,3 +126,36 @@ tsc clean · **260/260 tests** (251 + 9 arrival) · `probe-a5` **PASS** (10/10 w
 **The meet-flow proof.** `probe-a5f` plays the first minute of real gameplay from the film's handover: SKIP chip → step-off → walk to Rosa (she is WAVING under the BUS TERMINAL sign — the `wave` rig, visually confirmed) → interact → step 1 "Follow Rosa…" → her wave flips to `auto` and she walks the counter route at full 2 m/s. The story machine, the walk, and the new spawn all agree.
 
 **Gates at session end:** tsc clean · **265/265 tests** · `probe-a5` PASS · `probe-a5c` PASS (film end-to-end) · `probe-a5e` PASS (sync, measured) · `probe-a5f` PASS (meet flow from the handover) · solidity 4/4 · W1 grid PASS · e2e 94 PASS / 0 FAIL through Day-4 dusk (sandbox shell cap).
+
+---
+
+## 11. Addendum — A5d: the audit that looked (same branch, next session)
+
+**Directive:** keep building, polishing, fixing bugs — first session above anything else. The build compiled and every walk gate passed, so this session's work was the gate that doesn't lie: **looking**. The probe's own screenshots convicted the build. Four piles of fixes, each one a frame a player actually sees.
+
+### The station was lying about itself (§2 env 7–8)
+
+Every sign in Alder Station used ABOVE-GRADE y — 0.9 / 1.7 / 0.2 / −1.05 — while the hall walls top out at −1.3 and the ceiling soffit is −1.4. The whole signage layer rendered **buried inside the street slab**: no name boards, no F/M bullets, no TIMES SQ → wayfinding, no mosaic. And inside the train, the two ads hung on the car's OUTSIDE south face facing away, and Priya's route map floated through the roof slab facing the wall. Fixed:
+
+- name boards at eye height (−2.3) on wall planes that exist; the W board moved to the wall segment north of the passage mouth (its old z sat inside the mouth gap);
+- bullets stacked above the board (−1.72), exit board hung in the mouth under the soffit (−1.78), passage arrow hung at the leg junction facing the walker (−2.55);
+- mosaic on the north wall (−2.4);
+- train: window bands proud of the wall INTERIORS (they were inside the slab — the car had no lit windows from inside), ads above the seat backs facing the aisle, route map on the north middle pier facing the seats, plus an exterior teal line stripe — the car read as a sealed cream tube from the platform.
+
+### The square's 1-Second Law (§2 env 9)
+
+- **Steam** was untextured points — hovering glitch squares over the band. Now a radial-gradient sprite (built once), round puffs, softer opacity.
+- **E2/W2's warm office windows** sat 4 mm BEHIND their shaft face — z-fighting ghosts. Now 0.07 proud.
+- **Tower faces were bare brown slabs.** New `tsTowerWalls()`: window grids on all 14 plaza-facing faces as TWO InstancedMeshes (dim + sparse warm lit — 2 draw calls, static, deterministic hash), a dark plinth + glowing glass band on every base, and four named storefronts — Gable News, Kestrel Records (the Happy Accident #1 seed, Doc 02 §15), Alder Flowers, Juniper Bar. The grid skips every registered billboard/screen rect, so no window fights a sign; the towers were table-driven (`TS_TOWERS`) so the dressing reads from the same numbers the colliders use.
+
+### The coach rear was a blank wall the whole title beat stares at (§2 env 1)
+
+Rear destination roll (NEW YORK, amber on ink — a real coach carries the route astern), taillights, bumper, engine grille. Plus the wheel/shimmer fix: the wheel caps sat 15 mm from the skirt plane and dithered at glancing angles — skirt ±1.21, wheels ±1.24, nothing near-coplanar.
+
+### The e2e deadlock — the cab that froze on a pedestrian (engine)
+
+The full 4-day driver had never finished in this sandbox (shell caps, CPU contention). When it finally ran clean it failed 12 checks, all one chain: Day 4's laundromat crossing. The trace showed the walker pressed against a 4.4 × 1.96 box at (−5.5, −2) — **the taxi, frozen mid-lane with its body around them**. Rule 2 braked to 0 for any conflicting body not fully behind the tail; a walker who steps into the lane BESIDE the cab (nose already past) froze it forever, and the post-move resolve held them at the south face — a deadlock the walk budget burned for 28 s. Fix, per the module's own design comment ("the pedestrian yields to the vehicle"): `pedestrianSpeedCap()` — bodies beside the cab impose no cap (the cab crawls past, the resolve walks them clear of the tail); bodies ahead of the nose keep the full braking curve; behind/lateral stay exempt. 5 new tests pin it (`tests/traffic.test.ts`). The crosswalk courtesy hold is untouched (probe-solid asserts the nose still parks at the stop line).
+
+### Gates at session end
+
+tsc clean · **270/270 tests** (265 + 5 traffic) · build clean · `probe-a5` **PASS** (0 page errors; the re-shot frames show named walls, a striped train with interior ads, windowed towers, round steam, a dressed coach rear) · solidity 4/4 · W1 grid PASS · **e2e 104/104 PASS, 599 s, 0 console errors — the first full four-day completion in this sandbox**.

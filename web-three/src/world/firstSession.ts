@@ -64,6 +64,26 @@ const CEIL = -1.4;                           // hall ceiling soffit
 /** Warm screen cycle (the Doc 02 "screens turn warm" grammar, ambient). */
 const SCREEN_HUES = [0.09, 0.075, 0.02, 0.48]; // gold → amber → coral → teal
 
+/** The 14 Times Square towers (§4). The id's first letter is the row, and the
+ *  row picks the plaza-facing face: N shows its south face, S its north,
+ *  E its west, W its east. tsTowerWalls dresses those faces from this table. */
+const TS_TOWERS: Array<{ id: string; cx: number; cz: number; h: number; w: number; dz?: number; tank?: boolean }> = [
+  { id: 'N1', cx: -79, cz: -52.5, h: 18, w: 6.2 },
+  { id: 'N2', cx: -71.5, cz: -52.5, h: 24, w: 7.0, dz: 5.0 },
+  { id: 'N3', cx: -63, cz: -52.5, h: 20, w: 6.4 },
+  { id: 'E1', cx: -58.9, cz: -56, h: 22, w: 5.2 },
+  { id: 'E2', cx: -58.9, cz: -64, h: 30, w: 5.2, tank: true },
+  { id: 'E3', cx: -58.9, cz: -72, h: 26, w: 5.2 },
+  { id: 'W1', cx: -81.4, cz: -56, h: 24, w: 5.2 },
+  { id: 'W2', cx: -81.4, cz: -64, h: 34, w: 5.2, tank: true },
+  { id: 'W3', cx: -81.4, cz: -72, h: 28, w: 5.2 },
+  { id: 'S1', cx: -79.5, cz: -77.6, h: 38, w: 6.4 },
+  { id: 'S2', cx: -74.5, cz: -77.6, h: 44, w: 7.0, tank: true },
+  { id: 'S3', cx: -69, cz: -77.6, h: 40, w: 6.4 },
+  { id: 'S4', cx: -63.5, cz: -77.6, h: 34, w: 6.4 },
+  { id: 'S5', cx: -59.5, cz: -77.6, h: 30, w: 5.0 },
+];
+
 // ---- wonder beat #1 — the sync (Doc 02: "the screens all turn at once") ----
 // On the player's first walk into the plaza, every animated screen and every
 // billboard face turns warm TOGETHER for a held beat, then releases back to
@@ -105,6 +125,8 @@ export class FirstSessionWorld {
   private readonly syncScratch = new THREE.Color();
   private steam: THREE.Points | null = null;
   private steamSeed: number[] = [];
+  /** Billboard/screen faces the tower-window grid must keep clear of. */
+  private tsOccu: Array<{ row: 'N' | 'S' | 'E' | 'W'; u: number; y: number; w: number; h: number }> = [];
   private time = 0;
   private mats = new Map<number, THREE.MeshLambertMaterial>();
   private bank: MatBank;
@@ -291,15 +313,23 @@ export class FirstSessionWorld {
       this.pushCollider(bx, PLAT_TOP + 0.3, 6.6, 1.85, 0.7, 0.62);
     }
 
-    // name boards + line bullets + the exit board over the passage mouth
-    this.stationSign(g, 'ALDER ST', -48.98, 0.9, 5.4, Math.PI / 2);
-    this.stationSign(g, 'ALDER ST', -35.02, 0.9, 5.4, -Math.PI / 2);
-    this.bulletPair(g, -48.98, 1.7, 8.3, Math.PI / 2);
-    this.textPlane(g, 'A5_ExitBoard', 'TIMES SQ →', 2.6, 0.62, PAL.ink, PAL.cream, -48.98, 0.2, 5.0, Math.PI / 2);
-    this.textPlane(g, 'A5_PassageArrow', '→ TIMES SQ', 2.2, 0.5, PAL.teal, PAL.cream, -49.2, -1.05, 5.0, Math.PI / 2);
+    // name boards + line bullets + the exit board over the passage mouth.
+    // A5 audit fix: every sign here used ABOVE-GRADE y (0.9/1.7/0.2/−1.05) —
+    // the hall walls top out at −1.3 and the ceiling soffit is −1.4, so the
+    // whole signage layer rendered buried inside the street slab and the
+    // station read as an unlabeled bunker. Everything now hangs on the wall
+    // plane (or under the ceiling, like real subway hang-boards), at heights
+    // measured from the platform (−4.0): eye board −2.3, stack bullets −1.72,
+    // hang-board −1.78 (top −1.47, clear of the soffit by 0.07).
+    this.stationSign(g, 'ALDER ST', -48.98, -2.3, 8.2, Math.PI / 2);
+    this.stationSign(g, 'ALDER ST', -35.02, -2.3, 5.4, -Math.PI / 2);
+    this.bulletPair(g, -48.98, -1.72, 8.2, Math.PI / 2);
+    this.textPlane(g, 'A5_ExitBoard', 'TIMES SQ →', 2.6, 0.62, PAL.ink, PAL.cream, -48.9, -1.78, 5.0, Math.PI / 2);
+    this.textPlane(g, 'A5_PassageArrow', '→ TIMES SQ', 2.2, 0.5, PAL.teal, PAL.cream, -69, -2.55, 5.0, Math.PI / 2);
 
-    // big mosaic name over the landing (what you see climbing out)
-    this.stationSign(g, 'ALDER ST', -42, -1.05, 9.38, Math.PI, 3.4, 0.9, 96);
+    // big mosaic name over the landing (what you see climbing out) — was at
+    // −1.05, i.e. 0.25 ABOVE the wall top; it now sits on the wall itself
+    this.stationSign(g, 'ALDER ST', -42, -2.4, 9.38, Math.PI, 3.4, 0.9, 96);
 
     // trash can by the benches (the shipped can silhouette, simple)
     const can = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.28, 0.85, 10), dark);
@@ -411,9 +441,15 @@ export class FirstSessionWorld {
     this.box(g, `A5_CarFloor${cx}`, dark, cx, PLAT_TOP - 0.075, 0, L, 0.15, W, true);
     this.box(g, `A5_CarRoof${cx}`, body, cx, -1.525, 0, L, 0.15, W);
     this.box(g, `A5_CarVent${cx}`, steel, cx, -1.42, 0, 1.4, 0.1, 1.0);
-    // south wall (full) + its window band
+    // exterior line stripe — the car read as a sealed cream tube from the
+    // platform; a teal band at window-sill height gives it the car identity
+    this.box(g, `A5_CarStripe${cx}`, teal, cx, -2.75, 0, L + 0.06, 0.22, W + 0.02);
+    // south wall (full) + its window band. A5 audit fix: the band lived at
+    // z −1.19, INSIDE the wall slab (−1.2..−1.0) — from the interior the car
+    // had no lit windows at all, and the strip only poked 1 cm out the far
+    // side. Bands now sit proud of the wall's INNER face (−1.0).
     this.box(g, `A5_CarWallS${cx}`, body, cx, -2.725, -1.1, L, 2.55, 0.2, true);
-    this.box(g, `A5_CarWinS${cx}`, band, cx, -2.3, -1.19, L - 1.2, 0.8, 0.04);
+    this.box(g, `A5_CarWinS${cx}`, band, cx, -2.3, -0.97, L - 1.2, 0.8, 0.06);
     // north wall: three piers + header, two door gaps on the platform side
     const doors = [cx - 1.4, cx + 1.4];        // door gap centers, 1.0 wide
     const pierSpans: Array<[number, number]> = [
@@ -423,7 +459,7 @@ export class FirstSessionWorld {
       const [a, b] = pierSpans[i];
       if (b - a < 0.05) continue;
       this.box(g, `A5_CarPier${cx}_${i}`, body, (a + b) / 2, -2.725, 1.1, b - a, 2.55, 0.2, true);
-      this.box(g, `A5_CarWinN${cx}_${i}`, band, (a + b) / 2, -2.3, 1.19, Math.max(0.1, b - a - 0.7), 0.8, 0.04);
+      this.box(g, `A5_CarWinN${cx}_${i}`, band, (a + b) / 2, -2.3, 0.97, Math.max(0.1, b - a - 0.7), 0.8, 0.06);
     }
     this.box(g, `A5_CarHeader${cx}`, body, cx, -1.775, 1.1, L, 0.5, 0.2);
     // open door leaves, slid into the piers
@@ -445,13 +481,18 @@ export class FirstSessionWorld {
       g.add(p);
       this.pushCollider(px, -2.55, 0.45, 0.1, 1.7, 0.1);
     }
-    // interior light + two ads + the two-line route map (Priya's beat)
+    // interior light + two ads + the two-line route map (Priya's beat).
+    // A5 audit fix: the ads hung on the car's OUTSIDE south face facing away
+    // (z −1.21, ry π — invisible from inside), and the route map floated
+    // through the roof slab above the car, facing the wall. Now: ads on the
+    // south wall interior above the seat backs, the map card on the north
+    // wall's middle pier facing the seats — where Priya points at it.
     this.lightStrip(g, cx, 0, L - 0.8);
-    this.textPlane(g, `A5_CarAdA${cx}`, 'THE MAP\nKNOWS', 0.9, 0.6, PAL.coral, PAL.cream, cx - 1.1, -2.2, -1.21, Math.PI);
-    this.textPlane(g, `A5_CarAdB${cx}`, 'REGULAR\nMILK · TWO SUGARS', 1.2, 0.6, PAL.teal, PAL.cream, cx + 1.2, -2.2, -1.21, Math.PI);
+    this.textPlane(g, `A5_CarAdA${cx}`, 'THE MAP\nKNOWS', 0.9, 0.6, PAL.coral, PAL.cream, cx - 1.1, -3.05, -0.9, 0);
+    this.textPlane(g, `A5_CarAdB${cx}`, 'REGULAR\nMILK · TWO SUGARS', 1.2, 0.6, PAL.teal, PAL.cream, cx + 1.2, -3.05, -0.9, 0);
     if (cx < -41) {
       this.textPlane(g, 'A5_RouteMap', 'F — UNDER THE RIVER\nM — WITH THE LIGHTS', 1.7, 0.7, PAL.cream, PAL.ink,
-        cx - 1.5, -1.65, 0.98);
+        cx, -2.95, 0.93, Math.PI);
     }
   }
 
@@ -585,20 +626,13 @@ export class FirstSessionWorld {
     }
 
     // towers: north row (the canyon wall), east + west rows, south row
-    this.tsTower(g, -79, -52.5, 18, bldg, 6.2, 'N1');
-    this.tsTower(g, -71.5, -52.5, 24, bldg2, 7.0, 'N2', false, 5.0);
-    this.tsTower(g, -63, -52.5, 20, brick, 6.4, 'N3');
-    this.tsTower(g, -58.9, -56, 22, bldg, 5.2, 'E1');
-    this.tsTower(g, -58.9, -64, 30, bldg2, 5.2, 'E2', true);
-    this.tsTower(g, -58.9, -72, 26, bldg, 5.2, 'E3');
-    this.tsTower(g, -81.4, -56, 24, bldg2, 5.2, 'W1');
-    this.tsTower(g, -81.4, -64, 34, bldg, 5.2, 'W2', true);
-    this.tsTower(g, -81.4, -72, 28, brick, 5.2, 'W3');
-    this.tsTower(g, -79.5, -77.6, 38, bldg2, 6.4, 'S1');
-    this.tsTower(g, -74.5, -77.6, 44, bldg, 7.0, 'S2', true);
-    this.tsTower(g, -69, -77.6, 40, bldg2, 6.4, 'S3');
-    this.tsTower(g, -63.5, -77.6, 34, brick, 6.4, 'S4');
-    this.tsTower(g, -59.5, -77.6, 30, bldg, 5.0, 'S5');
+    const towerMats: Record<string, THREE.Material> = {
+      N1: bldg, N2: bldg2, N3: brick, E1: bldg, E2: bldg2, E3: bldg,
+      W1: bldg2, W2: bldg, W3: brick, S1: bldg2, S2: bldg, S3: bldg2, S4: brick, S5: bldg,
+    };
+    for (const t of TS_TOWERS) {
+      this.tsTower(g, t.cx, t.cz, t.h, towerMats[t.id], t.w, t.id, t.tank ?? false, t.dz ?? t.w);
+    }
     // the far card plane (SKY-S grammar lives behind us; these are mid-ground)
     for (const [i, [fx, fh]] of [[-88, 52], [-78, 64], [-64, 58]].entries()) {
       this.box(g, `A5_TSFar${i}`, skyline, fx as number, (fh as number) / 2, -88, 9, fh as number, 8);
@@ -630,6 +664,12 @@ export class FirstSessionWorld {
     // two animated screens — the "screens all turn warm" grammar
     this.screen(g, -71.5, 15, -54.71, Math.PI, 9.0, 6.5);
     this.screen(g, -74.5, 28, -74.53, 0, 9.0, 6.5);
+
+    // tower costumes: window grids + street-level plinths/glass (the audit's
+    // canyon shot showed bare brown slabs — the 1-Second Law needs faces that
+    // read as buildings). Called after the billboards so the grid keeps clear
+    // of every registered face (no z-fights, no buried signs).
+    this.tsTowerWalls(g);
 
     // the red steps (tiered south, climbable, the plaza's living room)
     const red = this.mat(PAL.brick);
@@ -687,13 +727,15 @@ export class FirstSessionWorld {
     // sparse warm office windows on the two tallest towers (NOT gold — the
     // Skyline of Lit Windows stays ONE window, the kid's; VS-F08). A5: on
     // E2/W2's −z faces (facing down the canyon toward the south plaza; the
-    // first draft's x put them inside the W/E boxes)
+    // first draft's x put them inside the W/E boxes). Audit fix: the faces
+    // sat 4 mm BEHIND the shaft's south face (−66.236) — z-fighting ghosts;
+    // they now sit 0.07 proud like every other face dressing.
     for (let r = 0; r < 6; r++) for (let c = 0; c < 4; c++) {
       if ((r * 4 + c) % 3 !== 0) continue;
       this.box(g, `A5_TSWinW${r}${c}`, this.mat(PAL.amber, PAL.amber, 0.5),
-        -83.1 + c * 1.1, 9.5 + r * 3.4, -66.29, 0.9, 0.9, 0.1);
+        -83.1 + c * 1.1, 9.5 + r * 3.4, -66.36, 0.9, 0.9, 0.1);
       this.box(g, `A5_TSWinE${r}${c}`, this.mat(PAL.amber, PAL.amber, 0.5),
-        -60.6 + c * 1.1, 9 + r * 3.4, -66.29, 0.9, 0.9, 0.1);
+        -60.6 + c * 1.1, 9 + r * 3.4, -66.36, 0.9, 0.9, 0.1);
     }
 
     // two plaza walkers — the square is never empty
@@ -748,6 +790,99 @@ export class FirstSessionWorld {
     for (const b of this.peds.walkColliders) this.ctxColliders.push(b);
   }
 
+  /** Street-level costume for every plaza-facing tower face (the audit's
+   *  canyon shot showed bare brown slabs — the 1-Second Law needs faces that
+   *  read as buildings, not boxes):
+   *  - window grids as TWO InstancedMeshes (dim + sparse warm lit; 2 draw
+   *    calls total, static, deterministic hash — §1c budget honesty);
+   *  - a dark plinth + warm glass band on the base (podium retail); the
+   *    grid only climbs above the base's top (h·0.24);
+   *  - four named storefronts on the most-seen faces — Kestrel Records is
+   *    the Happy Accident #1 seed (Doc 02 §15: "it matters at Week 3").
+   *  The grid skips every registered billboard/screen rect (tsOccu), so no
+   *  window ever fights a sign for its pixels. */
+  private tsTowerWalls(g: THREE.Group): void {
+    const dimMat = this.mat(PAL.windowDim);
+    const litMat = this.mat(PAL.amber, PAL.amber, 0.55);
+    const plinthMat = this.mat(PAL.manhole);
+    const glassMat = this.mat(PAL.windowDim, PAL.amber, 0.4);
+    type Inst = { x: number; y: number; z: number; ry: number };
+    const dims: Inst[] = [];
+    const lits: Inst[] = [];
+    for (let ti = 0; ti < TS_TOWERS.length; ti++) {
+      const t = TS_TOWERS[ti];
+      const row = t.id[0] as 'N' | 'S' | 'E' | 'W';
+      const dz = t.dz ?? t.w;
+      // the plaza-facing face: plane offset (off), proud direction (sgn),
+      // facing (ry), and the along-face half-extent (halfU)
+      const face = row === 'N' ? { ax: 'z' as const, sgn: -1, ry: Math.PI, halfU: t.w * 0.43, off: t.cz - dz * 0.43 }
+        : row === 'S' ? { ax: 'z' as const, sgn: 1, ry: 0, halfU: t.w * 0.43, off: t.cz + dz * 0.43 }
+        : row === 'E' ? { ax: 'x' as const, sgn: -1, ry: -Math.PI / 2, halfU: dz * 0.43, off: t.cx - t.w * 0.43 }
+        : { ax: 'x' as const, sgn: 1, ry: Math.PI / 2, halfU: dz * 0.43, off: t.cx + t.w * 0.43 };
+      // street level: plinth + glowing glass on the BASE face (full footprint);
+      // both sit 0.02+ proud of the base plane (coplanar faces z-fight)
+      const faceX = row === 'E' ? t.cx - t.w / 2 : row === 'W' ? t.cx + t.w / 2 : t.cx;
+      const faceZ = row === 'N' ? t.cz - dz / 2 : row === 'S' ? t.cz + dz / 2 : t.cz;
+      const bx = face.ax === 'x' ? faceX + face.sgn * 0.07 : t.cx;
+      const bz = face.ax === 'z' ? faceZ + face.sgn * 0.07 : t.cz;
+      const alongW = (row === 'N' || row === 'S') ? t.w * 0.94 : dz * 0.94;
+      const pw = face.ax === 'z' ? alongW : 0.1;
+      const pd = face.ax === 'z' ? 0.1 : alongW;
+      this.box(g, `A5_TSPlinth${t.id}`, plinthMat, bx, GRADE + 1.2, bz, pw, 2.4, pd);
+      const gx = face.ax === 'x' ? faceX + face.sgn * 0.12 : t.cx;
+      const gz = face.ax === 'z' ? faceZ + face.sgn * 0.12 : t.cz;
+      this.box(g, `A5_TSGlass${t.id}`, glassMat, gx, GRADE + 1.3, gz, face.ax === 'z' ? alongW * 0.96 : 0.08, 1.7, face.ax === 'z' ? 0.08 : alongW * 0.96);
+      // window grid on the shaft face, above the base top; u is WORLD-space
+      // along the face (billboard rects are registered in world coords too)
+      const y0 = Math.max(2.6, t.h * 0.24 + 0.5);
+      if (face.halfU >= 1.4) {
+        const uC = face.ax === 'z' ? t.cx : t.cz;
+        for (let ri = 0, y = y0; y <= t.h - 1.2; ri++, y += 2.0) {
+          for (let ci = 0, u = uC - (face.halfU - 0.9); u <= uC + (face.halfU - 0.9); ci++, u += 1.6) {
+            let blocked = false;
+            for (const o of this.tsOccu) {
+              if (o.row === row && Math.abs(o.u - u) < o.w / 2 + 0.45 && Math.abs(o.y - y) < o.h / 2 + 0.45) {
+                blocked = true;
+                break;
+              }
+            }
+            if (blocked) continue;
+            const px = face.ax === 'z' ? u : face.off + face.sgn * 0.06;
+            const pz = face.ax === 'z' ? face.off + face.sgn * 0.06 : u;
+            const inst = { x: px, y, z: pz, ry: face.ry };
+            if ((ti * 31 + ri * 7 + ci * 13) % 9 === 0) lits.push(inst);
+            else dims.push(inst);
+          }
+        }
+      }
+    }
+    const winGeo = new THREE.PlaneGeometry(0.85, 1.15);
+    const mk = (list: Inst[], mat: THREE.Material, name: string) => {
+      if (!list.length) return;
+      const im = new THREE.InstancedMesh(winGeo, mat, list.length);
+      im.name = name;
+      const m4 = new THREE.Matrix4();
+      for (let i = 0; i < list.length; i++) {
+        m4.makeRotationY(list[i].ry);
+        m4.setPosition(list[i].x, list[i].y, list[i].z);
+        im.setMatrixAt(i, m4);
+      }
+      im.instanceMatrix.needsUpdate = true;
+      im.frustumCulled = false; // the square group's own gate handles visibility
+      g.add(im);
+    };
+    mk(dims, dimMat, 'A5_TSTowerWinsDim');
+    mk(lits, litMat, 'A5_TSTowerWinsLit');
+    // four named storefronts on the faces you actually see from the plaza —
+    // the game's own street names, so the square is ALDER HEIGHTS' square.
+    // Signs sit 0.08 proud of the glass outer face (the first cut — 0.01 —
+    // z-fought the glass at distance and the letters speckled through).
+    this.textPlane(g, 'A5_TSShopS3', 'GABLE NEWS', 2.3, 0.5, PAL.ink, PAL.cream, -69, 1.55, -74.4 + 0.24, 0);
+    this.textPlane(g, 'A5_TSShopS4', 'KESTREL RECORDS', 2.3, 0.5, PAL.ink, PAL.gold, -63.5, 1.55, -74.4 + 0.24, 0);
+    this.textPlane(g, 'A5_TSShopE3', 'ALDER FLOWERS', 2.3, 0.5, PAL.teal, PAL.cream, -61.5 - 0.24, 1.55, -72, -Math.PI / 2);
+    this.textPlane(g, 'A5_TSShopW3', 'JUNIPER BAR', 2.3, 0.5, PAL.coral, PAL.cream, -78.8 + 0.24, 1.55, -72, Math.PI / 2);
+  }
+
   /**
    * One tower: base, shaft, setback, cap, optional water tank. dz defaults to
    * w (square footprint). N2 uses dz 5.0: its 7 m depth put the tower's south
@@ -773,7 +908,8 @@ export class FirstSessionWorld {
   }
 
   /** One billboard: backing box + unlit canvas face. The back sits 0.005
-   *  behind the face (no coplanar z-fight) and embeds into its tower. */
+   *  behind the face (no coplanar z-fight) and embeds into its tower. The
+   *  face also registers itself so the tower-window grid keeps clear. */
   private billboard(
     g: THREE.Group, x: number, y: number, z: number, ry: number,
     w: number, h: number, text: string, bg: number, fg: number,
@@ -783,9 +919,12 @@ export class FirstSessionWorld {
     back.rotation.y = ry;
     const face = this.textPlane(g, 'A5_TSBill', text, w, h, bg, fg, x, y, z, ry);
     this.syncFaces.push(face.material as THREE.MeshBasicMaterial);
+    const row = ry > Math.PI / 2 ? 'N' : ry < -Math.PI / 4 ? 'E' : ry > Math.PI / 4 ? 'W' : 'S';
+    this.tsOccu.push({ row, u: row === 'N' || row === 'S' ? x : z, y, w, h });
   }
 
-  /** One animated screen — hue cycles warm in update(). */
+  /** One animated screen — hue cycles warm in update(). Registers its rect
+   *  like billboard() so the tower-window grid keeps clear of it. */
   private screen(g: THREE.Group, x: number, y: number, z: number, ry: number, w: number, h: number): void {
     const back = this.box(g, 'A5_TSScreenBack', this.mat(PAL.ink),
       x - Math.sin(ry) * 0.155, y, z - Math.cos(ry) * 0.155, w + 0.6, h + 0.6, 0.3);
@@ -797,6 +936,8 @@ export class FirstSessionWorld {
     m.rotation.y = ry;
     g.add(m);
     this.screens.push(m.material as THREE.MeshBasicMaterial);
+    const row = ry > Math.PI / 2 ? 'N' : ry < -Math.PI / 4 ? 'E' : ry > Math.PI / 4 ? 'W' : 'S';
+    this.tsOccu.push({ row, u: row === 'N' || row === 'S' ? x : z, y, w, h });
   }
 
   /** A parked checkered cab on the bowtie band. */
@@ -817,9 +958,26 @@ export class FirstSessionWorld {
     }
   }
 
+  /** Soft round puff sprite — untextured points read as hovering glitch
+   *  squares (the audit caught them over the band); a radial-gradient sprite
+   *  reads as steam at any distance. Built once, shared by the plume. */
+  private steamSprite(): THREE.CanvasTexture {
+    const c = document.createElement('canvas');
+    c.width = 64;
+    c.height = 64;
+    const g2 = c.getContext('2d')!;
+    const grad = g2.createRadialGradient(32, 32, 4, 32, 32, 30);
+    grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+    grad.addColorStop(0.55, 'rgba(255,255,255,0.38)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g2.fillStyle = grad;
+    g2.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(c);
+  }
+
   /** A small steam plume (the shipped one is inline in World; this one is ours). */
   private buildSteam(g: THREE.Group, x: number, y: number, z: number): void {
-    const n = 10;
+    const n = 12;
     const pos = new Float32Array(n * 3);
     this.steamSeed = [];
     for (let i = 0; i < n; i++) {
@@ -830,7 +988,10 @@ export class FirstSessionWorld {
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const mat = new THREE.PointsMaterial({ color: PAL.stone, size: 0.55, transparent: true, opacity: 0.5, depthWrite: false });
+    const mat = new THREE.PointsMaterial({
+      map: this.steamSprite(), color: PAL.stone, size: 1.15,
+      transparent: true, opacity: 0.34, depthWrite: false,
+    });
     this.steam = new THREE.Points(geo, mat);
     this.steam.name = 'A5_TSSteam';
     g.add(this.steam);
@@ -864,12 +1025,32 @@ export class FirstSessionWorld {
     add(mk(body, 0, 2.62, 0, 11.0, 0.5, 2.45));           // roof
     add(mk(dark, 0.6, 2.2, 0, 9.6, 0.85, 2.58));          // window band
     add(mk(dark, 5.35, 2.1, 0, 0.7, 1.1, 2.4));           // windshield
-    add(mk(teal, 0, 0.62, 0, 11.4, 0.5, 2.57));           // skirt stripe
+    add(mk(teal, 0, 0.62, 0, 11.4, 0.5, 2.42));           // skirt stripe
     add(mk(this.mat(PAL.gold), 0, 1.0, 0, 11.42, 0.07, 2.59)); // trim line
     add(mk(dark, -3.6, 0.75, 0, 1.7, 0.8, 2.3));          // luggage bin
-    // wheels (front axle near the windshield, rear pair aft)
-    for (const [wx, wz] of [[3.6, 1.15], [3.6, -1.15], [-3.3, 1.15], [-3.3, -1.15], [-4.6, 1.15], [-4.6, -1.15]] as const) {
-      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.3, 14), dark);
+    // rear face dressing — the step-off handover parks the lens staring at
+    // this gable for the whole title beat; it was a blank cream wall (the
+    // audit shot). Taillights, bumper, engine grille, and the route roll a
+    // real coach carries astern.
+    const tail = this.mat(PAL.coral, PAL.coral, 0.55);
+    add(mk(tail, -5.73, 0.95, 0.85, 0.1, 0.32, 0.34));
+    add(mk(tail, -5.73, 0.95, -0.85, 0.1, 0.32, 0.34));
+    add(mk(dark, -5.78, 0.5, 0, 0.3, 0.42, 2.5));          // rear bumper
+    add(mk(dark, -5.73, 1.45, 0, 0.07, 0.75, 1.7));        // engine grille
+    const rear = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.3),
+      new THREE.MeshBasicMaterial({ map: this.destTexture('NEW YORK') }));
+    rear.name = 'CoachDestinationRear';
+    rear.position.set(-5.74, 2.2, 0);
+    rear.rotation.y = -Math.PI / 2;
+    add(rear);
+    // wheels (front axle near the windshield, rear pair aft). A5 audit fix:
+    // the outer wheel caps sat 15 mm from the skirt plane (±1.285 vs ±1.3) —
+    // at glancing angles the two near-coplanar surfaces shimmered as a dither
+    // patch on the skirt. Skirt narrowed to ±1.21, wheels at ±1.24 (caps
+    // 1.12/1.36: 90 mm inside the skirt face, 150 mm outside — nothing
+    // near-coplanar left on either side).
+    for (const [wx, wz] of [[3.6, 1.24], [3.6, -1.24], [-3.3, 1.24], [-3.3, -1.24], [-4.6, 1.24], [-4.6, -1.24]] as const) {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.24, 14), dark);
       w.name = 'CoachWheel';
       w.rotation.x = Math.PI / 2;
       w.position.set(wx, 0.52, wz);

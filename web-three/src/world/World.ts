@@ -12,7 +12,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { PAL } from '../core/palette';
 import { ITEM_LABELS } from '../core/content';
 import { boxFromCenter, type AABB } from '../engine/collide';
-import { approachSpeed, bodyConflictsWithCab, noseLimit, type TrafficBody } from '../engine/traffic';
+import { approachSpeed, bodyConflictsWithCab, noseLimit, pedestrianSpeedCap, type TrafficBody } from '../engine/traffic';
 import { buildArticulatedPerson } from './personRig';
 import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecycleBin, makeHydrant,
   makeSubwayEntrance, makeBulletinBoard, makeBench, makeBusStop, makeNewspaperBoxes, makeBarrier,
@@ -3815,10 +3815,11 @@ export class World {
         if (b.rect.maxX <= road.x - CAB.halfLen) continue; // fully behind
         speed = Math.min(speed, approachSpeed(CAB.cruise, clearance, CAB.stopGap, CAB.gain));
       } else {
-        if (b.x + b.r <= road.x - CAB.halfLen) continue;   // fully behind
-        if (!bodyConflictsWithCab(b, sweepRect)) continue; // not in the path
-        const clearance = Math.max((b.x - b.r) - noseX, 0);
-        speed = Math.min(speed, approachSpeed(CAB.cruise, clearance, CAB.stopGap, CAB.gain));
+        speed = Math.min(speed, pedestrianSpeedCap(
+          CAB.cruise, CAB.stopGap, CAB.gain,
+          b.x, b.r, road.x - CAB.halfLen, noseX,
+          bodyConflictsWithCab(b, sweepRect),
+        ));
       }
     }
 
