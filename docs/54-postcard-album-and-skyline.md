@@ -84,3 +84,26 @@ evidence frame.
   guard clicks the real album button.
 - `probe-album` (4/4) and `probe-skyline` (materials + evidence frame)
   pass.
+
+## Addendum — the arrival merges (Nov 3, evening)
+
+Two more waves landed on top of the album pass while the push was
+waiting, and both are agent5's arrival work: the forest canopy
+smoothed into landing stairs (`4356ba7`), then the shopfronts grow a
+shop — bays, transoms, kickplates, a lit door (`339141c`). Neither
+touches the album, the bake, or the skyline files; both merges were
+clean, and the tree was re-gated from scratch after each.
+
+- merge `e2516c9` (canopies + landing stairs): tsc clean · vitest
+  **457/457** · E2E AUTOTEST OK, 0 failures / 353 s, console clean.
+- merge `42a112a` (the lit door): tsc clean · vitest **457/457** ·
+  E2E AUTOTEST OK, 0 failures / 356 s, console clean.
+- Pushed main through both waves: `339141c..42a112a`.
+
+One honest note on the harness: the sandbox had recycled the
+playwright browser cache, and the first E2E launch of the evening died
+with a silently empty log — backgrounded stdout does not survive the
+tool-call boundary here, and a pty wrapper is policy-blocked. The fix
+was boring on purpose: reinstall chromium, then launch and poll inside
+a single call. The suite's first green this round doubles as the
+proof the cache came back.

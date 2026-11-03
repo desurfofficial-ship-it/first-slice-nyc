@@ -312,3 +312,17 @@ Stage Summary:
 - tsc clean; vitest 457/457 after the agent5 merge; build clean; E2E AUTOTEST OK 0 failures / 432 s / console clean on the merged final tree (3c3b7f4).
 - Gap list after this pass: Regulars arcs beyond Day 4 (needs design), audio partner outreach (business, not code), touch panel hardening on real devices (the B7 contract now covers the album too).
 - Push needs a fresh token (none on disk; the repo is public, so fetch works anonymously).
+
+---
+Task ID: 5
+Agent: Z.ai (GLM)
+Task: Push the docs/54 album pass through the arriving agent5 waves; keep every gate green at each merge.
+
+Work Log:
+- Fetched into two fresh waves (canopies/landing stairs 4356ba7, then the shopfront that grows a shop 339141c); both merges clean, neither touches album/bake/skyline.
+- Re-gated at each merge: tsc clean, vitest 457/457, E2E AUTOTEST OK 0 failures (353 s, then 356 s), console clean both times.
+- The sandbox had recycled the playwright browser cache — the first E2E launch died with a silently empty log. Diagnosed (backgrounded stdout does not survive the tool-call boundary; a pty wrapper is policy-blocked), reinstalled chromium, and adopted launch-and-poll inside a single call.
+- Pushed main through both waves: 339141c..42a112a; the token was never written to config, verified clean after.
+
+Stage Summary:
+- main = 42a112a, all seven docs/54 commits live on origin. Gap list unchanged: Regulars arcs beyond Day 4 (needs design), audio partner outreach (business, not code), touch panel hardening on real devices.
