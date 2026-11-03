@@ -110,8 +110,8 @@ name/date before coding; mark FIXED in the same PR when done.
   confirm green (agent who has the probe harness).
 - **Where:** `web-three/src/world/subway/stationKit.ts`
 
-### B2. M121 arrival bus not enterable (probe-subway)
-- **Symptom:** `FAIL the M121 floor holds` / `FAIL the bus interior is enterable`
+### B2. M121 arrival bus not enterable (probe-subway) — FIXED 2026-11-03
+- **Was:** `FAIL the M121 floor holds` / `FAIL the bus interior is enterable`
   (`inBus: false`, floor y 0.3).
 - **Likely cause:** Collision between **W4p2 transit M121** (`engine/busRoute`,
   `buildM121`) and **docs/50 arrivalBus** (`world/arrivalBus.ts`). Two bus
@@ -121,7 +121,37 @@ name/date before coding; mark FIXED in the same PR when done.
   `World.ts` bus bay, `engine/busRoute.ts`.
 - **Owner hint:** Single owner for “the bus the player boards at the terminal”
   — merge or clearly separate. Do not re-introduce a second body.
-- **Status:** OPEN — 2026-11-03 audit confirmed still live.
+- **Resolution:** the one-bay-one-bus law (docs/47 "the terminal bay, made
+  honest", commit `06d8c9a`) already owns the bay: the loop M121 holds before
+  BUS-04's tail while the player stands inside, and the shell yields (hidden,
+  colliders retired) only while the loop's rect overlaps the bay. The two
+  shipped probe checks went green with that law on main; the 2026-11-03 audit
+  that marked this OPEN re-ran a pre-`06d8c9a` cut (same trap as B3's audit).
+- **Agent-2 hardening (this commit), the one hole the law still had:** the
+  occupancy test `playerInsideArrival` counted only feet **inside the rect at
+  y > 0.4** — a player MID-BOARD on the curb-side step (feet 0.3, z 3.3..3.9,
+  outside BUS04_RECT) held nothing. The loop M121 could park on the bay in
+  that window and retire the shell — step, floor and all — out from under
+  them, its own body then walling the door (the fused-bus failure docs/47
+  closed, back through the boarding window). Fix: the step is now a shared
+  const (`BUS04_STEP` — the builder places `BUS_Step_1` from it, the law
+  reads it, mesh and law can't drift) and the occupancy law is a pure,
+  tested export `playerOccupiesBus04(x, y, z)` (`arrivalBus.ts`) with a
+  mid-board branch (step footprint ± a capsule radius, y 0.2..0.65 — the
+  sidewalk at 0.1 still never holds the bay). `World.playerInsideArrival`
+  delegates to it, so both readers (the arriving bus's bay HOLD and
+  `syncBayOccupancy`) honor it.
+- **Commit / branch:** pushed to `main` (Agent 2, this commit).
+- **Verified:** new law tests in `tests/bus.test.ts` (floor inside holds,
+  the step branch incl. the hung-center and floor-snap frames, the street's
+  y band, mesh↔law number lock); full vitest **399/399**; `tsc --noEmit`
+  clean; `vite build` clean; **probe-subway ALL PASS ×5 on tip** (3 pre-fix,
+  2 post-fix — both B2 checks green every run: `the M121 floor holds (y
+  0.55)`, `the bus interior is enterable`); `probe-a5c-arrival` clean;
+  `probe-doc12` exit 0. `probe-w4-bus` first 5 checks PASS on the fix tree
+  AND on pristine main, then the browser dies in its 230 s lap-sampling
+  loop identically on both trees — environmental (this box's SwiftShader
+  renderer OOMs on the long loop), not the fix.
 
 ### B3. Court ball re-pickup after miss (probe-court) — FIXED 2026-11-02
 - **Was:** `FAIL re-pickup works wherever the ball came down`. Make /
@@ -187,7 +217,12 @@ name/date before coding; mark FIXED in the same PR when done.
   dodge it by luck. The pressUntil law makes every viewport honest.
 - **Evidence: two consecutive full runs, 0 failures, 476 s / 477 s, 127
   checks each, console clean — on the box that used to flake 1–5.**
-### B4. Full E2E on the post-W5 tip — re-run twice; one flake family named, one viewport green
+### B4. Full E2E on the post-W5 tip — CLOSED 2026-11-03 (superseded by the FIXED B4 above)
+- This was the audit's live record of the flake; the driver-side fix above
+  it (`lingerStage` break + `pressUntil` + polled day-roll checks) closed
+  the family with evidence on THIS box: **two consecutive full runs, 0
+  failures, 476 s / 477 s, 127 checks each, console clean.** Kept for the
+  forensics trail; do not re-run this item as open work.
 - The first-session merge (docs/52) ran the 4-day autotest on the merged
   tip AND on pure `origin/main`: both trees fail 1–5 of ~104 checks on the
   same box, all in one family — the wall-clock-timed dusk rails ("Rosa's
@@ -203,7 +238,8 @@ name/date before coding; mark FIXED in the same PR when done.
 - **Action for a clean machine:** one full pass at the harness default
   viewport; if the dusk rails still flake, widen the driver's wait windows
   (driver-side, documented) rather than touching the day clock.
-- **Status:** OPEN — 2026-11-03 audit confirmed still live.
+- **Status:** ~~OPEN — 2026-11-03 audit confirmed still live.~~ CLOSED —
+  same session, see the FIXED B4 entry above.
 
 ### B6. Camera canopy list length vs occlusion buffer — FIXED 2026-11-03 (the long way round)
 - **Fix:** `GameCamera.setCanopies()` grows (or zero-fills) the occlusion
@@ -230,7 +266,8 @@ name/date before coding; mark FIXED in the same PR when done.
   taps from paper UI on phones. Verified on an emulated phone: Map open →
   `#touch-ui` display none.
 - **Where:** `ui/UI.ts`, `style.css`, `Game.ts` mapOpen / orderCard.
-- **Status:** OPEN.
+- **Status:** FIXED (2026-11-02, per the record above — the OPEN line here
+  was stale; Agent 2, 2026-11-03).
 
 ### B8. KeyQ is camera-left only; some players expect strafe
 - Q is camera turn (with Z). No keyboard strafe other than A/D relative to
