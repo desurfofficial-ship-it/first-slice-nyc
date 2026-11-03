@@ -50,7 +50,10 @@ html, body {
   position: absolute;
   top: calc(14px + env(safe-area-inset-top));
   left: calc(16px + env(safe-area-inset-left));
-  max-width: min(58ch, 72vw);
+  /* Leave a hard lane for Map / Album / audio on the right — 72vw used to
+     run the spoken note under those buttons on phones (GitHub.io mobile). */
+  max-width: min(48ch, calc(100vw - 168px));
+  z-index: 1;
 }
 
 #objective {
@@ -68,12 +71,18 @@ html, body {
   color: var(--gold);
   text-shadow: 0 1px 3px rgba(26, 20, 32, 0.8);
   animation: note-in 0.5s ease-out;
-  display: inline-block;
+  display: block;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 6px 12px;
   border-radius: 10px;
   background: rgba(26, 20, 32, 0.62);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
+  /* Long spoken lines wrap inside the left lane; they must not paint
+     under Map / Album (those stay pointer-events: auto above). */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 @keyframes note-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 /* The note's exit — showNote() fades the spoken line and then truly hides
@@ -88,6 +97,24 @@ html, body {
   right: calc(16px + env(safe-area-inset-right));
   text-align: right;
   text-shadow: 0 1px 3px rgba(26, 20, 32, 0.75);
+  z-index: 2; /* above the spoken note so taps always hit Map / Album */
+  max-width: min(46vw, 220px);
+}
+
+/* Tool buttons share one line; money + timer sit on the lines below. */
+#hud-top-right > #btn-audio,
+#hud-top-right > #btn-map,
+#hud-top-right > #btn-album {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  margin: 0 0 6px 6px;
+}
+#hud-top-right > #btn-audio { margin-left: 0; }
+#hud-top-right > #money,
+#hud-top-right > #timer {
+  display: block;
 }
 
 #money { font-size: clamp(20px, 3.4vmin, 30px); font-weight: 700; font-family: var(--mono-font); transition: transform 0.15s ease, color 0.4s ease; }
@@ -423,6 +450,36 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   background: rgba(26, 20, 32, 0.78);
   border: 1px solid rgba(255, 248, 240, 0.3);
   color: var(--cream);
+}
+
+
+/* ---- HUD lane split on phones: note left, tools right, no overlap ---- */
+@media (max-width: 560px) {
+  #hud-top-left {
+    max-width: calc(100vw - 132px);
+  }
+  #hud-top-right {
+    max-width: 120px;
+    gap: 5px;
+  }
+  /* Stack Map under audio, Album under Map — one column, never across the note */
+  #hud-top-right > #btn-audio,
+  #hud-top-right > #btn-map,
+  #hud-top-right > #btn-album {
+    display: flex;
+    margin: 0;
+    width: 100%;
+    justify-content: center;
+  }
+  #btn-map, #btn-album {
+    padding: 7px 10px;
+  }
+  #map-peek { font-size: 17px; }
+  #album-peek { font-size: 15px; }
+  #note {
+    font-size: clamp(13px, 3.6vw, 16px);
+    padding: 5px 10px;
+  }
 }
 
 @media (max-width: 560px) {
