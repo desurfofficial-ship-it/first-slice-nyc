@@ -1218,6 +1218,95 @@ CLEAN (4/4) · probe-subway ALL PASS 22/22 · probe-w4-bus OK 13/13 ·
 probe-w0-census OK (ledger above) · **E2E: OK — 0 failures, 355 s**,
 console clean (E2E_W=320 E2E_H=700).
 
+## The shadow follow — the sun's box walks with the player (2026-11-03)
+
+**What landed.** Lever 1 from the recorded list — the only one that could
+reach the Doc 07 line — now made, plus the two smaller recorded levers.
+
+**The follow.** The sun's shadow camera was a FIXED ±60 m box over the
+whole street: every caster inside it re-rendered into the shadow map every
+frame, view-independent, so the corner rig paid ~430 calls for a map it
+never sampled and the shadow pass measured 44–84% of every census rig.
+The box now follows the player (`updateSunFollow`, called from
+updateDynamics with the live player position): extents ±60 → ±35
+(SHADOW_HALF), the recorded ±35–40 range. The follow snaps the target onto
+the shadow map's texel lattice IN LIGHT SPACE (the shadow camera's own
+Matrix4.lookAt basis, precomputed once — 2048 px / 70 m → 0.034 m texels,
+ground-projected to ~0.08 m along the shadow direction at the sun's ~28°
+elevation), so the map's texel grid stays world-aligned while the box
+moves: shadow edges never shimmer as the player walks. The light direction
+is the authored offset vector (−38, 23, 22) bit-for-bit on every frame —
+both poles move by the same snapped delta. Boot state before the first
+update: the authored static box, unchanged.
+
+**The figure part-merge (lever 3, the W4p2 dusk-pair method).** The hair
+chain is rigid inside the head group (the head glances as a unit) — its
+2–4 boxes/sphere merge into ONE mesh per figure; the strap's three boxes
+ride the body rigidly — one merged mesh (the old position + rz tilt baked
+T·Rz into the geometry). Same boxes, same offsets, same bank materials,
+same silhouettes — rig tests untouched (they pin hip pivots and hair-top
+height, both preserved). The recorded law held: only the rigid chains
+merge; limbs are animating groups (arms swing at the shoulder, legs at the
+hip) and stay parts. A figure goes ~14 → ~11–12 meshes in BOTH passes —
+hair and strap cast.
+
+**The wing fold (the recorded W4 micro-lever).** A morph bucket whose
+every bird sits folded now drops its wing DRAW entirely: the zero-scale
+instances were the cheapest visual "off" but still cost the call; hiding
+the InstancedMesh costs nothing and flips back on the same frame a bird
+takes off.
+
+**The numbers, honestly.** Census rigs (boot state, zones unlit):
+PLAZA 949 → **847** (−102), CART_CORNER 802 → **719** (−83),
+SYCAMORE×GABLE 451 → **277** (−174); tris −5.2k / −4.3k / −10.6k (the
+shadow pass stops rasterizing far casters). Both extents were measured at
+PLAZA/CART/SYCAMORE before choosing: ±40 gave −46 / −46 / −158, ±35 gave
+−76 / −55 / −165 — 35 wins every rig with a smaller map (2048 px now
+covers 70 m, so near-field texels got SHARPER, 0.059 → 0.034 m). The
+follow alone at ±35: 873 / 747 / 286; the figure merge + wing fold took
+off another −26 / −28 / −9.
+
+**The gate line: still failed, still published.** Kestrel 847 > 150 FAIL,
+intersection 277 > 250 FAIL. What the shadow pass still pays for at ±35
+(new diag tool `diag-shadow-buckets.mjs`, kept as evidence — reads the
+LIVE shadow frustum and buckets its casters): street rigs hold ~315–350
+casters — bake tiles 60–90, peds 39, unnamed street furniture ~47 (the
+water tower, lamp posts, cart parts, the tire swing — contact shadows; the
+recorded cast-shadow-discipline lever, real visual cost, still needs the
+art call), cast rigs ~14 each. The rigid-chain merge is now SPENT — the
+next call cut inside a figure needs vertex colors (one white material, one
+draw per rig), which changes what the census's palette audit reads and
+needs its own law decision before it is made.
+
+**The art trade, stated plainly.** Near-field shadows — everything within
+~35 m of the player, where the camera actually lives — keep their exact
+texels and got sharper. Long dusk shadows beyond the box edge no longer
+render: at the plaza-wide census vista the far street (35+ m out) loses
+its cast shadows. The Times Square vista is unaffected (its 11 zone-bake
+casters follow the player out of the map — the square was shadowless by
+design); the underground rigs read the box at street level above them,
+unchanged law. Reversible by two constants (SHADOW_HALF, and deleting the
+updateSunFollow call) if the lead vetoes.
+
+**One flake, honestly.** First E2E on the changed build: 6 failures, all
+cascading from `day 4: grabbed ladder 1` firing on the grab box's z-EDGE
+(z −6.7, 7 cm of overlap) and dropping the next frame — the ride never
+left the ground and the driver walked the street. Control: pristine HEAD
+on the same sandbox's chromium → 0 failures (355 s). Immediate rerun on
+the IDENTICAL changed build → **0 failures (357 s)**, the grab landing
+15 cm deeper (z −6.9). This is the documented knife-edge family (the
+day-1 dismount note: "a build whose fps profile differs by a hair flipped
+that coin") — the perf win itself shifts the SwiftShader fps profile, and
+ANY call cut can flip it; recorded, not fixed.
+
+**Verification**: tsc clean · vitest **367/367** · build clean · registry
+validator green (129 IDs, 12/12 masses, 18/18 anchors) · probe-autumn
+PASS · probe-camfade PASS (occ 0.44/0.99/0.71 — the fade law on aFade,
+untouched) · probe-env5 PASS (lamps clear the canopies) · probe-solid ALL
+CLEAN (4/4) · probe-subway ALL PASS 22/22 · probe-w4-bus OK 13/13 ·
+probe-w0-census OK (ledger above) · **E2E: OK — 0 failures, 357 s**,
+console clean (E2E_W=320 E2E_H=700).
+
 ---
 
 ## The first-session merge (Agent 5 → main, docs/52)
