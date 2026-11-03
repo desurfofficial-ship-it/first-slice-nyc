@@ -199,3 +199,37 @@ Stage Summary:
   shareable postcard rides the existing capture → caption → panel path,
   the story machine stays sacred. Remaining OPEN in docs/51: B4 (needs a
   clean machine), B5-recheck, B9, B11-B14, plus docs/53's follow-ups.
+
+## 2026-11-03 — agent5: the arrival rebuilds its world (portrait-first pass 3)
+
+The field report said "the shitty building is still there." The probe agreed:
+portrait frames at t=1–5 showed the skyline as a flat lavender slab wall
+filling the window from second one, two cloud planes parked 26 m from the
+lens as giant white smears, and three ceiling lamps magnified into bright
+trapezoids. Fixes, all in arrival.ts:
+
+- Skyline moved 40 m → 110 m out (SKYLINE_Z −10): a 24 m tower now tops out
+  ~10° above the lens — a distant dusk band with sky above it, not a wall.
+  Far haze row 130 m, lowrise shopfront band IN FRONT of the towers at 98 m
+  (20 buildings, wide enough to own the horizon), city apron widened/deepened
+  to own the ground from 86 m out.
+- One wide far-ground slab (200×200, dusk olive) under everything from the
+  strip's far edge past the skyline + three flat-shaded horizon mounds —
+  no seam of naked sky can open between countryside and city floor.
+- Every ride material now fog:false — the world's amber Fog(40,170) would
+  wash a 110 m skyline to soup; the painted haze rows do that job instead.
+- Tower faces: darker charcoal-plum bases, edge-shading columns so
+  neighbours never fuse into one slab; haze mix unchanged.
+- Clouds re-staged 138–165 m out behind the towers; sun glow 150 m out,
+  34 m plane, towers silhouette against it.
+- Interior lamps: smaller, warmer, recessed under a dark valance.
+- Staging moved −150 → −190: the map's west row (x ≈ −60) leaked into the
+  ride cone's right edge at 146 m as a fog-washed sliver; cone math + sky
+  dome far-plane math documented at RIDE_POS.
+- Birds now actually ride the staging (they were staged at group x −19 from
+  an older origin and had never been visible).
+
+Gates: tsc clean; vitest 428/428 (24 files); build clean; probe
+probe-arrival-portrait.mjs (720×1280) frames t1/t3/t4.8/t6.5/t8.2/t9.6 +
+driver/reply/card all judged clean — no leaks, no slabs, no smears;
+a5c landscape probe handover state unchanged, console clean.
