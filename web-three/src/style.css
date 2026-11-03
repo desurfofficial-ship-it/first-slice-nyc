@@ -101,21 +101,11 @@ html, body {
   max-width: min(46vw, 220px);
 }
 
-/* Tool buttons share one line; money + timer sit on the lines below. */
-#hud-top-right > #btn-audio,
-#hud-top-right > #btn-map,
-#hud-top-right > #btn-album {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  vertical-align: middle;
-  margin: 0 0 6px 6px;
-}
-#hud-top-right > #btn-audio { margin-left: 0; }
 #hud-top-right > #money,
 #hud-top-right > #timer {
   display: block;
 }
+
 
 #money { font-size: clamp(20px, 3.4vmin, 30px); font-weight: 700; font-family: var(--mono-font); transition: transform 0.15s ease, color 0.4s ease; }
 #money.pulse { transform: scale(1.18); color: var(--gold); }
@@ -240,6 +230,99 @@ button:hover { filter: brightness(1.08); }
 button:active { transform: scale(0.97); }
 button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 
+
+/* ---------------- The Pocket — one button opens Map / Album / Sound ---------------- */
+/* Saves the top-right lane on phones: three cream chips became one launcher. */
+
+#pocket {
+  position: relative;
+  display: inline-block;
+  margin: 0 0 6px;
+  z-index: 3;
+}
+
+#btn-pocket {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 14px;
+  line-height: 1;
+  color: var(--ink);
+  background: var(--cream);
+  border: 1px solid rgba(58, 52, 64, 0.4);
+  border-radius: 10px 10px 10px 2px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(26, 20, 32, 0.35);
+  transition: transform 0.15s ease;
+}
+#btn-pocket:hover { transform: translateY(-1px); }
+#btn-pocket:active { transform: scale(0.94); }
+#btn-pocket[aria-expanded="true"] {
+  border-bottom-left-radius: 2px;
+  border-bottom-right-radius: 2px;
+}
+
+#pocket-peek {
+  font-family: var(--hand-font);
+  font-size: 20px;
+  color: var(--ink);
+  letter-spacing: 0.5px;
+}
+#pocket-peek::after {
+  content: "";
+  display: block;
+  margin-top: 1px;
+  border-bottom: 2px dotted rgba(58, 52, 64, 0.35);
+}
+
+#pocket-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 148px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: rgba(26, 20, 32, 0.82);
+  border: 1px solid rgba(255, 248, 240, 0.18);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(26, 20, 32, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 5;
+}
+#pocket-menu[hidden] { display: none; }
+
+#pocket-menu > #btn-map,
+#pocket-menu > #btn-album,
+#pocket-menu > #btn-audio {
+  display: flex;
+  width: 100%;
+  margin: 0;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* Sound row matches the paper chips */
+#pocket-menu > #btn-audio {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 12px;
+  font-family: var(--hand-font);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--cream);
+  border: 1px solid rgba(58, 52, 64, 0.4);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(26, 20, 32, 0.25);
+  gap: 6px;
+}
+#audio-peek { font-family: var(--ui-font); font-size: 16px; }
+
 /* ---------------- The Map button — a folded corner that peeks ---------------- */
 
 #btn-map {
@@ -273,7 +356,8 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   margin-top: 1px;
   border-bottom: 2px dotted rgba(58, 52, 64, 0.35);
 }
-#btn-map.wiggle { animation: map-wiggle 1.1s ease-in-out; }
+#btn-map.wiggle,
+#btn-pocket.wiggle { animation: map-wiggle 1.1s ease-in-out; }
 @keyframes map-wiggle {
   0%, 100% { transform: rotate(0deg); }
   15% { transform: rotate(-7deg) translateY(-2px); }
@@ -453,29 +537,21 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 }
 
 
-/* ---- HUD lane split on phones: note left, tools right, no overlap ---- */
+/* ---- HUD lane split on phones: note left, Pocket right ---- */
 @media (max-width: 560px) {
   #hud-top-left {
-    max-width: calc(100vw - 132px);
+    max-width: calc(100vw - 108px);
   }
   #hud-top-right {
-    max-width: 120px;
-    gap: 5px;
+    max-width: 100px;
   }
-  /* Stack Map under audio, Album under Map — one column, never across the note */
-  #hud-top-right > #btn-audio,
-  #hud-top-right > #btn-map,
-  #hud-top-right > #btn-album {
-    display: flex;
-    margin: 0;
-    width: 100%;
-    justify-content: center;
+  #btn-pocket {
+    padding: 7px 12px;
   }
-  #btn-map, #btn-album {
-    padding: 7px 10px;
+  #pocket-peek { font-size: 17px; }
+  #pocket-menu {
+    min-width: 136px;
   }
-  #map-peek { font-size: 17px; }
-  #album-peek { font-size: 15px; }
   #note {
     font-size: clamp(13px, 3.6vw, 16px);
     padding: 5px 10px;
