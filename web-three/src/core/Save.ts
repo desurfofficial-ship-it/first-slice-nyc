@@ -63,6 +63,9 @@ export interface SaveData {
   /** Place ids Map has sketched on page 1, order first-walked. v1-safe:
   *  missing reads as []. */
   map_places?: string[];
+  /** Map copied Priya's two lines badly (docs/51 B11) — the crooked copy
+  *  is on page 1. v1-safe: missing reads false. */
+  map_priya_lines?: boolean;
 }
 
 export function defaultSave(): SaveData {
@@ -85,6 +88,7 @@ export function defaultSave(): SaveData {
     washes: 0,
     hoop_makes: 0,
     map_notes: [],
+    map_priya_lines: false,
     map_slang: [],
     map_places: [],
   };
@@ -152,6 +156,7 @@ export function parseSave(raw: string | null): SaveData {
     map_notes: strList(d, 'map_notes', 24),
     map_slang: strList(d, 'map_slang', 8),
     map_places: strList(d, 'map_places', 12),
+    map_priya_lines: bool('map_priya_lines', false),
   };
 }
 

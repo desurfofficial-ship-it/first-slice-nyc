@@ -333,6 +333,17 @@ export class UI {
 
   private sketchBuilt = false;
   private sketchEl: HTMLElement | null = null;
+  /** Map's crooked copy of Priya's two lines (docs/51 B11) — latched by
+   *  the ride's 'map-copies' beat, applied whenever the sketch exists. */
+  private priyaRevealed = false;
+
+  /** The 'map-copies' beat: the crooked copy joins page 1 and stays. If
+   *  the sketch isn't built yet, the flag waits — refreshSketch applies it
+   *  on the first build (a save loaded mid-session opens the Map later). */
+  revealPriyaLines() {
+    this.priyaRevealed = true;
+    this.sketchEl?.querySelector('#sketch-priya')?.classList.add('revealed');
+  }
 
   /** The sketch on page 1 — Map's own badly-copied map. Built once, then
    *  only class-flips (revealed places) and the star's position. Called on
@@ -346,6 +357,9 @@ export class UI {
       this.sketchBuilt = true;
     }
     if (!this.sketchEl) return;
+    if (this.priyaRevealed) {
+      this.sketchEl.querySelector('#sketch-priya')?.classList.add('revealed');
+    }
     const seen = new Set(visited);
     this.sketchEl.querySelectorAll<SVGGElement>('.sketch-place').forEach((g) => {
       const id = g.dataset.place ?? '';

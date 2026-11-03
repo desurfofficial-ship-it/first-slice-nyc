@@ -927,6 +927,13 @@ export class Game {
     while (w.subwayBeats.length > 0) {
       const key = w.subwayBeats.shift()!;
       if (key === 'turnstile') { gameAudio.turnstile(); continue; }
+      // the crooked copy latches (docs/51 B11): Map keeps its badly-copied
+      // diagram on page 1 from this beat on. The wiggle is the honest kind
+      // — the fold never opens itself, the doodle waits for the next look.
+      if (key === 'map-copies' && this.state.copyPriyaLines()) {
+        this.ui.revealPriyaLines();
+        this.ui.wiggleMap();
+      }
       const text = RIDE_BEAT_TEXT[key];
       if (text) this.ui.showNote(text);
     }
@@ -1962,6 +1969,10 @@ export class Game {
       s.mapNotes = (sd.map_notes ?? []).slice(0, 24);
       s.mapSlang = (sd.map_slang ?? []).slice(0, 8);
       s.visitedPlaces = (sd.map_places ?? []).slice(0, 12);
+      s.priyaLinesCopied = sd.map_priya_lines ?? false;
+      // a returning save's crooked copy is already on the page (docs/51 B11):
+      // the UI latch rides the save, not the session
+      if (s.priyaLinesCopied) this.ui.revealPriyaLines();
       // the block remembers (Doc 37 §3F): cumulative free-roam choices
       // survive the night — absent in an old save reads as 0, by migration
       s.shelfBuys = sd.shelf_buys ?? 0;

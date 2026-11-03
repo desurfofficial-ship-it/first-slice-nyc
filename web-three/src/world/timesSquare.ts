@@ -38,6 +38,10 @@ export interface TimesSquare {
   /** Returns 'sync-start' once per day on first entry (World forwards to
    *  Game → note). Ticks the screens, banners, and movers. */
   update(dt: number, feet: { x: number; y: number; z: number }, day: number): 'sync-start' | null;
+  /** The machine truth the note only implies: the sync FIRED today. A
+   *  latch, not a window — probes read this instead of racing the 2.6 s
+   *  warm hold (the probe law: machine-honest checks). */
+  readonly syncedToday: boolean;
 }
 
 // ---------------------------------------------------------------- textures
@@ -321,6 +325,7 @@ export function buildTimesSquare(
 
   // ---- state ----
   let syncDay = 0;
+  let lastDay = 0;
   let syncT = -1; // <0 = not running
   let time = 0;
   const moverState = [
@@ -336,6 +341,7 @@ export function buildTimesSquare(
 
   const api: TimesSquare = {
     group, colliders,
+    get syncedToday() { return syncDay > 0 && syncDay === lastDay; },
     anchors: {
       usher: { x: -352.3, y: 0.1, z: 7.25 },
       steps: { x: -343, y: 1.75, z: 2.2 },
@@ -343,6 +349,7 @@ export function buildTimesSquare(
     },
     update(dt, feet, day) {
       time += dt;
+      lastDay = day;
       let beat: 'sync-start' | null = null;
       const inside = feet.x > TS.xW && feet.x < TS.xE && feet.z > TS.zS - 4 && feet.z < TS.zN + 4 && feet.y > -0.45;
       if (inside && syncDay !== day) {

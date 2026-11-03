@@ -275,8 +275,12 @@ export interface StationOpts {
  *    dead, and the ceiling slab walling the cutaway view shut from above.
  *  · SUB_Turnstile{Hub,Arm}_* — index.ts spins the arms on a fare pass
  *    (docs/52 §4.6). Baked, the spin went visually dead (the probe was
- *    measuring a detached mesh). */
-export const ZONE_KEEP_RE = /SUB_Ceiling_|SUB_Turnstile/;
+ *    measuring a detached mesh).
+ *  · SUB_Diagram_* — index.ts flips .visible on the ride's 'priya-lines'
+ *    beat (docs/51 B11: the window diagram). Same detach class as the
+ *    ceiling: the toggle would land on a baked ghost and the teach beat
+ *    would draw nothing, forever. */
+export const ZONE_KEEP_RE = /SUB_Ceiling_|SUB_Turnstile|SUB_Diagram_/;
 
 export interface StationResult {
   /** The ceiling slab — hidden while the player is below grade (the

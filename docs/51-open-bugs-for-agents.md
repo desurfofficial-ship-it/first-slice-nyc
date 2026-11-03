@@ -276,16 +276,22 @@ camera/joystick pass, and the 2026-11-03 full-docs audit.
 These are not pure probe failures; they are design-contract gaps against
 Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
 
-### B9. Authored Day-1 opening still starts on sidewalk
-- **Symptom:** Bus, driver “First time?”, and skyline reveal exist and are
-  playable, but the Day-1 step machine still opens on the sidewalk. The film
-  is a diorama hand-off rather than the authored spawn.
-- **Needed:** Wire spawn at `BUS_SPOTS.door` (or equivalent), fire the first
-  driver line, then hand into the existing greeting. Keep the story state
-  machine sacred (AGENTS.md).
-- **Where:** Day-1 step machine / Game open sequence, arrivalBus integration,
-  docs/50 §4 + §7 hand-offs.
-- **Status:** OPEN — high priority for vertical-slice feel.
+### B9. Authored Day-1 opening still starts on sidewalk — FIXED 2026-11-03
+- **Was:** The bus, the driver's "First time?", and the skyline reveal were
+  playable, but the Day-1 boot still opened on the sidewalk — the film was a
+  diorama hand-off rather than the authored spawn.
+- **Fix:** the arrival rebuild (`7b6b680` "arrival: the opening, rebuilt for
+  the phone in your hand", landed on main via the session-polish merge):
+  fresh boots ride the bus in — Game boots the `ArrivalCinematic` (Game.ts:
+  "The Doc 02 opening — fresh boots ride the bus in"), the machine stages
+  ride → driver line → choice → terminal card → step-off, and the handover
+  carries the step-off checkpoint into the existing greeting. Autotest/probe
+  boots skip the film; saves resume without it (the story machine untouched).
+- **Verified:** probe-a5c-arrival + probe-a5g-arrival-portrait (the film's
+  own probes); the full 4-day E2E green on the rebuilt opening; the bug-hunt
+  sweep (docs/53) drives the terminal bay and the step-off on the shipped
+  boot. Ledger note: docs/50 §4.1's hand-off is PAID by the same work.
+- **Where:** `web-three/src/game/arrival.ts`, `web-three/src/game/Game.ts`.
 
 ### B10. Times Square / Wow Walk beat is a note, not a postcard — FIXED 2026-11-03
 - **Was:** The sync beat fired `tsBeats` (Game drained it) but only showed the
@@ -316,14 +322,40 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
 - **Where:** `web-three/src/game/Game.ts`, `web-three/src/core/content.ts`,
   `web-three/src/ui/UI.ts`.
 
-### B11. Subway University (Priya + Map copies badly) incomplete
-- **Symptom:** Station + ride exist; the guided teach beat (Priya, two-line
-  diagram, Map copies badly) is not fully integrated into the ride flow as
-  scripted in Doc 02.
-- **Needed:** Complete the guided ride sequence so the learning moment lands
-  before the player returns to the block.
-- **Where:** subway ride machine, Priya dialogue / notes, Map notebook.
-- **Status:** OPEN.
+### B11. Subway University (Priya + Map copies badly) incomplete — FIXED 2026-11-03
+- **Was:** The ride's teach beats existed as notes (priya-uptown, priya-lines,
+  map-copies, announce — content.ts), but Doc 02's beat was VISUAL: Priya
+  draws two lines on the window, and Map copies them badly onto its own page.
+  Nothing on screen ever drew.
+- **Fix:** the teach draws itself, twice, honestly:
+  1. **The window diagram** (trainKit.ts + subway/index.ts): four chalk
+     strokes on the middle window's inside face of each ALIGNED car — the
+     gold line "stays with the lights" (the K stripe's color), the teal line
+     dips "under the river". Hidden until the ride's `priya-lines` beat
+     (t 8.5, before the swap at t 12), hidden again when the machine rests —
+     the next train on the loop is a fresh car. Both twins carry identical
+     copies so the seam never shows the trick. `SUB_Diagram_*` joins
+     ZONE_KEEP_RE (the bake would detach the toggle — the docs/53 class).
+  2. **Map's crooked copy** (sketch.ts + UI.ts + GameState + Save): page 1's
+     bottom-left margin gains the badly-copied doodle — the river line dips
+     too deep, the lights line sags, the pencil labels hedge ("the lights??")
+     — latched by the `map-copies` beat via `copyPriyaLines()`, riding the
+     v1-safe save field `map_priya_lines`, revealed on Map's next open (the
+     fold never opens itself; the wiggle is the honest kind).
+- **Commit / branch:** pushed to `main` (Agent 2, this commit).
+- **Verified:** `tests/subway.test.ts` — the diagram beat lands before the
+  seam, the copy beat after, `SUB_Diagram_*` rides ZONE_KEEP_RE;
+  `tests/map-notebook.test.ts` — the latch is a keepsake not a counter,
+  independent of the place sketch, rides the save roundtrip, an old save
+  reads untaught, a corrupt field degrades to false; full vitest 437/437;
+  `tsc --noEmit` clean; probe-subway ALL PASS (30 laws) including three new
+  diagram laws (8 strokes built in both cars · the teach beat draws it ·
+  the chalk rides only its ride) — driven through the real machine.
+- **Where:** `web-three/src/world/subway/trainKit.ts`,
+  `web-three/src/world/subway/index.ts`, `web-three/src/world/subway/stationKit.ts`,
+  `web-three/src/ui/sketch.ts`, `web-three/src/ui/UI.ts`,
+  `web-three/src/core/GameState.ts`, `web-three/src/core/Save.ts`,
+  `web-three/src/game/Game.ts`.
 
 ### B12. Visual-audit follow-ups (Doc 31)
 - Day-4 greeting frame is the weakest: figures too small, composition spends

@@ -199,3 +199,49 @@ Stage Summary:
   shareable postcard rides the existing capture → caption → panel path,
   the story machine stays sacred. Remaining OPEN in docs/51: B4 (needs a
   clean machine), B5-recheck, B9, B11-B14, plus docs/53's follow-ups.
+---
+Task ID: AGENT2-DOCS51-B11-SUBWAY-UNIVERSITY
+Agent: Agent 2
+Task: First-session world completion (mission two) — audit the shipped world
+against docs/02 and close the real remaining gaps; push to main (parallel
+agents on the same repo).
+
+Work Log:
+- Fresh clone (the sandbox reset). Audited docs/50's honest limitations
+  against main: §4.1 opening hand-off PAID (7b6b680), §4.2 postcard hook
+  PAID (my B10), §4.3 crowd PAID, §4.5/§4.6 PAID. Audited docs/02 beat by
+  beat: arrival, Rosa's hand, the rush, the square, the cart, Idris, the
+  fire escape, the postcard — all proven by the E2E driver; the record shop
+  (B-side Records, SMB-02) exists with bin interactions; the busker coin
+  exists. The one real content gap left: B11's VISUAL layer — Doc 02's
+  Subway University draws two lines on the window and Map copies them
+  badly, and nothing on screen ever drew.
+- Built the window diagram (trainKit): four chalk strokes on the middle
+  window's inside face of each ALIGNED car — gold "stays with the lights"
+  (the K stripe's color), teal dipping "under the river". Hidden until the
+  ride's priya-lines beat (t 8.5 < swap t 12), hidden again at rest; both
+  twins carry identical copies so the seam never shows the trick.
+  SUB_Diagram_* joined ZONE_KEEP_RE (the bake-detach class from docs/53).
+- Built Map's crooked copy (sketch/UI/GameState/Save): page 1's bottom-left
+  margin doodle, badly drawn by law, latched by the map-copies beat, riding
+  the v1-safe save field map_priya_lines; revealed on Map's next open —
+  the fold never opens itself.
+- Probe work the fix earned (probe-subway, now ALL PASS / 30 laws):
+  walkUntil() polls instead of napping (software-GL boxes cover less ground
+  per wall-clock second — the exit-stair law failed them uselessly); the
+  sync check reads the new machine latch timesSquare.syncedToday instead of
+  racing the 2.6 s breath window; the M121 board waits for BUS-04's shell
+  (the one-bay law retires it while the loop M121 parks — the probe raced
+  the circuit); and the probe now LIVES the B10 flow — the Wow card froze
+  the walker at the sync ON PURPOSE, the probe puts the paper down like a
+  player (Stay) and the walk resumes. Two new B10 laws pinned there.
+- docs/51 updated in the same commit: B11 → FIXED (mechanism + evidence),
+  B9 → FIXED (verified paid by 7b6b680; docs/50 §4.1 hand-off closed).
+
+Stage Summary:
+- B11 closed on main; Subway University now draws — the window chalk and
+  Map's crooked copy are the teach's pictures, deterministic and probed.
+  B9's ledger entry caught up with the shipped boot. Gates: tsc clean,
+  vitest 437/437, build clean, probe-subway ALL PASS (30), E2E 0 failures
+  / 344 s / console clean. Remaining OPEN in docs/51: B4 (clean machine),
+  B12 (evidence hygiene), B13 (perf ledger), B14 (docs hygiene).
