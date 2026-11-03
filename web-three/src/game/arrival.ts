@@ -34,6 +34,15 @@
  * only through the window. The skyline became two depth rows with setbacks,
  * water towers and lit crowns; the near blocks wear painted tenement
  * facades; the countryside grew gable roofs, telephone wires and smoke.
+ *
+ * The stretched-canvas lesson (the second field report, two fingers and a
+ * "still shitty"): a 128 px facade stretched over a 13 m block turns every
+ * window into cathedral glass. So the painted faces are now drawn to
+ * EXACT size — one canvas per building, 32–48 px per world metre, the
+ * window count computed from the real floors — and the architecture is
+ * real geometry: cornice ledges, parapet caps, fire escapes, stoops,
+ * awnings, bulkheads. The haze row moved back to 48 m where "far off"
+ * actually lives, behind the headline towers instead of in front of them.
  */
 
 import * as THREE from 'three';
@@ -390,6 +399,7 @@ export class ArrivalCinematic {
       cyl(strip, 'RideTreeTrunk', mats.wood, x, 0.5 * s, z, 0.05 * s, 0.1 * s, 1.0 * s, 6);
       blob(strip, 'RideTreeLobeA', leaf, x, 1.25 * s, z, 0.62 * s, 0.85);
       blob(strip, 'RideTreeLobeB', leaf, x + 0.16 * s, 1.62 * s, z + 0.08 * s, 0.42 * s, 0.9);
+      blob(strip, 'RideTreeLobeC', leaf, x - 0.2 * s, 1.5 * s, z - 0.1 * s, 0.34 * s, 0.95);
     };
     tree(-12.5, -1.6, 1.05, mats.leafB);
     tree(-9.8, -1.1, 0.85, mats.leafC);
@@ -401,35 +411,60 @@ export class ArrivalCinematic {
     tree(12.3, -1.1, 0.8, mats.leafC);
 
     // the farm cluster — gable roofs (a real prism, not a 4-sided cone),
-    // lit windows, chimney smoke; this is what "someone lives out here"
-    // looks like through the glass at golden hour
+    // lit windows in pale frames, a stone foundation, chimney smoke; this
+    // is what "someone lives out here" looks like through the glass at
+    // golden hour
+    const trimMat = this.lambert(0xe6dcc4);
+    const stoneMat = this.lambert(0x8a8178);
     const house = (x: number, z: number, w: number, h: number, d: number,
-      wall: THREE.Material, roof: THREE.Material, wins: Array<[number, number]>) => {
+      wall: THREE.Material, roof: THREE.Material, wins: Array<[number, number]>,
+      porch = false) => {
       box(strip, 'RideHouseBody', wall, x, h / 2, z, w, h, d);
+      box(strip, 'RideHouseBase', stoneMat, x, 0.16, z, w + 0.1, 0.32, d + 0.1);
       const roofM = this.gableRoof(w + 0.35, h * 0.55, d + 0.35, roof);
       roofM.name = 'RideHouseRoof';
       roofM.position.set(x, h, z);
       strip.add(roofM);
       box(strip, 'RideHouseChimney', wall, x + w * 0.28, h + h * 0.42, z - d * 0.2, 0.22, 0.7, 0.22);
+      box(strip, 'RideHouseChimneyCap', mats.roofDark, x + w * 0.28, h + h * 0.42 + 0.38, z - d * 0.2, 0.3, 0.08, 0.3);
       for (const [wx, wy] of wins) {
-        box(strip, 'RideHouseWindow', winGlow, x + wx, wy, z + d / 2 + 0.03, 0.28, 0.4, 0.05);
+        box(strip, 'RideHouseWindowFrame', trimMat, x + wx, wy, z + d / 2 + 0.03, 0.36, 0.5, 0.04);
+        box(strip, 'RideHouseWindow', winGlow, x + wx, wy, z + d / 2 + 0.055, 0.27, 0.4, 0.03);
       }
-      box(strip, 'RideHouseDoor', mats.frame, x, h * 0.24, z + d / 2 + 0.03, 0.5, h * 0.48, 0.05);
+      box(strip, 'RideHouseDoorFrame', trimMat, x, h * 0.26, z + d / 2 + 0.03, 0.62, h * 0.52, 0.04);
+      box(strip, 'RideHouseDoor', mats.frame, x, h * 0.24, z + d / 2 + 0.055, 0.5, h * 0.48, 0.04);
+      if (porch) {
+        // a stoop roof on two posts — the farmhouse's handshake
+        box(strip, 'RideHousePorchRoof', mats.roofDark, x, h * 0.78, z + d / 2 + 0.42, w * 0.6, 0.07, 0.85);
+        box(strip, 'RideHousePorchPostA', trimMat, x - w * 0.26, h * 0.39, z + d / 2 + 0.72, 0.09, h * 0.78, 0.09);
+        box(strip, 'RideHousePorchPostB', trimMat, x + w * 0.26, h * 0.39, z + d / 2 + 0.72, 0.09, h * 0.78, 0.09);
+        box(strip, 'RideHousePorchStep', stoneMat, x, 0.08, z + d / 2 + 0.5, 1.2, 0.16, 0.5);
+      }
       // smoke: two settled puffs (no tween — the film is 10 s, the chimney
       // is 8 m out, stillness reads as distance)
       blob(strip, 'RideSmokeA', smokeMat, x + w * 0.28 + 0.12, h + h * 0.42 + 0.5, z - d * 0.2, 0.16, 1.4);
       blob(strip, 'RideSmokeB', smokeMat, x + w * 0.28 + 0.3, h + h * 0.42 + 0.9, z - d * 0.2, 0.23, 1.5);
     };
     house(-8.5, -2.4, 2.6, 2.0, 2.2, mats.wall, mats.roof, [[-0.6, 1.25], [0.6, 1.25]]);
-    house(3.5, -2.2, 3.0, 2.8, 2.4, mats.cream, mats.roof, [[-0.95, 2.0], [0, 2.0], [0.95, 2.0], [-0.5, 0.95], [0.5, 0.95]]);
+    house(0.4, -2.6, 3.0, 2.8, 2.4, mats.cream, mats.roof, [[-0.95, 2.0], [0, 2.0], [0.95, 2.0], [-0.5, 0.95], [0.5, 0.95]], true);
 
-    // the barn + silo — the farm reads as a FARM, not a toy house
+    // the barn + silo — the farm reads as a FARM, not a toy house:
+    // white door trim with the X-brace, a hayloft, a capped silo
+    const barnTrim = this.lambert(0xe6dcc4);
     box(strip, 'RideBarnBody', this.lambert(PAL.brick), -12.2, 1.1, -2.6, 3.0, 2.2, 2.6);
     const barnRoof = this.gableRoof(3.35, 1.3, 2.9, mats.roofDark);
     barnRoof.name = 'RideBarnRoof';
     barnRoof.position.set(-12.2, 2.2, -2.6);
     strip.add(barnRoof);
-    box(strip, 'RideBarnDoor', mats.silo, -12.2, 0.55, -1.27, 0.7, 1.1, 0.06);
+    box(strip, 'RideBarnDoor', barnTrim, -12.2, 0.55, -1.27, 0.86, 1.26, 0.05);
+    box(strip, 'RideBarnDoorLeaf', mats.roofDark, -12.2, 0.55, -1.245, 0.7, 1.1, 0.04);
+    const braceA = box(strip, 'RideBarnBraceA', barnTrim, -12.2, 0.55, -1.225, 0.82, 0.07, 0.03);
+    braceA.rotation.z = 0.72;
+    const braceB = box(strip, 'RideBarnBraceB', barnTrim, -12.2, 0.55, -1.225, 0.82, 0.07, 0.03);
+    braceB.rotation.z = -0.72;
+    box(strip, 'RideBarnLoft', barnTrim, -12.2, 1.72, -1.27, 0.5, 0.4, 0.05);
+    box(strip, 'RideBarnCornerA', barnTrim, -13.68, 1.1, -1.32, 0.14, 2.2, 0.14);
+    box(strip, 'RideBarnCornerB', barnTrim, -10.72, 1.1, -1.32, 0.14, 2.2, 0.14);
     cyl(strip, 'RideSilo', mats.silo, -10.2, 1.6, -2.9, 0.7, 0.7, 3.2, 10);
     const siloCap = new THREE.Mesh(new THREE.SphereGeometry(0.7, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2), mats.silo);
     siloCap.name = 'RideSiloCap';
@@ -444,8 +479,9 @@ export class ArrivalCinematic {
     bale(-11.9, 0.3);
 
     // telephone poles with sagging wires — the countryside's own rhythm
-    // line, and the cheapest "distance" cue there is
-    const poleXs = [-11, -5.5, 0, 5.5, 11];
+    // line, and the cheapest "distance" cue there is; the line runs on
+    // INTO the city (poles among the tenements, the way it really goes)
+    const poleXs = [-11, -5.5, 0, 5.5, 11, 16];
     for (const px of poleXs) {
       cyl(strip, 'RidePole', mats.frame, px, 2.2, 1.6, 0.06, 0.09, 4.4, 6);
       box(strip, 'RidePoleArm', mats.frame, px, 4.05, 1.6, 0.95, 0.07, 0.07);
@@ -488,25 +524,122 @@ export class ArrivalCinematic {
 
     // the city rolls in ahead — blocks enter the window late in the ride
     // (the last block stopped at the dialogue freeze as a blank wall that
-    // filled the window's right third — four blocks fill the frame kindly).
-    // Each block now wears a painted tenement facade: brick, storefront,
-    // cornice, a painted fire escape — New York in one texture.
-    const blockDefs: Array<[number, number, number, number]> = [
-      [4.5, 8, 3.2, 0], [7.5, 11.5, 3.4, 1], [10.5, 9, 3.0, 2], [13.5, 13, 3.6, 0],
-    ];
-    const blockSide = this.lambert(0x6d5344);
-    const blockRoof = this.lambert(0x2f2a36);
-    const facadeMats = this.getFacadeMats();
-    for (const [x, h, w, v] of blockDefs) {
-      const geo = new THREE.BoxGeometry(w, h, 2.6);
-      const mesh = new THREE.Mesh(geo, [blockSide, blockSide, blockRoof, blockRoof, facadeMats[v], blockSide]);
-      mesh.name = 'RideBlock';
-      mesh.position.set(x, h / 2, -3.2);
+    // filled the window's right third — the last, tallest face now owns
+    // that third, detailed enough to be worth staring at).
+    //
+    // The builder: exact-fit painted face + brick returns + cornice ledge +
+    // parapet cap + 3D fire escape + awning + roof clutter. Every window a
+    // window; every roofline a silhouette.
+    const corniceMat = this.lambert(0x38313e);
+    const capMat = this.lambert(0x2f2a36);
+    const ironMat = this.lambert(0x2b2630);
+    const awnMats = [this.lambertFlat(0x2a9d8f), this.lambertFlat(0xb23a48)];
+    const stoopMat = this.lambert(0x9a94a0);
+    const brickSideMat = (v: number, wM: number, hM: number): THREE.MeshLambertMaterial => {
+      const t = this.brickTexture(v).clone();
+      t.needsUpdate = true;
+      t.repeat.set(Math.max(1, Math.round(wM / 1.4)), Math.max(1, Math.round(hM / 1.4)));
+      const m = new THREE.MeshLambertMaterial({ map: t });
+      this.disposables.push(t, m);
+      return m;
+    };
+    const tenement = (
+      x: number, z: number, w: number, h: number, depth: number, v: number,
+      seed: number,
+      o: {
+        storefront?: boolean; door?: boolean; stoop?: boolean; parapet?: number;
+        floors?: number; fire?: boolean; water?: boolean; antenna?: boolean;
+        awning?: boolean; bulk?: boolean; ppm?: number;
+      } = {},
+    ): void => {
+      const { map, glow } = this.tenementFace(w, h, v, seed, {
+        storefront: !!o.storefront, door: !!o.door, parapet: o.parapet,
+        floors: o.floors, ppm: o.ppm,
+      });
+      const face = new THREE.MeshLambertMaterial({
+        color: 0xffffff,
+        map,
+        emissive: 0xffffff,
+        emissiveMap: glow,
+        emissiveIntensity: 0.5,
+      });
+      this.disposables.push(map, glow, face);
+      const side = brickSideMat(v, depth, h);
+      const geo = new THREE.BoxGeometry(w, h, depth);
+      const mesh = new THREE.Mesh(geo, [side, side, capMat, capMat, face, side]);
+      mesh.name = 'RideTenement';
+      mesh.position.set(x, h / 2, z);
       strip.add(mesh);
       this.disposables.push(geo);
-      if (v === 1) this.waterTank(strip, x + w * 0.22, h, -3.2);
-      box(strip, 'RideBlockAC', blockRoof, x - w * 0.2, h + 0.28, -3.2, 0.8, 0.55, 1.1);
-    }
+      // the roofline: a cornice that throws a shadow + the cap above it
+      box(strip, 'RideCornice', corniceMat, x, h - 0.2, z, w + 0.26, 0.16, depth + 0.26);
+      box(strip, 'RideCap', capMat, x, h + 0.04, z, w + 0.08, 0.12, depth + 0.08);
+      if (o.bulk) {
+        box(strip, 'RideBulkhead', brickSideMat(v, 1.2, 0.9), x - w * 0.22, h + 0.45, z + depth * 0.1, 1.0, 0.7, depth * 0.45);
+      }
+      if (o.water) this.waterTank(strip, x + w * 0.24, h, z + 0.25);
+      if (o.antenna) {
+        cyl(strip, 'RideAntennaMast', ironMat, x + w * 0.3, h + 1.35, z - depth * 0.15, 0.025, 0.04, 2.3, 5);
+        box(strip, 'RideAntennaBar', ironMat, x + w * 0.3, h + 1.9, z - depth * 0.15, 0.8, 0.035, 0.035);
+        box(strip, 'RideAntennaBar', ironMat, x + w * 0.3, h + 1.55, z - depth * 0.15, 0.6, 0.035, 0.035);
+      }
+      if (o.awning && o.storefront) {
+        const aw = box(strip, 'RideAwning', awnMats[v % 2], x - w * 0.16, 2.72, z + depth / 2 + 0.3, w * 0.52, 0.06, 0.72);
+        aw.rotation.x = -0.62;
+      }
+      if (o.stoop) {
+        // three stone steps down to the sidewalk, iron rails to hold
+        const sz = z + depth / 2;
+        for (let s = 0; s < 3; s++) {
+          const hh = 0.42 - s * 0.14;
+          box(strip, 'RideStoopStep', stoopMat, x, hh / 2, sz + 0.16 + s * 0.25, 1.05, hh, 0.27);
+        }
+        box(strip, 'RideStoopRailA', ironMat, x - 0.52, 0.55, sz + 0.45, 0.04, 0.85, 0.04);
+        box(strip, 'RideStoopRailB', ironMat, x + 0.52, 0.55, sz + 0.45, 0.04, 0.85, 0.04);
+        box(strip, 'RideStoopRailTop', ironMat, x, 0.95, sz + 0.45, 1.06, 0.035, 0.035);
+      }
+      if (o.fire) {
+        // a real zigzag: platforms, rails, a stair each way — iron on brick
+        const floors = Math.max(1, Math.floor((h - 3.5) / 2.9));
+        const bx = x + w * 0.26;
+        const fz = z + depth / 2 + 0.2;
+        for (let f = 0; f <= floors; f++) {
+          const py = 2.7 + f * 2.9;
+          if (py > h - 1) break;
+          box(strip, 'RideFirePlatform', ironMat, bx, py, fz, 1.05, 0.05, 0.34);
+          box(strip, 'RideFireRailA', ironMat, bx, py + 0.5, fz + 0.15, 1.05, 0.035, 0.035);
+          box(strip, 'RideFireRailB', ironMat, bx, py + 0.25, fz + 0.15, 1.05, 0.025, 0.025);
+          if (f < floors) {
+            const stair = box(strip, 'RideFireStair', ironMat, bx + (f % 2 === 0 ? 0.52 : -0.52), py + 1.45, fz, 1.1, 0.045, 0.26);
+            stair.rotation.z = f % 2 === 0 ? -0.9 : 0.9;
+          }
+        }
+      }
+    };
+
+    // stoop row — the outer boroughs saying goodbye to the fields
+    tenement(3.0, -2.9, 2.4, 6.4, 2.2, 1, 11, { parapet: 0.8, stoop: true, door: true, floors: 2 });
+    tenement(4.7, -3.1, 2.8, 7.0, 2.4, 0, 23, { parapet: 0.8, stoop: true, door: true, floors: 2, bulk: true });
+    tenement(6.4, -3.0, 2.3, 6.2, 2.2, 2, 37, { parapet: 0.8, stoop: true, door: true, floors: 2 });
+    // the tenements proper — taller as midtown nears, each its own face
+    tenement(8.8, -3.1, 3.0, 9.0, 2.8, 0, 51, { storefront: true, awning: true, fire: true });
+    tenement(11.3, -3.4, 3.2, 13.0, 3.0, 1, 67, { storefront: true, water: true, fire: true, bulk: true });
+    tenement(13.9, -3.1, 3.0, 11.0, 2.8, 2, 83, { storefront: true, awning: true, bulk: true });
+    tenement(16.5, -3.5, 3.4, 15.0, 3.2, 0, 97, { storefront: true, water: true, antenna: true, fire: true, ppm: 48 });
+
+    // the city's own pavement — concrete replaces grass for the last stretch
+    box(strip, 'RideSidewalk', this.lambert(0x8f8994), 9.7, 0.045, 0.3, 16, 0.05, 4.0);
+    box(strip, 'RideCurb', this.lambert(0xa8a2ac), 9.7, 0.075, 2.2, 16, 0.09, 0.16);
+    // street furniture the window can count: two lamps and a hydrant
+    const lampPost = (x: number) => {
+      cyl(strip, 'RideLampPole', mats.frame, x, 2.15, 1.85, 0.045, 0.07, 4.3, 6);
+      box(strip, 'RideLampArm', mats.frame, x, 4.22, 1.85, 0.72, 0.06, 0.06);
+      box(strip, 'RideLampHead', this.lambertEmissive(0xffe0b0, 0.85), x - 0.3, 4.14, 1.85, 0.3, 0.09, 0.16);
+    };
+    lampPost(9.9);
+    lampPost(16.4);
+    cyl(strip, 'RideHydrant', this.lambert(PAL.coral), 12.7, 0.26, 1.7, 0.09, 0.11, 0.42, 8);
+    cyl(strip, 'RideHydrantCap', this.lambert(PAL.coral), 12.7, 0.5, 1.7, 0.07, 0.09, 0.08, 8);
 
     // --- the skyline: STATIC (far off = no parallax), lights up at ~4 s ---
     // World space, added to the GROUP (never to the strip): 40 m out, the
@@ -522,41 +655,33 @@ export class ArrivalCinematic {
     // city instead of the amber haze
     box(skyline, 'RideCityApron', this.lambert(0x4a4552), 0, -0.12, 4, 64, 0.3, 34);
 
-    // far row — the hazier silhouette behind the headliners; depth without
-    // a fog cheat (it simply stands further back and lights up dimmer)
-    const farTex = this.towerBodyTexture(2);
-    const farWin = this.towerWindowsTexture(2);
-    const farMat = new THREE.MeshLambertMaterial({
-      color: 0xffffff,
-      map: farTex,
-      emissive: 0xffffff,
-      emissiveMap: farWin,
-      emissiveIntensity: 0.1,
-    });
-    this.disposables.push(farTex, farWin, farMat);
+    // far row — the hazier silhouette BEHIND the headliners at 48 m (the
+    // old row stood at 24 m, in front of everything, huge and smeared);
+    // depth without a fog cheat (it simply stands further back and lights
+    // up dimmer). Each face exact-fit, haze-mixed toward the sky.
+    const farMats: THREE.MeshLambertMaterial[] = [];
     const farTowers: Array<[number, number, number]> = [
       [-14, 14, 2.6], [-11, 18, 2.4], [-8.4, 12, 2.8], [-5.6, 20, 2.4], [-2.6, 15, 2.6],
       [0.4, 22, 2.4], [3.4, 13, 2.8], [6.2, 19, 2.4], [9.2, 15, 2.6], [12.4, 21, 2.4],
     ];
     for (const [x, h, w] of farTowers) {
-      box(skyline, 'RideTowerFar', farMat, x, h / 2, 16, w, h, 2.0);
+      const { map, glow } = this.towerFace(w, h, (Math.round(x * 10) + 200) % 3, x * 13 + 5, true);
+      const m = new THREE.MeshLambertMaterial({
+        color: 0xffffff,
+        map,
+        emissive: 0xffffff,
+        emissiveMap: glow,
+        emissiveIntensity: 0.08,
+      });
+      this.disposables.push(map, glow, m);
+      farMats.push(m);
+      box(skyline, 'RideTowerFar', m, x, h / 2, -8, w, h, 2.0);
     }
 
     // near row — the silhouettes the trip is named for: setbacks, a spire
     // with its beacon, a lit crown. The 1-Second Law, out a bus window.
-    const towerMats = [0, 1, 2].map((v) => {
-      const body = this.towerBodyTexture(v);
-      const win = this.towerWindowsTexture(v);
-      const m = new THREE.MeshLambertMaterial({
-        color: 0xffffff,
-        map: body,
-        emissive: 0xffffff,
-        emissiveMap: win, // black body, amber windows — only windows glow
-        emissiveIntensity: 0.18, // dusk-dark until the city lights come on
-      });
-      this.disposables.push(body, win, m);
-      return m;
-    });
+    // Every tier gets its own exact-fit face: no stretched towers.
+    const tierMats: THREE.MeshLambertMaterial[] = [];
     const crownMat = this.lambertEmissive(0xffb85c, 0.25);
     const beaconMat = new THREE.MeshBasicMaterial({ color: PAL.coral });
     const bulkMat = this.lambert(0x4f4758);
@@ -574,14 +699,25 @@ export class ArrivalCinematic {
       { x: 13.2, w: 3.4, tiers: [[3.4, 12], [2.7, 6], [2.0, 4]], v: 0, spire: 2.5 },
     ];
     for (const t of towerDefs) {
-      const mat = towerMats[t.v];
       let top = 0;
       let tw = t.w;
       t.tiers.forEach(([w, h], i) => {
-        box(skyline, `RideTower${i}`, mat, t.x, top + h / 2, 0, w, h, 2.4);
+        const { map, glow } = this.towerFace(w, h, t.v, 31 + t.x * 7 + i * 17, false);
+        const m = new THREE.MeshLambertMaterial({
+          color: 0xffffff,
+          map,
+          emissive: 0xffffff,
+          emissiveMap: glow, // black body, amber windows — only windows glow
+          emissiveIntensity: 0.15, // dusk-dark until the city lights come on
+        });
+        this.disposables.push(map, glow, m);
+        tierMats.push(m);
+        box(skyline, `RideTower${t.x}_${i}`, m, t.x, top + h / 2, 0, w, h, 2.4);
         top += h;
         tw = w;
       });
+      // a cornice ledge under every roofline, even out here
+      box(skyline, 'RideTowerCornice', bulkMat, t.x, top - 0.16, 0, tw + 0.18, 0.13, 2.56);
       box(skyline, 'RideTowerBulk', bulkMat, t.x, top + 0.28, 0, tw * 0.42, 0.56, 1.4);
       if (t.water) this.waterTank(skyline, t.x + tw * 0.24, top, 0.35);
       if (t.crown) box(skyline, 'RideTowerCrown', crownMat, t.x, top + 0.5, 0, tw + 0.12, 1.0, 2.5);
@@ -603,19 +739,35 @@ export class ArrivalCinematic {
       }
     }
 
-    // street-level fabric — a low brick band in front of the towers, so
-    // the skyline sits IN a city instead of floating over one
+    // street-level fabric — low brick band in FRONT of the towers, so the
+    // skyline sits IN a city instead of floating over one. Mini-tenements,
+    // exact-fit faces, alternate storefronts; the strip's tenements carry
+    // the close-up duty, these carry the middle distance.
     for (let i = 0; i < 12; i++) {
       const x = -13 + i * 2.3;
-      const h = 4.4 + ((i * 37) % 23) / 10; // 4.4 … 6.6, deterministic
-      const geo = new THREE.BoxGeometry(2.1, h, 2.0);
-      const low = new THREE.Mesh(geo, [blockSide, blockSide, blockRoof, blockRoof, facadeMats[i % 3], blockSide]);
+      const h = 5.0 + ((i * 37) % 23) / 10; // 5.0 … 7.2, deterministic
+      const w = 2.05;
+      const { map, glow } = this.tenementFace(w, h, i % 3, i * 29 + 3, {
+        storefront: i % 2 === 0, floors: 2, parapet: 0.5, ppm: 28,
+      });
+      const face = new THREE.MeshLambertMaterial({
+        color: 0xffffff,
+        map,
+        emissive: 0xffffff,
+        emissiveMap: glow,
+        emissiveIntensity: 0.55,
+      });
+      this.disposables.push(map, glow, face);
+      const side = brickSideMat(i % 3, 2.0, h);
+      const geo = new THREE.BoxGeometry(w, h, 2.0);
+      const low = new THREE.Mesh(geo, [side, side, capMat, capMat, face, side]);
       low.name = 'RideLowrise';
       low.position.set(x, h / 2, -7);
       skyline.add(low);
       this.disposables.push(geo);
-      if (i % 3 === 0) box(skyline, 'RideLowriseParapet', blockRoof, x, h + 0.18, -7, 2.1, 0.36, 2.0);
-      if (i % 4 === 1) this.waterTank(skyline, x + 0.5, h, -6.9);
+      box(skyline, 'RideLowriseCornice', corniceMat, x, h - 0.14, -7, w + 0.18, 0.12, 2.18);
+      if (i % 3 === 0) box(skyline, 'RideLowriseCap', capMat, x, h + 0.1, -7, w + 0.06, 0.2, 2.06);
+      if (i % 4 === 1) this.waterTank(skyline, x + 0.5, h, -6.8);
     }
 
     // the light-up: the beat stays (3.6 s wait, 2.4 s rise) — the far row
@@ -623,11 +775,11 @@ export class ArrivalCinematic {
     this.host.tweens.sequence(
       this.host.tweens.wait(3.6),
       this.host.tweens.num(
-        () => towerMats[0].emissiveIntensity,
+        () => tierMats[0].emissiveIntensity,
         (v) => {
-          for (const m of towerMats) m.emissiveIntensity = v;
-          farMat.emissiveIntensity = 0.1 + Math.max(0, v - 0.18) * 0.6;
-          crownMat.emissiveIntensity = 0.25 + Math.max(0, v - 0.18) * 1.1;
+          for (const m of tierMats) m.emissiveIntensity = v;
+          for (const m of farMats) m.emissiveIntensity = 0.08 + Math.max(0, v - 0.15) * 0.6;
+          crownMat.emissiveIntensity = 0.25 + Math.max(0, v - 0.15) * 1.1;
         },
         1.15, 2.4,
       ),
@@ -643,7 +795,7 @@ export class ArrivalCinematic {
       }),
     );
     glow.name = 'RideSunGlow';
-    glow.position.set(-7, 2.6, 18); // behind the far row — towers silhouette against it
+    glow.position.set(-7, 3.2, -14); // behind the far row — towers silhouette against it
     skyline.add(glow);
     this.disposables.push(glowTex, glow.geometry as THREE.BufferGeometry);
 
@@ -778,137 +930,274 @@ export class ArrivalCinematic {
     this.host.ui.showCine();
   }
 
-  /** Tower bodies — three dusk faces (plum, brown-plum, slate) with a
-   *  mullion rhythm, a roof shadow band and street grime at the feet. */
-  private towerBodyTexture(variant: number): THREE.CanvasTexture {
-    const bases = ['#6b5d76', '#75616e', '#605a72'];
-    const darks = ['#5d5168', '#665462', '#544e64'];
-    const c = document.createElement('canvas');
-    c.width = 128; c.height = 256;
-    const ctx = c.getContext('2d')!;
-    ctx.fillStyle = bases[variant % 3];
-    ctx.fillRect(0, 0, c.width, c.height);
-    // the mullion rhythm: a darker column every 16 px, so the face reads
-    // as construction, not paint
-    ctx.fillStyle = darks[variant % 3];
-    for (let x = 6; x < c.width; x += 16) ctx.fillRect(x, 10, 2, c.height - 10);
-    // the roof shadow band
-    ctx.fillRect(0, 0, c.width, 10);
-    // street grime — the feet of every real tower
-    const grad = ctx.createLinearGradient(0, c.height - 70, 0, c.height);
-    grad.addColorStop(0, 'rgba(30,26,38,0)');
-    grad.addColorStop(1, 'rgba(30,26,38,0.45)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, c.height - 70, c.width, 70);
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
-  }
-
-  /** Amber windows on black — the emissiveMap, so tweening one intensity
-   *  lights every tower's windows and nothing else. A deterministic mix:
-   *  mostly warm, some cooler paper-light, the rare late office still
-   *  cyan, whole dark floors (the mechanical bands). */
-  private towerWindowsTexture(variant: number): THREE.CanvasTexture {
-    const c = document.createElement('canvas');
-    c.width = 128; c.height = 256;
-    const ctx = c.getContext('2d')!;
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, c.width, c.height);
-    let seed = 13 + variant * 977;
-    const rand = () => {
-      seed = (seed * 16807) % 2147483647;
-      return seed / 2147483647;
+  /** A tiny deterministic PRNG — the same seed must paint the same city
+   *  (the world must be a place, not a dice roll). Seeds are folded
+   *  positive first: a negative seed used to flow through `%` and every
+   *  roll came out ≤ 0 — the left half of the skyline never lit up. */
+  private seeded(seed: number): () => number {
+    let s = (Math.abs(Math.floor(seed)) % 2147483646) + 1;
+    return () => {
+      s = (s * 16807) % 2147483647;
+      return (s - 1) / 2147483646;
     };
-    const lit = 0.34 + variant * 0.06;
-    for (let y = 24; y < c.height - 16; y += 18) {
-      const floorDark = rand() < 0.14; // a mechanical floor, fully unlit
-      for (let x = 8; x < c.width - 8; x += 16) {
-        if (floorDark || rand() > lit) continue;
-        const r = rand();
-        ctx.fillStyle = r < 0.05 ? '#9fd8e8' : r < 0.25 ? '#ffd9a0' : '#ffb85c';
-        ctx.fillRect(x, y, 7, 10);
-      }
-    }
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
   }
 
-  /** Tenement facades — the street-level fabric: brick, three floors of
-   *  windows with lintels, a cornice, a storefront with an awning, and a
-   *  painted fire escape zigzag. Returns the diffuse + emissive pair. */
-  private facadeTexture(variant: number): { map: THREE.CanvasTexture; glow: THREE.CanvasTexture } {
-    const bricks = ['#9a5a48', '#8a6a54', '#a88a68'];
+  /** One painted TENEMENT face, drawn to exact size — px = metres × ppm —
+   *  so a window is a window at any height (the stretched-canvas lesson).
+   *  Brick coursing, linteled sash windows with mullions, stone sills,
+   *  mechanical floors, a parapet + cornice band, a storefront with a lit
+   *  sign or a stoop-grade base, soot stripes and street grime. The glow
+   *  canvas shares every coordinate: lit windows, glass and sign letters
+   *  only. */
+  private tenementFace(w: number, h: number, variant: number, seed: number,
+    opts: { storefront?: boolean; door?: boolean; floors?: number; parapet?: number; ppm?: number } = {},
+  ): { map: THREE.CanvasTexture; glow: THREE.CanvasTexture } {
+    const ppm = opts.ppm ?? 40;
+    const pw = Math.min(1024, Math.max(40, Math.round(w * ppm)));
+    const ph = Math.min(2048, Math.max(60, Math.round(h * ppm)));
+    const px = (m: number) => Math.round(m * ppm);
     const c = document.createElement('canvas');
-    c.width = 128; c.height = 256;
+    c.width = pw; c.height = ph;
     const ctx = c.getContext('2d')!;
     const glow = document.createElement('canvas');
-    glow.width = 128; glow.height = 256;
+    glow.width = pw; glow.height = ph;
     const gtx = glow.getContext('2d')!;
     gtx.fillStyle = '#000000';
-    gtx.fillRect(0, 0, 128, 256);
-    let seed = 7 + variant * 131;
-    const rand = () => {
-      seed = (seed * 16807) % 2147483647;
-      return seed / 2147483647;
-    };
-    // the brick field, with a faint course line every 6 px
-    ctx.fillStyle = bricks[variant % 3];
-    ctx.fillRect(0, 0, 128, 256);
-    ctx.fillStyle = 'rgba(0,0,0,0.10)';
-    for (let y = 4; y < 256; y += 6) ctx.fillRect(0, y, 128, 1);
-    // the cornice + parapet
-    ctx.fillStyle = '#3a3440';
-    ctx.fillRect(0, 0, 128, 12);
-    ctx.fillStyle = '#2f2a36';
-    ctx.fillRect(0, 12, 128, 5);
-    // upper windows: three floors, three bays, stone lintels
-    for (let floor = 0; floor < 3; floor++) {
-      const y = 34 + floor * 46;
-      for (let bay = 0; bay < 3; bay++) {
-        const x = 16 + bay * 38;
-        ctx.fillStyle = '#4a4148'; // the dark glass of dusk
-        ctx.fillRect(x, y, 18, 26);
-        ctx.fillStyle = '#d8cdbd'; // the lintel
-        ctx.fillRect(x - 2, y - 4, 22, 4);
-        ctx.fillRect(x - 2, y + 26, 22, 3);
-        if (rand() < 0.45) {
+    gtx.fillRect(0, 0, pw, ph);
+    const rand = this.seeded(seed);
+
+    // the brick field — running-bond course lines, soot weathering
+    const brick = ['#9a5a48', '#8a6a54', '#a88a68'][variant % 3];
+    ctx.fillStyle = brick;
+    ctx.fillRect(0, 0, pw, ph);
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    for (let y = px(0.07); y < ph; y += px(0.2)) ctx.fillRect(0, y, pw, 1);
+    ctx.fillStyle = 'rgba(22,17,26,0.06)';
+    for (let i = 0; i < 4; i++) {
+      ctx.fillRect(px(0.3) + Math.floor(rand() * pw * 0.8), 0, px(0.45), ph);
+    }
+
+    // the roofline: parapet, cornice band, shadow — drawn; ledged in 3D too
+    const corniceH = 0.45;
+    const parapetH = opts.parapet ?? 0.55;
+    const gradeH = opts.storefront ? 3.5 : 0.4;
+    const floors = opts.floors ??
+      Math.max(1, Math.round((h - gradeH - corniceH - parapetH) / 2.9));
+    const floorH = (h - gradeH - corniceH - parapetH) / floors;
+    ctx.fillStyle = '#4a4148';
+    ctx.fillRect(0, 0, pw, px(parapetH));
+    ctx.fillStyle = '#2a2530';
+    ctx.fillRect(0, 0, pw, px(0.13));
+    ctx.fillStyle = '#5a5260';
+    ctx.fillRect(0, px(parapetH), pw, px(corniceH * 0.42));
+    ctx.fillStyle = '#241f28';
+    ctx.fillRect(0, px(parapetH + corniceH * 0.42), pw, px(0.09));
+
+    // the window floors — real tenement bays, stone lintels and sills,
+    // six-over-six sash drawn with mullions, lit rooms behind half-drawn
+    // shades, the occasional window AC
+    const winW = px(0.85);
+    const winH = px(1.45);
+    const topY = px(parapetH + corniceH);
+    for (let f = 0; f < floors; f++) {
+      const fy = topY + px(floorH * f);
+      ctx.fillStyle = 'rgba(0,0,0,0.13)';
+      ctx.fillRect(0, fy + px(floorH) - px(0.14), pw, px(0.14));
+      const bays = Math.max(1, Math.round(w / 1.7));
+      for (let b = 0; b < bays; b++) {
+        const wx = Math.round((pw / bays) * (b + 0.5) - winW / 2);
+        const wy = fy + px((floorH - 1.45 - 0.45) / 2 + 0.45);
+        ctx.fillStyle = '#d8cdbd';
+        ctx.fillRect(wx - px(0.06), wy - px(0.13), winW + px(0.12), px(0.13));
+        ctx.fillRect(wx - px(0.06), wy + winH, winW + px(0.12), px(0.1));
+        ctx.fillStyle = '#423a44';
+        ctx.fillRect(wx, wy, winW, winH);
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillRect(wx, wy, winW, px(0.5));
+        ctx.fillStyle = '#2c262e';
+        ctx.fillRect(wx + winW / 2 - 1, wy, 2, winH);
+        ctx.fillRect(wx, wy + winH / 2 - 1, winW, 2);
+        if (rand() < 0.42) {
           gtx.fillStyle = rand() < 0.3 ? '#ffd9a0' : '#ffb85c';
-          gtx.fillRect(x, y, 18, 26);
+          gtx.fillRect(wx, wy, winW, winH);
+          if (rand() < 0.35) {
+            gtx.fillStyle = '#000000';
+            gtx.fillRect(wx, wy, winW, Math.round(winH * 0.42));
+          }
+        }
+        if (rand() < 0.14) {
+          ctx.fillStyle = '#c9c2b4';
+          ctx.fillRect(wx + px(0.18), wy + winH - px(0.26), px(0.5), px(0.28));
         }
       }
     }
-    // the storefront: dark glass, an awning band, lit windows
-    ctx.fillStyle = '#2f2a36';
-    ctx.fillRect(0, 186, 128, 70);
-    const awnings = ['#2a9d8f', '#b23a48', '#2a9d8f'];
-    ctx.fillStyle = awnings[variant % 3];
-    ctx.fillRect(0, 186, 128, 10);
-    for (const x of [14, 62, 98]) {
-      ctx.fillStyle = '#ffb85c';
-      ctx.fillRect(x, 210, 26, 30);
+
+    // the grade: a storefront with a lit sign, or the stoop base
+    if (opts.storefront) {
+      const gy = ph - px(gradeH);
+      ctx.fillStyle = '#2f2a36';
+      ctx.fillRect(0, gy, pw, px(gradeH));
+      ctx.fillStyle = '#443c48';
+      ctx.fillRect(0, gy, px(0.28), px(gradeH));
+      ctx.fillRect(pw - px(0.28), gy, px(0.28), px(gradeH));
+      const glassY = gy + px(0.92);
+      const glassH = px(1.75);
+      ctx.fillStyle = '#3a3242';
+      ctx.fillRect(px(0.4), glassY, pw - px(0.8), glassH);
+      ctx.fillStyle = ['#1f6f66', '#8f3040', '#1f6f66'][variant % 3];
+      ctx.fillRect(px(0.32), gy + px(0.14), pw - px(0.64), px(0.64));
+      const name = ['DELI', 'BAR', 'PIZZA'][variant % 3];
+      const fs = px(0.42);
+      ctx.fillStyle = '#ffe0b0';
+      ctx.font = `bold ${fs}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(name, pw / 2, gy + px(0.46));
+      ctx.fillStyle = '#54485a';
+      ctx.fillRect(pw - px(1.15), glassY - px(0.15), px(0.72), glassH + px(0.15));
       gtx.fillStyle = '#ffca7a';
-      gtx.fillRect(x, 210, 26, 30);
+      gtx.fillRect(px(0.4), glassY, pw - px(0.8), glassH);
+      gtx.fillStyle = '#ffd9a0';
+      gtx.font = `bold ${fs}px sans-serif`;
+      gtx.textAlign = 'center'; gtx.textBaseline = 'middle';
+      gtx.fillText(name, pw / 2, gy + px(0.46));
+    } else if (opts.door) {
+      // the stoop grade: a tall door under a lit transom, stone enframement
+      ctx.fillStyle = '#57505c';
+      ctx.fillRect(0, ph - px(0.4), pw, px(0.4));
+      const dx = Math.round(pw / 2 - px(0.5));
+      const dh = px(2.3);
+      ctx.fillStyle = '#d8cdbd';
+      ctx.fillRect(dx - px(0.09), ph - dh - px(0.09), px(1.18), dh + px(0.09));
+      ctx.fillStyle = '#3a3038';
+      ctx.fillRect(dx, ph - dh, px(1.0), dh);
+      ctx.fillStyle = '#241f28';
+      ctx.fillRect(dx + px(0.12), ph - dh + px(0.12), px(0.76), dh - px(0.12));
+      gtx.fillStyle = '#ffb85c';
+      gtx.fillRect(dx, ph - dh, px(1.0), px(0.34));
+    } else {
+      ctx.fillStyle = '#57505c';
+      ctx.fillRect(0, ph - px(0.4), pw, px(0.4));
     }
-    // the fire escape: a zigzag of dark iron on the left bay
-    ctx.strokeStyle = '#241f28';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    for (let floor = 0; floor < 3; floor++) {
-      const y = 34 + floor * 46;
-      ctx.moveTo(6, y + 24);
-      ctx.lineTo(6, y);
-      ctx.lineTo(36, y);
-      ctx.moveTo(6, y + 24);
-      ctx.lineTo(36, y + 24);
-    }
-    ctx.stroke();
+
+    // street grime — the feet of every real building
+    const grime = ctx.createLinearGradient(0, ph - px(1.6), 0, ph);
+    grime.addColorStop(0, 'rgba(24,20,30,0)');
+    grime.addColorStop(1, 'rgba(24,20,30,0.4)');
+    ctx.fillStyle = grime;
+    ctx.fillRect(0, ph - px(1.6), pw, px(1.6));
+
     const map = new THREE.CanvasTexture(c);
     map.colorSpace = THREE.SRGBColorSpace;
     const glowTex = new THREE.CanvasTexture(glow);
     glowTex.colorSpace = THREE.SRGBColorSpace;
     return { map, glow: glowTex };
+  }
+
+  /** One painted TOWER face for the skyline — dusk plum with a mullion
+   *  rhythm and a mechanical top band; `haze` mixes the color toward the
+   *  sky, drops the mullions and thins the windows: the "far off" row at
+   *  48 m. Exact size, like the tenements. */
+  private towerFace(w: number, h: number, variant: number, seed: number,
+    haze: boolean,
+  ): { map: THREE.CanvasTexture; glow: THREE.CanvasTexture } {
+    const ppm = haze ? 20 : 28;
+    const pw = Math.min(512, Math.max(24, Math.round(w * ppm)));
+    const ph = Math.min(1024, Math.max(48, Math.round(h * ppm)));
+    const px = (m: number) => Math.round(m * ppm);
+    const c = document.createElement('canvas');
+    c.width = pw; c.height = ph;
+    const ctx = c.getContext('2d')!;
+    const glow = document.createElement('canvas');
+    glow.width = pw; glow.height = ph;
+    const gtx = glow.getContext('2d')!;
+    gtx.fillStyle = '#000000';
+    gtx.fillRect(0, 0, pw, ph);
+    const rand = this.seeded(seed);
+
+    const mix = (a: string, b: string, t: number): string => {
+      const p = (s: string) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
+      const [r1, g1, b1] = p(a); const [r2, g2, b2] = p(b);
+      const q = (x: number, y: number) => Math.round(x + (y - x) * t);
+      return `rgb(${q(r1, r2)},${q(g1, g2)},${q(b1, b2)})`;
+    };
+    const bases = ['#6b5d76', '#75616e', '#605a72'];
+    const mull = ['#5d5168', '#665462', '#544e64'];
+    const hazeC = '#a08cab';
+    const base = haze ? mix(bases[variant % 3], hazeC, 0.42) : bases[variant % 3];
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, pw, ph);
+    // the mullion rhythm — real construction up close, mush at 48 m
+    if (!haze) {
+      ctx.fillStyle = mull[variant % 3];
+      for (let x = px(0.55); x < pw; x += px(1.1)) ctx.fillRect(x, 0, Math.max(1, px(0.16)), ph);
+    }
+    // the mechanical crown band + shadow
+    ctx.fillStyle = haze ? mix('#544a5c', hazeC, 0.4) : '#544a5c';
+    ctx.fillRect(0, 0, pw, px(1.1));
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(0, px(1.1), pw, px(0.12));
+
+    // windows — floors of 3.5 m, most dark at dusk, a scatter of rooms lit
+    const floors = Math.max(2, Math.floor((h - 1.1) / 3.5));
+    const floorH = (h - 1.1) / floors;
+    const winW = px(0.75);
+    const winH = px(1.15);
+    const lit = haze ? 0.16 : 0.3;
+    for (let f = 0; f < floors; f++) {
+      const fy = px(1.1) + px(floorH * f + (floorH - 1.15) / 2);
+      const floorDark = rand() < 0.12;
+      const cols = Math.max(2, Math.round(w / 0.95));
+      for (let b = 0; b < cols; b++) {
+        const wx = Math.round((pw / cols) * (b + 0.5) - winW / 2);
+        ctx.fillStyle = haze ? 'rgba(40,34,48,0.55)' : '#463e4a';
+        ctx.fillRect(wx, fy, winW, winH);
+        if (floorDark || rand() > lit) continue;
+        const r = rand();
+        gtx.fillStyle = haze
+          ? (r < 0.2 ? '#d99e63' : '#c9884e')
+          : (r < 0.05 ? '#9fd8e8' : r < 0.25 ? '#ffd9a0' : '#ffb85c');
+        gtx.fillRect(wx, fy, winW, winH);
+      }
+    }
+    // the feet, darkened by the street canyon
+    const grime = ctx.createLinearGradient(0, ph - px(3), 0, ph);
+    grime.addColorStop(0, 'rgba(26,22,34,0)');
+    grime.addColorStop(1, 'rgba(26,22,34,0.5)');
+    ctx.fillStyle = grime;
+    ctx.fillRect(0, ph - px(3), pw, px(3));
+
+    const map = new THREE.CanvasTexture(c);
+    map.colorSpace = THREE.SRGBColorSpace;
+    const glowTex = new THREE.CanvasTexture(glow);
+    glowTex.colorSpace = THREE.SRGBColorSpace;
+    return { map, glow: glowTex };
+  }
+
+  /** Plain running-bond brick for building SIDES (the faces carry the
+   *  painted facades; the returns just need honest masonry). Tiled. */
+  private brickTexture(variant: number): THREE.CanvasTexture {
+    const c = document.createElement('canvas');
+    c.width = 64; c.height = 64;
+    const ctx = c.getContext('2d')!;
+    const rand = this.seeded(41 + variant * 17);
+    ctx.fillStyle = ['#7d5a4c', '#6e5a50', '#7d6a58'][variant % 3];
+    ctx.fillRect(0, 0, 64, 64);
+    for (let row = 0; row < 16; row++) {
+      const y = row * 4;
+      const off = (row % 2) * 4;
+      for (let x = -8; x < 64; x += 8) {
+        const l = rand();
+        ctx.fillStyle = l < 0.5
+          ? ['#9a5a48', '#8a6a54', '#a88a68'][variant % 3]
+          : 'rgba(0,0,0,0.18)';
+        ctx.fillRect(x + off + 1, y + 1, 6, 2);
+      }
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    return tex;
   }
 
   /** A low sun: a hot core falling off to nothing, for the additive plane
@@ -971,26 +1260,6 @@ export class ArrivalCinematic {
     return m;
   }
 
-  /** The tenement facade materials, built once, one per variant. */
-  private facadeMatsCache: THREE.MeshLambertMaterial[] | null = null;
-  private getFacadeMats(): THREE.MeshLambertMaterial[] {
-    if (!this.facadeMatsCache) {
-      this.facadeMatsCache = [0, 1, 2].map((v) => {
-        const { map, glow } = this.facadeTexture(v);
-        const m = new THREE.MeshLambertMaterial({
-          color: 0xffffff,
-          map,
-          emissive: 0xffffff,
-          emissiveMap: glow, // only the shopfronts and some homes glow
-          emissiveIntensity: 0.55,
-        });
-        this.disposables.push(map, glow, m);
-        return m;
-      });
-    }
-    return this.facadeMatsCache;
-  }
-
   /** A pitched gable roof — one triangular prism, the farmhouse silhouette
    *  the 1-Second Law expects out a country window (the old 4-sided cone
    *  read as a circus tent). Centered on x/z, rising from y = 0. */
@@ -1008,18 +1277,34 @@ export class ArrivalCinematic {
   }
 
   /** A rooftop water tank — the silhouette New York wears above its
-   *  cornices. Base sits on the roof at y; wood-dark, coned cap. */
+   *  cornices. Base sits on the roof at y; wood-dark, coned cap, hoops. */
   private waterTank(parent: THREE.Object3D, x: number, y: number, z: number): void {
     const mat = this.lambert(0x5d4a3e);
+    const band = this.lambert(0x43352c);
     const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.75, 8), mat);
     tank.name = 'RideWaterTank';
-    tank.position.set(x, y + 0.45, z);
+    tank.position.set(x, y + 0.38, z);
     parent.add(tank);
+    const hoopA = new THREE.Mesh(new THREE.TorusGeometry(0.425, 0.018, 5, 10), band);
+    hoopA.name = 'RideWaterTankHoop';
+    hoopA.rotation.x = Math.PI / 2;
+    hoopA.position.set(x, y + 0.16, z);
+    parent.add(hoopA);
+    const hoopB = new THREE.Mesh(new THREE.TorusGeometry(0.425, 0.018, 5, 10), band);
+    hoopB.name = 'RideWaterTankHoop';
+    hoopB.rotation.x = Math.PI / 2;
+    hoopB.position.set(x, y + 0.6, z);
+    parent.add(hoopB);
     const cone = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.42, 8), mat);
     cone.name = 'RideWaterTankCap';
-    cone.position.set(x, y + 1.03, z);
+    cone.position.set(x, y + 0.96, z);
     parent.add(cone);
-    this.disposables.push(tank.geometry as THREE.BufferGeometry, cone.geometry as THREE.BufferGeometry);
+    this.disposables.push(
+      tank.geometry as THREE.BufferGeometry,
+      hoopA.geometry as THREE.BufferGeometry,
+      hoopB.geometry as THREE.BufferGeometry,
+      cone.geometry as THREE.BufferGeometry,
+    );
   }
 
   // ------------------------------------------------------- the arrival card --
