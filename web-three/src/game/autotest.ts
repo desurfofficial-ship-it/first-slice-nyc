@@ -482,9 +482,11 @@ export function runAutotest(game: Game): void {
       // Card 5 \u2014 Mr. Idris, the usual. Rosa\u2019s nine-years line is the payoff.
       await interact();
       check(s.pendingCard?.id === 'idris', 'card 5: Mr. Idris \u2014 "The usual, please."');
-      game.advanceOrder(0); // two sugars, no asking
+      game.advanceOrder(3); // the chef\u2019s welcome \u2014 VS-F03 v0, pressed live at last
       await waitFrames(4);
-      check(await noteSays('nine years'), 'Rosa, quietly: two sugars, nine years \u2014 the continuity beat');
+      check(game.debug.orderResponseText().includes('learn by heart'),
+        'the chef picks: "some orders you learn by heart before you learn by asking"');
+      check(await noteSays('nine years'), 'Rosa, quietly: two sugars, nine years \u2014 the payoff on EVERY choice, not a branch');
       game.advanceOrder(null);
       await waitFrames(6);
       check(s.step === Step.CROSS && s.rushServed === 5, '5-order rush served \u2014 as five conversations');
