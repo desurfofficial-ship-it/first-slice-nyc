@@ -115,15 +115,19 @@ function unitCyl(m: THREE.Material, r: number, h: number, x: number, y: number, 
 
 export interface Tree {
   group: THREE.Group;
-  /** the canopy group — the ambience pass rotates this a hair each frame */
-  canopy: THREE.Group;
   /** world height of the tallest canopy blob — leaf drift spawns under it */
   top: number;
-  /** per-tree cloned blob materials — the camera's fade-on-occlude pass
-   *  (World, driven by GameCamera's occlusion array) dissolves ONE tree's
-   *  leaves when they swallow the player; the shared bank materials would
-   *  fade the whole street at once. */
-  mats: THREE.MeshLambertMaterial[];
+  /** trunk height — the canopy's sway pivot (World composes the instanced
+   *  blobs from this, the tree's yaw, and the per-blob records below) */
+  h: number;
+  /** canopy blob records instead of meshes — the instanced canopy owns the
+   *  draw (World.buildInstancedTreeRows): 21 trees × 3 blobs would cost 63
+   *  draw calls × 2 passes as meshes; as records they land in 4
+   *  InstancedMeshes total. Same shapes, same rng grammar, same silhouette.
+   *  key: 0 leafA (0x5d7d4a) · 1 leafB (0x516e42) · 2 goldA (0xf7b32b) ·
+   *  3 goldB (0xffb85c) — the same encodings the W1 simple rows use for
+   *  0/1, plus the two autumn golds. */
+  blobs: Array<{ ox: number; oy: number; oz: number; r: number; key: 0 | 1 | 2 | 3 }>;
 }
 
 /** A street tree with believable low-poly structure: trunk, root flare,
@@ -134,10 +138,6 @@ export interface Tree {
  *  to November and this game's sun never leaves October. */
 export function makeTree(bank: MatBank, rng: () => number, autumn = false): Tree {
   const bark = bank.get(0x6d5344);
-  const leafA = bank.get(0x5d7d4a);
-  const leafB = bank.get(0x516e42);
-  const goldA = bank.get(0xf7b32b); // PAL.gold — Taxi Yellow, at leaf scale it reads honey
-  const goldB = bank.get(0xffb85c); // golden-hour amber — the turning edge
   const g = new THREE.Group();
   const h = 2.1 + rng() * 1.3;
   const trunk = mesh(geo.trunk, bark, 0, h / 2, 0);
@@ -148,36 +148,31 @@ export function makeTree(bank: MatBank, rng: () => number, autumn = false): Tree
   const flare = mesh(geo.cone, bark, 0, 0.09, 0);
   flare.scale.set(0.62, 0.18, 0.62);
   g.add(flare);
-  const canopy = new THREE.Group();
-  canopy.position.y = h;
-  const blobs = 3;
+  const blobs: Tree['blobs'] = [];
   let top = h;
-  const mats: THREE.MeshLambertMaterial[] = [];
   // blob 0 is the crown (highest); blobs 1-2 hang lower on the flanks.
   // Turning reads as a GRADIENT, never a coin flip: crown honey-gold, mid
   // blob lighter amber, lowest blob still green — the tree holds on from
   // the bottom, the way real street trees do. Random per-blob picks kept
   // collapsing into a uniform gold lollipop (both golds adjacent, the green
   // blob buried between them); a turning tree must show its turning.
-  const leafFor = (i: number): THREE.MeshLambertMaterial => {
-    if (!autumn) return i === 0 ? leafA : (rng() < 0.5 ? leafA : leafB);
-    return i === 0 ? goldA : (i === 1 ? goldB : leafB);
+  // RNG ORDER LAW: every rng() call below must keep its exact place in the
+  // sequence (r, cy, [leaf pick], ox, oz) — the block's other seeded
+  // content downstream of a tree roll would all shift if the order moved.
+  const keyFor = (i: number): 0 | 1 | 2 | 3 => {
+    if (!autumn) return i === 0 ? 0 : (rng() < 0.5 ? 0 : 1);
+    return i === 0 ? 2 : (i === 1 ? 3 : 1);
   };
-  for (let i = 0; i < blobs; i++) {
+  for (let i = 0; i < 3; i++) {
     const r = 0.85 + rng() * 0.55;
     const cy = r * 0.45 + rng() * 0.5;
-    const m = leafFor(i).clone();
-    m.transparent = true; // fade-on-occlude ready; opacity 1 renders as opaque
-    mats.push(m);
-    const b = mesh(geo.sphere, m,
-      (rng() - 0.5) * 0.9, cy, (rng() - 0.5) * 0.9);
-    b.scale.setScalar(r);
-    b.castShadow = true;
-    canopy.add(b);
+    const key = keyFor(i);
+    const ox = (rng() - 0.5) * 0.9;
+    const oz = (rng() - 0.5) * 0.9;
+    blobs.push({ ox, oy: cy, oz, r, key });
     top = Math.max(top, h + cy + r * 0.9);
   }
-  g.add(canopy);
-  return { group: g, canopy, top, mats };
+  return { group: g, top, h, blobs };
 }
 
 /** Sidewalk tree pit: dark soil inside a low granite rim — the same grey

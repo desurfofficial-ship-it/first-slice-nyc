@@ -224,7 +224,18 @@ export class World {
   private washerLoad: THREE.Mesh | null = null;
   private washerRunning = false;
   private readonly bank: MatBank;
-  private readonly trees: Array<{ group: THREE.Group; canopy: THREE.Group; phase: number; mats: THREE.MeshLambertMaterial[]; fade: number }> = [];
+  private readonly trees: Array<{
+    group: THREE.Group; phase: number; fade: number;
+    /** canopy pivot + placement — the instanced tick composes
+     *  T(x, baseY+h, z)·R_y(yaw)·R_sway·T(blob)·S(r) per blob */
+    x: number; z: number; baseY: number; h: number; yaw: number;
+    /** this tree's sphere in canopySpheresCache — the fade reads ITS
+     *  occlusion entry (the old loop assumed shipped-first cache order;
+     *  the W1 rows' spheres actually interleave, so the fills faded from
+     *  the wrong spheres — fixed by naming the index explicitly) */
+    sphereIndex: number; top: number;
+    blobs: Array<{ ox: number; oy: number; oz: number; r: number; key: 0 | 1 | 2 | 3; idx: number }>;
+  }> = [];
   /** Canopy bounding spheres for the camera's sight-line guard. */
   private readonly canopySpheresCache: Array<{ x: number; y: number; z: number; r: number }> = [];
   private readonly pigeonFlock: PigeonFlock;
@@ -950,7 +961,11 @@ export class World {
       t.group.position.set(tx, 0.05, tz);
       t.group.rotation.y = rng() * Math.PI * 2;
       this.scene.add(t.group);
-      this.trees.push({ group: t.group, canopy: t.canopy, phase: rng() * Math.PI * 2, mats: t.mats, fade: 1 });
+      // sphereIndex: i — the shipped spheres land in the follow-up loop
+      // below, one per tree in the same order.
+      this.trees.push({ group: t.group, x: tx, z: tz, baseY: 0.05, h: t.h,
+        yaw: t.group.rotation.y, phase: rng() * Math.PI * 2, fade: 1,
+        sphereIndex: i, top: t.top, blobs: t.blobs.map((b) => ({ ...b, idx: -1 })) });
       treeTops.push(t.top);
       // the trunk is wood — a thin box that matches it (canopy stays air;
       // only the trunk blocks). North STREET trees extend back to the
@@ -2553,10 +2568,11 @@ export class World {
       this.leaves.mesh,
       ...this.glbProps.values(),
       ...this.itemMeshes.values(),
-      // W0: only the CANOPY stays out of the bake — the sway owns it. The
-      // trunk and root flare are static wood: they merge into their district
-      // tile like any other wall (−2 draw calls × 12 trees × 2 passes).
-      ...this.trees.map((t) => t.canopy),
+      // W0: the tree CANOPY is gone from the scene graph — makeTree now
+      // returns blob records and the instanced canopy owns the draw (built
+      // after this bake: an InstancedMesh is a Mesh, the bake must never
+      // swallow it). The trunk and root flare are static wood: they merge
+      // into their district tile like any other wall.
     ]);
     // the windows whose MATERIALS are tweened (dusk, golden-hour beats) —
     // they share a signature with the plain dim windows and must not join
@@ -3360,16 +3376,26 @@ export class World {
   // merges into its district tile.)
   // ================================================================
 
-  /** New street trees (Gable/Marlow rows + both avenues) render as two
-   *  InstancedMeshes — one per leaf material — with per-tree sway and
-   *  per-tree blob data. The shipped 12 keep their fade-capable clones.
-   *  New trees do NOT join the fade pass (their camera guard is the
+  /** New street trees (Gable/Marlow rows + both avenues) render as
+   *  instanced canopy blobs with per-tree sway and per-tree blob data —
+   *  same slots as the shipped trees' canopies since the one-canosystem
+   *  merge. New trees do NOT join the fade pass (their camera guard is the
    *  sidestep + z-clamp; docs/47 W1 records the tradeoff). */
   private simpleTrees: Array<{ x: number; z: number; h: number; phase: number; top: number;
     blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 }> }> = [];
   private extraLeafSpots: Array<{ x: number; z: number; r: number; top: number; tints: number[] }> = [];
-  private treeLeafA: THREE.InstancedMesh | null = null;
-  private treeLeafB: THREE.InstancedMesh | null = null;
+  /** The instanced canopy: ONE system for every tree on the block. Slots:
+   *  0 leafA (0x5d7d4a) · 1 leafB (0x516e42) · 2 goldA (0xf7b32b) ·
+   *  3 goldB (0xffb85c). The W1 simple rows fill slots 0/1 as before; the
+   *  shipped/full/fill trees (makeTree records) join the same meshes, and
+   *  the autumn golds land in 2/3. Four draw calls for every canopy on the
+   *  block, main pass and shadow pass alike — the recorded Doc 07 lever
+   *  (docs/47: 63 blob meshes × 2 passes → 4 × 2). */
+  private canopyMeshes: Array<THREE.InstancedMesh | null> = [null, null, null, null];
+  /** Per-instance fade alpha (the fade-on-occlude law: ONE tree dissolves,
+   *  never the street). Simple rows stay at 1 forever (docs/47 W1 tradeoff). */
+  private canopyFade: Array<THREE.InstancedBufferAttribute | null> = [null, null, null, null];
+  private canopyBuilt = false;
   private readonly mSway = new THREE.Matrix4();
   private readonly mBlob = new THREE.Matrix4();
   private readonly mCanopy = new THREE.Matrix4();
@@ -3378,6 +3404,8 @@ export class World {
   private readonly tE = new THREE.Euler();
   private readonly tS = new THREE.Vector3();
   private readonly tOne = new THREE.Vector3(1, 1, 1);
+  private readonly qYaw = new THREE.Quaternion();
+  private readonly yAxis = new THREE.Vector3(0, 1, 0);
 
   /** One zebra crossing: `acrossEW` crosses an E–W road (ped walks N–S,
    *  bars long in X marching in Z); `acrossNS` crosses a N–S avenue. */
@@ -3598,7 +3626,12 @@ export class World {
       t.group.position.set(tx, 0.05, tz);
       t.group.rotation.y = rng() * Math.PI * 2;
       this.scene.add(t.group);
-      this.trees.push({ group: t.group, canopy: t.canopy, phase: rng() * Math.PI * 2, mats: t.mats, fade: 1 });
+      // this tree's canopy sphere lands right below — its cache index is
+      // the length BEFORE the push
+      this.trees.push({ group: t.group, x: tx, z: tz, baseY: 0.05, h: t.h,
+        yaw: t.group.rotation.y, phase: rng() * Math.PI * 2, fade: 1,
+        sphereIndex: this.canopySpheresCache.length, top: t.top,
+        blobs: t.blobs.map((b) => ({ ...b, idx: -1 })) });
       const trunkHalf = 0.18;
       const zMax = tz > 6 ? 8.0 : tz + trunkHalf;
       const zSpan = zMax - (tz - trunkHalf);
@@ -3759,7 +3792,10 @@ export class World {
       t.group.position.set(tx, 0.15, tz);
       t.group.rotation.y = rng() * Math.PI * 2;
       this.scene.add(t.group);
-      this.trees.push({ group: t.group, canopy: t.canopy, phase: rng() * Math.PI * 2, mats: t.mats, fade: 1 });
+      this.trees.push({ group: t.group, x: tx, z: tz, baseY: 0.15, h: t.h,
+        yaw: t.group.rotation.y, phase: rng() * Math.PI * 2, fade: 1,
+        sphereIndex: this.canopySpheresCache.length, top: t.top,
+        blobs: t.blobs.map((b) => ({ ...b, idx: -1 })) });
       this.colliders.push(boxFromCenter(tx, 1.2, tz, 0.36, 2.2, 0.36));
       this.canopySpheresCache.push({ x: tx, y: t.top - 0.75, z: tz, r: 2.15 });
       this.extraLeafSpots.push({ x: tx, z: tz, r: 1.5, top: t.top, tints: GREEN_TINTS });
@@ -4366,28 +4402,72 @@ export class World {
     this.buildAvenuePoles();
   }
 
-  /** The instanced canopies for every new-row tree (two draw calls total). */
+  /** The instanced canopy for every tree on the block: four draw calls
+   *  total (leafA/leafB/goldA/goldB), main pass and shadow pass alike.
+   *  Materials are bank clones carrying a per-instance `aFade` attribute
+   *  via onBeforeCompile — the fade-on-occlude law (ONE tree dissolves,
+   *  never the street) moves from per-tree material opacity to per-blob
+   *  alpha. The W1 simple rows' instances stay at aFade = 1 forever.
+   *  Runs AFTER the bake — an InstancedMesh is a Mesh, and the bake must
+   *  never swallow it. */
   private buildInstancedTreeRows(): void {
-    if (!this.simpleTrees.length) return;
-    const leafA = this.bank.get(0x5d7d4a);
-    const leafB = this.bank.get(0x516e42);
-    const countA = this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === 0).length, 0);
-    const countB = this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === 1).length, 0);
-    const mk = (mat: THREE.Material, n: number): THREE.InstancedMesh => {
-      const im = new THREE.InstancedMesh(SHARED_GEOS.sphere, mat, Math.max(1, n));
+    if (this.canopyBuilt) return;
+    const count = [0, 0, 0, 0];
+    for (const t of this.simpleTrees) for (const b of t.blobs) count[b.mat]++;
+    for (const t of this.trees) for (const b of t.blobs) count[b.key]++;
+    if (!count[0] && !count[1] && !count[2] && !count[3]) return;
+    const HEXES = [0x5d7d4a, 0x516e42, 0xf7b32b, 0xffb85c] as const;
+    for (let k = 0; k < 4; k++) {
+      if (!count[k]) continue;
+      const m = this.bank.get(HEXES[k]).clone();
+      m.transparent = true; // fade-on-occlude ready; aFade 1 renders as opaque
+      m.onBeforeCompile = (shader) => {
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', '#include <common>\nattribute float aFade;\nvarying float vFade;')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFade = aFade;');
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nvarying float vFade;')
+          .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vFade;');
+      };
+      // per-mesh geometry: the aFade attribute is per-geometry, and the
+      // shared unit sphere must stay shareable with other content
+      const geo = SHARED_GEOS.sphere.clone();
+      const fade = new THREE.InstancedBufferAttribute(new Float32Array(count[k]).fill(1), 1);
+      fade.setUsage(THREE.DynamicDrawUsage);
+      geo.setAttribute('aFade', fade);
+      const im = new THREE.InstancedMesh(geo, m, count[k]);
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.castShadow = true;
+      im.name = ['TreeCanopy_LeafA', 'TreeCanopy_LeafB', 'TreeCanopy_GoldA', 'TreeCanopy_GoldB'][k];
+      this.canopyMeshes[k] = im;
+      this.canopyFade[k] = fade;
       this.scene.add(im);
-      return im;
-    };
-    this.treeLeafA = mk(leafA, countA);
-    this.treeLeafB = mk(leafB, countB);
+    }
+    // instance slots: the W1 simple rows own the first countSimple slots of
+    // meshes 0/1 (updateTreeRows writes them positionally, same order every
+    // frame); the makeTree trees claim the slots after, stored per blob.
+    const cursor = [
+      this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === 0).length, 0),
+      this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === 1).length, 0),
+      0, 0,
+    ];
+    for (const t of this.trees) {
+      for (const b of t.blobs) b.idx = cursor[b.key]++;
+    }
+    this.canopyBuilt = true;
     this.updateTreeRows(0);
   }
 
-  /** Sway + place every instanced canopy blob (called from updateAmbient). */
+  /** Sway + place every instanced canopy blob (called from updateAmbient).
+   *  Two grammars, one matrix law per system:
+   *  - simple rows: sway about the trunk top, no yaw (their build rolls no
+   *    spin) — T(x, 0.05+h, z)·R_sway·T(blob)·S(r), written positionally;
+   *  - makeTree trees: same sway + the tree's authored yaw —
+   *    T(x, baseY+h, z)·R_y·R_sway·T(blob)·S(r), written to stored slots.
+   *  Both reproduce the old scene-graph chain exactly (group → canopy →
+   *  blob), so the silhouette and the sway are pixel-identical. */
   private updateTreeRows(time: number): void {
-    if (!this.treeLeafA || !this.treeLeafB) return;
+    if (!this.canopyBuilt) return;
     let ia = 0, ib = 0;
     for (const t of this.simpleTrees) {
       const sz = Math.sin(time * 0.9 + t.phase) * 0.022;
@@ -4399,12 +4479,25 @@ export class World {
       for (const b of t.blobs) {
         this.mBlob.compose(this.tV.set(b.ox, b.oy, b.oz), this.tQ.identity(), this.tS.setScalar(b.r));
         this.mCanopy.multiplyMatrices(this.mSway, this.mBlob);
-        if (b.mat === 0) this.treeLeafA.setMatrixAt(ia++, this.mCanopy);
-        else this.treeLeafB.setMatrixAt(ib++, this.mCanopy);
+        if (b.mat === 0) this.canopyMeshes[0]!.setMatrixAt(ia++, this.mCanopy);
+        else this.canopyMeshes[1]!.setMatrixAt(ib++, this.mCanopy);
       }
     }
-    this.treeLeafA.instanceMatrix.needsUpdate = true;
-    this.treeLeafB.instanceMatrix.needsUpdate = true;
+    for (const t of this.trees) {
+      const sz = Math.sin(time * 0.9 + t.phase) * 0.022;
+      const sx = Math.cos(time * 0.7 + t.phase) * 0.016;
+      this.tE.set(sx, 0, sz);
+      this.tQ.setFromEuler(this.tE);
+      this.qYaw.setFromAxisAngle(this.yAxis, t.yaw).multiply(this.tQ);
+      this.tV.set(t.x, t.baseY + t.h, t.z);
+      this.mSway.compose(this.tV, this.qYaw, this.tOne);
+      for (const b of t.blobs) {
+        this.mBlob.compose(this.tV.set(b.ox, b.oy, b.oz), this.tQ.identity(), this.tS.setScalar(b.r));
+        this.mCanopy.multiplyMatrices(this.mSway, this.mBlob);
+        this.canopyMeshes[b.key]!.setMatrixAt(b.idx, this.mCanopy);
+      }
+    }
+    for (const m of this.canopyMeshes) if (m) m.instanceMatrix.needsUpdate = true;
   }
 
   /** Kestrel-row trees inside the ambient walkers' band — Pedestrians reads
@@ -5092,25 +5185,28 @@ export class World {
     }
     posAttr.needsUpdate = true;
 
-    // trees breathe (a hair of canopy sway), the flock lives its small life
     this.ambientTime += dt;
-    for (const t of this.trees) {
-      t.canopy.rotation.z = Math.sin(this.ambientTime * 0.9 + t.phase) * 0.022;
-      t.canopy.rotation.x = Math.cos(this.ambientTime * 0.7 + t.phase) * 0.016;
-    }
+    // trees breathe — the instanced canopy sways in updateTreeRows below
+    // (one tick owns every blob: the shipped/full/fill trees and the W1
+    // rows alike). The old per-canopy-group rotation is gone with the
+    // canopy groups themselves.
     // fade-on-occlude — the camera reports which canopies stand between it
     // and the player (GameCamera.updateOcclusion); a canopy that swallows
     // the player dissolves toward gauze instead of hiding them. Fast fade
-    // in (~8/s), so the lens never lingers behind full leaves. The cache
-    // lists the SHIPPED trees first, so the first N entries map 1:1 onto
-    // this.trees (the W1 rows ride the same array without fading).
-    if (this.canopyOcclusion && this.canopyOcclusion.length >= this.trees.length) {
-      for (let i = 0; i < this.trees.length; i++) {
-        const t = this.trees[i];
-        const target = 1 - 0.78 * this.canopyOcclusion[i]; // floor 0.22 gauze
+    // in (~8/s), so the lens never lingers behind full leaves. Each tree
+    // names its own sphere in the cache (sphereIndex), so the mapping is
+    // explicit — the W1 rows' spheres interleave the cache and never faded.
+    // The fade now writes per-instance alpha (aFade) instead of per-tree
+    // material opacity: the law is unchanged (ONE tree dissolves), the
+    // mechanism follows the instanced canopy.
+    if (this.canopyOcclusion) {
+      for (const t of this.trees) {
+        if (t.sphereIndex >= this.canopyOcclusion.length) continue;
+        const target = 1 - 0.78 * this.canopyOcclusion[t.sphereIndex]; // floor 0.22 gauze
         t.fade += (target - t.fade) * Math.min(1, dt * 8);
-        for (const m of t.mats) m.opacity = t.fade;
+        for (const b of t.blobs) this.canopyFade[b.key]?.setX(b.idx, t.fade);
       }
+      for (const f of this.canopyFade) if (f) f.needsUpdate = true;
     }
     // the near washer spins while the apron is in the machine (Rule of Steam)
     if (this.washerRunning && this.washerLoad) {

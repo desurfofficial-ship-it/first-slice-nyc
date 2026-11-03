@@ -1156,3 +1156,64 @@ validator green (129 IDs, 12/12 masses, 18/18 anchors) · probe-subway
 ALL PASS 22/22 · probe-w4-bus OK 13/13 · probe-solid ALL CLEAN (4/4) ·
 probe-w0-census OK (ledger above) · **E2E: OK — 0 failures, 458 s**,
 console clean (E2E_W=320 E2E_H=700).
+
+## The canopy bake — one instanced canopy for the whole block (2026-11-03)
+
+**What landed.** Lever 2 from the recorded list above, now made:
+`makeTree` (props.ts) returns blob RECORDS instead of canopy meshes —
+same rng grammar call-for-call (r, cy, [leaf pick], ox, oz; the block's
+other seeded content downstream of a tree roll does not shift), same
+silhouette, same autumn gradient law (crown goldA, mid goldB, base green).
+`buildInstancedTreeRows` becomes the ONE canopy system for every tree on
+the block: 4 InstancedMeshes (leafA 0x5d7d4a · leafB 0x516e42 · goldA
+0xf7b32b · goldB 0xffb85c), the W1 simple rows keeping their slots 0/1 and
+the shipped/full/fill trees joining the same meshes with the autumn golds
+in 2/3. The fade-on-occlude law moves from per-tree material opacity to a
+per-instance `aFade` attribute (InstancedBufferAttribute + onBeforeCompile
+multiplying `diffuseColor.a` after `color_fragment`): ONE tree still
+dissolves toward gauze while its neighbours stay opaque — probe-camfade's
+screenshots prove it (occ 0.44/0.99/0.71 on the plaza/crosswalk trees, the
+rest of the street solid). Sway composes exactly the old scene-graph chain
+per blob: T(x, baseY+h, z)·R_y(yaw)·R_sway·T(blob)·S(r), the W1 rows
+keeping their no-yaw grammar. The simple rows stay fade-frozen at aFade 1
+(the recorded docs/47 W1 tradeoff).
+
+**A mapping bug fixed on the way.** The fade loop read
+`canopyOcclusion[i]` for `trees[i]`, assuming the sphere cache listed the
+shipped trees first — but the W1 simple rows' spheres interleave the cache
+before the Kestrel fills and the four playground trees, so those ten trees
+were fading from the WRONG trees' spheres (a fill faded when a Gable-row
+canopy blocked the lens). Each tree record now names its own
+`sphereIndex`; the fade reads its own occlusion. The shipped 12 (indices
+0–11) were always correct — the probe-camfade beats all sit on them.
+
+**The numbers, honestly.** The census rigs (boot state, zones unlit):
+PLAZA 1071 → **949** (−122), CART_CORNER 898 → **802** (−96),
+SYCAMORE×GABLE 518 → **451** (−67). Every rig under its previous ledger
+(the enforced gate) and better than the recorded est (−60..−80 real): the
+est assumed partial frustum visibility, but all 63 blob meshes were
+visible casters at PLAZA, and canopies cast — so both passes paid the 63
+and both now pay 4. The tris line: PLAZA 138.9k → 140.2k (+1.3k, ~+0.9%)
+— the four instanced meshes span the block (three.js auto-bounds the
+instances, the sway is ±0.02 rad), so a handful of off-frustum blobs
+rasterize that per-blob meshes used to cull; the honest price of the call
+win, and the existing W1 rows already shipped with the same shape of
+trade. The Doc 07 gate line (150/250) remains FAILED and published: the
+shadow pass is still 44–84% of every rig, and the only lever that reaches
+the line is the recorded shadow-camera follow — which changes the shipped
+look and still needs an art call before it is made.
+
+**One flake, honestly.** One probe-subway run mid-session failed
+"console stays clean (2 errors)" without persisting the error text; four
+consecutive re-runs on the same dist passed ALL (22/22, zero errors). No
+code change between the runs; recorded as a non-reproducing transient,
+not a fix.
+
+**Verification**: tsc clean · vitest **367/367** · build clean · registry
+validator green (129 IDs, 12/12 masses, 18/18 anchors) · probe-autumn
+PASS (gold gradient, drift tints, plumage morphs, pit rims — the turning
+tree reads exactly as before) · probe-camfade PASS (the fade law on
+aFade) · probe-env5 PASS (lamps clear the canopies) · probe-solid ALL
+CLEAN (4/4) · probe-subway ALL PASS 22/22 · probe-w4-bus OK 13/13 ·
+probe-w0-census OK (ledger above) · **E2E: OK — 0 failures, 355 s**,
+console clean (E2E_W=320 E2E_H=700).
