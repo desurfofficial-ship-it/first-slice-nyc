@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { updateZones, type ZoneDef } from '../src/world/subway/zone';
+import { turnstileHubAt } from '../src/world/subway/stationKit';
 import {
   beginRide, createRide, endRide, RIDE_BEATS, RIDE_SWAP_DX, RIDE_T,
   swapFeet, tickRide, type RideEvent,
@@ -137,5 +138,40 @@ describe('the ride machine (deterministic seam)', () => {
     const a = runRide(RIDE_T.arrive + 0.2);
     const b = runRide(RIDE_T.arrive + 0.2);
     expect(a).toEqual(b);
+  });
+});
+
+// docs/50 §4.6, paid — the turnstile spin needs an honest trigger. The law:
+// a pass is a strict z sign-change across the fare line INSIDE a hub's gate
+// (±0.55); the open lane and the platforms cross free; standing still and
+// walking away without crossing never fires.
+describe('turnstile pass detection (stationKit.turnstileHubAt)', () => {
+  const CX = -44;
+  const HUB_W = CX - 4.55; // -48.55
+  const HUB_E = CX + 0.65; // -43.35
+
+  it('a northbound walk through the east gate passes hub 1', () => {
+    expect(turnstileHubAt(9.9, 10.5, HUB_E, CX)).toBe(1);
+  });
+
+  it('a southbound walk through the west gate passes hub 0', () => {
+    expect(turnstileHubAt(10.5, 9.9, HUB_W, CX)).toBe(0);
+  });
+
+  it('the open lane crosses free (no hub underfoot, no spin)', () => {
+    expect(turnstileHubAt(9.9, 10.5, CX - 1.9, CX)).toBe(-1);
+  });
+
+  it('walking alongside the fare line without crossing never fires', () => {
+    expect(turnstileHubAt(10.5, 10.9, HUB_E, CX)).toBe(-1);
+    expect(turnstileHubAt(9.9, 9.5, HUB_E, CX)).toBe(-1);
+  });
+
+  it('a pass too far from any hub gate is not a pass', () => {
+    expect(turnstileHubAt(9.9, 10.5, HUB_E + 1.2, CX)).toBe(-1);
+  });
+
+  it('station B detects through its own translated hubs', () => {
+    expect(turnstileHubAt(9.9, 10.5, -332 + 0.65, -332)).toBe(1);
   });
 });
