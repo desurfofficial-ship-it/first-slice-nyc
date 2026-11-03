@@ -102,11 +102,19 @@ export class World {
   canopySpheres(): Array<{ x: number; y: number; z: number; r: number }> {
     return this.canopySpheresCache;
   }
-  /** Per-canopy occlusion written by the camera each frame (1 = the sight
-   *  line runs through that canopy). Game wires this once at boot; the
-   *  update pass dissolves occluded canopies toward gauze so the street
+  /** Per-canopy occlusion, read FRESH from the camera each frame (B6): the
+   *  camera re-grows its measurement buffer whenever the canopy cache grows
+   *  after boot, so a one-time array alias would go stale and the fade would
+   *  silently no-op for the new trees. Game wires the source once at boot;
+   *  the update pass dissolves occluded canopies toward gauze so the street
    *  never hides the player behind its own leaves. */
-  canopyOcclusion: Float32Array | null = null;
+  private occlusionSource: (() => Float32Array | null) | null = null;
+  setCanopyOcclusionSource(src: () => Float32Array | null): void {
+    this.occlusionSource = src;
+  }
+  get canopyOcclusion(): Float32Array | null {
+    return this.occlusionSource?.() ?? null;
+  }
   private taxiBase: THREE.Group;
   /** The cab's collider — boxFromCenter once, then moved every frame. */
   readonly taxiCollider: AABB;
@@ -5263,10 +5271,11 @@ export class World {
     // The fade now writes per-instance alpha (aFade) instead of per-tree
     // material opacity: the law is unchanged (ONE tree dissolves), the
     // mechanism follows the instanced canopy.
-    if (this.canopyOcclusion) {
+    const occ = this.canopyOcclusion; // one fresh read per frame (the camera may re-grow the buffer — B6)
+    if (occ) {
       for (const t of this.trees) {
-        if (t.sphereIndex >= this.canopyOcclusion.length) continue;
-        const target = 1 - 0.78 * this.canopyOcclusion[t.sphereIndex]; // floor 0.22 gauze
+        if (t.sphereIndex >= occ.length) continue;
+        const target = 1 - 0.78 * occ[t.sphereIndex]; // floor 0.22 gauze
         t.fade += (target - t.fade) * Math.min(1, dt * 8);
         for (const b of t.blobs) this.canopyFade[b.key]?.setX(b.idx, t.fade);
       }

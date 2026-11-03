@@ -49,6 +49,33 @@ Everything still listed under OPEN is live work for a follow-up agent.
 
 ---
 
+## FIXED (occlusion buffer growth) — 2026-11-03
+
+### B6. Camera canopy list length vs occlusion buffer — FIXED 2026-11-03
+- **Was:** `GameCamera` built `occlusion: Float32Array(canopies?.length ?? 0)`
+  at construct time against the LIVE growing canopy cache
+  (`World.canopySpheres()` returns the cache itself). Any tree pushed after
+  camera construction was never measured and fade-on-occlude silently no-oped
+  for it (the World fade guard `sphereIndex >= length` skipped it); the
+  boot-time alias `world.canopyOcclusion = cam.occlusion` would also have
+  detached from a re-grown buffer.
+- **Fix:** `GameCamera.updateOcclusion()` re-grows the buffer to the live
+  canopy length each frame (old values carry over, new entries start clear);
+  `occlusion` is now a getter over the private buffer, and Game wires
+  `World.setCanopyOcclusionSource(() => cam.occlusion)` so the fade reads the
+  current buffer fresh every frame instead of holding a stale alias. The
+  World fade hoists that read into one per-frame snapshot.
+- **Commit / branch:** `agent/b6-canopy-occlusion-buffer` (fix + this ledger
+  entry in one commit).
+- **Verified:** `npx tsc --noEmit` clean; `npx vitest run` 392/392 (new B6
+  regression pair in `tests/camera.test.ts` — confirmed to FAIL against the
+  old code by reverting `GameCamera.ts`); `scripts/probe-camfade.mjs` in-engine
+  on the built dist: buffer carries the full live canopy list (95 spheres),
+  per-canopy occlusion responds on the fade beats (0.79 beside the plaza tree
+  crossing, 0.97 on the south-walk row), zero console/page errors.
+
+---
+
 ## OPEN — probe failures (merged features)
 
 ### B1. Subway stair y-level (probe-subway)
@@ -101,14 +128,6 @@ Everything still listed under OPEN is live work for a follow-up agent.
   viewport; if the dusk rails still flake, widen the driver's wait windows
   (driver-side, documented) rather than touching the day clock.
 - **Status:** OPEN — 2026-11-03 audit confirmed still live.
-
-### B6. Camera canopy list length vs occlusion buffer
-- `GameCamera` builds `occlusion: Float32Array(canopies?.length ?? 0)` at
-  construct time. If World adds trees after camera construction without
-  resizing the buffer, fade-on-occlude silently no-ops for new canopies.
-- **Where:** `GameCamera` constructor, `Game.ts` boot wiring,
-  `World.canopySpheres()`.
-- **Status:** OPEN.
 
 ### B7. Touch UI hidden logic vs order card / map
 - `#touch-ui` uses `hidden` and `hidden-when-panel`. Confirm order-card and

@@ -145,8 +145,12 @@ export class GameCamera {
   private sideStep = 0;
   /** Per-canopy occlusion 0..1 (1 = the sight line runs through this
    *  canopy) — World reads this every frame and fades the leaves. Public:
-   *  Game wires it to the world once at boot. */
-  readonly occlusion: Float32Array;
+   *  Game wires the world to this buffer as a SOURCE (World.
+   *  setCanopyOcclusionSource) — B6: the buffer is re-grown whenever the
+   *  canopy list grows after boot, so consumers must read it fresh each
+   *  frame, never hold a stale alias to a detached array. */
+  get occlusion(): Float32Array { return this._occlusion; }
+  private _occlusion: Float32Array;
   private focusTarget = new THREE.Vector3();
   private desired = new THREE.Vector3();
   private probe = new THREE.Vector3();
@@ -157,7 +161,7 @@ export class GameCamera {
     this.camera.position.set(-30, 7, -3);
     this.boxes = colliders ?? null;
     this.canopies = canopies ?? null;
-    this.occlusion = new Float32Array(this.canopies?.length ?? 0);
+    this._occlusion = new Float32Array(this.canopies?.length ?? 0);
     this.updateFov(aspect);
   }
 
@@ -258,13 +262,25 @@ export class GameCamera {
    *  after the camera position settles, so it reflects what is truly on
    *  screen — the sidestep helps where it can, the fade covers the rest. */
   private updateOcclusion(): void {
-    const n = this.occlusion.length;
-    if (n === 0 || !this.canopies) return;
+    if (!this.canopies) return;
+    // B6: the canopy list is LIVE — World.canopySpheres() hands over the
+    // growing cache and districts push trees into it after boot (the far
+    // world keeps adding districts). Re-grow the measurement buffer before
+    // writing so fade-on-occlude never silently no-ops for canopies the
+    // camera didn't know about at construct time. Old values carry over;
+    // fresh entries start clear (0), measured on this same frame anyway.
+    if (this._occlusion.length !== this.canopies.length) {
+      const next = new Float32Array(this.canopies.length);
+      next.set(this._occlusion.subarray(0, Math.min(this._occlusion.length, next.length)));
+      this._occlusion = next;
+    }
+    const n = this._occlusion.length;
+    if (n === 0) return;
     const c = this.camera.position;
     for (let i = 0; i < n; i++) {
       const d2 = this.segSphereDist2(c.x, c.y, c.z, this.focusTarget.x, this.focusTarget.y, this.focusTarget.z, this.canopies[i]);
       const clear = Math.sqrt(d2) - this.canopies[i].r - FADE_MARGIN;
-      this.occlusion[i] = THREE.MathUtils.clamp(1 - clear / FADE_SOFT, 0, 1);
+      this._occlusion[i] = THREE.MathUtils.clamp(1 - clear / FADE_SOFT, 0, 1);
     }
   }
 
