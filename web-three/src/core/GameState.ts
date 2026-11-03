@@ -186,6 +186,22 @@ export class GameState {
   mapNotes: string[] = [];
   /** Earned slang card ids for the margins (Doc 08's four). */
   mapSlang: string[] = [];
+  /** Places Map has sketched on page 1, in the order you first walked to
+  *  them (docs/12: Map copies the neighborhood badly, and only what it has
+  *  seen). Persisted v1-safe as `map_places`. */
+  visitedPlaces: string[] = [];
+
+  /** A place goes onto the sketch. Deduped, order-earned. Returns true
+  *  when the pencil mark is new. */
+  revealPlace(id: string): boolean {
+    if (this.visitedPlaces.includes(id)) return false;
+    this.visitedPlaces.push(id);
+    return true;
+  }
+
+  hasSeenPlace(id: string): boolean {
+    return this.visitedPlaces.includes(id);
+  }
 
   /** The Map writes it down (Doc 12: "Map wants to write this down.").
   *  Deduped — the same lesson is never written twice; a note list is a
@@ -778,6 +794,7 @@ export class GameState {
       // parses unchanged; see Save.ts migration note)
       map_notes: [...this.mapNotes],
       map_slang: [...this.mapSlang],
+      map_places: [...this.visitedPlaces],
     };
   }
 }

@@ -1370,3 +1370,35 @@ honestly refuses). Full evidence in docs/52 §5: typecheck clean, vitest
 ghosts PASS, solid CLEAN, doc12 clean, the film's probes clean. E2E on this
 box: 3–5 environmental flake failures of ~104 on BOTH trees (dusk-timed
 rails; both trees ~48% slower than the documented rig) — docs/51 B4.
+
+## The sketch — Map's own map of the block (SHIPPED 2026-11-03, on main)
+
+**The upgrade:** page 1 keeps "You are here. That's enough." — and under
+it now lives Map's own pencil copy of the neighborhood (GDD §4.0: "Map is
+allowed to be wrong or messy. It copies the subway lines badly."). Two
+wobbly curbs and the crosswalk exist from the first fold; the nine places
+appear only when YOU walk to them (a 5 m notice radius, checked twice a
+second — a squared-distance pass over nine entries, nothing a phone
+feels). The gold star is where you're standing when you open the fold.
+
+**The laws it keeps:** no counters, no quest log, never opens itself —
+a new mark wiggles the folded corner once, exactly like a note. The
+wobble is fixed per place (a deterministic tilt), so the notebook is
+drawn the same way every boot: a sketch, not a survey.
+
+**Places:** the terminal, Rosa's, the globe (K), your corner, the
+laundry, the slice shop, the little park, the barbershop, the court.
+The first three are `born` — the first session guarantees them — the
+rest are earned by walking. Persisted v1-safe as `map_places`
+(missing = empty page, corrupt = empty page, never a crash).
+
+**Also fixed on the way:** the merge churn had left index.html with TWO
+complete Map panels and TWO order cards (duplicate ids, dead weight) —
+now one of each.
+
+**Verification:** tsc clean · vitest **395/395** (sketch reveal dedup +
+order, born-place contract, save roundtrip, corrupt-field law) · build
+clean · E2E AUTOTEST OK, 0 failures, 443 s — including the new driver
+check "the sketch knows the places you walked" · probe-doc12 re-run,
+desktop + 390×844 reviewed: page 1 composes with the sketch on both,
+page 2 keeps its margins below.

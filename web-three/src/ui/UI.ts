@@ -7,6 +7,7 @@
 import { gameAudio } from '../game/audio';
 import type { OrderCard } from '../core/content';
 import { SLANG_CARDS } from '../core/content';
+import { buildSketchSvg } from './sketch';
 
 function el<T extends HTMLElement>(id: string): T {
   const e = document.getElementById(id);
@@ -297,6 +298,33 @@ export class UI {
   }
 
   // ---------------- the Map, as a notebook (docs/11 + docs/12) ----------------
+
+  private sketchBuilt = false;
+  private sketchEl: HTMLElement | null = null;
+
+  /** The sketch on page 1 — Map's own badly-copied map. Built once, then
+   *  only class-flips (revealed places) and the star's position. Called on
+   *  open and whenever a new place is noticed while the fold is open. */
+  refreshSketch(visited: readonly string[], px: number, pz: number): void {
+    if (!this.sketchBuilt) {
+      this.sketchEl = document.getElementById('map-sketch');
+      if (this.sketchEl && !this.sketchEl.firstChild) {
+        this.sketchEl.innerHTML = buildSketchSvg();
+      }
+      this.sketchBuilt = true;
+    }
+    if (!this.sketchEl) return;
+    const seen = new Set(visited);
+    this.sketchEl.querySelectorAll<SVGGElement>('.sketch-place').forEach((g) => {
+      const id = g.dataset.place ?? '';
+      g.classList.toggle('revealed', seen.has(id));
+    });
+    const star = this.sketchEl.querySelector<SVGGElement>('#sketch-star');
+    // the star is where you're standing when you open the fold — world x,
+    // y = −z (the sketch's north-up copy)
+    star?.setAttribute('transform', `translate(${px.toFixed(1)},${(-pz).toFixed(1)})`);
+  }
+
 
   openMap(notes: readonly string[], slang: readonly string[]) {
     this.mapPanel.hidden = false;

@@ -467,6 +467,15 @@ export function runAutotest(game: Game): void {
       check(s.money === 112, `day 1 rush pays $87 \u2192 $112 (Doc 08) (got $${s.money})`);
       check(game.debug.mapSlang().includes('regular') && game.debug.mapSlang().includes('hero'),
         'the Map margins hold: regular, hero');
+      // the sketch (docs/12 upgrade): the places the walk touched are on the
+      // paper now — the terminal you woke on, Rosa's, your corner. Reveal
+      // runs throttled, so give it a beat before reading.
+      await waitFrames(40);
+      {
+        const seen = game.debug.visitedPlaces();
+        check(seen.includes('terminal') && seen.includes('bodega') && seen.includes('cart'),
+          `the sketch knows the places you walked (${seen.join(', ')})`);
+      }
       // the cab now REALLY yields (collider + stop line) — a pedestrian waits
       // for the car to clear the crossing before stepping off the curb
       {

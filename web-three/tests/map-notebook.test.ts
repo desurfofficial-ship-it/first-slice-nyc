@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { GameState } from '../src/core/GameState';
 import { parseSave, defaultSave, type SaveData } from '../src/core/Save';
 import { MAP_NOTE_BOOT, RUSH_CARDS, SOLO_CARDS, USUAL_NOTE, GOLD_WINDOW_NOTE,
-  IDRIS_NINE_YEARS_NOTE } from '../src/core/content';
+  IDRIS_NINE_YEARS_NOTE, MAP_PLACES } from '../src/core/content';
 
 /** One conversation beat pair: choose + fold. */
 function serveCard(s: GameState, reply?: number): void {
@@ -139,5 +139,41 @@ describe('the gold window\u2019s referent exists (docs/12 requirement 6)', () =>
     expect(s.kidDay1Served).toBe(true);
     // the ending line names the order he actually made
     expect(GOLD_WINDOW_NOTE).toContain('whatever\u2019s cold');
+  });
+});
+
+describe('the sketch — Map draws only what it has seen (docs/12 upgrade)', () => {
+  it('revealPlace is deduped and order-earned', () => {
+    const s = new GameState();
+    expect(s.revealPlace('terminal')).toBe(true);
+    expect(s.revealPlace('terminal')).toBe(false); // never written twice
+    expect(s.revealPlace('court')).toBe(true);
+    expect(s.visitedPlaces).toEqual(['terminal', 'court']);
+    expect(s.hasSeenPlace('court')).toBe(true);
+    expect(s.hasSeenPlace('park')).toBe(false);
+  });
+
+  it('the born places exist and are first-session-guaranteed', () => {
+    const born = MAP_PLACES.filter((p) => p.born).map((p) => p.id);
+    expect(born).toContain('terminal');
+    expect(born).toContain('bodega');
+    expect(born).toContain('cart');
+    // every place has the fields the sketch needs
+    for (const p of MAP_PLACES) {
+      expect(p.label.length).toBeGreaterThan(0);
+      expect(Number.isFinite(p.x)).toBe(true);
+      expect(Number.isFinite(p.z)).toBe(true);
+    }
+  });
+
+  it('the visited list rides the save (roundtrip through the parse)', () => {
+    const s = new GameState();
+    s.day = 3; // snapshotForSave is honest: day 1 never writes
+    s.revealPlace('terminal');
+    s.revealPlace('court');
+    const snap = s.snapshotForSave();
+    expect(snap).not.toBeNull();
+    const parsed = parseSave(JSON.stringify(snap));
+    expect(parsed.map_places).toEqual(['terminal', 'court']);
   });
 });

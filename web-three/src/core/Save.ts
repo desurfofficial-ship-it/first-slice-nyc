@@ -60,6 +60,9 @@ export interface SaveData {
   map_notes?: string[];
   /** Earned slang card ids for the margins (Doc 08's four). */
   map_slang?: string[];
+  /** Place ids Map has sketched on page 1, order first-walked. v1-safe:
+  *  missing reads as []. */
+  map_places?: string[];
 }
 
 export function defaultSave(): SaveData {
@@ -83,6 +86,7 @@ export function defaultSave(): SaveData {
     hoop_makes: 0,
     map_notes: [],
     map_slang: [],
+    map_places: [],
   };
 }
 
@@ -147,6 +151,7 @@ export function parseSave(raw: string | null): SaveData {
     // A corrupted list is an empty page, never a crash (save.gd law).
     map_notes: strList(d, 'map_notes', 24),
     map_slang: strList(d, 'map_slang', 8),
+    map_places: strList(d, 'map_places', 12),
   };
 }
 

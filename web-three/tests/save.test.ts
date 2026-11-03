@@ -68,8 +68,19 @@ describe('save v1 — write/read roundtrip', () => {
     expect(loaded).toEqual({
       ...data, day_start_money: 111,
       shelf_buys: 0, dog_buys: 0, trims: 0, washes: 0, hoop_makes: 0,
-      map_notes: [], map_slang: [],
+      map_notes: [], map_slang: [], map_places: [],
     });
+  });
+
+  it('the sketch places round-trip (docs/12 upgrade — Map only draws what it has seen)', () => {
+    const store = memoryStore();
+    writeSave({ ...defaultSave(), day: 3, map_places: ['terminal', 'bodega', 'cart', 'court'] }, store);
+    expect(loadSave(store).map_places).toEqual(['terminal', 'bodega', 'cart', 'court']);
+  });
+
+  it('a corrupt map_places is an empty page, never a crash', () => {
+    const store = memoryStore({ [SAVE_KEY]: '{"day":2,"map_places":42}' });
+    expect(loadSave(store).map_places).toEqual([]);
   });
 
   it('the permit field round-trips (Day 4 afternoon \u2014 docs/30)', () => {

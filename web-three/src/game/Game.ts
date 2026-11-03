@@ -14,6 +14,7 @@ import { composeCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE_OBJECTIVE,
   D4_STRANGER_ONHOUSE_NOTE, D4_STRANGER_WATCH_NOTE, D4_STRANGER_DEPART_NOTE,
   D4_KID_APRON_NOTE, D4_APRON_CLEAN_NOTE, FAMILIAR_NOD_NOTE, FAMILIAR_WORD_NOTE,
   RUSH_CARDS, SOLO_CARDS, GOLD_WINDOW_NOTE, LIGHTS_OUT_NOTE, WATER_TOWERS_NOTE,
+  MAP_PLACES, MAP_PLACE_NOTICE_R,
 } from '../core/content';
 import { loadSave, writeSave, type SaveData } from '../core/Save';
 import { PAL } from '../core/palette';
@@ -132,6 +133,10 @@ export class Game {
   private autotestStarted = false;
 
   constructor(container: HTMLElement) {
+    // the places the first session guarantees: the terminal you woke up on,
+    // the corner you work. revealPlace dedups, so a resumed save's own
+    // list (loaded later) simply keeps its order.
+    for (const p of MAP_PLACES) if (p.born) this.state.revealPlace(p.id);
     // ---------------- renderer ----------------
     // ?fx=off — test affordance for slow/software-GL machines: the shadow
     // pass is over half the frame cost under SwiftShader (probe-shadow-cost:
@@ -389,6 +394,8 @@ export class Game {
     } else {
       this.player.update(dt, { x: 0, y: 0 });
     }
+    // the sketch: Map notices where you walk (throttled inside)
+    this.checkSketchReveals();
     // visual sync — on a ladder the body leans to the wall (visual-only
     // offset; the capsule stays authoritative for step-offs). The lean LERPS
     // now — the old hard ±0.42 snap on grab/release read as a glitch.
@@ -819,7 +826,34 @@ export class Game {
     if (this.state.pendingCard) return;
     this.mapOpen = true;
     this.ui.openMap(this.state.mapNotes, this.state.mapSlang);
+    this.ui.refreshSketch(this.state.visitedPlaces, this.player.capsule.x, this.player.capsule.z);
   }
+
+  /** Map notices the places you walk to (docs/12: it copies the
+   *  neighborhood badly, and only what it has seen). Throttled — a squared
+   *  distance pass over nine places, twice a second, costs nothing. A new
+   *  mark wiggles the folded corner once, like any note. */
+  private checkSketchReveals(): void {
+    this.sketchCheckAge += 1;
+    if (this.sketchCheckAge < 30) return; // ~0.5 s at 60 fps
+    this.sketchCheckAge = 0;
+    const px = this.player.capsule.x;
+    const pz = this.player.capsule.z;
+    let revealed = false;
+    for (const place of MAP_PLACES) {
+      if (this.state.hasSeenPlace(place.id)) continue;
+      const dx = place.x - px, dz = place.z - pz;
+      if (dx * dx + dz * dz <= MAP_PLACE_NOTICE_R * MAP_PLACE_NOTICE_R) {
+        this.state.revealPlace(place.id);
+        revealed = true;
+      }
+    }
+    if (revealed) {
+      this.ui.wiggleMap();
+      if (this.mapOpen) this.ui.refreshSketch(this.state.visitedPlaces, px, pz);
+    }
+  }
+  private sketchCheckAge = 0;
 
   /** The Map wrote something down — the toast tells the player it happened,
    *  the folded corner wiggles once. Opening is optional; the page is kept. */
@@ -1490,6 +1524,7 @@ export class Game {
     noteText: () => document.getElementById('note')?.textContent ?? '',
     mapNotes: () => [...this.state.mapNotes],
     mapSlang: () => [...this.state.mapSlang],
+    visitedPlaces: () => [...this.state.visitedPlaces],
     mapOpen: () => this.mapOpen,
     kidDay1Served: () => this.state.kidDay1Served,
     // docs/51 B6 tripwire: the occlusion buffer is sized once, at camera
@@ -1847,6 +1882,7 @@ export class Game {
       // is an empty notebook, by the same migration law as the counters)
       s.mapNotes = (sd.map_notes ?? []).slice(0, 24);
       s.mapSlang = (sd.map_slang ?? []).slice(0, 8);
+      s.visitedPlaces = (sd.map_places ?? []).slice(0, 12);
       // the block remembers (Doc 37 §3F): cumulative free-roam choices
       // survive the night — absent in an old save reads as 0, by migration
       s.shelfBuys = sd.shelf_buys ?? 0;

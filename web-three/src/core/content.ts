@@ -1099,3 +1099,49 @@ export const DRIVER_LINES = [
 
 export const DUFFEL_NOTE =
   'A duffel on the seat, packed the way you pack your first day. You leave it exactly where it is.';
+
+// ---------------- the sketch — Map's own map of the neighborhood -----------
+// docs/12 prototype 2, upgraded with the GDD's blessing: "Map is allowed to
+// be wrong or messy. It copies the subway lines badly." Page 1 keeps its
+// arrival line; the body below it is Map's pencil copy of the block —
+// streets drawn from the start (badly), places added only when YOU walk to
+// them, and the gold star is where you're standing when you open the fold.
+
+export interface MapPlace {
+  /** Stable id — persisted in the save's `map_places`. */
+  id: string;
+  /** The label in Map's handwriting, on the sketch. */
+  label: string;
+  /** World position of the spot (the reveal radius reads this). */
+  x: number;
+  z: number;
+  /** The doodle that marks it: bus, store, globe, cart, slice, tree,
+   *  pole, court, wash. */
+  kind: 'bus' | 'store' | 'globe' | 'cart' | 'slice' | 'tree' | 'pole' | 'court' | 'wash';
+  /** True when the first session guarantees you've stood there — the
+   *  terminal you woke up on, the corner you work. Those marks exist the
+   *  first time the fold opens; everything else is earned by walking. */
+  born?: boolean;
+  /** A fixed hand-wobble (degrees) so the copy is badly-drawn the SAME way
+   *  every boot — determinism where the player can feel it. */
+  tilt: number;
+}
+
+export const MAP_PLACES: readonly MapPlace[] = [
+  { id: 'terminal', label: 'the terminal', x: -24.5, z: 7.4, kind: 'bus', born: true, tilt: -2.5 },
+  { id: 'bodega', label: "Rosa's", x: -16, z: 9.4, kind: 'store', born: true, tilt: 1.8 },
+  { id: 'globe', label: 'the globe', x: -42, z: 6.2, kind: 'globe', tilt: 3 },
+  { id: 'cart', label: 'your corner', x: 4, z: -6.6, kind: 'cart', born: true, tilt: -1.5 },
+  { id: 'laundry', label: 'the laundry', x: -2.25, z: 12.6, kind: 'wash', tilt: 2 },
+  { id: 'slice', label: 'the slice shop', x: 25.85, z: 12.6, kind: 'slice', tilt: -2 },
+  { id: 'park', label: 'the little park', x: 39.3, z: -6.15, kind: 'tree', tilt: 1.2 },
+  { id: 'barber', label: 'the barbershop', x: 41.25, z: 12.6, kind: 'pole', tilt: -3 },
+  { id: 'court', label: 'the court', x: 43.2, z: 3.6, kind: 'court', tilt: 2.4 },
+] as const;
+
+/** The walk band the sketch frames (world units): Kestrel street and the
+ *  sidewalks you actually walk in the first session. */
+export const SKETCH_BOUNDS = { xMin: -46, xMax: 48, zMin: -10, zMax: 16 } as const;
+
+/** How close you must walk for Map to notice a place (meters). */
+export const MAP_PLACE_NOTICE_R = 5;
