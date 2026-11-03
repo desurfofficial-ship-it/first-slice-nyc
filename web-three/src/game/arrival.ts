@@ -9,9 +9,10 @@
  * is the complete state machine (§1c: explicit transitions, nothing
  * patched mid-frame).
  *
- * Staging law: the "ride" is a self-contained diorama parked ~300 m south
- * of the playable map (nothing else renders there), so the real world
- * never has to move and nothing here can leave a stray collider behind.
+ * Staging law: the "ride" is a self-contained diorama parked in the empty
+ * far south-west (−190, 100 — see RIDE_POS for the cone math), so the real
+ * world never has to move and nothing here can leave a stray collider
+ * behind.
  * The dip-to-black cut lands you at the terminal bay, where the street's
  * own world takes over (the bay holds one bus — the M121's loop — so the
  * film's coach never parks there). Every mesh this module builds lives in
@@ -20,9 +21,11 @@
  * to the scene for them and stays there, childless, after cleanup.
  *
  * Parallax law (the second draft's lesson): far things slide slow, near
- * things slide fast. The skyline never slides at all — it is 17 m out and
- * 30 m tall, so it reads as "far off" and stays put while the near city
- * glides past. The strip carries countryside + city blocks at bus speed.
+ * things slide fast. The skyline never slides at all — it stands 110 m
+ * out (world z −10; the lens looks down −z from z 100, so smaller z =
+ * farther) and paints its own aerial perspective, so it reads as "far
+ * off" and stays put while the near city glides past. The strip carries
+ * countryside + city blocks at bus speed.
  *
  * The 9:16 lesson (the field report that shamed this file into a rebuild):
  * the old staging framed a 16:9 window and hung it in the void. On a phone
@@ -41,8 +44,10 @@
  * EXACT size — one canvas per building, 32–48 px per world metre, the
  * window count computed from the real floors — and the architecture is
  * real geometry: cornice ledges, parapet caps, fire escapes, stoops,
- * awnings, bulkheads. The haze row moved back to 48 m where "far off"
- * actually lives, behind the headline towers instead of in front of them.
+ * awnings, bulkheads. The haze row stands at 130 m, behind the headline
+ * towers, and every material the ride builds carries fog:false — the
+ * world's amber fog (near 40, far 170) would wash a 110 m skyline into
+ * soup; the painted haze does that job on purpose instead.
  */
 
 import * as THREE from 'three';
@@ -157,21 +162,31 @@ export interface ArrivalHost {
   onHandover(): void;
 }
 
-/** The ride camera: a window seat, staged at (−150, 100) — empty world,
- *  inside the sky shell, and the shell's far side stays inside the camera's
- *  500 far plane (the first staging at z 300 clipped the sky to black).
- *  y 4.6 = seated eye height (the ground band stays in frame); the strip
- *  rides 10 m out the glass, relative to the camera's x — the second
- *  staging forgot that and slid past 150 m east of the lens. */
-const RIDE_POS = { x: -150, y: 4.6, z: 100 };
+/** The ride camera: a window seat, staged at (−190, 100) — the empty far
+ *  south-west, out of every sight-line the map owns. The staging law's
+ *  math, both ends: (a) the west map edge sits at x ≈ −60, and the window
+ *  cone's right edge reaches x = RIDE_POS.x + 0.56·depth — at −150 it
+ *  grazed −68 at 146 m and the map's west row leaked in as a fog-washed
+ *  sliver; at −190 the cone stays west of −94 wherever the map lives.
+ *  (b) The sky shell (r 380, origin-centred) must exit the view cone
+ *  INSIDE the camera's 500 far plane — the worst top-corner ray leaves
+ *  the dome at ~482 m here (the first staging at z 300 clipped the sky
+ *  to black by missing this). y 4.6 = seated eye height (the ground band
+ *  stays in frame); the strip rides 10 m out the glass, relative to the
+ *  camera's x — the second staging forgot that and slid past 150 m east
+ *  of the lens. */
+const RIDE_POS = { x: -190, y: 4.6, z: 100 };
 const STRIP_Z = 90;
 const STRIP_START_X = 20;
 const STRIP_END_X = -14;
 /** The bus creeps to the gate while you talk to the driver (m/s). */
 const CREEP_SPEED = 0.15;
-/** The skyline sits 40 m out: a 33 m tower tops out ~35° above the lens —
- *  a band across the upper frame, not the flat wall 17 m produced. */
-const SKYLINE_Z = 60;
+/** The skyline sits 110 m out (world z −10: the lens looks down −z from
+ *  z 100, so smaller z = farther). A 24 m tower tops out ~10° above the
+ *  lens — a distant dusk band with sky above it, not the 40 m cardboard
+ *  wall the first field report shamed. The near strip (10–24 m) carries
+ *  the close-up duty; the lowrise band (98 m) bridges the two. */
+const SKYLINE_Z = -10;
 /** The window aperture (half-extents at the glass) — the desktop 16:9
  *  target. The interior shell owns everything outside it. */
 const APERTURE = { x: 0.31, y: 0.2 };
@@ -332,7 +347,7 @@ export class ArrivalCinematic {
     };
     // lit windows — the dusk story: somebody is home out there
     const winGlow = this.lambertEmissive(0xffca7a, 0.9);
-    const smokeMat = new THREE.MeshLambertMaterial({ color: 0x9a9aa8, transparent: true, opacity: 0.32 });
+    const smokeMat = new THREE.MeshLambertMaterial({ color: 0x9a9aa8, transparent: true, opacity: 0.32, fog: false });
     this.disposables.push(smokeMat);
 
     const box = (parent: THREE.Object3D, name: string, mat: THREE.Material,
@@ -371,6 +386,18 @@ export class ArrivalCinematic {
     strip.position.set(RIDE_POS.x + STRIP_START_X, 0, STRIP_Z);
     this.strip = strip;
     g.add(strip);
+
+    // the far ground — one wide dusk-meadow slab under EVERYTHING from the
+    // strip's far edge out past the skyline. The old staging let naked sky
+    // show between the countryside and the city floor; this plane is the
+    // floor no seam can open in (and it rides in the GROUP: far things
+    // don't slide). Its top face sits y −0.01, under the strip's grass and
+    // the city apron both. The mounds give the horizon a pulse.
+    box(g, 'RideFarGround', this.lambert(0x5a6b4d), RIDE_POS.x, -0.16, 20, 200, 0.3, 200);
+    const farMoundMat = this.lambertFlat(0x4a5f44);
+    blob(g, 'RideFarMoundA', farMoundMat, RIDE_POS.x - 34, 0.85, 46, 9, 0.18);
+    blob(g, 'RideFarMoundB', farMoundMat, RIDE_POS.x + 20, 0.75, 52, 8, 0.16);
+    blob(g, 'RideFarMoundC', farMoundMat, RIDE_POS.x - 6, 0.65, 60, 11, 0.13);
 
     // ground ribbon — deep enough to stay under the window the whole ride
     // and reach back toward the skyline's feet. The mowing stripes and road
@@ -486,7 +513,7 @@ export class ArrivalCinematic {
       cyl(strip, 'RidePole', mats.frame, px, 2.2, 1.6, 0.06, 0.09, 4.4, 6);
       box(strip, 'RidePoleArm', mats.frame, px, 4.05, 1.6, 0.95, 0.07, 0.07);
     }
-    const wireMat = new THREE.LineBasicMaterial({ color: 0x241f28 });
+    const wireMat = new THREE.LineBasicMaterial({ color: 0x241f28, fog: false });
     this.disposables.push(wireMat);
     for (let i = 0; i < poleXs.length - 1; i++) {
       for (const wz of [1.38, 1.82]) {
@@ -539,7 +566,7 @@ export class ArrivalCinematic {
       const t = this.brickTexture(v).clone();
       t.needsUpdate = true;
       t.repeat.set(Math.max(1, Math.round(wM / 1.4)), Math.max(1, Math.round(hM / 1.4)));
-      const m = new THREE.MeshLambertMaterial({ map: t });
+      const m = new THREE.MeshLambertMaterial({ map: t, fog: false });
       this.disposables.push(t, m);
       return m;
     };
@@ -562,6 +589,7 @@ export class ArrivalCinematic {
         emissive: 0xffffff,
         emissiveMap: glow,
         emissiveIntensity: 0.5,
+        fog: false,
       });
       this.disposables.push(map, glow, face);
       const side = brickSideMat(v, depth, h);
@@ -642,8 +670,9 @@ export class ArrivalCinematic {
     cyl(strip, 'RideHydrantCap', this.lambert(PAL.coral), 12.7, 0.5, 1.7, 0.07, 0.09, 0.08, 8);
 
     // --- the skyline: STATIC (far off = no parallax), lights up at ~4 s ---
-    // World space, added to the GROUP (never to the strip): 40 m out, the
-    // towers read as a distant band and hold still while the near world glides.
+    // World space, added to the GROUP (never to the strip): 110 m out, the
+    // towers read as a distant dusk band and hold still while the near
+    // world glides past.
     // Windows are BAKED into the towers' textures — the light-up beat tweens
     // the row materials' emissiveIntensity and the whole skyline wakes.
     const skyline = new THREE.Group();
@@ -652,13 +681,14 @@ export class ArrivalCinematic {
     g.add(skyline);
 
     // the city's floor — a dusk asphalt apron so the skyline rises from a
-    // city instead of the amber haze
-    box(skyline, 'RideCityApron', this.lambert(0x4a4552), 0, -0.12, 4, 64, 0.3, 34);
+    // city instead of the amber haze. Wide and deep enough to own the
+    // ground from 86 m out to the far row's feet (the far plane beneath
+    // shows only beyond its edges).
+    box(skyline, 'RideCityApron', this.lambert(0x4a4552), 0, -0.12, -6, 130, 0.3, 60);
 
-    // far row — the hazier silhouette BEHIND the headliners at 48 m (the
-    // old row stood at 24 m, in front of everything, huge and smeared);
-    // depth without a fog cheat (it simply stands further back and lights
-    // up dimmer). Each face exact-fit, haze-mixed toward the sky.
+    // far row — the hazier silhouette 20 m behind the headliners (130 m
+    // out): depth without a fog cheat (it stands further back, haze-mixed
+    // toward the sky, and lights up dimmer). Each face exact-fit.
     const farMats: THREE.MeshLambertMaterial[] = [];
     const farTowers: Array<[number, number, number]> = [
       [-14, 14, 2.6], [-11, 18, 2.4], [-8.4, 12, 2.8], [-5.6, 20, 2.4], [-2.6, 15, 2.6],
@@ -672,10 +702,11 @@ export class ArrivalCinematic {
         emissive: 0xffffff,
         emissiveMap: glow,
         emissiveIntensity: 0.08,
+        fog: false,
       });
       this.disposables.push(map, glow, m);
       farMats.push(m);
-      box(skyline, 'RideTowerFar', m, x, h / 2, -8, w, h, 2.0);
+      box(skyline, 'RideTowerFar', m, x, h / 2, -20, w, h, 2.0);
     }
 
     // near row — the silhouettes the trip is named for: setbacks, a spire
@@ -683,7 +714,7 @@ export class ArrivalCinematic {
     // Every tier gets its own exact-fit face: no stretched towers.
     const tierMats: THREE.MeshLambertMaterial[] = [];
     const crownMat = this.lambertEmissive(0xffb85c, 0.25);
-    const beaconMat = new THREE.MeshBasicMaterial({ color: PAL.coral });
+    const beaconMat = new THREE.MeshBasicMaterial({ color: PAL.coral, fog: false });
     const bulkMat = this.lambert(0x4f4758);
     this.disposables.push(beaconMat);
     const towerDefs: Array<{
@@ -709,6 +740,7 @@ export class ArrivalCinematic {
           emissive: 0xffffff,
           emissiveMap: glow, // black body, amber windows — only windows glow
           emissiveIntensity: 0.15, // dusk-dark until the city lights come on
+          fog: false,
         });
         this.disposables.push(map, glow, m);
         tierMats.push(m);
@@ -739,14 +771,16 @@ export class ArrivalCinematic {
       }
     }
 
-    // street-level fabric — low brick band in FRONT of the towers, so the
-    // skyline sits IN a city instead of floating over one. Mini-tenements,
-    // exact-fit faces, alternate storefronts; the strip's tenements carry
-    // the close-up duty, these carry the middle distance.
-    for (let i = 0; i < 12; i++) {
-      const x = -13 + i * 2.3;
+    // street-level fabric — a low brick band IN FRONT of the towers (98 m
+    // out, 12 m this side of them), so the skyline sits IN a city instead
+    // of floating over one. Mini-tenements, exact-fit faces, alternate
+    // storefronts; the strip's tenements carry the close-up duty, these
+    // carry the middle distance — a lit shopfront strip at the horizon.
+    const lowZ = 12;
+    for (let i = 0; i < 20; i++) {
+      const x = -46 + i * 4.85;
       const h = 5.0 + ((i * 37) % 23) / 10; // 5.0 … 7.2, deterministic
-      const w = 2.05;
+      const w = 3.4;
       const { map, glow } = this.tenementFace(w, h, i % 3, i * 29 + 3, {
         storefront: i % 2 === 0, floors: 2, parapet: 0.5, ppm: 28,
       });
@@ -756,18 +790,19 @@ export class ArrivalCinematic {
         emissive: 0xffffff,
         emissiveMap: glow,
         emissiveIntensity: 0.55,
+        fog: false,
       });
       this.disposables.push(map, glow, face);
       const side = brickSideMat(i % 3, 2.0, h);
       const geo = new THREE.BoxGeometry(w, h, 2.0);
       const low = new THREE.Mesh(geo, [side, side, capMat, capMat, face, side]);
       low.name = 'RideLowrise';
-      low.position.set(x, h / 2, -7);
+      low.position.set(x, h / 2, lowZ);
       skyline.add(low);
       this.disposables.push(geo);
-      box(skyline, 'RideLowriseCornice', corniceMat, x, h - 0.14, -7, w + 0.18, 0.12, 2.18);
-      if (i % 3 === 0) box(skyline, 'RideLowriseCap', capMat, x, h + 0.1, -7, w + 0.06, 0.2, 2.06);
-      if (i % 4 === 1) this.waterTank(skyline, x + 0.5, h, -6.8);
+      box(skyline, 'RideLowriseCornice', corniceMat, x, h - 0.14, lowZ, w + 0.18, 0.12, 2.18);
+      if (i % 3 === 0) box(skyline, 'RideLowriseCap', capMat, x, h + 0.1, lowZ, w + 0.06, 0.2, 2.06);
+      if (i % 4 === 1) this.waterTank(skyline, x + 0.5, h, lowZ + 0.2);
     }
 
     // the light-up: the beat stays (3.6 s wait, 2.4 s rise) — the far row
@@ -788,20 +823,24 @@ export class ArrivalCinematic {
     // --- atmosphere: one low sun, dusk clouds, birds heading home ---------
     const glowTex = this.glowTexture();
     const glow = new THREE.Mesh(
-      new THREE.PlaneGeometry(20, 20),
+      new THREE.PlaneGeometry(34, 34),
       new THREE.MeshBasicMaterial({
         map: glowTex, transparent: true, opacity: 0.75,
         blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
       }),
     );
     glow.name = 'RideSunGlow';
-    glow.position.set(-7, 3.2, -14); // behind the far row — towers silhouette against it
+    glow.position.set(-6, 2.8, -40); // 150 m out, behind the far row — towers silhouette against it
     skyline.add(glow);
     this.disposables.push(glowTex, glow.geometry as THREE.BufferGeometry);
 
     const cloudTex = this.cloudTexture();
     const cloudSpecs: Array<[number, number, number, number, number]> = [
-      [-10, 19, 14, 13, 0.8], [4, 23, 12, 16, 0.7], [12, 16, 15, 10, 0.8], [-3, 12.5, 13, 20, 0.5],
+      // x, y, z(skyline-local; − = farther), width, opacity — all BEHIND
+      // the towers, 138–165 m out. The old specs sat at 26 m: two giant
+      // white smears parked on the lens.
+      [-38, 24, -28, 22, 0.75], [8, 30, -44, 26, 0.65],
+      [30, 20, -30, 24, 0.75], [-12, 34, -52, 30, 0.5], [46, 27, -38, 20, 0.6],
     ];
     for (const [x, y, z, w, op] of cloudSpecs) {
       const cm = new THREE.MeshBasicMaterial({
@@ -829,12 +868,12 @@ export class ArrivalCinematic {
       const wr = new THREE.Mesh(wingGeo, birdMat);
       wr.rotation.y = -0.45;
       b.add(wl, wr);
-      b.position.set(-19, y, z);
+      b.position.set(RIDE_POS.x - 19, y, z); // group space — ride with the staging
       g.add(b);
       this.host.tweens.sequence(
         this.host.tweens.wait(delay),
         this.host.tweens.parallel(
-          this.host.tweens.num(() => b.position.x, (v) => { b.position.x = v; }, 19, 8.5, easeLinear),
+          this.host.tweens.num(() => b.position.x, (v) => { b.position.x = v; }, RIDE_POS.x + 19, 8.5, easeLinear),
           this.host.tweens.num(() => b.position.y, (v) => { b.position.y = v; }, y + 1.6, 8.5, easeLinear),
         ),
       );
@@ -873,10 +912,13 @@ export class ArrivalCinematic {
       INTERIOR.x - wallX, INTERIOR.y * 2, 0.16);
     // ceiling dressing: the AC duct and three warm downlights
     part('Shell_Duct', mats.panelDark, 0, headTop + 0.09, GLASS_Z - 0.02, INTERIOR.x * 1.6, 0.1, 0.18);
-    const lampMat = new THREE.MeshBasicMaterial({ color: 0xffe0b0 });
+    const lampMat = new THREE.MeshBasicMaterial({ color: 0xd9b98c });
     this.disposables.push(lampMat);
+    // a dark valance over the strip — the lamps read as recessed fittings,
+    // not three bright slabs glued to the void (the portrait report)
+    part('Shell_LampValance', mats.panelDark, 0, headTop + 0.062, GLASS_Z + 0.01, 0.54, 0.03, 0.035);
     for (const lx of [-0.16, 0, 0.16]) {
-      part('Shell_Lamp', lampMat, lx, headTop + 0.035, GLASS_Z + 0.08, 0.06, 0.015, 0.06);
+      part('Shell_Lamp', lampMat, lx, headTop + 0.038, GLASS_Z + 0.02, 0.042, 0.012, 0.05);
     }
     // the grab rail, hung where buses hang them, with two straps
     const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.66, 6), mats.frame);
@@ -1093,10 +1135,10 @@ export class ArrivalCinematic {
     return { map, glow: glowTex };
   }
 
-  /** One painted TOWER face for the skyline — dusk plum with a mullion
-   *  rhythm and a mechanical top band; `haze` mixes the color toward the
-   *  sky, drops the mullions and thins the windows: the "far off" row at
-   *  48 m. Exact size, like the tenements. */
+  /** One painted TOWER face for the skyline — dusk charcoal-plum with a
+   *  mullion rhythm and a mechanical top band; `haze` mixes the color
+   *  toward the sky, drops the mullions and thins the windows: the "far
+   *  off" row at 130 m. Exact size, like the tenements. */
   private towerFace(w: number, h: number, variant: number, seed: number,
     haze: boolean,
   ): { map: THREE.CanvasTexture; glow: THREE.CanvasTexture } {
@@ -1120,8 +1162,8 @@ export class ArrivalCinematic {
       const q = (x: number, y: number) => Math.round(x + (y - x) * t);
       return `rgb(${q(r1, r2)},${q(g1, g2)},${q(b1, b2)})`;
     };
-    const bases = ['#6b5d76', '#75616e', '#605a72'];
-    const mull = ['#5d5168', '#665462', '#544e64'];
+    const bases = ['#574d66', '#5d5163', '#4f4963'];
+    const mull = ['#4c4358', '#52455a', '#433e56'];
     const hazeC = '#a08cab';
     const base = haze ? mix(bases[variant % 3], hazeC, 0.42) : bases[variant % 3];
     ctx.fillStyle = base;
@@ -1132,7 +1174,7 @@ export class ArrivalCinematic {
       for (let x = px(0.55); x < pw; x += px(1.1)) ctx.fillRect(x, 0, Math.max(1, px(0.16)), ph);
     }
     // the mechanical crown band + shadow
-    ctx.fillStyle = haze ? mix('#544a5c', hazeC, 0.4) : '#544a5c';
+    ctx.fillStyle = haze ? mix('#453d50', hazeC, 0.4) : '#453d50';
     ctx.fillRect(0, 0, pw, px(1.1));
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.fillRect(0, px(1.1), pw, px(0.12));
@@ -1159,6 +1201,16 @@ export class ArrivalCinematic {
         gtx.fillRect(wx, fy, winW, winH);
       }
     }
+    // the side shading — a dark column on each edge so a tower's neighbors
+    // never fuse it into one continuous slab (the flat-wall lesson)
+    for (const ex of [0, 1]) {
+      const eg = ctx.createLinearGradient(ex ? pw : 0, 0, ex ? pw * 0.91 : pw * 0.09, 0);
+      eg.addColorStop(0, 'rgba(20,16,28,0.34)');
+      eg.addColorStop(1, 'rgba(20,16,28,0)');
+      ctx.fillStyle = eg;
+      ctx.fillRect(ex ? pw * 0.91 : 0, 0, pw * 0.09, ph);
+    }
+
     // the feet, darkened by the street canyon
     const grime = ctx.createLinearGradient(0, ph - px(3), 0, ph);
     grime.addColorStop(0, 'rgba(26,22,34,0)');
@@ -1239,15 +1291,18 @@ export class ArrivalCinematic {
     return tex;
   }
 
+  // Every ride material carries fog:false — the diorama paints its own
+  // aerial perspective, and the world's amber fog would eat the 110 m
+  // skyline the light-up beat depends on.
   private lambert(color: number): THREE.MeshLambertMaterial {
-    const m = new THREE.MeshLambertMaterial({ color });
+    const m = new THREE.MeshLambertMaterial({ color, fog: false });
     this.disposables.push(m);
     return m;
   }
 
   /** Lambert with flat shading — the canopy lobes catch the dusk per-face. */
   private lambertFlat(color: number): THREE.MeshLambertMaterial {
-    const m = new THREE.MeshLambertMaterial({ color, flatShading: true });
+    const m = new THREE.MeshLambertMaterial({ color, flatShading: true, fog: false });
     this.disposables.push(m);
     return m;
   }
@@ -1255,7 +1310,7 @@ export class ArrivalCinematic {
   /** Lambert with a self-glow floor — faces turned from the sun keep their
    *  color instead of dying to black (the skyline's south faces). */
   private lambertEmissive(color: number, intensity: number): THREE.MeshLambertMaterial {
-    const m = new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: intensity });
+    const m = new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: intensity, fog: false });
     this.disposables.push(m);
     return m;
   }

@@ -51,6 +51,17 @@ const run = await page.evaluate(async () => {
   const g = window.__game;
   const p = g.player.capsule;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  // Walk until the PLAYER arrives, not until a fixed nap does — software-GL
+  // boxes cover less ground per wall-clock second, and a nap-based walk
+  // fails them honestly but uselessly (the docs/51 gate: probes must be
+  // machine-honest). Polls the live capsule with a generous cap.
+  const walkUntil = async (code, pred, timeoutMs = 20000) => {
+    g.input.injectKey(code, true);
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeoutMs && !pred()) await sleep(100);
+    g.input.injectKey(code, false);
+    await sleep(250);
+  };
   const out = {};
   // camera-relative walking: pick the key whose forward points where we
   // want (the camera owns its yaw; we just read it)
@@ -120,8 +131,19 @@ const run = await page.evaluate(async () => {
   }
   out.boarded = g.world.subway.ride.phase === 'closing';
 
-  // 6. the ride: batch to arrival; the seam must translate to 42nd St
-  batch(25);
+  // 6. the ride: batch past the teach beat (t 8.5) — Priya's chalk appears
+  // on the middle window's inside face (docs/51 B11), in BOTH cars (the
+  // twins carry identical copies so the seam at t 12 never shows the trick)
+  batch(10);
+  let diagramUp = 0, diagramTotal = 0;
+  const censusDiagram = (g2) => g2.traverse((o) => {
+    if (o.name.startsWith('SUB_Diagram_')) { diagramTotal++; if (o.visible) diagramUp++; }
+  });
+  censusDiagram(g.world.subway.groups.trainA);
+  censusDiagram(g.world.subway.groups.trainB);
+  out.diagramMeshes = diagramTotal;
+  out.diagramUpAtBeat = diagramTotal > 0 && diagramUp === diagramTotal;
+  batch(15);
   out.ridePhase = g.world.subway.ride.phase;
   out.atB = g.world.subway.ride.at === 'B';
   out.swappedX = +p.x.toFixed(1);
@@ -132,10 +154,18 @@ const run = await page.evaluate(async () => {
   g.world.subway.groups.stationB.traverse((o) => { if (o.name === 'TheBusker') busker = o; });
   out.busker = !!busker && busker.visible;
 
-  // 8. step off; the doors close behind; the machine rests
+  // 8. step off; the doors close behind; the machine rests — and the chalk
+  // rides only the ride it was drawn on (a fresh car waits for the teach)
   tp(-329.1, -3.1, 13.2);
   batch(2.2);
   out.retired = g.world.subway.ride.phase === 'idle';
+  let diagramDown = 0;
+  const censusDown = (g2) => g2.traverse((o) => {
+    if (o.name.startsWith('SUB_Diagram_') && !o.visible) diagramDown++;
+  });
+  censusDown(g.world.subway.groups.trainA);
+  censusDown(g.world.subway.groups.trainB);
+  out.diagramDownAtRest = diagramTotal > 0 && diagramDown === diagramTotal;
 
   // 6b. the left-behind law (bug-hunt fix): a player on the PLATFORM when
   // the machine rides must NOT be translated at the seam — the ride runs,
@@ -157,25 +187,25 @@ const run = await page.evaluate(async () => {
   // 9. climb out: the treads climb (STEP_UP law), the surface receives
   tp(-335.6, -3.1, 7.4, Math.PI);
   await sleep(400);
-  g.input.injectKey(keyToward(false), true);
-  await sleep(900);
-  g.input.injectKey(keyToward(false), false);
+  await walkUntil(keyToward(false), () => p.y > -1.9, 15000); // leg 1: into the stair head
   tp(-335.6, -1.75, 6.1, Math.PI);
   await sleep(500);
-  g.input.injectKey(keyToward(false), true);
-  await sleep(1300);
-  g.input.injectKey(keyToward(false), false);
+  await walkUntil(keyToward(false), () => p.y > 0.05, 25000); // leg 2: up to the square
   await sleep(400);
   out.surfaceY = +p.y.toFixed(2);
   out.tsLit = g.world.subway.lit.has('tsSurface');
 
-  // 10. the sync beat: once per day, on first entry — a screen breathes
+  // 10. the sync beat: once per day, on first entry — read the MACHINE
+  // (syncedToday latches), not the 2.6 s breath window a slow box races
   await sleep(400);
-  let screenHot = 0;
-  g.world.scene.traverse((o) => {
-    if (o.name === 'TSS_Screen_0' && o.material.emissiveIntensity > 0.62) screenHot++;
-  });
-  out.syncFired = screenHot > 0;
+  out.syncFired = g.world.timesSquare.syncedToday === true;
+  // the Wow card (docs/51 B10) holds the hands at the wonder moment — the
+  // paper froze the walker mid-stride ON PURPOSE. The probe puts it down
+  // the way a player does: Stay = back to the square. (Found by this very
+  // probe: the M121 walk after the sync stood still — frozen by the card.)
+  out.wowCardUp = !g.ui.postcardPanel.hidden;
+  if (out.wowCardUp) { g.ui.postcardStay.click(); await sleep(300); }
+  out.wowDismissed = g.ui.postcardPanel.hidden && !g.player.frozen;
 
   // 11. the usher holds the Orpheum door; the registry knows her
   tp(-352.3, 0.1, 6.4);
@@ -185,12 +215,24 @@ const run = await page.evaluate(async () => {
 
   // 12. the M121: settle, then walk south through the door gap
   // (the door rides the registry's BUS-04 bay at cx −32.15: the gap
-  // x −28.2..−27.1, the step top 0.3, the floor 0.55 — docs/47)
+  // x −28.2..−27.1, the step top 0.3, the floor 0.55 — docs/47).
+  // The one-bay law (docs/47): the loop M121 parks on the bay and the
+  // arrival shell RETIRES until it pulls out. The probe waits for the
+  // bay like a player does — you board when the bus is there and the
+  // shell is too — instead of racing the loop's circuit phase.
   tp(-27.65, 0.1, 4.6, Math.PI);
   await sleep(1100);
-  g.input.injectKey(keyToward(false), true);
-  await sleep(1500);
-  g.input.injectKey(keyToward(false), false);
+  const bayT0 = Date.now();
+  while (Date.now() - bayT0 < 40000 && g.world.arrivalBus.group.visible !== true) await sleep(250);
+  out.bayShellVisible = g.world.arrivalBus.group.visible === true;
+  // the walk keeps a position trace — if a box blocks the gap, the trace
+  // says where the walk stopped (the kept diagnostic, probe forensics law)
+  const busWalkTrace = [];
+  await walkUntil(keyToward(false), () => {
+    busWalkTrace.push(`f=${g.player.frozen} y=${+p.y.toFixed(2)} z=${+p.z.toFixed(2)}`);
+    return p.z < 3.4;
+  }, 20000);
+  out.busWalk = busWalkTrace.filter((_, i) => i % 10 === 0);
   await sleep(300);
   out.busFloorY = +p.y.toFixed(2);
   out.inBus = p.z < 3.4 && p.y > 0.4;
@@ -229,10 +271,15 @@ check(run.leftBehindKeptX === true, 'the seam does NOT teleport a player on the 
 check(run.leftBehindStillRiding === true, 'the ride continues without the stowaway');
 check(run.leftBehindReleased === true, 'the arrival releases them: idle, doors open');
 check(run.busker === true, 'the busker plays the 42nd St platform');
+check(run.diagramMeshes === 8, `the chalk strokes built in both cars (${run.diagramMeshes})`);
+check(run.diagramUpAtBeat === true, 'the teach beat draws the diagram (priya-lines)');
+check(run.diagramDownAtRest === true, 'the chalk rides only its ride (fresh car at rest)');
 check(run.retired === true, 'stepping off retires the ride');
 check(Math.abs(run.surfaceY - 0.1) < 0.25, `the exit stair climbs to the square (y ${run.surfaceY})`);
 check(run.tsLit === true, 'Times Square lights its zone');
 check(run.syncFired, 'the sync beat breathes the screens (once a day)');
+check(run.wowCardUp === true, 'the Wow card holds the hands at the sync');
+check(run.wowDismissed === true, 'Stay puts the paper down and unwalks the freeze');
 check(run.usher === 'usher', 'the usher holds the Orpheum door');
 check(Math.abs(run.busFloorY - 0.55) < 0.06, `the M121 floor holds (y ${run.busFloorY})`);
 check(run.inBus, 'the bus interior is enterable');

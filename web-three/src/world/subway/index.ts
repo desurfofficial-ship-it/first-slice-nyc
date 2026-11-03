@@ -108,6 +108,22 @@ export function buildSubwaySystem(
   const doorB = buildTrainPair(ctx(groups.trainB), -44.2 + RIDE_SWAP_DX, TRAIN_DOOR_A_X - (-44.2));
   buildTunnel(ctx(groups.tunnel), groups.scenery);
 
+  // Priya's window diagram (docs/51 B11): the chalk strokes the 'priya-lines'
+  // beat reveals. Collected by name from both aligned cars — the twins carry
+  // identical copies so the swap seam (t 12, after the beat at t 8.5) never
+  // shows the trick. Toggle-only writes → they ride ZONE_KEEP_RE (the bake
+  // would detach them and the teach would draw nothing, forever).
+  const diagram: THREE.Mesh[] = [];
+  for (const tg of [groups.trainA, groups.trainB]) {
+    tg.traverse((o) => { if (o.name.startsWith('SUB_Diagram_')) diagram.push(o as THREE.Mesh); });
+  }
+  let diagramUp = false;
+  const setDiagram = (on: boolean) => {
+    if (diagramUp === on) return;
+    diagramUp = on;
+    for (const m of diagram) m.visible = on;
+  };
+
   for (const c of cols) pushCollider(c);
 
   const zones: readonly ZoneDef[] = [
@@ -163,6 +179,7 @@ export function buildSubwaySystem(
         if (e.type === 'doors') {
           sys.doorsOpen = e.open === true;
         } else if (e.type === 'note') {
+          if (e.beat === 'priya-lines') setDiagram(true); // the teach draws itself
           onBeat(e.beat!);
         } else if (e.type === 'swap') {
           // the seam: translate the player to the identical car — feet keep
@@ -174,6 +191,9 @@ export function buildSubwaySystem(
         }
         // 'arrived' carries no world work — the doors event said it all
       }
+      // the next train on the loop is a fresh car: the chalk rides only the
+      // ride it was drawn on (idle is the rest state after 'departing')
+      if (sys.ride.phase === 'idle') setDiagram(false);
       // stepping off the destination platform retires the ride; the doors
       // close behind (a departing train, honestly)
       if (sys.ride.phase === 'arrived' && feet.z < STATION.zPlatformEdge - 0.3) {

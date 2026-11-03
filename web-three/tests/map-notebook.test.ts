@@ -177,3 +177,38 @@ describe('the sketch — Map draws only what it has seen (docs/12 upgrade)', () 
     expect(parsed.map_places).toEqual(['terminal', 'court']);
   });
 });
+
+describe('the crooked copy (docs/51 B11 — Map copies Priya\u2019s lines badly)', () => {
+  it('latches once: the doodle is a keepsake, not a counter', () => {
+    const s = new GameState();
+    expect(s.priyaLinesCopied).toBe(false);
+    expect(s.copyPriyaLines()).toBe(true);
+    expect(s.copyPriyaLines()).toBe(false); // one teach, one doodle
+    expect(s.priyaLinesCopied).toBe(true);
+  });
+
+  it('is independent of the place sketch (a ride beat, not a walk)', () => {
+    const s = new GameState();
+    s.copyPriyaLines();
+    expect(s.visitedPlaces).toEqual([]); // no place was walked
+    expect(s.hasSeenPlace('terminal')).toBe(false);
+  });
+
+  it('rides the save (roundtrip through the parse)', () => {
+    const s = new GameState();
+    s.day = 2; // snapshotForSave is honest: day 1 never writes
+    s.copyPriyaLines();
+    const snap = s.snapshotForSave();
+    expect(snap).not.toBeNull();
+    const parsed = parseSave(JSON.stringify(snap));
+    expect(parsed.map_priya_lines).toBe(true);
+  });
+
+  it('an old save (no map_priya_lines field) reads as an untaught page', () => {
+    const old = parseSave(JSON.stringify({ day: 2, money: 90 }));
+    expect(old.map_priya_lines ?? false).toBe(false);
+    // and a corrupted field degrades to false, never a crash (save.gd law)
+    const junk = parseSave(JSON.stringify({ day: 2, map_priya_lines: 'yes' }));
+    expect(junk.map_priya_lines).toBe(false);
+  });
+});

@@ -335,6 +335,13 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 .sketch-dash { stroke-width: 0.22; stroke-dasharray: 0.4 0.3; opacity: 0.75; }
 .sketch-place { opacity: 0; transition: opacity 0.6s ease; }
 .sketch-place.revealed { opacity: 1; }
+/* Map's crooked copy of Priya's lines (docs/51 B11) — page 1's margin,
+ * hidden until the ride's 'map-copies' beat latches it. Same reveal law
+ * as the places; the strokes ride the pencil gray, the labels hedge. */
+.sketch-priya { opacity: 0; transition: opacity 0.6s ease; }
+.sketch-priya.revealed { opacity: 1; }
+.sketch-priya-lights { stroke-width: 0.34; }
+.sketch-priya-river { stroke-width: 0.36; }
 .sketch-label {
   font-family: var(--hand-font);
   font-size: 2.9px;

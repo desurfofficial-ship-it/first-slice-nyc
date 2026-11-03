@@ -83,6 +83,29 @@ function buildCar(
   for (const wx of [-3.6, 0, 3.6]) {
     box(ctx, `SUB_CarWin_${cx}_${wx}`, cx + wx, -2.0, zN + 0.02, 1.5, 0.9, 0.03, 0x2c3440, { collide: false });
   }
+  // Priya's window diagram (docs/02 Subway University, docs/51 B11): two
+  // chalk strokes on the middle window's inside face — one dips "under the
+  // river", one "stays with the lights". Hidden until the ride's
+  // 'priya-lines' beat flips it on (subway/index owns the toggle); built
+  // only in the ALIGNED car of each station so the swap seam never shows
+  // the trick (the cars are twins — the diagram rides both). Box segments
+  // with small kinks: hand-drawn in the house lowpoly voice, chalk-gold
+  // (the stripe's color) and river-teal, no new palette entries.
+  if (interactiveDoorRel !== null) {
+    const wz = zN - 0.07; // the car side of the middle window's glass
+    const chalk = (name: string, mx: number, my: number, len: number, rot: number, color: number) => {
+      const m = box(ctx, name, cx + mx, my, wz, len, 0.05, 0.02, color, { collide: false, emissive: color, ei: 0.4 });
+      m.rotation.z = rot;
+      m.visible = false;
+      return m;
+    };
+    // "stays with the lights" — level with a tiny sag (gold, the K stripe)
+    chalk(`SUB_Diagram_${cx}_lights_a`, -0.31, -1.76, 0.64, -0.05, 0xF7B32B);
+    chalk(`SUB_Diagram_${cx}_lights_b`, 0.31, -1.78, 0.64, 0.05, 0xF7B32B);
+    // "under the river" — the dip (teal, the house river color)
+    chalk(`SUB_Diagram_${cx}_river_a`, -0.3, -2.02, 0.7, 0.36, 0x2A9D8F);
+    chalk(`SUB_Diagram_${cx}_river_b`, 0.3, -2.02, 0.7, -0.36, 0x2A9D8F);
+  }
   // end walls — dressed as the operator's cab (docs/50 §4.5): a door and a
   // tinted glass inset on EVERY end (married pairs drive from both ends).
   // The glass is dark on purpose: the cab is the operator's office, and the

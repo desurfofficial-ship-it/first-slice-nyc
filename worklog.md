@@ -199,6 +199,86 @@ Stage Summary:
   shareable postcard rides the existing capture → caption → panel path,
   the story machine stays sacred. Remaining OPEN in docs/51: B4 (needs a
   clean machine), B5-recheck, B9, B11-B14, plus docs/53's follow-ups.
+---
+Task ID: AGENT2-DOCS51-B11-SUBWAY-UNIVERSITY
+Agent: Agent 2
+Task: First-session world completion (mission two) — audit the shipped world
+against docs/02 and close the real remaining gaps; push to main (parallel
+agents on the same repo).
+
+Work Log:
+- Fresh clone (the sandbox reset). Audited docs/50's honest limitations
+  against main: §4.1 opening hand-off PAID (7b6b680), §4.2 postcard hook
+  PAID (my B10), §4.3 crowd PAID, §4.5/§4.6 PAID. Audited docs/02 beat by
+  beat: arrival, Rosa's hand, the rush, the square, the cart, Idris, the
+  fire escape, the postcard — all proven by the E2E driver; the record shop
+  (B-side Records, SMB-02) exists with bin interactions; the busker coin
+  exists. The one real content gap left: B11's VISUAL layer — Doc 02's
+  Subway University draws two lines on the window and Map copies them
+  badly, and nothing on screen ever drew.
+- Built the window diagram (trainKit): four chalk strokes on the middle
+  window's inside face of each ALIGNED car — gold "stays with the lights"
+  (the K stripe's color), teal dipping "under the river". Hidden until the
+  ride's priya-lines beat (t 8.5 < swap t 12), hidden again at rest; both
+  twins carry identical copies so the seam never shows the trick.
+  SUB_Diagram_* joined ZONE_KEEP_RE (the bake-detach class from docs/53).
+- Built Map's crooked copy (sketch/UI/GameState/Save): page 1's bottom-left
+  margin doodle, badly drawn by law, latched by the map-copies beat, riding
+  the v1-safe save field map_priya_lines; revealed on Map's next open —
+  the fold never opens itself.
+- Probe work the fix earned (probe-subway, now ALL PASS / 30 laws):
+  walkUntil() polls instead of napping (software-GL boxes cover less ground
+  per wall-clock second — the exit-stair law failed them uselessly); the
+  sync check reads the new machine latch timesSquare.syncedToday instead of
+  racing the 2.6 s breath window; the M121 board waits for BUS-04's shell
+  (the one-bay law retires it while the loop M121 parks — the probe raced
+  the circuit); and the probe now LIVES the B10 flow — the Wow card froze
+  the walker at the sync ON PURPOSE, the probe puts the paper down like a
+  player (Stay) and the walk resumes. Two new B10 laws pinned there.
+- docs/51 updated in the same commit: B11 → FIXED (mechanism + evidence),
+  B9 → FIXED (verified paid by 7b6b680; docs/50 §4.1 hand-off closed).
+
+Stage Summary:
+- B11 closed on main; Subway University now draws — the window chalk and
+  Map's crooked copy are the teach's pictures, deterministic and probed.
+  B9's ledger entry caught up with the shipped boot. Gates: tsc clean,
+  vitest 437/437, build clean, probe-subway ALL PASS (30), E2E 0 failures
+  / 344 s / console clean. Remaining OPEN in docs/51: B4 (clean machine),
+  B12 (evidence hygiene), B13 (perf ledger), B14 (docs hygiene).
+
+## 2026-11-03 — agent5: the arrival rebuilds its world (portrait-first pass 3)
+
+The field report said "the shitty building is still there." The probe agreed:
+portrait frames at t=1–5 showed the skyline as a flat lavender slab wall
+filling the window from second one, two cloud planes parked 26 m from the
+lens as giant white smears, and three ceiling lamps magnified into bright
+trapezoids. Fixes, all in arrival.ts:
+
+- Skyline moved 40 m → 110 m out (SKYLINE_Z −10): a 24 m tower now tops out
+  ~10° above the lens — a distant dusk band with sky above it, not a wall.
+  Far haze row 130 m, lowrise shopfront band IN FRONT of the towers at 98 m
+  (20 buildings, wide enough to own the horizon), city apron widened/deepened
+  to own the ground from 86 m out.
+- One wide far-ground slab (200×200, dusk olive) under everything from the
+  strip's far edge past the skyline + three flat-shaded horizon mounds —
+  no seam of naked sky can open between countryside and city floor.
+- Every ride material now fog:false — the world's amber Fog(40,170) would
+  wash a 110 m skyline to soup; the painted haze rows do that job instead.
+- Tower faces: darker charcoal-plum bases, edge-shading columns so
+  neighbours never fuse into one slab; haze mix unchanged.
+- Clouds re-staged 138–165 m out behind the towers; sun glow 150 m out,
+  34 m plane, towers silhouette against it.
+- Interior lamps: smaller, warmer, recessed under a dark valance.
+- Staging moved −150 → −190: the map's west row (x ≈ −60) leaked into the
+  ride cone's right edge at 146 m as a fog-washed sliver; cone math + sky
+  dome far-plane math documented at RIDE_POS.
+- Birds now actually ride the staging (they were staged at group x −19 from
+  an older origin and had never been visible).
+
+Gates: tsc clean; vitest 428/428 (24 files); build clean; probe
+probe-arrival-portrait.mjs (720×1280) frames t1/t3/t4.8/t6.5/t8.2/t9.6 +
+driver/reply/card all judged clean — no leaks, no slabs, no smears;
+a5c landscape probe handover state unchanged, console clean.
 
 ---
 Task ID: 3

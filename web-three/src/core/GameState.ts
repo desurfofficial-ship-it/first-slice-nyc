@@ -190,6 +190,19 @@ export class GameState {
   *  them (docs/12: Map copies the neighborhood badly, and only what it has
   *  seen). Persisted v1-safe as `map_places`. */
   visitedPlaces: string[] = [];
+  /** Map copied Priya's two lines badly (docs/02 Subway University, docs/51
+  *  B11) — the crooked copy lives on page 1 from the 'map-copies' beat on.
+  *  A latch, not a counter: one teach, one doodle, kept. Persisted v1-safe
+  *  as `map_priya_lines` (absent reads false — an old save is a page the
+  *  teach hasn't reached yet). */
+  priyaLinesCopied = false;
+
+  /** The 'map-copies' beat latches. Returns true when the doodle is new. */
+  copyPriyaLines(): boolean {
+    if (this.priyaLinesCopied) return false;
+    this.priyaLinesCopied = true;
+    return true;
+  }
 
   /** A place goes onto the sketch. Deduped, order-earned. Returns true
   *  when the pencil mark is new. */
@@ -804,6 +817,7 @@ export class GameState {
       map_notes: [...this.mapNotes],
       map_slang: [...this.mapSlang],
       map_places: [...this.visitedPlaces],
+      map_priya_lines: this.priyaLinesCopied,
     };
   }
 }
