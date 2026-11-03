@@ -70,7 +70,9 @@ async function runSession(w, h, tag) {
       if (await phase(page) === 'card') break;
       await sleep(page, 500);
     }
-    await sleep(page, 2500);
+    // the card holds 2.8 s — the shot must land INSIDE it (a 2.5 s dwell
+    // outlived the card and caught the handover street instead)
+    await sleep(page, 1200);
     await shot('tcard-coach');
   };
   await cardShot();
