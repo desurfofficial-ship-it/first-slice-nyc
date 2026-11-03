@@ -1591,13 +1591,124 @@ export class ArrivalCinematic {
     };
 
     // the tarmac apron — the gate's own floor, covers the ride ribbon's
-    // seam so the coach never floats on grass (the old curb's job, wider)
-    box('Coach_Apron', tarmac, COACH.cx, 0.0, COACH.z + 0.5, 26, 0.08, 12);
+    // seam so the coach never floats on grass (the old curb's job, wider
+    // still: the dusk grass used to peek past the facade's east end)
+    box('Coach_Apron', tarmac, COACH.cx, 0.0, COACH.z + 0.5, 32, 0.08, 12);
     box('Coach_GateLine', this.lambert(0xd9c98a), COACH.cx, 0.05, COACH.z - 2.4, 16, 0.05, 0.3);
 
-    // the gate behind: a dim terminal face, one lit sign, two light poles —
-    // the card lens was staring into empty sky
-    box('Gate_Facade', this.lambertEmissive(0x35303e, 0.05), COACH.cx, 4.0, COACH.z + 4.2, 24, 8, 1.4);
+    // the gate behind: a real terminal face, not a slab. The old build was
+    // one dim box and a floating sign — the card lens spent its whole
+    // push-in staring at a void. Now: precast bays with panel reveals and
+    // pilasters, a head house with a coping and a rooftop water tower, a
+    // lit centre entrance under a hood, a departure board, light pools
+    // under the poles — and past the parapet, the skyline you watched
+    // light up from the bus window, standing there when you arrive.
+    const facade = this.lambertEmissive(0x3a3442, 0.06);
+    box('Gate_Facade', facade, COACH.cx, 4.0, COACH.z + 4.2, 24, 8, 1.4);
+    const deep = this.lambertEmissive(0x2c2733, 0.04);
+    for (const ry of [1.4, 6.2]) {
+      box('Gate_Reveal', deep, COACH.cx, ry, COACH.z + 3.44, 24, 0.07, 0.08);
+    }
+    for (const px of [-10.5, -4.5, 4.5, 10.5]) {
+      box('Gate_Pilaster', this.lambertEmissive(0x46404e, 0.06), COACH.cx + px, 4.0, COACH.z + 3.44, 0.55, 8, 0.2);
+    }
+    box('Gate_HeadHouse', facade, COACH.cx, 9.0, COACH.z + 4.2, 12, 2.4, 1.5);
+    box('Gate_CopingTop', this.lambertEmissive(0x54495a, 0.05), COACH.cx, 10.28, COACH.z + 4.2, 12.7, 0.24, 1.9);
+    box('Gate_Coping', this.lambertEmissive(0x4a4352, 0.05), COACH.cx, 8.1, COACH.z + 4.2, 24.4, 0.2, 1.6);
+    // the water tower — the skyline's own punctuation, silhouette on the roof
+    for (const [lx, lz] of [[-0.5, -0.45], [0.5, -0.45], [-0.5, 0.45], [0.5, 0.45]]) {
+      box('Tower_Leg', deep, COACH.cx + 3.8 + lx, 10.85, COACH.z + 4.2 + lz, 0.09, 1.2, 0.09);
+    }
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 1.02, 1.6, 10), deep);
+    tank.name = 'Tower_Tank';
+    tank.position.set(COACH.cx + 3.8, 12.25, COACH.z + 4.2);
+    g.add(tank);
+    const tRoof = new THREE.Mesh(new THREE.ConeGeometry(1.06, 0.55, 10), deep);
+    tRoof.name = 'Tower_Roof';
+    tRoof.position.set(COACH.cx + 3.8, 13.33, COACH.z + 4.2);
+    g.add(tRoof);
+    this.disposables.push(tank.geometry as THREE.BufferGeometry, tRoof.geometry as THREE.BufferGeometry);
+
+    // beyond the depot: the lit city out there — the ride's last promise,
+    // kept. Dark towers rising out of the dusk haze, sparse amber windows.
+    const farTower = this.lambertEmissive(0x35303e, 0.04);
+    const farWin = this.lambertEmissive(0xffca7a, 0.5);
+    // x-offset, height, z-depth, width, window count — seeded jitter, no rands
+    const skyline: Array<[number, number, number, number, number]> = [
+      [-17, 15, 30, 5, 4], [-11.5, 18, 34, 4, 5], [-3, 14, 28, 6, 4],
+      [7.5, 20, 36, 5, 6], [15.5, 13, 30, 6, 3], [21, 16, 38, 4, 4],
+    ];
+    for (const [ox, h, zo, w, wins] of skyline) {
+      box('Far_Tower', farTower, COACH.cx + ox, h / 2, COACH.z + zo, w, h, 3);
+      for (let wi = 0; wi < wins; wi++) {
+        box('Far_Window', farWin,
+          COACH.cx + ox + (((wi * 37) % 100) / 100 - 0.5) * (w - 1.2),
+          1.5 + ((wi * 53) % 100) / 100 * (h - 3),
+          COACH.z + zo - 1.56, 0.4, 0.55, 0.05);
+      }
+    }
+
+    // the lit centre entrance — somebody is waiting inside. The frame is a
+    // deep reveal projecting from the wall; every lit face keeps ≥0.03 of
+    // real air in front of what backs it (the software rasterizer resolves
+    // thin gaps and exact coplanar ties toward the darker, later-drawn
+    // face — learned the hard way), and the assembly stays north of the
+    // facade front (z+3.5)
+    box('Gate_Hood', dark, COACH.cx, 3.12, COACH.z + 3.3, 4.6, 0.14, 1.3);
+    box('Gate_HoodGlow', this.lambertEmissive(0xffca7a, 0.4), COACH.cx, 3.03, COACH.z + 3.32, 4.4, 0.05, 1.1);
+    box('Gate_DoorFrame', dark, COACH.cx, 1.55, COACH.z + 3.14, 2.7, 3.1, 0.3);
+    for (const dx of [-0.56, 0.56]) {
+      box('Gate_DoorPane', this.lambertEmissive(0xffca7a, 0.5), COACH.cx + dx, 1.62, COACH.z + 3.36, 1.06, 2.2, 0.06);
+      box('Gate_PushBar', dark, COACH.cx + dx, 1.12, COACH.z + 3.45, 0.9, 0.06, 0.06);
+    }
+    box('Gate_DoorStile', dark, COACH.cx, 1.62, COACH.z + 3.38, 0.1, 2.3, 0.06);
+    box('Gate_Kick', deep, COACH.cx, 0.32, COACH.z + 3.33, 2.5, 0.6, 0.06);
+    // ticket window, east of the door
+    box('Gate_TicketFrame', dark, COACH.cx + 2.75, 2.3, COACH.z + 3.38, 1.1, 1.0, 0.06);
+    box('Gate_Ticket', this.lambertEmissive(0xffca7a, 0.35), COACH.cx + 2.75, 2.3, COACH.z + 3.47, 0.95, 0.85, 0.05);
+
+    // the departure board — amber rows over ink, unreadable on purpose,
+    // honest up close; hung high so the push-in lens sees it over the roof
+    const depC = document.createElement('canvas');
+    depC.width = 256; depC.height = 128;
+    const dctx = depC.getContext('2d')!;
+    dctx.fillStyle = '#15131c';
+    dctx.fillRect(0, 0, depC.width, depC.height);
+    dctx.fillStyle = '#ffb85c';
+    dctx.fillRect(20, 14, 216, 10);
+    for (let r = 0; r < 4; r++) {
+      dctx.fillStyle = r % 2 ? '#8a6a3a' : '#c9963f';
+      dctx.fillRect(20, 40 + r * 20, 90 + ((r * 37) % 90), 7);
+      dctx.fillRect(130 + ((r * 23) % 60), 40 + r * 20, 40, 7);
+    }
+    const depTex = new THREE.CanvasTexture(depC);
+    depTex.colorSpace = THREE.SRGBColorSpace;
+    this.disposables.push(depTex);
+    const dep = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.5, 0.75),
+      new THREE.MeshLambertMaterial({ map: depTex, emissive: 0xffffff, emissiveMap: depTex, emissiveIntensity: 0.5 }),
+    );
+    dep.name = 'Gate_Departures';
+    dep.rotation.y = Math.PI; // faces the lens (the facade front is its -z face)
+    dep.position.set(COACH.cx + 3.4, 3.7, COACH.z + 3.44);
+    g.add(dep);
+    this.disposables.push(dep.geometry as THREE.BufferGeometry);
+    // no casing board behind it — a backing box's face lands a depth-tie
+    // away from the plane and the software rasterizer hands the tie to the
+    // dark box; 0.06 of open air north of the facade front is the proven
+    // config (the original GATE sign flew with exactly this)
+
+    // lane props by the east gap — the bay waits with you
+    box('Gate_BenchSeat', this.lambert(0x4a3c2e), COACH.cx + 5.4, 0.46, COACH.z + 2.6, 1.8, 0.07, 0.45);
+    box('Gate_BenchBack', this.lambert(0x4a3c2e), COACH.cx + 5.4, 0.78, COACH.z + 2.82, 1.8, 0.36, 0.05);
+    for (const bx of [-0.75, 0.75]) {
+      box('Gate_BenchLeg', dark, COACH.cx + 5.4 + bx, 0.21, COACH.z + 2.6, 0.07, 0.42, 0.4);
+    }
+    const bin = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.22, 0.72, 8), deep);
+    bin.name = 'Gate_Bin';
+    bin.position.set(COACH.cx + 4.4, 0.36, COACH.z + 2.1);
+    g.add(bin);
+    this.disposables.push(bin.geometry as THREE.BufferGeometry);
     const signC = document.createElement('canvas');
     signC.width = 256; signC.height = 64;
     const sctx = signC.getContext('2d')!;
@@ -1611,6 +1722,8 @@ export class ArrivalCinematic {
     const signTex = new THREE.CanvasTexture(signC);
     signTex.colorSpace = THREE.SRGBColorSpace;
     this.disposables.push(signTex);
+    // the GATE 12 sign — a lit plane 0.06 north of the facade front, the
+    // proven config; no backing board (depth ties, see the departure board)
     const sign = new THREE.Mesh(
       new THREE.PlaneGeometry(2.4, 0.6),
       new THREE.MeshLambertMaterial({ map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 0.6 }),
@@ -1639,6 +1752,25 @@ export class ArrivalCinematic {
         lamp.geometry as THREE.BufferGeometry,
       );
     }
+
+    // the poles and the door actually light the tarmac — painted pools,
+    // the street's own language for "a lamp is on here"
+    const poolMat = this.lambertEmissive(0xffd9a0, 0.14);
+    const polePoolGeo = new THREE.CircleGeometry(1.7, 14);
+    const doorPoolGeo = new THREE.CircleGeometry(2.3, 14);
+    this.disposables.push(polePoolGeo, doorPoolGeo);
+    for (const px of [COACH.cx - 6, COACH.cx + 6]) {
+      const pool = new THREE.Mesh(polePoolGeo, poolMat);
+      pool.name = 'Gate_Pool';
+      pool.rotation.x = -Math.PI / 2;
+      pool.position.set(px, 0.07, COACH.z + 1.6);
+      g.add(pool);
+    }
+    const doorPool = new THREE.Mesh(doorPoolGeo, poolMat);
+    doorPool.name = 'Gate_DoorPool';
+    doorPool.rotation.x = -Math.PI / 2;
+    doorPool.position.set(COACH.cx, 0.07, COACH.z + 2.6);
+    g.add(doorPool);
 
     // body slab + roof cap (the M121's proportions, one bay over from the
     // house bus — a coach, not a city bus: higher roof, luggage bay)
