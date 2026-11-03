@@ -295,6 +295,13 @@ export class CourtGame {
       this.phase = 'return';
       this.returnT = 0;
       this.returnFrom = { x: p.x, y: GROUND_Y + BALL_R, z: p.z };
+      // the hotspot is honest from the FIRST frame of the roll: a press
+      // made between the settle frame and the next updateReturn still
+      // reads this spot (tryInteract runs before court.update in a frame),
+      // and the pre-shot spot is meters away from the escapee (docs/51 B3)
+      COURT_BALL_REST.x = p.x;
+      COURT_BALL_REST.y = GROUND_Y + BALL_R;
+      COURT_BALL_REST.z = p.z;
       return;
     }
     this.phase = 'rest';

@@ -65,3 +65,42 @@ Stage Summary:
   B4 (E2E re-run, the environmental flake family named) and B5 (one bus,
   resolved) are updated. Known open: the e2e dusk rails flake on slow
   machines on BOTH trees — driver-side wait windows, not the day clock.
+
+---
+Task ID: AGENT2-DOCS51-B3-COURT-REPICKUP
+Agent: Agent 2
+Task: Pick a bug from docs/51-open-bugs-for-agents.md and fix it; push to
+main (working in parallel with other agents).
+
+Work Log:
+- Picked B3 (owner hint: half-court agent / Agent 2): probe-court's
+  "re-pickup works wherever the ball came down" flaked.
+- Reproduced the pass state (probe-court 4/4 clean on this box — flake,
+  not constant), then built diagnostics instead of guessing:
+  diag-court-repickup.mjs (charge-hold sweep, state snapshot at every
+  press) and diag-find-gate-exit.ts (deterministic gate-exit shot pairs
+  from the real release path — stand (45.0, 5.6), charge 0.30).
+- diag-court-return.mjs proved the mechanism in-engine: when a rebound
+  exits the gate, settle() puts the court in 'return'; pickUp() accepts a
+  mid-roll intercept, but the registry's 2.1 m range check reads
+  COURT_BALL_REST — frozen at the pre-shot spot for the whole 1.15 s roll —
+  so a player standing next to the rolling ball gets NOTHING from the
+  press. Exactly the probe's flake (waitSettled resolves during 'return',
+  standByBall presses beside the ball).
+- Fix (15 lines, CourtGame.ts): the hotspot rides the ball — synced at the
+  settle()→'return' transition and every updateReturn frame, the same law
+  updateRest already applies at rest.
+- Guard (AGENTS.md §1c): tests/court-game.test.ts — 5 tests pinning the
+  law (rest pickup, hotspot-rides-the-roll, mid-roll intercept, honest
+  homecoming, pinned gate-exit arrival). Red-green proven: the two
+  intercept tests fail on the pre-fix code, pass with the fix.
+- Gates: tsc --noEmit clean; vitest 395/395 (23 files); probe-court ALL
+  PASS ×2 post-fix; diag-court-return flips to "intercept press WORKS".
+- docs/51 updated in the same commit: B3 moved under FIXED with the
+  mechanism, verification, and the kept diagnostics.
+
+Stage Summary:
+- B3 closed on main. The court's intercept promise ("a real pickup-game
+  move") is now reachable, not just declared. Remaining OPEN in docs/51:
+  B1 (subway stair y), B2 (M121 enterable), B4 (dusk-rail flake, needs a
+  clean machine), B6-B14.

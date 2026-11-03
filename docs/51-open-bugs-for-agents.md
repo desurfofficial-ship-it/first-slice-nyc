@@ -49,6 +49,26 @@ name/date before coding; mark FIXED in the same PR when done.
   exactly one bus (the M121 loop). Arrival film stages its own diorama coach
   300 m south and disposes it at handover. No second body in the bay.
 
+### B3. Court ball re-pickup after miss (probe-court) — FIXED 2026-11-03
+- **Fix:** the interaction hotspot (`COURT_BALL_REST`) now rides the ball
+  through the whole `'return'` roll-back — synced at the `settle()` transition
+  and every `updateReturn` frame, the same law `updateRest` already applied at
+  rest. Root cause: `pickUp()` accepts a mid-roll intercept (and the probe's
+  `standByBall` presses next to the rolling ball), but the registry's 2.1 m
+  range check read a hotspot frozen at the pre-shot spot — several meters
+  away — so the press was swallowed whenever a rebound exited the gate and
+  `waitSettled` resolved during the roll. On the common inside-court rebound
+  the hotspot was already correct, hence the flake.
+- **Commit / branch:** pushed to `main` (Agent 2, this commit).
+- **Verified:** new `tests/court-game.test.ts` (5 guards, red-green proven —
+  the two intercept tests fail on the pre-fix machine); full vitest 395/395;
+  `tsc --noEmit` clean; `probe-court` ALL PASS ×2 post-fix; deterministic
+  in-engine proof `scripts/diag-court-return.mjs` (gate exit via stand
+  (45.0, 5.6) + charge 0.30): press-does-nothing before, intercept works
+  after. Diagnostics kept: `diag-court-return.mjs` (mechanism prover),
+  `diag-court-repickup.mjs` (flake microscope), `diag-find-gate-exit.ts`
+  (regenerates deterministic gate-exit shot pairs).
+
 ---
 
 ## OPEN — probe failures (merged features)
@@ -96,6 +116,20 @@ name/date before coding; mark FIXED in the same PR when done.
   forensics (phase walk + registry dump). **probe-court: ALL PASS.**
 - Note: the 2026-11-03 audit that marked this OPEN ran on a tree cut
   before the fix landed — its reproduction agrees with this diagnosis.
+- **Second failure mode (Agent 2, same day, found independently):** even
+  with the ball honestly at rest/rolling, the registry's 2.1 m range check
+  read a hotspot (`COURT_BALL_REST`) frozen at the pre-shot spot for the
+  whole roll — a press made next to the rolling escapee did nothing.
+  Proven deterministically in-engine (gate exit via stand (45.0, 5.6) +
+  charge 0.30: press-does-nothing before, intercept works after).
+- **Guards added:** `settle()` now syncs the hotspot at the `'return'`
+  transition too (closes the one-press window between the settle frame and
+  the next `updateReturn`); `tests/court-game.test.ts` pins the law in 5
+  red-green-proven tests (rest pickup, hotspot rides the roll, mid-roll
+  intercept, honest homecoming). Diagnostics kept in `web-three/scripts/`:
+  `diag-court-return.mjs` (mechanism prover), `diag-court-repickup.mjs`
+  (flake microscope), `diag-find-gate-exit.ts` (shot-pair finder).
+  tsc clean, vitest 395/395, probe-court ALL PASS ×2 post-fix.
 
 ---
 
