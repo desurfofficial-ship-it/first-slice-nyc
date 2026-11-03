@@ -413,6 +413,18 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   it). Frontier back to the main pass: sign atlas (a program), interiors'
   window visibility, SUB_Root depth.
 
+- **Update 2026-11-04 (parallel verification, this merge):** the two rigs the
+  ledger above never published, measured on the merged tree with the same
+  `diag-perf-breakdown.mjs`: **TIMES_SQ 222 → 130 (−41% — the square is
+  UNDER the 150 line)** and **PLATFORM_A 179 → 146**. Session baseline →
+  merged main across all five rigs: PLAZA 470 → 370, CART_CORNER 408 → 301,
+  SYCAMORE×GABLE 134 → 115, TIMES_SQ 222 → 130, PLATFORM_A 179 → 146 — no
+  rig regressed at any step (the cast bake alone was worth −92 on the
+  square: its shadow pass carried a 161-call gap on a 61-mesh view, most of
+  it figures). A parallel agent landed the same person material law
+  independently; the merge kept main's implementation and dropped the
+  duplicate (one paved path). Verified on the merged tree: tsc clean, vitest
+  469/469, build clean, probe-subway ALL PASS, probe-a5c-arrival green.
 ### B14. Documentation hygiene
 - Some older docs (Phase 0 exit, AGENTS.md “code pending”) still read as if
   greybox/code had not started. Update status language so new agents do not

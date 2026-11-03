@@ -371,6 +371,21 @@ Stage Summary:
 - The eight-orders audit + pocket repair are on main. Gap list: Regulars arcs beyond Day 4 (needs design), audio partner outreach (business), touch hardening on real devices, the dusk-beat flake shape under load.
 
 ---
+Task ID: 2
+Agent: Z.ai (GLM)
+Task: docs/51 B13 — measure the top-3 costs on a full Kestrel + Times Square view; apply ONE construction-law perf fix; re-measure before/after. No new features.
+
+Work Log:
+- Baseline on 9f91778 (pulled 7 incoming commits first; 463/463 green before touching anything): diag-perf-breakdown PLAZA 470 / CART_CORNER 408 / SYCAMORE 134 / TIMES_SQ 222 / PLATFORM_A 179. probe-perf: boot 236, mid-street 302, plaza-life 432.
+- Top-3 identified with a new per-family shadow census (diag-shadow-census.mjs): (1) the shadow pass re-renders every person's 9-13 body-part meshes — characters+peds were 69 of PLAZA's 132 shadow calls for ~1.2k tris; TIMES_SQ's shadow gap was 161 on a 61-mesh view; (2) named-world props 56 shadow calls; (3) every person allocated a fresh material per part per body (World.buildPerson's factory was per-call).
+- The ONE fix (material share + merge, the statics' own law): personRig now bakes every part's color into vertex attributes on ONE shared MeshLambertMaterial({vertexColors}) — white × vertex color is bit-for-bit the same shade (the W0 bake law) — and merges each rigid same-pivot part group into one mesh (the W4p2 dusk-pair method). 6 meshes per person, down from 9-13, in BOTH passes. Pivots/animation/updatePersonAnim untouched; rig factory param retired through all 6 call sites (World, peds, timesSquare, arrivalBus) — one paved path.
+- After (same rigs, same method): PLAZA 406 (−64) / CART_CORNER 337 (−71) / SYCAMORE 115 (−19) / TIMES_SQ 130 (−92, −41% — the square is UNDER 150) / PLATFORM_A 146 (−33). probe-perf: 186 / 257 / 362. Tris bit-stable ±0.04%. Materials per person bucket 12-33 → 1. No rig regressed.
+- Gates: vitest 463/463 (rig.test.ts gained the permanent guard: 6 meshes, one shared material instance, vertex colors ride, uv dropped, both passes cast); tsc clean; probe-characters after (slide 2.7% — feet still plant; identity shots kept shots/characters/after-*.png); probe-subway ALL PASS; probe-court ALL PASS; probe-doc12 green; full E2E AUTOTEST OK 0 failures 354 s.
+- docs/51 B13 updated in the same commit with the numbers + evidence paths. B13 stays OPEN (Kestrel plaza rigs still over 150 — sign boards + prop cast-shadow discipline are the next levers, still held for an art call per docs/47).
+- THE PARALLEL LANDING, told honestly: origin advanced mid-task with agent5's cb1e880 — the IDENTICAL person material law, built independently (six-draw figures, shared vertex-color material, same rigs measured). Per the one-paved-path rule the merge (27d1803) kept main's implementation wholesale: my duplicate personRig change and my two near-duplicate diagnostics (diag-shadow-census, diag-identify-unnamed — main already carries diag-shadow-price/frontier/rig-xray/unnamed-xray) were dropped in the merge resolution. What survives of this task: the verification record for the two rigs agent5's ledger never published (TIMES_SQ 222 -> 130, PLATFORM_A 179 -> 146, re-measured on the merged tree) and the session's full five-rig before/after trail. Two agents reaching the same law from the same measurement is the strongest signal the law is the law.
+
+Stage Summary:
+- One construction-law fix, measured honestly, every rig improved, zero gameplay or look change. Person material law is now a test-guarded rule.
 ## 2026-11-03 — agent5: the gate grows a terminal (arrival pass 4)
 
 The probe saw it and so did the studio frames: the arrival card's backdrop
