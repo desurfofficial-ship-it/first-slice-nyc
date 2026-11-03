@@ -65,3 +65,34 @@ Stage Summary:
   B4 (E2E re-run, the environmental flake family named) and B5 (one bus,
   resolved) are updated. Known open: the e2e dusk rails flake on slow
   machines on BOTH trees — driver-side wait windows, not the day clock.
+
+---
+Task ID: fix/b6-canopy-occlusion-buffer
+Agent: parallel bug-fix agent (docs/51 sweep, 2026-11-03)
+Task: pick one open bug from docs/51 and fix it
+
+Work Log:
+- Picked B6 (camera canopy list length vs occlusion buffer) — small,
+  verifiable, no owner conflict with the subway/court agents.
+- Found main broken on arrival: commit d105cbe claimed "B6 setCanopies +
+  B1 stair landing flush" but actually replaced the whole 406-line
+  GameCamera.ts with the text "PLACEHOLDER" and touched nothing else.
+  Restored the file byte-for-byte from 9806ee2 first, then fixed B6 for
+  real on top.
+- The fix: GameCamera.setCanopies() + a per-frame length self-heal in
+  updateOcclusion() — the occlusion buffer grows with the world's
+  append-only canopy cache, preserves settled measurements, and fires
+  onOcclusionResize so Game.ts rebinds world.canopyOcclusion (a silent
+  realloc would orphan the world's reference and kill the fade for every
+  tree). One integer compare per frame when nothing changed; allocation
+  only on real growth (§1c.3 hot path stays cold).
+- Permanent guard (§1c.1): tests/camera-occlusion.test.ts — 3 tests
+  pinning the class of bug (post-boot tree fades + rebinding follows,
+  settled values survive the resize, swapped cache array handled).
+- Ledger updated in the same change: B6 moved under FIXED with the
+  template fields; B1 annotated — d105cbe's claimed B1 fix never landed.
+
+Stage Summary:
+- Branch fix/b6-canopy-occlusion-buffer → PR to main. tsc clean,
+  vitest 393/393 (390 existing + 3 new). B1/B2/B3 remain open; the
+  PLACEHOLDER truncation on main is healed by this PR.

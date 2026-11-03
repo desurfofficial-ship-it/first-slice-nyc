@@ -152,7 +152,11 @@ export class Game {
     this.player = new Player(this.world.colliders);
     this.cam = new GameCamera(window.innerWidth / window.innerHeight, this.world.colliders, this.world.canopySpheres());
     // the camera reports which canopies block its sight line; the world
-    // fades those canopies so the street never hides the player
+    // fades those canopies so the street never hides the player.
+    // B6: if World plants trees after this line, the occlusion buffer grows
+    // and reallocates — this callback keeps the world's binding on the live
+    // buffer (without it the fade would silently no-op for the new canopies).
+    this.cam.onOcclusionResize = (buffer) => { this.world.canopyOcclusion = buffer; };
     this.world.canopyOcclusion = this.cam.occlusion;
     this.ui = new UI();
     this.input = new InputManager({

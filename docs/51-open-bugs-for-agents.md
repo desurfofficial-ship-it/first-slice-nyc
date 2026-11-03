@@ -47,6 +47,26 @@ Everything still listed under OPEN is live work for a follow-up agent.
   exactly one bus (the M121 loop). Arrival film stages its own diorama coach
   300 m south and disposes it at handover. No second body in the bay.
 
+### B6. Camera canopy list length vs occlusion buffer — FIXED 2026-11-03
+- **Was:** `GameCamera` built `occlusion: Float32Array(canopies?.length ?? 0)`
+  at construct time. World's canopy cache is append-only, so any tree added
+  after camera construction left the buffer short and fade-on-occlude
+  silently no-oped for the new canopies (World's fade skips indices past the
+  buffer length).
+- **Fix:** `GameCamera.setCanopies()` + a per-frame length self-heal in
+  `updateOcclusion()`: the buffer grows with the world's cache, copies
+  settled measurements over, and fires `onOcclusionResize` so `Game.ts`
+  rebinds `world.canopyOcclusion` to the live buffer (a silent realloc would
+  otherwise orphan the world's reference and kill the fade for EVERY tree).
+  Zero per-frame cost when the count is unchanged. Also restored
+  `GameCamera.ts` in full: commit `d105cbe` had replaced the whole 406-line
+  file with the text "PLACEHOLDER" — `main` could not even typecheck.
+- **Commit / branch:** `fix/b6-canopy-occlusion-buffer` (PR to main).
+- **Verified:** `npx tsc --noEmit` clean; `npx vitest run` 393/393 green
+  including new `tests/camera-occlusion.test.ts` (3 permanent guards:
+  a post-boot tree fades and the world binding follows the realloc,
+  settled values survive the resize, `setCanopies` handles a swapped cache).
+
 ---
 
 ## OPEN — probe failures (merged features)
@@ -61,6 +81,9 @@ Everything still listed under OPEN is live work for a follow-up agent.
   below grade, `scripts/probe-subway.mjs` expectations.
 - **Owner hint:** Agent that owns W5 interiors or subway.
 - **Status:** OPEN — 2026-11-03 audit confirmed still live.
+  ⚠️ Note: commit `d105cbe` (2026-11-03) claimed a B1 fix in its message but
+  touched only `GameCamera.ts` — no `stationKit.ts` / `World.ts` change ever
+  landed. Treat B1 as untouched.
 
 ### B2. M121 arrival bus not enterable (probe-subway)
 - **Symptom:** `FAIL the M121 floor holds` / `FAIL the bus interior is enterable`
@@ -101,14 +124,6 @@ Everything still listed under OPEN is live work for a follow-up agent.
   viewport; if the dusk rails still flake, widen the driver's wait windows
   (driver-side, documented) rather than touching the day clock.
 - **Status:** OPEN — 2026-11-03 audit confirmed still live.
-
-### B6. Camera canopy list length vs occlusion buffer
-- `GameCamera` builds `occlusion: Float32Array(canopies?.length ?? 0)` at
-  construct time. If World adds trees after camera construction without
-  resizing the buffer, fade-on-occlude silently no-ops for new canopies.
-- **Where:** `GameCamera` constructor, `Game.ts` boot wiring,
-  `World.canopySpheres()`.
-- **Status:** OPEN.
 
 ### B7. Touch UI hidden logic vs order card / map
 - `#touch-ui` uses `hidden` and `hidden-when-panel`. Confirm order-card and
