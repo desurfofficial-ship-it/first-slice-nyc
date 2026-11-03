@@ -107,101 +107,165 @@ export interface PersonLook {
   scale?: number;     // whole-body height variety (pedestrians)
 }
 
+// ---- the person material law (B13 construction fix) ------------------------
+// ONE shared material for every person in the game. Colors ride vertex
+// attributes (the statics' bake law, W0): white Lambert × vertex color is
+// bit-for-bit the same shade the per-part materials produced. Materials are
+// allocated once per process, never per person, never per frame.
+
+let personMat: THREE.MeshLambertMaterial | undefined;
+export function personMaterial(): THREE.MeshLambertMaterial {
+  return (personMat ??= new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true }));
+}
+
+/** One rigid same-pivot part: geometry + its baked color + the old local
+ *  T·Rz placement, composed into the geometry (the W4p2 dusk-pair method). */
+interface RigPart {
+  g: THREE.BufferGeometry;
+  c: number;
+  x?: number;
+  y?: number;
+  z?: number;
+  rz?: number;
+}
+
+/** Bake a color into the geometry's vertex attribute and drop uv — the
+ *  bake's own recipe (W0): Lambert's diffuse was color × 1, now white ×
+ *  vertex color, bit-for-bit the same shade, and uv-less parts fuse. */
+function colored(g: THREE.BufferGeometry, c: number): THREE.BufferGeometry {
+  g.deleteAttribute('uv');
+  const pos = g.attributes.position;
+  const arr = new Float32Array(pos.count * 3);
+  const col = new THREE.Color(c);
+  for (let i = 0; i < pos.count; i++) {
+    arr[i * 3] = col.r;
+    arr[i * 3 + 1] = col.g;
+    arr[i * 3 + 2] = col.b;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+  return g;
+}
+
+/** One mesh from rigid same-pivot parts — one draw call in BOTH passes
+ *  (view + shadow). T·Rz composes into the geometry: rotateZ first, then
+ *  translate — the same transform the old T·(mesh rotation) produced. */
+function blob(parts: RigPart[]): THREE.Mesh {
+  const m = new THREE.Mesh(
+    mergeGeometries(
+      parts.map((p) => {
+        const g = colored(p.g, p.c);
+        if (p.rz) g.rotateZ(p.rz);
+        if (p.x !== undefined || p.y !== undefined || p.z !== undefined) {
+          g.translate(p.x ?? 0, p.y ?? 0, p.z ?? 0);
+        }
+        return g;
+      }),
+      false,
+    )!,
+    personMaterial(),
+  );
+  m.castShadow = true;
+  return m;
+}
+
 /**
  * The articulated person itself — boots, legs, torso, arms, hands, head with
  * hair (bun / cap / flat). ~1.72 m, feet at y=0, facing +Z. DOM-free so the
- * unit tests can build one without a canvas. World.buildPerson is a thin
- * wrapper passing its material factory.
+ * unit tests can build one without a canvas. Every part wears the ONE
+ * shared vertex-color person material (personMaterial()).
  *
  * Limb numbers mirror tools3d/procedural_glb.py (same abs positions the old
  * rigid build used — the hierarchy only adds pivots, it never moved a box).
  */
 export function buildArticulatedPerson(
   o: PersonLook,
-  mat: (color: number) => THREE.Material,
 ): { group: THREE.Group; rig: PersonRig } {
   const group = new THREE.Group();
   if (o.scale !== undefined) group.scale.setScalar(o.scale);
-  const mesh = (geo: THREE.BufferGeometry, color: number, x: number, y: number, z: number, rz = 0) => {
-    const m = new THREE.Mesh(geo, mat(color));
-    m.position.set(x, y, z);
-    m.rotation.z = rz;
-    m.castShadow = true;
-    return m;
-  };
+
+  // ---- the person material law (B13 construction fix, the statics' law) ----
+  // Every cast member used to carry ~9-13 meshes × one fresh material each
+  // (World.buildPerson's factory allocated per part per person) — twelve
+  // draw calls per walker in BOTH passes, materials nobody shares. Now the
+  // colors ride vertex attributes on ONE shared material — the bake's own
+  // law (W0: white Lambert × vertex color is bit-for-bit the same shade),
+  // and the rigid same-pivot parts merge into six meshes per person (the
+  // W4p2 dusk-pair method: T·Rz composed into the geometry, one draw call
+  // instead of many — in both passes). Same boxes, same pivots, same
+  // animation: the look is identical, the call count is not.
 
   const root = new THREE.Group(); // bob + forward lean (updatePersonAnim)
   group.add(root);
 
-  // hips at y=0.72 (leg top); legs + boots hang from the pivots
+  // hips at y=0.72 (leg top); each leg + its boot is one rigid pivot child
   const hipL = new THREE.Group(); hipL.position.set(-0.11, 0.72, 0);
   const hipR = new THREE.Group(); hipR.position.set(0.11, 0.72, 0);
   for (const hip of [hipL, hipR]) {
-    hip.add(mesh(new THREE.BoxGeometry(0.13, 0.62, 0.16), o.pants, 0, -0.31, 0));
-    hip.add(mesh(new THREE.BoxGeometry(0.16, 0.1, 0.28), o.shoe ?? PAL.ink, 0, -0.67, 0.03));
+    hip.add(blob([
+      { g: new THREE.BoxGeometry(0.13, 0.62, 0.16), c: o.pants, y: -0.31 },
+      { g: new THREE.BoxGeometry(0.16, 0.1, 0.28), c: o.shoe ?? PAL.ink, y: -0.67, z: 0.03 },
+    ]));
     root.add(hip);
   }
 
-  // torso/arms/head ride the body group (breathe idle)
+  // torso / shawl / strap ride the body group rigidly — ONE mesh
   const body = new THREE.Group();
   body.position.set(0, 0.72, 0);
-  body.add(mesh(new THREE.BoxGeometry(0.5, 0.62, 0.3), o.jacket, 0, 0.31, 0));
+  const bodyParts: RigPart[] = [
+    { g: new THREE.BoxGeometry(0.5, 0.62, 0.3), c: o.jacket, y: 0.31 },
+  ];
+  if (o.shawl !== undefined) {
+    // shoulders wrap — the same silhouette trick as the stranger's duffel
+    bodyParts.push({ g: new THREE.BoxGeometry(0.55, 0.13, 0.35), c: o.shawl, y: 0.56, z: -0.01 });
+  }
+  if (o.strap !== undefined) {
+    // courier look: a strap that wraps the torso (front AND back — the game
+    // camera spends most of its life behind the player) and the bag it holds.
+    // Their old position+rz tilt bakes into the geometry: T·Rz preserved.
+    bodyParts.push(
+      { g: new THREE.BoxGeometry(0.05, 0.82, 0.06).rotateZ(0.62).translate(0.03, 0.3, 0.165), c: o.strap },
+      { g: new THREE.BoxGeometry(0.05, 0.82, 0.06).rotateZ(0.62).translate(0.03, 0.3, -0.165), c: o.strap },
+      { g: new THREE.BoxGeometry(0.16, 0.14, 0.13).translate(-0.29, 0.0, 0.0), c: o.strap },
+    );
+  }
+  body.add(blob(bodyParts));
 
   const armL = new THREE.Group(); armL.position.set(-0.325, 0.56, 0);
   const armR = new THREE.Group(); armR.position.set(0.325, 0.56, 0);
   for (const [arm, sx, rz] of [[armL, -0.325, 0.09], [armR, 0.325, -0.09]] as const) {
-    arm.add(mesh(new THREE.BoxGeometry(0.11, 0.52, 0.13), o.jacket, 0, -0.22, 0, rz));
-    arm.add(mesh(new THREE.BoxGeometry(0.09, 0.09, 0.09), o.skin, sx * 0.06, -0.5, 0.01));
+    arm.add(blob([
+      { g: new THREE.BoxGeometry(0.11, 0.52, 0.13), c: o.jacket, y: -0.22, rz },
+      { g: new THREE.BoxGeometry(0.09, 0.09, 0.09), c: o.skin, x: sx * 0.06, y: -0.5, z: 0.01 },
+    ]));
     body.add(arm);
   }
 
   const head = new THREE.Group();
   head.position.set(0, 0.78, 0.01);
-  head.add(mesh(new THREE.BoxGeometry(0.3, 0.32, 0.28), o.skin, 0, 0, 0));
-  // the hair chain is RIGID inside the head group (the head glances as a
-  // unit) — its 2-4 boxes/spheres merge into ONE mesh by the W4p2 dusk-pair
-  // method (docs/47 lever 3): same boxes, same offsets, same material, one
-  // draw call instead of up to four — in BOTH passes, hair casts
-  const hairGeos: THREE.BufferGeometry[] = [
-    new THREE.BoxGeometry(0.32, 0.13, 0.3).translate(0, 0.2, -0.025),
-    new THREE.BoxGeometry(0.32, 0.2, 0.07).translate(0, 0.08, -0.145),
+  // head + hair (bun / cap / flat) + optional glasses — one glance pivot,
+  // one mesh. The hair chain is RIGID inside the head group (the head
+  // glances as a unit), so it rides the same blob.
+  const headParts: RigPart[] = [
+    { g: new THREE.BoxGeometry(0.3, 0.32, 0.28), c: o.skin },
+    { g: new THREE.BoxGeometry(0.32, 0.13, 0.3).translate(0, 0.2, -0.025), c: o.hair },
+    { g: new THREE.BoxGeometry(0.32, 0.2, 0.07).translate(0, 0.08, -0.145), c: o.hair },
   ];
   if (o.style === 'bun') {
-    hairGeos.push(new THREE.SphereGeometry(0.085, 10, 8).translate(0, 0.26, -0.15));
+    headParts.push({ g: new THREE.SphereGeometry(0.085, 10, 8).translate(0, 0.26, -0.15), c: o.hair });
   } else if (o.style === 'cap') {
-    hairGeos.push(new THREE.BoxGeometry(0.3, 0.03, 0.16).translate(0, 0.135, 0.14));
-    hairGeos.push(new THREE.BoxGeometry(0.32, 0.1, 0.31).translate(0, 0.195, -0.02));
+    headParts.push(
+      { g: new THREE.BoxGeometry(0.3, 0.03, 0.16).translate(0, 0.135, 0.14), c: o.hair },
+      { g: new THREE.BoxGeometry(0.32, 0.1, 0.31).translate(0, 0.195, -0.02), c: o.hair },
+    );
   }
-  const hair = new THREE.Mesh(mergeGeometries(hairGeos, false)!, mat(o.hair));
-  hair.castShadow = true;
-  head.add(hair);
   if (o.glasses) {
     // one dark bar across the eyes — reads as glasses at iso distance,
     // costs one box, and instantly separates Idris and Sal from the crowd
-    head.add(mesh(new THREE.BoxGeometry(0.27, 0.05, 0.035), 0x1c1a20, 0, 0.04, 0.145));
+    headParts.push({ g: new THREE.BoxGeometry(0.27, 0.05, 0.035), c: 0x1c1a20, y: 0.04, z: 0.145 });
   }
+  head.add(blob(headParts));
   body.add(head);
   root.add(body);
-
-  if (o.shawl !== undefined) {
-    // shoulders wrap — the same silhouette trick as the stranger's duffel
-    body.add(mesh(new THREE.BoxGeometry(0.55, 0.13, 0.35), o.shawl, 0, 0.56, -0.01));
-  }
-  if (o.strap !== undefined) {
-    // courier look: a strap that wraps the torso (front AND back — the game
-    // camera spends most of its life behind the player) and the bag it holds.
-    // All three boxes ride the body group rigidly — merged into ONE mesh by
-    // the same W4p2 method (their old position+rz tilt baked into the
-    // geometry: T·Rz composition preserved)
-    const strapGeos = [
-      new THREE.BoxGeometry(0.05, 0.82, 0.06).rotateZ(0.62).translate(0.03, 0.3, 0.165),
-      new THREE.BoxGeometry(0.05, 0.82, 0.06).rotateZ(0.62).translate(0.03, 0.3, -0.165),
-      new THREE.BoxGeometry(0.16, 0.14, 0.13).translate(-0.29, 0.0, 0.0),
-    ];
-    const strap = new THREE.Mesh(mergeGeometries(strapGeos, false)!, mat(o.strap));
-    strap.castShadow = true;
-    body.add(strap);
-  }
 
   const rig = attachRig(group, { root, body, hipL, hipR, armL, armR, head });
   return { group, rig };

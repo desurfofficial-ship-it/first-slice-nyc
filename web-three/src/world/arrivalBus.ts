@@ -177,7 +177,6 @@ export function buildArrivalBus(
   // the driver, behind the cab wall gap, radio murmuring somewhere off-map
   const { group: driver, rig: driverRig } = buildArticulatedPerson(
     { jacket: 0x2A9D8F, pants: 0x3a3a42, skin: 0xd9a06b, hair: 0x2b2730, style: 'cap' },
-    (c) => M(c),
   );
   driver.name = 'BUS_Driver';
   driver.position.set(-36.5, floorTop, z - 0.1);

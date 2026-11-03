@@ -9,9 +9,8 @@ import * as THREE from 'three';
 import { describe, it, expect } from 'vitest';
 import { buildArticulatedPerson, updatePersonAnim, type PersonRig } from '../src/world/personRig';
 
-const mat = (color: number) => new THREE.MeshLambertMaterial({ color });
 const make = (style: 'bun' | 'cap' | 'flat' = 'flat') =>
-  buildArticulatedPerson({ jacket: 0xf7b32b, pants: 0x3a3440, skin: 0xd9a06b, hair: 0x3a3440, style }, mat);
+  buildArticulatedPerson({ jacket: 0xf7b32b, pants: 0x3a3440, skin: 0xd9a06b, hair: 0x3a3440, style });
 
 describe('rig structure', () => {
   it('exposes hip/shoulder pivots where limbs hang', () => {
@@ -20,9 +19,12 @@ describe('rig structure', () => {
     expect(rig.hipL.position.y).toBeCloseTo(0.72);
     expect(rig.armR.position.y).toBeCloseTo(0.56); // shoulder, rel. body at 0.72
     expect(rig.head.parent).toBe(rig.body);
-    // boots stay at the feet: leg pivot 0.72 minus boot center offset 0.67
-    const bootY = rig.hipL.position.y + rig.hipL.children[1].position.y;
-    expect(bootY).toBeCloseTo(0.05);
+    // boots stay at the feet: the leg blob's lowest vertex reaches exactly
+    // the ground (hip 0.72 - boot hang 0.72 = 0 — feet at y=0)
+    const legBlob = rig.hipL.children[0] as THREE.Mesh;
+    legBlob.geometry.computeBoundingBox();
+    const bootY = rig.hipL.position.y + legBlob.position.y + legBlob.geometry.boundingBox!.min.y;
+    expect(bootY).toBeCloseTo(0);
     expect(group.userData.rig).toBe(rig);
   });
 

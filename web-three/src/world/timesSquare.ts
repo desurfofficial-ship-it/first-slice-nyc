@@ -279,7 +279,7 @@ export function buildTimesSquare(
 
   // ---- the cast of the square ----
   const rig = (name: string, look: Parameters<typeof buildArticulatedPerson>[0], x: number, z: number, yaw: number): PersonRig => {
-    const { group: g, rig: r } = buildArticulatedPerson(look, (c) => M(c));
+    const { group: g, rig: r } = buildArticulatedPerson(look);
     g.name = name;
     g.position.set(x, 0.1, z);
     g.rotation.y = yaw;

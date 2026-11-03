@@ -100,7 +100,6 @@ function oneWalker(
   const peds = new Pedestrians(
     scene,
     [{ jacket: 0x4a5568, pants: 0x3b3f4a, skin: 0xc98e5a, hair: 0x2b2730, style: 'cap' }],
-    () => new THREE.MeshLambertMaterial(),
     42,
     [path],
     [],
@@ -148,7 +147,6 @@ describe('ambient walkers are bodies (audit Q2/Q3 — merged onto the traffic-br
         { jacket: 0x4a5568, pants: 0x3b3f4a, skin: 0xc98e5a, hair: 0x2b2730 },
         { jacket: 0x7d5a62, pants: 0x47404b, skin: 0xe8b08e, hair: 0x6e3b2a },
       ],
-      () => new THREE.MeshLambertMaterial(),
       7,
       [[[0, 6], [10, 6]], [[10, 6.2], [0, 6.2]]],
       [],

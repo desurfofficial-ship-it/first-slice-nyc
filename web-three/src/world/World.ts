@@ -1518,7 +1518,7 @@ export class World {
       ],
     ];
     this.peds = new Pedestrians(
-      this.scene, pedLooks, (c) => this.bank.get(c), 20261030, pedPaths,
+      this.scene, pedLooks, 20261030, pedPaths,
       [
         { x: -14, z: 3.05, r: 1.9 },   // delivery van, north curb
         { x: 24, z: 3.05, r: 1.9 },    // parked sedan — north curb (was -3.05:
@@ -1627,7 +1627,7 @@ export class World {
     const figure = (
       name: string, look: PedLook, x: number, y: number, z: number, yaw: number, sit = false,
     ): void => {
-      const { group, rig } = buildArticulatedPerson(look, (c) => this.bank.get(c));
+      const { group, rig } = buildArticulatedPerson(look);
       // batch discipline (the census caught it): each novel (color, cast,
       // receive) signature opens a new baked batch per district tile — so a
       // tile's figures SHARE one palette and receive shadows like the
@@ -1803,7 +1803,7 @@ export class World {
     ];
     const byMat = new Map<THREE.MeshLambertMaterial, THREE.BufferGeometry[]>();
     for (const [look, x, z, yaw, pose] of looks) {
-      const { group, rig } = buildArticulatedPerson(look, (c) => this.bank.get(c));
+      const { group, rig } = buildArticulatedPerson(look);
       pose(rig);
       group.position.set(x, 0.1, z);
       group.rotation.y = yaw;
@@ -4883,7 +4883,7 @@ export class World {
    * (DOM-free, unit-tested); World only supplies its material factory.
    */
   buildPerson(o: Parameters<typeof buildArticulatedPerson>[0]): THREE.Group {
-    return buildArticulatedPerson(o, (color) => this.mat(color)).group;
+    return buildArticulatedPerson(o).group;
   }
 
   /** Persistent cast member: the articulated person (rig included). */

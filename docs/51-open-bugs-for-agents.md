@@ -381,6 +381,40 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   is UNDER the 250 line for the first time; Kestrel still over 150, gate
   line stays published. The statics' colors now ride vertex attributes and
   the census audit reads them (23 distinct [vc] shades surface).
+- **Update 2026-11-04 (person material law, this commit):** the top-3 costs
+  on a full Kestrel + Times Square view were measured with
+  `diag-perf-breakdown.mjs` + a per-family shadow census
+  (`diag-shadow-census.mjs`): (1) the shadow pass re-rendered every cast
+  member's ~9–13 body-part meshes — characters+peds were 69 of PLAZA's 132
+  shadow calls for ~1.2k tris, and TIMES_SQ's shadow gap was 161 calls on a
+  61-mesh view; (2) the named-world props added 56; (3) each person also
+  allocated a fresh material per part per body. The one construction-law
+  fix (no gameplay, no look change): **the person material law** — the
+  whole cast now shares ONE white `MeshLambertMaterial({vertexColors})`
+  (the statics' own bake law: white × vertex color is bit-for-bit the same
+  shade) and every rigid same-pivot part group merges into one mesh (the
+  W4p2 dusk-pair method): 6 meshes per person, down from 9–13, in BOTH
+  passes. Rig pivots, animation, and `updatePersonAnim` untouched.
+- **Measured before/after (same rigs, same method, `diag-perf-breakdown.mjs`):**
+  PLAZA 470 → **406** (−64) · CART_CORNER 408 → **337** (−71) ·
+  SYCAMORE×GABLE 134 → **115** (−19) · TIMES_SQ 222 → **130** (−92, −41% —
+  the square is UNDER the 150 line) · PLATFORM_A 179 → **146** (−33).
+  `probe-perf.mjs`: boot-spawn 236 → 186, mid-street-east 302 → 257,
+  plaza-life 432 → 362. Tri counts bit-stable (±0.04%). Materials per
+  person bucket: 12–33 → **1**. No rig regressed — the ledger gate holds.
+- **Verified:** `tests/rig.test.ts` carries the permanent guard (six
+  meshes, one shared material instance, vertex colors ride, uv dropped,
+  both passes cast — for the fullest look incl. strap+shawl+glasses+bun);
+  full vitest **463/463**; `tsc --noEmit` clean; `probe-characters` after
+  (slide 2.7% — feet still plant; visual identity shots kept
+  `shots/characters/after-*.png`); `probe-subway` ALL PASS (30 laws);
+  `probe-court` ALL PASS; `probe-doc12` green; full E2E AUTOTEST OK
+  0 failures 354 s, console clean. Diagnostics kept:
+  `diag-shadow-census.mjs` (per-family shadow attribution),
+  `diag-identify-unnamed.mjs` (the (unnamed) bucket identifier).
+- **Still owed for B13:** Kestrel plaza rigs remain over 150 (sign boards
+  and named-world prop cast-shadow discipline are the next measured
+  levers — docs/47 still holds them for an art call).
 
 ### B14. Documentation hygiene
 - Some older docs (Phase 0 exit, AGENTS.md “code pending”) still read as if
