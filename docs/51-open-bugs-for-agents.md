@@ -360,15 +360,23 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
 ### B12. Visual-audit follow-ups (Doc 31)
 - Day-4 greeting frame is the weakest: figures too small, composition spends
   pixels on blank wall/asphalt. Raise/tilt camera so the two figures own the
-  middle third.
+  middle third. — **FIXED 2026-11-04** (visual-d4 shot 2: parked low
+  three-quarter north of the M121 shell — the first parked pose stood inside
+  it; the pair owns the middle third, she meets his eye, the bus + tree +
+  newsbox carry the rest).
 - Multiple evidence frames still show staged Day-1 HUD ($87, Day-1 objective)
   while depicting Day-3/4 moments — fix probe/save staging for evidence shots.
+  — **FIXED 2026-11-04** (visual-d3 was the last offender: the Day-3 morning
+  block stages $111/$111 and the dusk postcard $120 — the tests' own
+  day2Done/day3Done law — with objectiveText() riding each staged step;
+  re-shot and eyeballed: $111 on the kid-on-stool chip, $120 on the
+  three-windows dusk).
 - Minor CLEAR items: floating AC units, lamp poles without bases, clipped
   signs, antenna prop, door scale on teal door, etc. Fix only after one
   in-engine look (Anti-Slop gate).
 - **Where:** evidence frame probes, camera framing for Day-4 greeting,
   prop placement.
-- **Status:** OPEN — polish / evidence hygiene.
+- **Status:** OPEN — item 3 (the CLEAR prop pass) remains; items 1–2 fixed.
 
 ### B13. Performance ledger still over ideal on full-street views
 - Doc 07 target “<150 typical street scene” is not met for plaza-wide rigs

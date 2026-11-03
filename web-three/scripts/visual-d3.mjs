@@ -56,11 +56,16 @@ await teleport(-32, 0.05, -3.6, Math.PI);
 await shot('d3_brownstones_portrait.png');
 
 // 3 — Day 3 morning at the cart: Rosa visiting, stool bought, kid seated
+// The HUD is staged too (docs/51 B12): the first cut of these frames wore
+// Day-1's $87 and Day-1's objective while depicting Day 3. The wallet law
+// is the tests' own: Day 3 opens at $111 (state-day3's day2Done), the
+// day closes at $120 (state-day4's day3Done).
 await page.evaluate(() => {
   const g = window.__game;
   const s = g.state;
   s.day = 3;
   s.cartName = "Wade's Spot";
+  s.money = 111; s.dayStartMoney = 111;
   s.kidKept = true;
   s.awningUp = true;
   s.stoolUp = true;
@@ -73,6 +78,8 @@ await page.evaluate(() => {
   // seat the kid via the same path the game uses
   s.setStep(21);
   for (const e of s.kidReachesCorner()) g.applyEffect(e); // no-op (stool already up? no: step D3_POSTER branch)
+  g.ui.setMoneyQuiet(111);
+  g.ui.setObjective(s.objectiveText());
 });
 await page.evaluate(() => {
   const g = window.__game;
@@ -84,15 +91,27 @@ await page.evaluate(() => {
   if (rig) rig.mode = 'sit';
   g.player.capsule.x = 1.2; g.player.capsule.y = 0.05; g.player.capsule.z = -2.4;
   g.player.rotationY = 0.4;
-  g.cam.snapBehind({ x: 1.2, y: 0.05, z: -2.4 });
+  // the frame's SUBJECT is the kid on the stool at the cart corner — the
+  // follow cam framed the empty street instead (docs/51 B12: evidence
+  // frames show their subject). Park the boom and aim at the corner:
+  // the player watches from the foreground, kid + stool + cart own the
+  // middle third.
+  g.cam.update = () => {};
+  g.cam.camera.position.set(0.4, 2.7, -0.1);
+  g.cam.camera.lookAt(7.0, 0.85, -6.1);
 });
 await shot('d3_kid_on_stool_portrait.png');
 
 // 4 — dusk: three windows lit, framed from the real postcard-rig pose.
 // The frame loop owns the camera, so park it: no-op cam.update, then pose.
+// The wallet dresses like the day's close: the rush's take has landed
+// ($120, the tests' day3Done law) on the morning's $111 bank.
 await page.evaluate(() => {
   const g = window.__game;
   g.state.setStep(23 /* D3_POSTCARD */);
+  g.state.money = 120;
+  g.ui.setMoneyQuiet(120);
+  g.ui.setObjective(g.state.objectiveText());
   const sky = g.world.skyUniforms;
   sky.topColor.setHex(0x3e2f5b); sky.horizonColor.setHex(0x6d4c7d); sky.groundColor.setHex(0x6d4c7d);
   g.world.sun.intensity = 0.35 * Math.PI;

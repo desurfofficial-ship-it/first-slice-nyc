@@ -93,11 +93,27 @@ await page.evaluate(() => {
 await teleport(-34.6, 0.05, 4.2, Math.PI * 0.9);
 await shot('d4_stranger_terminal_portrait.png');
 
-// 2 — the greeting: you, her, the terminal behind her (portrait). Camera
-// just off her shoulder — the audit called the first framing a thin strip
-// of action between two empty planes.
+// 2 — the greeting: you, her, the terminal behind her (portrait). The
+// audit's weakest frame: the follow boom read as a top-down census — two
+// small figures on blank planes. Parked pose now: a low three-quarter
+// from off the player's shoulder, the pair owning the middle third and
+// the terminal housing behind her (docs/51 B12).
 await teleport(-34.9, 0.05, 4.5, Math.PI - 0.62);
+await page.evaluate(() => {
+  const g = window.__game;
+  // she meets his eye — the greeting beat's whole point. Yaw from her
+  // post (-36.4, 4.8) toward the player (-34.9, 4.5).
+  g.world.stranger.rotation.y = Math.atan2(1.5, -0.3);
+  g.cam.update = () => {}; // the authored beat owns the camera, not the follow
+  // north of the M121's body (z 0.75..3.25 — a pose south of the sidewalk
+  // stands inside the parked shell), low, off the player's shoulder;
+  // ~4.5 m back so the pair owns the middle third with head-room and the
+  // stranger's profile reads
+  g.cam.camera.position.set(-32.5, 2.35, 7.7);
+  g.cam.camera.lookAt(-35.9, 0.85, 4.6);
+});
 await shot('d4_the_greeting_portrait.png', 900);
+await page.evaluate(() => { delete window.__game.cam.update; });
 
 // 3 — she walks your first walk: mid-crosswalk, the cab waiting (landscape)
 await page.evaluate(() => {
