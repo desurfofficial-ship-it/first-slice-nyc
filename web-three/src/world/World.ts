@@ -1268,6 +1268,12 @@ export class World {
     }
     this.collectTerminalShell();
     this.buildSubwayCast();
+    // the far world's statics merge per zone group (docs/47 "the zone
+    // bake"): SUB_Root + TSS_Group booted as ~600 single-mesh draw calls
+    // because their content must never join a DISTRICT tile — zone
+    // visibility is the law down there. The zone bake keeps the law:
+    // merge WITHIN each zone group, re-parent into it.
+    this.bakeZoneStatics();
 
     // ---- ambient pedestrians (Yuka steering) ----------------------------
     // Built AFTER the static bake so their rigs are never merge candidates;
@@ -2692,6 +2698,92 @@ export class World {
       this.registerDistrictObject(o, o.position.x, o.position.z);
     }
     this.updateDistricts(-30, 6.2); // boot at the spawn — the E2E's first frame
+  }
+
+  /** The zone bake — the far world's statics, merged per zone group.
+   *
+   *  SUB_Root and TSS_Group boot as ~600 single-mesh draw calls (the
+   *  census's top debtors) because their content must never join a
+   *  DISTRICT tile: zone visibility is the law down there, and a district
+   *  batch is lit by the street ring forever (stationKit's own header
+   *  states it). So the merge happens one level down, INSIDE each zone
+   *  group — same signature key as bakeStatics (color | emissive |
+   *  emissiveIntensity | fog | cast | receive), same material rules (no
+   *  map, no transparent, indexed geometry), and the merged mesh is
+   *  re-parented INTO its group so every law above survives untouched:
+   *  the zone lit-set, the dollhouse skip (collectTerminalShell walks
+   *  root names), the ride's scenery stream, the screens' per-screen
+   *  sync tick, and the subway cast's breathe.
+   *
+   *  Animated subtrees stay out by name: the cast rigs (Priya, the
+   *  busker, the usher, the square's crowd, riders, waiters) breathe;
+   *  TSS_Screen_N tick per screen (each screen owns its material
+   *  instance — merging them would fuse the sync beat). Singleton
+   *  signature groups stay as-is, exactly like bakeStatics. */
+  private bakeZoneStatics(): void {
+    const groups: THREE.Group[] = [
+      this.subway.groups.stationA, this.subway.groups.stationB,
+      this.subway.groups.tunnel, this.subway.groups.scenery,
+      this.timesSquare.group,
+    ];
+    const ANIMATED = /priya|busker|usher|crowd|mover|rider|sub_wait|sub_sax|tss_screen_\d+$/i;
+    const animated = (o: THREE.Object3D, g: THREE.Group): boolean => {
+      for (let p: THREE.Object3D | null = o; p && p !== g; p = p.parent) {
+        if (p.name && ANIMATED.test(p.name)) return true;
+      }
+      return false;
+    };
+
+    interface ZSrc { geo: THREE.BufferGeometry; mesh: THREE.Mesh }
+    const allRemoved: THREE.Mesh[] = [];
+    for (const g of groups) {
+      g.updateWorldMatrix(true, false);
+      const gInv = new THREE.Matrix4().copy(g.matrixWorld).invert();
+      const batches = new Map<string, { srcs: ZSrc[]; cast: boolean; receive: boolean; mat: THREE.MeshLambertMaterial }>();
+      g.traverse((o) => {
+        if (!(o instanceof THREE.Mesh) || animated(o, g)) return;
+        const mat = o.material;
+        if (!(mat instanceof THREE.MeshLambertMaterial) || mat.map || mat.transparent) return;
+        const geo = o.geometry;
+        if (!geo.index || !geo.attributes.position || !geo.attributes.normal) return;
+        o.updateWorldMatrix(true, false);
+        const c = geo.clone();
+        c.applyMatrix4(new THREE.Matrix4().multiplyMatrices(gInv, o.matrixWorld));
+        // attribute-identical sources only, so mergeGeometries accepts them
+        for (const name of Object.keys(c.attributes)) {
+          if (name !== 'position' && name !== 'normal' && name !== 'uv') c.deleteAttribute(name);
+        }
+        const key = `${mat.color.getHexString()}|${mat.emissive.getHexString()}`
+          + `|${mat.emissiveIntensity}|${mat.fog ? 1 : 0}`
+          + `|${o.castShadow ? 1 : 0}|${o.receiveShadow ? 1 : 0}`;
+        let b = batches.get(key);
+        if (!b) batches.set(key, b = { srcs: [], cast: o.castShadow, receive: o.receiveShadow, mat });
+        b.srcs.push({ geo: c, mesh: o });
+      });
+      let i = 0;
+      for (const b of batches.values()) {
+        if (b.srcs.length < 2) { for (const s of b.srcs) s.geo.dispose(); continue; }
+        const merged = mergeGeometries(b.srcs.map((s) => s.geo), false);
+        for (const s of b.srcs) s.geo.dispose();
+        if (!merged) continue;
+        for (const s of b.srcs) {
+          s.mesh.parent?.remove(s.mesh);
+          allRemoved.push(s.mesh);
+        }
+        merged.computeBoundingSphere();
+        const mesh = new THREE.Mesh(merged, b.mat);
+        mesh.name = `ZoneBake_${g.name}_${i++}`;
+        mesh.castShadow = b.cast;
+        mesh.receiveShadow = b.receive;
+        g.add(mesh);
+      }
+    }
+    // geometries referenced by any survivor must not die with the sources
+    const keepGeoms = new Set<THREE.BufferGeometry>();
+    this.scene.traverse((o) => { if (o instanceof THREE.Mesh) keepGeoms.add(o.geometry); });
+    for (const m of allRemoved) {
+      if (!keepGeoms.has(m.geometry)) m.geometry.dispose();
+    }
   }
 
   // ------------------------------------------------------------------ helpers

@@ -1085,3 +1085,74 @@ anchors) · **probe-subway ALL PASS** (the two standing failures fixed:
 dwell 8.5, the yield law 0/96, 2 laps in 149 s) · probe-solid ALL CLEAN
 (4/4) · probe-peds OK · probe-w3-ghost PASS · probe-w0-census OK ·
 **E2E: OK — 0 failures, 351 s**, console clean.
+
+## The zone bake + the attribution data (2026-11-03)
+
+**What landed.** `bakeZoneStatics` (World.ts, called right after
+`buildSubwayCast`): the far world's STATIC meshes merge per signature
+WITHIN their zone group — stationA, stationB, tunnel, scenery, TSS_Group.
+Same signature key as the district bake (color | emissive |
+emissiveIntensity | fog | cast | receive), same material rules (no map,
+no transparent, indexed), merged meshes re-parented INTO their group so
+every law above survives: the zone lit-set, the dollhouse skip
+(collectTerminalShell walks root names), the ride's scenery stream, the
+per-screen sync tick, the subway cast's breathe. Animated subtrees stay
+out by name (Priya, the busker, the usher, the square's crowd and
+movers, riders, waiters, SUB_Sax, TSS_Screen_N — each screen owns its
+material, merging would fuse the sync beat). Singleton signature groups
+stay as-is, like bakeStatics. Why group-local: stationKit's own header
+states the law — zone content must never join a DISTRICT tile (the
+street ring would light the tunnel forever); so the merge happens one
+level down.
+
+**The numbers, honestly.** Scene-wide the far world boots 244 meshes
+lighter: SUB_Root 319 → 205, TSS_Group 290 → 160 (probe-w0-census TOP).
+The three census rigs are byte-identical (PLAZA 1071 / CART_CORNER 898 /
+SYCAMORE_GABLE 518) — they never saw this content (underground zones
+unlit at street level, Times Square off-frustum), so the Doc 07 gate
+line reads no change and remains failed, published. At a Times Square
+rig the real saving is −12 calls: most merged statics sit outside that
+rig's frustum and TSS statics don't cast (no shadow-pass share). The
+bake's real value is cap-and-structure: any view that actually sees lit
+zone content now draws the station in ~a dozen batches instead of ~130
+meshes, and the far world stops growing linearly per prop.
+
+**The attribution data (the real headline).** Two new diag tools
+(`diag-perf-breakdown.mjs` per-rig frustum buckets, `diag-call-attrib.mjs`
+empirical toggles) decompose the REAL numbers for the first time:
+
+- **The shadow pass is 44–84% of every rig**: PLAZA 452 of 1072,
+  TIMES_SQ 439 of 527, PLATFORM_A 454 of 536. The sun's shadow camera is
+  a fixed ±60 m box over the authored street (World.ts 385-390) and
+  re-renders every caster in it every frame, view-independent.
+- The street-ring main pass is ~620 at PLAZA: bake tiles ~300 (16 tiles
+  × 15-28 signature batches — the tile-granularity debt, now precisely
+  located), tree canopies ~63 (unnamed greens), peds 34-39, cast rigs.
+- The underground rigs measured with zones UNLIT: `underground` is a
+  state (flipped by the stair descent / ride machine), not a position —
+  teleport diag rigs don't light the station. Future underground perf
+  reads must walk the stairs or flip the state.
+
+**Next levers, recorded with measured values, not promised:**
+
+1. **Shadow camera follow/tighten** (±60 static → ±35-40 player-follow):
+   est −250..−350 real at EVERY rig — the only lever that can reach the
+   Doc 07 line — but it changes the shipped look (shadow coverage in
+   view, Times Square currently shadowless by design). Needs an art
+   call before implementation; recorded, not made.
+2. **Canopy instancing**: 36 + 27 unnamed canopy blobs → 1-2
+   InstancedMeshes with per-instance sway matrices; est −60..−80 real
+   (canopies cast, so the shadow pass pays too). Contained to the W0
+   canopy sway system.
+3. **Figure part-merging** (corrects the recorded "per-tile figure
+   palette sharing"): palette sharing merges MATERIALS, not draw calls —
+   the rig parts stay parts. The call-moving lever is W4p2's dusk-pair
+   method (merge torso+head per posed figure); peds are walking rigs, so
+   only their rigid torso/head chains merge: est −15 visible / −30 real.
+   Palette sharing stays a state-change win, not a call win.
+
+**Verification**: tsc clean · vitest **367/367** · build clean · registry
+validator green (129 IDs, 12/12 masses, 18/18 anchors) · probe-subway
+ALL PASS 22/22 · probe-w4-bus OK 13/13 · probe-solid ALL CLEAN (4/4) ·
+probe-w0-census OK (ledger above) · **E2E: OK — 0 failures, 458 s**,
+console clean (E2E_W=320 E2E_H=700).
