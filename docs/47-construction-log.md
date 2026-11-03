@@ -1600,3 +1600,15 @@ new album beats (keep → shelf → open → close; day 2 joins; share hides
 honestly) and the pointer-path guard on the album chip. probe-album 4/4;
 probe-skyline prints the evidence frame
 (assets/web-three/frames/skyline_lit_windows_dusk.png).
+
+## Merge addendum — agent5's arrival staging rides along (2026-11-03)
+
+agent5's wave landed mid-pass (the arrival ride's own staged skyline at
+110 m, the subway chalk, seven new subway tests). The merge was clean —
+their staging is a separate copy in `arrival.ts`; the main-world towers
+and the album/skyline work rode through intact, bake guard included.
+Gates re-run on the merged tree: tsc clean · vitest **457/457** · build
+clean · E2E AUTOTEST OK, **0 failures, 432 s**, zero console errors.
+Push is the one open step: the one-time token is gone from the sandbox,
+so the three feature commits + this merge sit verified on local main
+(3c3b7f4) until a fresh token lands.

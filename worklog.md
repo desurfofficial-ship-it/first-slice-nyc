@@ -309,6 +309,6 @@ Work Log:
 - Both probes added and green (album thumb-path 4/4; skyline materials + evidence frame); curated frames into assets/web-three/frames/.
 
 Stage Summary:
-- tsc clean; vitest 450/450; build clean; E2E AUTOTEST OK 0 failures / 484 s / console clean on the final tree.
+- tsc clean; vitest 457/457 after the agent5 merge; build clean; E2E AUTOTEST OK 0 failures / 432 s / console clean on the merged final tree (3c3b7f4).
 - Gap list after this pass: Regulars arcs beyond Day 4 (needs design), audio partner outreach (business, not code), touch panel hardening on real devices (the B7 contract now covers the album too).
 - Push needs a fresh token (none on disk; the repo is public, so fetch works anonymously).
