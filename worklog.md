@@ -215,3 +215,20 @@ Work Log:
 Stage Summary:
 - main = ed1e24d, deployed and live-verified: the labeled Map chip opens the notebook with the sketch on production. tsc clean; vitest 430/430; E2E AUTOTEST OK 0 failures / 351 s / console clean; probe-court, probe-subway, probe-doc12 all pass.
 - The audit's open tail (needs design/owners, recorded in docs/51): postcard share sheet + album, Regulars arcs beyond Day 4, audio stems.
+
+---
+Task ID: 4
+Agent: Z.ai (GLM)
+Task: Work the GDD gap list (postcard album + share sheet; the skyline of lit windows); verify the merged tree end-to-end; keep the protocol logs.
+
+Work Log:
+- Confirmed the prior session's push had landed (origin/main == local; the "ahead 9" was a stale ref) and that ed1e24d carried its recorded E2E green — no backlog to push.
+- Closed the postcard gap: Keep now files the card on an album shelf (quarter-size print, capped at 24, quota-degrading, v1-safe localStorage beside the save) and the platform share sheet takes the card as a file where the Web Share API can — the Share button exists only there, honestly hidden elsewhere. Album panel in the Map's paper language; the HUD gains the mirrored folded-corner chip "Album (n)".
+- Closed the skyline gap: ~200 seeded lit panes on the far towers via one InstancedMesh (one draw call, fog off) + a day-keyed far diary (dark until Day 3, warm from Day 3), deterministic by unit tests.
+- Found and fixed a real bake predator: bakeStatics treated the InstancedMesh as a plain Mesh — one phantom pane at the origin replaced the whole instanced draw (the canopy had only dodged it by build order). The bake now never touches instanced draws.
+- Both probes added and green (album thumb-path 4/4; skyline materials + evidence frame); curated frames into assets/web-three/frames/.
+
+Stage Summary:
+- tsc clean; vitest 450/450; build clean; E2E AUTOTEST OK 0 failures / 484 s / console clean on the final tree.
+- Gap list after this pass: Regulars arcs beyond Day 4 (needs design), audio partner outreach (business, not code), touch panel hardening on real devices (the B7 contract now covers the album too).
+- Push needs a fresh token (none on disk; the repo is public, so fetch works anonymously).

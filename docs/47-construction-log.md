@@ -1559,3 +1559,44 @@ east). Two deterministic failures became two green runs.
 
 **Verification:** tsc clean · vitest **430/430** · build clean ·
 E2E AUTOTEST OK, 0 failures, 351 s, zero console errors.
+
+## The postcard's album + the share sheet; the skyline's lit windows (SHIPPED 2026-11-03, docs/54)
+
+Two lines of the GDD audit's "still thin" list, closed in one pass.
+
+**The album** — "Keep this postcard" was a download and a forgetting. Now
+the same click files the card on a shelf (`src/postcard/Album.ts`): a
+192×336 print of the same 4:7 paper (stamp and caption included), newest
+first, capped at 24, `first_slice_album` in localStorage beside the save.
+The parser faces the save parser's wall — thirteen wrong shapes, plus
+truncation and byte-flip fuzz, never throws; a full shelf halves rather
+than lose the newest, and the HUD chip counts what actually stuck. The
+panel is a paper sheet in the Map's language; a tap re-prints the card
+(full-size if this session holds the paper, album-size from an older
+visit — and the note says so).
+
+**The share sheet** — the card goes to the platform's Web Share API as a
+FILE when `canShare({files})` can take it; closing the sheet is
+"shared"; everything else falls through to the download. The Share
+button exists only where the API can actually take the file — headless
+Linux keeps it hidden, and the autotest asserts that honesty.
+
+**The skyline's lit windows** — the far card of towers at z 90 was eight
+dead silhouettes; now ~200 seeded warm panes ride one InstancedMesh (one
+draw call, fog off, facing the street): the same tower keeps the same lit
+windows every run, top floors keep darker, and two dark windows wake
+with the week (Day 3, then Day 4) — the far city keeps a diary too.
+
+**The bake lesson** — `bakeStatics` swallowed them: an InstancedMesh IS
+a Mesh, and the bake cloned the base plane into a phantom pane at the
+origin and stripped the real draw from the scene (the canopy had only
+dodged the same trap by being built after the bake). The fix is
+structural: the bake never touches instanced draws. Found by the probe's
+material readback, not by a screenshot that refused to exist.
+
+**Verification:** tsc clean · vitest **450/450** · build clean · E2E
+AUTOTEST OK, **0 failures, 484 s**, zero console errors — including the
+new album beats (keep → shelf → open → close; day 2 joins; share hides
+honestly) and the pointer-path guard on the album chip. probe-album 4/4;
+probe-skyline prints the evidence frame
+(assets/web-three/frames/skyline_lit_windows_dusk.png).
