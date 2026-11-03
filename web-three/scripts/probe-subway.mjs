@@ -137,6 +137,23 @@ const run = await page.evaluate(async () => {
   batch(2.2);
   out.retired = g.world.subway.ride.phase === 'idle';
 
+  // 6b. the left-behind law (bug-hunt fix): a player on the PLATFORM when
+  // the machine rides must NOT be translated at the seam — the ride runs,
+  // the arrival's doors-open event sets them free, no 288 m teleport.
+  tp(-41.1, -3.1, 13.4); // platform, at the door, OUTSIDE the car band
+  const leftX = p.x;
+  g.world.subway.requestRide('A');
+  batch(2); // closing (1.2 s)
+  out.leftBehindStarted = g.world.subway.ride.phase === 'riding';
+  batch(11); // through the seam (swap at t=12)
+  out.leftBehindKeptX = +p.x.toFixed(1) === +leftX.toFixed(1);
+  out.leftBehindStillRiding = g.world.subway.ride.phase !== 'idle';
+  batch(12); // to arrival (t=22) + retire (platform z < edge)
+  batch(3); // departing (1.6 s) → idle with doors open
+  out.leftBehindReleased = g.world.subway.ride.phase === 'idle'
+    && g.world.subway.doorsOpen === true;
+
+
   // 9. climb out: the treads climb (STEP_UP law), the surface receives
   tp(-335.6, -3.1, 7.4, Math.PI);
   await sleep(400);
@@ -207,6 +224,10 @@ check(run.boarded === true, 'boarding closes the doors');
 check(run.atB === true, 'the seam lands the player at 42nd St');
 check(run.swappedX < -320, `the swap translated the player (x ${run.swappedX})`);
 check(run.doorsOpenAtB === true, 'the doors reopen on arrival');
+check(run.leftBehindStarted === true, 'a left-behind player still starts the machine');
+check(run.leftBehindKeptX === true, 'the seam does NOT teleport a player on the platform');
+check(run.leftBehindStillRiding === true, 'the ride continues without the stowaway');
+check(run.leftBehindReleased === true, 'the arrival releases them: idle, doors open');
 check(run.busker === true, 'the busker plays the 42nd St platform');
 check(run.retired === true, 'stepping off retires the ride');
 check(Math.abs(run.surfaceY - 0.1) < 0.25, `the exit stair climbs to the square (y ${run.surfaceY})`);

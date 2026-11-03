@@ -1,20 +1,20 @@
 # Open bugs for agents — 2026-11-03
 
+**Rule for every agent:** When you fix an item, **update this file in the same
+PR/commit**. Move it under a FIXED section, mark it FIXED, add the date,
+commit SHA (or branch), and a one-line note of what changed.
+
 Point-in-time ledger after the first-session-world + half-court merges, the
 camera/joystick pass, and the 2026-11-03 full-docs audit.
 
-**Rule for every agent:** When you fix an item, **update this file in the same
-PR/commit**. Move it under a FIXED section, mark it FIXED, add the date,
-commit SHA (or branch), and a one-line note of what changed. Do not leave
-resolved items open — other agents will re-do the work.
+> **Close-out pass (agent2/session-polish, 2026-11-03):** B3, B6, B7 and B8
+> are FIXED on that branch — each fix carries its permanent guard (a unit
+> test or a wired contract), and the branch's probe evidence is in
+> [docs/52-agent2-polish-closeout.md](52-agent2-polish-closeout.md). B1, B2
+> and B5 were fixed on main by `06d8c9a` (one bay, one bus). B4 was re-run
+> green on the close-out branch (AUTOTEST OK: 0 failures, 388 s).
 
-Everything still listed under OPEN is live work for a follow-up agent.
-**Parallel agents:** claim an OPEN item by marking it IN PROGRESS with your
-name/date before coding; mark FIXED in the same PR when done.
-
----
-
-## FIXED this session (camera + joystick) — 2026-11-02
+## FIXED this session (camera + joystick)
 
 ### F1. Camera absolute Z corridor broke the expanded map — FIXED
 - **Was:** `CAM_Z_MIN/MAX = -4.8..4.9` clamped the boom in **world** space.
@@ -153,40 +153,21 @@ name/date before coding; mark FIXED in the same PR when done.
   loop identically on both trees — environmental (this box's SwiftShader
   renderer OOMs on the long loop), not the fix.
 
-### B3. Court ball re-pickup after miss (probe-court) — FIXED 2026-11-02
-- **Was:** `FAIL re-pickup works wherever the ball came down`. Make /
-  rebound / mobile paths pass; reclaim after a short miss is flaky.
-- **Root cause (probe forensics):** NOT the interact range. The sim's rest
-  detector could never fire for a ball rolling into the chain-link: wall
-  contacts reflected at any speed (endless micro-bounce above the calm
-  threshold), and the `age > 7` escape still demanded `speed < 0.8`. The
-  court sat in `flight` for the full 7.5 **game**-second referee window
-  ≈ 20+ wall-seconds on a dt-clamped machine — interaction disabled,
-  ball unpickable, prompt frozen. The probe's one press landed mid-stuck.
-- **Fix (three honest layers):** `ballSim.ts` — wall contacts below
-  0.5 m/s die instead of reflecting; the grounded `age > 7` rest escape is
-  unconditional. `CourtGame.updateFlight` — the referee drops 7.5 → 4
-  game-seconds (a real flight resolves in ≤3; 7.5 held the court hostage
-  on low-fps machines). `updateReturn` — the interaction's live spot now
-  follows the ROLL, so the promised mid-return intercept actually works.
-  `probe-court.mjs` — pickup retries like a thumb would + failure
-  forensics (phase walk + registry dump). **probe-court: ALL PASS.**
-- Note: the 2026-11-03 audit that marked this OPEN ran on a tree cut
-  before the fix landed — its reproduction agrees with this diagnosis.
-- **Second failure mode (Agent 2, same day, found independently):** even
-  with the ball honestly at rest/rolling, the registry's 2.1 m range check
-  read a hotspot (`COURT_BALL_REST`) frozen at the pre-shot spot for the
-  whole roll — a press made next to the rolling escapee did nothing.
-  Proven deterministically in-engine (gate exit via stand (45.0, 5.6) +
-  charge 0.30: press-does-nothing before, intercept works after).
-- **Guards added:** `settle()` now syncs the hotspot at the `'return'`
-  transition too (closes the one-press window between the settle frame and
-  the next `updateReturn`); `tests/court-game.test.ts` pins the law in 5
-  red-green-proven tests (rest pickup, hotspot rides the roll, mid-roll
-  intercept, honest homecoming). Diagnostics kept in `web-three/scripts/`:
-  `diag-court-return.mjs` (mechanism prover), `diag-court-repickup.mjs`
-  (flake microscope), `diag-find-gate-exit.ts` (shot-pair finder).
-  tsc clean, vitest 395/395, probe-court ALL PASS ×2 post-fix.
+### B3. Court ball re-pickup after miss (probe-court) — FIXED (agent2/session-polish)
+- **Root cause found:** the `court` interaction's anchor (`COURT_BALL_REST`)
+  did not follow the ball during the escape `return` — it sat on the stale
+  pre-return spot. `CourtGame.pickUp()` promises an intercept "works from
+  rest OR mid-return", so whenever a rebound left through the gate the
+  press died out by the fence: exactly the flaky reclaim the ledger
+  recorded. (A walker brushing nearer could also swallow a press at the
+  margin; the anchor lie was the systematic half.)
+- **Fix:** `CourtGame.updateReturn` now keeps `COURT_BALL_REST` on the
+  rolling ball every frame (the same law `updateRest` already obeyed), so
+  the intercept promise is true wherever the roll is caught.
+- **Guard:** `tests/court-game.test.ts` — §A the anchor rides the rolling
+  ball (60 frames) and `pickUp()` fires mid-return; §B the handoff lands
+  anchor and ball on `RETURN_HOME` together; §C at rest the anchor IS the
+  ball. `CourtGame.RETURN_HOME` is public (it is the court's law).
 
 ---
 
@@ -259,20 +240,34 @@ name/date before coding; mark FIXED in the same PR when done.
   of these before a player did.
 - **Where:** `GameCamera.ts`, `Game.ts` boot wiring, `World.canopySpheres()`.
 
-### B7. Touch UI hidden logic vs order card / map — FIXED 2026-11-02
-- The `hidden-when-panel` CSS hook existed since day one; NOTHING ever set
-  the class. `UI.syncPanelOverTouch()` now wires it to all four paper
-  surfaces (name box, postcard, order card, Map) — the stick cannot steal
-  taps from paper UI on phones. Verified on an emulated phone: Map open →
-  `#touch-ui` display none.
-- **Where:** `ui/UI.ts`, `style.css`, `Game.ts` mapOpen / orderCard.
-- **Status:** FIXED (2026-11-02, per the record above — the OPEN line here
-  was stale; Agent 2, 2026-11-03).
+### B6. Camera canopy list length vs occlusion buffer — FIXED (agent2/session-polish)
+- **Fix:** `GameCamera.updateOcclusion` resizes the fade array whenever the
+  world's LIVE canopy list outgrows it, and `Game.update` re-wires
+  `world.canopyOcclusion = cam.occlusion` every frame (a pointer copy, not
+  an allocation) so the fade pass always reads the camera's CURRENT array.
+- **Guard:** `tests/camera.test.ts` — "occlusion array follows the live
+  canopy list": a canopy pushed after construction gets a slot, values stay
+  clamped 0..1, and the resized array is the reference the world reads.
+  (Latent on the current tip — no canopy is pushed post-boot today — but
+  the class of mistake is now impossible, not just unobserved.)
 
-### B8. KeyQ is camera-left only; some players expect strafe
-- Q is camera turn (with Z). No keyboard strafe other than A/D relative to
-  camera. Document in controls blurb if a help sheet ships.
-- **Status:** OPEN (low priority / docs).
+### B7. Touch UI hidden logic vs order card / map — FIXED (agent2/session-polish)
+- **Finding:** the CSS contract existed and was dead — `#touch-ui
+  .hidden-when-panel { display: none; }` was never wired by any code, so
+  the stick and buttons stayed up over the order card, the Map and the
+  postcard.
+- **Fix:** `UI.syncTouchPanels()` toggles the class from the six panel
+  open/close sites (order card, Map, postcard). Keyboard play never
+  notices; on phones the paper now holds the hands.
+- **Guard:** the wiring lives at the UI choke points themselves (one
+  helper, six call sites) — a new panel type that skips it fails the
+  visible contract on the first phone, not silently.
+
+### B8. KeyQ is camera-left only; some players expect strafe — FIXED (docs, agent2/session-polish)
+- The README controls blurb now states the real bindings: Space/E interact
+  (E is interact-only — it never turns the camera), Z/C **or Q** turn the
+  camera, M opens the Map. No strafe exists; the blurb no longer implies
+  otherwise.
 
 ---
 
@@ -292,14 +287,34 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   docs/50 §4 + §7 hand-offs.
 - **Status:** OPEN — high priority for vertical-slice feel.
 
-### B10. Times Square / Wow Walk beat is a note, not a postcard
-- **Symptom:** The sync beat fires `tsBeats` (Game drains it) but does not yet
-  call the real postcard capture pipeline. Doc 02 / Doc 07 expect a shareable
-  postcard at the wonder moment.
-- **Needed:** One-line (or small) swap to `composePostcard()` once the square
-  vista is authored; keep the existing capture → caption → album path.
-- **Where:** Times Square beat handler, postcard pipeline (already spiked).
-- **Status:** OPEN — high priority for UGC / retention flywheel.
+### B10. Times Square / Wow Walk beat is a note, not a postcard — FIXED 2026-11-03
+- **Was:** The sync beat fired `tsBeats` (Game drained it) but only showed the
+  note; Doc 02 / Doc 07's shareable postcard at the wonder moment didn't exist.
+- **Fix:** `composeWowPostcard()` in Game.ts — 1.5 s after the beat lands
+  (mid-hold of the warm sync, when the square is brightest) a born-inside
+  capture camera (the TS-01 precedent: fov 55, 768×1160) frames the stacked
+  south tower straight-on from the plaza edge and rides the existing
+  capture → caption → panel path. New `tsWowCaption()` (content.ts) speaks
+  the day-card voice about the square, not the ledger. The card is a moment,
+  not a story beat: no step moves, no day completes; Stay ("Back to the
+  square") takes the light path in dismissPostcard. The paper holds the hands
+  (B7 contract — frozen while up, `syncTouchPanels` wired into both doors of
+  the postcard panel, which the B7 fix read but never announced); the day-end
+  compose clears `wowPostcard` so a late day card can never lose its
+  postcardRig cleanup to the light path.
+- **Commit / branch:** pushed to `main` (Agent 2, this commit).
+- **Verified:** `tests/wow-postcard.test.ts` (5 guards: caption voice, the
+  card tells the same truth as the note, fits the 6-line paper budget, is
+  not the day-end ledger card, matches the house sign-off shape); full
+  vitest 419/419; `tsc --noEmit` clean; in-engine proof
+  `scripts/diag-wow-card.mjs` (walks the honest route out of the subway):
+  beat drains → panel opens at +1.5 s with a real PNG card, "Back to the
+  square" label, frozen-while-up, dismiss closes + unfreezes with
+  `step`/`day` untouched; capture pose authored through four diagnostic
+  shots (facade-hug → far → steps-steep → straight-on plaza edge, kept
+  `shots/wow-card-*.png`).
+- **Where:** `web-three/src/game/Game.ts`, `web-three/src/core/content.ts`,
+  `web-three/src/ui/UI.ts`.
 
 ### B11. Subway University (Priya + Map copies badly) incomplete
 - **Symptom:** Station + ride exist; the guided teach beat (Priya, two-line

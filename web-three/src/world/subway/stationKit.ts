@@ -267,11 +267,44 @@ export interface StationOpts {
   home: boolean;
 }
 
+/** Meshes that live systems hold by reference and mutate per-frame — the
+ *  zone bake (World.bakeZoneStatics) must never merge these, or the merge
+ *  DETACHES the mesh and the system's writes land on a dead object:
+ *  · SUB_Ceiling_N — index.ts toggles .visible below grade (the dollhouse
+ *    lid, docs/50 §5). Found by the bug-hunt sweep: baked, the toggle went
+ *    dead, and the ceiling slab walling the cutaway view shut from above.
+ *  · SUB_Turnstile{Hub,Arm}_* — index.ts spins the arms on a fare pass
+ *    (docs/52 §4.6). Baked, the spin went visually dead (the probe was
+ *    measuring a detached mesh). */
+export const ZONE_KEEP_RE = /SUB_Ceiling_|SUB_Turnstile/;
+
 export interface StationResult {
   /** The ceiling slab — hidden while the player is below grade (the
    *  terminal lifts off with it: the dollhouse). */
   ceiling: THREE.Mesh;
   dressing: THREE.Group;
+  /** Per-hub arm meshes (2 hubs × 3 arms) — the world spins them on a
+   *  fare pass (docs/50 §4.6: "the turnstiles do not spin", paid). */
+  turnstileHubs: THREE.Mesh[][];
+}
+
+/** The fare line's world z — the world reads this to detect a pass. */
+export const FARE_Z = 10.2;
+/** Turnstile hub x offsets relative to the station center. */
+export const TURNSTILE_DX = [-4.55, 0.65] as const;
+
+/** Which hub (0/1) the feet just crossed the fare line through, or -1.
+ *  Pure: the subway's update calls it per station; the test pins the law.
+ *  A pass needs a strict sign change across FARE_Z while standing inside a
+ *  hub's gate (±0.55 — the base is 0.7 wide); the open lane crosses free. */
+export function turnstileHubAt(
+  prevZ: number, z: number, feetX: number, cx: number,
+): number {
+  if ((prevZ - FARE_Z) * (z - FARE_Z) >= 0) return -1; // same side, no pass
+  for (let i = 0; i < TURNSTILE_DX.length; i++) {
+    if (Math.abs(feetX - (cx + TURNSTILE_DX[i])) < 0.55) return i;
+  }
+  return -1;
 }
 
 /** One parameterized station: floor, walls with portal openings, ceiling,
@@ -412,21 +445,28 @@ export function buildStation(ctx: KitCtx, opts: StationOpts): StationResult {
     box(dctx, `SUB_Light_${tag}_${lx.toFixed(1)}`, lx, yTop + 0.09, 11.4, 3.1, 0.07, 0.26, 0xFFF8F0, { emissive: 0xFFF2CC, ei: 1.2, collide: false });
   }
 
-  // turnstile dressing: hubs + three arms each (the pass click is audio)
+  // turnstile dressing: hubs + three arms each — a pass through a hub's
+  // gate spins it a third-turn and clicks (docs/50 §4.6, paid; the open
+  // lane crosses free, like every station that trusts its riders)
+  const turnstileHubs: THREE.Mesh[][] = [];
   for (const tx of [cx - 4.55, cx + 0.65]) {
     box(dctx, `SUB_TurnstileHub_${tag}_${tx}`, tx, yMin + 0.95, fareZ, 0.16, 0.16, 0.55, steel, { collide: false });
+    const arms: THREE.Mesh[] = [];
     for (let a = 0; a < 3; a++) {
       const arm = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.09, 0.09), ctx.M(steel));
       arm.name = `SUB_TurnstileArm_${tag}_${tx.toFixed(2)}_${a}`;
       arm.position.set(tx, yMin + 0.95, fareZ);
       arm.rotation.y = (a / 3) * Math.PI * 2;
+      arm.userData.baseY = arm.rotation.y;
       dressing.add(arm);
+      arms.push(arm);
     }
+    turnstileHubs.push(arms);
   }
 
   // token booth (northeast pocket) — the station agent who has seen everything
   box(ctx, `SUB_Booth_${tag}`, xE - 1.9, yMid + 0.25, 9.2, 1.7, wallH - 0.5, 1.5, 0x2A9D8F);
   box(dctx, `SUB_BoothGlass_${tag}`, xE - 2.78, yMin + 1.45, 9.2, 0.06, 0.9, 1.1, 0x3d4a52, { collide: false });
 
-  return { ceiling, dressing };
+  return { ceiling, dressing, turnstileHubs };
 }
