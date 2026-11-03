@@ -76,7 +76,7 @@ describe('lane discipline — the drive lanes never touch a parked car', () => {
   it("the Kestrel drive lane passes the parked cars with air to spare", () => {
     const l0 = legs[0];
     const p = { x: 0, z: 0 };
-    for (const cx of [44, -44]) { // the two Kestrel N curb cars
+    for (const cx of [51, -44]) { // the two Kestrel N curb cars (east past the court, docs/49 reconciliation)
       const noseA = 72.2 - cx;    // the advance where the nose reaches the car
       const centerA = noseA + BUS_BODY.halfLen; // the car is then under the body
       legToWorld(centerA, 0, l0.frame, p);

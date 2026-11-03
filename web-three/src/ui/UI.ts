@@ -18,6 +18,8 @@ export class UI {
   readonly root = el<HTMLDivElement>('hud');
   private objective = el<HTMLDivElement>('objective');
   private note = el<HTMLDivElement>('note');
+  private noteT1: number | null = null;
+  private noteT2: number | null = null;
   private money = el<HTMLDivElement>('money');
   private timer = el<HTMLDivElement>('timer');
   private prompt = el<HTMLDivElement>('prompt');
@@ -153,13 +155,41 @@ export class UI {
     return this.objective.textContent ?? '';
   }
 
-  showNote(text: string) {
+  /** Paper panels hold the hands (docs/51 B7): while the order card, the
+   *  Map, or a postcard is up, the touch stick and buttons stand down —
+   *  the CSS contract (`#touch-ui.hidden-when-panel`) existed; the wiring
+   *  didn't. Keyboard play never notices. */
+  private syncTouchPanels() {
+    const panelUp = !this.orderCard.hidden || !this.mapPanel.hidden
+      || !this.postcardPanel.hidden;
+    this.touchUI.classList.toggle('hidden-when-panel', panelUp);
+  }
+
+  showNote(text: string, ttlMs = 6500) {
     this.note.textContent = text;
+    // #note's display rule beats the [hidden] attribute, so the honest
+    // hide is the .gone class (display: none). Both go on now.
+    this.note.classList.remove('note-fade', 'gone');
     this.note.hidden = false;
     // restart the entrance animation
     this.note.style.animation = 'none';
     void this.note.offsetWidth;
     this.note.style.animation = '';
+    // ...and the paper fades: a note is a spoken line, not wallpaper.
+    // (Found by the bug-hunt sweep: showNote() never had an exit — every
+    // narration note stuck on screen until the next one replaced it.)
+    if (this.noteT1 !== null) window.clearTimeout(this.noteT1);
+    if (this.noteT2 !== null) window.clearTimeout(this.noteT2);
+    this.noteT1 = window.setTimeout(() => {
+      this.noteT1 = null;
+      this.note.classList.add('note-fade');
+      this.noteT2 = window.setTimeout(() => {
+        this.noteT2 = null;
+        this.note.classList.add('gone');
+        this.note.hidden = true;
+        this.note.classList.remove('note-fade');
+      }, 450);
+    }, Math.max(0, ttlMs));
   }
 
   setMoney(v: number) {
@@ -268,6 +298,7 @@ export class UI {
     this.orderHint.hidden = true;
     this.orderRespondedShown = false;
     this.orderCard.hidden = false;
+    this.syncTouchPanels();
     this.prompt.hidden = true;
     this.interactBtn.classList.remove('occupied');
     this.syncPanelOverTouch();
@@ -289,6 +320,7 @@ export class UI {
 
   hideOrderCard() {
     this.orderCard.hidden = true;
+    this.syncTouchPanels();
     this.orderReplies.hidden = false;
     this.orderResponse.hidden = true;
     this.orderHint.hidden = true;
@@ -300,6 +332,7 @@ export class UI {
 
   openMap(notes: readonly string[], slang: readonly string[]) {
     this.mapPanel.hidden = false;
+    this.syncTouchPanels();
     this.refreshMap(notes, slang);
     this.mapBtn.setAttribute('aria-pressed', 'true');
     this.prompt.hidden = true;
@@ -308,6 +341,7 @@ export class UI {
 
   closeMap() {
     this.mapPanel.hidden = true;
+    this.syncTouchPanels();
     this.mapBtn.setAttribute('aria-pressed', 'false');
     this.syncPanelOverTouch();
   }

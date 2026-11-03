@@ -6,8 +6,9 @@
 
 import { describe, expect, it } from 'vitest';
 import { updateZones, type ZoneDef } from '../src/world/subway/zone';
+import { turnstileHubAt, ZONE_KEEP_RE } from '../src/world/subway/stationKit';
 import {
-  beginRide, createRide, endRide, RIDE_BEATS, RIDE_SWAP_DX, RIDE_T,
+  aboardCar, beginRide, createRide, endRide, RIDE_BEATS, RIDE_SWAP_DX, RIDE_T,
   swapFeet, tickRide, type RideEvent,
 } from '../src/world/subway/ride';
 
@@ -137,5 +138,80 @@ describe('the ride machine (deterministic seam)', () => {
     const a = runRide(RIDE_T.arrive + 0.2);
     const b = runRide(RIDE_T.arrive + 0.2);
     expect(a).toEqual(b);
+  });
+});
+
+// docs/50 §4.6, paid — the turnstile spin needs an honest trigger. The law:
+// a pass is a strict z sign-change across the fare line INSIDE a hub's gate
+// (±0.55); the open lane and the platforms cross free; standing still and
+// walking away without crossing never fires.
+describe('turnstile pass detection (stationKit.turnstileHubAt)', () => {
+  const CX = -44;
+  const HUB_W = CX - 4.55; // -48.55
+  const HUB_E = CX + 0.65; // -43.35
+
+  it('a northbound walk through the east gate passes hub 1', () => {
+    expect(turnstileHubAt(9.9, 10.5, HUB_E, CX)).toBe(1);
+  });
+
+  it('a southbound walk through the west gate passes hub 0', () => {
+    expect(turnstileHubAt(10.5, 9.9, HUB_W, CX)).toBe(0);
+  });
+
+  it('the open lane crosses free (no hub underfoot, no spin)', () => {
+    expect(turnstileHubAt(9.9, 10.5, CX - 1.9, CX)).toBe(-1);
+  });
+
+  it('walking alongside the fare line without crossing never fires', () => {
+    expect(turnstileHubAt(10.5, 10.9, HUB_E, CX)).toBe(-1);
+    expect(turnstileHubAt(9.9, 9.5, HUB_E, CX)).toBe(-1);
+  });
+
+  it('a pass too far from any hub gate is not a pass', () => {
+    expect(turnstileHubAt(9.9, 10.5, HUB_E + 1.2, CX)).toBe(-1);
+  });
+
+  it('station B detects through its own translated hubs', () => {
+    expect(turnstileHubAt(9.9, 10.5, -332 + 0.65, -332)).toBe(1);
+  });
+});
+
+// ---------------------------------------------------- the zone bake's keep-set
+
+describe('ZONE_KEEP_RE — meshes systems hold by reference (the bake contract)', () => {
+  // The zone bake merges a zone group's statics one level down. Any mesh a
+  // live system mutates by reference MUST stay out of the merge, or the
+  // merge detaches it and the system's writes land on a dead object (found
+  // by the bug-hunt sweep: the dollhouse lid walled the cutaway shut and
+  // the fare spin went quiet — both writes were landing on detached meshes).
+  it('keeps the dollhouse ceiling (index.ts toggles .visible below grade)', () => {
+    expect(ZONE_KEEP_RE.test('SUB_Ceiling_A')).toBe(true);
+    expect(ZONE_KEEP_RE.test('SUB_Ceiling_B')).toBe(true);
+  });
+  it('keeps the turnstile hubs and arms (index.ts spins them on a pass)', () => {
+    expect(ZONE_KEEP_RE.test('SUB_TurnstileHub_A_-48.75')).toBe(true);
+    expect(ZONE_KEEP_RE.test('SUB_TurnstileArm_B_-336.65_2')).toBe(true);
+  });
+  it('still merges the honest statics (the keep-set is narrow)', () => {
+    expect(ZONE_KEEP_RE.test('SUB_Pillar_A_3')).toBe(false);
+    expect(ZONE_KEEP_RE.test('SUB_Bench_A_1')).toBe(false);
+    expect(ZONE_KEEP_RE.test('SUB_Wall_S_A')).toBe(false);
+    expect(ZONE_KEEP_RE.test('TSS_Step_3')).toBe(false);
+  });
+});
+
+describe('aboardCar — the seam swap only carries passengers (left-behind law)', () => {
+  // Found by the bug-hunt sweep: requestRide from the platform started the
+  // machine, and the seam translated the platform-standing player 288 m.
+  // Aboard is the car's z-band; anyone on the platform stays behind and
+  // the arrival's doors-open event sets them free.
+  it('the car interior is aboard', () => {
+    expect(aboardCar(15.9)).toBe(true);  // the boarding spot
+    expect(aboardCar(16.8)).toBe(true);  // deep inside
+  });
+  it('the platform and the pushed-out doorway are not', () => {
+    expect(aboardCar(13.4)).toBe(false); // at the door, outside
+    expect(aboardCar(14.2)).toBe(false); // the platform edge
+    expect(aboardCar(17.45)).toBe(false);// the trench's far wall
   });
 });

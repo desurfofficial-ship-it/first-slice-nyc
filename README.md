@@ -48,7 +48,7 @@ Day 1, Day 2, **Day 3, and Day 4 (morning + afternoon)** are playable in **Godot
 
 **▶ [Play in the browser](https://desurfofficial-ship-it.github.io/first-slice-nyc/) ◀**
 
-*WASD walk · Space interact · Z/C turn camera · touch controls on mobile · ♫ sound on/off*
+*WASD walk · Space/E interact (E is interact-only — it never turns the camera) · Z/C or Q turn camera · M opens the Map · touch controls on mobile · ♫ sound on/off*
 
 </div>
 
