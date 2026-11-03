@@ -2670,17 +2670,43 @@ export class World {
       if (!(mat instanceof THREE.MeshLambertMaterial) || mat.map || mat.transparent) return;
       const geo = o.geometry;
       if (!geo.index || !geo.attributes.position || !geo.attributes.normal) return;
-      const key = `${mat.color.getHexString()}|${mat.emissive.getHexString()}`
-        + `|${mat.emissiveIntensity}|${mat.fog ? 1 : 0}`
-        + `|${o.castShadow ? 1 : 0}|${o.receiveShadow ? 1 : 0}`;
+      // The vertex-color fusion (docs/47, the recorded "next figure cut"
+      // lever applied where it is safe — statics): a NON-EMISSIVE flat-color
+      // source rides the shared white vertexColors material — its color
+      // becomes a per-vertex attribute, so the signature no longer contains
+      // the color and every (fog, cast, receive) combo in the tile fuses
+      // into ONE draw regardless of how many distinct prop colors it holds.
+      // Emissive sources keep the color-keyed path (emissive is
+      // material-wide and cannot ride vertices).
+      const emissive = mat.emissive.getHexString() !== '000000';
+      const key = emissive
+        ? `${mat.color.getHexString()}|${mat.emissive.getHexString()}`
+          + `|${mat.emissiveIntensity}|${mat.fog ? 1 : 0}`
+          + `|${o.castShadow ? 1 : 0}|${o.receiveShadow ? 1 : 0}`
+        : `VC|${mat.fog ? 1 : 0}`
+          + `|${o.castShadow ? 1 : 0}|${o.receiveShadow ? 1 : 0}`;
       let b = batches.get(key);
-      if (!b) batches.set(key, b = { srcs: [], cast: o.castShadow, receive: o.receiveShadow, mat });
+      if (!b) batches.set(key, b = { srcs: [], cast: o.castShadow, receive: o.receiveShadow, mat: emissive ? mat : this.vcMaterial(mat.fog) });
       o.updateWorldMatrix(true, false);
       const g = geo.clone();
       g.applyMatrix4(o.matrixWorld);
       // keep every batch attribute-identical for mergeGeometries
       for (const name of Object.keys(g.attributes)) {
         if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
+      }
+      if (!emissive) {
+        // vertex-color batches carry no uv (no map) and one color attribute
+        // filled with the source's exact material color — Lambert's diffuse
+        // was color × 1, now white × color: bit-for-bit the same shade, and
+        // dropping uv lets uv-less and uv-ful sources fuse into one batch
+        g.deleteAttribute('uv');
+        const pos = g.attributes.position;
+        const arr = new Float32Array(pos.count * 3);
+        const c = mat.color;
+        for (let i = 0; i < pos.count; i++) {
+          arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b;
+        }
+        g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
       }
       // Region-split (W0: now 2D district tiles): a whole-world batch would
       // defeat frustum culling (the batch's bounding sphere spans the world,
@@ -2832,11 +2858,28 @@ export class World {
         for (const name of Object.keys(c.attributes)) {
           if (name !== 'position' && name !== 'normal' && name !== 'uv') c.deleteAttribute(name);
         }
-        const key = `${mat.color.getHexString()}|${mat.emissive.getHexString()}`
-          + `|${mat.emissiveIntensity}|${mat.fog ? 1 : 0}`
-          + `|${o.castShadow ? 1 : 0}|${o.receiveShadow ? 1 : 0}`;
+        // the vertex-color fusion, zone edition (docs/47): same law as
+        // bakeStatics — non-emissive flat colors ride the shared white
+        // vertexColors material; emissive sources keep the color key
+        const emissive = mat.emissive.getHexString() !== '000000';
+        const key = emissive
+          ? `${mat.color.getHexString()}|${mat.emissive.getHexString()}`
+            + `|${mat.emissiveIntensity}|${mat.fog ? 1 : 0}`
+            + `|${o.castShadow ? 1 : 0}|${o.receiveShadow ? 1 : 0}`
+          : `VC|${mat.fog ? 1 : 0}`
+            + `|${o.castShadow ? 1 : 0}|${o.receiveShadow ? 1 : 0}`;
         let b = batches.get(key);
-        if (!b) batches.set(key, b = { srcs: [], cast: o.castShadow, receive: o.receiveShadow, mat });
+        if (!b) batches.set(key, b = { srcs: [], cast: o.castShadow, receive: o.receiveShadow, mat: emissive ? mat : this.vcMaterial(mat.fog) });
+        if (!emissive) {
+          c.deleteAttribute('uv');
+          const pos = c.attributes.position;
+          const arr = new Float32Array(pos.count * 3);
+          const col = mat.color;
+          for (let i = 0; i < pos.count; i++) {
+            arr[i * 3] = col.r; arr[i * 3 + 1] = col.g; arr[i * 3 + 2] = col.b;
+          }
+          c.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+        }
         b.srcs.push({ geo: c, mesh: o });
       });
       let i = 0;
@@ -2919,6 +2962,17 @@ export class World {
     });
     this.itemMeshes.delete(id);
     return true;
+  }
+
+  /** The shared vertex-color bake materials (docs/47): one white Lambert
+   *  with vertexColors per fog law. Every fused static batch draws with one
+   *  of these two materials; the color variety lives in the geometry, where
+   *  the census audit now reads it. */
+  private vcMatFog: THREE.MeshLambertMaterial | null = null;
+  private vcMatNoFog: THREE.MeshLambertMaterial | null = null;
+  private vcMaterial(fog: boolean): THREE.MeshLambertMaterial {
+    if (fog) return (this.vcMatFog ??= new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true }));
+    return (this.vcMatNoFog ??= new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, fog: false }));
   }
 
   private mat(color: number, opts: { emissive?: number; emissiveIntensity?: number } = {}): THREE.MeshLambertMaterial {
