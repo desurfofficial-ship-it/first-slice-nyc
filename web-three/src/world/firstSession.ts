@@ -189,15 +189,17 @@ export class FirstSessionWorld {
 
   private ctxColliders: AABB[] = [];
 
-  /** Canvas text plane, unlit (self-lit signs read at any hour). */
+  /** Canvas text plane, unlit (self-lit signs read at any hour). Canvas runs
+   *  at 64 px/m — the first cut (24 px/m) made a 2.3 m shop sign a 55×12
+   *  canvas and the letters rendered as chunk. */
   private textPlane(
     parent: THREE.Object3D, name: string, text: string,
     w: number, h: number, bg: number, fg: number,
     cx: number, cy: number, cz: number, ry = 0,
   ): THREE.Mesh {
     const canvas = document.createElement('canvas');
-    canvas.width = Math.max(32, Math.round(w * 24));
-    canvas.height = Math.max(24, Math.round(h * 24));
+    canvas.width = Math.max(32, Math.round(w * 64));
+    canvas.height = Math.max(24, Math.round(h * 64));
     const g = canvas.getContext('2d')!;
     g.fillStyle = '#' + bg.toString(16).padStart(6, '0');
     g.fillRect(0, 0, canvas.width, canvas.height);
@@ -321,15 +323,27 @@ export class FirstSessionWorld {
     // plane (or under the ceiling, like real subway hang-boards), at heights
     // measured from the platform (−4.0): eye board −2.3, stack bullets −1.72,
     // hang-board −1.78 (top −1.47, clear of the soffit by 0.07).
-    this.stationSign(g, 'ALDER ST', -48.98, -2.3, 8.2, Math.PI / 2);
+    this.stationSign(g, 'ALDER ST', -48.93, -2.3, 8.2, Math.PI / 2);
     this.stationSign(g, 'ALDER ST', -35.02, -2.3, 5.4, -Math.PI / 2);
-    this.bulletPair(g, -48.98, -1.72, 8.2, Math.PI / 2);
+    this.bulletPair(g, -48.93, -1.72, 8.2, Math.PI / 2);
     this.textPlane(g, 'A5_ExitBoard', 'TIMES SQ →', 2.6, 0.62, PAL.ink, PAL.cream, -48.9, -1.78, 5.0, Math.PI / 2);
     this.textPlane(g, 'A5_PassageArrow', '→ TIMES SQ', 2.2, 0.5, PAL.teal, PAL.cream, -69, -2.55, 5.0, Math.PI / 2);
 
     // big mosaic name over the landing (what you see climbing out) — was at
     // −1.05, i.e. 0.25 ABOVE the wall top; it now sits on the wall itself
     this.stationSign(g, 'ALDER ST', -42, -2.4, 9.38, Math.PI, 3.4, 0.9, 96);
+
+    // the tile band — every NYC station frames its signage with one. It runs
+    // at y −2.0, split around the mosaic and the W wall's two gaps. Each band
+    // is 0.04 thick with its back edge 5 mm BURIED in the wall (a face
+    // coplanar with the wall shimmers at distance — the first cut did).
+    const bandMat = teal;
+    this.box(g, 'A5_TileBandN_W', bandMat, -46.35, -2.0, 9.375, 5.3, 0.3, 0.04);
+    this.box(g, 'A5_TileBandN_E', bandMat, -37.65, -2.0, 9.375, 4.7, 0.3, 0.04);
+    this.box(g, 'A5_TileBandS', bandMat, -42, -2.0, -2.975, 14, 0.3, 0.04);
+    this.box(g, 'A5_TileBandE', bandMat, -34.975, -2.0, 5.45, 0.04, 0.3, 7.9);
+    this.box(g, 'A5_TileBandW_Pier', bandMat, -48.975, -2.0, 2.25, 0.04, 0.3, 1.5);
+    this.box(g, 'A5_TileBandW_N', bandMat, -48.975, -2.0, 8.2, 0.04, 0.3, 2.4);
 
     // trash can by the benches (the shipped can silhouette, simple)
     const can = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.28, 0.85, 10), dark);
@@ -582,6 +596,10 @@ export class FirstSessionWorld {
       head.add(globe);
     }
     this.textPlane(head, 'A5_HeadSign', 'TIMES SQ', 3.2, 0.8, PAL.ink, PAL.gold, -72, 2.15, -59.02);
+    // south face: the plaza approach read blank brick — the board now hangs
+    // across the exit mouth's header, facing the square (0.05 proud of the
+    // lintel's front plane at −59.0)
+    this.textPlane(head, 'A5_HeadSignS', 'TIMES SQ', 3.0, 0.7, PAL.ink, PAL.gold, -72, 1.95, -58.95, Math.PI);
     this.textPlane(head, 'A5_HeadDir', '↑ UPTOWN LOCAL', 1.9, 0.5, PAL.teal, PAL.cream, -72, -1.0, -55.6);
   }
 

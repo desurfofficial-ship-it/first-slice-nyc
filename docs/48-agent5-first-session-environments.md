@@ -159,3 +159,11 @@ The full 4-day driver had never finished in this sandbox (shell caps, CPU conten
 ### Gates at session end
 
 tsc clean · **270/270 tests** (265 + 5 traffic) · build clean · `probe-a5` **PASS** (0 page errors; the re-shot frames show named walls, a striped train with interior ads, windowed towers, round steam, a dressed coach rear) · solidity 4/4 · W1 grid PASS · **e2e 104/104 PASS, 599 s, 0 console errors — the first full four-day completion in this sandbox**.
+
+### Same session, second pass — the small things that read
+
+- **Tile band**: the classic colored stripe framing the station's signage, on every hall wall (split around the mosaic and the W wall's gaps; each band's back edge buried 5 mm — a coplanar face shimmers at distance, and the first cut shimmered).
+- **Headhouse south face**: the plaza approach read blank brick; a TIMES SQ board now hangs across the exit mouth's header facing the square.
+- **Every canvas sign sharper**: textPlane ran at 24 px/m — a 2.3 m shop sign was a 55×12 canvas and the glyphs rendered as chunk ("NIPER B" was resolution clipping, not occlusion). 64 px/m; the shop signs, exit board, passage posters, train ads, and map all read clean.
+
+Gates re-run after each pass: tsc clean · 270/270 · probe-a5 PASS (0 page errors) · solidity 4/4 · e2e 104/104 (599 s) unchanged — the band, boards, and sign resolution touch no colliders, no gates, no story state.
