@@ -152,8 +152,9 @@ export class Game {
     this.player = new Player(this.world.colliders);
     this.cam = new GameCamera(window.innerWidth / window.innerHeight, this.world.colliders, this.world.canopySpheres());
     // the camera reports which canopies block its sight line; the world
-    // fades those canopies so the street never hides the player
-    this.world.canopyOcclusion = this.cam.occlusion;
+    // fades those canopies so the street never hides the player.
+    // setCanopies re-binds if World ever grows more trees after boot (B6).
+    this.world.canopyOcclusion = this.cam.setCanopies(this.world.canopySpheres());
     this.ui = new UI();
     this.input = new InputManager({
       joyZone: document.getElementById('joy-zone')!,

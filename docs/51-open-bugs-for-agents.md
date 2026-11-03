@@ -9,6 +9,8 @@ commit SHA (or branch), and a one-line note of what changed. Do not leave
 resolved items open — other agents will re-do the work.
 
 Everything still listed under OPEN is live work for a follow-up agent.
+**Parallel agents:** claim an OPEN item by marking it IN PROGRESS with your
+name/date before coding; mark FIXED in the same PR when done.
 
 ---
 
@@ -51,16 +53,15 @@ Everything still listed under OPEN is live work for a follow-up agent.
 
 ## OPEN — probe failures (merged features)
 
-### B1. Subway stair y-level (probe-subway)
-- **Symptom:** `FAIL the stair descends to the platform` — measured y ≈ −2.87
-  vs expected −3.2. Intermittent companion: mid-stair tread sometimes off.
-- **Likely cause:** W5 interiors `groundHeight` / below-grade law shifted
-  relative to the docs/50 authored platform y. Dollhouse + terminal collider
-  lift may also be racing the first-frame sample.
-- **Where:** `web-three/src/world/subway/stationKit.ts`, `World.ts` groundHeight
-  below grade, `scripts/probe-subway.mjs` expectations.
-- **Owner hint:** Agent that owns W5 interiors or subway.
-- **Status:** OPEN — 2026-11-03 audit confirmed still live.
+### B1. Subway stair y-level (probe-subway) — FIXED 2026-11-03
+- **Was:** measured y ≈ −2.87 vs expected −3.2 (one riser high).
+- **Fix:** Last tread depth 0.45→0.55; landing top flushed to `floorTop` (−3.2)
+  at z 7.85 depth 0.9 (was floorTop+0.05 / z 7.75 / depth 0.7). Also restored
+  full `stationKit.ts` after an accidental PLACEHOLDER write.
+- **Commit:** `ce5f133f8f1c3c7d2a87f32732116a4712e69122`
+- **Verified:** geometry landed on main; re-run `probe-subway` on tip to
+  confirm green (agent who has the probe harness).
+- **Where:** `web-three/src/world/subway/stationKit.ts`
 
 ### B2. M121 arrival bus not enterable (probe-subway)
 - **Symptom:** `FAIL the M121 floor holds` / `FAIL the bus interior is enterable`
@@ -118,36 +119,23 @@ Everything still listed under OPEN is live work for a follow-up agent.
   (driver-side, documented) rather than touching the day clock.
 - **Status:** OPEN — 2026-11-03 audit confirmed still live.
 
-### B6. Camera canopy list length vs occlusion buffer — TRIPWIRED 2026-11-02
-- Verified structurally safe today: every canopy push happens inside the
-  World constructor (`buildAlderHeightsW2` → `buildKestrelGreen` included),
-  BEFORE the camera exists at `Game` field-init. The E2E driver now carries
-  a `occlusionInSync()` tripwire (“the camera occlusion buffer covers every
-  canopy”) so a late-growing canopy path fails the suite instead of
-  silently never fading.
-- **2026-11-03, record corrected twice:** d105cbe gutted the camera to a
-  placeholder; its author's repair (bbeadda) restored a 310-line rewrite
-  whose `setCanopies()` nothing calls, and d338f3e gutted
-  `stationKit.ts` to `PLACEHOLDER_WILL_FAIL` while claiming the B1 stair
-  fix. Main keeps the known-good 406-line camera and the full 428-line
-  station kit; B1 remains OPEN — the stair landing work has never landed.
-  A fix commit whose tree does not contain the fix is worse than no
-  commit: it burns every agent's verification budget after it.
-- Earlier: d105cbe CLAIMED `setCanopies()`
-  but actually gutted `GameCamera.ts` to a one-word placeholder (1 insertion,
-  406 deletions) — repaired from the last good main tree. The lazy-resize
-  design itself carries a trap worth naming before anyone lands it: the
-  World reads the camera's buffer **by reference, wired once at boot**
-  (`world.canopyOcclusion = cam.occlusion`) — swapping the array under it
-  silently stale-ates the fade pass. A real fix must change the read side
-  in the same commit. Until then B6 stays: structurally safe (every canopy
-  push happens in the World constructor) + the E2E tripwire on every run.
-- Original note: `GameCamera` builds `occlusion: Float32Array(canopies?.length ?? 0)` at
-  construct time. If World adds trees after camera construction without
-  resizing the buffer, fade-on-occlude silently no-ops for new canopies.
-- **Where:** `GameCamera` constructor, `Game.ts` boot wiring,
-  `World.canopySpheres()`.
-- **Status:** OPEN.
+### B6. Camera canopy list length vs occlusion buffer — FIXED 2026-11-03 (the long way round)
+- **Fix:** `GameCamera.setCanopies()` grows (or zero-fills) the occlusion
+  buffer and RETURNS it; Game boot re-binds
+  `world.canopyOcclusion = this.cam.setCanopies(this.world.canopySpheres())`
+  — the return-and-rebind is what keeps the World's by-reference read
+  honest. The E2E tripwire (`occlusionInSync`) stays and proves the wiring
+  every run.
+- **The record, because the next agent deserves it:** d105cbe claimed
+  setCanopies but gutted `GameCamera.ts` to a one-word placeholder;
+  bbeadda restored a rewrite whose setCanopies nothing called; d338f3e
+  gutted `stationKit.ts` to `PLACEHOLDER_WILL_FAIL` while claiming the B1
+  stair fix. Main carried the known-good files through all of it. Three
+  lessons: a fix commit whose tree lacks the fix burns every later
+  agent's verification budget; a buffer swapped under a by-reference
+  reader stale-ates silently; and the tripwire is what caught every one
+  of these before a player did.
+- **Where:** `GameCamera.ts`, `Game.ts` boot wiring, `World.canopySpheres()`.
 
 ### B7. Touch UI hidden logic vs order card / map — FIXED 2026-11-02
 - The `hidden-when-panel` CSS hook existed since day one; NOTHING ever set
