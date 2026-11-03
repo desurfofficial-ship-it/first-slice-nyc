@@ -381,6 +381,11 @@ export class Game {
     const rig = this.postcardRig ? { pos: this.rigPos, look: this.rigLook } : undefined;
     this.cam.update(dt, this.player.capsule, inp.camTurn, inp.move, this.player.rotationY, rig?.pos, rig?.look);
     this.player.camYaw = this.cam.moveYaw;
+    // docs/51 B6 — the occlusion array may have been resized by the update
+    // above (a canopy added after boot); re-wire the reference so the world's
+    // fade pass always reads the camera's CURRENT array. A pointer copy, not
+    // an allocation — this line is free, the silent no-op it prevents isn't.
+    this.world.canopyOcclusion = this.cam.occlusion;
 
     // world life (Rule of Steam) — phase 2 only here: the walkers steer
     // around the fresh player position, trees breathe, pigeons worry about
@@ -829,9 +834,11 @@ export class Game {
       if (nearBusker) gameAudio.saxStart();
       else gameAudio.saxStop();
     }
-    // beats → notes (the ride's teach, the square's sync)
+    // beats → notes (the ride's teach, the square's sync); the turnstile
+    // is an audio-only beat — the pass clicks, it doesn't narrate
     while (w.subwayBeats.length > 0) {
       const key = w.subwayBeats.shift()!;
+      if (key === 'turnstile') { gameAudio.turnstile(); continue; }
       const text = RIDE_BEAT_TEXT[key];
       if (text) this.ui.showNote(text);
     }

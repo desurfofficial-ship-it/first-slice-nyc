@@ -76,7 +76,9 @@ export class CourtGame {
   // back to the free-throw line — the court looks after its ball
   private returnT = 0;
   private returnFrom = { x: 0, y: 0, z: 0 };
-  private static readonly RETURN_HOME = { x: 43.4, y: GROUND_Y + BALL_R, z: 5.4 };
+  /** Where escapees come home to — public: it is the court's law, and the
+   *  tests pin the handoff against it. */
+  static readonly RETURN_HOME = { x: 43.4, y: GROUND_Y + BALL_R, z: 5.4 };
 
   constructor(private deps: CourtDeps) {
     this.sim.park({ x: COURT_BALL_REST.x, y: COURT_BALL_REST.y, z: COURT_BALL_REST.z });
@@ -311,6 +313,14 @@ export class CourtGame {
     this.sim.state.spinRate = 7 * (1 - t);
     this.sim.state.spinAxis = { x: 0, y: 1, z: 0 };
     this.syncMesh();
+    // the interaction's live spot rides the rolling ball — pickUp() promises
+    // an intercept "works from rest OR mid-return", and a promise is only
+    // true if the anchor tells the truth about where the ball IS. The stale
+    // pre-return spot used to leave the press dead whenever a rebound left
+    // through the gate (docs/51 B3 — the flaky re-pickup, found and fixed).
+    COURT_BALL_REST.x = p.x;
+    COURT_BALL_REST.y = p.y;
+    COURT_BALL_REST.z = p.z;
     if (t >= 1) {
       this.sim.park({ ...home });
       this.phase = 'rest';

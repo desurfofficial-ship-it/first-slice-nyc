@@ -145,8 +145,10 @@ export class GameCamera {
   private sideStep = 0;
   /** Per-canopy occlusion 0..1 (1 = the sight line runs through this
    *  canopy) — World reads this every frame and fades the leaves. Public:
-   *  Game wires it to the world once at boot. */
-  readonly occlusion: Float32Array;
+   *  Game wires it to the world once at boot — and RE-reads it every frame
+   *  (docs/51 B6: if the world grows canopies after boot, updateOcclusion
+   *  swaps in a longer array and the per-frame re-wire carries it over). */
+  occlusion: Float32Array;
   private focusTarget = new THREE.Vector3();
   private desired = new THREE.Vector3();
   private probe = new THREE.Vector3();
@@ -258,8 +260,16 @@ export class GameCamera {
    *  after the camera position settles, so it reflects what is truly on
    *  screen — the sidestep helps where it can, the fade covers the rest. */
   private updateOcclusion(): void {
+    if (!this.canopies) return;
+    // docs/51 B6 — the permanent guard: the world's canopy list is a LIVE
+    // array (zone dressing / far-world builds may push after boot). When it
+    // outgrows the fade array, resize — otherwise every new tree silently
+    // no-ops the fade and swallows the player whole.
+    if (this.occlusion.length !== this.canopies.length) {
+      this.occlusion = new Float32Array(this.canopies.length);
+    }
     const n = this.occlusion.length;
-    if (n === 0 || !this.canopies) return;
+    if (n === 0) return;
     const c = this.camera.position;
     for (let i = 0; i < n; i++) {
       const d2 = this.segSphereDist2(c.x, c.y, c.z, this.focusTarget.x, this.focusTarget.y, this.focusTarget.z, this.canopies[i]);

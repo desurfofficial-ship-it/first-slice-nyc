@@ -130,6 +130,16 @@ export class UI {
     return this.objective.textContent ?? '';
   }
 
+  /** Paper panels hold the hands (docs/51 B7): while the order card, the
+   *  Map, or a postcard is up, the touch stick and buttons stand down —
+   *  the CSS contract (`#touch-ui.hidden-when-panel`) existed; the wiring
+   *  didn't. Keyboard play never notices. */
+  private syncTouchPanels() {
+    const panelUp = !this.orderCard.hidden || !this.mapPanel.hidden
+      || !this.postcardPanel.hidden;
+    this.touchUI.classList.toggle('hidden-when-panel', panelUp);
+  }
+
   showNote(text: string) {
     this.note.textContent = text;
     this.note.hidden = false;
@@ -232,6 +242,7 @@ export class UI {
     this.orderHint.hidden = true;
     this.orderRespondedShown = false;
     this.orderCard.hidden = false;
+    this.syncTouchPanels();
     this.prompt.hidden = true;
     this.interactBtn.classList.remove('occupied');
   }
@@ -252,6 +263,7 @@ export class UI {
 
   hideOrderCard() {
     this.orderCard.hidden = true;
+    this.syncTouchPanels();
     this.orderReplies.hidden = false;
     this.orderResponse.hidden = true;
     this.orderHint.hidden = true;
@@ -262,6 +274,7 @@ export class UI {
 
   openMap(notes: readonly string[], slang: readonly string[]) {
     this.mapPanel.hidden = false;
+    this.syncTouchPanels();
     this.refreshMap(notes, slang);
     this.mapBtn.setAttribute('aria-pressed', 'true');
     this.prompt.hidden = true;
@@ -269,6 +282,7 @@ export class UI {
 
   closeMap() {
     this.mapPanel.hidden = true;
+    this.syncTouchPanels();
     this.mapBtn.setAttribute('aria-pressed', 'false');
   }
 
@@ -312,10 +326,12 @@ export class UI {
     }
     this.postcardCaption.textContent = caption;
     this.postcardPanel.hidden = false;
+    this.syncTouchPanels();
   }
 
   hidePostcard() {
     this.postcardPanel.hidden = true;
+    this.syncTouchPanels();
   }
 
   // ---------------- fade / title ----------------
