@@ -43,11 +43,31 @@ await page.waitForTimeout(1200);
 let failures = 0;
 const check = (ok, label) => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`); if (!ok) failures++; };
 
+/** The M121 loop (W4 part 2) drives Kestrel right through the court
+ *  frontage and yields to bodies in its lane — a walker mid-leg and a bus
+ *  mid-window deadlock until the budget expires, which reads as a route
+ *  failure that isn't one. This probe measures WALKABILITY, not traffic:
+ *  before each leg, wait for the bus to be clear of the walking band. */
+async function waitBusClear(maxMs = 120000) {
+  const t0 = Date.now();
+  for (;;) {
+    const clear = await page.evaluate(() => {
+      const b = window.__game.world.busDebug?.();
+      if (!b) return true;
+      return Math.abs(b.z - 4.1) > 3.2 || b.x < 18 || b.x > 64;
+    });
+    if (clear) return true;
+    if (Date.now() - t0 > maxMs) return false;
+    await page.waitForTimeout(900);
+  }
+}
+
 /** Drive the REAL walker along a world-space line the way the autotest
  *  driver does: pin `player.camYaw` toward the goal each poll (the pinned
  *  basis — the driver's integration fix), hold W through the REAL input
  *  path, and let the game's own loop move the body. No manual updates. */
 async function walkLine(x0, z0, x1, z1, budgetS = 60) {
+  await waitBusClear();
   await page.evaluate(([sx, sz]) => {
     const g = window.__game;
     g.player.capsule.x = sx; g.player.capsule.y = 0.1; g.player.capsule.z = sz;

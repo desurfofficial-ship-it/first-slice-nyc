@@ -1538,8 +1538,14 @@ export class World {
         : boxFromCenter(x, 0.75, z, 4.4, 1.5, 1.95));
       this.w4ParkedCarBodies.push([x, z]);
     };
-    // Kestrel N curb ends (registry: z ±3.05, outside both moving lanes)
-    car('Parked_Kestrel_E', 44, 3.05, Math.PI);
+    // Kestrel N curb ends (registry: z ±3.05, outside both moving lanes).
+    // The east car parks PAST the court (x 51): the half-court's fence owns
+    // the sidewalk from x 40.45..45.3 (docs/49 — the gate at 46.3 is the
+    // through-line), which leaves the curb edge there a 0.47 m squeeze
+    // between the car's north face (z 4.02) and the fence (z 4.49) — no
+    // body fits. The bug-hunt's route sweep wedged the walker at the car's
+    // west flank; the curb car now clears the gate approach.
+    car('Parked_Kestrel_E', 51, 3.05, Math.PI);
     car('Parked_Kestrel_W', -44, 3.05, Math.PI);
     // avenue curbs — hugging the road edge, clear of the x ±70/±74 rails.
     // The north Sycamore car rides z 24, mid-block: its first draft sat at
