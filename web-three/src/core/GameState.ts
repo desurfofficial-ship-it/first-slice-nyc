@@ -306,7 +306,13 @@ export class GameState {
   }
 
   enterBodega(): Effect[] {
-    if (this.step === Step.ENTER_BODEGA) return this.setStep(Step.COLLECT);
+    if (this.step === Step.ENTER_BODEGA) {
+      // Rosa walks you behind the counter — the word for the kind of place
+      // this is, written the moment you're standing in it (docs/08)
+      const out = this.setStep(Step.COLLECT);
+      this.slangEffect(out, 'bodega');
+      return out;
+    }
     return [];
   }
 
@@ -321,6 +327,9 @@ export class GameState {
     if (this.itemsLeft.size === 0) {
       out.push(...this.setStep(Step.RUSH));
       out.push({ kind: 'spawn-customer', who: 'rush', x: -18.0, z: 11.0 });
+      // the line forms behind the first order — the city's word for standing
+      // in it, written while you're in one (docs/08)
+      this.slangEffect(out, 'online');
     }
     return out;
   }

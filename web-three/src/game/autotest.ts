@@ -489,8 +489,11 @@ export function runAutotest(game: Game): void {
       await waitFrames(6);
       check(s.step === Step.CROSS && s.rushServed === 5, '5-order rush served \u2014 as five conversations');
       check(s.money === 112, `day 1 rush pays $87 \u2192 $112 (Doc 08) (got $${s.money})`);
-      check(game.debug.mapSlang().includes('regular') && game.debug.mapSlang().includes('hero'),
-        'the Map margins hold: regular, hero');
+      {
+        const slang = game.debug.mapSlang();
+        check(['regular', 'hero', 'bodega', 'online'].every((id) => slang.includes(id)),
+          `the Map margins hold all four Doc-08 cards (${slang.join(', ')})`);
+      }
       // the sketch (docs/12 upgrade): the places the walk touched are on the
       // paper now — the terminal you woke on, Rosa's, your corner. Reveal
       // runs throttled, so give it a beat before reading.
@@ -715,6 +718,11 @@ export function runAutotest(game: Game): void {
       await walkTo(16.2, -7.2, 8, true);
       await holdUntil('KeyW', () => p().y >= 8.34, 24);
       await holdUntil('KeyA', () => game.player.ladder === null, 4);
+      // the dismount parks the camera at an arbitrary yaw — the roof walk
+      // then fights its own input convention (KeyA walked EAST; the walker
+      // danced at the rail for 68 s, the day rolled, 24 checks cascaded).
+      // snapBehind re-pins the convention the walkTo assumes (docs/51).
+      game.cam.snapBehind({ x: game.player.capsule.x, y: 0.1, z: game.player.capsule.z });
       await walkTo(12.5, -6.8, 10); // walk into the reach-top trigger — the dismount parks outside it (see Day 1 note)
       {
         const t0 = performance.now();
@@ -845,6 +853,11 @@ export function runAutotest(game: Game): void {
       await holdUntil('KeyW', () => p().y >= 8.34, 24);
       check(p().y <= 8.36, `day 3: ladder caps at the rail (y=${p().y.toFixed(2)})` + snap());
       await holdUntil('KeyA', () => game.player.ladder === null, 4);
+      // the dismount parks the camera at an arbitrary yaw — the roof walk
+      // then fights its own input convention (KeyA walked EAST; the walker
+      // danced at the rail for 68 s, the day rolled, 24 checks cascaded).
+      // snapBehind re-pins the convention the walkTo assumes (docs/51).
+      game.cam.snapBehind({ x: game.player.capsule.x, y: 0.1, z: game.player.capsule.z });
       await walkTo(12.5, -6.8, 10); // walk into the reach-top trigger — the dismount parks outside it (see Day 1 note)
       {
         const t0 = performance.now();
@@ -859,14 +872,14 @@ export function runAutotest(game: Game): void {
 
       check(!game.player.frozen, 'day 3 end lingers too' + snap());
 
-      // already standing on the rail spot (the reach-top walk put us here) —
-      // the old redundant walkTo burned linger time on loaded boxes and the
-      // day rolled before the goodnight press (the docs/51 dusk-rail family).
-      // One honest retry, a beat later, like a player who taps again.
-      if (s.lingerStage !== 2) {
-        await waitFrames(30);
-        await interact();
-      }
+      // the reach-top trigger PARKS THE CAPSULE BACK EAST after it fires
+      // (the Day-1 note's "dismount parks outside it") — the goodnight pad
+      // is back at 12.5, out of the rail's range from the parking spot.
+      // Walk back in (the camera was snapped at the dismount; the roof walk
+      // is honest), then pressUntil — the press lands this time or the
+      // budget says so out loud (docs/51 dusk-rail family, closed).
+      await walkTo(12.5, -6.8, 12);
+      await pressUntil(() => s.lingerStage === 2, 20000, 'day 3 goodnight');
       check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight (day 3)' + snap());
       const save3 = loadSave();
       check(save3.day === 3 && save3.day_complete === true && save3.stool === true && save3.money === 120,
@@ -987,6 +1000,11 @@ export function runAutotest(game: Game): void {
       await holdUntil('KeyW', () => p().y >= 8.34, 24);
       check(p().y <= 8.36, `day 4: ladder caps at the rail (y=${p().y.toFixed(2)})` + snap());
       await holdUntil('KeyA', () => game.player.ladder === null, 4);
+      // the dismount parks the camera at an arbitrary yaw — the roof walk
+      // then fights its own input convention (KeyA walked EAST; the walker
+      // danced at the rail for 68 s, the day rolled, 24 checks cascaded).
+      // snapBehind re-pins the convention the walkTo assumes (docs/51).
+      game.cam.snapBehind({ x: game.player.capsule.x, y: 0.1, z: game.player.capsule.z });
       // walk to the landing's middle — the reach-top trigger (x 10.25..14.75)
       // can't see a capsule parked at the step-off point (~x 15.2); every day's
       // postcard beat needs this walk, Day 4 included

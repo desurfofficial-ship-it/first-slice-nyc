@@ -382,3 +382,65 @@ describe('Rosa\u2019s stateful Day 2 lines (main.gd `_rosa_chat`)', () => {
       .toContain('Two windows');
   });
 });
+
+describe('serving is zero-fail — every card, every reply (docs/12 law)', () => {
+  it('every rush card serves through ALL its replies; money is always +$5', () => {
+    for (let i = 0; i < RUSH_CARDS.length; i++) {
+      const card = RUSH_CARDS[i];
+      for (let r = 0; r < card.replies.length; r++) {
+        const s = new GameState();
+        s.step = Step.RUSH;
+        s.rushServed = i;
+        s.openCounterOrder();
+        expect(s.pendingCard?.id).toBe(card.id);
+        const effects = s.chooseReply(r);
+        const kinds = effects.map((e) => e.kind);
+        expect(kinds, `${card.id} reply ${r} responds`).toContain('order-respond');
+        expect(kinds, `${card.id} reply ${r} serves`).toContain('serve-customer');
+        expect(s.money).toBe(87 + 5);
+        expect(s.orderResponded).toBe(true);
+        s.chooseReply(-1); // the fold
+        expect(s.pendingCard).toBeNull();
+      }
+    }
+  });
+
+  it('every solo card serves through ALL its replies; money never moves', () => {
+    for (let i = 0; i < SOLO_CARDS.length; i++) {
+      const card = SOLO_CARDS[i];
+      for (let r = 0; r < card.replies.length; r++) {
+        const s = new GameState();
+        s.step = Step.SOLO;
+        s.soloServed = i;
+        s.openCartOrder();
+        expect(s.pendingCard?.id).toBe(card.id);
+        const effects = s.chooseReply(r);
+        const kinds = effects.map((e) => e.kind);
+        expect(kinds, `${card.id} reply ${r} responds`).toContain('order-respond');
+        expect(kinds, `${card.id} reply ${r} serves`).toContain('serve-customer');
+        expect(s.money).toBe(87); // the corner gives; it does not charge
+        s.chooseReply(-1);
+        expect(s.pendingCard).toBeNull();
+      }
+    }
+  });
+
+  it('out-of-range replies clamp and still serve — no dead press anywhere', () => {
+    for (const bad of [-9, 99]) {
+      const s = new GameState();
+      s.step = Step.RUSH;
+      s.rushServed = 0;
+      s.openCounterOrder();
+      const effects = s.chooseReply(bad);
+      expect(effects.map((e) => e.kind)).toContain('serve-customer');
+      expect(s.money).toBe(87 + 5);
+    }
+  });
+
+  it('every card offers the kit\u2019s four replies — ask, repeat, chef\u2019s welcome among them', () => {
+    for (const card of [...RUSH_CARDS, ...SOLO_CARDS]) {
+      expect(card.replies.length, `${card.id} reply count`).toBeGreaterThanOrEqual(3);
+      expect(card.replies.length, `${card.id} reply count cap`).toBeLessThanOrEqual(4);
+    }
+  });
+});
