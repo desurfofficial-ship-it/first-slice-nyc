@@ -18,6 +18,10 @@ export interface AABB {
    *  cab (the yield logic handles bodies, the lane keeps it off furniture).
    *  Untagged boxes are static world; every consumer reads them. */
   kind?: 'static' | 'car' | 'person';
+  /** Bodies collide with this box, but the CAMERA sees through it — the
+   *  half-court's chain-link (docs/49): a see-through fence between the
+   *  lens and the player must not slam the boom into the player's neck. */
+  seeThroughCamera?: boolean;
 }
 
 /** A ground-plane footprint — the XZ slice of an AABB that crowd/traffic
@@ -170,47 +174,60 @@ export function depenetrate(boxes: AABB[], c: Capsule, stepUp: number): void {
 
 /**
  * Ground height under the capsule: the highest box top at/below (feet + snap)
- * whose footprint overlaps the player circle. A5: the default was 0 — "the
- * street" — which made every top ≤ 0 unreadable and welded an invisible
- * void-floor at y 0 across any opening: the Doc 02 subway (descend into the
- * entrance, ride, surface at Times Square) is physically impossible with a
- * global floor. Now: no qualifying box = no ground (−Infinity) and the
- * walker's gravity does exactly what it does everywhere else. The shipped
- * world is fully slabbed (roads, walks, yards, parks, interiors — the W1-W3
- * walk probes prove it end-to-end), so street-level behavior is unchanged;
- * the new below-grade geometry (firstSession.ts) carries its own floors.
+ * whose footprint overlaps the player circle. docs/50: the world grew a BELOW
+ * GRADE (the K-line station), so the "highest top" qualifies even when it sits
+ * under the y=0 grade — a platform at −3.2 under an opening is walked onto
+ * instead of snapping the walker back up to an invisible street floor. The
+ * implicit 0 ("the street") only returns when NO box top is in reach: the
+ * shipped over-the-map default, unchanged for every above-grade surface (the
+ * world is fully slabbed — roads, walks, yards, parks, interiors; the W1–W3
+ * walk probes prove it end-to-end — so street-level behavior is unchanged).
  *
  * A5 stair law (optional dirX/dirZ, passed only by the grounded walker): the
  * generous sample circle (radius + 0.6·radius reach) that forgives slab edges
  * also keeps touching the tread a walker just LEFT — and since a tread's top
  * sits within GROUND_SNAP of the feet, that behind-tread kept winning the
  * "highest top ≤ feet + snap" contest and GLUED the walker at its height
- * while they walked on air over the next tread down (the Alder Station shaft
- * hung the descent a full riser short; stopping mid-stair floated the rig).
- * Fix: a top ABOVE the feet (− 5 cm slack, i.e. a step-up candidate, not the
- * slab supporting you) only qualifies when its nearest point lies AHEAD of
- * the motion — walking INTO a riser still snaps you up, walking OFF a tread
- * hands you to the tread below. Standing still (no direction) keeps the old
- * rule, and every other caller is unchanged (defaults 0).
- * Also reports whether the feet are currently inside any box volume (tunnel check).
+ * while they walked on air over the next tread down (a stairwell hung the
+ * descent a full riser short; stopping mid-stair floated the rig). Fix: a top
+ * ABOVE the feet (− 5 cm slack, i.e. a step-up candidate, not the slab
+ * supporting you) only qualifies when its nearest point lies AHEAD of the
+ * motion — walking INTO a riser still snaps you up, walking OFF a tread hands
+ * you to the tread below. Standing still (no direction) keeps the old rule,
+ * and every other caller is unchanged (defaults 0).
  */
 export function groundHeight(
   boxes: AABB[], c: Capsule, snap: number, dirX = 0, dirZ = 0,
 ): number {
+  // docs/50 (below grade): the world grew a BELOW GRADE (the K-line station).
+  // The old law — best starts at 0 — made every underground floor invisible to
+  // the walker (a platform at −3.2 snapped the player back up to the street).
+  // The law now: the HIGHEST box top under the capsule qualifies even when it
+  // is below the y=0 grade; the implicit 0 only returns when NO box top is in
+  // reach (the shipped over-the-map default, unchanged for every above-grade
+  // surface — all existing tops are ≥ 0 and still win).
+  // A5 (stair glue): a step-up candidate must sit AHEAD of the motion. The
+  // generous sample circle kept touching the tread just passed, pinning
+  // descending walkers a full riser high on air. `Player.update` passes the
+  // direction while grounded; every other caller is unchanged (defaults 0).
   let best = Number.NEGATIVE_INFINITY;
+  let found = false;
   const moving = dirX !== 0 || dirZ !== 0;
   for (const b of boxes) {
     if (!circleOverlapsRectXZ(c, b, c.radius * 0.6)) continue;
-    if (b.maxY <= c.y + snap && b.maxY > best) {
+    if (b.maxY <= c.y + snap) {
       if (moving && b.maxY > c.y - 0.05) {
         const nx = Math.max(b.minX, Math.min(c.x, b.maxX));
         const nz = Math.max(b.minZ, Math.min(c.z, b.maxZ));
         if ((nx - c.x) * dirX + (nz - c.z) * dirZ < -1e-3) continue;
       }
-      best = b.maxY;
+      if (!found || b.maxY > best) {
+        best = b.maxY;
+        found = true;
+      }
     }
   }
-  return best;
+  return found ? best : 0;
 }
 
 /** Highest box top under a circle, regardless of feet height (for camera/kill checks). */

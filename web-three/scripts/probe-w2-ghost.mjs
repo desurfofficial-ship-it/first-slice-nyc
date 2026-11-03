@@ -61,13 +61,23 @@ const ghosts = await page.evaluate((REG) => {
   for (const id of Object.keys(REG)) {
     const r = REG[id];
     if (r.h === null) continue; // the slot is verified by walking it, below
-    const hit = boxes.find((b) =>
-      Math.abs((b.minX + b.maxX) / 2 - r.x) < 0.05
-      && Math.abs((b.minZ + b.maxZ) / 2 - r.z) < 0.05
-      && Math.abs(b.maxX - b.minX - r.w) < 0.05
-      && Math.abs(b.maxZ - b.minZ - r.d) < 0.05
-      && Math.abs(b.maxY - r.h) < 0.05);
-    if (hit) found[id] = { cx: (hit.minX + hit.maxX) / 2, cz: (hit.minZ + hit.maxZ) / 2, w: hit.maxX - hit.minX, d: hit.maxZ - hit.minZ, h: hit.maxY };
+    // W5 note (docs/47): the ENVELOPE over the colliders inside the
+    // footprint (the W3 probe's method) — KTN-02's laundry hollow
+    // decomposes the mass into wall boxes whose envelope IS the mass.
+    const x0 = r.x - r.w / 2, x1 = r.x + r.w / 2, z0 = r.z - r.d / 2, z1 = r.z + r.d / 2;
+    const inside = boxes.filter((b) =>
+      b.minX >= x0 - 0.06 && b.maxX <= x1 + 0.06
+      && b.minZ >= z0 - 0.06 && b.maxZ <= z1 + 0.06
+      && b.maxY > 3); // real masses, not furniture chips
+    if (inside.length) {
+      found[id] = {
+        cx: (Math.min(...inside.map((b) => b.minX)) + Math.max(...inside.map((b) => b.maxX))) / 2,
+        cz: (Math.min(...inside.map((b) => b.minZ)) + Math.max(...inside.map((b) => b.maxZ))) / 2,
+        w: Math.max(...inside.map((b) => b.maxX)) - Math.min(...inside.map((b) => b.minX)),
+        d: Math.max(...inside.map((b) => b.maxZ)) - Math.min(...inside.map((b) => b.minZ)),
+        h: Math.max(...inside.map((b) => b.maxY)),
+      };
+    }
   }
   // furniture spot checks: [label, minX, maxX, minZ, maxZ] — the parks must
   // be furnished AND colliding (the doc 35 lesson: furniture collides)
@@ -124,8 +134,17 @@ const walks = await page.evaluate(() => {
       [7.75, 6.5], [7.75, 10], [7.75, 15], [7.75, 19], [9, 21.5],
       [7, 23.5], [5.5, 24], [3, 24], [-1, 24], [-5.5, 24.6],
     ],
+    // A5 merge note: the old middle legs cut straight across the kit platform
+    // (x −8.55..−5.45, top 0.6 — unclimbable from the ground by the 0.35
+    // STEP_UP law) by riding the pergola rail at x −6.5 (top 0.45, 0.43 m
+    // off the line) — the pre-A5 snap-circle grabbed it as ground and the
+    // walk "crossed" on invisible platforming. The stair law (docs/48 + the
+    // merged groundHeight) correctly refuses rail-rides, so the route now
+    // walks the kit's EAST lane (x −4.7, 0.75 m clear of the east face) the
+    // way a person actually moves through the park: in the south gate, around
+    // the kit, back out the gate.
     'playground (Marlow → gate → kit → back)': [
-      [-7, -33.5], [-7, -31], [-7, -28], [-3.9, -24], [-7, -22.2], [-7, -28], [-7, -33.5],
+      [-7, -33.5], [-7, -31], [-7, -28], [-3.9, -24], [-4.7, -22.2], [-4.7, -28], [-7, -33.5],
     ],
     'the stoop lane (Gable walk past all five stoops)': [
       [-50, 35], [-42.6, 35], [-35, 35], [-27.4, 35], [-19.8, 35], [-12.2, 35], [-8, 35],

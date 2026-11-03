@@ -11,9 +11,14 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PAL } from '../core/palette';
 import { ITEM_LABELS } from '../core/content';
-import { boxFromCenter, type AABB } from '../engine/collide';
+import { boxFromCenter, type AABB, type RectXZ } from '../engine/collide';
 import { approachSpeed, bodyConflictsWithCab, noseLimit, pedestrianSpeedCap, type TrafficBody } from '../engine/traffic';
-import { buildArticulatedPerson } from './personRig';
+import {
+  buildM121, travelYaw, worldToLeg, legToWorld, aabbToLeg,
+  PARKED_CAR_RECTS, parkedCarRect, BUS_BODY, BUS_BAY_ID, KESTREL_COURTESY_ZONES,
+  type BusZone, type LegCoords,
+} from '../engine/busRoute';
+import { buildArticulatedPerson, updatePersonAnim } from './personRig';
 import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecycleBin, makeHydrant,
   makeSubwayEntrance, makeBulletinBoard, makeBench, makeBusStop, makeNewspaperBoxes, makeBarrier,
   makeACUnit, makeBrownstoneStoop, makeStorefront, makeStool, makeVan,
@@ -23,13 +28,42 @@ import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecy
   makeSprayBasin, SHARED_GEOS, type SignPair } from './props';
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
-import { FirstSessionWorld } from './firstSession';
 import { LeafDrift } from './leaves';
-import { Pedestrians, type PedLook, type RoutineStop } from './peds';
-import { ambientWindowPlan, barrierDiary, flyerSlipForDay } from './dressing';
+import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
+import { buildSubwaySystem, STATION, type SubwaySystem, type ColliderSpec } from './subway';
+import { buildTimesSquare, type TimesSquare } from './timesSquare';
+import { buildArrivalBus, BUS04_RECT, type ArrivalBus } from './arrivalBus';
+import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay } from './dressing';
 import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT } from '../core/content';
+// the half-court upgrade (docs/48/49) — basketball-owned module, the one
+// sanctioned import seam between the world and the court
+import { paintCourtCanvas, makeCourtSurface } from '../court/courtPaint';
+import { makeNet, makePolePad, makeCourtLight, makeTallyBoard, buildBackstop,
+  type CourtNet, type TallyBoard } from '../court/courtDressing';
+import { makeBasketball } from '../court/Basketball';
+import { COURT_BALL_REST } from '../game/interactionDefs';
 
 export interface LadderInfo { area: AABB; top: number; }
+
+/** A W5 interior's toggle handle (docs/47 W5): the room's fit-out group,
+ *  its shell rect, the near/far pane parts, and the tower pieces that duck
+ *  while the player is inside. Declared at module level — classes can't
+ *  host interfaces. */
+interface InteriorHandle {
+  id: string;
+  x0: number; x1: number; z0: number; z1: number; // the registry shell
+  /** The inside test's y-band (CECIL-ROOM rides y 8.35; shops ride y 0). */
+  yBand?: [number, number];
+  /** Extra near-band margin on the z1 side — the Cecil's top landing sits
+   *  2.5 m past the shell (the room shows while you stand at the rail). */
+  padZ1?: number;
+  group: THREE.Group;                 // the fit-out (near only)
+  nearParts: THREE.Object3D[];        // clear panes (near only)
+  farParts: THREE.Object3D[];         // shipped glass faces (far only)
+  duck: THREE.Object3D[];             // the tower above, hidden while inside
+  near?: boolean;
+  inside?: boolean;
+}
 
 export class World {
   readonly scene = new THREE.Scene();
@@ -76,6 +110,36 @@ export class World {
   private taxiBase: THREE.Group;
   /** The cab's collider — boxFromCenter once, then moved every frame. */
   readonly taxiCollider: AABB;
+  // ---- W4 part 2: the M121 (registry transit.bus, routes V-BUS) ----------
+  /** The route law, built once (engine/busRoute). */
+  private readonly M121_LEGS = buildM121();
+  /** The district's bus — the dedicated low-poly body (the open §7 decision:
+   *  a scaled car reads as a stretched car; a long box with a window band,
+   *  a curb-side door and the M121 rollsign reads as a bus). NOT glb-
+   *  upgradable — the seam is the cab's experiment, not the fleet's. */
+  private busGroup!: THREE.Group;   // built in buildAlderHeightsW4Traffic (constructor)
+  /** The bus's collider — the yaw-aligned body's AABB superset, synced
+   *  every frame like the cab's (a body you can ghost through reads broken). */
+  busCollider!: AABB;
+  /** The rail state: which leg, the CENTER's advance, the lateral offset
+   *  (0 = drive lane, + = the curb pull-out), the stop dwell left, laps
+   *  done, the eased yaw, and the night flag (the bay dwells through the
+   *  night — the dusk law). Deterministic: authored dwells, no randomness.
+   *  BOOT: leg 3 a 10 — the bus wakes mid-lap on Sycamore Ave, ~26 game-s
+   *  from its first bay visit. It does NOT boot in the bay: the bay holds
+   *  the registry's enterable BUS-04 (the bus that delivered you), and
+   *  probe-subway's fixed-time boarding must always find it standing —
+   *  the old boot-in-bay parked the loop body on top of BUS-04 (docs/47
+   *  "the terminal bay, made honest"). */
+  private readonly busState = {
+    leg: 3, a: 10, lat: 0,
+    dwell: 0, laps: 0, yaw: Math.PI / 2, night: false, servedStop: null as string | null,
+    baySkipped: false,
+  };
+  /** BUS-04's colliders, captured at boot — retired while the loop body
+   *  occupies the bay, re-pushed when the bay is its own again. */
+  private readonly arrivalBoxes: AABB[] = [];
+  private arrivalHidden = false;
   /** The cart is furniture now: it has a collider, so "he passed through the
    *  cart" is over (playtest 2026-10-30). Static — it never moves. */
   readonly cartCollider: AABB;
@@ -127,12 +191,51 @@ export class World {
   /** The half-court ball (docs/38): rests by the key, flies when shot.
    *  Excluded from the static bake — it moves. (Assigned by buildCourt.) */
   ball!: THREE.Mesh;
+  // ---- the far world (docs/50): the K line, Times Square, the M121 ----
+  readonly subwayRoot = new THREE.Group();
+  subway!: SubwaySystem;
+  timesSquare!: TimesSquare;
+  arrivalBus!: ArrivalBus;
+  /** The subway cast rigs (Priya, the busker, riders) — one breathe tick. */
+  private readonly subwayCast: THREE.Group[] = [];
+  /** Beat buffers Game drains each frame (ride notes, the sync beat). */
+  readonly subwayBeats: string[] = [];
+  readonly tsBeats: string[] = [];
+  /** The day the far world was last told about (the sync is day-keyed). */
+  private worldDay = 1;
+  /** Terminal meshes the dollhouse lifts when the player is underground —
+   *  collected by position at build time, so Main Agent's dressing needs
+   *  no naming cooperation. */
+  private readonly terminalShell: THREE.Mesh[] = [];
+  private dollhouseOn = false;
+  /** The terminal mass's collider — lifted with the dollhouse (the boom
+   *  ray-cast must see the cutaway the lens sees, and the player below
+   *  grade never needs a building's collision anyway). */
+  private terminalCollider: AABB | null = null;
+  /** Door colliders by spec, so a re-open can find and splice them out. */
+  private readonly subwayColliderBySpec = new Map<ColliderSpec, AABB>();
+  // ---- the half-court upgrade (docs/48/49) ----
+  courtNet!: CourtNet;      // swishes on a make
+  courtTally!: TallyBoard;  // the chalk score on the wall
+  courtGlow!: THREE.Mesh;   // the gooseneck's warm disc (dusk)
+  courtWeaves: THREE.Mesh[] = []; // camera fades these point-blank
   /** The day the flyer board is currently dressed for (slips rotate by day). */
   private flyerDay = 1;
   private washerLoad: THREE.Mesh | null = null;
   private washerRunning = false;
   private readonly bank: MatBank;
-  private readonly trees: Array<{ group: THREE.Group; canopy: THREE.Group; phase: number; mats: THREE.MeshLambertMaterial[]; fade: number }> = [];
+  private readonly trees: Array<{
+    group: THREE.Group; phase: number; fade: number;
+    /** canopy pivot + placement — the instanced tick composes
+     *  T(x, baseY+h, z)·R_y(yaw)·R_sway·T(blob)·S(r) per blob */
+    x: number; z: number; baseY: number; h: number; yaw: number;
+    /** this tree's sphere in canopySpheresCache — the fade reads ITS
+     *  occlusion entry (the old loop assumed shipped-first cache order;
+     *  the W1 rows' spheres actually interleave, so the fills faded from
+     *  the wrong spheres — fixed by naming the index explicitly) */
+    sphereIndex: number; top: number;
+    blobs: Array<{ ox: number; oy: number; oz: number; r: number; key: 0 | 1 | 2 | 3; idx: number }>;
+  }> = [];
   /** Canopy bounding spheres for the camera's sight-line guard. */
   private readonly canopySpheresCache: Array<{ x: number; y: number; z: number; r: number }> = [];
   private readonly pigeonFlock: PigeonFlock;
@@ -140,9 +243,6 @@ export class World {
   private readonly squirrel: Squirrel;
   private leaves!: LeafDrift;
   private peds: Pedestrians;
-  /** Agent-5 — first-session environments (Alder Station, Times Square,
-   *  the terminal coach). Public read-only for the probe tooling. */
-  readonly firstSession: FirstSessionWorld;
   private ambientTime = 0;
 
   /** Read-only XZ of every ambient walker (diagnostics + probes). */
@@ -177,11 +277,6 @@ export class World {
   private static readonly DIST_ROW_H = 32;   // z: −48..48 in 3 rows
   private static readonly DIST_COLS = 6;
   private static readonly DIST_ROWS = 3;
-  // Agent-5 (first-session environments): one southern row for the Times
-  // Square district (z −80..−48, reached through the subway). Rows 0..2 are
-  // byte-identical to the W0 grid — the extension only ADDS row −1 south of
-  // the playable core, so every existing district key is unchanged.
-  private static readonly DIST_MIN_ROW = -1;
   private static readonly STREET_RING = World.DIST_COLS; // one sight line, for now
   private static readonly ROW_RING = 1;
   /** Baked meshes keyed by district (c<col>r<row>). */
@@ -196,9 +291,7 @@ export class World {
   /** A baked mesh's district from its world position (mesh center). */
   private static districtKey(x: number, z: number): string {
     const col = Math.max(0, Math.min(World.DIST_COLS - 1, Math.floor((x + 84) / World.DIST_COL_W)));
-    // Agent-5: rows may go negative (the Times Square district, z −80..−48);
-    // clamping below at DIST_MIN_ROW keeps every W0 key byte-identical.
-    const row = Math.max(World.DIST_MIN_ROW, Math.min(World.DIST_ROWS - 1, Math.floor((z + 48) / World.DIST_ROW_H)));
+    const row = Math.max(0, Math.min(World.DIST_ROWS - 1, Math.floor((z + 48) / World.DIST_ROW_H)));
     return `c${col}r${row}`;
   }
 
@@ -226,13 +319,13 @@ export class World {
    *  Called from updateDynamics with the live player position. */
   private updateDistricts(px: number, pz: number): void {
     const col = Math.max(0, Math.min(World.DIST_COLS - 1, Math.floor((px + 84) / World.DIST_COL_W)));
-    const row = Math.max(World.DIST_MIN_ROW, Math.min(World.DIST_ROWS - 1, Math.floor((pz + 48) / World.DIST_ROW_H)));
+    const row = Math.max(0, Math.min(World.DIST_ROWS - 1, Math.floor((pz + 48) / World.DIST_ROW_H)));
     const key = `c${col}r${row}`;
     if (key === this.lastDistrict) return;
     this.lastDistrict = key;
     for (let c = 0; c < World.DIST_COLS; c++) {
       const colIn = Math.abs(c - col) <= World.STREET_RING;
-      for (let r = World.DIST_MIN_ROW; r < World.DIST_ROWS; r++) {
+      for (let r = 0; r < World.DIST_ROWS; r++) {
         const inRing = colIn && Math.abs(r - row) <= World.ROW_RING;
         const dk = `c${c}r${r}`;
         for (const m of this.districtBatches.get(dk) ?? []) m.visible = inRing;
@@ -314,12 +407,11 @@ export class World {
 
     // ---------------- ground & street (street runs along X) ----------------
     this.solid('Road', 0, -0.1, 0, 100, 0.2, 8, PAL.road, { receive: true, cast: false });
-    // Sidewalk_N is split at the subway stair shaft (Agent-5): the opening
-    // x −43.5..−40.5, z 5.0..8.0 is the REAL descendable stairwell into
-    // Alder Station (firstSession.ts). The W1 butt-joints at x ±50 are
-    // untouched; both new slabs keep the old center y, height and material.
-    this.solid('Sidewalk_N_W', -46.75, -0.05, 6, 6.5, 0.3, 4, PAL.walk, { receive: true, cast: false });
-    this.solid('Sidewalk_N_E', 4.75, -0.05, 6, 90.5, 0.3, 4, PAL.walk, { receive: true, cast: false });
+    // Sidewalk_N is split around the subway stairwell slot (x -45.9..-43.3,
+    // docs/50): same material, same top, two slabs — the descent opens the
+    // walking lane exactly where the headhouse always stood beside it.
+    this.solid('Sidewalk_N_W', -49.25, -0.05, 6, 1.5, 0.3, 4, PAL.walk, { receive: true, cast: false });
+    this.solid('Sidewalk_N_E', 2.05, -0.05, 6, 95.9, 0.3, 4, PAL.walk, { receive: true, cast: false });
     this.solid('Sidewalk_S', 0, -0.05, -6, 100, 0.3, 4, PAL.walk, { receive: true, cast: false });
     for (let i = 0; i < 6; i++) {
       // lifted clear of the road top (coplanar bottoms shimmered at grazing angles)
@@ -585,17 +677,9 @@ export class World {
     // "retire the x ±48 walls"; the grid is walkable now, Gable and Marlow
     // sit outside the old z walls). The boundary moves to the registry's
     // playable core: x ±84, z ±48 — never before a district has content.
-    // Agent-5: the south wall is split at x −72..−66 so the Alder Station's
-    // below-grade passage (space y −5.9..−1.6) can pass under it toward the
-    // Times Square district. The gap is enclosed floor-to-soffit by the
-    // passage's own walls; at street level a plug box (y −1.4..18) keeps the
-    // boundary solid — the core law holds at grade, the corridor is the only
-    // way through, and no void is reachable.
     this.colliders.push(boxFromCenter(-84, 5, 0, 1, 20, 96));
     this.colliders.push(boxFromCenter(84, 5, 0, 1, 20, 96));
-    this.colliders.push(boxFromCenter(-79.5, 6, -48, 9, 24, 1));   // south wall west of the passage (x −84..−75)
-    this.colliders.push(boxFromCenter(7.5, 6, -48, 153, 24, 1));   // south wall east of the passage (x −69..84)
-    this.colliders.push(boxFromCenter(-72, 8.3, -48, 6, 19.4, 1)); // passage gap plug (y −1.4..18)
+    this.colliders.push(boxFromCenter(0, 6, -48, 168, 24, 1)); // south wall behind Marlow
     this.colliders.push(boxFromCenter(0, 6, 48, 168, 24, 1));  // north wall behind Gable
 
     // zones
@@ -711,7 +795,7 @@ export class World {
     // local +z; the street is on the −z side of the north-face row. (This
     // also fixes the recorded "pizza-awning diagonal" — the shipped copies
     // leaned INTO their building faces; the awning now hangs over the walk.)
-    const pizza = makeStorefront(this.bank, this.signMaterials.bind(this), 'CORNER SLICE PIZZA', PAL.coral, 6);
+    const pizza = makeStorefront(this.bank, this.signMaterials.bind(this), 'CORNER SLICE PIZZA', PAL.coral, 6, 'Pizza_Glass');
     pizza.position.set(27, 0.05, 8.02);
     pizza.rotation.y = Math.PI;
     this.scene.add(pizza);
@@ -746,11 +830,7 @@ export class World {
     const subway = makeSubwayEntrance(this.bank, this.signMaterials.bind(this));
     subway.position.set(-42, 0.05, 6.2);
     this.scene.add(subway);
-    // Agent-5: the "nobody walks into the earth" blocker retires — the earth
-    // is open now. The shaft below (Alder Station's stairwell) carries the
-    // real walls; the plaza decks, benches and the interaction anchor at
-    // (−42, 4.55) keep their clearances (opening z starts at 5.0, south of
-    // the bench's 4.9 edge).
+    this.colliders.push(boxFromCenter(-42, 0.4, 6.2, 2.6, 1.0, 3.5)); // nobody walks into the earth
     this.flyerMat = new THREE.MeshLambertMaterial({ map: this.flyerTexture('YOUR CORNER') });
     const board = makeBulletinBoard(this.bank, this.flyerMat);
     board.position.set(-37.6, 0.05, 7.5);
@@ -881,7 +961,11 @@ export class World {
       t.group.position.set(tx, 0.05, tz);
       t.group.rotation.y = rng() * Math.PI * 2;
       this.scene.add(t.group);
-      this.trees.push({ group: t.group, canopy: t.canopy, phase: rng() * Math.PI * 2, mats: t.mats, fade: 1 });
+      // sphereIndex: i — the shipped spheres land in the follow-up loop
+      // below, one per tree in the same order.
+      this.trees.push({ group: t.group, x: tx, z: tz, baseY: 0.05, h: t.h,
+        yaw: t.group.rotation.y, phase: rng() * Math.PI * 2, fade: 1,
+        sphereIndex: i, top: t.top, blobs: t.blobs.map((b) => ({ ...b, idx: -1 })) });
       treeTops.push(t.top);
       // the trunk is wood — a thin box that matches it (canopy stays air;
       // only the trunk blocks). North STREET trees extend back to the
@@ -1136,25 +1220,75 @@ export class World {
     this.buildAlderHeightsW2();
     // W3: the avenue walls, the landmarks, the painted gables. Also pre-bake.
     this.buildAlderHeightsW3();
+    // W4 part 1: the district's static life — zone figures, parked cars,
+    // the BUS-03 stop — all pre-bake so the W0 merge swallows them (the
+    // perf law: the zones cost merges, not draw calls).
+    this.buildAlderHeightsW4Life();
+    // W4 part 2: the M121's body (dynamic, never baked), the half-court's
+    // dusk pickup pair (dusk-toggled, merged by material), the TEN-01
+    // laundry (static, bakes free) and the hall's notice board (the face
+    // carries a canvas texture, so it stays out of the bake by itself).
+    this.buildAlderHeightsW4Traffic();
+    // W5: the interiors batch (docs/45 §1 W5) — the rooms hollow their
+    // masses' ground floors, furnish to the registry's fixture level, and
+    // every room carries the visibility toggle (near = fit-out + clear
+    // glass; far = the shipped lit-glass face; inside = the tower ducks).
+    this.buildAlderHeightsW5();
+
 
     // leaf drift, now over every tree on the block (shipped 12 + W1 rows)
     this.leaves = new LeafDrift(this.scene, [...leafSpots, ...this.extraLeafSpots], 4);
-
-    // Agent-5 — the first-session environments (docs/02 + docs/07): Alder
-    // Station below the plaza, the Times Square district south of the core,
-    // and the terminal arrival coach. One module, one owner, one update
-    // hook; the shipped world is untouched apart from the three cuts above.
-    this.firstSession = new FirstSessionWorld(this.scene, {
-      bank: this.bank,
-      colliders: this.colliders,
-      sign: (text, w, h, bg, fg, px) => this.signMaterials(text, w, h, bg, fg, px),
-    });
 
     this.bakeStatics();
 
     // instanced canopies for the new tree rows go up AFTER the bake — an
     // InstancedMesh is a Mesh, and the bake must never swallow it
     this.buildInstancedTreeRows();
+
+    // ---- the far world (docs/50): the K line, Times Square, the M121 ----
+    // All zone-owned, all bake-excluded by root name, all far from any
+    // authored beat. The subway's static colliders land here once; the
+    // door colliders the ride toggles come and go by identity.
+    this.subwayRoot.name = 'SUB_Root';
+    this.scene.add(this.subwayRoot);
+    this.subway = buildSubwaySystem(
+      this.subwayRoot,
+      (c, opts) => this.mat(c, opts),
+      (c) => {
+        const b = boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d);
+        this.subwayColliderBySpec.set(c, b);
+        this.colliders.push(b);
+      },
+      (c) => {
+        const b = this.subwayColliderBySpec.get(c);
+        if (!b) return;
+        const i = this.colliders.indexOf(b);
+        if (i >= 0) this.colliders.splice(i, 1);
+        this.subwayColliderBySpec.delete(c);
+      },
+    );
+    const tsRoot = new THREE.Group();
+    tsRoot.name = 'TSS_Group';
+    this.scene.add(tsRoot);
+    this.timesSquare = buildTimesSquare(tsRoot, (c, opts) => this.mat(c, opts));
+    for (const c of this.timesSquare.colliders) {
+      this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d));
+    }
+    this.arrivalBus = buildArrivalBus((c, opts) => this.mat(c, opts));
+    this.scene.add(this.arrivalBus.group);
+    for (const c of this.arrivalBus.colliders) {
+      const box = boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d);
+      this.colliders.push(box);
+      this.arrivalBoxes.push(box);
+    }
+    this.collectTerminalShell();
+    this.buildSubwayCast();
+    // the far world's statics merge per zone group (docs/47 "the zone
+    // bake"): SUB_Root + TSS_Group booted as ~600 single-mesh draw calls
+    // because their content must never join a DISTRICT tile — zone
+    // visibility is the law down there. The zone bake keeps the law:
+    // merge WITHIN each zone group, re-parent into it.
+    this.bakeZoneStatics();
 
     // ---- ambient pedestrians (Yuka steering) ----------------------------
     // Built AFTER the static bake so their rigs are never merge candidates;
@@ -1172,13 +1306,30 @@ export class World {
     ];
     const pedPaths: Array<Array<[number, number]>> = [
       // the commuter: full block, crossing only at the crosswalk (x ≈ -6.5,
-      // inside the cab's yield zone), two lanes per direction
+      // inside the cab's yield zone), two lanes per direction. LAW (probe-peds
+      // caught it): Yuka spawns each walker targeting pts[0] — so pts[0] must
+      // be reachable LEGALLY from every point. The crossing's north mouth is
+      // that point; the west district reach belongs to the shopper's loop.
       [[-6.5, 6.15], [38, 6.15], [38, 6.85], [-6.5, 6.85],
        [-6.5, -6.15], [26, -6.15], [26, -6.85], [-6.5, -6.85]],
-      // the window shopper: north sidewalk out-and-back, past the bodega
-      [[10, 6.1], [-28, 6.1], [-28, 6.75], [10, 6.75]],
-      // the south-side local: laundry to the west end and back
-      [[-34, -6.1], [18, -6.1], [18, -6.8], [-34, -6.8]],
+      // the window shopper: north walk out-and-back — W4: extended west to
+      // the plaza/terminal end (NZ-TERMINAL's bay, NZ-PLAZA's stair beats).
+      // The turnaround parks at x −42, not the wall: the −44 curb car's
+      // avoidance circle squeezed the U-turn into the building-line trunks
+      // (probe-solid's 0.35 m trunk approach — the gate is 0.42).
+      [[10, 6.1], [-42, 6.1], [-42, 6.75], [10, 6.75]],
+      // the south-side local: laundry to the district's east end and back.
+      // W4: the return lane rides −6.35, not the old −6.8 — the east-end
+      // trunks (28/38, −7.0) held the extended loop at their circle radius
+      // (0.35 m, probe-solid's gate is 0.42); 0.65 m lateral clears them.
+      [[-34, -6.1], [44, -6.1], [44, -6.35], [-34, -6.35]],
+      // W4 — the garden tender (NZ-GARDEN): the gate to the beds and back,
+      // inside GRD-GABLE's fence line (x −8.4..4, z 20..30)
+      [[4.4, 24.1], [-0.5, 24.4], [-6.5, 24.4], [-6.9, 26],
+       [-4, 26.8], [0, 26.2], [2.8, 25], [4.4, 24.1]],
+      // W4 — the avenue shopper (NZ-AVENUE): the Sycamore Ave west walk,
+      // past the diner window and the fruit stand (x 61.5/62.2 lanes)
+      [[61.5, -18], [61.5, 18], [62.2, 18], [62.2, -18]],
     ];
     // ---- their routines (Phase 4, Doc 37 §3E): the day's small beats ------
     // Every trigger sits OFF the walk lanes (at the building line or the
@@ -1191,23 +1342,42 @@ export class World {
     // block's occasional two-person conversation.
     const pedRoutines: RoutineStop[][] = [
       // the commuter: the barber's pole on the way east, the mailbox on the
-      // way west, and a chance word by the bus bench
+      // way west, a chance word by the bus bench (its ring is unchanged —
+      // the spawn law above keeps the crossing legal from every seed)
       [
         { x: 34.5, z: 7.0, faceTo: [36.6, 7.9], dwell: 3.0 },
         { x: -3.4, z: -6.9, faceTo: [-3.2, -6.1], dwell: 2.5 },
         { x: -24.9, z: 7.0, faceTo: [-23.3, 7.62], dwell: 5.0 },
       ],
-      // the window shopper: the bodega window (she's just looking — always),
-      // then the bench, where the gossip lives
+      // the window shopper: the bodega window, the bench — and W4's west
+      // beats: the terminal curb bay (NZ-TERMINAL), the plaza stair (NZ-PLAZA)
       [
         { x: -17.0, z: 7.0, faceTo: [-18.5, 13.5], dwell: 4.0 },
         { x: -26.1, z: 7.0, faceTo: [-23.3, 7.62], dwell: 5.0 },
+        { x: -30.6, z: 6.9, faceTo: [-30, 3.4], dwell: 3.0 },
+        { x: -41.2, z: 6.9, faceTo: [-42, 6.2], dwell: 3.5 },
       ],
       // the south-side local: watches the cart corner (opinions daily),
-      // reads the stoops at the quiet west end
+      // reads the stoops at the quiet west end — and W4: pauses at the
+      // Corner Park gate (NZ-DOG), where the pigeons scatter-recover
       [
         { x: 5.4, z: -6.9, faceTo: [4.0, -6.6], dwell: 3.0 },
         { x: -30.5, z: -6.9, faceTo: [-30.5, -9.0], dwell: 2.5 },
+        { x: 31.5, z: -6.5, faceTo: [34, -6.3], dwell: 5.0 },
+      ],
+      // W4 — the garden tender (NZ-GARDEN): watering the beds, a word to
+      // the bench, back to the gate
+      [
+        { x: -6.2, z: 24.6, faceTo: [-7.6, 23], dwell: 6.0 },
+        { x: -1.8, z: 25.8, faceTo: [-4, 27], dwell: 5.0 },
+        { x: 2.4, z: 24.6, faceTo: [1, 22.5], dwell: 3.0 },
+      ],
+      // W4 — the avenue shopper (NZ-AVENUE): the diner window, the Golden
+      // Orchard's crates, the M121 pole
+      [
+        { x: 61.6, z: -12, faceTo: [60.1, -12], dwell: 5.0 },
+        { x: 61.7, z: -16.5, faceTo: [63.3, -18], dwell: 4.0 },
+        { x: 61.6, z: 2.2, faceTo: [61.5, 2], dwell: 2.0 },
       ],
     ];
     this.peds = new Pedestrians(
@@ -1257,8 +1427,32 @@ export class World {
         ...this.extraKestrelPedBodies.map(([x, z]) => ({ x, z, r: 0.35 })),
         { x: -57, z: -6.25, r: 1.9 },  // SUB-02 control house
         { x: 12, z: -7.35, r: 0.3 },   // new south lamp (walker band east end)
+        // W4: the parked cars (built in buildAlderHeightsW4Life, below) and
+        // the park/garden furniture the new district walkers can meet
+        ...this.w4ParkedCarBodies.map(([x, z]) => ({ x, z, r: 1.9 })),
+        { x: 10, z: 28.5, r: 0.4 }, { x: 16, z: 29, r: 0.4 },   // Kestrel Green trees
+        { x: 23, z: 28.8, r: 0.4 }, { x: 28.5, z: 27, r: 0.4 },
+        { x: 17.55, z: 26.3, r: 0.3 }, { x: 21.45, z: 26.3, r: 0.3 }, // pergola posts
+        { x: 17.55, z: 28.7, r: 0.3 }, { x: 21.45, z: 28.7, r: 0.3 },
+        { x: 12, z: 22.5, r: 0.95 }, { x: 24, z: 25.5, r: 0.95 }, { x: 18, z: 21.5, r: 0.95 }, // green benches
+        { x: 9, z: 23, r: 0.3 }, { x: 20, z: 21, r: 0.3 }, { x: 29, z: 23, r: 0.3 },  // green lamps
+        { x: 11, z: 25.2, r: 0.45 }, { x: 27.5, z: 22, r: 0.45 },  // green bins
+        { x: 16.98, z: 31, r: 0.3 }, { x: 19.02, z: 31, r: 0.3 },  // green gate posts
+        { x: -7.6, z: 23, r: 0.9 }, { x: -4, z: 23, r: 0.9 },      // garden beds
+        { x: -7.6, z: 27, r: 0.9 }, { x: -4, z: 27, r: 0.9 },
+        { x: 2, z: 28.5, r: 1.4 }, { x: 1, z: 22.5, r: 0.9 },      // shed, garden bench
+        { x: -10, z: -28.5, r: 1.2 }, { x: -4.5, z: -27.5, r: 1.6 }, // swings, sandbox
       ],
       pedRoutines,
+      // W4: the district's five road rectangles — ground truth for every
+      // walker's feet (registry streets, verbatim)
+      [
+        { xMin: -84, xMax: 84, zMin: -4, zMax: 4 },    // Kestrel Street
+        { xMin: -84, xMax: 84, zMin: 36, zMax: 44 },   // Gable Street
+        { xMin: -84, xMax: 84, zMin: -44, zMax: -36 }, // Marlow Street
+        { xMin: -76, xMax: -68, zMin: -64, zMax: 64 }, // Juniper Avenue
+        { xMin: 68, xMax: 76, zMin: -64, zMax: 64 },   // Sycamore Avenue
+      ] as RoadRect[],
     );
     // the walkers carry real bodies for the player's collision stack — the
     // audit's "NPCs walking through the player" (doc 35 §1): one synced AABB
@@ -1283,9 +1477,1089 @@ export class World {
   // Signs stay out automatically (their materials carry canvas textures),
   // as do anything transparent or non-Lambert. Batches under 2 meshes are
   // left alone — merging them would save nothing.
+  /** W4, part 1 — the district's STATIC life (docs/45 §1 W4; every zone
+   *  from the registry's npcZones). Perf law: dwellers are posed figures on
+   *  bank-shared materials added BEFORE the bake, so the W0 merge swallows
+   *  them — the zones cost merges, not draw calls. Walking zones ride the
+   *  existing Yuka system (the Pedestrians roster, below). The two registry
+   *  readings this phase makes are recorded in docs/47: the parking-strip
+   *  stalls take their W4 cars (the W2 pad was built ready for them), and
+   *  NZ-BUSKER's horn note ships with the M121 in W4 part 2. */
+  private buildAlderHeightsW4Life(): void {
+    // ---- static zone figures (posed once; merged into district tiles) ----
+    const figure = (
+      name: string, look: PedLook, x: number, y: number, z: number, yaw: number, sit = false,
+    ): void => {
+      const { group, rig } = buildArticulatedPerson(look, (c) => this.bank.get(c));
+      // batch discipline (the census caught it): each novel (color, cast,
+      // receive) signature opens a new baked batch per district tile — so a
+      // tile's figures SHARE one palette and receive shadows like the
+      // world's own solids, and the district's static life costs a handful
+      // of batches, not a handful per figure
+      group.traverse((o) => { if (o instanceof THREE.Mesh) o.receiveShadow = true; });
+      if (sit) {
+        // seated: thighs folded forward (the rig faces +z at yaw 0), arms
+        // resting — the low-poly sit, hips ~0.17 above the seat
+        rig.hipL.rotation.x = -Math.PI / 2 + 0.18;
+        rig.hipR.rotation.x = -Math.PI / 2 + 0.12;
+        rig.armL.rotation.x = -0.45;
+        rig.armR.rotation.x = -0.45;
+        y -= 0.55 * (look.scale ?? 1);
+      }
+      group.name = name;
+      group.position.set(x, y, z);
+      group.rotation.y = yaw;
+      this.scene.add(group);
+    };
+    // NZ-GOSSIP-G + NZ-READERS — four figures, ONE shared palette (the
+    // Kestrel Green tile merges them into a handful of batches); identity
+    // comes from silhouette (style/scale), never new colors
+    const greenLook = (style: 'bun' | 'flat' | 'cap', scale: number): PedLook =>
+      ({ jacket: 0x7d5a62, pants: 0x47404b, skin: 0xe8b08e, hair: 0x6e3b2a, style, scale });
+    figure('NZGossip_A', greenLook('bun', 0.95),
+      18.3, 0.15, 27.2, Math.atan2(20.7 - 18.3, 27.5 - 27.2));
+    figure('NZGossip_B', greenLook('flat', 1.02),
+      20.7, 0.15, 27.5, Math.atan2(18.3 - 20.7, 27.2 - 27.5));
+    figure('NZReader', greenLook('bun', 0.93), 12, 0.15, 21.4, 0);
+    figure('NZLunch', greenLook('cap', 1.06), 24, 0.15, 26.4, Math.PI);
+    // NZ-STOOPS — the row's pair, one shared palette (their own tile)
+    const stoopLook = (style: 'bun' | 'flat', scale: number): PedLook =>
+      ({ jacket: 0x5d6b4a, pants: 0x39423a, skin: 0x8a5a3b, hair: 0x6e3b2a, style, scale });
+    figure('NZStoop_A', stoopLook('bun', 0.98), -41.5, 0.2, 32.3, 0.3, true);
+    figure('NZStoop_B', stoopLook('flat', 1.04), -18.7, 0.2, 32.3, -0.25, true);
+    // NZ-PLAYGROUND — kid + caregiver, one shared palette (Marlow tile);
+    // the kid keeps the row's coral and ambient scale
+    figure('NZKid_Sandbox', { jacket: 0xff6b6b, pants: 0x47404b, skin: 0xe8b08e, hair: 0x6e3b2a, style: 'cap', scale: 0.78 },
+      -4.2, 0.2, -27.2, -1.8);
+    figure('NZCaregiver', { jacket: 0xff6b6b, pants: 0x47404b, skin: 0xc98e5a, hair: 0x1f1b23, style: 'bun', scale: 0.99 },
+      -7.2, 0.12, -29.8, -1.13);
+    // NZ-BUSKER — the horn man at the SUB-02 corner, case open at his feet
+    figure('NZBusker', { jacket: 0x3a3440, pants: 0x1f1b23, skin: 0x8a5a3b, hair: 0x2b2730, style: 'cap', scale: 1.01 },
+      -52.6, 0.1, -5.5, 0);
+    const buskerCase = this.decoMesh('Busker_Case', new THREE.BoxGeometry(0.65, 0.12, 0.42),
+      this.bank.get(0x8a6a4a), -52.6, 0.16, -4.95);
+    buskerCase.castShadow = true;   // the fold: cast+receive like the world's solids
+    buskerCase.receiveShadow = true;
+
+    // ---- the parked cars (registry transit.parkedCars + the W2 strip) ----
+    const car = (name: string, x: number, z: number, yaw: number, alongZ = false): void => {
+      const c = this.buildCar('sedan');
+      c.name = name;
+      c.position.set(x, 0, z);
+      c.rotation.y = yaw;
+      this.scene.add(c);
+      this.colliders.push(alongZ
+        ? boxFromCenter(x, 0.75, z, 1.95, 1.5, 4.4)
+        : boxFromCenter(x, 0.75, z, 4.4, 1.5, 1.95));
+      this.w4ParkedCarBodies.push([x, z]);
+    };
+    // Kestrel N curb ends (registry: z ±3.05, outside both moving lanes)
+    car('Parked_Kestrel_E', 44, 3.05, Math.PI);
+    car('Parked_Kestrel_W', -44, 3.05, Math.PI);
+    // avenue curbs — hugging the road edge, clear of the x ±70/±74 rails.
+    // The north Sycamore car rides z 24, mid-block: its first draft sat at
+    // z 34, inside the Gable S walk's crossing desire line (z 32..36) — the
+    // W5 ghost gate walked the junction and wedged the capsule against its
+    // west flank. NYC parks mid-block, not in the crosswalk. (docs/47 W5)
+    car('Parked_Sycamore_S', 68.98, 10, -Math.PI / 2, true);
+    car('Parked_Sycamore_N', 68.98, 24, -Math.PI / 2, true);
+    car('Parked_Juniper', -68.98, 14, -Math.PI / 2, true);
+    // the W2 strip's stalls (the pad was built ready for them)
+    car('Parked_Strip_E', 38, 25, 0);
+    car('Parked_Strip_W', 43, 25, Math.PI);
+
+    // ---- BUS-03, Sycamore/Diner (registry transit.bus.stops) -------------
+    // The flag rides the west walk at the pinned corner; the bay paint
+    // mirrors BUS-02's curb pattern on the Kestrel north curb it serves.
+    this.deco('BUS03_Bay', 61.5, 0.02, 3.4, 12, 0.02, 0.5, PAL.taxi, {});
+    const m121b = makePoleSign(this.bank, this.signMaterials.bind(this), 'M121', { w: 0.8, h: 0.3, y: 3.0 });
+    m121b.position.set(61.5, 0.05, 2);
+    this.scene.add(m121b);
+  }
+
+  // ------------------------------------------------------- W4, part 2 -----
+  // The traffic + dusk layer: the M121's body, the half-court's dusk pickup
+  // pair, the TEN-01 laundry and the hall's day-keyed notice. Build order is
+  // the perf law: everything static goes in BEFORE bakeStatics (the merge
+  // swallows it); the bus and the dusk pair are dynamic and carry their own
+  // skip entries below.
+
+  /** The M121's body — the dedicated low-poly bus (doc 45 §7 open decision
+   *  closed: a scaled car reads as a stretched car; a long cream box with a
+   *  window band, a teal stripe, a curb-side door and the M121 rollsign
+   *  reads as a bus). Six draw calls when visible, all bank-shared but the
+   *  rollsign's canvas face. Geometry faces +x (the car-builder convention,
+   *  travelYaw() maps legs onto it). receiveShadow ON — the W4 p2 batch
+   *  fold starts here: the cars and the bus share the world's cast+receive
+   *  signatures instead of opening cast-only batches in every tile. */
+  private buildBus(): THREE.Group {
+    const g = new THREE.Group();
+    g.name = 'M121_Bus';
+    const merged = (geos: THREE.BufferGeometry[], color: number): THREE.Mesh => {
+      const m = new THREE.Mesh(mergeGeometries(geos, false)!, this.bank.get(color));
+      m.castShadow = true;
+      m.receiveShadow = true;
+      g.add(m);
+      return m;
+    };
+    // body slab + roof cap (one cream batch)
+    merged([
+      new THREE.BoxGeometry(9.6, 2.2, 2.3).translate(0, 1.45, 0),
+      new THREE.BoxGeometry(9.6, 0.14, 2.3).translate(0, 2.62, 0),
+    ], PAL.cream);
+    // the livery stripe
+    merged([new THREE.BoxGeometry(9.64, 0.34, 2.32).translate(0, 1.05, 0)], PAL.teal);
+    // window band + the curb-side door (the door rides local −z: the right
+    // of travel — check it with the westbound leg: yaw π maps −z to +z, the
+    // north curb every Kestrel stop pulls toward)
+    merged([
+      new THREE.BoxGeometry(9.0, 0.78, 2.34).translate(-0.1, 2.05, 0),
+      new THREE.BoxGeometry(0.06, 1.75, 0.95).translate(2.9, 1.12, -1.14),
+    ], PAL.windowDim);
+    // wheels, then hubs + bumpers (two stone/manhole batches)
+    const wheelGeos: THREE.BufferGeometry[] = [];
+    const hubGeos: THREE.BufferGeometry[] = [];
+    for (const wx of [-3.4, 3.4]) {
+      for (const wz of [-0.98, 0.98]) {
+        wheelGeos.push(new THREE.CylinderGeometry(0.4, 0.4, 0.24, 12)
+          .rotateX(Math.PI / 2).translate(wx, 0.4, wz));
+        hubGeos.push(new THREE.CylinderGeometry(0.18, 0.18, 0.26, 10)
+          .rotateX(Math.PI / 2).translate(wx, 0.4, wz));
+      }
+    }
+    hubGeos.push(new THREE.BoxGeometry(0.12, 0.2, 2.2).translate(4.78, 0.55, 0));
+    hubGeos.push(new THREE.BoxGeometry(0.12, 0.2, 2.2).translate(-4.78, 0.55, 0));
+    merged(wheelGeos, PAL.manhole);
+    merged(hubGeos, PAL.stone);
+    // the rollsign — the one canvas face, above the windshield
+    const sign = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.1, 0.36),
+      new THREE.MeshLambertMaterial({ map: this.textTexture('M121', 128, 42, PAL.taxi, PAL.ink, 30) }),
+    );
+    sign.rotation.y = Math.PI / 2;
+    sign.position.set(4.81, 2.42, 0);
+    g.add(sign);
+    return g;
+  }
+
+  /** The half-court's dusk pickup pair (registry npcZones NZ-COURT, "when:
+   *  dusk"). Two posed rigs MERGED BY MATERIAL into five meshes — a
+   *  dusk-toggled figure would otherwise ride ~10 rig parts each. Visible
+   *  only while dusk lasts (updateAmbient); hidden at boot. */
+  private buildCourtDuskPair(): THREE.Group {
+    const g = new THREE.Group();
+    g.name = 'NZCourt_Dusk';
+    // one shared palette for the whole pair — identity by silhouette
+    const looks: Array<[PedLook, number, number, number, (rig: { armL: THREE.Group; armR: THREE.Group; hipL: THREE.Group; hipR: THREE.Group }) => void]> = [
+      [{ jacket: 0x7d5a62, pants: 0x47404b, skin: 0xc98e5a, hair: 0x2b2730, style: 'cap', scale: 0.99 },
+        42.0, 6.3, Math.atan2(44.25 - 42.0, 7.9 - 6.3),
+        (r) => { r.armL.rotation.x = -2.55; r.armR.rotation.x = -2.4; }], // the shooter, hands up
+      [{ jacket: 0x5d6b4a, pants: 0x39423a, skin: 0x8a5a3b, hair: 0x6e3b2a, style: 'flat', scale: 1.04 },
+        43.5, 5.4, Math.atan2(42.0 - 43.5, 6.3 - 5.4),
+        (r) => { r.armL.rotation.z = 0.85; r.armR.rotation.z = -0.85; }], // the defender, arms out
+    ];
+    const byMat = new Map<THREE.MeshLambertMaterial, THREE.BufferGeometry[]>();
+    for (const [look, x, z, yaw, pose] of looks) {
+      const { group, rig } = buildArticulatedPerson(look, (c) => this.bank.get(c));
+      pose(rig);
+      group.position.set(x, 0.1, z);
+      group.rotation.y = yaw;
+      group.updateWorldMatrix(true, true);
+      group.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        const mat = o.material as THREE.MeshLambertMaterial;
+        const geo = o.geometry.clone();
+        geo.applyMatrix4(o.matrixWorld);
+        for (const name of Object.keys(geo.attributes)) {
+          if (name !== 'position' && name !== 'normal' && name !== 'uv') geo.deleteAttribute(name);
+        }
+        let list = byMat.get(mat);
+        if (!list) byMat.set(mat, list = []);
+        list.push(geo);
+      });
+    }
+    for (const [mat, geos] of byMat) {
+      const m = new THREE.Mesh(mergeGeometries(geos, false)!, mat);
+      m.castShadow = true;
+      m.receiveShadow = true;
+      g.add(m);
+    }
+    g.visible = false;
+    return g;
+  }
+
+  /** TEN-01's laundry (docs/47 W3 "explicitly NOT done"): lines strung from
+   *  the Old-Law pair's fire-escape rails over the Juniper walk, garments
+   *  in the world's own palette. Static — the bake swallows every box, so
+   *  the dressing costs zero draw calls. */
+  private buildTen01Laundry(): void {
+    // the escape hangs on the west face: wall x −60.02, rail at x −60.82,
+    // platforms y 4.4 / 8.2 (rail tops +0.97), spanning z −16.5..−11.5
+    const line = (y: number): void => {
+      const l = this.decoMesh(`TEN01_Line_${y}`, new THREE.BoxGeometry(0.025, 0.025, 4.7),
+        this.bank.get(PAL.ink), -60.8, y, -14);
+      l.castShadow = true;
+      l.receiveShadow = true;
+    };
+    line(9.17);
+    line(5.37);
+    // wall anchors (the little pulley knobs the lines tie to)
+    for (const y of [9.17, 5.37]) {
+      for (const z of [-16.3, -11.7]) {
+        const knob = this.decoMesh(`TEN01_Pulley_${y}_${z}`, new THREE.BoxGeometry(0.07, 0.07, 0.07),
+          this.bank.get(PAL.ink), -60.02, y, z);
+        knob.castShadow = true;
+        knob.receiveShadow = true;
+      }
+    }
+    // the wash — thin boxes read as cloth from the walk; cream/stone/teal
+    // keep every signature inside the batches the tile already runs
+    const wash: Array<[number, number, number, number]> = [
+      // [z, y-line, color, tilt]
+      [-15.6, 9.17, PAL.cream, 0.05],
+      [-14.5, 9.17, PAL.stone, -0.07],
+      [-13.3, 9.17, PAL.teal, 0.04],
+      [-12.4, 9.17, PAL.cream, -0.05],
+      [-14.9, 5.37, PAL.amber, 0.06],
+      [-13.0, 5.37, PAL.stone, -0.04],
+    ];
+    for (const [z, y, color, tilt] of wash) {
+      const piece = this.decoMesh(`TEN01_Wash_${z}_${y}`, new THREE.BoxGeometry(0.035, 0.62, 0.44),
+        this.bank.get(color), -60.78, y - 0.34, z);
+      piece.rotation.x = tilt;
+      piece.castShadow = true;
+      piece.receiveShadow = true;
+    }
+  }
+
+  /** The Alder Works Hall's notice board (LMK-07's dressing): a small ink
+   *  board under the marquee whose canvas face dressDay() re-letters. The
+   *  plain box joins the bake; the face stays out by itself (map). */
+  private buildHallNotice(): void {
+    const box = this.decoMesh('LMK07_Notice', new THREE.BoxGeometry(0.12, 0.62, 2.2),
+      this.bank.get(PAL.ink), -60.07, 5.15, 26);
+    box.castShadow = true;
+    box.receiveShadow = true;
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 112;
+    this.noticeCanvas = c;
+    this.noticeTex = new THREE.CanvasTexture(c);
+    this.noticeTex.colorSpace = THREE.SRGBColorSpace;
+    this.noticeMat = new THREE.MeshLambertMaterial({ map: this.noticeTex });
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(2.05, 0.5), this.noticeMat);
+    face.name = 'LMK07_Notice_Face';
+    face.rotation.y = -Math.PI / 2; // faces west, at the Juniper walk
+    face.position.set(-60.14, 5.15, 26);
+    this.scene.add(face);
+    this.dressHallNotice(1); // Game calls dressDay(1) at boot — this is the pre-bake default
+  }
+
+  /** Redraw the hall's notice for a day (called from dressDay). One canvas
+   *  fill on the day roll — no geometry, no draw-call churn. */
+  private dressHallNotice(day: number): void {
+    const c = this.noticeCanvas;
+    const ctx = c?.getContext('2d');
+    if (!c || !ctx || !this.noticeTex) return;
+    ctx.fillStyle = '#' + PAL.ink.toString(16).padStart(6, '0');
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.strokeStyle = '#' + PAL.cream.toString(16).padStart(6, '0');
+    ctx.lineWidth = 6;
+    ctx.strokeRect(8, 8, c.width - 16, c.height - 16);
+    ctx.fillStyle = '#' + PAL.cream.toString(16).padStart(6, '0');
+    ctx.font = '800 40px "Trebuchet MS", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(hallNoticeForDay(day), c.width / 2, c.height / 2 + 2, c.width - 48);
+    this.noticeTex.needsUpdate = true;
+  }
+
+  private noticeCanvas: HTMLCanvasElement | null = null;
+  private noticeTex: THREE.CanvasTexture | null = null;
+  private noticeMat: THREE.MeshLambertMaterial | null = null;
+
+  /** The court's dusk pair — visible only while dusk lasts. */
+  private courtDusk!: THREE.Group;
+
+  /** W4 part 2 assembly (see the block comment above buildBus). */
+  private buildAlderHeightsW4Traffic(): void {
+    this.busGroup = this.buildBus();
+    // the boot pose = the boot state (leg 3 a 10 lat 0): mid-lap on
+    // Sycamore Ave, ~26 game-s from the first bay visit — the bay itself
+    // holds BUS-04 (the registry's enterable M121) until the loop arrives.
+    this.busGroup.position.set(72.2, 0, 28);
+    this.busGroup.rotation.y = Math.PI / 2; // travelYaw(0, −1), leg 3 south
+    this.scene.add(this.busGroup);
+    this.busCollider = boxFromCenter(72.2, 1.3, 28, 9.6, 2.6, 2.3);
+    this.colliders.push(this.busCollider);
+
+    this.courtDusk = this.buildCourtDuskPair();
+    this.scene.add(this.courtDusk);
+
+    this.buildTen01Laundry();
+    this.buildHallNotice();
+  }
+
+  // ------------------------------------------------------- W5: the rooms ----
+  // docs/45 §1 W5 + docs/41: eight interiors, planned to fixture level in
+  // the registry, built here. The law each room obeys:
+  //
+  //   1. The shell matches the exterior. Hollowing decomposes the shipped
+  //      mass into wall boxes with the SAME outer envelope (footprint,
+  //      height, silhouette identical — the ghost probes still pass).
+  //   2. The door matches the shipped entrance (docs/41 §1 law 2).
+  //   3. Interior groups carry a visibility TOGGLE (docs/45 W5 exit): far,
+  //      the room hides and the facade keeps its lit-glass look (zero
+  //      draw-call cost at street scale); near (the shell + ~1.5 m), the
+  //      fit-out shows and the clear panes swap in — the camera "sees
+  //      through the glass" without raycasts. While the player is INSIDE,
+  //      the tower above the room ducks (the shipped bodega-roof grammar).
+  //   4. Toggleables stay OUT of the W0 bake (skip set below) — a baked
+  //      batch cannot be hidden per-room.
+  //
+  // Palette law: signature colors only; the two new glass materials reuse
+  // the storefront glass signature (0x3b3346 + the warm emissive), one
+  // translucent, one clear.
+
+  private readonly interiorHandles: InteriorHandle[] = [];
+  /** Warm translucent facade glass — the single-pane look for openings with
+   *  no shipped glass face (the hall's windows, the diner band, the Cecil's
+   *  room window). Lit from the street, see-through up close. */
+  private roomGlassMat!: THREE.MeshLambertMaterial;
+  /** Clear glass for the near state behind a shipped opaque face. */
+  private roomClearMat!: THREE.MeshLambertMaterial;
+  /** The warm interior wall band (the shipped Laundry_Back grammar). */
+  private roomWarmMat!: THREE.MeshLambertMaterial;
+
+  /** Remove a shipped mass mesh by name (the W2 garden-slot precedent:
+   *  find → remove → dispose; the collider is the caller's business). */
+  private retireMass(name: string): void {
+    const old = this.scene.children.find((c) => c.name === name);
+    if (old) {
+      this.scene.remove(old);
+      this.disposeTree(old);
+    }
+  }
+
+  /** Splice the shipped mass's collider (matched by its x/z bounds, the
+   *  buildGardenSlot pattern) — the decomposition below pushes its own.
+   *  ALL matches: the W2 slot cut mutated the original box in place AND
+   *  pushed the replacement solid's, so KTN-02 carries two identical
+   *  envelopes — leave one behind and the room's doorway stays walled. */
+  private retireCollider(x0: number, x1: number, z0: number, z1: number): void {
+    for (let ci = this.colliders.length - 1; ci >= 0; ci--) {
+      const b = this.colliders[ci];
+      if (Math.abs(b.minX - x0) < 0.01 && Math.abs(b.maxX - x1) < 0.01
+        && Math.abs(b.minZ - z0) < 0.01 && Math.abs(b.maxZ - z1) < 0.01) {
+        this.colliders.splice(ci, 1);
+      }
+    }
+  }
+
+  /** A solid box from BOUNDS — the decomposition reads in extents, not
+   *  center/size math. Collides by default (bakes like any solid). */
+  private roomBox(name: string, x0: number, x1: number, y0: number, y1: number,
+    z0: number, z1: number, color: number, collide = true): THREE.Mesh {
+    return this.solid(name, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2,
+      x1 - x0, y1 - y0, z1 - z0, color, collide ? {} : { collide: false });
+  }
+
+  /** The DUCK piece — the tower above a room. Same box as roomBox, but it
+   *  never joins the bake: the bake removes its source meshes, and a duck
+   *  has to stay hideable per-room (the bodega roof is the shipped
+   *  precedent — it sits in the skip set too). Collider stays on: a hidden
+   *  box 3 m over your head never stops anyone. */
+  private duckBox(name: string, x0: number, x1: number, y0: number, y1: number,
+    z0: number, z1: number, color: number): THREE.Mesh {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), this.mat(color));
+    m.name = name;
+    m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    this.scene.add(m);
+    this.colliders.push(boxFromCenter(m.position.x, m.position.y, m.position.z, x1 - x0, y1 - y0, z1 - z0));
+    return m;
+  }
+
+  /** One wall run with rectangular openings (piers, sills, lintels).
+   *  axis 'x': the wall runs along X at z = `at` (thickness t in z);
+   *  axis 'z': runs along Z at x = `at`. Piers and sills collide; lintels
+   *  ride above the capsule and don't. Everything pre-bake (bake merges). */
+  private wallRun(name: string, axis: 'x' | 'z', at: number,
+    a0: number, a1: number, y0: number, y1: number, t: number,
+    color: number,
+    openings: Array<{ from: number; to: number; y0?: number; y1?: number }> = []): void {
+    const ops = [...openings].sort((p, q) => p.from - q.from);
+    let cur = a0;
+    const piece = (nm: string, from: number, to: number, py0: number, py1: number, collide: boolean): void => {
+      if (to - from < 0.01 || py1 - py0 < 0.01) return;
+      const mid = (from + to) / 2;
+      const yMid = (py0 + py1) / 2;
+      if (axis === 'x') this.solid(nm, mid, yMid, at, to - from, py1 - py0, t, color, collide ? {} : { collide: false });
+      else this.solid(nm, at, yMid, mid, t, py1 - py0, to - from, color, collide ? {} : { collide: false });
+    };
+    ops.forEach((op, i) => {
+      piece(`${name}_pier_${i}`, cur, op.from, y0, y1, true);
+      piece(`${name}_sill_${i}`, op.from, op.to, y0, op.y0 ?? y0, true);
+      piece(`${name}_lintel_${i}`, op.from, op.to, op.y1 ?? y1, y1, false);
+      cur = op.to;
+    });
+    piece(`${name}_pier_${ops.length}`, cur, a1, y0, y1, true);
+  }
+
+  /** A thin translucent pane on a facade plane (axis 'z' faces ±z). */
+  private facadePane(name: string, axis: 'x' | 'z', at: number,
+    a0: number, a1: number, y0: number, y1: number, mat: THREE.MeshLambertMaterial): THREE.Mesh {
+    const geo = axis === 'x'
+      ? new THREE.BoxGeometry(a1 - a0, y1 - y0, 0.06)
+      : new THREE.BoxGeometry(0.06, y1 - y0, a1 - a0);
+    const m = new THREE.Mesh(geo, mat);
+    m.name = name;
+    if (axis === 'x') m.position.set((a0 + a1) / 2, (y0 + y1) / 2, at);
+    else m.position.set(at, (y0 + y1) / 2, (a0 + a1) / 2);
+    return m;
+  }
+
+  /** A simple fixture box inside a room group (cast+receive, no bake). */
+  private fixture(g: THREE.Group, name: string, x: number, y: number, z: number,
+    sx: number, sy: number, sz: number, color: number): THREE.Mesh {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), this.bank.get(color));
+    m.name = name;
+    m.position.set(x, y, z);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    g.add(m);
+    return m;
+  }
+
+  private roomKit(id: string): THREE.Group {
+    const g = new THREE.Group();
+    g.name = `INT_${id}`;
+    g.visible = false; // far state until the first updateInteriors
+    this.scene.add(g);
+    return g;
+  }
+
+  private registerInterior(h: InteriorHandle): void {
+    for (const o of h.nearParts) o.visible = false;
+    h.near = false;
+    h.inside = false;
+    this.interiorHandles.push(h as InteriorHandle & { near: boolean; inside: boolean });
+  }
+
+  /** The W5 room visibility toggle — docs/45 W5's exit criterion. Hysteresis
+   *  on the near band (enter 1.6 m, exit 0.8 m past the shell) so a player
+   *  loitering on the sill never flickers the room. */
+  private updateInteriors(px: number, py: number, pz: number): void {
+    const inRect = (x0: number, x1: number, z0: number, z1: number): boolean =>
+      px >= x0 && px <= x1 && pz >= z0 && pz <= z1;
+    for (const h of this.interiorHandles) {
+      const m = h.near ? 0.8 : 1.6;
+      const z1e = h.z1 + m + (h.padZ1 ?? 0);
+      const near = inRect(h.x0 - m, h.x1 + m, h.z0 - m, z1e);
+      const [y0, y1] = h.yBand ?? [-1, 5];
+      const inside = inRect(h.x0, h.x1, h.z0, h.z1) && py >= y0 && py <= y1;
+      if (near !== h.near) {
+        h.near = near;
+        h.group.visible = near;
+        for (const o of h.nearParts) o.visible = near;
+        for (const o of h.farParts) o.visible = !near;
+      }
+      if (inside !== h.inside) {
+        h.inside = inside;
+        for (const o of h.duck) o.visible = !inside;
+      }
+    }
+  }
+
+  /** W5 assembly — the eight rooms. Wall decompositions carry the shipped
+   *  masses' outer envelopes exactly (the ghost gate re-verifies them). */
+  private buildAlderHeightsW5(): void {
+    this.roomGlassMat = this.mat(0x3b3346, { emissive: 0xffb85c, emissiveIntensity: 0.22 });
+    this.roomGlassMat.transparent = true;
+    this.roomGlassMat.opacity = 0.42;
+    this.roomClearMat = this.mat(0x3b3346, { emissive: 0xffb85c, emissiveIntensity: 0.05 });
+    this.roomClearMat.transparent = true;
+    this.roomClearMat.opacity = 0.16;
+    this.roomWarmMat = this.mat(PAL.interior, { emissive: PAL.amber, emissiveIntensity: 0.42 });
+
+    this.buildW5Laundry();
+    this.buildW5Barber();
+    this.buildW5Pizza();
+    this.buildW5Bakery();
+    this.buildW5Records();
+    this.buildW5Hall();
+    this.buildW5Diner();
+    this.buildW5CecilRoom();
+  }
+
+  /** LAUNDRY-INT (registry: KTN-02, x −11..1, z 8.2..19, clear 3.2). The
+   *  shipped bay (washers, Sal, the alcove) stays byte-identical — the room
+   *  hollows behind it, the bay's warm back wall becomes the far state's
+   *  curtain (it hides while the room shows). The Bldg_N_East_A_West mass
+   *  (W2's x −11..6.5 cut) decomposes around the cavity. */
+  private buildW5Laundry(): void {
+    this.retireMass('Bldg_N_East_A_West');
+    this.retireCollider(-11, 6.5, 8, 20);
+    // the mass: upper tower (splits at the cavity's east wall x 0.85), the
+    // ground solid east of the room, the west skin, the north wall, and the
+    // south facade with the shipped bay opening (x −7.925..−2.075, y 0..2.8)
+    this.duckBox('KTN02_Upper_W', -11, 0.85, 3.2, 18, 8, 20, PAL.bldg2);
+    const duckUpper = this.scene.children[this.scene.children.length - 1] as THREE.Mesh;
+    this.roomBox('KTN02_Upper_E', 0.85, 6.5, 3.2, 18, 8, 20, PAL.bldg2);
+    this.roomBox('KTN02_Gnd_E', 0.85, 6.5, 0, 3.2, 8, 20, PAL.bldg2);
+    this.roomBox('KTN02_Wall_W', -11, -10.85, 0, 3.2, 8, 20, PAL.bldg2);
+    this.roomBox('KTN02_Wall_N', -11, 0.85, 0, 3.2, 18.85, 20, PAL.bldg2);
+    this.wallRun('KTN02_Facade', 'x', 8.15, -11, 0.85, 0, 3.2, 0.3, PAL.bldg2,
+      [{ from: -7.925, to: -2.075, y1: 2.8 }]);
+
+    const g = this.roomKit('LAUNDRY');
+    // floor: from the facade line back, warm plaster — continuous with the
+    // shipped bay floor (0xb9b1a6, the alcove's own gray)
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(11.7, 0.06, 10.8), this.bank.get(0xb9b1a6));
+    floor.name = 'LaundryRoom_Floor';
+    floor.position.set(-5.15, 0.13, 13.45);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // warm band on the north wall (the room's light source, Laundry_Back's
+    // grammar carried inward)
+    const warm = new THREE.Mesh(new THREE.BoxGeometry(11.5, 2.4, 0.06), this.roomWarmMat);
+    warm.name = 'LaundryRoom_Warm';
+    warm.position.set(-5.15, 1.7, 18.82);
+    g.add(warm);
+    // the registry's machines: 6 washers west wall, 4 dryers east
+    for (const wz of [9.5, 11.2, 12.9, 14.6, 16.3, 18]) {
+      const b = this.fixture(g, `LW_${wz}`, -10.35, 0.9, wz, 0.95, 1.5, 0.75, 0x9a938c);
+      const door = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.04, 14), this.bank.get(0x2b2730));
+      door.rotation.z = Math.PI / 2;
+      door.position.set(-9.86, 0.85, wz);
+      g.add(door);
+      this.colliders.push(boxFromCenter(-10.35, 0.9, wz, 0.95, 1.5, 0.75));
+      void b;
+    }
+    for (const dz of [10.5, 12.2, 13.9, 15.6]) {
+      this.fixture(g, `LD_${dz}`, 0.35, 0.8, dz, 0.95, 1.35, 0.75, 0x9a938c);
+      this.fixture(g, `LDT_${dz}`, 0.35, 1.52, dz, 0.99, 0.08, 0.79, PAL.teal);
+      this.colliders.push(boxFromCenter(0.35, 0.8, dz, 0.95, 1.35, 0.75));
+    }
+    // folding tables (2), seating (2 chairs + cart), back room (shelf+carts)
+    for (const tz of [12.1, 13.1]) {
+      this.fixture(g, `LT_${tz}`, -5, 0.85, tz, 2.4, 0.07, 0.9, PAL.cream);
+      this.fixture(g, `LTleg_${tz}`, -5, 0.42, tz, 0.12, 0.85, 0.7, 0x8e6f66);
+      this.colliders.push(boxFromCenter(-5, 0.5, tz, 2.4, 1.0, 0.9));
+    }
+    for (const cz of [9.3, 9.9]) {
+      this.fixture(g, `LC_${cz}`, -2.9, 0.42, cz, 0.5, 0.06, 0.5, 0x2b2730);
+      this.fixture(g, `LCb_${cz}`, -2.9, 0.71, cz + 0.2, 0.5, 0.55, 0.06, 0x2b2730);
+    }
+    this.fixture(g, 'LCart', -2.1, 0.45, 9.6, 0.6, 0.9, 0.45, PAL.teal);
+    this.colliders.push(boxFromCenter(-2.6, 0.5, 9.6, 1.6, 1.0, 1.0));
+    this.fixture(g, 'LShelf', -5, 1.0, 18.5, 4, 1.8, 0.45, PAL.bldg2);
+    this.fixture(g, 'LLinen_a', -6.4, 0.5, 17.9, 0.7, 1.0, 0.5, PAL.cream);
+    this.fixture(g, 'LLinen_b', -3.6, 0.5, 17.9, 0.7, 1.0, 0.5, PAL.cream);
+    this.colliders.push(boxFromCenter(-5, 1.0, 18.5, 4, 2.0, 0.5));
+
+    // the far state: the shipped bay back wall (extracted — it was baked)
+    const back = this.scene.children.find((c) => c.name === 'Laundry_Back');
+    const farParts: THREE.Object3D[] = [];
+    if (back) {
+      this.scene.attach(back);
+      farParts.push(back);
+    }
+    this.registerInterior({
+      id: 'LAUNDRY-INT', x0: -11, x1: 1, z0: 8.2, z1: 19,
+      group: g, nearParts: [], farParts, duck: [duckUpper],
+    });
+  }
+
+  /** BARBER-INT (KTN-05: x 34.2..39, z 8.2..19.6, clear 3.4). Two chairs
+   *  face the mirror wall; the trim's anchor lives at the chair now. The
+   *  shipped FADE KING glass face is the far pane. */
+  private buildW5Barber(): void {
+    this.retireMass('Bldg_N_East_B_E');
+    this.retireCollider(33.5, 49, 8, 20);
+    this.duckBox('KTN05_Upper_W', 33.5, 39, 3.4, 16, 8, 20, PAL.bldg);
+    const duckUpper = this.scene.children[this.scene.children.length - 1];
+    this.roomBox('KTN05_Upper_E', 39, 49, 3.4, 16, 8, 20, PAL.bldg);
+    this.roomBox('KTN05_Gnd_E', 39, 49, 0, 3.4, 8, 20, PAL.bldg);
+    this.roomBox('KTN05_Wall_W', 33.5, 34.4, 0, 3.4, 8, 20, PAL.bldg);
+    this.roomBox('KTN05_Wall_N', 34.4, 38.8, 0, 3.4, 19.4, 20, PAL.bldg);
+    this.wallRun('KTN05_Facade', 'x', 8.1, 34.4, 38.8, 0, 3.4, 0.2, PAL.bldg, [
+      { from: 34.4, to: 35.9, y0: 0.5, y1: 2.6 },  // window W
+      { from: 36.1, to: 37.1, y1: 2.8 },           // the door
+      { from: 37.2, to: 38.8, y0: 0.5, y1: 2.6 },  // window E
+    ]);
+
+    const g = this.roomKit('BARBER');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.06, 11.0), this.bank.get(PAL.interior));
+    floor.name = 'Barber_Floor';
+    floor.position.set(36.6, 0.13, 13.9);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // mirror wall + counter (E), the room's light
+    const mirror = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.0, 5.0), this.roomWarmMat);
+    mirror.name = 'Barber_Mirror';
+    mirror.position.set(38.74, 1.55, 12.3);
+    g.add(mirror);
+    this.fixture(g, 'Barber_Counters', 38.45, 0.45, 12.3, 0.5, 0.9, 5.0, PAL.teal);
+    this.colliders.push(boxFromCenter(38.45, 0.45, 12.3, 0.5, 0.9, 5.0));
+    // the two chairs (the registry's 35.9 / z 11 & 13.6), facing the mirror
+    for (const cz of [11.0, 13.6]) {
+      this.fixture(g, `Barber_Chair_${cz}`, 35.9, 0.3, cz, 0.7, 0.6, 0.7, 0x2b2730);
+      this.fixture(g, `Barber_ChairBack_${cz}`, 35.65, 0.75, cz, 0.16, 0.9, 0.7, 0x2b2730);
+      this.colliders.push(boxFromCenter(35.9, 0.45, cz, 0.75, 0.9, 0.75));
+    }
+    // waiting bench (W wall)
+    this.fixture(g, 'Barber_Bench', 34.75, 0.25, 12.3, 0.45, 0.5, 2.0, PAL.teal);
+    this.colliders.push(boxFromCenter(34.75, 0.3, 12.3, 0.5, 0.6, 2.0));
+    // powder room (NE): two stall walls with a gap
+    this.fixture(g, 'Barber_Pow_W', 37.3, 1.2, 18.4, 0.1, 2.4, 2.0, PAL.stone);
+    this.fixture(g, 'Barber_Pow_S_a', 37.65, 1.2, 17.4, 0.8, 2.4, 0.1, PAL.stone);
+    this.fixture(g, 'Barber_Pow_S_b', 38.45, 1.2, 17.4, 0.8, 2.4, 0.1, PAL.stone);
+    this.colliders.push(boxFromCenter(37.3, 1.2, 18.4, 0.12, 2.4, 2.0));
+    this.colliders.push(boxFromCenter(38.05, 1.2, 17.4, 1.6, 2.4, 0.12));
+
+    const farParts: THREE.Object3D[] = [];
+    const glass = this.scene.getObjectByName('Barber_Glass');
+    if (glass) {
+      this.scene.attach(glass);
+      farParts.push(glass);
+    }
+    this.registerInterior({
+      id: 'BARBER-INT', x0: 34.2, x1: 39, z0: 8.2, z1: 19.6,
+      group: g,
+      nearParts: [
+        this.facadePane('Barber_Clear_W', 'x', 8.1, 34.45, 35.85, 0.55, 2.55, this.roomClearMat),
+        this.facadePane('Barber_Clear_E', 'x', 8.1, 37.25, 38.75, 0.55, 2.55, this.roomClearMat),
+      ],
+      farParts, duck: [duckUpper],
+    });
+    for (const p of (this.interiorHandles[this.interiorHandles.length - 1].nearParts)) this.scene.add(p);
+  }
+
+  /** PIZZA-INT (KTN-04: x 24.1..29.9, z 8.2..19.6, clear 3.4). The slice
+   *  counter at the S window, the deck oven NE, two booths W. */
+  private buildW5Pizza(): void {
+    this.retireMass('Bldg_N_East_B_W');
+    this.retireCollider(21, 30.7, 8, 20);
+    this.roomBox('KTN04_Upper_W', 21, 24.3, 3.4, 16, 8, 20, PAL.bldg);
+    this.duckBox('KTN04_Upper_C', 24.3, 29.7, 3.4, 16, 8, 20, PAL.bldg);
+    const duckUpper = this.scene.children[this.scene.children.length - 1];
+    this.roomBox('KTN04_Upper_E', 29.7, 30.7, 3.4, 16, 8, 20, PAL.bldg);
+    this.roomBox('KTN04_Gnd_W', 21, 24.3, 0, 3.4, 8, 20, PAL.bldg);
+    this.roomBox('KTN04_Gnd_E', 29.7, 30.7, 0, 3.4, 8, 20, PAL.bldg);
+    this.roomBox('KTN04_Wall_N', 24.3, 29.7, 0, 3.4, 19.4, 20, PAL.bldg);
+    this.wallRun('KTN04_Facade', 'x', 8.1, 24.3, 29.7, 0, 3.4, 0.2, PAL.bldg, [
+      { from: 24.5, to: 26.4, y0: 0.5, y1: 2.6 },  // window W
+      { from: 26.6, to: 27.6, y1: 2.8 },           // the door
+      { from: 27.8, to: 29.5, y0: 0.5, y1: 2.6 },  // the slice window (E)
+    ]);
+
+    const g = this.roomKit('PIZZA');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.06, 11.0), this.bank.get(PAL.interior));
+    floor.name = 'Pizza_Floor';
+    floor.position.set(27, 0.13, 13.9);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // slice counter (S window line)
+    this.fixture(g, 'Pizza_SliceCounter', 27, 0.55, 9.0, 4.6, 1.1, 0.7, PAL.teal);
+    this.fixture(g, 'Pizza_SliceTop', 27, 1.12, 9.0, 4.7, 0.06, 0.8, PAL.stone);
+    this.colliders.push(boxFromCenter(27, 0.55, 9.0, 4.6, 1.1, 0.7));
+    // deck oven (NE) + the warm mouth
+    this.fixture(g, 'Pizza_Oven', 28.8, 0.9, 17.8, 1.8, 1.8, 2.2, 0x9a938c);
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 0.06), this.roomWarmMat);
+    mouth.position.set(28.8, 1.1, 16.68);
+    g.add(mouth);
+    this.colliders.push(boxFromCenter(28.8, 0.9, 17.8, 1.8, 1.8, 2.2));
+    // booths (2, W wall): table + two benches each
+    for (const bz of [12.5, 15.5]) {
+      this.fixture(g, `Pizza_BoothT_${bz}`, 25.2, 0.72, bz, 0.8, 0.06, 1.1, PAL.cream);
+      this.fixture(g, `Pizza_BoothLeg_${bz}`, 25.2, 0.36, bz, 0.12, 0.72, 0.12, 0x8e6f66);
+      this.fixture(g, `Pizza_BoothB1_${bz}`, 24.55, 0.3, bz, 0.5, 0.6, 2.0, PAL.coral);
+      this.fixture(g, `Pizza_BoothB2_${bz}`, 25.85, 0.3, bz, 0.5, 0.6, 2.0, PAL.coral);
+      this.colliders.push(boxFromCenter(25.2, 0.5, bz, 1.7, 1.0, 2.0));
+    }
+    // drink fridge (E wall)
+    this.fixture(g, 'Pizza_Fridge', 29.45, 0.9, 13.5, 0.5, 1.8, 3.0, 0x2b2730);
+    this.colliders.push(boxFromCenter(29.45, 0.9, 13.5, 0.5, 1.8, 3.0));
+
+    const farParts: THREE.Object3D[] = [];
+    const glass = this.scene.getObjectByName('Pizza_Glass');
+    if (glass) {
+      this.scene.attach(glass);
+      farParts.push(glass);
+    }
+    this.registerInterior({
+      id: 'PIZZA-INT', x0: 24.1, x1: 29.9, z0: 8.2, z1: 19.6,
+      group: g,
+      nearParts: [
+        this.facadePane('Pizza_Clear_W', 'x', 8.1, 24.55, 26.35, 0.55, 2.55, this.roomClearMat),
+        this.facadePane('Pizza_Clear_E', 'x', 8.1, 27.85, 29.45, 0.55, 2.55, this.roomClearMat),
+      ],
+      farParts, duck: [duckUpper],
+    });
+    for (const p of (this.interiorHandles[this.interiorHandles.length - 1].nearParts)) this.scene.add(p);
+  }
+
+  /** BAKERY-INT (SMB-01: full-width cavity, x −37.8..−30.2, z −31.8..−20.2,
+   *  clear 3.2). Counter just inside the S storefront (the W5 orientation
+   *  fix), deck oven + racks at the rear. */
+  private buildW5Bakery(): void {
+    this.retireMass('SMB_01');
+    this.retireCollider(-38, -30, -32, -20);
+    this.duckBox('SMB01_Upper', -38, -30, 3.2, 12, -32, -20, PAL.bldg2);
+    const duckUpper = this.scene.children[this.scene.children.length - 1];
+    this.roomBox('SMB01_Wall_N', -38, -30, 0, 3.2, -20.2, -20, PAL.bldg2);
+    this.roomBox('SMB01_Wall_W', -38, -37.8, 0, 3.2, -32, -20, PAL.bldg2);
+    this.roomBox('SMB01_Wall_E', -30.2, -30, 0, 3.2, -32, -20, PAL.bldg2);
+    this.wallRun('SMB01_Facade', 'x', -31.9, -37.8, -30.2, 0, 3.2, 0.2, PAL.bldg2, [
+      { from: -37.2, to: -34.9, y0: 0.5, y1: 2.6 },  // window W
+      { from: -34.6, to: -33.4, y1: 2.8 },           // the door
+      { from: -33.1, to: -30.8, y0: 0.5, y1: 2.6 },  // window E (the bagel window)
+    ]);
+
+    const g = this.roomKit('BAKERY');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.06, 11.6), this.bank.get(PAL.interior));
+    floor.name = 'Bakery_Floor';
+    floor.position.set(-34, 0.13, -26);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // service counter + case (just inside)
+    this.fixture(g, 'Bakery_Counter', -34, 0.55, -30.4, 5.4, 1.1, 0.8, PAL.teal);
+    this.fixture(g, 'Bakery_Case', -34, 1.22, -30.4, 5.4, 0.35, 0.7, 0x3b3346);
+    for (const bx of [-35.6, -34.8, -34, -33.2]) {
+      const bun = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.09, 10), this.bank.get(0xd9a05b));
+      bun.position.set(bx, 1.44, -30.4);
+      g.add(bun);
+    }
+    this.colliders.push(boxFromCenter(-34, 0.55, -30.4, 5.4, 1.1, 0.8));
+    // deck oven + racks (rear, z −22.2)
+    this.fixture(g, 'Bakery_Oven', -34, 0.9, -22.2, 4.4, 1.8, 2.4, 0x9a938c);
+    const ovenMouth = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.7, 0.06), this.roomWarmMat);
+    ovenMouth.position.set(-34, 1.0, -23.42);
+    g.add(ovenMouth);
+    this.colliders.push(boxFromCenter(-34, 0.9, -22.2, 4.4, 1.8, 2.4));
+    this.fixture(g, 'Bakery_Rack_W', -36.9, 0.9, -22.2, 0.7, 1.8, 1.4, 0x8e6f66);
+    this.fixture(g, 'Bakery_Rack_E', -31.1, 0.9, -22.2, 0.7, 1.8, 1.4, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-36.9, 0.9, -22.2, 0.7, 1.8, 1.4));
+    this.colliders.push(boxFromCenter(-31.1, 0.9, -22.2, 0.7, 1.8, 1.4));
+    // two two-top tables
+    for (const tx of [-36.2, -31.8]) {
+      this.fixture(g, `Bakery_Table_${tx}`, tx, 0.72, -27.4, 1.1, 0.06, 1.1, PAL.cream);
+      this.fixture(g, `Bakery_TableLeg_${tx}`, tx, 0.36, -27.4, 0.14, 0.72, 0.14, 0x8e6f66);
+      this.colliders.push(boxFromCenter(tx, 0.4, -27.4, 1.1, 0.8, 1.1));
+    }
+
+    const farParts: THREE.Object3D[] = [];
+    const glass = this.scene.getObjectByName('Bakery_Glass');
+    if (glass) {
+      this.scene.attach(glass);
+      farParts.push(glass);
+    }
+    this.registerInterior({
+      id: 'BAKERY-INT', x0: -37.8, x1: -30.2, z0: -31.8, z1: -20.2,
+      group: g,
+      nearParts: [
+        this.facadePane('Bakery_Clear_W', 'x', -31.9, -37.15, -34.95, 0.55, 2.55, this.roomClearMat),
+        this.facadePane('Bakery_Clear_E', 'x', -31.9, -33.05, -30.85, 0.55, 2.55, this.roomClearMat),
+      ],
+      farParts, duck: [duckUpper],
+    });
+    for (const p of (this.interiorHandles[this.interiorHandles.length - 1].nearParts)) this.scene.add(p);
+  }
+
+  /** RECORD-INT (SMB-02: full-width cavity). Three crate rows, the
+   *  listening corner, the counter at the south end. */
+  private buildW5Records(): void {
+    this.retireMass('SMB_02');
+    this.retireCollider(-28, -22, -32, -20);
+    this.duckBox('SMB02_Upper', -28, -22, 3.2, 12, -32, -20, PAL.brick);
+    const duckUpper = this.scene.children[this.scene.children.length - 1];
+    this.roomBox('SMB02_Wall_N', -28, -22, 0, 3.2, -20.2, -20, PAL.brick);
+    this.roomBox('SMB02_Wall_W', -28, -27.8, 0, 3.2, -32, -20, PAL.brick);
+    this.roomBox('SMB02_Wall_E', -22.2, -22, 0, 3.2, -32, -20, PAL.brick);
+    this.wallRun('SMB02_Facade', 'x', -31.9, -27.8, -22.2, 0, 3.2, 0.2, PAL.brick, [
+      { from: -27.2, to: -25.9, y0: 0.5, y1: 2.6 },  // window W
+      { from: -25.6, to: -24.4, y1: 2.8 },           // the door
+      { from: -24.1, to: -22.8, y0: 0.5, y1: 2.6 },  // window E
+    ]);
+
+    const g = this.roomKit('RECORDS');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.06, 11.6), this.bank.get(PAL.interior));
+    floor.name = 'Records_Floor';
+    floor.position.set(-25, 0.13, -26);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // crate rows (3)
+    for (const rz of [-23.5, -25.5, -27.5]) {
+      this.fixture(g, `Records_Crate_${rz}`, -25, 0.55, rz, 4.4, 1.1, 0.6, 0x8e6f66);
+      this.fixture(g, `Records_CrateTop_${rz}`, -25, 1.12, rz, 4.4, 0.06, 0.62, 0x2b2730);
+      this.colliders.push(boxFromCenter(-25, 0.55, rz, 4.4, 1.1, 0.6));
+    }
+    // the listening corner: chair, speaker stacks, the player's spot
+    this.fixture(g, 'Records_Chair', -26.4, 0.42, -30.2, 0.7, 0.85, 0.7, 0x2b2730);
+    this.fixture(g, 'Records_Spk_W', -27.4, 0.6, -30.9, 0.5, 1.2, 0.5, 0x2b2730);
+    this.fixture(g, 'Records_Spk_E', -25.4, 0.6, -30.9, 0.5, 1.2, 0.5, 0x2b2730);
+    this.colliders.push(boxFromCenter(-26.4, 0.5, -30.4, 0.9, 1.0, 0.9));
+    this.colliders.push(boxFromCenter(-27.4, 0.6, -30.9, 0.5, 1.2, 0.5));
+    this.colliders.push(boxFromCenter(-25.4, 0.6, -30.9, 0.5, 1.2, 0.5));
+    // the counter
+    this.fixture(g, 'Records_Counter', -23.4, 0.55, -30.6, 1.6, 1.1, 0.7, PAL.teal);
+    this.colliders.push(boxFromCenter(-23.4, 0.55, -30.6, 1.6, 1.1, 0.7));
+
+    const farParts: THREE.Object3D[] = [];
+    const glass = this.scene.getObjectByName('Records_Glass');
+    if (glass) {
+      this.scene.attach(glass);
+      farParts.push(glass);
+    }
+    this.registerInterior({
+      id: 'RECORD-INT', x0: -27.8, x1: -22.2, z0: -31.8, z1: -20.2,
+      group: g,
+      nearParts: [
+        this.facadePane('Records_Clear_W', 'x', -31.9, -27.15, -25.95, 0.55, 2.55, this.roomClearMat),
+        this.facadePane('Records_Clear_E', 'x', -31.9, -24.05, -22.85, 0.55, 2.55, this.roomClearMat),
+      ],
+      farParts, duck: [duckUpper],
+    });
+    for (const p of (this.interiorHandles[this.interiorHandles.length - 1].nearParts)) this.scene.add(p);
+  }
+
+  /** HALL-INT (KCM-01: full footprint, x −59.8..−48.2, z 20.2..31.8,
+   *  clear 3.8). Main hall + folding chairs, workshop N, kitchenette NE,
+   *  the notice wall by the entrance. Both shipped doors become real
+   *  gaps (open doorways, the bodega grammar). */
+  private buildW5Hall(): void {
+    this.retireMass('KCM_01_base');
+    this.retireMass('KCM_01_upper');
+    this.retireMass('KCM01_Door_Main');
+    this.retireMass('KCM01_Door_N');
+    this.retireCollider(-60.05, -47.95, 19.95, 32.05);
+    this.retireCollider(-60, -48, 20, 32);
+    this.duckBox('KCM01_Upper', -60, -48, 3.8, 15, 20, 32, PAL.brick);
+    const duckUpper = this.scene.children[this.scene.children.length - 1];
+    // ground walls y 0..3.8 (the base's own 12.1 envelope): E/S walls, the
+    // N wall with the Gable door, the W wall with door + two tall windows
+    this.roomBox('KCM01_Wall_E', -48.2, -47.95, 0, 3.8, 20, 32, PAL.stone);
+    this.roomBox('KCM01_Wall_S', -60.05, -48.2, 0, 3.8, 19.95, 20.2, PAL.stone);
+    this.wallRun('KCM01_Wall_N', 'x', 31.925, -60.05, -48.2, 0, 3.8, 0.25, PAL.stone,
+      [{ from: -54.5, to: -53.5, y1: 2.8 }]);
+    this.wallRun('KCM01_Wall_W', 'z', -59.9, 20.2, 31.8, 0, 3.8, 0.3, PAL.stone, [
+      { from: 22.0, to: 23.6, y0: 0.9, y1: 2.9 },  // window S
+      { from: 25.2, to: 26.8, y1: 2.8 },           // the main door (Juniper)
+      { from: 28.4, to: 30.0, y0: 0.9, y1: 2.9 },  // window N
+    ]);
+
+    const g = this.roomKit('HALL');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(11.3, 0.06, 11.3), this.bank.get(PAL.interior));
+    floor.name = 'Hall_Floor';
+    floor.position.set(-54.1, 0.13, 26.1);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // warm band on the S wall (faces the entrance)
+    const warm = new THREE.Mesh(new THREE.BoxGeometry(10.8, 2.2, 0.06), this.roomWarmMat);
+    warm.name = 'Hall_Warm';
+    warm.position.set(-54.1, 1.8, 20.42);
+    g.add(warm);
+    // the notice wall (S, faces the door)
+    this.fixture(g, 'Hall_NoticeWall', -55, 1.5, 20.55, 6, 1.9, 0.12, 0x8e6f66);
+    for (let i = 0; i < 5; i++) {
+      this.fixture(g, `Hall_Note_${i}`, -57.4 + i * 1.2, 1.5 + (i % 2) * 0.25, 20.48, 0.55, 0.7, 0.02, PAL.cream);
+    }
+    this.colliders.push(boxFromCenter(-55, 1.5, 20.55, 6, 1.9, 0.14));
+    // folding-chair stacks around the hall's clear zone
+    for (const [cx, cz] of [[-58.6, 22.2], [-58.6, 29.6], [-50.6, 22.2], [-50.6, 29.6]] as const) {
+      this.fixture(g, `Hall_Chairs_${cx}_${cz}`, cx, 0.45, cz, 0.55, 0.9, 0.55, PAL.teal);
+      this.colliders.push(boxFromCenter(cx, 0.45, cz, 0.6, 0.9, 0.6));
+    }
+    // workshop (N half): table + shelves
+    this.fixture(g, 'Hall_WorkTable', -54, 0.45, 29.5, 2.2, 0.9, 1.0, 0x8e6f66);
+    this.fixture(g, 'Hall_WorkVise', -53.4, 0.98, 29.5, 0.3, 0.16, 0.3, 0x2b2730);
+    this.colliders.push(boxFromCenter(-54, 0.45, 29.5, 2.2, 0.9, 1.0));
+    this.fixture(g, 'Hall_Shelves', -54, 1.0, 31.5, 5, 1.8, 0.4, PAL.bldg2);
+    this.colliders.push(boxFromCenter(-54, 1.0, 31.5, 5, 1.8, 0.4));
+    // kitchenette (NE corner)
+    this.fixture(g, 'Hall_Kitchenette', -49.4, 0.45, 30.6, 2.4, 0.9, 1.6, PAL.teal);
+    this.colliders.push(boxFromCenter(-49.4, 0.45, 30.6, 2.4, 0.9, 1.6));
+
+    // the hall's tall windows: single warm translucent panes, always on —
+    // lit from the street, see-through up close (the swap-free pane)
+    for (const wz of [22.8, 29.2]) {
+      this.scene.add(this.facadePane(`Hall_Glass_${wz}`, 'z', -60.04, wz - 0.8, wz + 0.8, 0.9, 2.9, this.roomGlassMat));
+    }
+    this.registerInterior({
+      id: 'HALL-INT', x0: -59.8, x1: -48.2, z0: 20.2, z1: 31.8,
+      group: g, nearParts: [], farParts: [], duck: [duckUpper],
+    });
+  }
+
+  /** DINER-INT (SND-01: x 50.2..59.8, z −19.8..−8.2, clear 3.6). Counter
+   *  bar + 8 stools down the E wall, kitchen line, 4 booths W, register +
+   *  pie case S. The band windows become real openings with warm panes. */
+  private buildW5Diner(): void {
+    this.retireMass('SND_01_band');
+    this.retireMass('SND_01_upper');
+    this.retireMass('SND01_Chamfer');
+    this.retireMass('SND01_BandWin_52.4');
+    this.retireMass('SND01_BandWin_57.6');
+    this.retireCollider(49.95, 60.05, -20.05, -7.95);
+    this.retireCollider(50, 60, -20, -8);
+    this.duckBox('SND01_Upper', 50, 60, 3.6, 13, -20, -8, PAL.brick);
+    const duckUpper = this.scene.children[this.scene.children.length - 1];
+    this.roomBox('SND01_Wall_W', 49.95, 50.2, 0, 3.6, -20, -8, PAL.cream);
+    this.roomBox('SND01_Wall_S', 50.2, 59.8, 0, 3.6, -20.05, -19.8, PAL.cream);
+    this.wallRun('SND01_Facade_N', 'x', -8.075, 50.2, 59.8, 0, 3.6, 0.25, PAL.cream, [
+      { from: 50.7, to: 54.1, y0: 0.95, y1: 2.45 },  // band window W
+      { from: 54.3, to: 55.7, y1: 2.8 },             // the Kestrel-walk door
+      { from: 55.9, to: 59.3, y0: 0.95, y1: 2.45 },  // band window E
+    ]);
+    this.wallRun('SND01_Wall_E', 'z', 59.925, -20, -8, 0, 3.6, 0.25, PAL.cream, [
+      { from: -18.3, to: -16.5, y0: 0.95, y1: 2.45 },  // avenue window
+      { from: -14.7, to: -13.3, y1: 2.8 },             // the Sycamore-walk door
+    ]);
+
+    const g = this.roomKit('DINER');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(9.6, 0.06, 11.6), this.bank.get(PAL.interior));
+    floor.name = 'Diner_Floor';
+    floor.position.set(55, 0.13, -14);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // counter bar (E wall) + 8 stools
+    this.fixture(g, 'Diner_CounterBar', 58.9, 0.55, -14.5, 0.7, 1.1, 8, PAL.teal);
+    this.fixture(g, 'Diner_CounterTop', 58.9, 1.12, -14.5, 0.8, 0.06, 8.1, PAL.stone);
+    this.colliders.push(boxFromCenter(58.9, 0.55, -14.5, 0.7, 1.1, 8));
+    for (let i = 0; i < 8; i++) {
+      const sz = -10.9 - i * 1.03;
+      const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.55, 8), this.bank.get(PAL.cream));
+      stool.position.set(58.35, 0.28, sz);
+      stool.castShadow = true;
+      g.add(stool);
+    }
+    // kitchen line behind the counter
+    this.fixture(g, 'Diner_Kitchen', 57.6, 0.5, -14.5, 1.6, 1.0, 8, 0x9a938c);
+    const griddle = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 2.2), this.roomWarmMat);
+    griddle.position.set(57.6, 1.04, -13.2);
+    g.add(griddle);
+    this.colliders.push(boxFromCenter(57.6, 0.5, -14.5, 1.6, 1.0, 8));
+    // booths (4, W wall)
+    for (const bz of [-11.5, -14, -16.5, -18.5]) {
+      this.fixture(g, `Diner_BoothT_${bz}`, 51.6, 0.72, bz, 0.8, 0.06, 1.1, PAL.cream);
+      this.fixture(g, `Diner_BoothB1_${bz}`, 50.95, 0.3, bz, 0.5, 0.6, 1.8, PAL.coral);
+      this.fixture(g, `Diner_BoothB2_${bz}`, 52.25, 0.3, bz, 0.5, 0.6, 1.8, PAL.coral);
+      this.colliders.push(boxFromCenter(51.6, 0.5, bz, 2.0, 1.0, 1.8));
+    }
+    // register + pie case (S end)
+    this.fixture(g, 'Diner_Register', 57, 0.55, -18.9, 1.8, 1.1, 0.6, PAL.teal);
+    const pieGlass = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.45, 0.45), this.roomClearMat);
+    pieGlass.position.set(57, 1.33, -18.9);
+    g.add(pieGlass);
+    for (const px of [56.7, 57, 57.3]) {
+      const pie = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.07, 10), this.bank.get(0xd9a05b));
+      pie.position.set(px, 1.2, -18.9);
+      g.add(pie);
+    }
+    this.colliders.push(boxFromCenter(57, 0.55, -18.9, 1.8, 1.1, 0.6));
+
+    // warm translucent panes in the three real openings (always visible)
+    this.scene.add(this.facadePane('Diner_Glass_NW', 'x', -8.075, 50.75, 54.05, 0.98, 2.42, this.roomGlassMat));
+    this.scene.add(this.facadePane('Diner_Glass_NE', 'x', -8.075, 55.95, 59.25, 0.98, 2.42, this.roomGlassMat));
+    this.scene.add(this.facadePane('Diner_Glass_E', 'z', 59.925, -18.25, -16.55, 0.98, 2.42, this.roomGlassMat));
+    this.registerInterior({
+      id: 'DINER-INT', x0: 50.2, x1: 59.8, z0: -19.8, z1: -8.2,
+      group: g, nearParts: [], farParts: [], duck: [duckUpper],
+    });
+  }
+
+  /** CECIL-ROOM (KTS-02: x 10.2..15.8, z −14.1..−9.1, y 8.35, clear 2.9).
+   *  The W5 re-lay: the room abuts the top fire-escape landing (the
+   *  registry note holds the docs/41 §1 door-law reasoning). Bed by the
+   *  window wall — the gold-window sight-line from the pillow. */
+  private buildW5CecilRoom(): void {
+    this.retireMass('Bldg_S_FireEscape');
+    this.retireCollider(0, 26, -20, -8);
+    // below the room: solid
+    this.roomBox('KTS02_Lower', 0, 26, 0, 8.35, -20, -8, PAL.brick);
+    // the room's band (y 8.35..11.25): S slab, W slab, E slab, the N wall
+    // with the fire-escape door and the street window
+    this.roomBox('KTS02_Band_S', 0, 26, 8.35, 11.25, -20, -14.1, PAL.brick);
+    this.roomBox('KTS02_Band_W', 0, 10.2, 8.35, 11.25, -14.1, -8, PAL.brick);
+    this.roomBox('KTS02_Band_E', 15.8, 26, 8.35, 11.25, -14.1, -8, PAL.brick);
+    this.wallRun('KTS02_Band_N', 'x', -8.55, 0, 26, 8.35, 11.25, 1.1, PAL.brick, [
+      { from: 12.55, to: 13.45, y1: 10.55 },          // the fire-escape door
+      { from: 14.3, to: 15.5, y0: 9.35, y1: 10.75 },  // the window (the sight-line)
+    ]);
+    // above the room: the duck piece + the rest of the tower
+    this.duckBox('KTS02_Above_Room', 10.2, 15.8, 11.25, 14, -14.1, -9.1, PAL.brick);
+    const duckAbove = this.scene.children[this.scene.children.length - 1];
+    this.roomBox('KTS02_Above_S', 0, 26, 11.25, 14, -20, -14.1, PAL.brick);
+    this.roomBox('KTS02_Above_W', 0, 10.2, 11.25, 14, -14.1, -8, PAL.brick);
+    this.roomBox('KTS02_Above_E', 15.8, 26, 11.25, 14, -14.1, -8, PAL.brick);
+    this.roomBox('KTS02_Above_N', 10.2, 15.8, 11.25, 14, -9.1, -8, PAL.brick);
+
+    const g = this.roomKit('CECIL');
+    // the floor (through the door zone — a 0.2 step up from the landing)
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 6.1), this.bank.get(PAL.interior));
+    floor.name = 'Cecil_Floor';
+    floor.position.set(13, 8.34, -11.05);
+    floor.receiveShadow = true;
+    g.add(floor);
+    this.colliders.push(boxFromCenter(13, 8.34, -11.05, 5.6, 0.12, 6.1));
+    // warm band on the room's S wall (opposite the window — the lamp wall)
+    const warm = new THREE.Mesh(new THREE.BoxGeometry(5.4, 2.2, 0.06), this.roomWarmMat);
+    warm.name = 'Cecil_Warm';
+    warm.position.set(13, 9.8, -14.07);
+    g.add(warm);
+    // the bed (NW, head at the window wall — the sight-line from the pillow)
+    this.fixture(g, 'Cecil_BedFrame', 14.6, 8.55, -10.6, 1.4, 0.35, 2.0, 0x6e554e);
+    this.fixture(g, 'Cecil_Mattress', 14.6, 8.82, -10.6, 1.3, 0.18, 1.9, PAL.cream);
+    this.fixture(g, 'Cecil_Pillow', 14.6, 8.95, -9.75, 0.5, 0.12, 0.35, PAL.cream);
+    this.colliders.push(boxFromCenter(14.6, 8.7, -10.6, 1.4, 0.7, 2.0));
+    // kitchenette (W wall)
+    this.fixture(g, 'Cecil_Kitchenette', 10.5, 8.8, -11.5, 0.6, 0.9, 2.0, PAL.teal);
+    this.fixture(g, 'Cecil_Hotplate', 10.5, 9.28, -11.1, 0.4, 0.05, 0.4, 0x2b2730);
+    this.fixture(g, 'Cecil_KShelf', 10.5, 10.1, -11.5, 0.5, 0.7, 1.6, 0x8e6f66);
+    this.colliders.push(boxFromCenter(10.5, 8.8, -11.5, 0.6, 0.9, 2.0));
+    // bath (SE, 1.6×2): two stall walls with a gap
+    this.fixture(g, 'Cecil_Bath_W', 14.25, 9.4, -13.1, 0.1, 2.0, 2.0, PAL.stone);
+    this.fixture(g, 'Cecil_Bath_S_a', 14.6, 9.4, -12.15, 0.75, 2.0, 0.1, PAL.stone);
+    this.fixture(g, 'Cecil_Bath_S_b', 15.45, 9.4, -12.15, 0.65, 2.0, 0.1, PAL.stone);
+    this.fixture(g, 'Cecil_Toilet', 15.5, 8.6, -13.6, 0.4, 0.4, 0.6, PAL.cream);
+    this.fixture(g, 'Cecil_Sink', 14.55, 8.85, -13.75, 0.45, 0.3, 0.4, PAL.cream);
+    this.colliders.push(boxFromCenter(14.25, 9.4, -13.1, 0.12, 2.0, 2.0));
+    this.colliders.push(boxFromCenter(15.0, 9.4, -12.15, 1.6, 2.0, 0.12));
+    // the roof hatch (reserved, stage-5 Rooftop — registry (12.2, −12.0))
+    this.fixture(g, 'Cecil_Hatch', 12.2, 8.43, -12.0, 0.9, 0.06, 0.9, 0x2b2730);
+    // the Map's corkboard (by the door)
+    this.fixture(g, 'Cecil_Corkboard', 11.2, 9.5, -9.42, 1.1, 0.8, 0.06, 0x8e6f66);
+    this.fixture(g, 'Cecil_CorkNote', 11.2, 9.5, -9.38, 0.5, 0.6, 0.02, PAL.cream);
+    // rug
+    const rug = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.02, 1.4), this.bank.get(PAL.teal));
+    rug.position.set(12.6, 8.41, -11.0);
+    rug.receiveShadow = true;
+    g.add(rug);
+    // the window's warm translucent pane (always visible — lit from inside)
+    this.scene.add(this.facadePane('Cecil_Glass', 'x', -8.03, 14.32, 15.48, 9.37, 10.73, this.roomGlassMat));
+    this.registerInterior({
+      id: 'CECIL-ROOM', x0: 10.2, x1: 15.8, z0: -14.1, z1: -9.1,
+      yBand: [7.8, 12.0],
+      padZ1: 2.7, // the top landing (z −8..−6.6) is outside the shell — the room shows from the rail
+      group: g, nearParts: [], farParts: [], duck: [duckAbove],
+    });
+  }
+
+
   private bakeStatics(): void {
     const skip = new Set<THREE.Object3D>([
       this.cartRoot, this.cartAwning, this.roof,
+      // W5: the interior fit-outs toggle per-room — a baked batch can't be
+      // hidden. The extracted far faces (the shipped glass panels) toggle
+      // with them, and the duck towers must stay hideable while inside.
+      // The WALLS bake normally.
+      ...this.interiorHandles.map((h) => h.group),
+      ...this.interiorHandles.flatMap((h) => h.farParts),
+      ...this.interiorHandles.flatMap((h) => h.nearParts),
+      ...this.interiorHandles.flatMap((h) => h.duck),
+      this.busGroup,   // the M121 runs its rail every frame (W4 p2)
+      this.courtDusk,  // the pickup pair toggles at dusk (W4 p2)
       this.rosa, this.idris, this.kidGround, this.kidSil, this.stranger, this.sal,
       this.familiar, this.barrier, this.asphaltPatch,
       this.stool, this.permitReceipt,
@@ -1294,10 +2568,11 @@ export class World {
       this.leaves.mesh,
       ...this.glbProps.values(),
       ...this.itemMeshes.values(),
-      // W0: only the CANOPY stays out of the bake — the sway owns it. The
-      // trunk and root flare are static wood: they merge into their district
-      // tile like any other wall (−2 draw calls × 12 trees × 2 passes).
-      ...this.trees.map((t) => t.canopy),
+      // W0: the tree CANOPY is gone from the scene graph — makeTree now
+      // returns blob records and the instanced canopy owns the draw (built
+      // after this bake: an InstancedMesh is a Mesh, the bake must never
+      // swallow it). The trunk and root flare are static wood: they merge
+      // into their district tile like any other wall.
     ]);
     // the windows whose MATERIALS are tweened (dusk, golden-hour beats) —
     // they share a signature with the plain dim windows and must not join
@@ -1309,17 +2584,16 @@ export class World {
       // the plaza decks stay named: probe-env6 verifies their proudness and
       // clearances by name (the "plaza owns its paving" regression) — two
       // receive-only slabs are a fair price for that identity
-      'Plaza_Deck_W', 'Plaza_Deck_E']);
+      'Plaza_Deck_W', 'Plaza_Deck_E',
+      // docs/50 far world: the terminal lifts off when the player is
+      // underground (the dollhouse), and the zone groups manage their own
+      // visibility — none of it may join a district tile (the street ring
+      // would light the tunnel forever)
+      'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121']);
     const excluded = (o: THREE.Object3D): boolean => {
       for (let p: THREE.Object3D | null = o; p !== null; p = p.parent) {
         if (skip.has(p) || NAMED_SKIP.has(p.name)) return true;
       }
-      // Agent-5 first-session environments (Alder Station below grade, the
-      // Times Square district south of the core) carry their OWN visibility
-      // gate — the bodega-interior pattern, one group per zone. Merging them
-      // into a district batch would weld their visibility to the street's,
-      // so they stay out of the bake entirely and merge among themselves.
-      if (o.name.startsWith('A5_')) return true;
       return false;
     };
 
@@ -1356,6 +2630,25 @@ export class World {
       const tile = World.districtKey(o.matrixWorld.elements[12], o.matrixWorld.elements[14]);
       b.srcs.push({ geo: g, mesh: o, tile });
     });
+
+    // ---- the W4 p2 consolidation lever: fold CAST-ONLY batches -------------
+    // A (color, cast=1, receive=0) batch sitting next to the same
+    // (color, cast=1, receive=1) batch in the same tile is two draw calls
+    // for one material — the W4 p1 parked cars opened five of these per
+    // tile (buildCar never set receiveShadow). The fold sends the cast-only
+    // sources into the cast+receive batch: they start RECEIVING shadows,
+    // which is the look every world solid already has. Deliberately narrow:
+    // receive-only (0,1) and flat (0,0) batches stay put — their flags were
+    // chosen (ground slabs must not cast).
+    for (const [key, b] of [...batches]) {
+      if (!(b.cast && !b.receive)) continue;
+      const foldKey = `${key.slice(0, key.lastIndexOf('|'))}|1`;
+      const target = batches.get(foldKey);
+      if (target && target !== b) {
+        target.srcs.push(...b.srcs);
+        batches.delete(key);
+      }
+    }
 
     // commits happen per (signature, district); a district group of 1 stays
     // as-is — merging it would save nothing
@@ -1421,6 +2714,92 @@ export class World {
       this.registerDistrictObject(o, o.position.x, o.position.z);
     }
     this.updateDistricts(-30, 6.2); // boot at the spawn — the E2E's first frame
+  }
+
+  /** The zone bake — the far world's statics, merged per zone group.
+   *
+   *  SUB_Root and TSS_Group boot as ~600 single-mesh draw calls (the
+   *  census's top debtors) because their content must never join a
+   *  DISTRICT tile: zone visibility is the law down there, and a district
+   *  batch is lit by the street ring forever (stationKit's own header
+   *  states it). So the merge happens one level down, INSIDE each zone
+   *  group — same signature key as bakeStatics (color | emissive |
+   *  emissiveIntensity | fog | cast | receive), same material rules (no
+   *  map, no transparent, indexed geometry), and the merged mesh is
+   *  re-parented INTO its group so every law above survives untouched:
+   *  the zone lit-set, the dollhouse skip (collectTerminalShell walks
+   *  root names), the ride's scenery stream, the screens' per-screen
+   *  sync tick, and the subway cast's breathe.
+   *
+   *  Animated subtrees stay out by name: the cast rigs (Priya, the
+   *  busker, the usher, the square's crowd, riders, waiters) breathe;
+   *  TSS_Screen_N tick per screen (each screen owns its material
+   *  instance — merging them would fuse the sync beat). Singleton
+   *  signature groups stay as-is, exactly like bakeStatics. */
+  private bakeZoneStatics(): void {
+    const groups: THREE.Group[] = [
+      this.subway.groups.stationA, this.subway.groups.stationB,
+      this.subway.groups.tunnel, this.subway.groups.scenery,
+      this.timesSquare.group,
+    ];
+    const ANIMATED = /priya|busker|usher|crowd|mover|rider|sub_wait|sub_sax|tss_screen_\d+$/i;
+    const animated = (o: THREE.Object3D, g: THREE.Group): boolean => {
+      for (let p: THREE.Object3D | null = o; p && p !== g; p = p.parent) {
+        if (p.name && ANIMATED.test(p.name)) return true;
+      }
+      return false;
+    };
+
+    interface ZSrc { geo: THREE.BufferGeometry; mesh: THREE.Mesh }
+    const allRemoved: THREE.Mesh[] = [];
+    for (const g of groups) {
+      g.updateWorldMatrix(true, false);
+      const gInv = new THREE.Matrix4().copy(g.matrixWorld).invert();
+      const batches = new Map<string, { srcs: ZSrc[]; cast: boolean; receive: boolean; mat: THREE.MeshLambertMaterial }>();
+      g.traverse((o) => {
+        if (!(o instanceof THREE.Mesh) || animated(o, g)) return;
+        const mat = o.material;
+        if (!(mat instanceof THREE.MeshLambertMaterial) || mat.map || mat.transparent) return;
+        const geo = o.geometry;
+        if (!geo.index || !geo.attributes.position || !geo.attributes.normal) return;
+        o.updateWorldMatrix(true, false);
+        const c = geo.clone();
+        c.applyMatrix4(new THREE.Matrix4().multiplyMatrices(gInv, o.matrixWorld));
+        // attribute-identical sources only, so mergeGeometries accepts them
+        for (const name of Object.keys(c.attributes)) {
+          if (name !== 'position' && name !== 'normal' && name !== 'uv') c.deleteAttribute(name);
+        }
+        const key = `${mat.color.getHexString()}|${mat.emissive.getHexString()}`
+          + `|${mat.emissiveIntensity}|${mat.fog ? 1 : 0}`
+          + `|${o.castShadow ? 1 : 0}|${o.receiveShadow ? 1 : 0}`;
+        let b = batches.get(key);
+        if (!b) batches.set(key, b = { srcs: [], cast: o.castShadow, receive: o.receiveShadow, mat });
+        b.srcs.push({ geo: c, mesh: o });
+      });
+      let i = 0;
+      for (const b of batches.values()) {
+        if (b.srcs.length < 2) { for (const s of b.srcs) s.geo.dispose(); continue; }
+        const merged = mergeGeometries(b.srcs.map((s) => s.geo), false);
+        for (const s of b.srcs) s.geo.dispose();
+        if (!merged) continue;
+        for (const s of b.srcs) {
+          s.mesh.parent?.remove(s.mesh);
+          allRemoved.push(s.mesh);
+        }
+        merged.computeBoundingSphere();
+        const mesh = new THREE.Mesh(merged, b.mat);
+        mesh.name = `ZoneBake_${g.name}_${i++}`;
+        mesh.castShadow = b.cast;
+        mesh.receiveShadow = b.receive;
+        g.add(mesh);
+      }
+    }
+    // geometries referenced by any survivor must not die with the sources
+    const keepGeoms = new Set<THREE.BufferGeometry>();
+    this.scene.traverse((o) => { if (o instanceof THREE.Mesh) keepGeoms.add(o.geometry); });
+    for (const m of allRemoved) {
+      if (!keepGeoms.has(m.geometry)) m.geometry.dispose();
+    }
   }
 
   // ------------------------------------------------------------------ helpers
@@ -1741,8 +3120,14 @@ export class World {
     const backMat = this.mat(PAL.interior, { emissive: PAL.amber, emissiveIntensity: 0.42 });
     this.decoMesh('Laundry_Back', new THREE.BoxGeometry(5.85, 2.8, 0.06), backMat, CX, 1.4, 7.93);
     this.deco('Laundry_Floor', CX, 0.12, 7.7, 5.85, 0.05, 0.6, 0xb9b1a6);
-    // two front-loaders, portholes to the street; the near drum spins on wash day
-    for (const [i, wx] of [[0, CX - 0.9], [1, CX + 0.3]] as const) {
+    // two front-loaders, portholes to the street; the near drum spins on
+    // wash day. W5 (docs/47): the pair flanks the bay's east side — the
+    // first draft straddled x −5, and the full room behind the bay (the
+    // registry's "entrance (open bay), w 5.85") had no walk-in: the gap
+    // between the two machines was 0.25 m. The center now reads as the
+    // doorway it always claimed to be; the spinning near washer keeps its
+    // role (the drum the E2E watches rides washer 0 wherever it stands).
+    for (const [i, wx] of [[0, CX + 1.1], [1, CX + 2.3]] as const) {
       const body = this.deco(`Laundry_Washer_${i}`, wx, 0.9, 7.75, 0.95, 1.5, 0.5, 0x9a938c);
       body.castShadow = true;
       const ring = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.045, 8, 18), this.mat(PAL.ink));
@@ -1834,7 +3219,7 @@ export class World {
    *  the pizza joint), striped pole on the wall west of the glass. Air pole:
    *  signs and poles stay non-solid, like every other pole on the block. */
   private buildBarbershop(): void {
-    const shop = makeStorefront(this.bank, this.signMaterials.bind(this), 'FADE KING BARBERSHOP', PAL.brick, 5);
+    const shop = makeStorefront(this.bank, this.signMaterials.bind(this), 'FADE KING BARBERSHOP', PAL.brick, 5, 'Barber_Glass');
     shop.position.set(36.6, 0.05, 8.02);
     shop.rotation.y = Math.PI; // same lean-out fix as the pizza (W1)
     this.scene.add(shop);
@@ -1854,39 +3239,68 @@ export class World {
 
   /** THE HALF-COURT — painted key and arc on the north-east sidewalk, hoop
    *  against the building face. The commuter ped turns around at x = 38;
-   *  everything here is east of the turn and ped-free. */
+   *  everything here is east of the turn and ped-free.
+   *  Docs/49 upgrade: the six separate paint meshes became ONE canvas-texture
+   *  plane (a real court: key, FT circle, three-point arc, hash marks, wear);
+   *  the hoop gained a net (it swishes), a pole pad, a caged light and the
+   *  chalk tally board; chain-link encloses west + south (gate gap on the
+   *  south-east — the ball can roll out of it, and the court rolls it back);
+   *  the ball wears its leather and seams now. */
   private buildCourt(): void {
-    // paint: asphalt patch slightly darker than the walk, cream lines
-    this.deco('Court_Paint', 43.75, 0.035, 6.1, 7.3, 0.02, 3.4, 0x4a4552, {});
-    const line = this.mat(PAL.cream);
-    for (const [lx, lz, sx, sz] of [
-      [42.6, 5.9, 0.08, 2.6], [45.9, 5.9, 0.08, 2.6], // key sidelines
-      [44.25, 7.2, 3.4, 0.08],                          // free-throw line
-      [42.6, 4.6, 0.08, 0.6], [45.9, 4.6, 0.08, 0.6],  // key corners
-    ] as const) {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(sx, 0.02, sz), line);
-      m.position.set(lx, 0.045, lz);
-      this.scene.add(m);
-    }
-    // the arc — half ring laid flat at the free-throw line, opening south
-    const arc = new THREE.Mesh(
-      new THREE.RingGeometry(1.75, 1.85, 26, 1, Math.PI, Math.PI),
-      line,
-    );
-    arc.rotation.x = -Math.PI / 2;
-    arc.position.set(44.25, 0.045, 7.2);
-    this.scene.add(arc);
+    // one textured plane instead of six meshes — fewer draw calls, more court
+    const courtTex = new THREE.CanvasTexture(paintCourtCanvas());
+    courtTex.anisotropy = 4;
+    const courtMat = new THREE.MeshLambertMaterial({ map: courtTex, fog: true });
+    this.scene.add(makeCourtSurface(courtMat));
+
     // the hoop, against the face; the rim reads from the whole sidewalk
     const hoop = makeHoop(this.bank);
     hoop.position.set(44.25, 0.05, 7.9);
     this.scene.add(hoop);
     this.colliders.push(boxFromCenter(44.25, 1.65, 7.9, 0.24, 3.3, 0.24)); // the pole blocks
-    // the ball — orange, patient, at rest by the key. It moves when shot,
-    // so it is excluded from the static bake (see bakeStatics).
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), this.mat(0xd9772f));
-    ball.name = 'CourtBall';
-    ball.position.set(43.2, 0.13, 5.2);
-    ball.castShadow = true;
+    // the net hangs from the rim (rim center per interactionDefs: z 7.64)
+    this.courtNet = makeNet(this.bank);
+    this.courtNet.group.position.set(44.25, 2.6, 7.64);
+    this.scene.add(this.courtNet.group);
+    // the foam pad and the caged gooseneck — the corner dresses like itself
+    const pad = makePolePad(this.bank);
+    pad.position.set(44.25, 0.05, 7.9);
+    this.scene.add(pad);
+    const light = makeCourtLight(this.bank);
+    light.group.position.set(44.25, 3.42, 7.93);
+    this.scene.add(light.group);
+    this.courtGlow = light.glow;
+    // the chalk tally — the block keeps score on the wall by the hoop
+    this.courtTally = makeTallyBoard({ makes: 0 });
+    this.courtTally.mesh.position.set(45.55, 2.3, 7.92);
+    this.courtTally.mesh.rotation.y = Math.PI;
+    this.scene.add(this.courtTally.mesh);
+
+    // the chain-link: west run + south run, with the open gate on the
+    // south-east (the ball can escape there; CourtGame rolls it back home)
+    const backstop = buildBackstop(this.scene, this.bank, {
+      wx: 40.45, wz0: 4.55, wz1: 7.8,
+      sx0: 40.45, sx1: 45.3, sz: 4.55,
+      h: 3.0,
+    });
+    this.courtWeaves = backstop.weaves;
+    // the fence lines are solid to bodies, transparent to the camera boom
+    // (chain-link — the lens looks through the diamonds, docs/49)
+    this.colliders.push({ ...boxFromCenter(40.45, 1.5, 6.175, 0.12, 3.0, 3.25), seeThroughCamera: true });
+    this.colliders.push({ ...boxFromCenter(42.875, 1.5, 4.55, 4.85, 3.0, 0.12), seeThroughCamera: true });
+    // the gate posts stand free (air between them — the way in)
+    for (const gx of [45.3, 47.3]) {
+      const gp = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 3.12, 8), this.bank.get(PAL.ink));
+      gp.position.set(gx, 1.56, 4.55);
+      gp.castShadow = true;
+      this.scene.add(gp);
+    }
+
+    // the ball — leather and seams now, resting properly ON the slab
+    // (ground 0.1 + radius 0.13). It moves when shot, so it is excluded
+    // from the static bake (see bakeStatics).
+    const ball = makeBasketball();
+    ball.position.set(COURT_BALL_REST.x, COURT_BALL_REST.y, COURT_BALL_REST.z);
     this.scene.add(ball);
     this.ball = ball;
   }
@@ -1962,16 +3376,26 @@ export class World {
   // merges into its district tile.)
   // ================================================================
 
-  /** New street trees (Gable/Marlow rows + both avenues) render as two
-   *  InstancedMeshes — one per leaf material — with per-tree sway and
-   *  per-tree blob data. The shipped 12 keep their fade-capable clones.
-   *  New trees do NOT join the fade pass (their camera guard is the
+  /** New street trees (Gable/Marlow rows + both avenues) render as
+   *  instanced canopy blobs with per-tree sway and per-tree blob data —
+   *  same slots as the shipped trees' canopies since the one-canosystem
+   *  merge. New trees do NOT join the fade pass (their camera guard is the
    *  sidestep + z-clamp; docs/47 W1 records the tradeoff). */
   private simpleTrees: Array<{ x: number; z: number; h: number; phase: number; top: number;
     blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 }> }> = [];
   private extraLeafSpots: Array<{ x: number; z: number; r: number; top: number; tints: number[] }> = [];
-  private treeLeafA: THREE.InstancedMesh | null = null;
-  private treeLeafB: THREE.InstancedMesh | null = null;
+  /** The instanced canopy: ONE system for every tree on the block. Slots:
+   *  0 leafA (0x5d7d4a) · 1 leafB (0x516e42) · 2 goldA (0xf7b32b) ·
+   *  3 goldB (0xffb85c). The W1 simple rows fill slots 0/1 as before; the
+   *  shipped/full/fill trees (makeTree records) join the same meshes, and
+   *  the autumn golds land in 2/3. Four draw calls for every canopy on the
+   *  block, main pass and shadow pass alike — the recorded Doc 07 lever
+   *  (docs/47: 63 blob meshes × 2 passes → 4 × 2). */
+  private canopyMeshes: Array<THREE.InstancedMesh | null> = [null, null, null, null];
+  /** Per-instance fade alpha (the fade-on-occlude law: ONE tree dissolves,
+   *  never the street). Simple rows stay at 1 forever (docs/47 W1 tradeoff). */
+  private canopyFade: Array<THREE.InstancedBufferAttribute | null> = [null, null, null, null];
+  private canopyBuilt = false;
   private readonly mSway = new THREE.Matrix4();
   private readonly mBlob = new THREE.Matrix4();
   private readonly mCanopy = new THREE.Matrix4();
@@ -1980,6 +3404,8 @@ export class World {
   private readonly tE = new THREE.Euler();
   private readonly tS = new THREE.Vector3();
   private readonly tOne = new THREE.Vector3(1, 1, 1);
+  private readonly qYaw = new THREE.Quaternion();
+  private readonly yAxis = new THREE.Vector3(0, 1, 0);
 
   /** One zebra crossing: `acrossEW` crosses an E–W road (ped walks N–S,
    *  bars long in X marching in Z); `acrossNS` crosses a N–S avenue. */
@@ -2151,14 +3577,14 @@ export class World {
 
     // the Marlow row: three shopfronts + three walk-ups (doors and windows
     // face Marlow — the registry's entrance rows are corrected to z −32)
-    const marlowShops: Array<[string, string, number, number, number]> = [
-      ['SMB_01', 'MARLOW BAKERY', -34, 8, PAL.bldg2],
-      ['SMB_02', 'B-SIDE RECORDS', -25, 6, PAL.brick],
-      ['SMB_03', 'KESTREL HARDWARE', -17, 6, PAL.bldg],
+    const marlowShops: Array<[string, string, number, number, number, string]> = [
+      ['SMB_01', 'MARLOW BAKERY', -34, 8, PAL.bldg2, 'Bakery_Glass'],
+      ['SMB_02', 'B-SIDE RECORDS', -25, 6, PAL.brick, 'Records_Glass'],
+      ['SMB_03', 'KESTREL HARDWARE', -17, 6, PAL.bldg, ''],
     ];
-    for (const [id, label, x, w, col] of marlowShops) {
+    for (const [id, label, x, w, col, glassName] of marlowShops) {
       this.solid(id, x, 6, -26, w, 12, 12, col);
-      const shop = makeStorefront(this.bank, this.signMaterials.bind(this), label, PAL.teal, w - 1);
+      const shop = makeStorefront(this.bank, this.signMaterials.bind(this), label, PAL.teal, w - 1, glassName || undefined);
       shop.position.set(x, 0.05, -32.02);
       shop.rotation.y = Math.PI; // the street is SOUTH of the row
       this.scene.add(shop);
@@ -2186,7 +3612,11 @@ export class World {
     }
 
     // ---- I. trees — the registry's Kestrel fills (full fade-capable trees)
-    const kestrelFillN: Array<[number, number]> = [[-58, 7.48], [-46, 7.48], [44, 7.48], [56, 7.48]];
+    // (44, 7.48) → (48.8, 7.48): the fill landed INSIDE the half-court
+    // (docs/49) — a street tree growing through the key, in front of the
+    // rim. Same row, same law, just east of the court's east fence line.
+    // One-line coordinate move for Main Agent review (docs/49 §6).
+    const kestrelFillN: Array<[number, number]> = [[-58, 7.48], [-46, 7.48], [48.8, 7.48], [56, 7.48]];
     const kestrelFillS: Array<[number, number]> = [[-56, -7.0], [8, -7.0], [48, -7.0]];
     for (const [tx, tz] of [...kestrelFillN, ...kestrelFillS]) {
       const pit = makeTreePit(this.bank);
@@ -2196,7 +3626,12 @@ export class World {
       t.group.position.set(tx, 0.05, tz);
       t.group.rotation.y = rng() * Math.PI * 2;
       this.scene.add(t.group);
-      this.trees.push({ group: t.group, canopy: t.canopy, phase: rng() * Math.PI * 2, mats: t.mats, fade: 1 });
+      // this tree's canopy sphere lands right below — its cache index is
+      // the length BEFORE the push
+      this.trees.push({ group: t.group, x: tx, z: tz, baseY: 0.05, h: t.h,
+        yaw: t.group.rotation.y, phase: rng() * Math.PI * 2, fade: 1,
+        sphereIndex: this.canopySpheresCache.length, top: t.top,
+        blobs: t.blobs.map((b) => ({ ...b, idx: -1 })) });
       const trunkHalf = 0.18;
       const zMax = tz > 6 ? 8.0 : tz + trunkHalf;
       const zSpan = zMax - (tz - trunkHalf);
@@ -2357,7 +3792,10 @@ export class World {
       t.group.position.set(tx, 0.15, tz);
       t.group.rotation.y = rng() * Math.PI * 2;
       this.scene.add(t.group);
-      this.trees.push({ group: t.group, canopy: t.canopy, phase: rng() * Math.PI * 2, mats: t.mats, fade: 1 });
+      this.trees.push({ group: t.group, x: tx, z: tz, baseY: 0.15, h: t.h,
+        yaw: t.group.rotation.y, phase: rng() * Math.PI * 2, fade: 1,
+        sphereIndex: this.canopySpheresCache.length, top: t.top,
+        blobs: t.blobs.map((b) => ({ ...b, idx: -1 })) });
       this.colliders.push(boxFromCenter(tx, 1.2, tz, 0.36, 2.2, 0.36));
       this.canopySpheresCache.push({ x: tx, y: t.top - 0.75, z: tz, r: 2.15 });
       this.extraLeafSpots.push({ x: tx, z: tz, r: 1.5, top: t.top, tints: GREEN_TINTS });
@@ -2964,28 +4402,72 @@ export class World {
     this.buildAvenuePoles();
   }
 
-  /** The instanced canopies for every new-row tree (two draw calls total). */
+  /** The instanced canopy for every tree on the block: four draw calls
+   *  total (leafA/leafB/goldA/goldB), main pass and shadow pass alike.
+   *  Materials are bank clones carrying a per-instance `aFade` attribute
+   *  via onBeforeCompile — the fade-on-occlude law (ONE tree dissolves,
+   *  never the street) moves from per-tree material opacity to per-blob
+   *  alpha. The W1 simple rows' instances stay at aFade = 1 forever.
+   *  Runs AFTER the bake — an InstancedMesh is a Mesh, and the bake must
+   *  never swallow it. */
   private buildInstancedTreeRows(): void {
-    if (!this.simpleTrees.length) return;
-    const leafA = this.bank.get(0x5d7d4a);
-    const leafB = this.bank.get(0x516e42);
-    const countA = this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === 0).length, 0);
-    const countB = this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === 1).length, 0);
-    const mk = (mat: THREE.Material, n: number): THREE.InstancedMesh => {
-      const im = new THREE.InstancedMesh(SHARED_GEOS.sphere, mat, Math.max(1, n));
+    if (this.canopyBuilt) return;
+    const count = [0, 0, 0, 0];
+    for (const t of this.simpleTrees) for (const b of t.blobs) count[b.mat]++;
+    for (const t of this.trees) for (const b of t.blobs) count[b.key]++;
+    if (!count[0] && !count[1] && !count[2] && !count[3]) return;
+    const HEXES = [0x5d7d4a, 0x516e42, 0xf7b32b, 0xffb85c] as const;
+    for (let k = 0; k < 4; k++) {
+      if (!count[k]) continue;
+      const m = this.bank.get(HEXES[k]).clone();
+      m.transparent = true; // fade-on-occlude ready; aFade 1 renders as opaque
+      m.onBeforeCompile = (shader) => {
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', '#include <common>\nattribute float aFade;\nvarying float vFade;')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFade = aFade;');
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nvarying float vFade;')
+          .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vFade;');
+      };
+      // per-mesh geometry: the aFade attribute is per-geometry, and the
+      // shared unit sphere must stay shareable with other content
+      const geo = SHARED_GEOS.sphere.clone();
+      const fade = new THREE.InstancedBufferAttribute(new Float32Array(count[k]).fill(1), 1);
+      fade.setUsage(THREE.DynamicDrawUsage);
+      geo.setAttribute('aFade', fade);
+      const im = new THREE.InstancedMesh(geo, m, count[k]);
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.castShadow = true;
+      im.name = ['TreeCanopy_LeafA', 'TreeCanopy_LeafB', 'TreeCanopy_GoldA', 'TreeCanopy_GoldB'][k];
+      this.canopyMeshes[k] = im;
+      this.canopyFade[k] = fade;
       this.scene.add(im);
-      return im;
-    };
-    this.treeLeafA = mk(leafA, countA);
-    this.treeLeafB = mk(leafB, countB);
+    }
+    // instance slots: the W1 simple rows own the first countSimple slots of
+    // meshes 0/1 (updateTreeRows writes them positionally, same order every
+    // frame); the makeTree trees claim the slots after, stored per blob.
+    const cursor = [
+      this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === 0).length, 0),
+      this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === 1).length, 0),
+      0, 0,
+    ];
+    for (const t of this.trees) {
+      for (const b of t.blobs) b.idx = cursor[b.key]++;
+    }
+    this.canopyBuilt = true;
     this.updateTreeRows(0);
   }
 
-  /** Sway + place every instanced canopy blob (called from updateAmbient). */
+  /** Sway + place every instanced canopy blob (called from updateAmbient).
+   *  Two grammars, one matrix law per system:
+   *  - simple rows: sway about the trunk top, no yaw (their build rolls no
+   *    spin) — T(x, 0.05+h, z)·R_sway·T(blob)·S(r), written positionally;
+   *  - makeTree trees: same sway + the tree's authored yaw —
+   *    T(x, baseY+h, z)·R_y·R_sway·T(blob)·S(r), written to stored slots.
+   *  Both reproduce the old scene-graph chain exactly (group → canopy →
+   *  blob), so the silhouette and the sway are pixel-identical. */
   private updateTreeRows(time: number): void {
-    if (!this.treeLeafA || !this.treeLeafB) return;
+    if (!this.canopyBuilt) return;
     let ia = 0, ib = 0;
     for (const t of this.simpleTrees) {
       const sz = Math.sin(time * 0.9 + t.phase) * 0.022;
@@ -2997,17 +4479,32 @@ export class World {
       for (const b of t.blobs) {
         this.mBlob.compose(this.tV.set(b.ox, b.oy, b.oz), this.tQ.identity(), this.tS.setScalar(b.r));
         this.mCanopy.multiplyMatrices(this.mSway, this.mBlob);
-        if (b.mat === 0) this.treeLeafA.setMatrixAt(ia++, this.mCanopy);
-        else this.treeLeafB.setMatrixAt(ib++, this.mCanopy);
+        if (b.mat === 0) this.canopyMeshes[0]!.setMatrixAt(ia++, this.mCanopy);
+        else this.canopyMeshes[1]!.setMatrixAt(ib++, this.mCanopy);
       }
     }
-    this.treeLeafA.instanceMatrix.needsUpdate = true;
-    this.treeLeafB.instanceMatrix.needsUpdate = true;
+    for (const t of this.trees) {
+      const sz = Math.sin(time * 0.9 + t.phase) * 0.022;
+      const sx = Math.cos(time * 0.7 + t.phase) * 0.016;
+      this.tE.set(sx, 0, sz);
+      this.tQ.setFromEuler(this.tE);
+      this.qYaw.setFromAxisAngle(this.yAxis, t.yaw).multiply(this.tQ);
+      this.tV.set(t.x, t.baseY + t.h, t.z);
+      this.mSway.compose(this.tV, this.qYaw, this.tOne);
+      for (const b of t.blobs) {
+        this.mBlob.compose(this.tV.set(b.ox, b.oy, b.oz), this.tQ.identity(), this.tS.setScalar(b.r));
+        this.mCanopy.multiplyMatrices(this.mSway, this.mBlob);
+        this.canopyMeshes[b.key]!.setMatrixAt(b.idx, this.mCanopy);
+      }
+    }
+    for (const m of this.canopyMeshes) if (m) m.instanceMatrix.needsUpdate = true;
   }
 
   /** Kestrel-row trees inside the ambient walkers' band — Pedestrians reads
    *  this after construction (filled by buildAlderHeightsW1). */
   private readonly extraKestrelPedBodies: Array<[number, number]> = [];
+  /** W4: the parked cars' centers, fed to the walkers as avoidance circles. */
+  private readonly w4ParkedCarBodies: Array<[number, number]> = [];
 
   /** Rolling shirt rack — two uprights, a bar, four honest shirts. The
    *  frame is chunky on purpose: hairline posts read as floating shirts
@@ -3258,6 +4755,9 @@ export class World {
       const m = new THREE.Mesh(geo, this.mat(color));
       m.position.set(x, y, z);
       m.castShadow = true;
+      m.receiveShadow = true; // W4 p2 batch fold: cast+receive like the world's
+      // own solids — the parked cars stopped opening cast-only batches in
+      // every district tile they touch
       g.add(m);
     };
     mk(new THREE.BoxGeometry(4.15, 0.52, 1.86), bodyCol, 0, 0.56, 0);
@@ -3269,9 +4769,11 @@ export class World {
         w.rotation.x = Math.PI / 2;
         w.position.set(sx, 0.33, sz);
         w.castShadow = true;
+        w.receiveShadow = true; // the fold (see mk above)
         const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.24, 10), this.mat(PAL.stone));
         hub.rotation.x = Math.PI / 2;
         hub.position.set(sx, 0.33, sz);
+        hub.receiveShadow = true;
         g.add(w, hub);
       }
     }
@@ -3563,6 +5065,8 @@ export class World {
     this.flyerMat.map = this.flyerTexture(this.currentFlyerName, day);
     this.flyerMat.needsUpdate = true;
     old?.dispose();
+    // the hall re-letters its notice (W4 p2: the marquee's day-keyed dressing)
+    this.dressHallNotice(day);
   }
 
   /** The cart name currently on the flyer (kept so dressDay can redraw). */
@@ -3626,7 +5130,7 @@ export class World {
    * 0.9 m stale at the dt clamp, and visibly sank into a passing taxi.
    * Dynamics-before-player fixes the ordering with no gameplay change.
    */
-  updateDynamics(dt: number, player?: { x: number; y: number; z: number }, extra?: Array<{ x: number; z: number }>): void {
+  updateDynamics(dt: number, player?: { x: number; y: number; z: number }, extra?: Array<{ x: number; z: number }>, dusk = false): void {
     // the persistent cast owns a body each — no more ghosting through Rosa,
     // Idris, or the kid (playtest 2026-10-30: "passed through the npc and rosa")
     this.syncPersonCollider(this.rosaCollider, this.rosa);
@@ -3640,22 +5144,35 @@ export class World {
     this.syncPersonCollider(this.strangerCollider, this.stranger);
     this.syncPersonCollider(this.salCollider, this.sal);
     this.syncPersonCollider(this.familiarCollider, this.familiar);
-    if (player) this.updateDistricts(player.x, player.z);
+    if (player) {
+      this.updateDistricts(player.x, player.z);
+      this.updateInteriors(player.x, player.y, player.z);
+    }
     this.updateTaxi(dt, player, extra);
+    // the M121 runs AFTER the cab: its pool reads the cab's fresh rect, and
+    // the cab's next pool reads the bus's (each mover yields to the other
+    // one frame stale — the stopGap absorbs a frame of closing at these
+    // speeds). dusk = the night flag: the bay dwell never expires after
+    // dark, so the last bus goes home and the district settles.
+    this.updateBus(dt, player, extra, dusk);
   }
 
   /** Phase 2 of the frame (after the player's move): everything that only
    *  reads the world — pedestrian steering, birds, steam, leaves. */
   updateAmbient(dt: number, player?: { x: number; y: number; z: number }, dusk = false): void {
     // the walkers steer around you and the cart, mind the furniture, and
-    // hold their ground against the cab's footprint
+    // hold their ground against the cab's — and now the M121's — footprint
     this.peds.update(
       dt,
       player ? { x: player.x, z: player.z } : undefined,
       { x: this.cartRoot.position.x, z: this.cartRoot.position.z },
       { x: this.taxi.position.x, z: this.taxi.position.z },
       { x: this.rosa.position.x, z: this.rosa.position.z },
+      { x: this.busGroup.position.x, z: this.busGroup.position.z },
     );
+    // NZ-COURT's pickup pair takes the court while dusk lasts (registry:
+    // "when: dusk" — the plaza settles at night, so does the game)
+    this.courtDusk.visible = dusk;
 
     // steam rises and wobbles — the Rule of Steam
     const posAttr = this.steamPoints.geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -3668,25 +5185,28 @@ export class World {
     }
     posAttr.needsUpdate = true;
 
-    // trees breathe (a hair of canopy sway), the flock lives its small life
     this.ambientTime += dt;
-    for (const t of this.trees) {
-      t.canopy.rotation.z = Math.sin(this.ambientTime * 0.9 + t.phase) * 0.022;
-      t.canopy.rotation.x = Math.cos(this.ambientTime * 0.7 + t.phase) * 0.016;
-    }
+    // trees breathe — the instanced canopy sways in updateTreeRows below
+    // (one tick owns every blob: the shipped/full/fill trees and the W1
+    // rows alike). The old per-canopy-group rotation is gone with the
+    // canopy groups themselves.
     // fade-on-occlude — the camera reports which canopies stand between it
     // and the player (GameCamera.updateOcclusion); a canopy that swallows
     // the player dissolves toward gauze instead of hiding them. Fast fade
-    // in (~8/s), so the lens never lingers behind full leaves. The cache
-    // lists the SHIPPED trees first, so the first N entries map 1:1 onto
-    // this.trees (the W1 rows ride the same array without fading).
-    if (this.canopyOcclusion && this.canopyOcclusion.length >= this.trees.length) {
-      for (let i = 0; i < this.trees.length; i++) {
-        const t = this.trees[i];
-        const target = 1 - 0.78 * this.canopyOcclusion[i]; // floor 0.22 gauze
+    // in (~8/s), so the lens never lingers behind full leaves. Each tree
+    // names its own sphere in the cache (sphereIndex), so the mapping is
+    // explicit — the W1 rows' spheres interleave the cache and never faded.
+    // The fade now writes per-instance alpha (aFade) instead of per-tree
+    // material opacity: the law is unchanged (ONE tree dissolves), the
+    // mechanism follows the instanced canopy.
+    if (this.canopyOcclusion) {
+      for (const t of this.trees) {
+        if (t.sphereIndex >= this.canopyOcclusion.length) continue;
+        const target = 1 - 0.78 * this.canopyOcclusion[t.sphereIndex]; // floor 0.22 gauze
         t.fade += (target - t.fade) * Math.min(1, dt * 8);
-        for (const m of t.mats) m.opacity = t.fade;
+        for (const b of t.blobs) this.canopyFade[b.key]?.setX(b.idx, t.fade);
       }
+      for (const f of this.canopyFade) if (f) f.needsUpdate = true;
     }
     // the near washer spins while the apron is in the machine (Rule of Steam)
     if (this.washerRunning && this.washerLoad) {
@@ -3698,10 +5218,112 @@ export class World {
     this.squirrel.update(dt, pp, dusk);
     this.leaves.update(dt, this.ambientTime);
     this.updateTreeRows(this.ambientTime); // the W1 rows sway with the block
-    // Agent-5 first-session environments: visibility gates (below grade /
-    // south of the core), billboard screens, tunnel-light flicker, the
-    // Times Square walkers. One call, zero allocations, no-ops at home.
-    this.firstSession.update(dt, player);
+
+    // ---- the far world: zones, the dollhouse, the square, the bus ----
+    if (player && this.subway) {
+      const feet = player as { x: number; y: number; z: number };
+      this.subway.update(dt, feet, (key) => this.subwayBeats.push(key));
+      if (this.subway.underground !== this.dollhouseOn) {
+        this.dollhouseOn = this.subway.underground;
+        for (const m of this.terminalShell) m.visible = !this.dollhouseOn;
+        // the mass collider rides with the shell: the camera's boom ray-cast
+        // sees the cutaway the lens sees, or shortenBoom parks the lens on
+        // the (invisible) wall and the player fills the frame
+        if (this.dollhouseOn && this.terminalCollider) {
+          const i = this.colliders.indexOf(this.terminalCollider);
+          if (i >= 0) this.colliders.splice(i, 1);
+        } else if (!this.dollhouseOn && this.terminalCollider && !this.colliders.includes(this.terminalCollider)) {
+          this.colliders.push(this.terminalCollider);
+        }
+      }
+      this.timesSquare.group.visible = this.subway.lit.has('tsSurface');
+      const tsBeat = this.timesSquare.update(dt, feet, this.worldDay);
+      if (tsBeat) this.tsBeats.push(tsBeat);
+      this.arrivalBus.update(dt);
+      for (const person of this.subwayCast) {
+        updatePersonAnim(person, dt); // the idle breathe
+      }
+    }
+  }
+
+  /** Game calls this when the day changes — the sync beat is day-keyed. */
+  setWorldDay(day: number): void {
+    this.worldDay = day;
+  }
+
+  /** The K line's cast: Priya at the fare bank, the busker on the 42nd St
+   *  platform, and the riders who make a train a train. All ride their
+   *  zone groups' visibility; one breathe tick each from updateDynamics. */
+  private buildSubwayCast(): void {
+    const S = this.subway;
+    const place = (name: string, look: Parameters<typeof buildArticulatedPerson>[0],
+      g: THREE.Group, x: number, y: number, z: number, yaw: number): THREE.Group => {
+      const person = this.buildPerson(look);
+      person.name = name;
+      person.position.set(x, y, z);
+      person.rotation.y = yaw;
+      g.add(person);
+      this.subwayCast.push(person);
+      this.colliders.push(boxFromCenter(x, y + 0.9, z, 0.85, 1.8, 0.85));
+      return person;
+    };
+    // Priya — the conductor who waves you through (Doc 02: "Go on. It's
+    // one stop. You're with me.") — by the fare bank, facing the stairs
+    place('Priya', { jacket: 0x2A9D8F, pants: 0x3a3a42, skin: 0xe8b08e, hair: 0x2b2730, style: 'cap' },
+      S.groups.stationA, S.anchors.priya.x, S.anchors.priya.y, S.anchors.priya.z, Math.PI);
+    // the busker — 42nd St platform, sax up, coin cup out
+    const busker = place('TheBusker', { jacket: 0x6D4C7D, pants: 0x3a3a42, skin: 0xd9a06b, hair: 0x1a1a22, style: 'flat' },
+      S.groups.stationB, S.anchors.busker.x, S.anchors.busker.y, S.anchors.busker.z, Math.PI * 0.9);
+    const brass = (c: number) => this.mat(c);
+    const sax = new THREE.Group();
+    sax.name = 'SUB_Sax';
+    const pipe = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.5, 0.07), brass(0xB08D3C));
+    pipe.position.set(0.18, 1.05, 0.22);
+    const bell = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.2), brass(0xB08D3C));
+    bell.position.set(0.3, 0.72, 0.28);
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.22), brass(0x2b2430));
+    mouth.position.set(0.08, 1.32, 0.14);
+    sax.add(pipe, bell, mouth);
+    busker.add(sax);
+    // riders: two in the aligned car (the ride reads through the windows),
+    // one waiting on the 42nd St platform
+    const riderLook = { jacket: 0xB23A48, pants: 0x3a3a42, skin: 0xe8b08e, hair: 0x453b4c, style: 'bun' } as const;
+    place('SUB_Rider_A1', riderLook, S.groups.trainA, -46.2, STATION.floorTop, 16.5, Math.PI / 2);
+    place('SUB_Rider_A2', { jacket: 0x514659, pants: 0x473e50, skin: 0x8a5a3a, hair: 0x2b2730, style: 'cap' },
+      S.groups.trainA, -39.6, STATION.floorTop, 16.5, -Math.PI / 2);
+    place('SUB_Wait_B1', { jacket: 0x2A9D8F, pants: 0x473e50, skin: 0xd9a06b, hair: 0x1a1a22, style: 'flat' },
+      S.groups.stationB, -327.2, STATION.floorTop, 11.6, Math.PI);
+  }
+
+  /** Terminal-dressing collection for the dollhouse: every mesh whose
+   *  position sits over the station box (x -50.5..-20.5, z 7.7..20.2,
+   *  above grade) lifts off with the terminal mass. Zone groups manage
+   *  their own visibility and are skipped outright. */
+  private collectTerminalShell(): void {
+    const SKIP = new Set(['SUB_Root', 'TSS_Group', 'BUS_M121']);
+    const inZone = (o: THREE.Object3D): boolean => {
+      for (let p: THREE.Object3D | null = o; p; p = p.parent) {
+        if (SKIP.has(p.name)) return false;
+      }
+      return true;
+    };
+    this.scene.traverse((o) => {
+      if (!(o instanceof THREE.Mesh) || !inZone(o)) return;
+      const p = o.position;
+      if (p.x > -50.5 && p.x < -20.5 && p.z > 7.7 && p.z < 20.2 && p.y > -0.2) {
+        this.terminalShell.push(o);
+      }
+      // the north yard slab roofs the whole block (x −60..60, z 8..32) —
+      // without it in the shell, the cutaway looks at 120 m of lawn
+      if (o.name === 'Yard_N') this.terminalShell.push(o);
+    });
+    // the terminal mass's own collider, by its geometry (one 29×14×12 box)
+    for (const b of this.colliders) {
+      if (b.minX === -50 && b.maxX === -21 && b.maxY === 14 && b.minZ === 8) {
+        this.terminalCollider = b;
+        break;
+      }
+    }
   }
 
   /** Both phases, in order — kept for any caller that just wants "advance
@@ -3713,16 +5335,22 @@ export class World {
 
   // ---- the cab: NYC rules on rails (doc 35 §1 "Vehicles") ---------------
   // Preserved from the playtest fixes: crosswalk-only courtesy hold, yield
-  // to anyone in the path, wrap at ±46. Rebuilt on the traffic brain:
+  // to anyone in the path, wrap at the district's edge. Rebuilt on the
+  // traffic brain:
   //   - progressive braking (the old 9→0 hard cut snapped on screen),
   //   - lateral truth (a body 3 m clear on the curb no longer freezes the
   //     cab from 10 m away — the old |z|<4.2 gate),
   //   - bodies fully behind the tail never block (the old gap > -2.3 test
   //     stopped the cab for things it had already passed),
-  //   - vehicle-vs-vehicle: the parked sedan and van are declared bodies,
-  //     so a car ahead in the lane is braked for, not driven through,
+  //   - vehicle-vs-vehicle: the parked cars are declared bodies (one list,
+  //     busRoute.PARKED_CAR_RECTS — the bus reads the same), so a car ahead
+  //     in the lane is braked for, not driven through,
   //   - a committed-move guard: the rail step is clamped by noseLimit()
   //     BEFORE it lands, so no frame can end with the cab inside anyone.
+  // W4 part 2: the rail runs the FULL district, x ±84 (registry taxi.
+  // phaseW4: "rail extends to ±84 through both intersections"), and the
+  // courtesy zones grow XW-COURT and both junction boxes (busRoute.
+  // KESTREL_COURTESY_ZONES — the M121's leg 0 yields at the same paint).
   private static readonly CAB = {
     cruise: 9.0,       // main.gd: x += 9*dt
     halfLen: 2.2,      // collider 4.4 × 1.95
@@ -3735,12 +5363,13 @@ export class World {
     pedRadius: 0.45,   // how much coat a body wears beyond its center
     holdCenterX: -10.7 // crosswalk hold: nose at the crosswalk's west edge
   } as const;
+  /** The courtesy hold's occupied z-band — the roadway plus a stride. */
+  private static readonly COURTESY_Z = { zMin: -4.6, zMax: 4.6 } as const;
 
   /** Preallocated yield bodies — the scan runs every frame; nothing in it
-   *  may allocate (perf rule: no per-frame garbage). */
-  private readonly trafficPool: TrafficBody[] = Array.from({ length: 16 }, () => ({ x: 0, z: 0, r: 0 }));
-  private readonly parkedSedanRect: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
-  private readonly parkedVanRect: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
+   *  may allocate (perf rule: no per-frame garbage). Each slot owns its rect
+   *  object so the bus's leg-space pool can reuse the same pattern. */
+  private readonly trafficPool: TrafficBody[] = Array.from({ length: 30 }, () => ({ x: 0, z: 0, r: 0, rect: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 } }));
   private readonly cabRectScratch: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
   private readonly sweepRectScratch: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
 
@@ -3760,41 +5389,60 @@ export class World {
     if (player) addBody(player.x, player.z, CAB.pedRadius);
     if (extra) for (const b of extra) addBody(b.x, b.z, CAB.pedRadius);
     for (const b of this.peds.bodies()) addBody(b.x, b.z, 0.4);
-    // vehicles: rects, so car-vs-car is footprint-to-footprint. The parked
-    // pair sits off-lane (north curb) — declared anyway, so the day another
-    // car shares the lane the braking is already real. (The cab never
-    // yields to itself, and never to the invisible bounds — the wrap at
-    // ±46 is authored.)
-    const sedan = this.parkedSedanRect;
-    sedan.minX = 24 - 2.2; sedan.maxX = 24 + 2.2;
-    sedan.minZ = 3.05 - 0.975; sedan.maxZ = 3.05 + 0.975;
-    const van = this.parkedVanRect;
-    van.minX = -14 - 2.2; van.maxX = -14 + 2.2;
-    van.minZ = 3.05 - 0.975; van.maxZ = 3.05 + 0.975;
-    pool[n].x = 24; pool[n].z = 3.05; pool[n].r = 0; pool[n].rect = sedan; n++;
-    pool[n].x = -14; pool[n].z = 3.05; pool[n].r = 0; pool[n].rect = van; n++;
+    // vehicles: rects, so car-vs-car is footprint-to-footprint. One declared
+    // list (busRoute.PARKED_CAR_RECTS — the M121's pool reads the same), and
+    // the M121 itself: the cab brakes for the bus exactly like for a parked
+    // car. (The cab never yields to itself, and never to the invisible
+    // bounds — the wrap at ±84 is authored.)
+    for (const c of PARKED_CAR_RECTS) {
+      if (n >= pool.length) break;
+      const r = parkedCarRect(c);
+      const slot = pool[n];
+      slot.x = c.x; slot.z = c.z; slot.r = 0;
+      slot.rect = slot.rect ?? { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+      slot.rect.minX = r.minX; slot.rect.maxX = r.maxX;
+      slot.rect.minZ = r.minZ; slot.rect.maxZ = r.maxZ;
+      n++;
+    }
+    if (n < pool.length) {
+      const slot = pool[n];
+      slot.x = this.busGroup.position.x; slot.z = this.busGroup.position.z; slot.r = 0;
+      slot.rect = slot.rect ?? { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+      slot.rect.minX = this.busCollider.minX; slot.rect.maxX = this.busCollider.maxX;
+      slot.rect.minZ = this.busCollider.minZ; slot.rect.maxZ = this.busCollider.maxZ;
+      n++;
+    }
 
     const cabRect = this.cabRectScratch;
     cabRect.minX = road.x - CAB.halfLen; cabRect.maxX = road.x + CAB.halfLen;
     cabRect.minZ = CAB.laneZ - CAB.halfWid; cabRect.maxZ = CAB.laneZ + CAB.halfWid;
 
-    // ---- courtesy rule 1: the crosswalk (trigger unchanged, curve new) ----
-    // Occupied = a body (never a parked car) stands inside the crosswalk
-    // paint; the cab brakes toward the same authored hold point, but on the
-    // curve now — a creep to the line instead of a 3 m/s lurch.
+    // ---- courtesy rule 1: the crosswalks and junction boxes ---------------
+    // Occupied = a body (never a parked car) stands inside the zone's paint
+    // band; the cab brakes toward the zone's west edge on the curve — a
+    // creep to the line. The shipped XW-CANON numbers are preserved exactly
+    // (holdCenterX −10.7 = zone xMin −8.5 minus the halfLen); W4 p2 adds
+    // XW-COURT and both junction boxes from the one shared list. Commit law
+    // unchanged: once the nose has reached the zone's line the cab goes —
+    // a lurch stop inside the paint is its own hazard.
     let speed: number = CAB.cruise;
-    let crosswalkOccupied = !!(player && player.x > -8.5 && player.x < -1.5 && player.z > -4.6 && player.z < 4.6);
-    if (!crosswalkOccupied && extra) {
-      crosswalkOccupied = extra.some((b) => b.x > -8.5 && b.x < -1.5 && b.z > -4.6 && b.z < 4.6);
-    }
-    for (let i = 0; i < n && !crosswalkOccupied; i++) {
-      const b = pool[i];
-      if (b.rect) continue;
-      if (b.x > -8.5 && b.x < -1.5 && b.z > -4.6 && b.z < 4.6) crosswalkOccupied = true;
-    }
-    if (crosswalkOccupied && road.x < -4.2) {
-      const gapToLine = CAB.holdCenterX - road.x; // center-based, as authored
-      speed = Math.min(speed, approachSpeed(CAB.cruise, gapToLine, CAB.stopGap, CAB.gain));
+    for (const zone of KESTREL_COURTESY_ZONES) {
+      let occupied = !!(player && player.x > zone.xMin && player.x < zone.xMax
+        && player.z > World.COURTESY_Z.zMin && player.z < World.COURTESY_Z.zMax);
+      if (!occupied && extra) {
+        occupied = extra.some((b) => b.x > zone.xMin && b.x < zone.xMax
+          && b.z > World.COURTESY_Z.zMin && b.z < World.COURTESY_Z.zMax);
+      }
+      for (let i = 0; i < n && !occupied; i++) {
+        const b = pool[i];
+        if (b.rect) continue;
+        if (b.x > zone.xMin && b.x < zone.xMax
+          && b.z > World.COURTESY_Z.zMin && b.z < World.COURTESY_Z.zMax) occupied = true;
+      }
+      if (occupied && road.x < zone.xMin) {
+        const gapToLine = (zone.xMin - CAB.halfLen) - road.x; // nose holds at xMin
+        speed = Math.min(speed, approachSpeed(CAB.cruise, gapToLine, CAB.stopGap, CAB.gain));
+      }
     }
 
     // ---- rule 2: anything actually in the path (lateral truth) ------------
@@ -3827,7 +5475,7 @@ export class World {
     const limit = noseLimit(noseX, pool, n, CAB.laneZ, CAB.halfWid);
     const wantedNose = noseX + dt * speed;
     road.x += Math.min(wantedNose, limit) - noseX;
-    if (road.x > 46) road.x = -46;
+    if (road.x > 84) road.x = -84; // the district's edge: the rail wraps (W4 p2: was ±46)
     this.taxiCollider.minX = road.x - CAB.halfLen;
     this.taxiCollider.maxX = road.x + CAB.halfLen;
 
@@ -3836,6 +5484,310 @@ export class World {
     // along the shortest exit, capped so nobody slingshots
     cabRect.minX = road.x - CAB.halfLen; cabRect.maxX = road.x + CAB.halfLen;
     this.peds.resolveAgainstCab(cabRect);
+  }
+
+  // ---- the M121: the district's bus on the cab's own yield brain ---------
+  // Registry transit.bus: loop "terminal lay-over → Gable St → Sycamore Ave
+  // → Kestrel St → Juniper Ave → terminal", "a rail mover like the cab with
+  // a longer body and the same yield brain", arrivals deterministic. The
+  // route law (engine/busRoute) folds the loop into four axis-aligned legs
+  // so approachSpeed / noseLimit / bodyConflictsWithCab run UNCHANGED in leg
+  // space; this step adds only what a bus is and a cab is not: stop dwells,
+  // the curb pull-out, and the night park (the bay dwells through the dusk —
+  // the district settles, the last bus goes home). No randomness anywhere:
+  // same seed, same arrivals, the E2E meets the same bus every run.
+  private static readonly BUS = {
+    cruise: 7.0,    // the bus is not in a hurry either
+    stopGap: 2.8,   // longer body, longer air
+    gain: 1.8,      // heavier — a lazier braking curve
+    pedRadius: 0.45,
+    latRate: 1.4,   // the curb pull-out speed (m/s)
+    turnRate: 4.0,  // the corner yaw ease (rad/s)
+    haltGap: 0.4,   // "at the mark" — begin the dwell when this close
+    // The Zeno guard (probe-w4-bus + the 180 s stall trace found it): the
+    // braking curve is v = gain·air, so the closing speed decays with the
+    // air — the nose approaches the halt line GEOMETRICALLY, never quite
+    // reaching it, and once the per-frame creep sinks under the float ULP
+    // the bus stands a hair above `haltGap` forever (observed: 110+ s at
+    // 4 mm... 4e-13 m short of BUS-01). The dwell therefore arms within
+    // haltEps of the line too, and the serve snaps the last whisker — the
+    // halt lands exactly on the mark, deterministically, every lap.
+    haltEps: 0.02,
+  } as const;
+
+  private readonly busPool: TrafficBody[] = Array.from({ length: 32 }, () => ({ x: 0, z: 0, r: 0, rect: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 } }));
+  private readonly busFootScratch: RectXZ = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+  private readonly busSweepScratch: RectXZ = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+  private readonly busWorldRectScratch: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
+  private readonly busZoneScratch: BusZone = { a0: 0, a1: 0, l0: 0, l1: 0 };
+  private readonly busCoordScratch: LegCoords = { a: 0, l: 0 };
+  private readonly busPointScratch: { x: number; z: number } = { x: 0, z: 0 };
+
+  private updateBus(dt: number, player?: { x: number; y: number; z: number }, extra?: Array<{ x: number; z: number }>, night = false): void {
+    const BUS = World.BUS;
+    const legs = this.M121_LEGS;
+    const st = this.busState;
+    const leg = legs[st.leg];
+    const f = leg.frame;
+    st.night = night;
+
+    // ---- the yield pool, in LEG SPACE (x = advance, z = lateral) ----------
+    // player + peds as circles; the parked cars AND the cab as rects. The
+    // bus never yields to itself — each mover's pool is built per call,
+    // exactly like the cab's.
+    let n = 0;
+    const pool = this.busPool;
+    const addCircle = (x: number, z: number, r: number) => {
+      if (n >= pool.length) return;
+      worldToLeg(x, z, f, this.busCoordScratch);
+      pool[n].x = this.busCoordScratch.a; pool[n].z = this.busCoordScratch.l;
+      pool[n].r = r; pool[n].rect = undefined;
+      n++;
+    };
+    if (player) addCircle(player.x, player.z, BUS.pedRadius);
+    if (extra) for (const b of extra) addCircle(b.x, b.z, BUS.pedRadius);
+    for (const b of this.peds.bodies()) addCircle(b.x, b.z, 0.4);
+    const addWorldRect = (minX: number, maxX: number, minZ: number, maxZ: number) => {
+      if (n >= pool.length) return;
+      aabbToLeg(minX, maxX, minZ, maxZ, f, this.busZoneScratch);
+      const slot = pool[n];
+      slot.x = (this.busZoneScratch.a0 + this.busZoneScratch.a1) / 2;
+      slot.z = (this.busZoneScratch.l0 + this.busZoneScratch.l1) / 2;
+      slot.r = 0;
+      slot.rect = slot.rect ?? { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+      slot.rect.minX = this.busZoneScratch.a0; slot.rect.maxX = this.busZoneScratch.a1;
+      slot.rect.minZ = this.busZoneScratch.l0; slot.rect.maxZ = this.busZoneScratch.l1;
+      n++;
+    };
+    for (const c of PARKED_CAR_RECTS) {
+      const r = parkedCarRect(c);
+      addWorldRect(r.minX, r.maxX, r.minZ, r.maxZ);
+    }
+    addWorldRect(this.taxiCollider.minX, this.taxiCollider.maxX, this.taxiCollider.minZ, this.taxiCollider.maxZ);
+
+    const foot = this.busFootScratch;
+    foot.minX = st.a - BUS_BODY.halfLen;
+    foot.maxX = st.a + BUS_BODY.halfLen;
+    foot.minZ = st.lat - BUS_BODY.halfWid;
+    foot.maxZ = st.lat + BUS_BODY.halfWid;
+    const noseA = foot.maxX;
+
+    // ---- the next stop: the mark the nose is approaching or parked at -----
+    let stopIdx = -1;
+    for (let i = 0; i < leg.stops.length; i++) {
+      if (leg.stops[i].a >= noseA - BUS.haltGap) { stopIdx = i; break; }
+    }
+    const stop = stopIdx >= 0 ? leg.stops[stopIdx] : null;
+
+    // ---- the dwell: parked at the mark; the bay dwells through the night --
+    if (st.dwell > 0) {
+      const atBay = stop !== null && stop.id === BUS_BAY_ID;
+      if (!atBay || !night) st.dwell -= dt;
+      if (st.dwell > 0) {
+        // parked: no advance this frame — place the body and leave
+        legToWorld(st.a, st.lat, f, this.busPointScratch);
+        this.busGroup.position.set(this.busPointScratch.x, 0, this.busPointScratch.z);
+        this.busGroup.rotation.y = st.yaw;
+        this.syncBusCollider();
+        this.syncBayOccupancy(player);
+        this.peds.resolveAgainstCab(this.busWorldRectScratch);
+        return;
+      }
+    }
+
+    // ---- speed: the stop line, the courtesy zones, then the yield scan ----
+    let speed: number = BUS.cruise;
+
+    if (stop && st.servedStop !== stop.id) {
+      // ONE BAY, ONE BUS (docs/47 "the terminal bay, made honest"): while
+      // the player stands inside the registry's enterable BUS-04, the bay
+      // is occupied. Before first contact (nose advance < 98.85 ↔ the nose
+      // east of BUS-04's tail −26.65) the arriving bus HOLDS in place —
+      // the same stall the yield brain gives any body in the lane — and
+      // serves the moment the player steps out. Past that line the
+      // approach is committed: roll through and try again next lap
+      // (baySkipped also keeps the pull-out from driving through the paint).
+      if (stop.id === BUS_BAY_ID && player && this.playerInsideArrival(player)) {
+        if (noseA < 72.2 + BUS04_RECT.maxX) {
+          speed = 0;
+        } else {
+          st.servedStop = stop.id;
+          st.baySkipped = true;
+          speed = BUS.cruise;
+        }
+      } else {
+        const clearance = Math.max(stop.a - noseA, 0);
+        speed = Math.min(speed, approachSpeed(BUS.cruise, clearance, BUS.haltGap, BUS.gain));
+        if (clearance <= BUS.haltGap + BUS.haltEps) {
+          // snap the last whisker so the halt is ON the mark (the Zeno guard)
+          st.a += Math.max(clearance - BUS.haltGap, 0);
+          st.dwell = stop.dwell;
+          st.servedStop = stop.id;
+          if (stop.id === BUS_BAY_ID) st.baySkipped = false;
+          speed = 0;
+        }
+      }
+    }
+
+    // courtesy rule: occupied paint holds the nose at the zone's line (a0)
+    for (const z of leg.zones) {
+      let occupied = false;
+      for (let i = 0; i < n && !occupied; i++) {
+        const b = pool[i];
+        if (b.rect) continue;
+        if (b.x > z.a0 - 0.3 && b.x < z.a1 + 0.3 && b.z > z.l0 && b.z < z.l1) occupied = true;
+      }
+      if (!occupied || noseA >= z.a0) continue; // empty, or committed past the line
+      speed = Math.min(speed, approachSpeed(BUS.cruise, z.a0 - noseA, BUS.stopGap, BUS.gain));
+    }
+
+    // rule 2: anything actually in the path (lateral truth, the cab's own
+    // sweep shape — full braking distance, not the nose alone)
+    const sweep = this.busSweepScratch;
+    sweep.minX = foot.minX;
+    sweep.maxX = noseA + BUS.stopGap + BUS.cruise / BUS.gain + 0.5;
+    sweep.minZ = foot.minZ;
+    sweep.maxZ = foot.maxZ;
+    for (let i = 0; i < n; i++) {
+      const b = pool[i];
+      if (b.rect) {
+        if (!bodyConflictsWithCab(b, foot)) continue;      // laterally clear
+        if (b.rect.maxX <= foot.minX) continue;            // fully behind
+        const clearance = Math.max(b.rect.minX - noseA, 0);
+        speed = Math.min(speed, approachSpeed(BUS.cruise, clearance, BUS.stopGap, BUS.gain));
+      } else {
+        if (b.x + b.r <= foot.minX) continue;              // fully behind
+        if (!bodyConflictsWithCab(b, sweep)) continue;     // not in the path
+        const clearance = Math.max((b.x - b.r) - noseA, 0);
+        speed = Math.min(speed, approachSpeed(BUS.cruise, clearance, BUS.stopGap, BUS.gain));
+      }
+    }
+
+    // ---- the committed-move guard, then the pull-out, then the wrap -------
+    const limit = noseLimit(noseA, pool, n, st.lat, BUS_BODY.halfWid);
+    const move = Math.max(Math.min(dt * speed, limit - noseA), 0);
+    st.a += move;
+
+    // the curb pull-out: ease toward the bay from 9 m before the mark, hold
+    // it through the dwell, and ease back to the lane from the mark itself
+    // (the terminal bay's partner car is only 8 m west — a late merge would
+    // kiss it; the probe caught the exact stutter).
+    let latTarget = 0;
+    if (stop && !(st.baySkipped && stop.id === BUS_BAY_ID)) {
+      const dist = stop.a - noseA;
+      if (dist < 9 && dist > -2) latTarget = stop.lateral;
+    }
+    const maxLat = dt * BUS.latRate;
+    let latNext = st.lat + Math.max(-maxLat, Math.min(maxLat, latTarget - st.lat));
+    // THE PULL-OUT GATE (probe-w4-bus found the deadlock): the bus never
+    // DEEPENS its pull while the body at the would-be offset would overlap
+    // a vehicle rect — at BUS-01 the van sits abeam when the pull window
+    // opens, and a vehicle yields to no vehicle, so an ungated pull wedges
+    // forever. The gate holds the offset; the pull completes the moment the
+    // tail clears — exactly a real bus's move. Returning to the lane is
+    // never gated (the lane is the bus's own road).
+    if (latNext > st.lat) {
+      foot.minX = st.a - BUS_BODY.halfLen; foot.maxX = st.a + BUS_BODY.halfLen;
+      foot.minZ = latNext - BUS_BODY.halfWid; foot.maxZ = latNext + BUS_BODY.halfWid;
+      for (let i = 0; i < n && latNext > st.lat; i++) {
+        const b = pool[i];
+        if (b.rect && bodyConflictsWithCab(b, foot)) latNext = st.lat; // hold
+      }
+    }
+    st.lat = latNext;
+
+    if (st.a >= f.len) {
+      // the center rounds the corner: carry the overshoot into the next leg
+      st.a -= f.len;
+      st.leg = (st.leg + 1) % legs.length;
+      st.servedStop = null;
+      st.baySkipped = false;
+      if (st.leg === 0) st.laps++;
+    }
+
+    // face the leg (the yaw eases at corners — a pivot, not a snap), then place
+    const targetYaw = travelYaw(f.ax, f.az);
+    let dy = targetYaw - st.yaw;
+    while (dy > Math.PI) dy -= 2 * Math.PI;
+    while (dy < -Math.PI) dy += 2 * Math.PI;
+    st.yaw += Math.max(-BUS.turnRate * dt, Math.min(BUS.turnRate * dt, dy));
+    legToWorld(st.a, st.lat, legs[st.leg].frame, this.busPointScratch);
+    this.busGroup.position.set(this.busPointScratch.x, 0, this.busPointScratch.z);
+    this.busGroup.rotation.y = st.yaw;
+    this.syncBusCollider();
+    this.syncBayOccupancy(player);
+    // post-move truth: walkers get the air they are owed (the cab's law)
+    this.peds.resolveAgainstCab(this.busWorldRectScratch);
+  }
+
+  /** ONE BAY, ONE BUS (docs/47 "the terminal bay, made honest"). The bay
+   *  holds the registry's enterable M121 (BUS-04, arrivalBus.ts) AND is the
+   *  loop's lay-over — the two bodies must never stand there together (the
+   *  merge had them fused, the door walled shut). The rule, evaluated from
+   *  the body's just-synced collider: while the loop's rect intersects
+   *  BUS-04's footprint and the player is NOT standing inside, BUS-04
+   *  yields (hidden, colliders retired); the moment the rects part again
+   *  — ~1.5 s after the loop pulls out — the shell is restored. The
+   *  player-inside guard is what keeps the floor under your feet through
+   *  the skip pass (the bus rolls past the standing shell it may not have). */
+  private syncBayOccupancy(player?: { x: number; y: number; z: number }): void {
+    const b = this.busCollider;
+    const hit = b.maxX > BUS04_RECT.minX && b.minX < BUS04_RECT.maxX
+      && b.maxZ > BUS04_RECT.minZ && b.minZ < BUS04_RECT.maxZ;
+    const wantHidden = hit && !this.playerInsideArrival(player);
+    if (wantHidden !== this.arrivalHidden) this.setArrivalHidden(wantHidden);
+  }
+
+  /** Is the player standing inside BUS-04's registry interior? (The y band
+   *  keeps the street out — only the floor at 0.55 counts as inside.) */
+  private playerInsideArrival(player?: { x: number; y: number; z: number }): boolean {
+    if (!player) return false;
+    return player.x > BUS04_RECT.minX && player.x < BUS04_RECT.maxX
+      && player.z > BUS04_RECT.minZ && player.z < BUS04_RECT.maxZ
+      && player.y > 0.4;
+  }
+
+  /** Swap BUS-04's shell + its colliders as one unit. The AABB objects are
+   *  the same instances the player's collision list holds, so the splice
+   *  is the whole truth (the player reads this.colliders by reference). */
+  private setArrivalHidden(hidden: boolean): void {
+    this.arrivalHidden = hidden;
+    this.arrivalBus.group.visible = !hidden;
+    if (hidden) {
+      for (const b of this.arrivalBoxes) {
+        const i = this.colliders.indexOf(b);
+        if (i >= 0) this.colliders.splice(i, 1);
+      }
+    } else {
+      for (const b of this.arrivalBoxes) {
+        if (!this.colliders.includes(b)) this.colliders.push(b);
+      }
+    }
+  }
+
+  /** Sync the bus's collider + world rect from the group's current pose —
+   *  the yaw-aligned body's AABB superset (|cos|·hl + |sin|·hw per axis). */
+  private syncBusCollider(): void {
+    const c = Math.abs(Math.cos(this.busGroup.rotation.y));
+    const s = Math.abs(Math.sin(this.busGroup.rotation.y));
+    const ex = c * BUS_BODY.halfLen + s * BUS_BODY.halfWid;
+    const ez = s * BUS_BODY.halfLen + c * BUS_BODY.halfWid;
+    const px = this.busGroup.position.x, pz = this.busGroup.position.z;
+    this.busCollider.minX = px - ex; this.busCollider.maxX = px + ex;
+    this.busCollider.minZ = pz - ez; this.busCollider.maxZ = pz + ez;
+    const w = this.busWorldRectScratch;
+    w.minX = this.busCollider.minX; w.maxX = this.busCollider.maxX;
+    w.minZ = this.busCollider.minZ; w.maxZ = this.busCollider.maxZ;
+  }
+
+  /** Probe/driver handle: the bus's rail state in one object. */
+  busDebug(): { leg: number; legName: string; a: number; x: number; z: number; yaw: number; dwell: number; laps: number; night: boolean } {
+    const st = this.busState;
+    return {
+      leg: st.leg, legName: this.M121_LEGS[st.leg].name, a: st.a,
+      x: this.busGroup.position.x, z: this.busGroup.position.z, yaw: st.yaw,
+      dwell: st.dwell, laps: st.laps, night: st.night,
+    };
   }
 
   dispose() {

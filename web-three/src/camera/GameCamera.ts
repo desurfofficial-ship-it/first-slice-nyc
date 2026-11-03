@@ -63,12 +63,18 @@ const MAX_VFOV = 80;
 const FLIP_SOUTH = -3.1;
 const FLIP_NORTH = -1.9;
 const BOOM_MARGIN = 0.35;
-/** The camera is a street-level eye, not a drone: the desired boom position
- *  is clamped to this z corridor before any wall-shortening. Mid-street
- *  flips used to request a camera inside the south row, whose building
- *  face + tree-pit belt is exactly where shortenBoom parked the lens. */
-const CAM_Z_MIN = -4.8;
-const CAM_Z_MAX = 4.9;
+/** Relative Z offset of the desired boom from the player, applied only while
+ *  the player is on the original Kestrel street band (|z| < STREET_BAND).
+ *  Absolute world-Z clamps (old CAM_Z_MIN/MAX at −4.8..4.9) broke the moment
+ *  the map grew to z ±48 / x ±84 — the boom was pinned near the origin while
+ *  the player walked the avenues. Relative clamp keeps the original "don't
+ *  park inside the brownstone row" intent without freezing world space. */
+const CAM_Z_REL_MIN = -5.5;
+const CAM_Z_REL_MAX = 5.5;
+/** Only apply the street-corridor + street-side auto-yaw inside this band
+ *  around Kestrel (the authored E–W greybox street). Outside it the camera
+ *  follows behind the player's heading and trusts shortenBoom / BOOM_FLOOR. */
+const STREET_BAND = 12;
 /** The corridor clamp shortens the boom when the player stands near the flip
  *  line mid-street; without a floor the lens ends up 3 m overhead at 65°.
  *  Pushing back out to this floor keeps the framing humane — the pushed
@@ -228,15 +234,14 @@ export class GameCamera {
       this.focusTarget.y + camH,
       this.focusTarget.z - fwdZ * dist,
     );
-    // A5: the corridor clamp is a HOME-STREET law (Kestrel's z band). Below
-    // grade (Alder Station) and south of the core (Times Square) the clamp
-    // would park the boom 30 m away from the player; those spaces lean on
-    // shortenBoom against their own walls instead, exactly like the bodega.
-    const homeStreet = playerPos.y > -0.5 && playerPos.z >= -48 && playerPos.z <= 48;
-    if (homeStreet) {
-      this.desired.z = THREE.MathUtils.clamp(this.desired.z, CAM_Z_MIN, CAM_Z_MAX);
+    // Street-band relative Z clamp (see CAM_Z_REL_* / STREET_BAND). Outside
+    // the band we leave desired.z alone — avenues and Times Square need a
+    // free boom.
+    if (Math.abs(playerPos.z) < STREET_BAND) {
+      const relZ = this.desired.z - playerPos.z;
+      this.desired.z = playerPos.z + THREE.MathUtils.clamp(relZ, CAM_Z_REL_MIN, CAM_Z_REL_MAX);
     }
-    // keep the boom humane when the clamp bites (see BOOM_FLOOR)
+    // keep the boom humane when any clamp or wall-shortening bites
     const hdx = this.desired.x - this.focusTarget.x;
     const hdz = this.desired.z - this.focusTarget.z;
     const hd = Math.hypot(hdx, hdz);
@@ -271,6 +276,7 @@ export class GameCamera {
     let bestT = 1;
     for (const b of this.boxes) {
       if (b.maxY <= from.y + 0.2) continue;
+      if (b.seeThroughCamera) continue; // chain-link: bodies stop, lenses don't
       let tmin = 0, tmax = 1;
       let miss = false;
       const axes: Array<[number, number, number, number]> = [
@@ -298,6 +304,13 @@ export class GameCamera {
     return this.probe.set(from.x + dx * pull, from.y + dy * pull, from.z + dz * pull).clone();
   }
 
+  /** Controlled-interior override (docs/50 far world): below grade the
+   *  station is a cutaway diorama — the boom must not bounce off the
+   *  yard slab that roofs it (the bodega dodges the same class of hit
+   *  only because its walls sit under the boom's height skip). World
+   *  flips this from the subway's underground state. */
+  interiorMode = false;
+
   update(
     dt: number,
     playerPos: { x: number; y: number; z: number },
@@ -320,9 +333,16 @@ export class GameCamera {
       return;
     }
 
-    if (playerPos.z < FLIP_SOUTH) this.yawSide = 1;
-    else if (playerPos.z > FLIP_NORTH) this.yawSide = 0;
-    const targetYaw = this.yawSide === 1 ? Math.PI : 0;
+    const onStreet = Math.abs(playerPos.z) < STREET_BAND;
+    if (onStreet) {
+      if (playerPos.z < FLIP_SOUTH) this.yawSide = 1;
+      else if (playerPos.z > FLIP_NORTH) this.yawSide = 0;
+    }
+    // Street-side target only on the Kestrel band. Off-street (avenues,
+    // Times Square, subway surface) settle behind the player's heading —
+    // a hard 0/π snap was yanking the boom when the map grew past the block.
+    const streetYaw = this.yawSide === 1 ? Math.PI : 0;
+    const targetYaw = onStreet ? streetYaw : heading;
     const moving = Math.hypot(move.x, move.y) > 0.1;
     const manual = Math.abs(camTurn) > 0.01;
 
@@ -334,22 +354,28 @@ export class GameCamera {
       this.flipping = false;
     } else if (!moving) {
       // Settle while standing still — a flip can't veer anything mid-stride.
-      // If the player had turned to walk back the way they came, get behind
-      // THAT heading instead of the street default (playtest: the camera sat
-      // in their face after every about-face).
+      // On-street: prefer street side unless the player turned around.
+      // Off-street: always settle behind the last facing direction.
       this.flipping = false;
-      const settle = Math.abs(wrapPi(heading - targetYaw)) > TURNED_AROUND ? heading : targetYaw;
+      const settle = onStreet
+        ? (Math.abs(wrapPi(heading - streetYaw)) > TURNED_AROUND ? heading : streetYaw)
+        : heading;
       this.camYaw = lerpAngle(this.camYaw, settle, Math.min(1, dt * YAW_LERP));
       this.moveYaw = this.camYaw;
     } else {
       // Fresh press → keys mean where the camera looks right now.
       if (!this.wasMoving) this.moveYaw = this.camYaw;
-      // While walking, only swing for a real get-behind-me flip — and keep
-      // the movement reference frozen so held keys keep their meaning.
-      if (Math.abs(wrapPi(targetYaw - this.camYaw)) > FLIP_ANGLE) this.flipping = true;
-      if (this.flipping) {
-        this.camYaw = lerpAngle(this.camYaw, targetYaw, Math.min(1, dt * YAW_LERP));
-        if (Math.abs(wrapPi(targetYaw - this.camYaw)) < 0.05) this.flipping = false;
+      // While walking on-street, only swing for a real get-behind-me flip —
+      // and keep the movement reference frozen so held keys keep meaning.
+      // Off-street we do not auto-flip (no authored street axis).
+      if (onStreet) {
+        if (Math.abs(wrapPi(targetYaw - this.camYaw)) > FLIP_ANGLE) this.flipping = true;
+        if (this.flipping) {
+          this.camYaw = lerpAngle(this.camYaw, targetYaw, Math.min(1, dt * YAW_LERP));
+          if (Math.abs(wrapPi(targetYaw - this.camYaw)) < 0.05) this.flipping = false;
+        }
+      } else {
+        this.flipping = false;
       }
     }
     this.wasMoving = moving;
@@ -360,7 +386,7 @@ export class GameCamera {
     this.desired.x += this.sideStep;
 
     const k = Math.min(1, dt * POS_LERP);
-    const goal = this.shortenBoom(this.focusTarget, this.desired);
+    const goal = this.interiorMode ? this.desired : this.shortenBoom(this.focusTarget, this.desired);
     this.camera.position.x += (goal.x - this.camera.position.x) * k;
     this.camera.position.y += (goal.y - this.camera.position.y) * k;
     this.camera.position.z += (goal.z - this.camera.position.z) * k;

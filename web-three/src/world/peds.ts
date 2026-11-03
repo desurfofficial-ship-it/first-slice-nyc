@@ -53,30 +53,23 @@ import {
 /** Walkers wear the same look schema as the cast — scale/shoe included. */
 export interface PedLook extends PersonLook {}
 
-/** Lane discipline: the sidewalk slabs top out at y = 0.1, the road at 0. */
-function groundY(z: number): number {
-  return Math.abs(z) > 4.15 ? 0.1 : 0;
+/** Lane discipline: y 0 on a road, y 0.1 on a walk slab. W4 generalizes the
+ *  shipped |z| > 4.15 rule with the district's five road rectangles (the
+ *  old constant missed the new streets and would float every district
+ *  walker half a step above Kestrel's asphalt). */
+function groundY(x: number, z: number, roads: readonly RoadRect[]): number {
+  for (const r of roads) {
+    if (x >= r.xMin && x <= r.xMax && z >= r.zMin && z <= r.zMax) return 0;
+  }
+  return 0.1;
 }
 
-/** The block's walkable band (inside the invisible bounds, walls assumed). */
-const BAND = { minX: -47.2, maxX: 47.2, minZ: -7.5, maxZ: 7.5 };
-
-/**
- * The clamp itself, pure (A5): the home street is not the only walked zone —
- * the first-session square (firstSession.ts) runs its own walkers on the
- * Times Square plaza, and their band is the plaza's, not the block's. The
- * first draft clamped every Pedestrians instance to BAND, which teleported
- * the plaza walkers to the home street's south-west corner every frame and
- * parked their invisible walk colliders there as permanent ghosts.
- */
-export function clampToBand(
-  x: number, z: number, band: { minX: number; maxX: number; minZ: number; maxZ: number },
-): { x: number; z: number } {
-  return {
-    x: Math.max(band.minX, Math.min(band.maxX, x)),
-    z: Math.max(band.minZ, Math.min(band.maxZ, z)),
-  };
-}
+/** W4: a road surface rectangle — walkers stand at y 0 inside one, y 0.1
+ *  (the walk slab) anywhere else. The district's five roads, registry spec.
+ *  (The shipped ±47.2/±7.5 band clamp retired: every walker now clamps to
+ *  their own loop's bbox — see the constructor — which is tighter and
+ *  carries the same ±7.5 z-discipline for the Kestrel trio.) */
+export interface RoadRect { xMin: number; xMax: number; zMin: number; zMax: number }
 const PED_R = 0.3;        // a walker's physical half-width
 const PED_REACH = 0.28 * Math.SQRT2; // walk-collider CORNER reach — on the
 // diagonal a box touches at center-distance halfDiag, not halfWidth; the
@@ -100,6 +93,28 @@ const MAX_PUSH = 0.25;    // per-frame cap — nobody slingshots, ever
  * @param walkerZ the held walker's z
  * @returns -1 | +1 — the slideSide whose perpendicular motion heads for the road
  */
+/** W4: a walker's own clamp band — the bbox of its loop, inflated 1.6 m
+ *  laterally (curb-yield room) and 0.65 m in z, then held inside the
+ *  playable core (x ±84; the shipped ±7.5 z-discipline). Per-walker on
+ *  purpose: a district walker pushed off Gable can never be clamped into
+ *  Juniper — the pre-W4 bug clamped every zone to the block's band, so
+ *  off-block walkers teleported to the home street's corner every frame
+ *  and parked their invisible colliders there as permanent ghosts. Pure
+ *  so the law is unit-testable (tests/crowd.test.ts). */
+export function bandOfLoop(
+  pts: Array<[number, number]>,
+): { minX: number; maxX: number; minZ: number; maxZ: number } {
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const [px, pz] of pts) {
+    if (px < minX) minX = px; if (px > maxX) maxX = px;
+    if (pz < minZ) minZ = pz; if (pz > maxZ) maxZ = pz;
+  }
+  return {
+    minX: Math.max(-84, minX - 1.6), maxX: Math.min(84, maxX + 1.6),
+    minZ: Math.max(-7.5, minZ - 0.65), maxZ: Math.min(7.5, maxZ + 0.65),
+  };
+}
+
 export function curbSideSlide(perpZ: number, walkerZ: number): number {
   const toRoad = walkerZ > 0 ? -1 : 1;       // toward z = 0
   const perpSign = perpZ > 0 ? 1 : perpZ < 0 ? -1 : 1;
@@ -142,6 +157,7 @@ interface Ped {
   faceTo: [number, number] | null; // what the current beat looks at
   cooldown: number;      // seconds before another beat can fire
   latched: boolean;      // this beat already fired — walk away before it re-arms
+  band: { minX: number; maxX: number; minZ: number; maxZ: number }; // this walker's own clamp
 }
 
 const MAX_DT = 0.1; // matches the game loop's clamp — Yuka integrates with the same dt
@@ -154,12 +170,10 @@ export class Pedestrians {
   private playerObstacle: GameEntity;
   private cartObstacle: GameEntity;
   private taxiObstacle: GameEntity;
+  private busObstacle: GameEntity;
   private castObstacle: GameEntity;
   private time = 0;
-  /** The zone's walkable band and ground line (A5): the block by default,
-   *  the Times Square plaza for the first-session square's own walkers. */
-  private band = BAND;
-  private groundAt: (z: number) => number = groundY;
+  private roads: readonly RoadRect[];
   /** Real bodies for the player's collision stack (World registers these).
    *  Parked underground until the first update puts each under its walker. */
   readonly walkColliders: AABB[];
@@ -172,12 +186,10 @@ export class Pedestrians {
     paths: Array<Array<[number, number]>>,
     staticObstacles: Array<{ x: number; z: number; r: number }>,
     routines: RoutineStop[][] = [],
-    band?: { minX: number; maxX: number; minZ: number; maxZ: number },
-    groundAt?: (z: number) => number,
+    roads: readonly RoadRect[] = [],
   ) {
-    if (band) this.band = band;
-    if (groundAt) this.groundAt = groundAt;
     this.group.name = 'Pedestrians';
+    this.roads = roads;
     const rng = seededRng(seed);
 
     // invisible avoidance circles — the city's fixed furniture
@@ -197,12 +209,16 @@ export class Pedestrians {
     this.cartObstacle.radius = 1.35;
     this.taxiObstacle = new GameEntity();
     this.taxiObstacle.radius = 2.4; // the cab's half-length is the danger zone
+    this.busObstacle = new GameEntity();
+    this.busObstacle.radius = 3.4; // the M121 (W4 p2): half its 9.6 m length
+    // plus a stride — walkers part around it earlier than around the cab
     this.castObstacle = new GameEntity();
     this.castObstacle.radius = 0.5;
-    this.obstacles.push(this.playerObstacle, this.cartObstacle, this.taxiObstacle, this.castObstacle);
+    this.obstacles.push(this.playerObstacle, this.cartObstacle, this.taxiObstacle, this.busObstacle, this.castObstacle);
     this.manager.add(this.playerObstacle);
     this.manager.add(this.cartObstacle);
     this.manager.add(this.taxiObstacle);
+    this.manager.add(this.busObstacle);
     this.manager.add(this.castObstacle);
 
     // one real body per walker — parked at y −999 (the cast-collider trick:
@@ -231,14 +247,20 @@ export class Pedestrians {
       // the same handcrafted rig the cast wears — bank-shared materials,
       // so three more neighbors cost three rigs, zero new materials
       const { group } = buildArticulatedPerson(look, mat);
-      group.position.set(start[0], groundY(start[1]), start[1]);
+      group.position.set(start[0], groundY(start[0], start[1], roads), start[1]);
       group.rotation.y = rng() * Math.PI * 2;
       this.group.add(group);
+      // W4: each walker clamps to their own loop's bbox (bandOfLoop) —
+      // inflated 1.6 m laterally (curb-yield room) and 0.65 m in z (the
+      // shipped ±7.5 discipline the Kestrel trio inherits unchanged), so a
+      // district walker pushed off Gable can never be clamped into Juniper.
+      const band = bandOfLoop(pts);
       this.peds.push({
         vehicle, group, speed: vehicle.maxSpeed,
         box: this.walkColliders[i],
         holdTime: 0,
         slideSide: 0,
+        band,
         // the day's beats — round-robin from wherever the seeded start landed
         stops: routines[i % Math.max(1, routines.length)] ?? [],
         stopIdx: i, // staggered so the block's beats don't all fire at once
@@ -268,10 +290,10 @@ export class Pedestrians {
   }
 
   /**
-   * Push every walker out of the cab's footprint (shortest exit, capped).
-   * Called by World AFTER the cab's committed move — the pedestrian yields
-   * to the vehicle, never the reverse. Yuka's path steering resumes the
-   * route the moment the footprint clears.
+   * Push every walker out of a vehicle's footprint (shortest exit, capped).
+   * Called by World AFTER the cab's — and the M121's — committed move: the
+   * pedestrian yields to the vehicle, never the reverse. Yuka's path
+   * steering resumes the route the moment the footprint clears.
    */
   resolveAgainstCab(cabRect: AABB): void {
     const push: CirclePush = { x: 0, z: 0 };
@@ -289,12 +311,14 @@ export class Pedestrians {
     cart?: { x: number; z: number },
     taxi?: { x: number; z: number },
     cast?: { x: number; z: number },
+    bus?: { x: number; z: number },
   ): void {
     this.time += dt;
     if (player) this.playerObstacle.position.set(player.x, 0, player.z);
     if (cart) this.cartObstacle.position.set(cart.x, 0, cart.z);
     if (taxi) this.taxiObstacle.position.set(taxi.x, 0, taxi.z);
     if (cast) this.castObstacle.position.set(cast.x, 0, cast.z);
+    if (bus) this.busObstacle.position.set(bus.x, 0, bus.z);
 
     // ---- routines (Phase 4, Doc 37 §3E): the day's scheduled beats -------
     // Position-triggered, round-robin, no random: a walker near their next
@@ -414,15 +438,14 @@ export class Pedestrians {
         }
       }
       // the band clamp — the walkers have no wall collision of their own,
-      // so the zone's bounds are applied to their bodies directly
-      const clamped = clampToBand(pi.x, pi.z, this.band);
-      pi.x = clamped.x;
-      pi.z = clamped.z;
+      // so their loop's bounds are applied to their bodies directly
+      pi.x = Math.max(pd.band.minX, Math.min(pd.band.maxX, pi.x));
+      pi.z = Math.max(pd.band.minZ, Math.min(pd.band.maxZ, pi.z));
     }
 
     for (const p of this.peds) {
       const v = p.vehicle.position;
-      p.group.position.set(v.x, this.groundAt(v.z), v.z);
+      p.group.position.set(v.x, groundY(v.x, v.z, this.roads), v.z);
       // face the walking direction (velocity, not the steering force) —
       // and hold the last heading at waypoints so nobody snap-turns
       const vx = p.vehicle.velocity.x;

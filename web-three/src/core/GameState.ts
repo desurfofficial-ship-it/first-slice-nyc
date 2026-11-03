@@ -9,7 +9,9 @@ import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
   D4_WAKE_NOTE, D4_STRANGER_GREET_NOTE, D4_RUSH_DONE_NOTE, D4_MAP_NOTE,
   D4_SAL_MEET_NOTE, D4_SAL_CHAT_NOTE, D4_PERMIT_OFFER_NOTE, D4_PERMIT_FILED_NOTE,
-  D4_PERMIT_ALREADY_NOTE, IDRIS_D3_FAVOR_REACTION, ROSA_FOUR_MORNINGS_NOTE } from './content';
+  D4_PERMIT_ALREADY_NOTE, IDRIS_D3_FAVOR_REACTION, ROSA_FOUR_MORNINGS_NOTE,
+  RUSH_CARDS, SOLO_CARDS, RUSH_NOTE_5, USUAL_NOTE,
+  IDRIS_NINE_YEARS_NOTE, IDRIS_UNLOCK_NOTE, type OrderCard } from './content';
 
 export const Step = {
   MEET_ROSA: 0,
@@ -96,7 +98,14 @@ export type Effect =
   | { kind: 'permit-filed' }
   | { kind: 'persist' }
   | { kind: 'shelf-deplete'; id: string }
-  | { kind: 'free-wash-start' };
+  | { kind: 'free-wash-start' }
+  // ---- the serving conversation (docs/11 + docs/12, Doc 07 VS-F03) ----
+  | { kind: 'order-open'; card: OrderCard }
+  | { kind: 'order-respond'; text: string }
+  | { kind: 'order-close' }
+  // ---- the Map, as a notebook (docs/11 + docs/12 prototype 2) ----
+  | { kind: 'map-note'; text: string }
+  | { kind: 'map-slang'; id: string };
 
 export class GameState {
   step: Step = Step.MEET_ROSA;
@@ -161,6 +170,39 @@ export class GameState {
   trims = 0;
   washes = 0;
   hoopMakes = 0;
+  // ---- the serving conversation (docs/11 + docs/12) ----
+  /** The order card currently on the counter — null when nobody's ordering.
+   *  TRANSIENT: a conversation is a moment, never a save. */
+  pendingCard: OrderCard | null = null;
+  /** The chosen reply has landed; the card shows its response until dismissed. */
+  orderResponded = false;
+  /** The kid was served his cold cup (Day 1) — the gold window's referent.
+   *  TRANSIENT like every Day-1 flag: day 1 never writes. */
+  kidDay1Served = false;
+  // ---- the Map, as a notebook (docs/11 + docs/12 prototype 2) ----
+  /** Notes the Map has written down, in the order earned. Capped, deduped,
+  *  and persisted as an OPTIONAL v1-safe field (see Save.ts). Page 1's
+  *  "You are here. That's enough." is the Map's own — never stored here. */
+  mapNotes: string[] = [];
+  /** Earned slang card ids for the margins (Doc 08's four). */
+  mapSlang: string[] = [];
+
+  /** The Map writes it down (Doc 12: "Map wants to write this down.").
+  *  Deduped — the same lesson is never written twice; a note list is a
+  *  notebook, not a log. Returns true when the note is new. */
+  collectNote(text: string): boolean {
+    if (this.mapNotes.includes(text)) return false;
+    if (this.mapNotes.length >= 24) this.mapNotes.shift();
+    this.mapNotes.push(text);
+    return true;
+  }
+
+  /** A slang card slides into the margins. Returns true when new. */
+  collectSlang(id: string): boolean {
+    if (this.mapSlang.includes(id)) return false;
+    this.mapSlang.push(id);
+    return true;
+  }
 
   get isDay2(): boolean {
     return this.day >= 2;
@@ -267,17 +309,96 @@ export class GameState {
     return out;
   }
 
-  serveCounter(): Effect[] {
-    if (this.step !== Step.RUSH) return [];
+  // ------------------------------------------------- the serving conversation ----
+  // Docs 11 + 12: an order is a conversation with choices, not a press.
+  // Beat 1: the card opens (customer + order + the always-available replies).
+  // Beat 2: a reply lands — everyone serves the cup, every choice is safe.
+  // Beat 3: the response read, one more press (or Done) folds the card.
+  // No timers anywhere. The counter waits as long as the player does.
+
+  /** Take the order at Rosa's counter (Day-1 rush). Opens the card. */
+  openCounterOrder(): Effect[] {
+    if (this.step !== Step.RUSH || this.pendingCard) return [];
+    const card = RUSH_CARDS[this.rushServed];
+    if (!card) return [];
+    this.pendingCard = card;
+    this.orderResponded = false;
+    return [{ kind: 'order-open', card }];
+  }
+
+  /** Take the order at your own cart (Day-1 solo rush). Opens the card. */
+  openCartOrder(): Effect[] {
+    if (this.step !== Step.SOLO || this.pendingCard) return [];
+    const card = SOLO_CARDS[this.soloServed];
+    if (!card) return [];
+    this.pendingCard = card;
+    this.orderResponded = false;
+    return [{ kind: 'order-open', card }];
+  }
+
+  /** One beat of the open conversation. Before a reply: `reply` (clamped)
+  *  picks the way the order goes — money and progress never depend on it.
+  *  After: any call folds the card. -1 folds too (Escape / Done). */
+  chooseReply(reply: number): Effect[] {
+    const card = this.pendingCard;
+    if (!card) return [];
+    if (this.orderResponded) {
+      this.pendingCard = null;
+      return [{ kind: 'order-close' }];
+    }
+    this.orderResponded = true;
+    const idx = Math.max(0, Math.min(reply, card.replies.length - 1));
+    const chosen = card.replies[idx];
+    const out: Effect[] = [{ kind: 'order-respond', text: chosen.response }];
+    if (chosen.note) this.noteEffect(out, chosen.note);
+    if (chosen.slang) this.slangEffect(out, chosen.slang);
+    out.push(...(card.id === 'stroller' || card.id === 'kid' || card.id === 'idris_solo'
+      ? this.soloServeEffects(card)
+      : this.counterServeEffects(card)));
+    return out;
+  }
+
+  /** The Map writes it down — the STATE keeps the page; the effect only
+   *  tells the UI to say so (a repeat note is silence, not a second wiggle). */
+  private noteEffect(out: Effect[], text: string): void {
+    if (this.collectNote(text)) out.push({ kind: 'map-note', text });
+  }
+
+  private slangEffect(out: Effect[], id: string): void {
+    if (this.collectSlang(id)) out.push({ kind: 'map-slang', id });
+  }
+
+  /** A rush cup changes hands at Rosa's counter: $5, honest (the $87 → $112
+  *  math is the E2E's specification). Card 5's quiet line always lands —
+  *  the Idris continuity beat is the payoff, not a branch. */
+  private counterServeEffects(card: OrderCard): Effect[] {
     this.rushServed += 1;
     const out: Effect[] = [{ kind: 'serve-customer' }, ...this.earn(5)];
-    if (this.rushServed === 1) out.push({ kind: 'note', text: 'Regular coffee = milk, two sugars. Nobody knows why. It\u2019s just true.' });
-    if (this.rushServed === 3) out.push({ kind: 'note', text: '\u201CRegular\u201D also means small. The city likes its words efficient.' });
-    if (this.rushServed >= 5) {
-      out.push({ kind: 'note', text: 'Five orders. One apron that still smelled like mangoes. The city let me keep up.' });
+    if (card.id === 'idris') this.noteEffect(out, IDRIS_NINE_YEARS_NOTE);
+    if (this.rushServed >= RUSH_CARDS.length) {
+      out.push({ kind: 'note', text: RUSH_NOTE_5 });
       out.push(...this.setStep(Step.CROSS));
     } else {
       out.push({ kind: 'spawn-customer', who: 'rush', x: -18.0, z: 11.0 + this.rushServed * 0.3 });
+    }
+    return out;
+  }
+
+  /** A cup changes hands at YOUR cart. The solo rush pays nothing — Rosa
+  *  counts your register at $112 exactly (Doc 02); these are your neighbors
+  *  teaching your feet the counter. Idris converts to a Regular here. */
+  private soloServeEffects(card: OrderCard): Effect[] {
+    this.soloServed += 1;
+    const out: Effect[] = [{ kind: 'serve-customer' }];
+    if (card.id === 'kid') this.kidDay1Served = true;
+    if (card.id === 'idris_solo') {
+      out.push({ kind: 'note', text: IDRIS_UNLOCK_NOTE });
+      this.noteEffect(out, USUAL_NOTE);
+    }
+    if (this.soloServed >= SOLO_CARDS.length) {
+      out.push(...this.setStep(Step.CLIMB));
+    } else {
+      out.push({ kind: 'spawn-customer', who: this.soloServed === 2 ? 'idris' : 'solo', x: 4, z: -4.6 });
     }
     return out;
   }
@@ -310,25 +431,7 @@ export class GameState {
     ];
   }
 
-  spawnSoloCustomer(): Effect[] {
-    const isIdris = this.soloServed === 2;
-    const out: Effect[] = [{ kind: 'spawn-customer', who: isIdris ? 'idris' : 'solo', x: 4, z: -4.6 }];
-    if (isIdris) out.push({ kind: 'note', text: 'Mr. Idris: \u201CCoffee. Regular. I\u2019ll be back tomorrow.\u201D' });
-    return out;
-  }
-
   serveCart(): Effect[] {
-    if (this.step === Step.SOLO) {
-      this.soloServed += 1;
-      const out: Effect[] = [{ kind: 'serve-customer' }];
-      if (this.soloServed >= 3) {
-        out.push({ kind: 'note', text: 'The usual is a tiny love letter. It means: I come here, and you noticed.' });
-        out.push(...this.setStep(Step.CLIMB));
-      } else {
-        out.push(...this.spawnSoloCustomer());
-      }
-      return out;
-    }
     if (this.step === Step.D2_LUNCH) {
       this.lunchServed += 1;
       const out: Effect[] = [{ kind: 'serve-customer' }, ...this.earn(3)];
@@ -671,6 +774,10 @@ export class GameState {
       trims: this.trims,
       washes: this.washes,
       hoop_makes: this.hoopMakes,
+      // the Map's notebook pages (optional v1-safe fields — an old save
+      // parses unchanged; see Save.ts migration note)
+      map_notes: [...this.mapNotes],
+      map_slang: [...this.mapSlang],
     };
   }
 }

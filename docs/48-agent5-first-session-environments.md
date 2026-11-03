@@ -167,3 +167,19 @@ tsc clean · **270/270 tests** (265 + 5 traffic) · build clean · `probe-a5` **
 - **Every canvas sign sharper**: textPlane ran at 24 px/m — a 2.3 m shop sign was a 55×12 canvas and the glyphs rendered as chunk ("NIPER B" was resolution clipping, not occlusion). 64 px/m; the shop signs, exit board, passage posters, train ads, and map all read clean.
 
 Gates re-run after each pass: tsc clean · 270/270 · probe-a5 PASS (0 page errors) · solidity 4/4 · e2e 104/104 (599 s) unchanged — the band, boards, and sign resolution touch no colliders, no gates, no story state.
+
+---
+
+## Merge addendum (docs/52)
+
+This report describes the branch as built. The merge onto main
+(`ced660d`) resolved the parallel-build overlap with docs/50: **main's
+first-session world is the paved path** — the duplicate geometry this
+report lists under §2 rows 7–9 (`firstSession.ts`'s Alder Station, the
+z −80 Times Square district, the terminal coach) is retired, and what
+ships from this branch is the arrival film (re-targeted onto its own
+diorama coach), the stair-glue + floor-snap-down laws, the cab-yield
+function, and the per-walker band law's pure extraction. The full
+reconciliation record, the two main-tip breaks found and fixed (the CI
+trigger, the hydrant parse error), and the merged-tip proof live in
+**docs/52**.

@@ -1,0 +1,141 @@
+/**
+ * The far world's pure seams (docs/50): the zone visibility law and the
+ * ride machine. Determinism is the point — same boarding, same beats,
+ * same seam, every run, for players and probes alike.
+ */
+
+import { describe, expect, it } from 'vitest';
+import { updateZones, type ZoneDef } from '../src/world/subway/zone';
+import {
+  beginRide, createRide, endRide, RIDE_BEATS, RIDE_SWAP_DX, RIDE_T,
+  swapFeet, tickRide, type RideEvent,
+} from '../src/world/subway/ride';
+
+// ---------------------------------------------------------------- zones
+
+const ZONES: ZoneDef[] = [
+  { name: 'stationA', minX: -58, maxX: -30, minZ: 3, maxZ: 22, maxFeetY: 0.45, slack: 2 },
+  { name: 'stationB', minX: -346, maxX: -318, minZ: 3, maxZ: 22, maxFeetY: 0.45, slack: 2 },
+  { name: 'tunnel', minX: -352, maxX: -18, minZ: 12, maxZ: 20, maxFeetY: 0, slack: 0,
+    linkedTo: ['stationA', 'stationB'] },
+  { name: 'tsSurface', minX: -420, maxX: -280, minZ: -32, maxZ: 32, minFeetY: -0.45, slack: 6 },
+];
+
+function litAt(x: number, y: number, z: number): Set<string> {
+  const lit = new Set<string>();
+  updateZones(ZONES, x, y, z, lit);
+  return lit;
+}
+
+describe('zone visibility (the far-district law)', () => {
+  it('lights a station when the player is inside it, below grade', () => {
+    const lit = litAt(-44, -3.2, 12);
+    expect(lit.has('stationA')).toBe(true);
+    expect(lit.has('tunnel')).toBe(true); // linked
+  });
+
+  it('keeps the tunnel lit below grade (any ride position), never above', () => {
+    expect(litAt(-200, -3.2, 16).has('tunnel')).toBe(true); // mid-ride
+    expect(litAt(-332, -3.2, 12).has('tunnel')).toBe(true); // from station B
+    expect(litAt(-200, 0.1, 16).has('tunnel')).toBe(false); // the street above
+  });
+
+  it('does not light a below-grade zone from the surface plaza', () => {
+    const lit = litAt(-44, 0.1, 12);
+    expect(lit.has('stationA')).toBe(true); // 0.1 < 0.45: the stair view works
+    const far = litAt(-44, 0.6, 12);
+    expect(far.has('stationA')).toBe(false); // a rooftop would not light it
+  });
+
+  it('lights Times Square only at street level and with slack', () => {
+    expect(litAt(-330, 0.1, 0).has('tsSurface')).toBe(true);
+    expect(litAt(-330, -3.2, 0).has('tsSurface')).toBe(false); // underground
+    expect(litAt(-424, 0.1, 0).has('tsSurface')).toBe(true); // inside the slack
+    expect(litAt(-430, 0.1, 0).has('tsSurface')).toBe(false); // beyond it
+  });
+
+  it('home street lights nothing (the district tiles own that)', () => {
+    const lit = litAt(0, 0.1, 0);
+    expect(lit.size).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------- ride
+
+function runRide(seconds: number, dt = 0.1): RideEvent[] {
+  const s = createRide();
+  const events = beginRide(s, 'A');
+  for (let t = 0; t < seconds; t += dt) events.push(...tickRide(s, dt));
+  return events;
+}
+
+describe('the ride machine (deterministic seam)', () => {
+  it('plays the teach beats in order at their pinned times', () => {
+    const notes = runRide(RIDE_T.arrive + 0.2)
+      .filter((e) => e.type === 'note')
+      .map((e) => e.beat);
+    expect(notes).toEqual(RIDE_BEATS.map((b) => b.key));
+  });
+
+  it('crosses the swap seam exactly once, while the doors are shut', () => {
+    const events = runRide(RIDE_T.arrive + 0.2);
+    const swaps = events.filter((e) => e.type === 'swap');
+    expect(swaps).toHaveLength(1);
+    expect(swaps[0].end).toBe('B');
+    // the seam (12 s) sits well inside the shut window (close 1.2 → arrive 22)
+    expect(RIDE_T.swap).toBeGreaterThan(RIDE_T.close + 1);
+    expect(RIDE_T.swap).toBeLessThan(RIDE_T.arrive - 1);
+  });
+
+  it('opens the doors only on arrival, and retires through departing', () => {
+    const s = createRide();
+    const events = beginRide(s, 'A');
+    expect(events).toEqual([{ type: 'doors', open: false }]);
+    for (let t = 0; t <= RIDE_T.close + RIDE_T.arrive + 0.1; t += 0.1) events.push(...tickRide(s, 0.1));
+    expect(s.phase).toBe('arrived');
+    // stepping off departs; the doors close a beat later; then rest —
+    // and the rest REOPENS (the next train on the loop parks rideable)
+    endRide(s);
+    expect(s.phase).toBe('departing');
+
+    for (let t = 0; t <= RIDE_T.depart + 0.1; t += 0.1) events.push(...tickRide(s, 0.1));
+    expect(s.phase).toBe('idle');
+    expect(s.at).toBe('B'); // the car it ended at
+    // closing → (ride) → arrival opens → rest reopens
+    expect(events.filter((e) => e.type === 'doors')).toEqual([
+      { type: 'doors', open: false },
+      { type: 'doors', open: true },
+      { type: 'doors', open: true },
+    ]);
+  });
+
+  it('never boards twice and never boards mid-ride', () => {
+    const s = createRide();
+    expect(beginRide(s, 'A')).toHaveLength(1);
+    expect(beginRide(s, 'A')).toHaveLength(0); // closing
+    for (let t = 0; t < 5; t += 0.1) tickRide(s, 0.1);
+    expect(beginRide(s, 'B')).toHaveLength(0); // riding
+  });
+
+  it('rides home by the same law — the swap flips sign', () => {
+    const s = createRide();
+    beginRide(s, 'B');
+    const events: RideEvent[] = [];
+    for (let t = 0; t <= RIDE_T.arrive + 0.2; t += 0.1) events.push(...tickRide(s, 0.1));
+    const swap = events.find((e) => e.type === 'swap');
+    expect(swap?.end).toBe('A');
+    expect(s.at).toBe('A');
+  });
+
+  it('moves the player one ride-length, preserving their local offset', () => {
+    expect(RIDE_SWAP_DX).toBe(-288);
+    expect(swapFeet(-41.4, 'A')).toBeCloseTo(-329.4, 5);
+    expect(swapFeet(-329.4, 'B')).toBeCloseTo(-41.4, 5);
+  });
+
+  it('is bit-for-bit repeatable (the ballSim law)', () => {
+    const a = runRide(RIDE_T.arrive + 0.2);
+    const b = runRide(RIDE_T.arrive + 0.2);
+    expect(a).toEqual(b);
+  });
+});

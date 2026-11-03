@@ -9,6 +9,9 @@ export interface InputState {
   move: { x: number; y: number };   // y: +1 forward
   camTurn: number;                   // -1..1 (Z/left = +? see main.gd get_axis(cam_left, cam_right))
   interactPressed: boolean;          // edge — consumed by the game
+  /** Held, not edge — the half-court's shot charge reads this (press and
+   *  HOLD to charge, release to shoot). Keyboard OR touch button. */
+  interactHeld: boolean;
   restartPressed: boolean;           // edge
 }
 
@@ -18,6 +21,7 @@ export class InputManager {
   private interactQueued = false;
   private restartQueued = false;
   private touchInteractQueued = false;
+  private touchInteractHeld = false;
 
   private onKeyDown = (e: KeyboardEvent) => {
     if (this.isTypingTarget(e.target)) return;
@@ -64,35 +68,59 @@ export class InputManager {
     window.addEventListener('blur', this.onBlur);
 
     // ---- touch joystick ----
+    // Appears under the thumb. Dead-zone kills micro-drift; capture + cancel
+    // handlers stop the stick from "sticking" when the finger slides off the
+    // zone or the browser steals the gesture (iOS Safari, Chrome overscroll).
     this.joyZone.addEventListener('pointerdown', (e) => {
       if (this.joyId !== null) return;
+      e.preventDefault();
       this.joyId = e.pointerId;
-      this.joyZone.setPointerCapture(e.pointerId);
+      try { this.joyZone.setPointerCapture(e.pointerId); } catch { /* older WebViews */ }
       this.joyOrigin = { x: e.clientX, y: e.clientY };
       const r = this.joyZone.getBoundingClientRect();
       this.joyBase.hidden = false;
       this.joyBase.style.left = `${e.clientX - r.left}px`;
       this.joyBase.style.top = `${e.clientY - r.top}px`;
+      this.joyStick.style.transform = 'translate(-50%, -50%)';
+      this.joyVec = { x: 0, y: 0 };
       this.moveStick(e.clientX, e.clientY);
     });
     this.joyZone.addEventListener('pointermove', (e) => {
       if (e.pointerId !== this.joyId) return;
+      e.preventDefault();
       this.moveStick(e.clientX, e.clientY);
     });
     const joyEnd = (e: PointerEvent) => {
       if (e.pointerId !== this.joyId) return;
       this.joyId = null;
       this.joyVec = { x: 0, y: 0 };
+      this.joyStick.style.transform = 'translate(-50%, -50%)';
       this.joyBase.hidden = true;
+      try { this.joyZone.releasePointerCapture(e.pointerId); } catch { /* already released */ }
     };
     this.joyZone.addEventListener('pointerup', joyEnd);
     this.joyZone.addEventListener('pointercancel', joyEnd);
+    this.joyZone.addEventListener('lostpointercapture', (e) => {
+      if (e.pointerId === this.joyId) {
+        this.joyId = null;
+        this.joyVec = { x: 0, y: 0 };
+        this.joyStick.style.transform = 'translate(-50%, -50%)';
+        this.joyBase.hidden = true;
+      }
+    });
 
-    // ---- interact button (edge-triggered on press) ----
-    this.btnInteract.addEventListener('pointerdown', (e) => {
+    // ---- interact button (edge on press; HELD state feeds the shot charge
+    // —— the half-court's hold-to-shoot works with one thumb on this) ----
+    const interactDown = (e: PointerEvent) => {
       e.preventDefault();
       this.touchInteractQueued = true;
-    });
+      this.touchInteractHeld = true;
+    };
+    const interactUp = () => { this.touchInteractHeld = false; };
+    this.btnInteract.addEventListener('pointerdown', interactDown);
+    this.btnInteract.addEventListener('pointerup', interactUp);
+    this.btnInteract.addEventListener('pointercancel', interactUp);
+    this.btnInteract.addEventListener('pointerleave', interactUp);
 
     // ---- camera turn buttons (held) ----
     const hold = (el: HTMLElement, set: (v: boolean) => void) => {
@@ -111,6 +139,10 @@ export class InputManager {
 
   private moveStick(x: number, y: number) {
     const maxR = 44;
+    /** Inner dead zone (px) — thumb tremor and the initial contact should
+     *  not nudge the walker. Outside it the vector scales from 0 at the
+     *  rim of the dead zone to 1 at maxR. */
+    const dead = 10;
     let dx = x - this.joyOrigin.x;
     let dy = y - this.joyOrigin.y;
     const len = Math.hypot(dx, dy);
@@ -119,7 +151,14 @@ export class InputManager {
       dy = (dy / len) * maxR;
     }
     this.joyStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-    this.joyVec = { x: dx / maxR, y: -dy / maxR };
+    const live = Math.hypot(dx, dy);
+    if (live <= dead) {
+      this.joyVec = { x: 0, y: 0 };
+      return;
+    }
+    // Remap so the edge of the dead zone is 0 and maxR is 1
+    const scale = ((live - dead) / (maxR - dead)) / live;
+    this.joyVec = { x: dx * scale, y: -dy * scale };
   }
 
   private isTypingTarget(t: EventTarget | null): boolean {
@@ -138,18 +177,21 @@ export class InputManager {
     const len = Math.hypot(mx, my);
     if (len > 1) { mx /= len; my /= len; }
 
-    // Z/C or Q/E or on-screen turn buttons — free camera orbit
-    const camTurn = (this.keys.has('KeyC') || this.keys.has('KeyE') ? 1 : 0)
+    // Z/C or Q (left) — free camera orbit. KeyE is INTERACT only (hold-to-shoot
+    // + talk); binding it to camTurn as well spun the boom every time the
+    // player tried to use something. On-screen turn buttons still work.
+    const camTurn = (this.keys.has('KeyC') ? 1 : 0)
       - (this.keys.has('KeyZ') || this.keys.has('KeyQ') ? 1 : 0)
       + (this.turnRHeld ? 1 : 0) - (this.turnLHeld ? 1 : 0);
 
     const interact = this.interactQueued || this.touchInteractQueued;
+    const held = this.keys.has('Space') || this.keys.has('KeyE') || this.touchInteractHeld;
     const restart = this.restartQueued;
     this.interactQueued = false;
     this.touchInteractQueued = false;
     this.restartQueued = false;
 
-    return { move: { x: mx, y: my }, camTurn, interactPressed: interact, restartPressed: restart };
+    return { move: { x: mx, y: my }, camTurn, interactPressed: interact, interactHeld: held, restartPressed: restart };
   }
 
   /** Direct key state probe (debug keys). */

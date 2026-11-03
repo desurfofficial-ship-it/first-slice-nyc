@@ -11,8 +11,8 @@
  *   4. walking off a slab edge into the air falls — the edge law that makes
  *      the shaft's opening a real hole.
  *
- * Geometry mirrors firstSession.ts: treads 0.25 run / 0.335 rise (the shaft),
- * sidewalk south, hall floor below and north.
+ * Geometry mirrors the docs/50 stairwell law: treads 0.25 run / 0.335 rise
+ * (inside the 0.35 STEP_UP cap), sidewalk south, hall floor below and north.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -91,14 +91,22 @@ describe('the stair law (Alder Station shaft)', () => {
     expect(valid.some((t) => Math.abs(p.capsule.y - t) < 0.01)).toBe(true);
   });
 
-  it('walking off a slab edge into the air falls — the edge is real', () => {
-    // a lone slab with nothing beyond: the walker must leave it, not glue
-    const p = new Player([boxFromCenter(0, 0.05, 0, 4, 0.3, 4)]);
+  it('walking off a slab edge hands the walker to the LOWER floor — the edge is real', () => {
+    // a lone slab would settle on the implicit street floor (docs/50's
+    // defined default) — the law's honesty case is a slab OVER a lower
+    // floor: the walker must leave the slab and land on the floor's top,
+    // never glue to the slab's edge height on air past it
+    const p = new Player([
+      boxFromCenter(0, 0.05, 0, 4, 0.3, 4),
+      boxFromCenter(0, -1.55, 8, 8, 0.3, 8), // the lower floor, north of the slab
+    ]);
     p.capsule.x = 0;
     p.capsule.z = 1.4;
     p.capsule.y = 0.2;
     p.onGround = true;
     walkTo(p, 0, 6, 300);     // walk north off the slab (edge z 2)
-    expect(p.capsule.y).toBeLessThan(-1.5); // fell — no void floor caught them
+    expect(p.capsule.y).toBeLessThan(-1.0); // fell past the slab's top
+    expect(p.capsule.y).toBeCloseTo(-1.4, 1); // ...and stands on the lower floor
+    expect(p.onGround).toBe(true);
   });
 });

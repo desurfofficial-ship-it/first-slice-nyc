@@ -1,0 +1,203 @@
+/**
+ * The M121's route law — the pure half of the bus (engine/busRoute). Every
+ * test pins a law the W4 p2 construction depends on: the loop closes, the
+ * lanes legally clear the parked cars, the stop marks land where the
+ * registry pins them, and the bus's courtesy zones are the same paint the
+ * cab's extended rail yields at.
+ */
+
+import { describe, it, expect } from 'vitest';
+import {
+  buildM121, travelYaw, worldToLeg, legToWorld, aabbToLeg,
+  PARKED_CAR_RECTS, parkedCarRect, KESTREL_COURTESY_ZONES, BUS_BODY, BUS_BAY_ID,
+  type BusZone,
+} from '../src/engine/busRoute';
+
+const legs = buildM121();
+const KESTREL = { xMin: -84, xMax: 84, zMin: -4, zMax: 4 };
+const GABLE = { xMin: -84, xMax: 84, zMin: 36, zMax: 44 };
+const JUNIPER = { xMin: -76, xMax: -68, zMin: -64, zMax: 64 };
+const SYCAMORE = { xMin: 68, xMax: 76, zMin: -64, zMax: 64 };
+const ROADWAYS = [KESTREL, GABLE, JUNIPER, SYCAMORE];
+
+/** The bus's world AABB when its center sits at (x,z) facing yaw — the
+ *  OBB→AABB superset the collider uses (|cos|·hl + |sin|·hw per axis). */
+function bodyRectAt(x: number, z: number, yaw: number) {
+  const c = Math.abs(Math.cos(yaw)), s = Math.abs(Math.sin(yaw));
+  const ex = c * BUS_BODY.halfLen + s * BUS_BODY.halfWid;
+  const ez = s * BUS_BODY.halfLen + c * BUS_BODY.halfWid;
+  return { minX: x - ex, maxX: x + ex, minZ: z - ez, maxZ: z + ez };
+}
+
+function overlap(a: { minX: number; maxX: number; minZ: number; maxZ: number },
+                 b: { minX: number; maxX: number; minZ: number; maxZ: number }): boolean {
+  return a.minX < b.maxX && a.maxX > b.minX && a.minZ < b.maxZ && a.maxZ > b.minZ;
+}
+
+describe('the loop closes (registry: terminal → Gable → Sycamore → Kestrel → Juniper → terminal)', () => {
+  it("each leg ends exactly where the next begins, and leg 3 wraps to leg 0", () => {
+    const p = { x: 0, z: 0 };
+    for (let i = 0; i < legs.length; i++) {
+      const f = legs[i].frame, n = legs[(i + 1) % legs.length].frame;
+      legToWorld(f.len, 0, f, p);
+      expect(p.x).toBeCloseTo(n.ox, 6);
+      expect(p.z).toBeCloseTo(n.oz, 6);
+    }
+  });
+
+  it("runs the four authored legs in the registry order", () => {
+    expect(legs.map((l) => l.name)).toEqual([
+      'Kestrel west', 'Juniper north', 'Gable east', 'Sycamore south',
+    ]);
+  });
+
+  it("the full lap is the district north half — about 362 m", () => {
+    const total = legs.reduce((s, l) => s + l.frame.len, 0);
+    expect(total).toBeGreaterThan(350);
+    expect(total).toBeLessThan(375);
+  });
+});
+
+describe('lane discipline — the drive lanes never touch a parked car', () => {
+  it("every leg lane keeps the body inside its roadway", () => {
+    for (const l of legs) {
+      const p = { x: 0, z: 0 };
+      legToWorld(l.frame.len / 2, 0, l.frame, p); // mid-leg, on the lane line
+      const yaw = travelYaw(l.frame.ax, l.frame.az);
+      const body = bodyRectAt(p.x, p.z, yaw);
+      const road = ROADWAYS.find((r) =>
+        body.minX >= r.xMin - 0.01 && body.maxX <= r.xMax + 0.01
+          && body.minZ >= r.zMin - 0.01 && body.maxZ <= r.zMax + 0.01);
+      expect(road, `${l.name}: body ${JSON.stringify(body)} must sit in a roadway`).toBeDefined();
+    }
+  });
+
+  it("the Kestrel drive lane passes the parked cars with air to spare", () => {
+    const l0 = legs[0];
+    const p = { x: 0, z: 0 };
+    for (const cx of [44, -44]) { // the two Kestrel N curb cars
+      const noseA = 72.2 - cx;    // the advance where the nose reaches the car
+      const centerA = noseA + BUS_BODY.halfLen; // the car is then under the body
+      legToWorld(centerA, 0, l0.frame, p);
+      const body = bodyRectAt(p.x, p.z, Math.PI);
+      expect(overlap(body, parkedCarRect(PARKED_CAR_RECTS[2])), `car at x ${cx}`)
+        .toBe(false);
+    }
+  });
+
+  it("the avenue lanes clear the curb-hugging parked cars (the Juniper law)", () => {
+    const l1 = legs[1]; // Juniper north, the car at (−68.98, 14)
+    const p = { x: 0, z: 0 };
+    legToWorld(14 - l1.frame.oz, 0, l1.frame, p); // center abreast the car
+    const body = bodyRectAt(p.x, p.z, travelYaw(0, 1));
+    expect(overlap(body, parkedCarRect(PARKED_CAR_RECTS[6]))).toBe(false);
+
+    const l3 = legs[3]; // Sycamore south, the cars at x 68.98
+    legToWorld(l3.frame.oz - 10, 0, l3.frame, p); // center abreast z 10
+    const body3 = bodyRectAt(p.x, p.z, travelYaw(0, -1));
+    expect(overlap(body3, parkedCarRect(PARKED_CAR_RECTS[4]))).toBe(false);
+    expect(overlap(body3, parkedCarRect(PARKED_CAR_RECTS[5]))).toBe(false);
+  });
+});
+
+describe('the stops land where the registry pins them', () => {
+  it("BUS-03 / BUS-01 / BUS-02 ride leg 0 in order, bay last and longest", () => {
+    const stops = legs[0].stops;
+    expect(stops.map((s) => s.id)).toEqual(['BUS-03', 'BUS-01', BUS_BAY_ID]);
+    for (let i = 1; i < stops.length; i++) expect(stops[i].a).toBeGreaterThan(stops[i - 1].a);
+    expect(stops[2].dwell).toBeGreaterThan(stops[0].dwell);
+    expect(stops[2].dwell).toBeGreaterThanOrEqual(8); // a real lay-over
+  });
+
+  it("the bay halt parks the body inside the terminal bay paint (x -36..-24)", () => {
+    const bay = legs[0].stops[2];
+    const p = { x: 0, z: 0 };
+    // at the halt the nose sits at the mark on the pulled-out line
+    legToWorld(bay.a, bay.lateral, legs[0].frame, p);
+    const body = bodyRectAt(p.x + BUS_BODY.halfLen, p.z, Math.PI); // center is halfLen east
+    expect(body.minX).toBeGreaterThanOrEqual(-36);
+    expect(body.maxX).toBeLessThanOrEqual(-24);
+  });
+
+  it("every mark has a hold line on its own leg and a pull-out toward the curb", () => {
+    for (const l of legs) {
+      for (const s of l.stops) {
+        expect(s.a).toBeGreaterThan(0);
+        expect(s.a - BUS_BODY.halfLen).toBeLessThan(l.frame.len);
+        expect(s.lateral).toBeGreaterThan(0); // the curb is right of travel here
+      }
+    }
+  });
+});
+
+describe('courtesy zones — the bus and the cab yield at the same paint', () => {
+  it("each zone stop line sits on its leg and the span is sane", () => {
+    for (const l of legs) {
+      for (const z of l.zones) {
+        expect(z.a0).toBeGreaterThanOrEqual(0);
+        expect(z.a0).toBeLessThan(l.frame.len);
+        expect(z.a1).toBeGreaterThan(z.a0);
+        expect(z.l0).toBeLessThan(z.l1);
+      }
+    }
+  });
+
+  it("leg 0 zones are the cab's Kestrel zones the bus actually approaches", () => {
+    // westbound: a = 72.2 − x, so a zone's east edge is its hold line a0.
+    // The bus approaches three of the cab's four: XW-COURT, XW-CANON and the
+    // Juniper box. The Sycamore box is intentionally ABSENT — the bus turns
+    // west INSIDE that junction (its hold line would sit at a0 = 72.2 − 77.5
+    // < 0, behind the leg), while the eastbound cab crosses it and yields.
+    const zones = legs[0].zones;
+    expect(zones).toHaveLength(3);
+    const mapped = KESTREL_COURTESY_ZONES
+      .filter((k) => 72.2 - k.xMax > 0)
+      .sort((k1, k2) => (72.2 - k1.xMax) - (72.2 - k2.xMax)); // travel order
+    expect(mapped).toHaveLength(3);
+    zones.forEach((z, i) => {
+      expect(z.a0).toBeCloseTo(72.2 - mapped[i].xMax, 6);
+      expect(z.a1).toBeCloseTo(72.2 - mapped[i].xMin, 6);
+    });
+  });
+});
+
+describe('leg-space transforms', () => {
+  it('round-trips world → leg → world on every leg', () => {
+    const out = { x: 0, z: 0 };
+    const c = { a: 0, l: 0 };
+    for (const l of legs) {
+      worldToLeg(l.frame.ox + 7 * l.frame.ax - 2 * l.frame.lx,
+                 l.frame.oz + 7 * l.frame.az - 2 * l.frame.lz, l.frame, c);
+      expect(c.a).toBeCloseTo(7, 6);
+      expect(c.l).toBeCloseTo(-2, 6);
+      legToWorld(c.a, c.l, l.frame, out);
+      expect(out.x).toBeCloseTo(l.frame.ox + 7 * l.frame.ax - 2 * l.frame.lx, 6);
+      expect(out.z).toBeCloseTo(l.frame.oz + 7 * l.frame.az - 2 * l.frame.lz, 6);
+    }
+  });
+
+  it("aabbToLeg maps the Juniper parked car to its known advance/lateral span", () => {
+    const z: BusZone = { a0: 0, a1: 0, l0: 0, l1: 0 };
+    const r = parkedCarRect(PARKED_CAR_RECTS[6]); // (−68.98, 14) alongZ
+    aabbToLeg(r.minX, r.maxX, r.minZ, r.maxZ, legs[1].frame, z);
+    expect(z.a0).toBeCloseTo(11.0, 6);   // z 11.8 − 0.8
+    expect(z.a1).toBeCloseTo(15.4, 6);   // z 16.2 − 0.8
+    expect(z.l0).toBeCloseTo(1.645, 6);  // x −69.955 + 71.6
+    expect(z.l1).toBeCloseTo(3.595, 6);  // x −68.005 + 71.6
+  });
+
+  it('travelYaw faces the mesh (+x geometry) along each leg — ±π are one facing', () => {
+    const facing = (ax: number, az: number) => {
+      const y = travelYaw(ax, az);
+      return [Math.cos(y), -Math.sin(y)] as const; // what the mesh's +x becomes
+    };
+    const close = (v: readonly number[], ax: number, az: number) => {
+      expect(v[0]).toBeCloseTo(ax, 6);
+      expect(v[1]).toBeCloseTo(az, 6);
+    };
+    close(facing(1, 0), 1, 0);   // east
+    close(facing(-1, 0), -1, 0); // west (atan2 may return −π; same rotation)
+    close(facing(0, 1), 0, 1);   // north
+    close(facing(0, -1), 0, -1); // south
+  });
+});

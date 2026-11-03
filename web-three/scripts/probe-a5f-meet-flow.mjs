@@ -27,7 +27,7 @@ const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e.stack ?? e.message)));
-await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'load' });
+await page.goto(`http://localhost:${PORT}/?film=1`, { waitUntil: 'load' });
 await page.waitForFunction(() => window.__game !== undefined, null, { timeout: 30000 });
 await page.waitForTimeout(2000);
 

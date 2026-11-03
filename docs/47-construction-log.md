@@ -476,3 +476,766 @@ path down, and the driver budgets are now honest about slow frames.
 marquee's day-keyed notices (W4 dressing), SRC-01/02 and KTN-07 interiors
 (Class-C exterior-only), the fruit stand's vendor loop (W4 life), the
 avenue vehicle rails and bus (W4).
+
+---
+
+## W4 part 1 — the district's life (SHIPPED 2026-11-02)
+
+**Scope honored:** the npcZones roster on the existing Yuka/dwell systems;
+no new dependencies; the story cast and the E2E untouched. File owner:
+Main Agent (`peds.ts` bands + `World.ts` life). The M121 bus, the cab-rail
+extension to ±84 with courtesy zones, and the busker's horn note are **W4
+part 2** — this commit is the life layer only, and says so.
+
+**What landed**
+
+- **Static zone figures** (posed, pre-bake, merged into district tiles):
+  NZ-GOSSIP-G's pair under the Kestrel Green pergola, NZ-READERS' reader
+  and lunch at the benches, NZ-STOOPS' two sitters on the row's upper
+  landings (the rig's own hips folded — the low-poly sit), NZ-PLAYGROUND's
+  sandbox kid (the row's coral, ambient 0.78 scale) and caregiver,
+  NZ-BUSKER at the SUB-02 corner with an open case. Identity by silhouette
+  (style/scale), never by new colors.
+- **Walking zones** ride the shipped system: NZ-GARDEN's tender loops the
+  beds inside the fence; NZ-AVENUE's shopper walks the Sycamore west walk
+  past the diner window, the Golden Orchard and the M121 pole; the
+  NZ-TERMINAL bay and NZ-PLAZA stair beats ride the window shopper's
+  extended loop; NZ-DOG's gate beat rides the south local. NZ-CART,
+  NZ-GOSSIP-E untouched (existing); NZ-COURT's dusk pickup pair deferred
+  to W4 part 2 with the dusk wiring.
+- **Parked cars ×7**: the registry's two Kestrel end cars (±44, 3.05) and
+  three avenue curbs (Sycamore ×2 west edge, Juniper east edge — clear of
+  the ±70/±74 rails), plus the two stalls the W2 strip was built ready
+  for. Every one a 4.4×1.95 collider, an avoidance circle, and a W2-pad
+  reading recorded in the log.
+- **BUS-03 Sycamore/Diner**: the pinned corner flag (61.5, 2) + the curb
+  bay paint, mirroring BUS-02's pattern. The bus itself is part 2.
+- **peds.ts**: per-walker band clamps (each loop's own bbox — a pushed
+  district walker can never be clamped across the district) and the five
+  road rectangles as ground truth for feet (the shipped |z| > 4.15 rule
+  never knew Gable from Kestrel).
+
+**Two route laws the probes caught (both fixed in-phase)**
+
+1. **The spawn law**: Yuka spawns each walker targeting pts[0] — so
+   pts[0] must be reachable LEGALLY from every point. My first district
+   spine moved pts[0] to x −44 and the seeded commuter cut the road
+   diagonally to reach it (probe-peds sidewalk VIOLATION). The crossing's
+   north mouth is the only legal hub; the west reach moved to the
+   shopper's single-walk loop.
+2. **The trunk circle**: the local's extended east leg rode z −6.8, and
+   the east trunks (28/38, −7.0) held it at their circle radius — 0.35 m,
+   under probe-solid's 0.42 gate. The return lane rides −6.35 (0.70 m,
+   ALL CLEAN). Same lesson at the shopper's west turnaround: parked at
+   −42, out of the −44 curb car's avoidance circle.
+
+**Performance ledger** (probe-w0-census, same rigs; W3 → W4p1):
+
+| Rig | W3 | W4p1 | Δ | Est. | Tris |
+|---|---|---|---|---|---|
+| PLAZA | 908 | **973** | +65 | +15–25 | 132.8k |
+| CART_CORNER | 760 | **821** | +61 | +15–25 | 114.5k |
+| SYCAMORE×GABLE | 439 | **490** | +51 | +15–25 | 93.0k |
+
+Honest accounting: the phase estimate assumed zone life was nearly free;
+the W0 bake makes it *mergeable but not free* — every object palette
+entering a new district tile opens its own (color, cast, receive) batch
+there, and the avenue shopper's animated rig rides every frustum that
+looks down Kestrel. The palette consolidation pass (a tile's figures
+share one clothing palette, receive-shadows aligned) clawed back ~1/3;
+the rest is the parked cars' palette in five new tiles. The recorded
+W4-part-2 lever is a batch-consolidation pass (fold cast-only signatures
+into the world's cast+receive batches, share the car palette across
+tiles); the tris stay under Doc 07's 120k line at the two street rigs
+and the intersection rig, published rather than trimmed to fit.
+
+**Verification**: tsc clean · vitest 243/243 · build clean · registry
+validator green · probe-peds OK · probe-solid ALL CLEAN (4/4) ·
+probe-w3-ghost PASS · E2E: OK — 0 failures, 104/104, 313 s, re-run after
+the lane fixes · peds-street shot visually checked (walkers grounded,
+identity intact).
+
+**Explicitly NOT done (W4 part 2)**: the M121 bus body + loop with
+yields, the cab rail to ±84 with XW-COURT courtesy zones, the busker's
+horn note, NZ-COURT's dusk pair, the 30-minute ped soak (the exit gate
+for the full phase), laundry lines and the marquee's day-keyed notices.
+
+---
+
+## The First Session, in paper (SHIPPED 2026-11-02, branch `feat/first-session-paper-kit`)
+
+**Scope honored:** the ORIGINAL first session (Docs 02/06/07) brought into
+compliance with the paper prototypes (Docs 11/12) — the mandatory design
+reference. Zero world geometry changed; the living block (W0–W4) is
+untouched. Every change is content, conversation, or paper surface.
+
+### The seven requirements, each verified
+
+1. **Map is a notebook, not a quest menu.** A folded-paper surface (M key /
+   the corner button): page 1 is the star and *"You are here. That's
+   enough."*; page 2 is "Things I noticed" margins that collect the Doc 08
+   notes and slang cards as they are earned. It opens only when asked,
+   wiggles once when it writes, never gates, never nags (probe screenshots,
+   desktop + 390×844).
+2. **The city is patient.** The conversation has no timer anywhere; the
+   card's own hint says *"the counter waits."* Escape steps back from an
+   order with no penalty; nothing can fail.
+3. **Customers are people.** Five authored rush cards + three solo cards
+   (Doc 12 §2 cards 1–5, Doc 02 §5:00–10:00 and §20:00–26:00) with order
+   bubbles legible from across the counter — the stroller woman's earned
+   relief, the kid's honest shrug, Idris's nod.
+4. **Natural dialogue choices.** The kit's four replies on every card:
+   just make it / repeat it back / ask one question / chef's welcome (the
+   kid's card carries the kit's three). Teaching fires only on ask; one
+   piece explained at a time; wrong guesses can never offend.
+5. **The Idris "usual" continuity.** Rosa's *"Two sugars. Every day for
+   nine years. You'll see him tomorrow."* lands on EVERY card-5 reply
+   (Map-notebook asserted in E2E); at your own cart Idris says *"Rosa said
+   you'd be here. She's usually right. It's annoying."* and unlocks as a
+   Regular; Day 2's "Told you I'd be back" now has its setup.
+6. **The kid connects to the gold window.** His cold cup is served and
+   flagged (`kidDay1Served`); at dusk Rosa names him: *"That one's the kid
+   who ordered 'whatever's cold.' You were their first warm thing today."*
+7. **The fire-escape payoff stands.** Flicker ×3 → hold gold, Rosa's quiet
+   line, then the send-off — *"Lights out, rookie! Big day tomorrow.
+   They're gonna want the usual."* — then the postcard composes with the
+   open loop intact. The E2E watches both lines land live.
+
+### What landed (files)
+
+- `content.ts` — the eight order cards (voice-checked against Doc 02/08/12),
+  `IDRIS_NINE_YEARS_NOTE`, `IDRIS_UNLOCK_NOTE`, `GOLD_WINDOW_NOTE`,
+  `LIGHTS_OUT_NOTE`, `WATER_TOWERS_NOTE`, the four Doc 08 slang cards.
+- `GameState.ts` — the conversation machine (`openCounterOrder` /
+  `openCartOrder` / `chooseReply`): money math untouched ($87 → $112, the
+  E2E's specification); the Map's page state (`collectNote` dedupes, caps
+  at 24); `map_notes`/`map_slang` save fields.
+- `Save.ts` — optional trailing fields, same migration law as the Doc 37
+  counters (corrupt list = empty page, never a crash).
+- `interactionDefs.ts` — counter/cart take orders (the conversation owns
+  the press); D2 lunch and D3/D4 brews unchanged.
+- `Game.ts` — effect application, the note queue (two notes in one breath
+  queue instead of stampeding — the city is patient), the Day-1 dusk
+  sequence, Map toggle, E2E debug reads.
+- `UI.ts` + `index.html` + `style.css` — the order card (paper, deckled,
+  numbered replies, the patience hint) and the Map notebook (folded-corner
+  button, two-page spread, margins).
+
+### Verification
+
+tsc clean · vitest 258/258 (new: `map-notebook.test.ts` — the notebook
+rules as assertions; `state.test.ts` now plays the conversations) ·
+E2E OK — **0 failures, 124 checks, 362 s** (Day-1 legs PLAY the kit: ask
+the regular, repeat the bagel, ask the hero, Idris's usual; the kid's
+"I don't know either!"; the Map opens with the morning in it; both Rosa
+dusk lines observed) · `probe-doc12.mjs` screenshots reviewed at 900×700
+and 390×844 (Vertical-First Law): card and notebook compose on both.
+
+**Explicitly NOT done (deferred on purpose):** repeat-back as the 3-item
+memory mini-game (v0 ships the plain echo, per Doc 07's "tiny memory
+moment"); the Map's writing animation stroke-by-stroke (VS-F01 v1);
+VO of the five signature lines (Doc 07 TBD-1); Times Square and Subway
+University remain Doc 02 beats outside the greybox block.
+
+
+## W4 part 2 — the traffic + dusk layer (SHIPPED 2026-11-02)
+
+**Scope honored:** everything the part-1 entry listed as explicitly NOT
+done. The M121 (registry transit.bus, routes V-BUS), the cab rail to ±84
+with the extended courtesy zones, the busker's horn note, NZ-COURT's dusk
+pair, the TEN-01 laundry, the hall's day-keyed notice board, and the
+30-minute ped soak. The §7 open decision is CLOSED: the bus is a dedicated
+low-poly body (six draw calls: cream slab+roof, teal livery stripe, window
+band + curb door, wheels, hubs+bumpers, the one canvas rollsign) — a
+scaled car reads as a stretched car; a long box with a window band reads
+as a bus. Not glb-upgradable: the seam is the cab's experiment, not the
+fleet's.
+
+**Architecture — the route law (engine/busRoute.ts, pure, no THREE):**
+the loop folds into four axis-aligned legs so the cab's own traffic brain
+(approachSpeed / noseLimit / bodyConflictsWithCab) runs UNCHANGED in leg
+space — advance = along travel, lateral = right of it, and the cab's
+world-space math is numerically identical in shape. That reuse IS the
+registry's "a rail mover like the cab with the same yield brain". Leg 0
+Kestrel westbound carries the three stops; lanes are laws (the Kestrel
+drive lane rides z +0.8 — 12.5 cm of air past the parked Kestrel cars;
+the curb pull-outs happen only at bays). The cab reads the same
+PARKED_CAR_RECTS list and brakes for the bus exactly like a parked car;
+the bus's pool reads the cab's fresh rect one frame stale (the stopGap
+absorbs the closing at these speeds). Arrivals deterministic: authored
+dwells (BUS-03 4 s, BUS-01 4 s, the bay 9 s), no randomness; the bay
+dwell never expires while dusk lasts (the dusk law — the last evening bus
+goes home and the district settles).
+
+**Two route laws the probes caught (both fixed in-phase):**
+
+1. **The Zeno halt (the 110-second stall).** The first full-lap probe
+   stall-traced the bus frozen at nose x −26.1 — exactly haltGap short of
+   the BUS-01 mark, dwell −0.1, for 110+ s with an EMPTY lane. Root cause:
+   the braking curve is v = gain·air, so closing speed decays with the
+   air — the nose approaches the halt line geometrically and the serve
+   test `clearance <= haltGap` compares against an asymptote; once the
+   per-frame creep sinks under the float ULP the bus stands ~4e-13 m
+   short of the line forever. Fix: the dwell arms within `haltEps`
+   (0.02 m) of the line too, and the serve snaps the last whisker — the
+   halt lands ON the mark, deterministically, every lap.
+2. **The unreachable mark.** BUS-03 was authored at the bay paint's east
+   edge (a 4.7) — CLOSER to the Sycamore corner than the nose itself
+   (halfLen 4.8 + wrap overshoot), so the per-leg stop scan could never
+   see it after a wrap: the stop was skipped every lap. The registry
+   pins POLES, not paint edges — and BUS-01's own comment already held
+   the law ("the front door at the pole", nose 2 m short of the pole).
+   BUS-03 now follows the same door law: nose x 59.5 (a 12.7), fully
+   post-wrap, servable every lap. The door law also puts the halt where
+   a player reads "the bus is at the stop" — the pole.
+
+**Also landed**
+
+- **Cab rail to ±84** (registry taxi.phaseW4) with the extended courtesy
+  zones (busRoute.KESTREL_COURTESY_ZONES: XW-COURT, XW-CANON numbers
+  preserved, both junction boxes) — the cab and the bus yield at the
+  same paint, one shared list.
+- **The batch-consolidation lever** (the recorded path down from W4
+  p1's +177): fold (color, cast=1, receive=0) batches into the same
+  tile's (color, cast=1, receive=1) batch — the parked cars stopped
+  opening cast-only batches in every district tile; buildCar and the
+  bus/court figures now carry receiveShadow like the world's solids.
+  Deliberately narrow: receive-only and flat batches stay put.
+- **NZ-COURT's dusk pickup pair**: two posed rigs MERGED BY MATERIAL
+  into five meshes (a dusk-toggled figure would ride ~10 rig parts
+  each), visible only while dusk lasts. Shooter hands-up, defender
+  arms-out; identity by silhouette.
+- **TEN-01's laundry**: lines strung from the Old-Law pair's fire-escape
+  rails over the Juniper walk, garments in the world's palette. Static —
+  the bake swallows every box, zero draw calls.
+- **The hall's notice board** (LMK-07's dressing): the plain box joins
+  the bake; the canvas face re-letters per day (dressDay → one canvas
+  fill — no geometry churn). Authored set for days 1–4, the fair repeats
+  beyond it.
+- **The busker's horn** (docs/33 §2.5): one muffled brass note from
+  below, lowpassed hard, a soft fifth above. Dusk-law compliant (only
+  while dusk lasts, only within earshot of SUB-02's corner, a few notes
+  an evening). Garnish — no state, nothing the E2E waits on.
+- **peds.ts**: the bus obstacle (radius 3.4 — walkers part around the
+  M121 earlier than around the cab) + resolveAgainstCab now post-move
+  truth for both movers.
+
+**Performance ledger** (probe-w0-census, same rigs; W4p1 → W4p2):
+
+| Rig | W4p1 | W4p2 | Δ | Tris |
+|---|---|---|---|---|
+| PLAZA | 973 | **969** | −4 | 134.0k |
+| CART_CORNER | 821 | **816** | −5 | 115.9k |
+| SYCAMORE×GABLE | 490 | **483** | −7 | 94.1k |
+
+Honest accounting: the fold clawed back the W4 p1 debt's first slice
+(net DOWN across all three rigs) while ADDING the bus (6 calls, dynamic)
+and the dusk pair (9 calls, dusk-only) — the census counts the boot state,
+where both are hidden or off-rig. The Doc 07 budget line (150/250) remains
+failed and remains published: the debt is W3's +100 dusk calls plus the
+avenue walls' tile granularity, and the next lever is recorded (per-tile
+figure palette sharing), not promised.
+
+**Verification**: tsc clean · vitest **257/257** (243 + 14 bus tests —
+the loop closes, the lanes legally clear the parked cars, the marks land
+where the registry pins them, the bus and the cab yield at the same
+paint) · build clean · registry validator green (117 IDs, 12/12 masses,
+18/18 anchors) · probe-w0-census OK (ledger above) · probe-peds OK ·
+probe-solid ALL CLEAN (4/4) · probe-w3-ghost PASS · **probe-w4-bus OK
+12/12** (boot lay-over, departure, the XW-COURT rest at 46.9 vs the
+authored 46.85, the lane yield Δa 0.00, all four legs, 2 laps in 145 s,
+19 dwell samples landing at the three registry stops, zero walker-in-bus,
+zero cab-bus interpenetration) · **probe-w4-soak OK** — 30.8 sim-minutes
+(1846 sim-s at the app's own 0.1 dt, 8 steps per 150 ms wall, 42 samples):
+no NaN, no roadway violations, no persistent vehicle/cart overlaps, no
+stuck walkers (two-window stillness < 5 cm against a 6 s max dwell), no
+page errors · E2E: OK — 0 failures, 104/104, 344 s · visual evidence:
+w4-bus-stop01.png (the M121 halted at BUS-01, door side to the curb),
+w4-bus-gable.png (mid-lap in its lane), w4-court-dusk-pair.png (the
+pickup pair posed at the barbershop court). The TEN-01 laundry is bake-
+verified (the census batch names) but not frameable from the walk
+camera — it hangs 5–9 m up a wall the isometric camera meets edge-on;
+flagged for the W5 interior pass's window views.
+
+**Probe forensics kept**: scripts/probe-w4-trace.mjs (the 180 s stall
+trace that caught the Zeno) and scripts/probe-w4-stall.mjs (the pool
+forensics that cleared the walkers/cab/player) — the honest-accounting
+path from "5 failures" to two named route laws.
+
+**W4 phase exit**: all four docs/45 acceptance lines met — 13 zones
+populated day-keyed (part 1), the bus loop completes with yields (this
+part), no ped stuck states over the 30-min soak (this part), the story
+cast untouched (both). Remaining per the plan: **W5 (interiors batch —
+8–10 interior spaces + visibility toggles)**.
+
+**Ported to `agent2/half-court-upgrade` (same day, branch `paper-kit-on-half-court`):** the
+feat and docs commits re-applied onto the half-court tip with the court
+game untouched (`src/court/` byte-identical, `tests/court.test.ts` green).
+Re-verified on THIS branch: tsc clean · vitest **309/309** (the paper kit
+and the court suites pass together) · build clean · **E2E: AUTOTEST OK,
+0 failures, 124 checks, 351 s, zero console errors** · `probe-doc12.mjs`
+re-run — card, notebook and the golden window compose correctly under the
+court HUD.
+
+---
+
+## W5 — the interiors batch (SHIPPED 2026-11-02)
+
+**Scope honored:** docs/45 §1 W5 minus the two optional slices the lead
+never confirmed (§7.4: MEZZ-INT and CORNERHOUSE-INT stay open decisions —
+explicitly NOT built). Eight rooms: LAUNDRY-INT, BARBER-INT, PIZZA-INT,
+DINER-INT, HALL-INT, BAKERY-INT, RECORD-INT, CECIL-ROOM. Every Class-A/B
+promise in docs/40 kept; interior anchors in the registry (validator-
+checked); interaction tests for each loop; a portrait-viewport pass; and
+the W5 exit line's own law — **interior groups carry a visibility toggle**.
+File owner: Main Agent (World.ts rooms + interactionDefs free-roam set +
+content lines; zero story files touched).
+
+**The ghost gate, first (docs/45 §4) — and what it caught.** Before W5
+opened, the W1–W3 footprints re-verified in-engine against the registry.
+W2 and W3 passed. W1's mass checks passed but its WALK failed — twice,
+and both were real finds, not probe flake:
+
+1. **The stale walk route.** The W1 probe's route predates the avenues:
+   it walked x ±80 through where the W3 backdrops (VDN-DW1a/c, VDN-DE1a/c,
+   x −82..−74 / 74..82) legally own the outer 6 m of the corridor, and it
+   crossed Kestrel mid-block at x 40, where the W4 rails now run. The
+   route moved to the shipped legal walks — the W3 spine at x ±82.5 and
+   the XW-COURT paint at x 35, where both the M121 and the cab yield. The
+   MASS checks are byte-identical; only the route reconciled.
+2. **A parked car in a crossing.** Parked_Sycamore_N sat at (68.98, 34) —
+   inside the Gable S walk's desire line (z 32..36): the ghost walker
+   wedged dead against its west flank with no legal way past. NYC parks
+   mid-block, not in the crosswalk. The car moved to z 24 (busRoute.
+   PARKED_CAR_RECTS with it — the bus's lateral clearance is unchanged,
+   and the bus tests never asserted the z). W4 p1's own "clear of the
+   rails" law held; the crossing desire line was the miss.
+
+**Three registry data fixes (docs/40 §6: fix the data, never the doc).**
+All three are planned-interior plans contradicting shipped facts, per
+docs/41 §1 law 2 (the door matches the shipped entrance):
+
+- **CECIL-ROOM re-laid to the north strip.** The first draft put the room
+  at z −19.2..−14.2 — 6.2 m of solid mass between its own fire-escape
+  door and the shipped top landing (z −7.3, y 8.35), and its "street
+  window" faced the rear yards, not the gold window. The room now abuts
+  the landing (door at x 13, window at x 14.9), and the game's oldest
+  promise — the gold-window sight-line — reads north across Kestrel from
+  the bed. The reserved roof hatch re-pins to (12.2, −12.0).
+- **BAKERY-INT mirrored to the Marlow storefront.** The plan's entrance
+  faced the yard; the shipped MARLOW BAKERY sign and the bagel-silhouette
+  window face SOUTH. Counter just inside the street door, oven at the rear.
+- **RECORD-INT's entrance** moved to the shipped storefront; the counter
+  and listening corner already sat at the right (south) end.
+
+Each fix carries its reasoning in the registry entry itself, so the next
+agent reads the law where the number used to be wrong.
+
+**What landed (the rooms).** Each hollow decomposes its shipped mass into
+wall boxes with the SAME outer envelope — footprint, height, silhouette
+identical, and the ghost probes re-verify them post-hollow (the w1/w2
+matchers moved to the W3 envelope method to read decomposed masses; KTN-02
+checks pass at 0.000). The shipped bay (washers, Sal, alcove) stays
+byte-identical in the laundry; the shipped glass faces become each room's
+FAR pane (extracted with scene.attach, un-baked, one draw call each as
+before). Fixtures per the registry plans: 6 washers + 4 dryers + folding
+tables + back room (laundry), 2 chairs facing the mirror wall + waiting
+bench + powder room (barber), slice counter + deck oven + 2 booths (pizza),
+counter + case + deck oven + racks + 2 two-tops (bakery), 3 crate rows +
+listening corner + counter (records), counter bar + 8 stools + kitchen
+line + 4 booths + register & pie case (diner), folding chairs + workshop
+table + kitchenette + the day-keyed notice wall (hall), bed + kitchenette
++ bath + the reserved hatch + the Map's corkboard (Cecil). Palette law:
+signature colors only; the two new glass materials reuse the storefront
+glass signature (0x3b3346 + the warm emissive).
+
+**The toggle (the W5 exit line, made mechanical).** Each room is an
+`InteriorHandle`: the fit-out group shows only within the shell + 1.6 m
+(0.8 m to exit — hysteresis, so a player on the sill never flickers the
+room); the clear panes swap in near, the shipped lit glass swaps out; and
+while the player is INSIDE, the tower above the room ducks — the shipped
+bodega-roof grammar. Two laws the implementation had to learn:
+
+- **A baked batch cannot hide.** The bake removes its source meshes, so
+  the duck towers (and the far faces, and the fit-outs) live in the bake
+  skip set; only the WALLS bake (they merge into their district tiles at
+  zero marginal draw calls — the envelope proof above covers them).
+- **W2 left two colliders.** The garden-slot cut mutated the original
+  KTN-02 box in place AND pushed the replacement solid's — two identical
+  envelopes. retireCollider now splices ALL matches; leaving one behind
+  had walled the laundry's doorway shut (the probe's walk-in caught it).
+
+The laundry walk-in also moved the two shipped bay washers east to flank
+the doorway (x −3.9 / −2.7): the registry's "entrance (open bay), w 5.85"
+had a 0.25 m gap between machines — a door nobody could use. The spinning
+near washer keeps its role; the E2E's drum check rides washer 0 wherever
+it stands.
+
+**The loops.** All in the free-roam set (the authored 4-day chain
+untouched): dry & fold $2 (the wash's second beat), dollar slice $2 (the
+sign says a dollar; the offer says 2019), counter coffee $2, the booth +
+pie case notes, the hall's notice wall (wearing the SAME hallNoticeForDay
+dressing as the shipped exterior board) + workshop notes, the bakery's
+morning anchor $4, the used bin $3 + the listening corner, and the Cecil's
+two: the corkboard and the **window-gaze** — docs/41's reserved beat,
+adopted: one quiet look out the north window, day-keyed, free, no state.
+The barber's trim moved from a facade prompt to the chair (docs/41 §2.3);
+its y-band makes the chair unreachable from the sidewalk, the room's door
+the only way in. The Cecil anchors ride y 8.35 — the default 3 m y-band
+keeps the room out of the street's reach entirely. No new save fields;
+the buy loops reuse buyConfirm/spend/recordChoice exactly as shipped.
+
+**Performance ledger** (probe-w0-census, same rigs; W4p2 → W5):
+
+| Rig | W4p2 | W5 | Δ | Tris |
+|---|---|---|---|---|
+| PLAZA | 969 | **996** | +27 | 136.3k |
+| CART_CORNER | 816 | **835** | +19 | 118.0k |
+| SYCAMORE×GABLE | 483 | **497** | +14 | 95.8k |
+
+Inside the phase's +40–60 estimate: the boot state carries the unbaked
+duck towers (8, always visible until entered), the always-on warm
+translucent panes (7), and the re-batched facade walls — every fit-out
+group boots HIDDEN (the probe counts them at zero). The Doc 07 budget
+line (150/250) remains failed and remains published: the debt is W3's
++100 dusk calls plus the avenue walls' tile granularity; W5 adds eight
+rooms that cost nothing until you walk up to them.
+
+**The merge (the same-day concurrent lands).** While W5 was being built,
+agent2 landed two merges on main (e5d4567 the first-session world — the
+K line, Times Square, the M121 arrival bus; 87599e4 the half-court game):
++8,251 lines against W5's uncommitted tree. The stash → ff-merge → pop
+resolved with THREE conflict files (docs/47, the registry, the free-roam
+list) and World.ts clean. The registry was resolved semantically: their
+restructured registry (129 IDs, 11 interiors — their MEZZ-INT and MEZZ-TS
+are built slices) taken whole, and W5's three data fixes + the anchors
+contract reapplied programmatically (scripts/design/apply-w5-registry-
+fixes.py, kept as the record of the replay). The performance ledger above
+is W5's own pre-merge measurement; their content stacks further draw
+calls on top of it (the post-merge census reads 1070/904/512 — their
+subway + Times Square + court content, measured by their own gates).
+
+**The ghost gate vs the merged world.** Re-run post-merge, the W1 walk
+found four more pieces of street truth — all documented here so the next
+agent reads them where the walker tripped: the K-line stairwell legally
+owns the north walk's full depth at x −48.5..−45.9 (the route crosses
+Kestrel at the XW-CANON paint and rides the south walk); the terminal
+bay's M121 poles stand ON the old walk centerline at (−27, 6.8) and
+(−30, −7.0) (the route offsets to z ±5.6); a TEN-01 bay box (x −60..−54,
+z −8..−4.5) fills the south walk's whole depth (the route borrows the
+road shoulder at z −3.4, clear of the cab's lane); and the half-court's
+net (x 40.45, z 4.5..7.8) pinches the north walk shut against the W4
+parked car's z 2.075..4.025 — **no capsule fits between them**, so the
+through-walk crosses at the KS junction paint instead. The pinch and the
+bay box are agent2's content and are flagged for its agent; the route
+works around all four. The Gable-junction mouth legs run patient (the
+M121's leg 1 transits the mouth; the yield brain releases an abeam body,
+and 15 s of budget covers the wait).
+
+**Verification (on the merged tree)**: tsc clean · vitest **367/367**
+(their subway/court suites + the paper kit + W5's 28) · build clean ·
+registry validator green (129 IDs, 12/12 masses, 18/18 anchors,
+anchors-inside-shells) · ghost gates W1/W2/W3 PASS post-hollow and
+post-merge (envelopes 0.000–0.05) · probe-w0-census OK (W5's own ledger
+above) · probe-solid ALL CLEAN (4/4) · probe-peds OK · probe-court ALL
+PASS · **probe-w5-interiors PASS** (boot: all 8 fit-outs hidden, far
+panes visible; the laundry walk-in stands in the room at ground y 0.10
+with the tower ducked; the curtain and tower restore on exit; the Cecil
+shows from the rail and ducks inside at floor y 8.40; the bakery interior
+portrait shot) · **E2E: OK — 0 failures, 355 s**, console clean ·
+probe-subway 2 FAIL ("the M121 floor holds", "the bus interior is
+enterable") — **verified pre-existing on agent2's own tip** (their clean
+tree, their dist, same two failures; not a merge regression, flagged for
+its agent).
+
+**Explicitly NOT done (open, lead's call)**: MEZZ-INT and CORNERHOUSE-INT
+(the §7.4 optional slices — no confirmation, no build); the Kestrel
+Hardware and terminal interiors (docs/40 allows dressed-only; SMB-03's
+shell stays as shipped); steering NPCs inside rooms (docs/41 §3 leaves it
+a W5 engineering call — the proximity registry carries the rooms, and
+that is what shipped). The TEN-01 laundry lines remain unframeable from
+the walk camera — now visible in passing through the bakery window's
+grammar, not yet given their own shot.
+
+**W5 phase exit**: the interiors batch is the last docs/45 phase. The
+construction arc W0→W5 is complete: every registry ID exists in the scene
+or carries its explicit deferral note, the 7 landmarks read, the 12
+masses and 18 anchors verify, the per-phase performance ledgers are
+published, and the E2E stayed green through every phase.
+
+## The Map, reachable by thumb (SHIPPED 2026-11-02, branch `fix/map-button-reachable`)
+
+**The bug a player found, not a test:** the HUD is click-through by design
+(`#hud { pointer-events: none }` — the city gets every tap), and the Map
+button never opted back in. Every keyboard test passed because the driver
+opens the Map with **M**. A thumb tap landed on the canvas and vanished —
+and on a phone there is no M key, so the Map was unreachable on the
+device this game is shaped for. The ★ icon made it worse: it read as
+"favorites", not as the Map.
+
+**What landed**
+
+- `#hud button { pointer-events: auto; }` — every button in the HUD takes
+  its own clicks, with a comment that states the law so the next HUD
+  control cannot inherit the same blindness.
+- The Map button now says **Map** — the word, in Map's own handwriting, on
+  the folded paper chip with a dotted rule. The affordance is the label.
+- `scripts/e2e.mjs` grows a **pointer-path guard**: a plain page (no
+  autotest driver) that clicks `#btn-map` open, folds it, and toggles
+  sound — Playwright refuses to click a covered element, so the class of
+  bug "button invisible to the pointer while green in every keyboard
+  test" cannot ship again.
+
+**Verification**: tsc clean · vitest **367/367** · build clean · **E2E:
+AUTOTEST OK, 0 failures, 427 s, zero console errors, POINTER guard 3/3
+PASS** · clicked open in a live browser at 900×700 and 390×844 — the
+notebook's two pages stack correctly on the phone width.
+
+**Honest note**: the deploy workflow was suspected broken (`branches:
+[main]` read as `ain]` in one terminal capture) and was cleared by a
+byte-exact check before any "fix" was attempted. The workflow was never
+broken; the terminal output was.
+---
+
+## Post-arc repair — the terminal bay, made honest (SHIPPED 2026-11-03)
+
+**How this surfaced.** W5 closed with `probe-subway 2 FAIL` ("the M121
+floor holds", "the bus interior is enterable"), dispositioned as
+pre-existing on agent2's tip and flagged onward. Re-opening the flag on
+the merged tree found a REAL merged-world defect behind it — and the
+disposition was wrong for this tree. diag-bay (kept:
+`scripts/diag-bay.mjs`) walked the probe's exact corridor and dumped the
+colliders: the loop M121's collider — a solid box, y 0→2.6 — sat across
+BUS-04's doorway, and the walk trace showed the player mounting BUS-04's
+step (top 0.3) and stopping nose-first against it.
+
+**The root cause is a three-way contradiction the merge baked in.**
+
+1. **Two M121s, one bay.** The registry pins the enterable arrival bus
+   (BUS-04: bay x −30, z 2.0, len 11, floorTop 0.55, interior
+   −35.5..−24.5) — agent2's first-session content. W4 p2's loop parks its
+   lay-over at center x −29.0, z 2.4 (collider −33.8..−24.2 × 1.25..3.55).
+   The rects overlap by 9.3 × 2.0 m: every bay dwell fused the two buses,
+   and the loop body walled BUS-04's only door (gap x −26.05..−24.95).
+2. **The registry pinned BUS-04, but the W4 code contradicted it** — the
+   W4 bay pose predated the arrival bus and was never reconciled.
+3. **BUS-01's halt rams BUS-04's tail.** The door-at-the-pole law stops
+   the loop's NOSE at x −26.5 (door at the pole −24.5); BUS-04's tail
+   reached −24.5 — a 2 m interpenetration every BUS-01 halt, and the halt
+   body covered the door gap too. The north curb (−36..−24 paint, the van
+   at −14, the parked Kestrel car at −44) cannot hold an 11 m standing
+   bus plus a 9.6 m loop body at either mark: every alternative placement
+   was checked and fails (west = the parked car; east = BUS-01's mark +
+   the van; south = the cab's lane).
+
+**The fix — one bay, one bus, the code now obeys the registry.**
+
+- **BUS-04 moves 2.15 m west** (registry data fix: bay x −32.15, interior
+  −37.65..−26.65; docs/40 §6 law). Its tail now clears the BUS-01 halt
+  nose by 0.15 m (disjoint rects through every halt), and its door
+  (gap −28.2..−27.1) sits west of every halt body — enterable in ALL
+  loop states except the dwell, when the shell itself yields. The
+  terminal-door desire line (x −30) is unchanged truth: the bus stood in
+  front of it before the shift too; the walks already route it.
+- **The loop's bay pose re-pinned onto BUS-04's line**: nose −35.9 (mark
+  a 108.1), lateral 1.2 (center z 2.0 — body 0.85..3.15 inside the
+  shell's 0.75..3.25), still inside the paint (containment law kept, the
+  bus.test paint assertion passes on the new mark).
+- **The occupancy swap** (World.syncBayOccupancy, run at both body
+  placement points): while the loop's rect intersects BUS-04's footprint
+  and the player is NOT inside, BUS-04's shell hides and its colliders
+  retire (the same AABB instances spliced from the player's list); when
+  the rects part — ~1.5 s after departure — the shell restores. The
+  swap fires at first contact on approach, so no fused frames.
+- **A player inside BUS-04 owns the bay**: before first contact (nose
+  advance < 98.85) the arriving bus HOLDS in place — the yield brain's
+  own stall — and serves when they step out; past that line the pass is
+  committed, so it rolls through (`baySkipped` keeps the pull-out from
+  driving the paint) and tries again next lap. The dusk night park
+  self-heals the same way on the following lap.
+- **The boot moved out of the bay** (leg 3, a 10 — mid-lap on Sycamore,
+  ~26 game-s from the first bay visit): at boot the bay holds BUS-04 —
+  "the bus that delivered you" — and probe-subway's fixed-time boarding
+  finds it standing at any frame rate. The old boot-in-bay was itself a
+  double-park for the first 9 s.
+- BUS_SPOTS / the door anchor / the driver / duffel / seats shift with
+  the body (interactionDefs imports BUS_SPOTS — the driver chat and the
+  duffel loop ride along untouched).
+
+**Probe harness fixes (the harness, not the world).** probe-subway's
+boarding tp moves to the new door x −27.65. probe-w4-bus re-specified
+for the new law: boot = mid-lap + BUS-04 standing; the first bay
+lay-over caught at its true halt (x < −25 — the old window matched
+BUS-01's halt first); departure past a 105.3; a new standing assertion
+**"the bay never holds two M121 bodies"** (0 coexistence samples across
+96); the XW-COURT rest check gained one settle beat (the leg-3 boot
+shifted the schedule's phase and the first 3 s window read a good rest
+mid-creep as unstable — the rest itself was 46.9 vs the authored 46.85).
+
+**Performance ledger** (probe-w0-census, same rigs; pre-fix → post-fix):
+PLAZA 1071 → 1071, CART_CORNER 904 → 898 (−6), SYCAMORE×GABLE 512 → 518
+(+6) — the shift moves meshes between rig frustums; net wash. The Doc 07
+budget line remains failed and remains published.
+
+**Verification (on the fixed tree)**: tsc clean · vitest **367/367** ·
+build clean · registry validator green (129 IDs, 12/12 masses, 18/18
+anchors) · **probe-subway ALL PASS** (the two standing failures fixed:
+"the M121 floor holds (y 0.55)", "the bus interior is enterable") ·
+**probe-w4-bus OK 13/13** (boot mid-lap, the bay lay-over at x −30.7
+dwell 8.5, the yield law 0/96, 2 laps in 149 s) · probe-solid ALL CLEAN
+(4/4) · probe-peds OK · probe-w3-ghost PASS · probe-w0-census OK ·
+**E2E: OK — 0 failures, 351 s**, console clean.
+
+## The zone bake + the attribution data (2026-11-03)
+
+**What landed.** `bakeZoneStatics` (World.ts, called right after
+`buildSubwayCast`): the far world's STATIC meshes merge per signature
+WITHIN their zone group — stationA, stationB, tunnel, scenery, TSS_Group.
+Same signature key as the district bake (color | emissive |
+emissiveIntensity | fog | cast | receive), same material rules (no map,
+no transparent, indexed), merged meshes re-parented INTO their group so
+every law above survives: the zone lit-set, the dollhouse skip
+(collectTerminalShell walks root names), the ride's scenery stream, the
+per-screen sync tick, the subway cast's breathe. Animated subtrees stay
+out by name (Priya, the busker, the usher, the square's crowd and
+movers, riders, waiters, SUB_Sax, TSS_Screen_N — each screen owns its
+material, merging would fuse the sync beat). Singleton signature groups
+stay as-is, like bakeStatics. Why group-local: stationKit's own header
+states the law — zone content must never join a DISTRICT tile (the
+street ring would light the tunnel forever); so the merge happens one
+level down.
+
+**The numbers, honestly.** Scene-wide the far world boots 244 meshes
+lighter: SUB_Root 319 → 205, TSS_Group 290 → 160 (probe-w0-census TOP).
+The three census rigs are byte-identical (PLAZA 1071 / CART_CORNER 898 /
+SYCAMORE_GABLE 518) — they never saw this content (underground zones
+unlit at street level, Times Square off-frustum), so the Doc 07 gate
+line reads no change and remains failed, published. At a Times Square
+rig the real saving is −12 calls: most merged statics sit outside that
+rig's frustum and TSS statics don't cast (no shadow-pass share). The
+bake's real value is cap-and-structure: any view that actually sees lit
+zone content now draws the station in ~a dozen batches instead of ~130
+meshes, and the far world stops growing linearly per prop.
+
+**The attribution data (the real headline).** Two new diag tools
+(`diag-perf-breakdown.mjs` per-rig frustum buckets, `diag-call-attrib.mjs`
+empirical toggles) decompose the REAL numbers for the first time:
+
+- **The shadow pass is 44–84% of every rig**: PLAZA 452 of 1072,
+  TIMES_SQ 439 of 527, PLATFORM_A 454 of 536. The sun's shadow camera is
+  a fixed ±60 m box over the authored street (World.ts 385-390) and
+  re-renders every caster in it every frame, view-independent.
+- The street-ring main pass is ~620 at PLAZA: bake tiles ~300 (16 tiles
+  × 15-28 signature batches — the tile-granularity debt, now precisely
+  located), tree canopies ~63 (unnamed greens), peds 34-39, cast rigs.
+- The underground rigs measured with zones UNLIT: `underground` is a
+  state (flipped by the stair descent / ride machine), not a position —
+  teleport diag rigs don't light the station. Future underground perf
+  reads must walk the stairs or flip the state.
+
+**Next levers, recorded with measured values, not promised:**
+
+1. **Shadow camera follow/tighten** (±60 static → ±35-40 player-follow):
+   est −250..−350 real at EVERY rig — the only lever that can reach the
+   Doc 07 line — but it changes the shipped look (shadow coverage in
+   view, Times Square currently shadowless by design). Needs an art
+   call before implementation; recorded, not made.
+2. **Canopy instancing**: 36 + 27 unnamed canopy blobs → 1-2
+   InstancedMeshes with per-instance sway matrices; est −60..−80 real
+   (canopies cast, so the shadow pass pays too). Contained to the W0
+   canopy sway system.
+3. **Figure part-merging** (corrects the recorded "per-tile figure
+   palette sharing"): palette sharing merges MATERIALS, not draw calls —
+   the rig parts stay parts. The call-moving lever is W4p2's dusk-pair
+   method (merge torso+head per posed figure); peds are walking rigs, so
+   only their rigid torso/head chains merge: est −15 visible / −30 real.
+   Palette sharing stays a state-change win, not a call win.
+
+**Verification**: tsc clean · vitest **367/367** · build clean · registry
+validator green (129 IDs, 12/12 masses, 18/18 anchors) · probe-subway
+ALL PASS 22/22 · probe-w4-bus OK 13/13 · probe-solid ALL CLEAN (4/4) ·
+probe-w0-census OK (ledger above) · **E2E: OK — 0 failures, 458 s**,
+console clean (E2E_W=320 E2E_H=700).
+
+## The canopy bake — one instanced canopy for the whole block (2026-11-03)
+
+**What landed.** Lever 2 from the recorded list above, now made:
+`makeTree` (props.ts) returns blob RECORDS instead of canopy meshes —
+same rng grammar call-for-call (r, cy, [leaf pick], ox, oz; the block's
+other seeded content downstream of a tree roll does not shift), same
+silhouette, same autumn gradient law (crown goldA, mid goldB, base green).
+`buildInstancedTreeRows` becomes the ONE canopy system for every tree on
+the block: 4 InstancedMeshes (leafA 0x5d7d4a · leafB 0x516e42 · goldA
+0xf7b32b · goldB 0xffb85c), the W1 simple rows keeping their slots 0/1 and
+the shipped/full/fill trees joining the same meshes with the autumn golds
+in 2/3. The fade-on-occlude law moves from per-tree material opacity to a
+per-instance `aFade` attribute (InstancedBufferAttribute + onBeforeCompile
+multiplying `diffuseColor.a` after `color_fragment`): ONE tree still
+dissolves toward gauze while its neighbours stay opaque — probe-camfade's
+screenshots prove it (occ 0.44/0.99/0.71 on the plaza/crosswalk trees, the
+rest of the street solid). Sway composes exactly the old scene-graph chain
+per blob: T(x, baseY+h, z)·R_y(yaw)·R_sway·T(blob)·S(r), the W1 rows
+keeping their no-yaw grammar. The simple rows stay fade-frozen at aFade 1
+(the recorded docs/47 W1 tradeoff).
+
+**A mapping bug fixed on the way.** The fade loop read
+`canopyOcclusion[i]` for `trees[i]`, assuming the sphere cache listed the
+shipped trees first — but the W1 simple rows' spheres interleave the cache
+before the Kestrel fills and the four playground trees, so those ten trees
+were fading from the WRONG trees' spheres (a fill faded when a Gable-row
+canopy blocked the lens). Each tree record now names its own
+`sphereIndex`; the fade reads its own occlusion. The shipped 12 (indices
+0–11) were always correct — the probe-camfade beats all sit on them.
+
+**The numbers, honestly.** The census rigs (boot state, zones unlit):
+PLAZA 1071 → **949** (−122), CART_CORNER 898 → **802** (−96),
+SYCAMORE×GABLE 518 → **451** (−67). Every rig under its previous ledger
+(the enforced gate) and better than the recorded est (−60..−80 real): the
+est assumed partial frustum visibility, but all 63 blob meshes were
+visible casters at PLAZA, and canopies cast — so both passes paid the 63
+and both now pay 4. The tris line: PLAZA 138.9k → 140.2k (+1.3k, ~+0.9%)
+— the four instanced meshes span the block (three.js auto-bounds the
+instances, the sway is ±0.02 rad), so a handful of off-frustum blobs
+rasterize that per-blob meshes used to cull; the honest price of the call
+win, and the existing W1 rows already shipped with the same shape of
+trade. The Doc 07 gate line (150/250) remains FAILED and published: the
+shadow pass is still 44–84% of every rig, and the only lever that reaches
+the line is the recorded shadow-camera follow — which changes the shipped
+look and still needs an art call before it is made.
+
+**One flake, honestly.** One probe-subway run mid-session failed
+"console stays clean (2 errors)" without persisting the error text; four
+consecutive re-runs on the same dist passed ALL (22/22, zero errors). No
+code change between the runs; recorded as a non-reproducing transient,
+not a fix.
+
+**Verification**: tsc clean · vitest **367/367** · build clean · registry
+validator green (129 IDs, 12/12 masses, 18/18 anchors) · probe-autumn
+PASS (gold gradient, drift tints, plumage morphs, pit rims — the turning
+tree reads exactly as before) · probe-camfade PASS (the fade law on
+aFade) · probe-env5 PASS (lamps clear the canopies) · probe-solid ALL
+CLEAN (4/4) · probe-subway ALL PASS 22/22 · probe-w4-bus OK 13/13 ·
+probe-w0-census OK (ledger above) · **E2E: OK — 0 failures, 355 s**,
+console clean (E2E_W=320 E2E_H=700).
+
+---
+
+## The first-session merge (Agent 5 → main, docs/52)
+
+Agent 5's parallel first-session branch (docs/48, base `a5bc3d6`) merged
+onto the first-session-world tip (`ced660d`). The reconciliation: docs/50's
+world is the paved path; Agent 5's arrival film lands re-targeted (its own
+diorama coach — the bay keeps one bus), the stair-glue + floor-snap-down
+laws unite with the below-grade law in one `groundHeight`, the W4 band law
+is extracted pure (`bandOfLoop`), the cab-yield logic becomes a tested
+function, and the duplicate world (`firstSession.ts`, the z −80 district,
+the street coach) is retired. Two pre-existing breaks on main's tip were
+found and fixed here: the Pages workflow triggered on `branches: ain]` (CI
+never ran on main) and the hydrant loop's `for (const x, hz]` parse error.
+The W2 playground route was re-walked around the kit (the old line rode the
+pergola rail by the snap-circle — invisible platforming the new stair law
+honestly refuses). Full evidence in docs/52 §5: typecheck clean, vitest
+390/390, build clean, probe-subway 22/22 + mobile ALL PASS, W1/W2/W3/W5
+ghosts PASS, solid CLEAN, doc12 clean, the film's probes clean. E2E on this
+box: 3–5 environmental flake failures of ~104 on BOTH trees (dusk-timed
+rails; both trees ~48% slower than the documented rig) — docs/51 B4.

@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveCirclesXZ, pushCircleOutOfRectXZ, circleRectGapXZ, type CirclePush,
 } from '../src/engine/collide';
-import { curbSideSlide, clampToBand } from '../src/world/peds';
+import { curbSideSlide, bandOfLoop } from '../src/world/peds';
 
 const push = (): CirclePush => ({ x: 0, z: 0 });
 
@@ -144,29 +144,40 @@ describe('overtake bias (curbSideSlide)', () => {
   });
 });
 
-describe('zone band clamp (clampToBand — the A5 first-session law)', () => {
-  const plaza = { minX: -83.2, maxX: -56.8, minZ: -79.4, maxZ: -49.6 };
-
-  it('a walker stays inside its own zone band', () => {
-    const c = clampToBand(-62.6, -54.2, plaza);
-    expect(c.x).toBe(-62.6);
-    expect(c.z).toBe(-54.2);
+describe('per-walker band (bandOfLoop — the W4 law, proved where it lives)', () => {
+  it("the band is the loop's bbox, inflated (1.6 m x / 0.65 m z)", () => {
+    const b = bandOfLoop([[0, 5], [20, 5], [20, 7], [0, 7]]);
+    expect(b.minX).toBeCloseTo(-1.6);
+    expect(b.maxX).toBeCloseTo(21.6);
+    expect(b.minZ).toBeCloseTo(4.35);
+    expect(b.maxZ).toBeCloseTo(7.5);
   });
 
-  it('a walker past the band is pulled back INSIDE the band, not to the block', () => {
-    // the first draft clamped every zone to the home street's band — the
+  it("a walker past its band is pulled back INSIDE its own band — never to a foreign loop's corner", () => {
+    // the pre-W4 bug clamped every zone to the home street's band — the
     // plaza walkers teleported to (−47.2, −7.5) and parked their invisible
     // colliders there as permanent ghosts on the home block
-    const c = clampToBand(-90, -45, plaza);
-    expect(c.x).toBe(-83.2);
-    expect(c.z).toBe(-49.6);
-    expect(c.x).toBeLessThan(-47.2); // never the home street's corner
+    const gable = bandOfLoop([[10, 5], [40, 5], [40, 7], [10, 7]]);
+    const juniper = bandOfLoop([[-40, 5], [-10, 5], [-10, 7], [-40, 7]]);
+    expect(gable.minX).toBeGreaterThan(juniper.maxX); // disjoint bands
+    // the clamp uses the walker's OWN band (peds.ts line law), so a Gable
+    // body at x 50 comes back to Gable's east edge, not Juniper's corner
+    const pulledX = Math.max(gable.minX, Math.min(gable.maxX, 50));
+    expect(pulledX).toBeCloseTo(gable.maxX);
+    expect(pulledX).toBeGreaterThan(0); // stays on its own block
   });
 
-  it('the home band still clamps to the block bounds by default', () => {
-    const block = { minX: -47.2, maxX: 47.2, minZ: -7.5, maxZ: 7.5 };
-    const c = clampToBand(-60, -20, block);
-    expect(c.x).toBe(-47.2);
-    expect(c.z).toBe(-7.5);
+  it('the band never escapes the playable core (x ±84, z ±7.5)', () => {
+    const far = bandOfLoop([[-200, -50], [200, 50]]);
+    expect(far.minX).toBe(-84);
+    expect(far.maxX).toBe(84);
+    expect(far.minZ).toBe(-7.5);
+    expect(far.maxZ).toBe(7.5);
+  });
+
+  it("the home trio's band keeps the shipped ±7.5 z-discipline", () => {
+    const home = bandOfLoop([[-40, 6.2], [-10, 6.2], [-10, -6.2], [-40, -6.2]]);
+    expect(home.minZ).toBeCloseTo(-6.85);
+    expect(home.maxZ).toBeCloseTo(6.85);
   });
 });

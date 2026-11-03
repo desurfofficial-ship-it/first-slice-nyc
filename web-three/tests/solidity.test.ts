@@ -49,13 +49,14 @@ describe('vertical fall substepping (audit Q6: tunneling at low fps)', () => {
     }
   });
 
-  it('a fall past a slab edge lands on the FLOOR BELOW (A5: the subway law)', () => {
+  it('a fall past a slab edge lands on the FLOOR BELOW (docs/50: the subway law)', () => {
     // Was: "still lands on the street when the slab is not under the feet" —
-    // the old groundHeight default welded an invisible void-floor at y 0,
+    // the pre-50 groundHeight default welded an invisible street-floor at y 0,
     // which made every below-grade floor unreadable and the Doc 02 subway
-    // (descend, ride, surface) physically impossible. The new law: no ground
-    // under the feet = gravity; a lower slab catches the fall. The shipped
-    // world is fully slabbed (walk probes), so street behavior is unchanged.
+    // (descend, ride, surface) physically impossible. The new law: the
+    // HIGHEST qualifying top catches the fall, even when it sits below the
+    // y=0 grade. The shipped world is fully slabbed (walk probes), so street
+    // behavior is unchanged.
     const FLOOR_BELOW = { minX: 10, maxX: 16, minY: -4.3, maxY: -4.0, minZ: -4, maxZ: 0 };
     const p = makePlayer([LANDING, FLOOR_BELOW]);
     p.capsule.x = 13;
@@ -66,13 +67,19 @@ describe('vertical fall substepping (audit Q6: tunneling at low fps)', () => {
     expect(p.onGround).toBe(true);
   });
 
-  it('true void falls forever — any reachable void is a world bug, not a floor', () => {
+  it('a fall over NOTHING settles on the implicit street floor (docs/50: the default, not a ghost)', () => {
+    // The merged law's explicit default: NO qualifying box top = y 0, the
+    // shipped over-the-map street. It is a DEFINED floor, not a bug — the
+    // playable core is walled and fully slabbed (the W1–W3 walk probes),
+    // so a reachable all-void column would be a world bug caught by the
+    // walk probes, not by gravity. The fall is finite and the walker stands.
     const p = makePlayer([LANDING]);
     p.capsule.x = 13;
     p.capsule.z = -2;
     p.capsule.y = 8;
     for (let i = 0; i < 60; i++) p.update(0.1, { x: 0, y: 0 });
-    expect(p.capsule.y).toBeLessThan(-20); // falling, not parked on a ghost floor
+    expect(p.capsule.y).toBeCloseTo(0, 3); // the implicit street — defined behavior
+    expect(p.onGround).toBe(true);
     expect(Number.isFinite(p.capsule.y)).toBe(true);
   });
 

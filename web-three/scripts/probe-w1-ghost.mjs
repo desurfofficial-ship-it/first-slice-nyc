@@ -52,33 +52,46 @@ await page.waitForTimeout(2500);
 // slab (ground reads) or gets wedged (position advances)
 const walk = await page.evaluate(() => {
   const g = window.__game;
+  // W5 ghost-gate reconciliation (docs/47): this route predates W3, W4 and
+  // the agent2 subway. The avenue backdrops (VDN-DW1a/c, VDN-DE1a/c at
+  // x −82..−74 / 74..82) legally own the outer 6 m of the old x ±80
+  // corridor — the shipped legal avenue spine is x ±82.5 (the W3 probe's
+  // own corridor). Mid-block Kestrel crossings now meet the W4 rails (the
+  // M121's z +0.8 lane and the cab's z −2 lane both run x ±84): the legal
+  // crossing is the XW-COURT paint at x 35, where both vehicles yield.
+  // AND the K-line stairwell (docs/50) owns the north walk's full depth at
+  // x −48.5..−45.9 (the descent zone spans z 3.6..8.2): westbound travel
+  // past x −45 crosses Kestrel at the shipped XW-CANON paint (x −5) and
+  // rides the SOUTH walk to the KJ junction, then crosses back through
+  // the junction box (both movers yield there). The MASS checks below are
+  // untouched — the gate itself never moved.
   const route = [
-    // A5: the walk now starts at the plaza's EAST half — the decorative stair
-    // at (−42, 6.2) became Alder Station's real stairwell (firstSession.ts),
-    // and the old first waypoint walked straight into it. The plaza lane
-    // west of the entrance is fenced by its colliding side railings (the
-    // W1 rerun caught a sidewalk walk falling in), so the westward leg
-    // detours via the road at z 3.4 and climbs back at x −60 — the grammar
-    // a real New Yorker uses: you walk AROUND a subway house.
-    [-39, 6.5], [-37.5, 6.5], [-37.5, 3.4], [-60, 3.4], [-60, 6.5],
-    // A5/W3 reconciliation: the old x ±80 legs walked INTO the main agent's
-    // W3 avenue walls (the blocks x 76..84 / −84..−76 are buildings now —
-    // "the avenues are places, not edges"). The north–south legs follow the
-    // avenue roads themselves (x ±72), which is how the grid is meant to be
-    // walked.
-    [-72, 6.5], [-72, 20], [-72, 33.5],                  // the west avenue north
-    [-40, 33.5], [-10, 33.5], [30, 33.5], [61.5, 33.5], [72, 33.5], // Gable S east
-    [72, 20], [72, 6.5],                                 // the east avenue south
-    [61.5, 6.5], [40, 6.5],                              // Kestrel E walk
-    [40, -6.5], [61.5, -6.5], [72, -6.5], [72, -20], [72, -33.5], // → Sycamore S
-    [30, -33.5], [-10, -33.5], [-44, -33.5], [-72, -33.5], // Marlow N walk west
-    [-72, -20], [-72, -6.5],                             // → Juniper S
+    [-42, 6.2], [-24.5, 5.6], [-8, 5.6],                 // the N walk at z 5.6 — the terminal-bay poles (agent2's M121 stop at (−27, 6.8)) stand on the old centerline
+    [-5, 5.6], [-5, -5.6],                               // Kestrel at the XW-CANON paint
+    [-24.5, -5.6], [-50, -5.6],                          // the S walk to the tenement face
+    [-52, -3.4], [-62, -3.4],                            // the road shoulder — agent2's TEN-01 bay box (x −60..−54, z −8..−4.5) fills the walk's whole depth
+    [-62, -5.6], [-72, -5.6],                            // back to the walk, to KJ
+    [-72, 5.6],                                          // through the KJ junction box
+    [-82.5, 5.6], [-82.5, 20], [-82.5, 33.5],            // Juniper W spine (x −82.5)
+    [-72, 33.5], [-40, 33.5],                            // Gable S walk — the mouth crossing shares the road with the M121's leg 1; patient legs below
+    [-10, 33.5], [30, 33.5], [61.5, 33.5], [82.5, 33.5], // → Sycamore E spine
+    [82.5, 20], [82.5, 6.5], [61.5, 6.5],                // Sycamore → Kestrel E
+    [68.5, 6.5], [68.5, -6.5],                           // cross at the KS junction paint — the N through-walk is pinched shut at x 40.45 (agent2's court net z 4.5..7.8 against the W4 parked car's z 2.075..4.025: no capsule fits between; documented, docs/47)
+    [61.5, -6.5], [82.5, -6.5], [82.5, -20],             // Kestrel S → Sycamore S spine
+    [82.5, -33.5], [61.5, -33.5], [30, -33.5],           // Marlow N walk
+    [-10, -33.5], [-44, -33.5], [-61.5, -33.5], [-82.5, -33.5],
+    [-82.5, -20], [-82.5, -6.5],                         // → Juniper S spine
   ];
+  // the junction-mouth legs share the roadway with the M121's laps — the
+  // yield brain releases a body it passes abeam, but the walker needs the
+  // frames to wait out the approach (15 s covers a junction transit)
+  const PATIENT = new Set(['-72,33.5', '-40,33.5']);
   const out = { steps: 0, minGround: 99, wedged: false, log: [] };
   const p = g.player.capsule;
   p.x = route[0][0]; p.z = route[0][1]; p.y = 0.05;
   for (const [tx, tz] of route.slice(1)) {
-    for (let i = 0; i < 240; i++) {
+    const budget = PATIENT.has(`${tx},${tz}`) ? 900 : 240;
+    for (let i = 0; i < budget; i++) {
       const dx = tx - p.x, dz = tz - p.z;
       const d = Math.hypot(dx, dz);
       if (d < 0.6) break;
@@ -97,9 +110,10 @@ const walk = await page.evaluate(() => {
 });
 
 // ghost gate: the bake merges the mass MESHES into district batches, so
-// the check reads the COLLIDERS — the gameplay truth every mass registers
-// (solid() pushes boxFromCenter(cx, cy, cz, w, h, d)). A footprint exists
-// iff a collider matches the registry's center/size/height at its position.
+// the check reads the COLLIDERS — the gameplay truth every mass registers.
+// W5 note (docs/47): the matcher reads the ENVELOPE over the colliders
+// inside each footprint (the W3 probe's method) — SMB-01/SMB-02 (and any
+// future hollow) decompose into wall boxes whose envelope IS the mass.
 const ghosts = await page.evaluate((w1) => {
   const boxes = window.__game.world.colliders;
   const REG = {
@@ -115,13 +129,22 @@ const ghosts = await page.evaluate((w1) => {
   const found = {};
   for (const id of Object.keys(REG)) {
     const r = REG[id];
-    const hit = boxes.find((b) =>
-      Math.abs((b.minX + b.maxX) / 2 - r.x) < 0.05
-      && Math.abs((b.minZ + b.maxZ) / 2 - r.z) < 0.05
-      && Math.abs(b.maxX - b.minX - r.w) < 0.05
-      && Math.abs(b.maxZ - b.minZ - r.d) < 0.05
-      && Math.abs(b.maxY - r.h) < 0.05);
-    if (hit) found[id] = { cx: (hit.minX + hit.maxX) / 2, cz: (hit.minZ + hit.maxZ) / 2, w: hit.maxX - hit.minX, d: hit.maxZ - hit.minZ, h: hit.maxY };
+    const x0 = r.x - r.w / 2, x1 = r.x + r.w / 2, z0 = r.z - r.d / 2, z1 = r.z + r.d / 2;
+    // the mass envelope: colliders fully inside the footprint, ground-
+    // standing or stacked — real masses, not furniture chips
+    const inside = boxes.filter((b) =>
+      b.minX >= x0 - 0.06 && b.maxX <= x1 + 0.06
+      && b.minZ >= z0 - 0.06 && b.maxZ <= z1 + 0.06
+      && b.maxY > 3);
+    if (inside.length) {
+      found[id] = {
+        cx: (Math.min(...inside.map((b) => b.minX)) + Math.max(...inside.map((b) => b.maxX))) / 2,
+        cz: (Math.min(...inside.map((b) => b.minZ)) + Math.max(...inside.map((b) => b.maxZ))) / 2,
+        w: Math.max(...inside.map((b) => b.maxX)) - Math.min(...inside.map((b) => b.minX)),
+        d: Math.max(...inside.map((b) => b.maxZ)) - Math.min(...inside.map((b) => b.minZ)),
+        h: Math.max(...inside.map((b) => b.maxY)),
+      };
+    }
   }
   return { found, REG };
 }, W1);

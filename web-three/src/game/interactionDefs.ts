@@ -17,6 +17,13 @@ import {
   type GameState,
 } from '../core/GameState';
 import {
+  BUSKER_LINES, BUSKER_COIN_OFFER, BUSKER_COIN_BROKE, BUSKER_COIN_NOTE,
+  USHER_LINES, DRIVER_LINES, DUFFEL_NOTE,
+} from '../core/content';
+import { SUBWAY_SPOTS } from '../world/subway';
+import { TS_SPOTS } from '../world/timesSquare';
+import { BUS_SPOTS } from '../world/arrivalBus';
+import {
   BREWING_PROMPT,
   BULLETIN_NOTES,
   NEWSPAPER_NOTES,
@@ -27,8 +34,34 @@ import {
   ALLEY_NOTES,
   FREE_WASH_PRICE, FREE_WASH_OFFER, FREE_WASH_BROKE,
   WALKER_CHAT, MEMORY_LINES, type MemoryLine,
+  // W5 — the rooms (docs/41 loops)
+  DRYER_PRICE, DRYER_OFFER, DRYER_BROKE, DRYER_LINES,
+  PIZZA_PRICE, PIZZA_OFFER, PIZZA_BROKE, PIZZA_LINES,
+  DINER_COFFEE_PRICE, DINER_COFFEE_OFFER, DINER_COFFEE_BROKE, DINER_COFFEE_LINES,
+  DINER_BOOTH_NOTES, PIE_CASE_NOTES,
+  HALL_WORKSHOP_NOTES,
+  CECIL_GAZE_NOTES,
+  BAKERY_PRICE, BAKERY_OFFER, BAKERY_BROKE, BAKERY_LINES,
+  RECORD_BIN_PRICE, RECORD_BIN_OFFER, RECORD_BIN_BROKE, RECORD_BIN_LINES,
+  RECORD_LISTEN_NOTES,
 } from '../core/content';
+import { hallNoticeForDay } from '../world/dressing';
 import { NEVER_NEAR, type Interaction, type InteractionCtx, type Vec3Like } from './interactions';
+import type { SubwaySystem } from '../world/subway';
+
+/** The far world through the interaction ctx, tolerating registry-test
+ *  stubs (the walker-conversation law: no world, no interaction). */
+function farSubway(ctx: InteractionCtx): SubwaySystem | null {
+  return (ctx.game as { world?: { subway?: SubwaySystem | null } }).world?.subway ?? null;
+}
+
+/** Priya's platform lines (the ride carries her big teach; these are the
+ *  day-keyed hellos by the fare bank). */
+const PRIYA_LINES = [
+  'Priya: "Go on. It’s one stop. You’re with me."',
+  'Priya: "Stand clear of the closing doors — and of Idris’s elbows. Two sugars, that one."',
+  'Priya: "Still riding? Good. The subway’s the only museum that runs every four minutes."',
+] as const;
 
 /** Day-keyed pick: index by (day − 1) mod the list — the living block's
  *  rotation rule (Doc 33 §2.3), deterministic, never random. */
@@ -105,24 +138,22 @@ const parkBench: Interaction = {
   },
 };
 
-/** The rim's mouth and the ball's rest spot, in world space — Game's hoop
- *  flight and the probe both read these. */
+/** The rim's mouth and the ball's rest spot, in world space — the court
+ *  upgrade (docs/49) reads and MUTATES the rest spot: after a shot the ball
+ *  stays where it came down, and the court interaction follows it there
+ *  (pos is a live getter over this object). y = ground 0.1 + ball 0.13. */
 export const HOOP_RIM: Vec3Like = { x: 44.25, y: 2.6, z: 7.64 };
-export const COURT_BALL_REST: Vec3Like = { x: 43.2, y: 0.13, z: 5.2 };
-
-/** Deterministic day-seeded outcome — a 6-in-10 shooter whose form comes
- *  and goes by day. Pure, so tests and the E2E both know the answer. */
-export function hoopOutcome(day: number, shot: number): 'make' | 'miss' {
-  return ((Math.max(1, day) * 7 + shot * 13) % 10) < 6 ? 'make' : 'miss';
-}
+export const COURT_BALL_REST: Vec3Like = { x: 43.2, y: 0.23, z: 5.2 };
 
 const court: Interaction = {
   id: 'court',
   pos: () => COURT_BALL_REST,
   radius: 2.1,
-  // the ball flies alone: no second press can interrupt a shot mid-arc
-  enabled: (_s, ctx) => !ctx.game.hoopInFlight,
-  prompt: () => 'Shoot around',
+  // the ball flies alone: no press can interrupt a shot mid-arc, and the
+  // interaction steps aside while the ball rides in your hands (the hold-
+  // to-shoot charge owns the button then — docs/49 §4)
+  enabled: (_s, ctx) => !ctx.game.hoopInFlight && !ctx.game.courtHolding,
+  prompt: () => 'Pick up the ball',
   perform: (ctx) => {
     ctx.game.shootHoop();
     return [];
@@ -198,7 +229,11 @@ const hotdog = gatedBuy({
 
 const barber = gatedBuy({
   id: 'barber',
-  pos: () => ({ x: 36.6, y: 1.4, z: 7.9 }),
+  // W5 (docs/41 §2.3): the trim moves from a facade prompt to a chair you
+  // sit in — the anchor now lives at the chair, inside the room (the
+  // registry's BARBER-INT anchor `chair`). The y-band keeps it out of
+  // reach from the sidewalk; the room's door is the only way in.
+  pos: () => ({ x: 35.9, y: 0.9, z: 11.0 }),
   price: BARBER_PRICE,
   label: 'Get a trim',
   offer: BARBER_OFFER,
@@ -271,6 +306,102 @@ const subway: Interaction = {
   perform: () => [{ kind: 'note', text: SUBWAY_NOTE }],
 };
 
+// ---- docs/50: the K line, the square, the M121 --------------------------
+// Positions come from the builders' own static spots (single source of
+// truth); enables read the ride machine through the orchestrator.
+
+/** Inside the aligned car at Alder Heights: press to ride downtown. */
+const trainA: Interaction = {
+  id: 'trainA',
+  pos: () => ({ ...SUBWAY_SPOTS.rideA }),
+  radius: 1.7,
+  yBand: 2.2,
+  enabled: (_s, ctx) => {
+    const sub = farSubway(ctx);
+    return !!sub && sub.doorsOpen && sub.ride.phase === 'idle';
+  },
+  prompt: () => 'Ride to Times Square',
+  perform: (ctx) => {
+    ctx.game.world.subway?.requestRide('A');
+    return [];
+  },
+};
+
+/** Inside the aligned car at 42nd St: press to ride home. */
+const trainB: Interaction = {
+  id: 'trainB',
+  pos: () => ({ ...SUBWAY_SPOTS.rideB }),
+  radius: 1.7,
+  yBand: 2.2,
+  enabled: (_s, ctx) => {
+    const sub = farSubway(ctx);
+    return !!sub && sub.doorsOpen && sub.ride.phase === 'idle';
+  },
+  prompt: () => 'Ride back to Alder Heights',
+  perform: (ctx) => {
+    ctx.game.world.subway?.requestRide('B');
+    return [];
+  },
+};
+
+/** Priya — the conductor's platform line, day-keyed (Doc 02's teach). */
+const priya: Interaction = {
+  id: 'priya',
+  pos: () => ({ ...SUBWAY_SPOTS.priya }),
+  enabled: () => true,
+  prompt: () => 'Say hi to Priya',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(PRIYA_LINES, state.day) }],
+};
+
+/** The busker — the listen is free; the coin is the gated $1. */
+const busker: Interaction = {
+  id: 'busker',
+  pos: () => ({ ...SUBWAY_SPOTS.busker }),
+  enabled: () => true,
+  prompt: () => 'Stop and listen',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(BUSKER_LINES, state.day) }],
+};
+
+const buskerCoin: Interaction = gatedBuy({
+  id: 'busker_coin',
+  pos: () => ({ x: SUBWAY_SPOTS.busker.x + 0.9, y: SUBWAY_SPOTS.busker.y, z: SUBWAY_SPOTS.busker.z }),
+  radius: 1.6,
+  price: 1,
+  label: 'Leave a dollar — $1',
+  offer: BUSKER_COIN_OFFER,
+  broke: BUSKER_COIN_BROKE,
+  dayLines: [BUSKER_COIN_NOTE],
+});
+
+/** The usher — Doc 02's promise line, day-keyed. */
+const usher: Interaction = {
+  id: 'usher',
+  pos: () => ({ ...TS_SPOTS.usher }),
+  enabled: () => true,
+  prompt: () => 'Hand over the coffee',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(USHER_LINES, state.day) }],
+};
+
+/** The M121's driver — the "First time?" lines from the arrival. */
+const driver: Interaction = {
+  id: 'driver',
+  pos: () => ({ ...BUS_SPOTS.driver }),
+  radius: 1.9,
+  enabled: () => true,
+  prompt: () => 'Talk to the driver',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(DRIVER_LINES, state.day) }],
+};
+
+/** Somebody's duffel on a bus seat — the player's Day-1 mirror. */
+const duffel: Interaction = {
+  id: 'duffel',
+  pos: () => ({ ...BUS_SPOTS.duffel }),
+  radius: 1.7,
+  enabled: () => true,
+  prompt: () => 'Look at the duffel',
+  perform: () => [{ kind: 'note', text: DUFFEL_NOTE }],
+};
+
 /** The shelf as a shop. The confirm gate follows the awning/stool pattern:
  *  first press offers (and flips `state.buyConfirm`), second press buys.
  *  A real `spend()` — the money HUD pulses, the day-end save carries it.
@@ -332,8 +463,145 @@ export function walkerChats(src: InteractionSources): Interaction[] {
   }));
 }
 
+// ------------------------------------------------------------ W5: the rooms ----
+// The docs/41 loops, living entirely in the free-roam set — the authored
+// 4-day chain is untouched (the E2E's specification). Anchors read the
+// registry's interiors[].anchors verbatim; the y-bands keep the second-
+// floor room out of the street's reach and the shops out of the sidewalk's.
+
+/** Sunrise Laundry, the wash's second beat — dry-and-fold at the dryer
+ *  wall. The washer_free gate stays as shipped; this one lives INSIDE the
+ *  room (registry anchor `dryer`), so it can only fire past the bay. */
+const dryer = gatedBuy({
+  id: 'dryer',
+  pos: () => ({ x: -0.9, y: 0.9, z: 12.2 }),
+  radius: 2.2,
+  price: DRYER_PRICE,
+  label: 'Dry & fold',
+  offer: DRYER_OFFER,
+  broke: DRYER_BROKE,
+  dayLines: DRYER_LINES,
+});
+
+const pizza = gatedBuy({
+  id: 'pizza',
+  pos: () => ({ x: 27.0, y: 1.1, z: 9.7 }),
+  radius: 2.2,
+  price: PIZZA_PRICE,
+  label: 'Dollar slice',
+  offer: PIZZA_OFFER,
+  broke: PIZZA_BROKE,
+  dayLines: PIZZA_LINES,
+});
+
+const dinerCoffee = gatedBuy({
+  id: 'diner_coffee',
+  pos: () => ({ x: 58.2, y: 0.65, z: -11.0 }),
+  radius: 2.2,
+  price: DINER_COFFEE_PRICE,
+  label: 'Counter coffee',
+  offer: DINER_COFFEE_OFFER,
+  broke: DINER_COFFEE_BROKE,
+  dayLines: DINER_COFFEE_LINES,
+});
+
+const dinerBooth: Interaction = {
+  id: 'diner_booth',
+  pos: () => ({ x: 52.6, y: 0.5, z: -14.0 }),
+  radius: 2.2,
+  enabled: () => true,
+  prompt: () => 'Sit in the booth',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(DINER_BOOTH_NOTES, state.day) }],
+};
+
+const pieCase: Interaction = {
+  id: 'pie_case',
+  pos: () => ({ x: 57.0, y: 1.0, z: -18.4 }),
+  radius: 2.1,
+  enabled: () => true,
+  prompt: () => 'Read the pie case',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(PIE_CASE_NOTES, state.day) }],
+};
+
+/** The hall's notice wall — the exterior board's big sibling, wearing the
+ *  SAME day-keyed notices the shipped dressing re-letters (dressing.ts). */
+const hallNotice: Interaction = {
+  id: 'hall_notice',
+  pos: () => ({ x: -55.0, y: 1.5, z: 20.9 }),
+  radius: 2.4,
+  enabled: () => true,
+  prompt: () => 'Read the notice wall',
+  perform: ({ state }) => [{ kind: 'note', text: hallNoticeForDay(state.day) }],
+};
+
+const hallWorkshop: Interaction = {
+  id: 'hall_workshop',
+  pos: () => ({ x: -54.0, y: 1.0, z: 29.5 }),
+  radius: 2.2,
+  enabled: () => true,
+  prompt: () => 'Poke the workshop',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(HALL_WORKSHOP_NOTES, state.day) }],
+};
+
+const bakery = gatedBuy({
+  id: 'bakery',
+  pos: () => ({ x: -34.0, y: 1.05, z: -29.9 }),
+  radius: 2.2,
+  price: BAKERY_PRICE,
+  label: 'The morning anchor',
+  offer: BAKERY_OFFER,
+  broke: BAKERY_BROKE,
+  dayLines: BAKERY_LINES,
+});
+
+const recordBin = gatedBuy({
+  id: 'record_bin',
+  pos: () => ({ x: -23.4, y: 1.0, z: -30.1 }),
+  radius: 2.2,
+  price: RECORD_BIN_PRICE,
+  label: 'Used bin',
+  offer: RECORD_BIN_OFFER,
+  broke: RECORD_BIN_BROKE,
+  dayLines: RECORD_BIN_LINES,
+});
+
+const recordListen: Interaction = {
+  id: 'record_listen',
+  pos: () => ({ x: -26.4, y: 0.5, z: -30.0 }),
+  radius: 2.2,
+  enabled: () => true,
+  prompt: () => 'Listen a minute',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(RECORD_LISTEN_NOTES, state.day) }],
+};
+
+/** The reserved beat (docs/41 §2.5), adopted: one quiet look out the north
+ *  window — the gold one across the street answering. The anchor rides the
+ *  room's own y (8.35): the default y-band (3) makes it unreachable from
+ *  the street below, so the look only exists at the landing level. */
+const cecilGaze: Interaction = {
+  id: 'cecil_gaze',
+  pos: () => ({ x: 14.9, y: 8.35, z: -10.4 }),
+  radius: 2.1,
+  enabled: () => true,
+  prompt: () => 'Look out the window',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(CECIL_GAZE_NOTES, state.day) }],
+};
+
+const cecilCorkboard: Interaction = {
+  id: 'cecil_corkboard',
+  pos: () => ({ x: 11.2, y: 8.35, z: -9.9 }),
+  radius: 2.1,
+  enabled: () => true,
+  prompt: () => 'Check the corkboard',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(BULLETIN_NOTES, state.day) }],
+};
+
 export function freeRoamInteractions(src: InteractionSources): Interaction[] {
-  return [bench, parkBench, court, hotdog, barber, alley, washerFree, board, newsbox, subway, ...walkerChats(src), ...shelfInteractions(src)];
+  return [bench, parkBench, court, hotdog, barber, alley, washerFree, board, newsbox, subway,
+    trainA, trainB, priya, busker, buskerCoin, usher, driver, duffel,
+    // W5 — the rooms (docs/41): every loop anchored inside its registry shell
+    dryer, pizza, dinerCoffee, dinerBooth, pieCase, hallNotice, hallWorkshop, bakery, recordBin, recordListen, cecilGaze, cecilCorkboard,
+    ...walkerChats(src), ...shelfInteractions(src)];
 }
 
 // ------------------------------------------------------------------ authored ----
@@ -382,8 +650,10 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
       id: 'counter',
       pos: () => ({ x: -18.5, y: 0.5, z: 13.5 }),
       enabled: (s) => s.step === Step.RUSH,
-      prompt: () => 'Serve',
-      perform: (ctx) => act(ctx, (s) => s.serveCounter()),
+      // docs/11 + docs/12: the first press takes the order (the card opens);
+      // the card itself owns the conversation from there.
+      prompt: () => 'Take the order',
+      perform: (ctx) => act(ctx, (s) => s.openCounterOrder()),
     },
     {
       id: 'cart',
@@ -403,7 +673,8 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
       },
       prompt: (s) => {
         if (s.step === Step.CLAIM_CART) return 'Claim corner';
-        if (s.step === Step.SOLO || s.step === Step.D2_LUNCH) return 'Serve';
+        if (s.step === Step.SOLO) return 'Take the order';
+        if (s.step === Step.D2_LUNCH) return 'Serve';
         if (s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) return s.brewing ? BREWING_PROMPT : 'Serve';
         if (s.step === Step.D3_STOOL) return 'Stool \u2014 $10';
         if (s.day >= 2 && !s.awningUp && s.money >= 15) return 'Awning \u2014 $15';
@@ -411,7 +682,11 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
       },
       perform: (ctx) => act(ctx, (s) => {
         if (s.step === Step.CLAIM_CART) return s.claimCart();
-        if (s.step === Step.SOLO || s.step === Step.D2_LUNCH) {
+        if (s.step === Step.SOLO) {
+          // docs/11 + docs/12: your own customers get the conversation too
+          return ctx.game.customer ? s.openCartOrder() : [];
+        }
+        if (s.step === Step.D2_LUNCH) {
           return ctx.game.customer ? s.serveCart() : [];
         }
         if (s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) {

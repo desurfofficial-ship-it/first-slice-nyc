@@ -133,3 +133,23 @@ export function familiarBeatForDay(day: number): FamiliarBeat {
 
 /** Her walking speed — unhurried on purpose (the block is not in a hurry). */
 export const FAMILIAR_SPEED = 1.6;
+
+// ------------------------------------------------------- hall notice board ----
+
+/**
+ * The Alder Works Hall's changeable notice (LMK-07's dressing, W4 p2): the
+ * small board under the marquee, lettered by hand for whatever the hall is
+ * running that day. Keyed on the day like every diary here — the E2E and
+ * every player read the same week. Authored set; beyond it the board
+ * repeats the fair (a hall keeps its staples up).
+ */
+export const HALL_NOTICES: Record<number, string> = {
+  1: 'OPEN STUDIOS · SAT 12–6',
+  2: 'PRINT FAIR — MAKERS WANTED',
+  3: 'LIFE DRAWING · TONIGHT 7',
+  4: 'COMMUNITY DINNER · 6 PM',
+};
+
+export function hallNoticeForDay(day: number): string {
+  return HALL_NOTICES[day] ?? HALL_NOTICES[2] ?? 'ALDER WORKS';
+}

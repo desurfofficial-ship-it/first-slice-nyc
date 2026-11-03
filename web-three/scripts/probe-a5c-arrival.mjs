@@ -33,7 +33,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e.stack ?? e.message)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'load' });
+await page.goto(`http://localhost:${PORT}/?film=1`, { waitUntil: 'load' });
 
 const shot = (name) => page.screenshot({ path: `shots/a5c-${name}.png` });
 const phase = () => page.evaluate(() => window.__game?.arrival?.machine.phase ?? 'none');

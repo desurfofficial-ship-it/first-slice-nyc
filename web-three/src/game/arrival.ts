@@ -12,8 +12,9 @@
  * Staging law: the "ride" is a self-contained diorama parked ~300 m south
  * of the playable map (nothing else renders there), so the real world
  * never has to move and nothing here can leave a stray collider behind.
- * The dip-to-black cut swaps it for the parked coach at the BUS-02 bay,
- * which the player then steps off. Every mesh this module builds lives in
+ * The dip-to-black cut lands you at the terminal bay, where the street's
+ * own world takes over (the bay holds one bus — the M121's loop — so the
+ * film's coach never parks there). Every mesh this module builds lives in
  * one group and is disposed on cleanup. The window frame + seat back are
  * parented to the CAMERA (parallax-free interior) — the camera is added
  * to the scene for them and stays there, childless, after cleanup.
@@ -126,14 +127,12 @@ export interface ArrivalHost {
     camYaw: number;
     snapBehind(pos: { x: number; y: number; z: number }): void;
   };
-  /** The Game's postcard-rig targets — driven live while active. */
+  /** The game's postcard-rig targets — driven live while active. */
   rigPos: { x: number; y: number; z: number };
   rigLook: { x: number; y: number; z: number };
   player: { capsule: { x: number; y: number; z: number }; rotationY: number };
   playerVisual: THREE.Object3D;
   rosa: THREE.Group;
-  /** The parked coach door slides open for the step-off. */
-  openCoachDoor(): void;
   /** Game-side handover extras (Map note, checkpoint). */
   onHandover(): void;
 }
@@ -154,11 +153,28 @@ const CREEP_SPEED = 0.15;
  *  a band across the upper frame, not the flat wall 17 m produced. */
 const SKYLINE_Z = 60;
 
+/** The coach at the gate — the arrival card's set, parked in the ride's
+ *  staging space (300 m south of the map, empty sky around it). The nose
+ *  faces +x, the way the ride travelled; the door is on the north face
+ *  (the lens side), by the nose. All numbers derive from RIDE_POS so the
+ *  card lens always knows where its set stands. */
+const COACH = {
+  cx: RIDE_POS.x,
+  z: RIDE_POS.z,
+  get noseX(): number { return RIDE_POS.x + 4.8; },
+  get doorX(): number { return RIDE_POS.x + 3.4; },
+} as const;
+
 export class ArrivalCinematic {
   readonly machine = new ArrivalMachine();
   private host: ArrivalHost;
   private group: THREE.Group | null = null;
   private strip: THREE.Group | null = null;
+  /** The card's coach set — separate from the ride group so the strip can
+   *  stay standing (out of the card's frame) until the handover cleans up. */
+  private coachGroup: THREE.Group | null = null;
+  private doorLeaf: THREE.Mesh | null = null;
+  private doorGlass: THREE.Mesh | null = null;
   private lastPhase: ArrivalPhase = 'off';
   /** The window frame rides WITH the camera — parallax-free interior. */
   private windowFrame: THREE.Group | null = null;
@@ -261,8 +277,6 @@ export class ArrivalCinematic {
 
     // the player is on the bus — their body stays off screen
     this.host.playerVisual.visible = false;
-    // and the parked coach hides while "we" are still riding it
-    this.setCoachVisible(false);
 
     const mats = {
       grass: this.lambert(0x6a8f5a),
@@ -469,27 +483,36 @@ export class ArrivalCinematic {
 
   // ------------------------------------------------------- the arrival card --
 
-  /** Dip to black → the parked coach at the bay, door sliding open → the
-   *  destination-roll push-in → the title. */
+  /** Dip to black → the coach at the gate, door sliding open → the
+   *  destination-roll push-in → the title. The coach is the film's OWN
+   *  diorama prop (built here, disposed at the handover): the street's
+   *  BUS-02 bay holds one bus and one bus only (the M121's loop — docs/47
+   *  "the terminal bay, made honest"), so nothing of ours parks there.
+   *  The step-off itself is a cut: dip to black, and the player stands at
+   *  the bay on the street the world built. */
   private async playArrivalCard(): Promise<void> {
     const run = this.runId;
     await this.host.ui.fadeOut(350);
     if (run !== this.runId || !this.active) return;
-    this.teardownRide();
-    this.setCoachVisible(true);
-    this.host.ui.cineVisible(); // the bars stay — the frame is the terminal now
+    // the window frame rides the CAMERA — it must go before the lens moves
+    if (this.windowFrame) {
+      this.host.cam.camera.remove(this.windowFrame);
+      this.windowFrame = null;
+    }
+    this.buildCoach();
+    this.host.ui.cineVisible(); // the bars stay — the frame is the gate now
 
     // push-in on the NEW YORK roll, the nose filling the frame
-    this.host.rigPos.x = -40.5; this.host.rigPos.y = 2.35; this.host.rigPos.z = 3.05;
-    this.host.rigLook.x = -35.85; this.host.rigLook.y = 2.7; this.host.rigLook.z = 3.05;
+    this.host.rigPos.x = COACH.noseX + 4.2; this.host.rigPos.y = 2.2; this.host.rigPos.z = COACH.z - 3.1;
+    this.host.rigLook.x = COACH.noseX + 0.05; this.host.rigLook.y = 2.45; this.host.rigLook.z = COACH.z;
     const t = this.host.tweens;
     t.sequence(
       t.wait(0.25),
       t.parallel(
-        t.num(() => this.host.rigPos.x, (v) => { this.host.rigPos.x = v; }, -37.3, 2.0),
-        t.num(() => this.host.rigPos.y, (v) => { this.host.rigPos.y = v; }, 2.75, 2.0),
+        t.num(() => this.host.rigPos.x, (v) => { this.host.rigPos.x = v; }, COACH.noseX + 1.4, 2.0),
+        t.num(() => this.host.rigPos.y, (v) => { this.host.rigPos.y = v; }, 2.55, 2.0),
       ),
-      t.call(() => this.host.openCoachDoor()),
+      t.call(() => this.openFilmDoor()),
     );
     await this.host.ui.fadeIn(450);
     if (run !== this.runId || !this.active) return;
@@ -498,28 +521,28 @@ export class ArrivalCinematic {
 
   // -------------------------------------------------------------- handover --
 
-  /** Step off the coach: the player by the door, Rosa waving up the
+  /** Step off the coach: the player at the bay, Rosa waving up the
    *  sidewalk, HUD + Map note, follow camera with clean air behind. */
   private handover(): void {
     this.runId++; // any in-flight arrival card is now stale
     this.teardownRide();
-    this.setCoachVisible(true);
     this.host.ui.cineHide();
     this.host.ui.cineHideBox();
 
     const p = this.host.player.capsule;
-    // (−34.2, 6.3): just north of the coach door, CLEAR of the luggage
-    // cart's collider (x −35.95..−35.05, z 4.9..5.5) — the first spawn
-    // (−34.6, 5.7) clipped its corner and the player stood ON the cart,
-    // jamming the fresh follow camera into their own back.
+    // (−34.2, 6.3): the north walk beside the BUS-02 bay (paint x −36..−24)
+    // — a step off the door lands here, clear of the M121 flag pole at
+    // (−30, 7.35), the bulletin board at (−37.6, 7.5) and the parked bus
+    // body's curb edge (z ≤ 5.85 when the loop is in). The first spawn
+    // draft (−34.6, 5.7) sat where the loop body sweeps — it would stand
+    // the fresh player INSIDE the arriving bus.
     p.x = -34.2; p.y = 0.05; p.z = 6.3;
-    // Facing 1.95 rad — east, down the sidewalk, Rosa just left of the nose.
+    // Facing 1.95 rad — east, down the sidewalk, Rosa's bodega up the walk.
     // This is a CAMERA law, not a staging whim: the street-side settle
-    // (GameCamera: idle yaw → 0) puts the lens SOUTH of the player, and at
-    // this spawn the coach stands between — its boom ray hits the coach and
-    // collapses to ~2.3 m of neck-cam. A heading past TURNED_AROUND (1.8)
+    // (GameCamera: idle yaw → 0) puts the lens SOUTH of the player, where
+    // the bay's traffic lane runs — a heading past TURNED_AROUND (1.8)
     // makes the settle keep the player's own heading, so the lens stays in
-    // the clear air west of the bay.
+    // the clear air of the walk instead of staring into the bus lane.
     this.host.player.rotationY = 1.95;
     this.host.playerVisual.visible = true;
     this.host.playerVisual.position.set(p.x, p.y, p.z);
@@ -530,7 +553,7 @@ export class ArrivalCinematic {
     if (rig) rig.mode = 'wave';
 
     // follow camera from clean air — west of the door, looking east down
-    // the sidewalk; the corridor clamp keeps the boom in the street band
+    // the sidewalk; the street-band clamp keeps the boom in the walk
     this.host.cam.pose = 'follow';
     this.host.cam.camYaw = Math.PI / 2;
     this.host.cam.snapBehind({ x: p.x, y: p.y, z: p.z });
@@ -543,11 +566,86 @@ export class ArrivalCinematic {
 
   // --------------------------------------------------------------- helpers --
 
-  /** The coach group is named in firstSession.ts. */
-  private setCoachVisible(visible: boolean): void {
-    this.host.scene.traverse((o) => {
-      if (o.name === 'ArrivalCoach') o.visible = visible;
-    });
+  /** The film's own coach at the gate — the arrival-card set. Parked 300 m
+   *  south of the playable map in the ride's empty staging space, so the
+   *  real bay stays honest (one bay, one bus). Built at the card, disposed
+   *  with the diorama at the handover; owns nothing gameplay-bearing. */
+  private buildCoach(): void {
+    if (this.coachGroup) return; // already standing
+    const g = this.coachGroup = new THREE.Group();
+    g.name = 'ArrivalCoachDiorama';
+    this.host.scene.add(g);
+
+    const body = this.lambert(PAL.cream);
+    const dark = this.lambert(PAL.ink);
+    const glass = this.lambert(PAL.windowDim);
+    const teal = this.lambert(PAL.teal);
+
+    const box = (name: string, mat: THREE.Material, x: number, y: number, z: number,
+      w: number, h: number, d: number) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      m.name = name;
+      m.position.set(x, y, z);
+      g.add(m);
+      this.disposables.push(m.geometry as THREE.BufferGeometry);
+      return m;
+    };
+
+    // curb under the wheels (the ride ribbon ends at z 99 — this covers
+    // the seam so the coach never floats on grass)
+    box('Coach_Curb', this.lambert(0x8d8577), COACH.cx, 0.02, COACH.z + 1.4, 16, 0.06, 6.2);
+    box('Coach_CurbEdge', this.lambert(0xd9c98a), COACH.cx, 0.06, COACH.z - 1.6, 16, 0.05, 0.5);
+
+    // body slab + roof cap (the M121's proportions, one bay over from the
+    // house bus — a coach, not a city bus: higher roof, luggage bay)
+    box('Coach_Body', body, COACH.cx, 1.45, COACH.z, 9.6, 2.2, 2.3);
+    box('Coach_Roof', body, COACH.cx, 2.62, COACH.z, 9.6, 0.14, 2.3);
+    box('Coach_Skirt', dark, COACH.cx, 0.5, COACH.z, 9.6, 0.5, 2.32);
+    box('Coach_Stripe', teal, COACH.cx, 1.05, COACH.z, 9.64, 0.34, 2.32);
+    // window band: north face (the lens side) + the far face
+    box('Coach_GlassN', glass, COACH.cx + 0.4, 2.05, COACH.z - 1.16, 8.2, 0.78, 0.04);
+    box('Coach_GlassS', glass, COACH.cx + 0.4, 2.05, COACH.z + 1.16, 8.2, 0.78, 0.04);
+
+    // the nose (+x, the way the ride travelled): windshield + bumper
+    box('Coach_Windshield', glass, COACH.noseX + 0.02, 2.0, COACH.z, 0.06, 0.9, 1.9);
+    box('Coach_Bumper', dark, COACH.noseX + 0.08, 0.55, COACH.z, 0.14, 0.5, 2.2);
+
+    // the destination roll — amber on ink, one canvas face
+    const rollC = document.createElement('canvas');
+    rollC.width = 256; rollC.height = 64;
+    const rctx = rollC.getContext('2d')!;
+    rctx.fillStyle = '#1a1a22';
+    rctx.fillRect(0, 0, rollC.width, rollC.height);
+    rctx.fillStyle = '#ffb85c';
+    rctx.font = 'bold 44px monospace';
+    rctx.textAlign = 'center';
+    rctx.textBaseline = 'middle';
+    rctx.fillText('NEW YORK', rollC.width / 2, rollC.height / 2 + 2);
+    const rollTex = new THREE.CanvasTexture(rollC);
+    this.disposables.push(rollTex);
+    const roll = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.7, 0.42),
+      new THREE.MeshLambertMaterial({ map: rollTex, emissive: 0xffffff, emissiveMap: rollTex, emissiveIntensity: 0.55 }),
+    );
+    roll.name = 'Coach_Roll';
+    roll.rotation.y = Math.PI / 2; // faces +x, down the road we came in on
+    roll.position.set(COACH.noseX + 0.07, 2.6, COACH.z);
+    g.add(roll);
+    this.disposables.push(roll.geometry as THREE.BufferGeometry);
+
+    // the curb-side door leaf (north face, by the nose) — openFilmDoor slides it
+    const leaf = box('Film_CoachDoor', body, COACH.doorX, 1.12, COACH.z - 1.17, 1.0, 1.9, 0.06);
+    const leafGlass = box('Film_CoachDoorGlass', glass, COACH.doorX, 1.55, COACH.z - 1.2, 0.8, 0.85, 0.05);
+    this.doorLeaf = leaf;
+    this.doorGlass = leafGlass;
+  }
+
+  /** The door leaf slides into the body — the film's own prop, so the
+   *  tween lives here and the host interface stays clean. */
+  private openFilmDoor(): void {
+    const t = this.host.tweens;
+    if (this.doorLeaf) t.num(() => this.doorLeaf!.position.x, (v) => { if (this.doorLeaf) this.doorLeaf.position.x = v; }, this.doorLeaf.position.x + 0.92, 0.9);
+    if (this.doorGlass) t.num(() => this.doorGlass!.position.x, (v) => { if (this.doorGlass) this.doorGlass.position.x = v; }, this.doorGlass.position.x + 0.92, 0.9);
   }
 
   /** Remove + dispose everything this module built (idempotent). */
@@ -557,11 +655,16 @@ export class ArrivalCinematic {
       this.windowFrame = null;
     }
     this.strip = null;
-    if (this.group) {
-      this.host.scene.remove(this.group);
+    this.doorLeaf = null;
+    this.doorGlass = null;
+    const hadProps = this.group !== null || this.coachGroup !== null;
+    if (this.group) this.host.scene.remove(this.group);
+    if (this.coachGroup) this.host.scene.remove(this.coachGroup);
+    this.group = null;
+    this.coachGroup = null;
+    if (hadProps) {
       for (const d of this.disposables) d.dispose();
       this.disposables = [];
-      this.group = null;
     }
   }
 }
