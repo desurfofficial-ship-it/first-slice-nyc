@@ -47,9 +47,11 @@ Work Log:
   bandOfLoop (the W4 band law extracted pure, crowd tests re-pinned).
 - New driver contract: the film runs for humans; drivers skip it via
   ?autotest/?probe/navigator.webdriver; ?film=1 opts the film's probes in.
-- Found and fixed on main's tip: the Pages workflow triggered on
-  `branches: ain]` (CI never ran on main) and the hydrant loop's
-  `for (const x, hz]` parse error (vite tolerated it; tsc did not).
+- Correction (same session): the "two main-tip breaks" I logged here
+  first (the Pages trigger, the hydrant loop) were display artifacts of my
+  audit tooling — it strips `[h`/`[m` sequences from output. Byte-level
+  verification shows both files were always correct; nothing was fixed
+  because nothing was broken (docs/52 §3).
 - Found and fixed my own regression: the W2 playground route rode the
   pergola rail by the old snap-circle; the honest stair law refused it.
   The route now walks the kit's east lane like a person.

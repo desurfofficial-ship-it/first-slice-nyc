@@ -1318,9 +1318,11 @@ diorama coach — the bay keeps one bus), the stair-glue + floor-snap-down
 laws unite with the below-grade law in one `groundHeight`, the W4 band law
 is extracted pure (`bandOfLoop`), the cab-yield logic becomes a tested
 function, and the duplicate world (`firstSession.ts`, the z −80 district,
-the street coach) is retired. Two pre-existing breaks on main's tip were
-found and fixed here: the Pages workflow triggered on `branches: ain]` (CI
-never ran on main) and the hydrant loop's `for (const x, hz]` parse error.
+the street coach) is retired. A correction this log owes: the first draft
+of this entry claimed two main-tip breaks (the Pages trigger, the hydrant
+loop) — both were display artifacts of the audit tooling (it strips `[h`/
+`[m` byte sequences); byte-level checks show both files were always
+correct and no repo fix was needed (docs/52 §3).
 The W2 playground route was re-walked around the kit (the old line rode the
 pergola rail by the snap-circle — invisible platforming the new stair law
 honestly refuses). Full evidence in docs/52 §5: typecheck clean, vitest

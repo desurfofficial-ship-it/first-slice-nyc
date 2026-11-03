@@ -59,16 +59,21 @@
   walked its geometry (`probe-a5-first-session`, `probe-a5e-sync`, the
   `dbg-a5*` scratch family). One subway, one square, one bay.
 
-## 3. Two broken things the merge found on `main` — both fixed here
+## 3. A correction the merge record owes (published in the same session)
 
-1. **The Pages workflow never ran on main.** `.github/workflows/
-   deploy-pages.yml` triggered on `branches: ain]` — corrupted YAML, so
-   every push to main skipped CI. This is how a syntax error reached main's
-   tip unnoticed. Fixed: `branches: [main]`, YAML-validated.
-2. **Main's tip did not typecheck.** World.ts's hydrant loop read
-   `for (const x, hz] of …` and used an undefined `hx` — a parse error that
-   vite's transform tolerates but `tsc` rejects. Fixed: `for (const [hx,
-   hz] …`.
+The first draft of this report claimed two breaks on main's tip — a
+corrupted Pages trigger (`branches: ain]`) and a hydrant-loop parse error
+(`for (const x, hz] of …`). **Both were display artifacts of my audit
+tooling, not repo bugs**: the terminal pipeline strips `[h`/`[m` byte
+sequences, which renders `for (const [hx, hz] of …` as `for (const x, hz]
+of …` and `branches: [main]` as `branches: ain]`. Byte-level verification
+(codepoint dumps of both files, pre- and post-"fix") shows main's files
+were always correct — the "fixes" were no-ops, main's CI history is
+consistent with a working trigger, and `tsc` was right to pass. The record
+in docs/47, the worklog, and the merge commit message carried the same
+wrong claim and are corrected here. The lasting lesson is the audit
+standard: **when terminal output contradicts the gates (tsc passed),
+verify at the byte level before believing the read.**
 
 ## 4. One regression the merge introduced and fixed, honestly
 

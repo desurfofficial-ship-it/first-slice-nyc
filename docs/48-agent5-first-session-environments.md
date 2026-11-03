@@ -180,6 +180,6 @@ z −80 Times Square district, the terminal coach) is retired, and what
 ships from this branch is the arrival film (re-targeted onto its own
 diorama coach), the stair-glue + floor-snap-down laws, the cab-yield
 function, and the per-walker band law's pure extraction. The full
-reconciliation record, the two main-tip breaks found and fixed (the CI
-trigger, the hydrant parse error), and the merged-tip proof live in
-**docs/52**.
+reconciliation record, the corrected audit record (two suspected main-tip
+breaks turned out to be audit-tool display artifacts — docs/52 §3), and
+the merged-tip proof live in **docs/52**.
