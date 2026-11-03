@@ -1612,3 +1612,58 @@ clean · E2E AUTOTEST OK, **0 failures, 432 s**, zero console errors.
 Push is the one open step: the one-time token is gone from the sandbox,
 so the three feature commits + this merge sit verified on local main
 (3c3b7f4) until a fresh token lands.
+---
+
+## The cast bake — every figure at six draw calls (2026-11-03)
+
+**The find.** After the zone, canopy, vertex and shadow bakes, the census
+breakdown (new `diag-rig-xray.mjs`) showed the biggest remaining recurring
+debtor was the cast itself: every person on the block — the player, Rosa,
+Sal, Idris, the kid (ground and silhouette), the stranger, the familiar,
+the M121's driver, the three ambient walkers, the Times Square crowd and
+the arrival-bus driver — cost 11–12 draw calls: one mesh per body part,
+one material instance per part, all castShadow, in both the main and the
+shadow pass. Eight figures in a rig view ≈ 96 calls of hips and hair.
+
+**The lever — docs/47 lever 3 taken whole.** The W4p2 dusk-pair method
+(hair) and the strap merge extended to the entire rig: each part's color
+rides a per-vertex color attribute (the vertex-bake law — Lambert's
+diffuse `color × 1` became `white × color`, the same product bit-for-bit),
+and every RIGID pivot group fuses into ONE mesh — leg+boot, arm+hand,
+torso+shawl+strap, skull+hair+glasses. The whole cast now shares ONE white
+`vertexColors` Lambert (`personMaterial`, exported from personRig.ts).
+`buildArticulatedPerson` drops its material-factory argument; every call
+site (World.buildPerson, the peds, Times Square, arrivalBus) updated. The
+look options (strap, shawl, glasses, cap/bun/flat, shoe color, body scale)
+dress the same merged boxes; the pivot animation contract is untouched —
+walk/sweep/sit/wave/climb all ride the same rotations updatePersonAnim has
+always written, and the familiar's paper still hangs off `rig.armL`.
+
+**The numbers, honestly.** Census rigs (probe-w0-census, fresh dist):
+PLAZA 468 → **404** (−64), CART_CORNER 406 → **335** (−71),
+SYCAMORE×GABLE 132 → **113** (−19). Every rig under its previous ledger —
+the Kestrel gate line stays published FAIL (404 > 150), the operational
+law ("no phase ships above previous ledger") met. Per-figure: 12 → 6
+draws, both passes; in-engine breakdown confirms Rosa/Sal/Player/driver
+at 6 meshes · 1 material each, Pedestrians 33 → 18 meshes.
+
+**What was measured and rejected.** The un-named tail (36 frustum draws at
+PLAZA) is canvas-textured sign faces — `diag-unnamed-xray.mjs` names them;
+the bake excludes `mat.map` by design and an atlas is a program, not a
+lever. Shadow-caster discipline on small props priced by
+`diag-shadow-price.mjs`: −12/−16 calls for trashcan/mailbox/sign contact
+shadows — REJECTED as a bad visual trade (Anti-Slop gate). The same tool
+bounds the shadow pass at ~108–125 calls even with the merge in, which is
+the next session's honest frontier, not this one's.
+
+**Verification**: tsc clean · vitest **398/398** (+3 red-green merge-law
+guards: six draws per figure, colors ride attributes with two distinct
+leg shades, look options still dress the same boxes; the boot law is
+re-proven from the merged geometry — feet land at y 0) · build clean ·
+probe-solid ALL CLEAN · probe-peds OK · probe-doc12 done · probe-court
+ALL PASS · probe-climb clean · probe-autumn OK · probe-camfade clean ·
+probe-env5 PASS · probe-characters slide 2.7% (same family; strap,
+shawl, glasses and cap verified in the frames by eye) · probe-a5b/a5c/a5f
+clean · probe-subway ALL PASS · probe-w4-bus OK · probe-w0-census (ledger
+above) · **E2E: OK — 0 failures, 394 s**, console clean
+(E2E_W=320 E2E_H=700). docs/51 B13 carries this update.

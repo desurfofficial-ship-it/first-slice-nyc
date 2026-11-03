@@ -381,6 +381,16 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   is UNDER the 250 line for the first time; Kestrel still over 150, gate
   line stays published. The statics' colors now ride vertex attributes and
   the census audit reads them (23 distinct [vc] shades surface).
+- **Update 2026-11-03 (cast bake, same day):** every figure merged to 6
+  draws (was 11–12) — colors ride vertex attributes, one shared material
+  for the whole cast, rigid pivots fused (leg+boot, arm+hand,
+  torso+shawl+strap, skull+hair+glasses). PLAZA 468 → 404,
+  CART_CORNER 406 → 335, SYCAMORE×GABLE 132 → 113 — every rig under its
+  previous ledger. Measured and rejected: small-prop shadow-caster
+  discipline (−12/−16 for visible contact shadows — bad trade); the
+  remaining frustum tail is canvas-texture sign faces (atlas = a program).
+  Next honest frontier per diag-shadow-price: the shadow pass itself
+  (~108–125 calls).
 
 ### B14. Documentation hygiene
 - Some older docs (Phase 0 exit, AGENTS.md “code pending”) still read as if
