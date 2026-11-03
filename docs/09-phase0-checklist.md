@@ -4,6 +4,14 @@
 
 **Target exit:** End of Week 6 (or earlier if proofs are green).
 
+> **Status update (2026-11-03):** Phase 0 exited 2026-10-28 (Doc 18) and every
+> section below has since been executed — the greybox was built and superseded
+> by the live `web-three/` build (walk → serve → ride → postcard is playable
+> today), TS-01/TS-02 shipped as `PostcardCapture.ts` + `GameCamera.ts`, the
+> perf budget survives as the docs/51 B13 ledger, and the Map notebook carries
+> the TS-04 idea. The unchecked boxes are historical; don't re-run them as
+> open work. Live status: [docs/51-open-bugs-for-agents.md](51-open-bugs-for-agents.md).
+
 ---
 
 ## P0-1 Feel Prototype (Paper)

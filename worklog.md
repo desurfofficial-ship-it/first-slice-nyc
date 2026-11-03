@@ -501,3 +501,23 @@ docs/55 updated in the same commit: boxes 1 and 2 now carry "Operational
 plan: Doc 56" pointers, and the stale forward-reference to a
 `docs/56-playtest-01-results.md` was corrected — results analysis lands at
 `docs/57-` or later; `docs/56-` is the plan.
+
+---
+Task ID: AGENT6-DOCS51-B14-STATUS-HYGIENE
+Agent: Z.ai (GLM)
+Task: docs/51 B14 — documentation hygiene: stale "code pending"/Phase-0 status language mis-scopes the project for every new agent.
+
+Work Log:
+- Branched from a31e162 after the parallel close-out waves; confirmed B6 was independently fixed on main (agent2's setCanopies + per-frame re-wire), so my earlier PR #3 branch is obsolete — the operator has since closed it unmerged.
+- Baseline on a31e162: tsc --noEmit clean, vitest 430/430.
+- Audited AGENTS.md, docs/07, docs/09, docs/18, docs/06 for stale status claims. docs/06's plan tables left alone — plans may read future-tense; only status claims were lies.
+- AGENTS.md: the **Current phase:** line now says Vertical Slice production (Phase 1 of docs/06, Phase 0 exit signed 2026-10-28) instead of "docs-complete, code pending"; the ACTIVE pointer moved from the completed Doc 37 milestone to the docs/51 ledger + docs/50 paved path; §3 repo map shows the real tree (web-three game, tests, probe harnesses, worklog); §4 branch/commit naming matches observed practice.
+- docs/09 + docs/18: dated status-update banners (Doc 07 banner style) so the historical bodies read as history — bodies untouched, nothing rewritten.
+- docs/07: banner updated — the Phase 1 contract is in production; the ledger holds the live gap list.
+- Guard (§1c.1): tests/docs-hygiene.test.ts — the phase line must exist, never claim "code pending" again, and name the real phase; AGENTS.md must link the ledger + paved path; both Phase-0 history docs must keep their dated banner. Red-green proven: reverting the line fails exactly that check. @types/node added as a devDep, scoped to this one test via triple-slash (tsconfig untouched; src/ stays browser-pure).
+- Rebased onto 5f973e1 (the B11/B12/album/docs-56 wave): docs/51 + worklog conflicts resolved keeping every main entry; ledger B14 entry and this worklog updated to the rebased truth.
+
+Stage Summary:
+- B14 FIXED; ledger updated in the same change.
+- On the rebased tree: tsc --noEmit clean, vitest 479/479 (476 on main + 3 new docs guards) — the suite grew past 430 on main while this branch worked.
+- Open ledger after this: B9 (arrival spawn), B12 item 3 (the CLEAR prop pass), B13 (perf program).

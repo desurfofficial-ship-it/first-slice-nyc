@@ -3,6 +3,16 @@
 **Date:** 2026-10-28  
 **Status:** Design work largely complete. Execution phase beginning.
 
+> **Status update (2026-11-03):** this was the point-in-time exit summary, and
+> everything it lists as open has since shipped. The greybox block was built
+> and then migrated to the live `web-three/` Three.js build (docs/19–24); all
+> four tech spikes ran and survive as production code — TS-01 is
+> `src/postcard/PostcardCapture.ts`, TS-02 is `src/camera/GameCamera.ts`,
+> TS-03 became the perf ledger (docs/51 B13), TS-04 the Map notebook. The
+> "Not started" rows below are historical; don't re-run them as open work.
+> Live status: [docs/51-open-bugs-for-agents.md](51-open-bugs-for-agents.md)
+> and [worklog.md](../worklog.md).
+
 ---
 
 ## What Phase 0 Has Achieved

@@ -530,11 +530,30 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   independently; the merge kept main's implementation and dropped the
   duplicate (one paved path). Verified on the merged tree: tsc clean, vitest
   469/469, build clean, probe-subway ALL PASS, probe-a5c-arrival green.
-### B14. Documentation hygiene
-- Some older docs (Phase 0 exit, AGENTS.md “code pending”) still read as if
-  greybox/code had not started. Update status language so new agents do not
-  re-do completed design work or mis-scope the current phase.
-- **Status:** OPEN — low priority, do when touching those files.
+
+### B14. Documentation hygiene — FIXED 2026-11-03
+- **Was:** AGENTS.md read "Pre-Production, docs-complete, code pending — do
+  not scaffold game code before Phase 0 exit is signed" weeks after
+  `web-three/` shipped; docs/09 + docs/18 read as if the greybox and spikes
+  had not started; docs/07's banner still said "Advanced in Phase 0". New
+  agents were being pointed away from the real front.
+- **Fix:** AGENTS.md now states the real phase (Vertical Slice production,
+  Phase 1 of docs/06; Phase 0 exit signed 2026-10-28) and points the ACTIVE
+  WORK pointer at this ledger + the docs/50 paved path; its §3 repo map
+  shows the real tree (`web-three/` game + tests + probes) and §4 the
+  observed branch/commit practice. docs/09 and docs/18 carry dated
+  status-update banners (Doc 07 banner style) so their historical bodies
+  are read as history — bodies untouched, no history rewritten.
+- **Guard:** `tests/docs-hygiene.test.ts` — 3 checks: the `**Current phase:**`
+  line exists, never claims "code pending" again, and names the real phase;
+  AGENTS.md links the ledger + paved path; both Phase-0 history docs keep
+  their dated banner and ledger pointer. A future phase change must update
+  the line consciously (the test fails loudly until it does).
+- **Commit / branch:** `docs/b14-status-hygiene`
+- **Verified:** full vitest on the rebased tree (count recorded in the
+  commit message + worklog), `tsc --noEmit` clean.
+- **Where:** `AGENTS.md`, `docs/09`, `docs/18`, `docs/07` (banner),
+  `web-three/tests/docs-hygiene.test.ts`.
 
 ---
 
