@@ -893,7 +893,16 @@ export class World {
     const subway = makeSubwayEntrance(this.bank, this.signMaterials.bind(this));
     subway.position.set(-42, 0.05, 6.2);
     this.scene.add(subway);
-    this.colliders.push(boxFromCenter(-42, 0.4, 6.2, 2.6, 1.0, 3.5)); // nobody walks into the earth
+    // NO blocker here — Agent-5's reconciliation stands (their branch, kept
+    // by the docs/50 merge as the paved path): the placeholder stair-cut
+    // boxes are retired and the real descendable shaft is the K-line slot
+    // west of the headhouse (x −48.5..−45.9), whose walls carry the
+    // below-grade law. The old "nobody walks into the earth" box
+    // (2.6 × 3.5 full walk depth) was authored FOR the retired cut; the
+    // merge restored it without the hole, pinching the north walk shut
+    // between itself and the K-line rails and wedging the W1 walkability
+    // gate (the walker spawns inside it and its eject direction decided
+    // the whole gate). Ground at this plot reads the flat sidewalk (0.1).
     this.flyerMat = new THREE.MeshLambertMaterial({ map: this.flyerTexture('YOUR CORNER') });
     const board = makeBulletinBoard(this.bank, this.flyerMat);
     board.position.set(-37.6, 0.05, 7.5);

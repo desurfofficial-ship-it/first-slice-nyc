@@ -1404,6 +1404,19 @@ desktop + 390×844 reviewed: page 1 composes with the sketch on both,
 page 2 keeps its margins below.
 ---
 
+## The e2e flake family, driver-side fix (2026-11-03, post-merge)
+
+The 4-day autotest failed 1–5 of ~104 checks on this box (both the merge
+and pure main) — all one family: the dusk-timed goodnight rails, "tomorrow
+begins", the awning confirm. The deterministic probes proved the game
+correct, so the driver was racing it. Three driver-only fixes
+(`src/game/autotest.ts`): lingerStage joined the volley's break list (one
+volley could fire the goodnight AND roll the day in a breath),
+`pressUntil` presses on the real input path until the beat reacts (the
+awning's nearest body can be Idris — a press serves, the next offers), and
+the day-roll checks poll the state instead of sleeping wall time.
+**Evidence: two consecutive full runs, 0 failures (476 s / 477 s, 127
+checks), console clean — on the box that flaked.** docs/51 B4 closed.
 ## The vertex bake — the statics' colors move into geometry (2026-11-03)
 
 **What landed.** The recorded "next call cut needs vertex colors" lever,
@@ -1461,3 +1474,49 @@ batches); it is being filed and fixed separately. Sandbox note: the
 recycled box ships Chrome headless-shell 156 — probe-w4-bus now needs
 ~6 min wall (the loop lap alone measured 171 s inside the probe); short
 `timeout` wrappers read as browser crashes and are not.
+
+---
+
+## The reopened north walk — the stale entrance blocker retires (2026-11-03)
+
+**The find.** Running the W1 ghost gate on the vertex-bake build wedged
+37/37 walk legs (walker stuck at x −43.7..−45.5, z 4.4–7.6). A control
+rebuild of pristine tip in the same sandbox wedged identically — the
+break shipped on main, it is not the bake's (colliders do not ride
+render batches). New diag tools `diag-wedge.mjs` (collider dump of the
+region) and `diag-ground.mjs` (ground-law probe at the plot) pin it:
+collider i=62 was `boxFromCenter(-42, 0.4, 6.2, 2.6, 1.0, 3.5)` — the
+W0 "nobody walks into the earth" blocker, spanning the north walk's
+FULL depth (z 4.45..7.95), with the W1 walk route STARTING at its exact
+center. The whole gate had been riding the collision eject's tie-break:
+eject east = pass, west = wedged against the box's own west face.
+
+**The archaeology.** The blocker was authored for the W0 placeholder
+stair-cut boxes. Agent-5 retired both together on their branch —
+`makeSubwayEntrance` is furniture-only on tip ("the real descendable
+stairwell lives below (docs/50, the K-line slot west of the headhouse)"),
+and their World comment said "the earth is open now". The docs/50 merge
+restored the blocker WITHOUT the hole: a collision box guarding retired
+geometry, pinching the north walk shut between itself and the K-line
+rails (x −46.1..−45.9), leaving only the 2.6 m pocket the newsboxes
+partially fill. docs/52 recorded W1 PASS on the merge tip — the eject
+had gone east then; the recent stationKit/stair-landing fixes flipped
+the tie and exposed the latent break.
+
+**The fix, minimal.** The blocker push retires again, with the full
+story in a comment at the site. Ground law verified before the cut:
+(−42, 6.2) reads flat sidewalk (0.1 — verified at three points around
+the plot; the box top was the only thing standing there), the K-line
+shaft at x −47 still descends (−0.89), the newsboxes and decks are
+unchanged. No route edit, no test edit — the world was wrong, the gate's
+premise (a spawn in free space) becomes true.
+
+**Verification**: tsc clean · vitest **395/395** · build clean ·
+probe-w1-ghost PASS (8/8 masses, wedged=false, minGround −0.01, 0 page
+errors) · W2 + W3 ghosts PASS · probe-solid ALL CLEAN · probe-peds OK ·
+probe-a5b/a5c/a5f clean (boot state −30, 0.1, 6.2 day 1 step 0; Rosa
+reaches the meet) · probe-subway ALL PASS 22/22 · probe-w4-bus OK 13/13
+· probe-w0-census 468 / 406 / 132 (noise vs the vertex-bake ledger;
+Kestrel gate line stays published FAIL > 150) · **E2E: OK — 0 failures,
+356 s**, console clean (E2E_W=320 E2E_H=700). docs/51 B15 carries the
+ledger entry; B13 carries the vertex-bake update.

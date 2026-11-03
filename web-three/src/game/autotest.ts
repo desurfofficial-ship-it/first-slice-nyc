@@ -312,6 +312,11 @@ export function runAutotest(game: Game): void {
     const stool0 = game.state.stoolConfirm;
     const permit0 = game.state.permitConfirm;
     const buy0 = game.state.buyConfirm;
+    // lingerStage joins the break list: the rail's goodnight (stage 1→2)
+    // changes no step and freezes nothing — without it, press 2 of the same
+    // volley fired rail() again and rolled the day inside one breath
+    // (the docs/47 W3 knife-edge, now cut on the driver side).
+    const linger0 = game.state.lingerStage;
     for (let i = 0; i < 3; i++) {
       game.input.injectInteract();
       await waitFrames(6);
@@ -319,8 +324,27 @@ export function runAutotest(game: Game): void {
         || game.player.frozen || game.ui.postcardPanel.hidden !== panel0
         || game.state.awningConfirm !== awning0
         || game.state.stoolConfirm !== stool0 || game.state.permitConfirm !== permit0
-        || game.state.buyConfirm !== buy0) break;
+        || game.state.buyConfirm !== buy0
+        || game.state.lingerStage !== linger0) break;
     }
+  };
+
+  /** pressUntil — the harness law for beats that need the game to react:
+   *  press on the real input path, watch the condition, and KEEP pressing
+   *  (a volley every ~0.6 s) until it holds or the budget ends. A single
+   *  volley can land on the wrong neighbor (Idris between the walker and
+   *  the cart at the awning beat) or mid-fade (the goodnight volley can
+   *  roll the day itself — lingerStage isn't a volley break); a human
+   *  just presses again. The condition verifies; the budget waits. */
+  const pressUntil = async (cond: () => boolean, budgetMs = 20000, what = '') => {
+    const t0 = performance.now();
+    while (performance.now() - t0 < budgetMs && !cond()) {
+      await interact();
+      const inner = performance.now();
+      while (performance.now() - inner < 600 && !cond()) await nextFrame();
+      if (cond()) break;
+    }
+    if (!cond() && what) console.info(`[pressUntil] exhausted: ${what}`);
   };
 
   // ---------------------------------------------- the order conversation ----
@@ -607,17 +631,28 @@ export function runAutotest(game: Game): void {
       await waitFrames(30); // settle pad: a press mid-transition is eaten at software-render fps (docs/47 W3)
       await interact();
       check(game.ui.postcardPanel.hidden && !game.player.frozen && !dbg.postcardRig(), 'postcard dismisses \u2014 the end lingers');
-      await walkTo(12.5, -6.8, 8);
-      await interact();
+      await walkTo(12.5, -6.8, 16); // the ladder-1 dismount eats sim time on slow frames — the budget waits
+      await waitFrames(30); // settle pad: a press mid-transition is eaten at software-render fps (docs/47 W3)
+      await pressUntil(() => s.lingerStage === 2, 20000, 'day 1 goodnight');
       check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight beat');
       {
         const t0 = performance.now();
         while (performance.now() - t0 < 30000 && dbg.rosaIntensity() <= 1.5) await nextFrame();
       }
       check(dbg.rosaIntensity() > 1.5, 'Rosa\u2019s window warms');
-      await interact();
-      check(dbg.dayFading(), 'rail: tomorrow begins');
+      await waitFrames(30); // settle pad (docs/47 W3) — the day-roll press must not land mid-warm
+      // the goodnight volley itself can roll the day (press 2 of the same
+      // volley fires rail() again — lingerStage isn't a volley break), so
+      // the observable contract is "the fade starts OR the day rolled".
+      await pressUntil(() => dbg.dayFading() || s.day === 2, 20000, 'tomorrow begins');
+      check(dbg.dayFading() || s.day === 2, 'rail: tomorrow begins');
       await waitMs(2200);
+      {
+        // poll-then-check (the harness law): the day roll lands a beat after
+        // the fade on slow frames
+        const t0 = performance.now();
+        while (performance.now() - t0 < 8000 && !(s.day === 2 && s.step === Step.D2_IDRIS)) await nextFrame();
+      }
       check(s.day === 2 && s.step === Step.D2_IDRIS, 'day 2 begins \u2014 Idris is on his way');
       check(s.money === 112 && s.cartName === "Wade's Spot", 'day 2 keeps name and money');
       check(loadSave().day === 2, 'day-start snapshot written');
@@ -656,9 +691,14 @@ export function runAutotest(game: Game): void {
       await walkTo(-5, 4.85, 24);
       await walkTo(-5, -5.0, 24);
       await walkTo(4, -5.2, 24);
-      await interact();
+      await waitFrames(30); // settle pad (docs/47 W3) — the offer press must land after the walk settles
+      // Idris at the cart can be the nearest body: a press serves instead of
+      // offering. Keep pressing until the OFFER is the reaction (one press
+      // opens the flag; the volley stops before it can confirm).
+      await pressUntil(() => s.awningConfirm, 20000, 'awning offer');
       check(s.awningConfirm, 'awning offer asks for a confirm press');
-      await interact();
+      await waitFrames(30); // settle pad (docs/47 W3) — the confirm press must not eat the offer's own frame
+      await pressUntil(() => s.awningUp && s.money === 102, 20000, 'awning confirm');
       check(s.awningUp && s.money === 102 && game.world.cartAwning.visible, `awning up: -$15 (got $${s.money})`);
       for (let i = 0; i < 3; i++) {
         await walkTo(4, -5.2);
@@ -701,17 +741,17 @@ export function runAutotest(game: Game): void {
       // "A Place at the Corner" — Rosa at the cart, a real morning rush
       // (orders are brewed, not snapped), the kid comes down, the stool,
       // the flyer by the subway, and the third window.
-      // Already standing on the rail spot (the reach-top walk put us here) —
-      // the old walkTo + comment block burned linger time on loaded boxes
-      // and the day rolled mid-sequence (the docs/51 dusk-rail family).
-      // One honest retry, a beat later, like a player who taps again.
-      if (s.lingerStage !== 2) {
-        await waitFrames(30);
-        await interact();
-      }
+      await walkTo(12.5, -6.8, 16); // the ladder-2 dismount eats sim time on slow frames — the budget waits
+      await waitFrames(30); // settle pad (docs/47 W3) — same eaten-press law as the day-1 goodnight
+      await pressUntil(() => s.lingerStage === 2, 20000, 'day 2 goodnight');
       check(s.lingerStage === 2, 'day 2 rail: Rosa\u2019s goodnight beat');
+      await waitFrames(30); // settle pad (docs/47 W3)
       await interact();
       await waitMs(2400);
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < 8000 && !(s.day === 3 && s.step === Step.D3_WAKE)) await nextFrame();
+      }
       check(s.day === 3 && s.step === Step.D3_WAKE, 'day 3 begins \u2014 Rosa has news');
       check(loadSave().day === 3, 'day-3 snapshot written');
 
@@ -839,6 +879,10 @@ export function runAutotest(game: Game): void {
       // with a duffel bag stands where this whole story started.
       await interact();
       await waitMs(2400);
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < 8000 && !(s.day === 4 && s.step === Step.D4_WAKE)) await nextFrame();
+      }
       check(s.day === 4 && s.step === Step.D4_WAKE, 'day 4 begins \u2014 the light stayed because someone keeps it');
       check(loadSave().day === 4, 'day-4 snapshot written');
       check(game.world.kidGround.visible && !game.world.kidSil.visible,

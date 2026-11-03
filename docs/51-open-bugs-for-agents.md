@@ -71,6 +71,33 @@ name/date before coding; mark FIXED in the same PR when done.
 
 ---
 
+## FIXED this session (walkability + perf ledger) — 2026-11-03
+
+### B15. North walk pinched shut at the W0 subway entrance plot — FIXED
+- **Found:** the probe-w1-ghost WALKABILITY gate wedged on 37/37 legs
+  (walker stuck at x −43.7..−45.5, z 4.4–7.6) — control-verified on a
+  pristine rebuild of the then-tip, so it shipped broken.
+- **Was:** the docs/50 merge restored the W0 blocker
+  `boxFromCenter(-42, 0.4, 6.2, 2.6, 1.0, 3.5)` ("nobody walks into the
+  earth") — but the placeholder stair-cut boxes it guarded were retired
+  by Agent-5 (`makeSubwayEntrance` is furniture-only now; the real
+  descendable shaft is the K-line slot at x −48.5..−45.9). The blocker
+  spanned the north walk's FULL depth, and the W1 route STARTS at its
+  center — the whole gate hinged on which way the eject pushed the walker.
+- **Fix:** retire the stale blocker again (Agent-5's own reconciliation,
+  which the merge lost). Ground at the plot reads the flat sidewalk (0.1);
+  the shaft at x −47 still descends (−0.89 verified); the entrance
+  furniture, decks and the (−42, 4.55) anchor keep their clearances.
+- **Commit:** the vertex-bake session (442b8c4 is perf; this fix is the
+  next commit on main).
+- **Verified:** probe-w1-ghost PASS (8/8 masses, wedged=false, 0 page
+  errors), W2 + W3 ghosts PASS, probe-solid ALL CLEAN, probe-peds OK,
+  probe-a5b/a5c/a5f clean, probe-subway 22/22, probe-w4-bus 13/13,
+  vitest 395/395, E2E 0 failures 356 s (E2E_W=320 E2E_H=700), console
+  clean. Tools kept: scripts/diag-wedge.mjs, scripts/diag-ground.mjs.
+
+---
+
 ## OPEN — probe failures (merged features)
 
 ### B1. Subway stair y-level (probe-subway) — FIXED 2026-11-03
@@ -135,6 +162,31 @@ name/date before coding; mark FIXED in the same PR when done.
 
 ## OPEN — systems / content
 
+### B4. Full E2E not re-run on post-W5 tip — FIXED (the flake family, driver-side)
+- The first-session merge (docs/52) re-ran the autotest on the merged tip
+  AND on pure `origin/main`: both trees failed 1–5 of ~104 checks on the
+  same box (≈48% slower than the documented rig), all one family. The
+  game behavior behind every rail was already verified by the
+  deterministic probes — the DRIVER was racing the game.
+- **The fix (driver-only, `src/game/autotest.ts`):**
+  1. `lingerStage` joined the interact volley's break list — the rail's
+     goodnight (stage 1→2) changes no step and freezes nothing, so press 2
+     of one volley fired `rail()` again and rolled the day inside a breath.
+  2. `pressUntil(cond, budget)` — press on the real input path, watch the
+     condition, keep pressing until it holds. The flaky beats now press
+     like a person: the goodnights, "tomorrow begins"
+     (`dayFading() || day rolled`), and the awning offer/confirm (Idris at
+     the cart can be the nearest body — a press serves instead of
+     offering; the next press offers).
+  3. The day-roll checks poll `s.day === N` instead of sleeping a fixed
+     wall time.
+- **Corroborating datapoint (Agent 2, 2026-11-02, 480×360 slow-sandbox
+  viewport):** a full 4-day pass was green on the post-W5 + half-court +
+  Map-fix + court-fix tip — AUTOTEST OK, 0 failures, 349 s, POINTER guard
+  3/3 — the flake is a wall-clock family, not a story bug; some viewports
+  dodge it by luck. The pressUntil law makes every viewport honest.
+- **Evidence: two consecutive full runs, 0 failures, 476 s / 477 s, 127
+  checks each, console clean — on the box that used to flake 1–5.**
 ### B4. Full E2E on the post-W5 tip — re-run twice; one flake family named, one viewport green
 - The first-session merge (docs/52) ran the 4-day autotest on the merged
   tip AND on pure `origin/main`: both trees fail 1–5 of ~104 checks on the
@@ -240,6 +292,11 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   ships above previous ledger.” Continue district visibility, material
   discipline, and measured before/after on the three fixed camera rigs.
 - **Status:** OPEN — ongoing construction law, not a single bug.
+- **Update 2026-11-03 (vertex bake, 442b8c4):** PLAZA 846 → 462,
+  CART_CORNER 718 → 405, SYCAMORE×GABLE 279 → 132 — the intersection rig
+  is UNDER the 250 line for the first time; Kestrel still over 150, gate
+  line stays published. The statics' colors now ride vertex attributes and
+  the census audit reads them (23 distinct [vc] shades surface).
 
 ### B14. Documentation hygiene
 - Some older docs (Phase 0 exit, AGENTS.md “code pending”) still read as if
