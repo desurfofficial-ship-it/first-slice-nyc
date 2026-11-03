@@ -197,6 +197,17 @@ export class UI {
     this.interactBtn.classList.add('occupied');
   }
 
+  /** On a phone the stick zone and the turn buttons live under the thumb.
+   *  While a paper panel owns the screen — the order card, the Map, the
+   *  postcard, the name box — the stick must not steal taps from it. The
+   *  `hidden-when-panel` CSS hook shipped on day one; this is the wiring
+   *  it waited for (docs/51 B7). */
+  private syncPanelOverTouch() {
+    const panelOpen = !this.nameBox.hidden || !this.postcardPanel.hidden
+      || !this.orderCard.hidden || !this.mapPanel.hidden;
+    this.touchUI.classList.toggle('hidden-when-panel', panelOpen);
+  }
+
   /** The half-court's shot meter (docs/49): a transient skill read, not
    *  HUD chrome — visible only while the ball is in your shot pocket.
    *  band = [lo, hi] charge values of the gold release band. */
@@ -224,12 +235,14 @@ export class UI {
     this.nameBox.hidden = false;
     this.nameInput.value = '';
     this.prompt.hidden = true;
+    this.syncPanelOverTouch();
     window.setTimeout(() => this.nameInput.focus(), 30);
   }
 
   closeNameBox() {
     this.nameBox.hidden = true;
     this.nameInput.blur();
+    this.syncPanelOverTouch();
   }
 
   // ---------------- the serving conversation (docs/11 + docs/12) ----------------
@@ -257,6 +270,7 @@ export class UI {
     this.orderCard.hidden = false;
     this.prompt.hidden = true;
     this.interactBtn.classList.remove('occupied');
+    this.syncPanelOverTouch();
   }
 
   /** The reply landed — what comes back, in the same paper. */
@@ -279,6 +293,7 @@ export class UI {
     this.orderResponse.hidden = true;
     this.orderHint.hidden = true;
     this.orderRespondedShown = false;
+    this.syncPanelOverTouch();
   }
 
   // ---------------- the Map, as a notebook (docs/11 + docs/12) ----------------
@@ -288,11 +303,13 @@ export class UI {
     this.refreshMap(notes, slang);
     this.mapBtn.setAttribute('aria-pressed', 'true');
     this.prompt.hidden = true;
+    this.syncPanelOverTouch();
   }
 
   closeMap() {
     this.mapPanel.hidden = true;
     this.mapBtn.setAttribute('aria-pressed', 'false');
+    this.syncPanelOverTouch();
   }
 
   /** Redraw page 2 — the margins hold what the city taught you. */
@@ -335,10 +352,12 @@ export class UI {
     }
     this.postcardCaption.textContent = caption;
     this.postcardPanel.hidden = false;
+    this.syncPanelOverTouch();
   }
 
   hidePostcard() {
     this.postcardPanel.hidden = true;
+    this.syncPanelOverTouch();
   }
 
   // ---------------- fade / title ----------------

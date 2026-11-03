@@ -152,8 +152,9 @@ export class Game {
     this.player = new Player(this.world.colliders);
     this.cam = new GameCamera(window.innerWidth / window.innerHeight, this.world.colliders, this.world.canopySpheres());
     // the camera reports which canopies block its sight line; the world
-    // fades those canopies so the street never hides the player
-    this.world.canopyOcclusion = this.cam.occlusion;
+    // fades those canopies so the street never hides the player.
+    // setCanopies re-binds if World ever grows more trees after boot (B6).
+    this.world.canopyOcclusion = this.cam.setCanopies(this.world.canopySpheres());
     this.ui = new UI();
     this.input = new InputManager({
       joyZone: document.getElementById('joy-zone')!,
@@ -1491,6 +1492,11 @@ export class Game {
     mapSlang: () => [...this.state.mapSlang],
     mapOpen: () => this.mapOpen,
     kidDay1Served: () => this.state.kidDay1Served,
+    // docs/51 B6 tripwire: the occlusion buffer is sized once, at camera
+    // construction. True today because every canopy push happens inside the
+    // World constructor — if anyone grows canopies after boot, this goes
+    // false and the fade silently misses the new trees.
+    occlusionInSync: () => this.cam.occlusion.length === this.world.canopySpheres().length,
     // the living block (Doc 33) — reads only, for the visual probes
     ambientWindows: () => [
       this.world.ambientWindowMatLate.emissiveIntensity,

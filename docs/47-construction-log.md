@@ -995,6 +995,46 @@ notebook's two pages stack correctly on the phone width.
 [main]` read as `ain]` in one terminal capture) and was cleared by a
 byte-exact check before any "fix" was attempted. The workflow was never
 broken; the terminal output was.
+
+## The court you can put down, the stick that waits its turn (SHIPPED 2026-11-02, branch `fix/map-button-reachable`)
+
+**Scope:** the open-bugs ledger (docs/51) — B3 and B7 fixed, B6 tripwired,
+B4 re-verified. The half-court's own probe drove the work.
+
+**B3 — the ball that could not be picked up.** The probe forensics (a
+phase-walk sampler installed around the failing press) showed the truth:
+the state machine was still in `flight` with the ball parked on the
+slab. The sim's rest detector required `speed < 0.35` for 0.45 s, but a
+ball rolling into the chain-link reflected at ANY speed — an endless
+micro-bounce — and even the `age > 7` escape still demanded
+`speed < 0.8`. The court's own referee (7.5 **game**-seconds) is an
+eternity on a dt-clamped machine: ≈20+ wall-seconds of unpickable ball.
+Fixed in three layers: crawl-speed wall contacts die instead of
+reflecting; a grounded ball at age 7 rests, whatever the jitter says;
+the flight referee drops to 4 game-seconds (a real flight resolves in
+≤3). The promised mid-return intercept works now too — the interaction's
+live spot follows the rolling ball. **probe-court: ALL PASS**, including
+the mobile touch-shot.
+
+**B7 — the stick that stole the screen.** The `hidden-when-panel` CSS
+hook shipped on day one and nothing ever set the class. One private
+`UI.syncPanelOverTouch()`, wired to all four paper surfaces (name box,
+postcard, order card, Map). Verified on an emulated phone: Map open →
+`#touch-ui` display none.
+
+**B6 — the tripwire, not the refactor.** Verified structurally safe
+today: every canopy push happens in the World constructor, before the
+camera exists. The E2E driver now carries `occlusionInSync()` — if
+anyone ever grows canopies after boot, the suite fails instead of the
+fade silently missing trees.
+
+**B4 — re-verified:** full 4-day E2E on this tip — AUTOTEST OK, 0
+failures, 432 s, zero console errors, POINTER guard 3/3, occlusion
+tripwire PASS.
+
+**Verification:** tsc clean · vitest **367/367** · build clean ·
+probe-court ALL PASS · E2E green (above). B1/B2/B5 remain open — they
+need an owner decision (two bus systems, one bay), not a drive-by fix.
 ---
 
 ## Post-arc repair — the terminal bay, made honest (SHIPPED 2026-11-03)
@@ -1346,3 +1386,60 @@ awning's nearest body can be Idris — a press serves, the next offers), and
 the day-roll checks poll the state instead of sleeping wall time.
 **Evidence: two consecutive full runs, 0 failures (476 s / 477 s, 127
 checks), console clean — on the box that flaked.** docs/51 B4 closed.
+## The vertex bake — the statics' colors move into geometry (2026-11-03)
+
+**What landed.** The recorded "next call cut needs vertex colors" lever,
+applied where no law decision blocks it — the statics. `bakeStatics` and
+`bakeZoneStatics` now split sources at the material's emissive: a
+NON-emissive flat-color Lambert source rides the shared white
+`vertexColors` material (two exist — fog on/off), its exact color baked
+into a per-vertex `color` attribute; the batch signature becomes
+`VC|fog|cast|recv` and every (fog, cast, receive) combo in a tile fuses
+into ONE draw regardless of how many distinct prop colors it holds.
+Emissive sources keep the old color-keyed path (emissive is material-wide
+and cannot ride vertices). Lambert's diffuse math is untouched —
+`color × 1` became `white × color`, the same product bit-for-bit; uv is
+dropped on VC batches (no map), which also lets uv-less and uv-ful
+sources fuse. The W4 cast-only fold still applies on the VC keys.
+
+**The palette-snap idea was measured first and honestly killed.** New
+diag tool `diag-bake-colors.mjs` (kept as evidence): the bakes had
+already spent color equality — 666 bake/zone meshes collapse to 419
+distinct (color|emissive|cast|recv) combos at drift 0, and snapping every
+source to the nearest Doc 04 color buys only −25 more even at a visible
+drift of 40/255. The remaining draws are genuinely distinct colors, not
+drift — a snap would have shifted art for almost nothing.
+
+**The palette-audit law decision, made and recorded.** The census's
+palette audit reads color WHERE IT LIVES: material.color for plain
+meshes AND `geometry.attributes.color` for vertex-colored ones (one count
+per distinct shade per mesh, sample named `…[vc]`). On tip the audit
+surfaces 23 distinct vertex shades (4a3a30 ×25, 6d5344 ×36, 8f8a82 ×31,
+the old bake colors, now riding geometry) — the fusion cannot masquerade
+as palette slop, and off-palette vertex colors still surface. The white
+VC material itself reads as the one intentional off-palette entry.
+
+**The numbers, honestly.** Census rigs (boot state, zones unlit):
+PLAZA 846 → **462** (−384, −45%), CART_CORNER 718 → **405** (−313),
+SYCAMORE×GABLE 279 → **132** (−147) — the intersection rig sits UNDER
+the Doc 07 line (132 < 250) for the first time. Tris +10.7k / +15.2k /
++11.0k (fused per-tile bounds rasterize slightly more; the same honest
+price family as the canopy bake's +1.3k). The gate line stays published:
+Kestrel max 462 > 150 FAIL — but docs/51 B13's operational law ("no
+phase ships above previous ledger") is met with the largest single cut
+since the zone bake.
+
+**Verification**: tsc clean · vitest **390/390** · build clean ·
+probe-autumn PASS · probe-camfade PASS · probe-env5 PASS · probe-solid
+ALL CLEAN · probe-subway ALL PASS 22/22 · probe-w4-bus OK 13/13 ·
+probe-w0-census OK (ledger above) · plaza + cart-corner screenshots read
+correctly by eye (brick, teal, court, awnings, signs — the vertex colors
+render identically) · **E2E: OK — 0 failures, 360 s**, console clean
+(E2E_W=320 E2E_H=700). Known-not-ours, recorded where found: the
+probe-w1-ghost WALKABILITY gate wedges at x ≈ −44, z 4.4–7.6 on THIS
+build and on a pristine-HEAD control rebuilt in the same sandbox — a
+pre-existing tip break, not the bake's (colliders do not ride render
+batches); it is being filed and fixed separately. Sandbox note: the
+recycled box ships Chrome headless-shell 156 — probe-w4-bus now needs
+~6 min wall (the loop lap alone measured 171 s inside the probe); short
+`timeout` wrappers read as browser crashes and are not.
