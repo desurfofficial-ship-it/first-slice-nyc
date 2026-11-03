@@ -287,14 +287,34 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   docs/50 §4 + §7 hand-offs.
 - **Status:** OPEN — high priority for vertical-slice feel.
 
-### B10. Times Square / Wow Walk beat is a note, not a postcard
-- **Symptom:** The sync beat fires `tsBeats` (Game drains it) but does not yet
-  call the real postcard capture pipeline. Doc 02 / Doc 07 expect a shareable
-  postcard at the wonder moment.
-- **Needed:** One-line (or small) swap to `composePostcard()` once the square
-  vista is authored; keep the existing capture → caption → album path.
-- **Where:** Times Square beat handler, postcard pipeline (already spiked).
-- **Status:** OPEN — high priority for UGC / retention flywheel.
+### B10. Times Square / Wow Walk beat is a note, not a postcard — FIXED 2026-11-03
+- **Was:** The sync beat fired `tsBeats` (Game drained it) but only showed the
+  note; Doc 02 / Doc 07's shareable postcard at the wonder moment didn't exist.
+- **Fix:** `composeWowPostcard()` in Game.ts — 1.5 s after the beat lands
+  (mid-hold of the warm sync, when the square is brightest) a born-inside
+  capture camera (the TS-01 precedent: fov 55, 768×1160) frames the stacked
+  south tower straight-on from the plaza edge and rides the existing
+  capture → caption → panel path. New `tsWowCaption()` (content.ts) speaks
+  the day-card voice about the square, not the ledger. The card is a moment,
+  not a story beat: no step moves, no day completes; Stay ("Back to the
+  square") takes the light path in dismissPostcard. The paper holds the hands
+  (B7 contract — frozen while up, `syncTouchPanels` wired into both doors of
+  the postcard panel, which the B7 fix read but never announced); the day-end
+  compose clears `wowPostcard` so a late day card can never lose its
+  postcardRig cleanup to the light path.
+- **Commit / branch:** pushed to `main` (Agent 2, this commit).
+- **Verified:** `tests/wow-postcard.test.ts` (5 guards: caption voice, the
+  card tells the same truth as the note, fits the 6-line paper budget, is
+  not the day-end ledger card, matches the house sign-off shape); full
+  vitest 419/419; `tsc --noEmit` clean; in-engine proof
+  `scripts/diag-wow-card.mjs` (walks the honest route out of the subway):
+  beat drains → panel opens at +1.5 s with a real PNG card, "Back to the
+  square" label, frozen-while-up, dismiss closes + unfreezes with
+  `step`/`day` untouched; capture pose authored through four diagnostic
+  shots (facade-hug → far → steps-steep → straight-on plaza edge, kept
+  `shots/wow-card-*.png`).
+- **Where:** `web-three/src/game/Game.ts`, `web-three/src/core/content.ts`,
+  `web-three/src/ui/UI.ts`.
 
 ### B11. Subway University (Priya + Map copies badly) incomplete
 - **Symptom:** Station + ride exist; the guided teach beat (Priya, two-line

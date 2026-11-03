@@ -1075,6 +1075,19 @@ export const RIDE_BEAT_TEXT: Record<string, string> = {
 export const TS_SYNC_NOTE =
   'The screens all turn at once \u2014 warm light, just for you. Times Square. 300,000 people cross here every day. Today, so did you.';
 
+/** The Wow card's caption (docs/51 B10) — the sync beat, kept as a real
+ *  shareable postcard. Day-card voice (see composeCaption) but about the
+ *  square, not the ledger: the story machine stays sacred, the card is the
+ *  wonder moment's keepsake. */
+export function tsWowCaption(s: { day: number; cartName: string }): string {
+  return (
+    `Day ${s.day}. The screens all turned at once.\n` +
+    'Warm light, just for you. 300,000 people cross here every day.\n' +
+    'Today, so did you.\n\n' +
+    `\u2014 ${s.cartName}, Day ${s.day}`
+  );
+}
+
 export const BUSKER_LINES = [
   'The sax does the thing saxophones do to a tile room. You stay for the whole phrase.',
   'The busker nods at your tapping foot. "You got it, rookie. The city dances first, explains later."',

@@ -377,20 +377,31 @@ export class UI {
 
   // ---------------- postcard ----------------
 
-  showPostcard(imgUrl: string, caption: string) {
+  showPostcard(imgUrl: string, caption: string, stayLabel = 'Stay a while') {
     if (imgUrl) {
       this.postcardImg.src = imgUrl;
       this.postcardImg.hidden = false;
     } else {
       this.postcardImg.hidden = true;
     }
+    // the alt rides the caption's first line — a screen reader gets the
+    // moment, not a hardcoded Day 1 line (the panel shows day-end cards
+    // AND the Wow card now)
+    this.postcardImg.alt = `Postcard \u2014 ${caption.split('\n')[0]}`;
     this.postcardCaption.textContent = caption;
+    this.postcardStay.textContent = stayLabel;
     this.postcardPanel.hidden = false;
+    // the B7 contract includes the postcard (panelUp reads postcardPanel) —
+    // the wiring has to ride both doors of the panel, or touch players
+    // hold a stick that the paper is holding (upstream wired the card and
+    // the Map; the postcard was read but never announced)
+    this.syncTouchPanels();
     this.syncPanelOverTouch();
   }
 
   hidePostcard() {
     this.postcardPanel.hidden = true;
+    this.syncTouchPanels();
     this.syncPanelOverTouch();
   }
 

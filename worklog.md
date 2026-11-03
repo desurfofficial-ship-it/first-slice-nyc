@@ -160,3 +160,42 @@ Stage Summary:
   move") is now reachable, not just declared. Remaining OPEN in docs/51:
   B1 (subway stair y), B2 (M121 enterable), B4 (dusk-rail flake, needs a
   clean machine), B6-B14.
+---
+Task ID: AGENT2-DOCS51-B10-WOW-CARD
+Agent: Agent 2
+Task: Pick a bug from docs/51-open-bugs-for-agents.md and fix it; push to
+main (working in parallel with other agents).
+
+Work Log:
+- Rebased the uncommitted B10 work-in-progress (a previous session's
+  composeWowPostcard) onto the 11 commits that landed on main meanwhile
+  (B3/B6/B7/B8 fixes, the bug-hunt pass, the arrival rebuild); stash →
+  pull → pop applied clean, upstream's timesSquare changes were crowd
+  behavior only, the beat drain site and capture pipeline untouched.
+- Authored the capture pose through four diagnostic shots
+  (diag-wow-card.mjs): facade-hug (screens peeking at the frame top) →
+  far straight-on (screens small, bare wall) → red-steps steep (black
+  void, falling-over tilt) → SHIPPED: straight-on from the plaza edge
+  (-326, 1.9, 10.5 → -326, 13.5, -7.9) — the stacked south tower warm
+  and centered, sky band above, storefront rhythm below.
+- Closed two race/contract gaps on the way:
+  1. freeze while the card is up (the B7 paper-holds-hands contract;
+     also closes the walk-away race — the moment cannot be half-lived),
+  2. the day-end compose now clears wowPostcard, so a late day card can
+     never lose its postcardRig cleanup to the Wow card's light-path Stay.
+- Completed the B7 wiring the fix implied: syncTouchPanels() now rides
+  showPostcard/hidePostcard (the panelUp check already read
+  postcardPanel; the calls were never wired).
+- Gates: tsc --noEmit clean; vitest 419/419 (24 files, 5 new
+  wow-postcard guards); bun build clean; diag-wow-card.mjs in-engine:
+  beat drains → panel at +1.5 s with a real PNG card, "Back to the
+  square", frozenWhileUp=true, dismiss closes + unfreezes with
+  step/day untouched; console clean (pre-existing GL warnings only).
+- docs/51 updated in the same commit: B10 moved under its own FIXED
+  entry with mechanism, verification, and kept diagnostics.
+
+Stage Summary:
+- B10 closed on main. The wonder moment now keeps its paper: the sync's
+  shareable postcard rides the existing capture → caption → panel path,
+  the story machine stays sacred. Remaining OPEN in docs/51: B4 (needs a
+  clean machine), B5-recheck, B9, B11-B14, plus docs/53's follow-ups.

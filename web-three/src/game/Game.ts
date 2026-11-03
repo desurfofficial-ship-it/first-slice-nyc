@@ -8,7 +8,7 @@
 
 import * as THREE from 'three';
 import { GameState, Step, START_MONEY, type Effect } from '../core/GameState';
-import { composeCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE_OBJECTIVE,
+import { composeCaption, tsWowCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE_OBJECTIVE,
   D3_ORDERS, D4_ORDERS, BREWING_NOTE, STOOL_OFFER_NOTE, STOOL_UP_NOTE, D3_GOLDEN_NOTE,
   D3_CLIMB_NOTE, DAY3_BEGIN_NOTE, D4_GOLDEN_NOTE, D4_CLIMB_NOTE, DAY4_BEGIN_NOTE,
   D4_STRANGER_ONHOUSE_NOTE, D4_STRANGER_WATCH_NOTE, D4_STRANGER_DEPART_NOTE,
@@ -73,6 +73,10 @@ export class Game {
   readonly bootedFromDay: number;
   private duskStarted = false;
   private postcardRig = false;
+  /** The Wow card (docs/51 B10) is open — the panel currently shows the
+   *  sync beat's keepsake, NOT the day-end card. Dismissal takes the light
+   *  path: the story machine stays sacred. */
+  private wowPostcard = false;
   private rosaWalking = false;
   private idrisWalking = false;
   /** Gold chevron floating over whoever the objective says to follow. */
@@ -286,7 +290,9 @@ export class Game {
     this.ui.onMapToggle = () => this.toggleMap();
     this.ui.postcardKeep.addEventListener('click', () => {
       if (this.lastPostcardUrl) {
-        downloadPostcard(this.lastPostcardUrl, `first_slice_postcard_day${this.state.day}.png`);
+        downloadPostcard(this.lastPostcardUrl, this.wowPostcard
+          ? `first_slice_times_square_day${this.state.day}.png`
+          : `first_slice_postcard_day${this.state.day}.png`);
       }
     });
     this.ui.postcardStay.addEventListener('click', () => this.dismissPostcard());
@@ -893,6 +899,14 @@ export class Game {
     while (w.tsBeats.length > 0) {
       w.tsBeats.shift();
       this.ui.showNote(TS_SYNC_NOTE);
+      // the Wow card (docs/51 B10): Doc 02/07's shareable postcard at the
+      // wonder moment. The sync needs 1.2 s to reach full warm — capture
+      // mid-hold, when the square is at its brightest, then show the card
+      // on the existing capture → caption → panel path (day machine sacred).
+      this.tweens.sequence(
+        this.tweens.wait(1.5),
+        this.tweens.call(() => this.composeWowPostcard()),
+      );
     }
   }
 
@@ -1450,10 +1464,67 @@ export class Game {
       url = '';
     }
     this.ui.showPostcard(url, caption);
+    // the day card owns the panel from here — if the Wow card was somehow
+    // still up, its light-path Stay must never eat the day-end's cleanup
+    // (postcardRig lives on the day path; losing it strands the camera)
+    this.wowPostcard = false;
     this.persist();
   }
 
+  /** The Wow Walk's postcard (docs/51 B10): a REAL shareable card at the
+   *  wonder moment — Doc 02's beat #1, Doc 07's UGC flywheel. The story
+   *  machine stays sacred: no step moves, no day completes; the card rides
+   *  the same capture → caption → panel path as the day-end card, and its
+   *  Stay takes the light path in dismissPostcard(). The pose is the
+   *  square's authored vista — the beat fires on first entry and the only
+   *  way into the square is the subway stairs at x −335.6, so the player is
+   *  standing in exactly this frame when the beat lands (the day-end card's
+   *  authored-rig precedent, TS-01). Captured mid-hold: the beat lands at
+   *  syncT 0, this runs at +1.5 s, the warm hold spans 1.2..3.8 s. */
+  private composeWowPostcard(): void {
+    // a day-end card (or another Wow card) already owns the panel — the
+    // wonder moment never fights the story for the paper
+    if (this.wowPostcard || this.postcardRig || !this.ui.postcardPanel.hidden) return;
+    const s = this.state;
+    const caption = tsWowCaption({ day: s.day, cartName: s.cartName || 'First Slice' });
+    const capCam = new THREE.PerspectiveCamera(55, 768 / 1160, 0.1, 400);
+    // the arrival view, held: from mid-plaza the stacked south tower fills
+    // the portrait frame — screens top-two-thirds, warm plaza below (the
+    // first pose hugged the facade; the vista lives one block back)
+    capCam.position.set(-326, 1.9, 10.5);
+    capCam.lookAt(-326, 13.5, -7.9); // the stacked south screens straight-on — the tower, warm, owns the frame
+    try {
+      const result = capturePostcard(
+        this.renderer, this.world.scene, capCam, caption,
+        s.cartName || 'First Slice', s.day,
+        'october', // days 1–4 are one golden October week — the stamp knows it
+      );
+      this.lastPostcardUrl = result.dataUrl;
+      this.wowPostcard = true;
+      this.ui.showPostcard(result.dataUrl, caption, 'Back to the square');
+      // the paper holds the hands (the B7 contract): the sync is a STOP —
+      // look up, keep the card, go back to the square when ready. Freezing
+      // here also closes the walk-away race: the moment cannot be half-lived.
+      this.player.frozen = true;
+    } catch (err) {
+      // the note already carried the beat; a failed capture must never
+      // wedge the walk (the day-end card shows the error instead — it has
+      // the whole day riding on the panel; this one doesn't)
+      console.warn('wow postcard capture failed:', (err as Error).message);
+    } finally {
+      capCam.dispose();
+    }
+  }
+
   private dismissPostcard(): void {
+    if (this.wowPostcard) {
+      // the Wow card is a moment, not a story beat (docs/51 B10): the day
+      // machine stays sacred — put the walk back and nothing else
+      this.wowPostcard = false;
+      this.ui.hidePostcard();
+      this.player.frozen = false;
+      return;
+    }
     this.ui.hidePostcard();
     this.player.frozen = false;
     this.postcardRig = false;
