@@ -34,6 +34,37 @@ const BUS = { cx: -32.15, z: 2.0, len: 11, halfW: 1.25, floorTop: 0.55, roof: 2.
  *  standing inside. */
 export const BUS04_RECT = { minX: -37.65, maxX: -26.65, minZ: 0.75, maxZ: 3.25 } as const;
 
+/** The curb-side boarding step's footprint + top (BUS_Step_1). The builder
+ *  places the box from these numbers and the occupancy law below reads
+ *  them, so the mesh and the law can never drift apart. */
+export const BUS04_STEP = {
+  minX: -28.15, maxX: -27.15, // center x −27.65, width 1.0 — the door gap's line
+  minZ: 3.3, maxZ: 3.9,       // center z zN + 0.35 = 3.6, depth 0.6
+  top: 0.3,                   // one 0.2 rise off the sidewalk, 0.25 to the floor
+} as const;
+
+/** The one-bay occupancy law's player half (docs/51 B2): does this body
+ *  hold the bay? True when the player stands inside BUS-04's registry
+ *  interior — feet on the 0.55 floor, the y band keeping the street out —
+ *  or MID-BOARD on the curb-side step: the one place a boarding player
+ *  stands on the shell's own geometry OUTSIDE BUS04_RECT. Without the step
+ *  branch the loop M121 could park on the bay while the player was boarding
+ *  and retire the shell — step, floor and all — out from under their feet
+ *  (and its own body then walled the door shut: docs/47's "one bay, one
+ *  bus" fused-bus failure, back through the boarding window). */
+export function playerOccupiesBus04(x: number, y: number, z: number): boolean {
+  const insideRect = x > BUS04_RECT.minX && x < BUS04_RECT.maxX
+    && z > BUS04_RECT.minZ && z < BUS04_RECT.maxZ;
+  if (insideRect && y > 0.4) return true;
+  // Mid-board: the capsule's center may hang a radius (0.35) off the step
+  // while the feet stay on it; y 0.2..0.65 covers the step top (0.3) and
+  // the first frame of the floor snap (0.55) without counting the sidewalk
+  // (0.1) or the street inside the retired rect.
+  return x > BUS04_STEP.minX - 0.4 && x < BUS04_STEP.maxX + 0.4
+    && z > BUS04_STEP.minZ - 0.05 && z < BUS04_STEP.maxZ + 0.4
+    && y > 0.2 && y < 0.65;
+}
+
 export interface ArrivalBus {
   group: THREE.Group;
   colliders: ColliderSpec[];
@@ -117,9 +148,14 @@ export function buildArrivalBus(
     box(`BUS_Wheel_${wx}_${wz > z ? 'n' : 's'}`, wx, 0.32, wz, 0.65, 0.64, 0.24, 0x2b2430, { collide: false });
   }
 
-  // curb-side entry steps (the law: every rise ≤ 0.35)
-  box('BUS_Step_1', -27.65, 0.15, zN + 0.35, 1.0, 0.3, 0.6, 0x8f8a82);
-  col(-27.65, 0.15, zN + 0.35, 1.0, 0.3, 0.6);
+  // curb-side entry steps (the law: every rise ≤ 0.35) — the box comes
+  // from BUS04_STEP so the occupancy law and the mesh are the same numbers
+  const stepX = (BUS04_STEP.minX + BUS04_STEP.maxX) / 2;
+  const stepZ = (BUS04_STEP.minZ + BUS04_STEP.maxZ) / 2;
+  const stepW = BUS04_STEP.maxX - BUS04_STEP.minX;
+  const stepD = BUS04_STEP.maxZ - BUS04_STEP.minZ;
+  box('BUS_Step_1', stepX, 0.15, stepZ, stepW, 0.3, stepD, 0x8f8a82);
+  col(stepX, 0.15, stepZ, stepW, 0.3, stepD);
 
   // interior: driver cab bulkhead, seat benches, pole, rail
   box('BUS_CabWall', -35.75, bodyY, z, 0.12, bodyH, halfW * 2 - 0.3, 0xd8d8d8);

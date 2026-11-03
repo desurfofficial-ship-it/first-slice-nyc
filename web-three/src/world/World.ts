@@ -32,7 +32,7 @@ import { LeafDrift } from './leaves';
 import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
 import { buildSubwaySystem, STATION, type SubwaySystem, type ColliderSpec } from './subway';
 import { buildTimesSquare, type TimesSquare } from './timesSquare';
-import { buildArrivalBus, BUS04_RECT, type ArrivalBus } from './arrivalBus';
+import { buildArrivalBus, BUS04_RECT, playerOccupiesBus04, type ArrivalBus } from './arrivalBus';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay } from './dressing';
 import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT } from '../core/content';
 // the half-court upgrade (docs/48/49) — basketball-owned module, the one
@@ -5865,13 +5865,15 @@ export class World {
     if (wantHidden !== this.arrivalHidden) this.setArrivalHidden(wantHidden);
   }
 
-  /** Is the player standing inside BUS-04's registry interior? (The y band
-   *  keeps the street out — only the floor at 0.55 counts as inside.) */
+  /** Is the player standing inside BUS-04's registry interior — or mid-board
+   *  on its curb-side step? The law is pure and tested (arrivalBus.ts). The
+   *  y band keeps the street out; the step branch keeps the shell under a
+   *  BOARDING player's feet (docs/51 B2): without it the loop M121 could
+   *  park on the bay mid-board and retire the step + floor out from under
+   *  them, its own body walling the door behind that. */
   private playerInsideArrival(player?: { x: number; y: number; z: number }): boolean {
     if (!player) return false;
-    return player.x > BUS04_RECT.minX && player.x < BUS04_RECT.maxX
-      && player.z > BUS04_RECT.minZ && player.z < BUS04_RECT.maxZ
-      && player.y > 0.4;
+    return playerOccupiesBus04(player.x, player.y, player.z);
   }
 
   /** Swap BUS-04's shell + its colliders as one unit. The AABB objects are
