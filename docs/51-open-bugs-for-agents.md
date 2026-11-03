@@ -125,10 +125,15 @@ Everything still listed under OPEN is live work for a follow-up agent.
   a `occlusionInSync()` tripwire (“the camera occlusion buffer covers every
   canopy”) so a late-growing canopy path fails the suite instead of
   silently never fading.
-- **2026-11-03:** the proper fix landed too — `GameCamera.setCanopies()`
-  (commit d105cbe) lets the world re-seat the canopy list after boot, so
-  the buffer can grow with it. The tripwire stays: it proves the wiring
-  on every suite run.
+- **2026-11-03, record corrected:** commit d105cbe CLAIMED `setCanopies()`
+  but actually gutted `GameCamera.ts` to a one-word placeholder (1 insertion,
+  406 deletions) — repaired from the last good main tree. The lazy-resize
+  design itself carries a trap worth naming before anyone lands it: the
+  World reads the camera's buffer **by reference, wired once at boot**
+  (`world.canopyOcclusion = cam.occlusion`) — swapping the array under it
+  silently stale-ates the fade pass. A real fix must change the read side
+  in the same commit. Until then B6 stays: structurally safe (every canopy
+  push happens in the World constructor) + the E2E tripwire on every run.
 - Original note: `GameCamera` builds `occlusion: Float32Array(canopies?.length ?? 0)` at
   construct time. If World adds trees after camera construction without
   resizing the buffer, fade-on-occlude silently no-ops for new canopies.
