@@ -1330,3 +1330,19 @@ honestly refuses). Full evidence in docs/52 §5: typecheck clean, vitest
 ghosts PASS, solid CLEAN, doc12 clean, the film's probes clean. E2E on this
 box: 3–5 environmental flake failures of ~104 on BOTH trees (dusk-timed
 rails; both trees ~48% slower than the documented rig) — docs/51 B4.
+
+---
+
+## The e2e flake family, driver-side fix (2026-11-03, post-merge)
+
+The 4-day autotest failed 1–5 of ~104 checks on this box (both the merge
+and pure main) — all one family: the dusk-timed goodnight rails, "tomorrow
+begins", the awning confirm. The deterministic probes proved the game
+correct, so the driver was racing it. Three driver-only fixes
+(`src/game/autotest.ts`): lingerStage joined the volley's break list (one
+volley could fire the goodnight AND roll the day in a breath),
+`pressUntil` presses on the real input path until the beat reacts (the
+awning's nearest body can be Idris — a press serves, the next offers), and
+the day-roll checks poll the state instead of sleeping wall time.
+**Evidence: two consecutive full runs, 0 failures (476 s / 477 s, 127
+checks), console clean — on the box that flaked.** docs/51 B4 closed.

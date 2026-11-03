@@ -74,17 +74,26 @@ else is open for a follow-up agent.
 
 ## OPEN — systems / content
 
-### B4. Full E2E not re-run on post-W5 tip — re-run at the merge; the flake family is named
-- The first-session merge (docs/52) ran the 4-day autotest on the merged
-  tip AND on pure `origin/main`: both trees fail 1–5 of ~104 checks on the
-  same box, all in one family — the wall-clock-timed dusk rails ("Rosa's
-  goodnight beat", "tomorrow begins") and the awning confirm — with console
-  clean every run. Both trees run ~48% slower here than the documented rig
-  (442 s vs 298 s). The game behavior behind every flaked rail is verified
-  by the deterministic probes (probe-subway, probe-doc12, probe-w4-*).
-- **Action for a clean machine:** one full pass at the harness default
-  viewport; if the dusk rails still flake, widen the driver's wait windows
-  (driver-side, documented) rather than touching the day clock.
+### B4. Full E2E not re-run on post-W5 tip — FIXED (the flake family, driver-side)
+- The first-session merge (docs/52) re-ran the autotest on the merged tip
+  AND on pure `origin/main`: both trees failed 1–5 of ~104 checks on the
+  same box (≈48% slower than the documented rig), all one family. The
+  game behavior behind every rail was already verified by the
+  deterministic probes — the DRIVER was racing the game.
+- **The fix (driver-only, `src/game/autotest.ts`):**
+  1. `lingerStage` joined the interact volley's break list — the rail's
+     goodnight (stage 1→2) changes no step and freezes nothing, so press 2
+     of one volley fired `rail()` again and rolled the day inside a breath.
+  2. `pressUntil(cond, budget)` — press on the real input path, watch the
+     condition, keep pressing until it holds. The flaky beats now press
+     like a person: the goodnights, "tomorrow begins"
+     (`dayFading() || day rolled`), and the awning offer/confirm (Idris at
+     the cart can be the nearest body — a press serves instead of
+     offering; the next press offers).
+  3. The day-roll checks poll `s.day === N` instead of sleeping a fixed
+     wall time.
+- **Evidence: two consecutive full runs, 0 failures, 476 s / 477 s, 127
+  checks each, console clean — on the box that used to flake 1–5.**
 
 ### B5. Two bus implementations coexist — RESOLVED by the first-session merge (docs/52)
 - The merge retired Agent 5's street coach: the bay keeps exactly one bus

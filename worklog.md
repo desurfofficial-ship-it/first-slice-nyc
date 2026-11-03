@@ -65,3 +65,25 @@ Stage Summary:
   B4 (E2E re-run, the environmental flake family named) and B5 (one bus,
   resolved) are updated. Known open: the e2e dusk rails flake on slow
   machines on BOTH trees — driver-side wait windows, not the day clock.
+
+---
+Task ID: AGENT5-E2E-FLAKE-FIX
+Agent: Agent 5
+Task: Close docs/51 B4 — the 4-day autotest flaked 1–5 of ~104 checks on
+slow machines (both the merge tip and pure main).
+
+Work Log:
+- Instrumented the failing rails with per-second state traces; the traces
+  plus the volley code showed the race: the interact volley's break list
+  lacked lingerStage (one volley = goodnight + day roll), and three beats
+  checked once immediately after one volley (the awning's nearest body can
+  be Idris — the press serves instead of offering).
+- Driver-only fixes in src/game/autotest.ts: lingerStage joined the volley
+  breaks; pressUntil(cond, budget) presses the real input path until the
+  beat reacts; the day-roll checks poll s.day instead of sleeping.
+- Evidence: two consecutive full runs 0 failures (476 s / 477 s, 127
+  checks each), console clean, on the box that used to flake.
+
+Stage Summary:
+- docs/51 B4 closed; docs/47 entry appended. Game code untouched — the
+  deterministic probes were already green throughout.
