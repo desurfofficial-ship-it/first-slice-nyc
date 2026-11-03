@@ -1125,3 +1125,248 @@ anchors) · **probe-subway ALL PASS** (the two standing failures fixed:
 dwell 8.5, the yield law 0/96, 2 laps in 149 s) · probe-solid ALL CLEAN
 (4/4) · probe-peds OK · probe-w3-ghost PASS · probe-w0-census OK ·
 **E2E: OK — 0 failures, 351 s**, console clean.
+
+## The zone bake + the attribution data (2026-11-03)
+
+**What landed.** `bakeZoneStatics` (World.ts, called right after
+`buildSubwayCast`): the far world's STATIC meshes merge per signature
+WITHIN their zone group — stationA, stationB, tunnel, scenery, TSS_Group.
+Same signature key as the district bake (color | emissive |
+emissiveIntensity | fog | cast | receive), same material rules (no map,
+no transparent, indexed), merged meshes re-parented INTO their group so
+every law above survives: the zone lit-set, the dollhouse skip
+(collectTerminalShell walks root names), the ride's scenery stream, the
+per-screen sync tick, the subway cast's breathe. Animated subtrees stay
+out by name (Priya, the busker, the usher, the square's crowd and
+movers, riders, waiters, SUB_Sax, TSS_Screen_N — each screen owns its
+material, merging would fuse the sync beat). Singleton signature groups
+stay as-is, like bakeStatics. Why group-local: stationKit's own header
+states the law — zone content must never join a DISTRICT tile (the
+street ring would light the tunnel forever); so the merge happens one
+level down.
+
+**The numbers, honestly.** Scene-wide the far world boots 244 meshes
+lighter: SUB_Root 319 → 205, TSS_Group 290 → 160 (probe-w0-census TOP).
+The three census rigs are byte-identical (PLAZA 1071 / CART_CORNER 898 /
+SYCAMORE_GABLE 518) — they never saw this content (underground zones
+unlit at street level, Times Square off-frustum), so the Doc 07 gate
+line reads no change and remains failed, published. At a Times Square
+rig the real saving is −12 calls: most merged statics sit outside that
+rig's frustum and TSS statics don't cast (no shadow-pass share). The
+bake's real value is cap-and-structure: any view that actually sees lit
+zone content now draws the station in ~a dozen batches instead of ~130
+meshes, and the far world stops growing linearly per prop.
+
+**The attribution data (the real headline).** Two new diag tools
+(`diag-perf-breakdown.mjs` per-rig frustum buckets, `diag-call-attrib.mjs`
+empirical toggles) decompose the REAL numbers for the first time:
+
+- **The shadow pass is 44–84% of every rig**: PLAZA 452 of 1072,
+  TIMES_SQ 439 of 527, PLATFORM_A 454 of 536. The sun's shadow camera is
+  a fixed ±60 m box over the authored street (World.ts 385-390) and
+  re-renders every caster in it every frame, view-independent.
+- The street-ring main pass is ~620 at PLAZA: bake tiles ~300 (16 tiles
+  × 15-28 signature batches — the tile-granularity debt, now precisely
+  located), tree canopies ~63 (unnamed greens), peds 34-39, cast rigs.
+- The underground rigs measured with zones UNLIT: `underground` is a
+  state (flipped by the stair descent / ride machine), not a position —
+  teleport diag rigs don't light the station. Future underground perf
+  reads must walk the stairs or flip the state.
+
+**Next levers, recorded with measured values, not promised:**
+
+1. **Shadow camera follow/tighten** (±60 static → ±35-40 player-follow):
+   est −250..−350 real at EVERY rig — the only lever that can reach the
+   Doc 07 line — but it changes the shipped look (shadow coverage in
+   view, Times Square currently shadowless by design). Needs an art
+   call before implementation; recorded, not made.
+2. **Canopy instancing**: 36 + 27 unnamed canopy blobs → 1-2
+   InstancedMeshes with per-instance sway matrices; est −60..−80 real
+   (canopies cast, so the shadow pass pays too). Contained to the W0
+   canopy sway system.
+3. **Figure part-merging** (corrects the recorded "per-tile figure
+   palette sharing"): palette sharing merges MATERIALS, not draw calls —
+   the rig parts stay parts. The call-moving lever is W4p2's dusk-pair
+   method (merge torso+head per posed figure); peds are walking rigs, so
+   only their rigid torso/head chains merge: est −15 visible / −30 real.
+   Palette sharing stays a state-change win, not a call win.
+
+**Verification**: tsc clean · vitest **367/367** · build clean · registry
+validator green (129 IDs, 12/12 masses, 18/18 anchors) · probe-subway
+ALL PASS 22/22 · probe-w4-bus OK 13/13 · probe-solid ALL CLEAN (4/4) ·
+probe-w0-census OK (ledger above) · **E2E: OK — 0 failures, 458 s**,
+console clean (E2E_W=320 E2E_H=700).
+
+## The canopy bake — one instanced canopy for the whole block (2026-11-03)
+
+**What landed.** Lever 2 from the recorded list above, now made:
+`makeTree` (props.ts) returns blob RECORDS instead of canopy meshes —
+same rng grammar call-for-call (r, cy, [leaf pick], ox, oz; the block's
+other seeded content downstream of a tree roll does not shift), same
+silhouette, same autumn gradient law (crown goldA, mid goldB, base green).
+`buildInstancedTreeRows` becomes the ONE canopy system for every tree on
+the block: 4 InstancedMeshes (leafA 0x5d7d4a · leafB 0x516e42 · goldA
+0xf7b32b · goldB 0xffb85c), the W1 simple rows keeping their slots 0/1 and
+the shipped/full/fill trees joining the same meshes with the autumn golds
+in 2/3. The fade-on-occlude law moves from per-tree material opacity to a
+per-instance `aFade` attribute (InstancedBufferAttribute + onBeforeCompile
+multiplying `diffuseColor.a` after `color_fragment`): ONE tree still
+dissolves toward gauze while its neighbours stay opaque — probe-camfade's
+screenshots prove it (occ 0.44/0.99/0.71 on the plaza/crosswalk trees, the
+rest of the street solid). Sway composes exactly the old scene-graph chain
+per blob: T(x, baseY+h, z)·R_y(yaw)·R_sway·T(blob)·S(r), the W1 rows
+keeping their no-yaw grammar. The simple rows stay fade-frozen at aFade 1
+(the recorded docs/47 W1 tradeoff).
+
+**A mapping bug fixed on the way.** The fade loop read
+`canopyOcclusion[i]` for `trees[i]`, assuming the sphere cache listed the
+shipped trees first — but the W1 simple rows' spheres interleave the cache
+before the Kestrel fills and the four playground trees, so those ten trees
+were fading from the WRONG trees' spheres (a fill faded when a Gable-row
+canopy blocked the lens). Each tree record now names its own
+`sphereIndex`; the fade reads its own occlusion. The shipped 12 (indices
+0–11) were always correct — the probe-camfade beats all sit on them.
+
+**The numbers, honestly.** The census rigs (boot state, zones unlit):
+PLAZA 1071 → **949** (−122), CART_CORNER 898 → **802** (−96),
+SYCAMORE×GABLE 518 → **451** (−67). Every rig under its previous ledger
+(the enforced gate) and better than the recorded est (−60..−80 real): the
+est assumed partial frustum visibility, but all 63 blob meshes were
+visible casters at PLAZA, and canopies cast — so both passes paid the 63
+and both now pay 4. The tris line: PLAZA 138.9k → 140.2k (+1.3k, ~+0.9%)
+— the four instanced meshes span the block (three.js auto-bounds the
+instances, the sway is ±0.02 rad), so a handful of off-frustum blobs
+rasterize that per-blob meshes used to cull; the honest price of the call
+win, and the existing W1 rows already shipped with the same shape of
+trade. The Doc 07 gate line (150/250) remains FAILED and published: the
+shadow pass is still 44–84% of every rig, and the only lever that reaches
+the line is the recorded shadow-camera follow — which changes the shipped
+look and still needs an art call before it is made.
+
+**One flake, honestly.** One probe-subway run mid-session failed
+"console stays clean (2 errors)" without persisting the error text; four
+consecutive re-runs on the same dist passed ALL (22/22, zero errors). No
+code change between the runs; recorded as a non-reproducing transient,
+not a fix.
+
+**Verification**: tsc clean · vitest **367/367** · build clean · registry
+validator green (129 IDs, 12/12 masses, 18/18 anchors) · probe-autumn
+PASS (gold gradient, drift tints, plumage morphs, pit rims — the turning
+tree reads exactly as before) · probe-camfade PASS (the fade law on
+aFade) · probe-env5 PASS (lamps clear the canopies) · probe-solid ALL
+CLEAN (4/4) · probe-subway ALL PASS 22/22 · probe-w4-bus OK 13/13 ·
+probe-w0-census OK (ledger above) · **E2E: OK — 0 failures, 355 s**,
+console clean (E2E_W=320 E2E_H=700).
+
+## The shadow follow — the sun's box walks with the player (2026-11-03)
+
+**What landed.** Lever 1 from the recorded list — the only one that could
+reach the Doc 07 line — now made, plus the two smaller recorded levers.
+
+**The follow.** The sun's shadow camera was a FIXED ±60 m box over the
+whole street: every caster inside it re-rendered into the shadow map every
+frame, view-independent, so the corner rig paid ~430 calls for a map it
+never sampled and the shadow pass measured 44–84% of every census rig.
+The box now follows the player (`updateSunFollow`, called from
+updateDynamics with the live player position): extents ±60 → ±35
+(SHADOW_HALF), the recorded ±35–40 range. The follow snaps the target onto
+the shadow map's texel lattice IN LIGHT SPACE (the shadow camera's own
+Matrix4.lookAt basis, precomputed once — 2048 px / 70 m → 0.034 m texels,
+ground-projected to ~0.08 m along the shadow direction at the sun's ~28°
+elevation), so the map's texel grid stays world-aligned while the box
+moves: shadow edges never shimmer as the player walks. The light direction
+is the authored offset vector (−38, 23, 22) bit-for-bit on every frame —
+both poles move by the same snapped delta. Boot state before the first
+update: the authored static box, unchanged.
+
+**The figure part-merge (lever 3, the W4p2 dusk-pair method).** The hair
+chain is rigid inside the head group (the head glances as a unit) — its
+2–4 boxes/sphere merge into ONE mesh per figure; the strap's three boxes
+ride the body rigidly — one merged mesh (the old position + rz tilt baked
+T·Rz into the geometry). Same boxes, same offsets, same bank materials,
+same silhouettes — rig tests untouched (they pin hip pivots and hair-top
+height, both preserved). The recorded law held: only the rigid chains
+merge; limbs are animating groups (arms swing at the shoulder, legs at the
+hip) and stay parts. A figure goes ~14 → ~11–12 meshes in BOTH passes —
+hair and strap cast.
+
+**The wing fold (the recorded W4 micro-lever).** A morph bucket whose
+every bird sits folded now drops its wing DRAW entirely: the zero-scale
+instances were the cheapest visual "off" but still cost the call; hiding
+the InstancedMesh costs nothing and flips back on the same frame a bird
+takes off.
+
+**The numbers, honestly.** Census rigs (boot state, zones unlit):
+PLAZA 949 → **847** (−102), CART_CORNER 802 → **719** (−83),
+SYCAMORE×GABLE 451 → **277** (−174); tris −5.2k / −4.3k / −10.6k (the
+shadow pass stops rasterizing far casters). Both extents were measured at
+PLAZA/CART/SYCAMORE before choosing: ±40 gave −46 / −46 / −158, ±35 gave
+−76 / −55 / −165 — 35 wins every rig with a smaller map (2048 px now
+covers 70 m, so near-field texels got SHARPER, 0.059 → 0.034 m). The
+follow alone at ±35: 873 / 747 / 286; the figure merge + wing fold took
+off another −26 / −28 / −9.
+
+**The gate line: still failed, still published.** Kestrel 847 > 150 FAIL,
+intersection 277 > 250 FAIL. What the shadow pass still pays for at ±35
+(new diag tool `diag-shadow-buckets.mjs`, kept as evidence — reads the
+LIVE shadow frustum and buckets its casters): street rigs hold ~315–350
+casters — bake tiles 60–90, peds 39, unnamed street furniture ~47 (the
+water tower, lamp posts, cart parts, the tire swing — contact shadows; the
+recorded cast-shadow-discipline lever, real visual cost, still needs the
+art call), cast rigs ~14 each. The rigid-chain merge is now SPENT — the
+next call cut inside a figure needs vertex colors (one white material, one
+draw per rig), which changes what the census's palette audit reads and
+needs its own law decision before it is made.
+
+**The art trade, stated plainly.** Near-field shadows — everything within
+~35 m of the player, where the camera actually lives — keep their exact
+texels and got sharper. Long dusk shadows beyond the box edge no longer
+render: at the plaza-wide census vista the far street (35+ m out) loses
+its cast shadows. The Times Square vista is unaffected (its 11 zone-bake
+casters follow the player out of the map — the square was shadowless by
+design); the underground rigs read the box at street level above them,
+unchanged law. Reversible by two constants (SHADOW_HALF, and deleting the
+updateSunFollow call) if the lead vetoes.
+
+**One flake, honestly.** First E2E on the changed build: 6 failures, all
+cascading from `day 4: grabbed ladder 1` firing on the grab box's z-EDGE
+(z −6.7, 7 cm of overlap) and dropping the next frame — the ride never
+left the ground and the driver walked the street. Control: pristine HEAD
+on the same sandbox's chromium → 0 failures (355 s). Immediate rerun on
+the IDENTICAL changed build → **0 failures (357 s)**, the grab landing
+15 cm deeper (z −6.9). This is the documented knife-edge family (the
+day-1 dismount note: "a build whose fps profile differs by a hair flipped
+that coin") — the perf win itself shifts the SwiftShader fps profile, and
+ANY call cut can flip it; recorded, not fixed.
+
+**Verification**: tsc clean · vitest **367/367** · build clean · registry
+validator green (129 IDs, 12/12 masses, 18/18 anchors) · probe-autumn
+PASS · probe-camfade PASS (occ 0.44/0.99/0.71 — the fade law on aFade,
+untouched) · probe-env5 PASS (lamps clear the canopies) · probe-solid ALL
+CLEAN (4/4) · probe-subway ALL PASS 22/22 · probe-w4-bus OK 13/13 ·
+probe-w0-census OK (ledger above) · **E2E: OK — 0 failures, 357 s**,
+console clean (E2E_W=320 E2E_H=700).
+
+---
+
+## The first-session merge (Agent 5 → main, docs/52)
+
+Agent 5's parallel first-session branch (docs/48, base `a5bc3d6`) merged
+onto the first-session-world tip (`ced660d`). The reconciliation: docs/50's
+world is the paved path; Agent 5's arrival film lands re-targeted (its own
+diorama coach — the bay keeps one bus), the stair-glue + floor-snap-down
+laws unite with the below-grade law in one `groundHeight`, the W4 band law
+is extracted pure (`bandOfLoop`), the cab-yield logic becomes a tested
+function, and the duplicate world (`firstSession.ts`, the z −80 district,
+the street coach) is retired. A correction this log owes: the first draft
+of this entry claimed two main-tip breaks (the Pages trigger, the hydrant
+loop) — both were display artifacts of the audit tooling (it strips `[h`/
+`[m` byte sequences); byte-level checks show both files were always
+correct and no repo fix was needed (docs/52 §3).
+The W2 playground route was re-walked around the kit (the old line rode the
+pergola rail by the snap-circle — invisible platforming the new stair law
+honestly refuses). Full evidence in docs/52 §5: typecheck clean, vitest
+390/390, build clean, probe-subway 22/22 + mobile ALL PASS, W1/W2/W3/W5
+ghosts PASS, solid CLEAN, doc12 clean, the film's probes clean. E2E on this
+box: 3–5 environmental flake failures of ~104 on BOTH trees (dusk-timed
+rails; both trees ~48% slower than the documented rig) — docs/51 B4.

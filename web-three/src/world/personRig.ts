@@ -41,6 +41,7 @@
  */
 
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PAL } from '../core/palette';
 
 export interface PersonRig {
@@ -157,14 +158,23 @@ export function buildArticulatedPerson(
   const head = new THREE.Group();
   head.position.set(0, 0.78, 0.01);
   head.add(mesh(new THREE.BoxGeometry(0.3, 0.32, 0.28), o.skin, 0, 0, 0));
-  head.add(mesh(new THREE.BoxGeometry(0.32, 0.13, 0.3), o.hair, 0, 0.2, -0.025));
-  head.add(mesh(new THREE.BoxGeometry(0.32, 0.2, 0.07), o.hair, 0, 0.08, -0.145));
+  // the hair chain is RIGID inside the head group (the head glances as a
+  // unit) — its 2-4 boxes/spheres merge into ONE mesh by the W4p2 dusk-pair
+  // method (docs/47 lever 3): same boxes, same offsets, same material, one
+  // draw call instead of up to four — in BOTH passes, hair casts
+  const hairGeos: THREE.BufferGeometry[] = [
+    new THREE.BoxGeometry(0.32, 0.13, 0.3).translate(0, 0.2, -0.025),
+    new THREE.BoxGeometry(0.32, 0.2, 0.07).translate(0, 0.08, -0.145),
+  ];
   if (o.style === 'bun') {
-    head.add(mesh(new THREE.SphereGeometry(0.085, 10, 8), o.hair, 0, 0.26, -0.15));
+    hairGeos.push(new THREE.SphereGeometry(0.085, 10, 8).translate(0, 0.26, -0.15));
   } else if (o.style === 'cap') {
-    head.add(mesh(new THREE.BoxGeometry(0.3, 0.03, 0.16), o.hair, 0, 0.135, 0.14));
-    head.add(mesh(new THREE.BoxGeometry(0.32, 0.1, 0.31), o.hair, 0, 0.195, -0.02));
+    hairGeos.push(new THREE.BoxGeometry(0.3, 0.03, 0.16).translate(0, 0.135, 0.14));
+    hairGeos.push(new THREE.BoxGeometry(0.32, 0.1, 0.31).translate(0, 0.195, -0.02));
   }
+  const hair = new THREE.Mesh(mergeGeometries(hairGeos, false)!, mat(o.hair));
+  hair.castShadow = true;
+  head.add(hair);
   if (o.glasses) {
     // one dark bar across the eyes — reads as glasses at iso distance,
     // costs one box, and instantly separates Idris and Sal from the crowd
@@ -179,10 +189,18 @@ export function buildArticulatedPerson(
   }
   if (o.strap !== undefined) {
     // courier look: a strap that wraps the torso (front AND back — the game
-    // camera spends most of its life behind the player) and the bag it holds
-    body.add(mesh(new THREE.BoxGeometry(0.05, 0.82, 0.06), o.strap, 0.03, 0.3, 0.165, 0.62));
-    body.add(mesh(new THREE.BoxGeometry(0.05, 0.82, 0.06), o.strap, 0.03, 0.3, -0.165, 0.62));
-    body.add(mesh(new THREE.BoxGeometry(0.16, 0.14, 0.13), o.strap, -0.29, 0.0, 0.0));
+    // camera spends most of its life behind the player) and the bag it holds.
+    // All three boxes ride the body group rigidly — merged into ONE mesh by
+    // the same W4p2 method (their old position+rz tilt baked into the
+    // geometry: T·Rz composition preserved)
+    const strapGeos = [
+      new THREE.BoxGeometry(0.05, 0.82, 0.06).rotateZ(0.62).translate(0.03, 0.3, 0.165),
+      new THREE.BoxGeometry(0.05, 0.82, 0.06).rotateZ(0.62).translate(0.03, 0.3, -0.165),
+      new THREE.BoxGeometry(0.16, 0.14, 0.13).translate(-0.29, 0.0, 0.0),
+    ];
+    const strap = new THREE.Mesh(mergeGeometries(strapGeos, false)!, mat(o.strap));
+    strap.castShadow = true;
+    body.add(strap);
   }
 
   const rig = attachRig(group, { root, body, hipL, hipR, armL, armR, head });

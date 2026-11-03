@@ -377,6 +377,18 @@ export class PigeonFlock {
       }
       ptr[m]++;
     }
+    // the fold lever (docs/47 W4 micro-lever): a morph bucket whose every
+    // bird sits folded drops its wing DRAW entirely — the zero-scale
+    // instances were the cheapest "off" visually, but they still cost the
+    // draw call; hiding the mesh costs nothing (wingsVisible flips back on
+    // in the loop above the same frame a bird takes off)
+    for (let m = 0; m < this.wingInst.length; m++) {
+      const wi = this.wingInst[m];
+      if (!wi) continue;
+      const anyFlying = this.birds.some((b) => b.morph === m && b.wingsVisible);
+      if (wi.visible === anyFlying) continue;
+      wi.visible = anyFlying;
+    }
     for (const inst of this.allInst) inst.instanceMatrix.needsUpdate = true;
   }
 }

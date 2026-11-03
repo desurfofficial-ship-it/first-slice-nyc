@@ -13,7 +13,11 @@
  * courtesy hold; yield to anyone actually in the path) and adds what the
  * task brief calls for: a braking curve, lateral truth, vehicle-vs-vehicle
  * solidity, and a committed-move guard so the rail step can never end the
- * frame interpenetrating something.
+ * frame interpenetrating something. One refinement earned in the field
+ * (e2e day 4, the laundromat crossing, pinned 28 s): a body already BESIDE
+ * the cab brakes nothing — the nose is past it, and freezing there
+ * deadlocks the lane. The cab crawls past instead; the post-move resolve
+ * walks the pedestrian clear of the tail.
  *
  * Everything is XZ circle-vs-rect against `engine/collide` primitives — no
  * physics engine, no allocation, a handful of float compares per frame.
@@ -99,4 +103,26 @@ export function bodyConflictsWithCab(b: TrafficBody, cabRect: RectXZ): boolean {
 /** Cab footprint rect from its center-x (lane z is fixed, length/width fixed). */
 export function cabRectAt(x: number, halfLen: number, halfWid: number, laneZ: number): RectXZ {
   return { minX: x - halfLen, maxX: x + halfLen, minZ: laneZ - halfWid, maxZ: laneZ + halfWid };
+}
+
+/**
+ * Rule 2 for one pedestrian body: the speed cap it imposes on the cab
+ * (cruise = none).
+ *
+ *   - fully behind the tail, or not actually in the path: no cap;
+ *   - BESIDE the cab (the body's west edge west of the nose): no cap — the
+ *     nose is already past them, and braking to 0 here deadlocks the lane
+ *     (the resolve holds them at the south face, the cab sits forever —
+ *     e2e day-4 laundromat crossing, pinned 28 s). The cab crawls past and
+ *     the post-move resolve keeps their air until the tail clears;
+ *   - ahead of the nose: the full braking curve to the stop line.
+ */
+export function pedestrianSpeedCap(
+  cruise: number, stopGap: number, gain: number,
+  bx: number, br: number, tailX: number, noseX: number, inSweep: boolean,
+): number {
+  if (bx + br <= tailX) return cruise; // fully behind
+  if (!inSweep) return cruise;         // not in the path
+  if (bx - br < noseX) return cruise;  // beside the cab: crawl past
+  return approachSpeed(cruise, (bx - br) - noseX, stopGap, gain);
 }

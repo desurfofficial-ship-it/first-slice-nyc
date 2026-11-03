@@ -83,22 +83,44 @@ else is open for a follow-up agent.
 
 ## OPEN — systems / content
 
-### B4. Full E2E not re-run on post-W5 tip
-- Last green full E2E cited in docs was pre-W5 / pre-merge tip. After
-  first-session + half-court + W5 interiors, the 4-day autotest needs a
-  clean machine pass at the harness default viewport.
-- **Where:** `scripts/e2e.mjs`, `?autotest=1`.
-- **2026-11-02:** full 4-day E2E re-run green on the post-W5 + first-session
-  + half-court + Map-fix tip — AUTOTEST OK, 0 failures, 432 s, zero console
-  errors, POINTER guard 3/3 (at the documented `E2E_W/E2E_H` 480×360
-  slow-sandbox viewport; the default-viewport pass remains for a fast
-  machine).
+### B4. Full E2E on the post-W5 tip — re-run twice; one flake family named, one viewport green
+- The first-session merge (docs/52) ran the 4-day autotest on the merged
+  tip AND on pure `origin/main`: both trees fail 1–5 of ~104 checks on the
+  same box, all in one family — the wall-clock-timed dusk rails ("Rosa's
+  goodnight beat", "tomorrow begins") and the awning confirm — with console
+  clean every run. Both trees run ~48% slower here than the documented rig
+  (442 s vs 298 s). The game behavior behind every flaked rail is verified
+  by the deterministic probes (probe-subway, probe-doc12, probe-w4-*).
+- **2026-11-02, 480×360 slow-sandbox viewport:** the full 4-day pass is
+  green on the post-W5 + half-court + Map-fix + court-fix tip — AUTOTEST
+  OK, 0 failures, 349 s, zero console errors, POINTER guard 3/3, the B6
+  occlusion tripwire PASS. The dusk rails hold when the dt clamp keeps
+  game-time honest; the flake is a wall-clock family, not a story bug.
+- **Action for a clean machine:** one full pass at the harness default
+  viewport; if the dusk rails still flake, widen the driver's wait windows
+  (driver-side, documented) rather than touching the day clock.
 
-### B5. Two bus implementations coexist
-- W4p2 district bus (route brain, yield, dusk) and docs/50 arrival bus
-  (boardable first-session prop) are separate. Risk of double mesh at the
-  bay, double colliders, or interact targeting the wrong one.
-- **Action:** One design decision + one code path for “player-enterable bus.”
+### B4. Full E2E not re-run on post-W5 tip — re-run at the merge; the flake family is named
+- The first-session merge (docs/52) ran the 4-day autotest on the merged
+  tip AND on pure `origin/main`: both trees fail 1–5 of ~104 checks on the
+  same box, all in one family — the wall-clock-timed dusk rails ("Rosa's
+  goodnight beat", "tomorrow begins") and the awning confirm — with console
+  clean every run. Both trees run ~48% slower here than the documented rig
+  (442 s vs 298 s). The game behavior behind every flaked rail is verified
+  by the deterministic probes (probe-subway, probe-doc12, probe-w4-*).
+- **Action for a clean machine:** one full pass at the harness default
+  viewport; if the dusk rails still flake, widen the driver's wait windows
+  (driver-side, documented) rather than touching the day clock.
+
+### B5. Two bus implementations coexist — RESOLVED by the first-session merge (docs/52)
+- The merge retired Agent 5's street coach: the bay keeps exactly one bus
+  (the M121 loop, docs/47). The arrival film now stages its own diorama
+  coach 300 m south in the ride's staging space and disposes it at the
+  handover — no bay mesh, no bay collider, no double interact target.
+- Remaining (small): the player-enterable experience is the M121's
+  BUS-04 stop; the film implies the step-off ride. If a future agent wants
+  the *authored* bus interior from the film on the street, extend the M121's
+  bay stop — do not add a second body.
 
 ### B6. Camera canopy list length vs occlusion buffer — TRIPWIRED 2026-11-02
 - Verified structurally safe today: every canopy push happens inside the

@@ -93,6 +93,28 @@ const MAX_PUSH = 0.25;    // per-frame cap — nobody slingshots, ever
  * @param walkerZ the held walker's z
  * @returns -1 | +1 — the slideSide whose perpendicular motion heads for the road
  */
+/** W4: a walker's own clamp band — the bbox of its loop, inflated 1.6 m
+ *  laterally (curb-yield room) and 0.65 m in z, then held inside the
+ *  playable core (x ±84; the shipped ±7.5 z-discipline). Per-walker on
+ *  purpose: a district walker pushed off Gable can never be clamped into
+ *  Juniper — the pre-W4 bug clamped every zone to the block's band, so
+ *  off-block walkers teleported to the home street's corner every frame
+ *  and parked their invisible colliders there as permanent ghosts. Pure
+ *  so the law is unit-testable (tests/crowd.test.ts). */
+export function bandOfLoop(
+  pts: Array<[number, number]>,
+): { minX: number; maxX: number; minZ: number; maxZ: number } {
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const [px, pz] of pts) {
+    if (px < minX) minX = px; if (px > maxX) maxX = px;
+    if (pz < minZ) minZ = pz; if (pz > maxZ) maxZ = pz;
+  }
+  return {
+    minX: Math.max(-84, minX - 1.6), maxX: Math.min(84, maxX + 1.6),
+    minZ: Math.max(-7.5, minZ - 0.65), maxZ: Math.min(7.5, maxZ + 0.65),
+  };
+}
+
 export function curbSideSlide(perpZ: number, walkerZ: number): number {
   const toRoad = walkerZ > 0 ? -1 : 1;       // toward z = 0
   const perpSign = perpZ > 0 ? 1 : perpZ < 0 ? -1 : 1;
@@ -228,19 +250,11 @@ export class Pedestrians {
       group.position.set(start[0], groundY(start[0], start[1], roads), start[1]);
       group.rotation.y = rng() * Math.PI * 2;
       this.group.add(group);
-      // W4: each walker clamps to their own loop's bbox — inflated 1.6 m
-      // laterally (curb Yield room) and 0.65 m in z (the shipped ±7.5
-      // discipline the Kestrel trio inherits unchanged), so a district
-      // walker pushed off Gable can never be clamped into Juniper.
-      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-      for (const [px, pz] of pts) {
-        if (px < minX) minX = px; if (px > maxX) maxX = px;
-        if (pz < minZ) minZ = pz; if (pz > maxZ) maxZ = pz;
-      }
-      const band = {
-        minX: Math.max(-84, minX - 1.6), maxX: Math.min(84, maxX + 1.6),
-        minZ: Math.max(-7.5, minZ - 0.65), maxZ: Math.min(7.5, maxZ + 0.65),
-      };
+      // W4: each walker clamps to their own loop's bbox (bandOfLoop) —
+      // inflated 1.6 m laterally (curb-yield room) and 0.65 m in z (the
+      // shipped ±7.5 discipline the Kestrel trio inherits unchanged), so a
+      // district walker pushed off Gable can never be clamped into Juniper.
+      const band = bandOfLoop(pts);
       this.peds.push({
         vehicle, group, speed: vehicle.maxSpeed,
         box: this.walkColliders[i],

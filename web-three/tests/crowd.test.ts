@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveCirclesXZ, pushCircleOutOfRectXZ, circleRectGapXZ, type CirclePush,
 } from '../src/engine/collide';
-import { curbSideSlide } from '../src/world/peds';
+import { curbSideSlide, bandOfLoop } from '../src/world/peds';
 
 const push = (): CirclePush => ({ x: 0, z: 0 });
 
@@ -141,5 +141,43 @@ describe('overtake bias (curbSideSlide)', () => {
     const s = curbSideSlide(0, 6.2);
     expect(s === 1 || s === -1).toBe(true);
     expect(curbSideSlide(0, 6.2)).toBe(s); // same inputs, same side
+  });
+});
+
+describe('per-walker band (bandOfLoop — the W4 law, proved where it lives)', () => {
+  it("the band is the loop's bbox, inflated (1.6 m x / 0.65 m z)", () => {
+    const b = bandOfLoop([[0, 5], [20, 5], [20, 7], [0, 7]]);
+    expect(b.minX).toBeCloseTo(-1.6);
+    expect(b.maxX).toBeCloseTo(21.6);
+    expect(b.minZ).toBeCloseTo(4.35);
+    expect(b.maxZ).toBeCloseTo(7.5);
+  });
+
+  it("a walker past its band is pulled back INSIDE its own band — never to a foreign loop's corner", () => {
+    // the pre-W4 bug clamped every zone to the home street's band — the
+    // plaza walkers teleported to (−47.2, −7.5) and parked their invisible
+    // colliders there as permanent ghosts on the home block
+    const gable = bandOfLoop([[10, 5], [40, 5], [40, 7], [10, 7]]);
+    const juniper = bandOfLoop([[-40, 5], [-10, 5], [-10, 7], [-40, 7]]);
+    expect(gable.minX).toBeGreaterThan(juniper.maxX); // disjoint bands
+    // the clamp uses the walker's OWN band (peds.ts line law), so a Gable
+    // body at x 50 comes back to Gable's east edge, not Juniper's corner
+    const pulledX = Math.max(gable.minX, Math.min(gable.maxX, 50));
+    expect(pulledX).toBeCloseTo(gable.maxX);
+    expect(pulledX).toBeGreaterThan(0); // stays on its own block
+  });
+
+  it('the band never escapes the playable core (x ±84, z ±7.5)', () => {
+    const far = bandOfLoop([[-200, -50], [200, 50]]);
+    expect(far.minX).toBe(-84);
+    expect(far.maxX).toBe(84);
+    expect(far.minZ).toBe(-7.5);
+    expect(far.maxZ).toBe(7.5);
+  });
+
+  it("the home trio's band keeps the shipped ±7.5 z-discipline", () => {
+    const home = bandOfLoop([[-40, 6.2], [-10, 6.2], [-10, -6.2], [-40, -6.2]]);
+    expect(home.minZ).toBeCloseTo(-6.85);
+    expect(home.maxZ).toBeCloseTo(6.85);
   });
 });

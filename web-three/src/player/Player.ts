@@ -96,8 +96,31 @@ export class Player {
     moveAxisZ(this.boxes, this.capsule, dirZ * SPEED * dt, STEP_UP);
     depenetrate(this.boxes, this.capsule, STEP_UP);
 
-    const ground = groundHeight(this.boxes, this.capsule, GROUND_SNAP);
+    // A5 stair law: while GROUNDED the walker's motion direction filters
+    // step-up candidates in groundHeight — the tread just left (behind the
+    // motion, top within snap of the feet) must not glue the descent on air.
+    // Airborne callers keep the unfiltered rule (defaults), so jumps, falls
+    // and the ladder dismount behave exactly as shipped.
+    const ground = this.onGround
+      ? groundHeight(this.boxes, this.capsule, GROUND_SNAP, dirX, dirZ)
+      : groundHeight(this.boxes, this.capsule, GROUND_SNAP);
     if (this.capsule.y <= ground + 0.01 && this.vy <= 0) {
+      this.capsule.y = ground;
+      this.vy = -0.5;
+      this.onGround = true;
+    } else if (
+      this.onGround && this.vy <= 0
+      && ground > Number.NEGATIVE_INFINITY
+      && this.capsule.y - ground <= GROUND_SNAP
+    ) {
+      // A5 floor-snap-down: the walker only snapped ground UP (curbs, stoops),
+      // so a descending staircase out-ran gravity — at 4.2 m/s the fall's
+      // 0.12 slope can never chase a 53° stair, and the player skied the
+      // shaft "floating" until a higher slab's snap range grabbed them back
+      // up. Now a grounded walker whose ground dropped ≤ GROUND_SNAP this
+      // frame follows it down. Jumps (vy > 0) and real falls (drop > snap)
+      // still take gravity; the fire-escape dismounts set onGround on their
+      // own volumes and never enter this branch.
       this.capsule.y = ground;
       this.vy = -0.5;
       this.onGround = true;
