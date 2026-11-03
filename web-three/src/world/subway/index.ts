@@ -15,7 +15,7 @@
 import * as THREE from 'three';
 import { updateZones, type ZoneDef } from './zone';
 import {
-  beginRide, createRide, endRide, RIDE_SWAP_DX, swapFeet, tickRide,
+  aboardCar, beginRide, createRide, endRide, RIDE_SWAP_DX, swapFeet, tickRide,
   type RideEnd, type RideState,
 } from './ride';
 import {
@@ -166,8 +166,11 @@ export function buildSubwaySystem(
           onBeat(e.beat!);
         } else if (e.type === 'swap') {
           // the seam: translate the player to the identical car — feet keep
-          // their local offset around the door (the cars are the same car)
-          feet.x = swapFeet(feet.x, e.end === 'B' ? 'A' : 'B');
+          // their local offset around the door (the cars are the same car).
+          // Aboard only: a player who stepped back onto the platform during
+          // closing stays behind (the ride continues; the arrival's
+          // doors-open event sets them free — no 288 m teleport on foot).
+          if (aboardCar(feet.z)) feet.x = swapFeet(feet.x, e.end === 'B' ? 'A' : 'B');
         }
         // 'arrived' carries no world work — the doors event said it all
       }

@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { updateZones, type ZoneDef } from '../src/world/subway/zone';
 import { turnstileHubAt, ZONE_KEEP_RE } from '../src/world/subway/stationKit';
 import {
-  beginRide, createRide, endRide, RIDE_BEATS, RIDE_SWAP_DX, RIDE_T,
+  aboardCar, beginRide, createRide, endRide, RIDE_BEATS, RIDE_SWAP_DX, RIDE_T,
   swapFeet, tickRide, type RideEvent,
 } from '../src/world/subway/ride';
 
@@ -197,5 +197,21 @@ describe('ZONE_KEEP_RE — meshes systems hold by reference (the bake contract)'
     expect(ZONE_KEEP_RE.test('SUB_Bench_A_1')).toBe(false);
     expect(ZONE_KEEP_RE.test('SUB_Wall_S_A')).toBe(false);
     expect(ZONE_KEEP_RE.test('TSS_Step_3')).toBe(false);
+  });
+});
+
+describe('aboardCar — the seam swap only carries passengers (left-behind law)', () => {
+  // Found by the bug-hunt sweep: requestRide from the platform started the
+  // machine, and the seam translated the platform-standing player 288 m.
+  // Aboard is the car's z-band; anyone on the platform stays behind and
+  // the arrival's doors-open event sets them free.
+  it('the car interior is aboard', () => {
+    expect(aboardCar(15.9)).toBe(true);  // the boarding spot
+    expect(aboardCar(16.8)).toBe(true);  // deep inside
+  });
+  it('the platform and the pushed-out doorway are not', () => {
+    expect(aboardCar(13.4)).toBe(false); // at the door, outside
+    expect(aboardCar(14.2)).toBe(false); // the platform edge
+    expect(aboardCar(17.45)).toBe(false);// the trench's far wall
   });
 });

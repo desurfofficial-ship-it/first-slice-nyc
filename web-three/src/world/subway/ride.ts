@@ -152,3 +152,14 @@ export const RIDE_SWAP_DX = STATION_B_X - STATION_A_X; // −288
 export function swapFeet(x: number, from: RideEnd): number {
   return from === 'A' ? x + RIDE_SWAP_DX : x - RIDE_SWAP_DX;
 }
+
+/** The car body's z-band (trainKit: body z 14.7..17.2) plus a small margin
+ *  for the capsule radius — "aboard" for the seam swap. A player who
+ *  stepped back onto the platform during closing must NOT be translated
+ *  at the seam (they'd teleport 288 m without a train); the ride continues
+ *  without them and the arrival's own doors-open event lets them go. */
+export const CAR_Z_MIN = 14.55;
+export const CAR_Z_MAX = 17.35;
+export function aboardCar(z: number): boolean {
+  return z > CAR_Z_MIN && z < CAR_Z_MAX;
+}
