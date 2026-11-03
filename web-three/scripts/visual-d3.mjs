@@ -41,17 +41,51 @@ const teleport = (x, y, z, yaw = 0) => page.evaluate(([x, y, z, yaw]) => {
   g.cam.snapBehind({ x, y, z });
 }, [x, y, z, yaw]);
 
+// Day-3 staging for the WHOLE chapter, not just the shots where the wallet
+// contrast bites (docs/51 B12): the first cut staged the day only for the
+// kid-on-stool and dusk shots, so the plaza and brownstone frames still
+// wore Day 1's $87 and the Day-1 "waving at you" objective. Evidence
+// dresses like the day it depicts — header, wallet, and the boot toast
+// (Day-1's "You are here" paper has no business on a Day-3 frame).
+await page.evaluate(() => {
+  const g = window.__game;
+  const s = g.state;
+  s.day = 3;
+  s.cartName = "Wade's Spot";
+  s.money = 111; s.dayStartMoney = 111;
+  s.setStep(21 /* the morning flyer beat's own objective */);
+  g.applyCartIdentity(s.cartName);
+  g.ui.setMoneyQuiet(111);
+  g.ui.setObjective(s.objectiveText());
+  const note = document.getElementById('note');
+  if (note) { note.classList.add('gone'); note.hidden = true; }
+});
+
 const shot = async (name, settleMs = 700) => {
   await page.waitForTimeout(settleMs);
   await page.screenshot({ path: join(OUT, name) });
   console.log('saved', name);
 };
 
-// 1 — the subway plaza: entrance, bulletin board flyer, benches, pigeons, park trees
+// 1 — the subway plaza: entrance, bulletin board flyer, benches, pigeons, park
+// trees. The M121's shell parks at the terminal curb bay (BUS04_RECT), and the
+// follow boom read it as the frame's subject (docs/51 B12: the bus ate the
+// plaza). The authored beat owns the camera: from the south-west the stair,
+// benches, pigeons and the player own the frame; the bus holds the right edge.
 await teleport(-38.5, 0.05, 5.2, Math.PI * 0.75);
-await shot('d3_plaza_pigeons_portrait.png');
+await page.evaluate(() => {
+  const g = window.__game;
+  g.cam.update = () => {};
+  g.cam.camera.position.set(-43.0, 2.6, 1.6);
+  g.cam.camera.lookAt(-38.4, 0.8, 5.6);
+});
+await shot('d3_plaza_pigeons_portrait.png', 900);
+await page.evaluate(() => { delete window.__game.cam.update; });
 
-// 2 — the brownstone row (stoops, doors, parlor windows, AC units)
+// 2 — the brownstone row (stoops, doors, parlor windows, AC units).
+// (Docs/31's "empty lower half" was tried against a closer stand at the
+// row itself — the sidewalk trees eat the doors from there; the curb
+// stand keeps the row clean and the asphalt strip is the honest cost.)
 await teleport(-32, 0.05, -3.6, Math.PI);
 await shot('d3_brownstones_portrait.png');
 

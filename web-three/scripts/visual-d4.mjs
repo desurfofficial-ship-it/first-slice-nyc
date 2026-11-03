@@ -78,7 +78,14 @@ await page.evaluate(() => {
   g.ui.showNote('Morning four. You know the way from here.');
 });
 
-// 1 — the stranger at the terminal: the Day-1 mirror (portrait)
+// 1 — the stranger at the terminal: the Day-1 mirror (portrait). The
+// follow boom read the audit's thin-strip census (docs/31: figures squeezed
+// between blank wall and asphalt, BUS TERMINAL sign clipped) — and since the
+// M121's shell parked at the terminal curb bay (BUS04_RECT x -37.65..-26.65,
+// z 0.75..3.25) the boom's strip got WORSE: the shell fills the middle band.
+// The authored beat owns the camera: parked west of the shell's tail, on the
+// north sidewalk, looking east along it — the pair owns the middle third,
+// the shell holds the terminal context behind them, the sign peeks past.
 await page.evaluate(() => {
   const g = window.__game;
   g.world.stranger.visible = true;
@@ -91,7 +98,20 @@ await page.evaluate(() => {
   g.ui.setObjective(g.state.objectiveText());
 });
 await teleport(-34.6, 0.05, 4.2, Math.PI * 0.9);
-await shot('d4_stranger_terminal_portrait.png');
+await page.evaluate(() => {
+  const g = window.__game;
+  g.cam.update = () => {}; // the authored beat owns the camera, not the follow
+  // east of the pair, on the sidewalk between the shell's tail and the
+  // building line: the pair owns the middle third with the shell wall
+  // holding the terminal context behind them. (West of the pair every
+  // sight-line rides into a plaza tree's trunk or canopy — the block's
+  // own trees own that side; the canopy edge above the pair is the
+  // honest cost of the sidewalk's shade.)
+  g.cam.camera.position.set(-31.2, 1.75, 3.9);
+  g.cam.camera.lookAt(-36.6, 1.1, 4.8);
+});
+await shot('d4_stranger_terminal_portrait.png', 900);
+await page.evaluate(() => { delete window.__game.cam.update; });
 
 // 2 — the greeting: you, her, the terminal behind her (portrait). The
 // audit's weakest frame: the follow boom read as a top-down census — two
@@ -115,23 +135,39 @@ await page.evaluate(() => {
 await shot('d4_the_greeting_portrait.png', 900);
 await page.evaluate(() => { delete window.__game.cam.update; });
 
-// 3 — she walks your first walk: mid-crosswalk, the cab waiting (landscape)
+// 3 — she walks your first walk: mid-crosswalk, the cab waiting (landscape).
+// The beat's own choreography says the cab WAITS — stage the engine's
+// courtesy hold (World.CAB.holdCenterX: nose at the crosswalk's west edge,
+// lane z −2, facing east) and freeze the loop so the evidence frame holds
+// it; the follow boom also read a bare-asphalt census (no buildings, no
+// cab, the player off the stripes), so the beat owns a parked camera.
 await page.evaluate(() => {
   const g = window.__game;
-  g.world.stranger.position.set(-5, 0.05, -1.2);
-  g.world.stranger.rotation.y = Math.PI; // heading south
+  g.world.updateTaxi = () => {}; // hold the courtesy stop for the frame
+  g.world.taxi.position.set(-12.9, 0, -2); // nose at x −10.7, the coded hold
 });
-await teleport(-1.2, 0.05, -1.6, -Math.PI / 2);
+await teleport(-4.3, 0.05, -0.9, -Math.PI / 2);
+await page.evaluate(() => {
+  const g = window.__game;
+  g.cam.update = () => {};
+  g.cam.camera.position.set(-1.1, 3.1, 2.6);
+  g.cam.camera.lookAt(-8.6, 0.5, -2.1);
+});
 await page.setViewportSize({ width: 1280, height: 720 });
 await page.evaluate(() => window.__game.cam.updateFov(1280 / 720));
 await shot('d4_she_walks_your_first_walk.png', 900);
+await page.evaluate(() => { delete window.__game.cam.update; delete window.__game.world.updateTaxi; });
 await page.setViewportSize({ width: 720, height: 1280 });
 await page.evaluate(() => window.__game.cam.updateFov(720 / 1280));
 
-// 4 — dusk from the rail: FOUR windows lit (the lamp next door keeps its promise)
+// 4 — dusk from the rail: FOUR windows lit (the lamp next door keeps its
+// promise). The staged step also stages its own objective — the first cut
+// wore the morning-rush header on a dusk frame (docs/51 B12 evidence
+// hygiene: the HUD dresses like the beat it depicts).
 await page.evaluate(() => {
   const g = window.__game;
   g.state.setStep(31 /* D4_POSTCARD */);
+  g.ui.setObjective(g.state.objectiveText());
   const sky = g.world.skyUniforms;
   sky.topColor.setHex(0x3e2f5b); sky.horizonColor.setHex(0x6d4c7d); sky.groundColor.setHex(0x6d4c7d);
   g.world.sun.intensity = 0.35 * Math.PI;

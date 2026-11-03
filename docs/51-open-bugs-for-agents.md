@@ -377,6 +377,99 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
 - **Where:** evidence frame probes, camera framing for Day-4 greeting,
   prop placement.
 - **Status:** OPEN — item 3 (the CLEAR prop pass) remains; items 1–2 fixed.
+- **CLOSED 2026-11-04 (item 3 — the CLEAR prop pass, one in-engine look per
+  the Anti-Slop gate, then fix-or-accept):** all 14 published frames
+  re-captured on main and read frame-by-frame (fresh captures + the vision
+  CLI pass, then every reading cross-checked against the code — the code
+  won several times, per Doc 31's own method). Two systemic evidence-rot
+  finds came out of the pass before the per-item verdicts:
+  (a) items 1–2's fix had staged the day only where the wallet contrast
+  bites — `d3_plaza_pigeons` + `d3_brownstones` still wore Day 1's $87 and
+  the "waving at you" objective on main; and every frame committed before
+  the Pocket HUD carried the retired music-toggle chrome. visual-d3 now
+  stages Day-3 state ($111, step 21's own flyer objective) for the whole
+  chapter and retires the boot toast;
+  (b) the visual-d4b follow-cam poses stopped landing when the street grew —
+  on main the sal-counter boom parked INSIDE the laundry awning (the
+  committed frame was unreproducible). All five d4b shots now park the
+  camera (the house law the d3/d4 probes already use), stage their own
+  step's objective (the receipt frames wore "the washers are going" on a
+  filed-receipt beat; the dusk four-windows wore the morning-rush line), and
+  `d4b` clears the Day-1 boot toast.
+  Per-item verdicts (Doc 31 CLEAR list vs main):
+  - `d4_sal_counter_wash` grey prism ("clearest floating-prop read"): **not
+    reproducible on main** — the A-frame is grounded, the washers sit in the
+    bay, the counter is dressed; closed with the re-shot frame as evidence.
+  - Fire-escape landings floating (`d4_receipt_on_cart_portrait`): **not
+    true of the current staging** — the ladder is in frame against the red
+    wall in both receipt frames; closed with the re-shot frames.
+  - Antenna prop "reads detached" (`d4_four_windows_dusk`): **attached by
+    construction** — `RideTowerMast` (arrival.ts) spans the tower roofline
+    to +2.4 with a beacon cap, and the current dusk frames read it rooted;
+    closed, no code change.
+  - Lamp poles without bases: **already fixed on main by construction** —
+    `makeStreetlight` (props.ts) carries the base collar from the
+    poles/wires pass ("a small base collar so the pole meets the sidewalk
+    with weight"); the one collarless procedural fallback is
+    `World.makeStreetlamp` (cart corner), which GLB-upgrades and never shows
+    its base in a published frame — accepted risk.
+  - Floating AC units: **by design, seated** — `makeACUnit` boxes sit in
+    their window recesses at the sill line (World.ts placement + the dusk
+    frames); accepted as the theatrical window-unit read Doc 31 described.
+  - Teal door child-scale: **accepted risk, deliberate** — Doc 31 itself
+    calls the scale defensible ("tiny person, big city") and the door is the
+    Day-2 emotional anchor; it stays exactly as dressed.
+  - Clipped signs / frame-edge crops (taxi noses, far-right props, tree at
+    frame edge, street sign "AY"): **accepted risk** — frame edges crop a
+    continuous world; every published frame passes the 1-Second Law, and
+    the one sign whose occlusion was a real defect is fixed below.
+  - `d4_receipt_on_cart` cart sign behind the dialogue box: **FIXED** — the
+    landscape pose aims high so "Wade's Spot" sits mid-frame clear of the
+    banners, receipt chip and grounded ladder both read.
+  - `d4_stranger_terminal` thin-strip census (Doc 31 fix #4's second
+    target): **FIXED** — parked east of the pair between the M121 shell's
+    tail and the building line; the pair owns the middle third, the shell
+    wall names the terminal. (West of the pair every sight-line rides into
+    a plaza tree's trunk or canopy — tried, measured, rejected; the canopy
+    edge over the pair is the block's own shade. The BUS TERMINAL sign is
+    out of frame by composition; the shell is the terminal's name in this
+    shot.)
+  - `d4_she_walks_your_first_walk` bare-asphalt census, no cab: **FIXED** —
+    the beat's own choreography staged honestly: the cab at the engine's
+    coded courtesy hold (`World.CAB.holdCenterX`, nose at the crosswalk's
+    west edge, loop frozen for the frame), the pair on the stripes, the
+    signal + storefront context in frame.
+  - `d3_plaza_pigeons` M121 shell eating the plaza: **FIXED** — parked
+    south-west: the flyer board ("Read the flyer" prompt), benches,
+    pigeons, BUS TERMINAL sign and the stair railings own the frame; the
+    shell holds the right edge.
+  - `d4_laundry_bay` bay cut at the frame edge + Day-1 boot toast:
+    **FIXED** — parked across the street: SUNRISE LAUNDRY sign, teal
+    awning, both washers and the shirt rack own the frame; toast retired.
+  - `d4_permit_notice` dead-center against empty wall, notice face away:
+    **FIXED** — parked on the street side: the notice face reads, the
+    player reads it, Sal's counter and Rosa's awnings hold the context.
+  - `d3_brownstones` empty lower half: **accepted risk** — a closer stand
+    at the row was tried and rejected (the sidewalk trees eat the doors
+    from there); the curb stand keeps the row clean.
+  - Street-lamp pole crossing the `d3_street_landscape` frame and the
+    manhole steam cluster ("unfinished effect"): **not defects** — the
+    steam is the designed Rule-of-Steam manhole vent (World.ts), the pole
+    is the street's own wiring at head height; accepted.
+  - Observed once, not shipped: the broken sal-counter boom angle showed a
+    sawtooth shadow pattern on the red facade at grazing incidence — not
+    visible in any published frame; noted for the B13 shadow frontier if a
+    rig ever grazes that wall again.
+- **Where (item 3):** `web-three/scripts/visual-d3.mjs` (chapter-wide Day-3
+  staging, plaza parked pose), `visual-d4.mjs` (terminal + she-walks parked
+  poses, staged courtesy-hold cab, dusk objective),
+  `visual-d4b.mjs` (park/unpark helpers, per-shot objectives, toast
+  hygiene, all five poses), 14 re-captured frames in
+  `web-three/assets/web-three/frames/`; no src/ changes — zero gameplay
+  surface touched; vitest 469/469, tsc clean, build 447 ms.
+- **Status:** FIXED 2026-11-04 — items 1–3 closed; every Doc 31 CLEAR item
+  now ends in a code fix + re-shot evidence or a written accepted-risk
+  above. Residual accepted risks are listed per item and need no owner.
 
 ### B13. Performance ledger still over ideal on full-street views
 - Doc 07 target “<150 typical street scene” is not met for plaza-wide rigs

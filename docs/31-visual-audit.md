@@ -1,6 +1,7 @@
 # Doc 31 — Visual Audit: Every Evidence Frame
 
 *Status: audit complete, fixes proposed. Owner of the fixes: AGENT-A (all engine and script files are theirs; this doc only reports). Nothing here is a regression — most of it is composition polish and evidence hygiene. One frame needs real work.*
+***Follow-up 2026-11-04: every finding below has been re-adjudicated against current main (in-engine look, then fix or written accepted-risk) — the full per-item close-out with evidence lives in docs/51 B12, and all 14 frames were re-captured on main the same day. Findings described here are against the frames of audit day and some compositions have since moved.***
 
 ---
 

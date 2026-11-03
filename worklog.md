@@ -417,3 +417,47 @@ Stage Summary:
 - Next gaps: the card's title-dim could drop a touch darker so the new
   lights punch harder; the door-slide moment could carry a warm interior
   spill through the open doorway.
+
+## 2026-11-04 — agent2: B12 closes — the visual-audit follow-ups, fix or accepted risk (docs/51 B12 + docs/31)
+
+Doc 31's CLEAR prop pass was still OPEN on main, gated on "one in-engine
+look". The look happened, twice over: all 14 published evidence frames were
+re-captured fresh on main, read frame-by-frame here, and every vision-CLI
+reading was cross-checked against the code before anyone touched anything —
+the code won several times (the antenna is attached by construction; the
+streetlights carry base collars; the AC units are seated; the white sphere
+cluster is the designed manhole steam). The audit's own instrument rules
+held: never ship a fix whose only evidence is a model's misread.
+
+What the look surfaced beyond Doc 31's list:
+- B12 items 1–2 had not fully landed: the plaza + brownstone frames still
+  wore Day 1's $87 on main (the day was staged only where the wallet
+  contrast bites), and every frame committed before the Pocket HUD carried
+  the retired music-toggle chrome.
+- The visual-d4b follow-cam poses stopped landing as the street grew: on
+  main the sal-counter boom parked INSIDE the laundry awning and the
+  committed frame was unreproducible. Evidence-pipeline rot, not art rot.
+
+The closes (probe-only, zero src/ changes — no gameplay surface):
+- visual-d3: chapter-wide Day-3 staging ($111 + step 21's flyer objective),
+  boot toast retired, plaza parked pose (flyer board + pigeons + BUS
+  TERMINAL sign own the frame; the M121 shell holds the right edge).
+- visual-d4: stranger_terminal parked east of the pair (the west side was
+  tried and rejected — plaza trees eat every sight-line); she_walks stages
+  the beat's own choreography (the cab at World.CAB.holdCenterX, loop
+  frozen for the frame); the dusk four-windows wears its own objective.
+- visual-d4b: park/unpark helpers for all five shots, per-shot objectives
+  (D4_CLIMB4 on the receipt frames), toast hygiene, and poses that put Sal's
+  counter, the laundry bay, the A-frame's notice face, and the cart sign
+  where the beats say they are.
+
+Accepted risks written where fixing would be art: teal door child-scale,
+brownstones' empty lower half (a closer stand was tried — the trees eat the
+doors), frame-edge crops, the collarless procedural streetlamp fallback.
+
+Stage Summary:
+- 14/14 frames re-captured on main @ fe257c0 world; tsc clean; vitest
+  469/469; build 447 ms; all three visual probes run with zero pageerror.
+- docs/51 B12 → FIXED with the per-item verdict table; docs/31 header now
+  points at the close-out. No probe assertions touched (frames are evidence,
+  not gates); no docs/51 links changed.
