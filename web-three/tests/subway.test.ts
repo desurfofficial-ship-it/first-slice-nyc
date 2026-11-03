@@ -215,3 +215,25 @@ describe('aboardCar — the seam swap only carries passengers (left-behind law)'
     expect(aboardCar(17.45)).toBe(false);// the trench's far wall
   });
 });
+
+describe('Priya\u2019s window diagram (docs/51 B11 — the teach draws itself)', () => {
+  // Doc 02: Priya draws two lines on the window in two swipes; Map copies
+  // them badly. The train carries chalk strokes on the middle window's
+  // inside face; the ride's 'priya-lines' beat reveals them, the ride's
+  // rest hides them again (the next train on the loop is a fresh car).
+  it('the diagram beat lands before the swap seam — the chalk is drawn on the car you ride', () => {
+    const lines = RIDE_BEATS.find((b) => b.key === 'priya-lines');
+    expect(lines).toBeDefined();
+    expect(lines!.t).toBeGreaterThan(RIDE_T.close); // doors shut, tunnel running
+    expect(lines!.t).toBeLessThan(RIDE_T.swap); // before the seam — no re-draw
+  });
+  it('the copy beat lands after the seam — Map copies from the window she is looking at', () => {
+    const copy = RIDE_BEATS.find((b) => b.key === 'map-copies');
+    expect(copy).toBeDefined();
+    expect(copy!.t).toBeGreaterThan(RIDE_T.swap);
+  });
+  it('the chalk strokes ride ZONE_KEEP_RE (toggle-only writes, the bake contract)', () => {
+    expect(ZONE_KEEP_RE.test('SUB_Diagram_-44.2_lights_a')).toBe(true);
+    expect(ZONE_KEEP_RE.test('SUB_Diagram_-332.2_river_b')).toBe(true);
+  });
+});

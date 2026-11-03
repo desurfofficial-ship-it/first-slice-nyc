@@ -86,6 +86,23 @@ function streetsSvg(): string {
  *  close enough that below-labels would collide (Rosa's / the terminal). */
 const LABEL_ABOVE = new Set(['bodega', 'globe']);
 
+/** Map's crooked copy of Priya's two lines (docs/02 Subway University,
+ *  docs/51 B11) — page 1's bottom-left margin, drawn after the ride's
+ *  'map-copies' beat. Badly, by law: the river line dips too deep, the
+ *  lights line sags, the pencil labels hedge. Priya taps it anyway:
+ *  "See? You already can read it." Hidden until the beat latches
+ *  (`.revealed`, the same law as the places). The bottom-left corner is
+ *  empty paper (nearest mark: the globe, y −6.2 — eight units away). */
+function priyaLinesSvg(): string {
+  const y = toY(P.zMin); // 10 — the bottom band of the page (edge at 11)
+  return `<g class="sketch-priya" id="sketch-priya">`
+    + `<path class="sketch-stroke sketch-priya-lights" d="M-44.8,${y - 2.4} q2.2,-0.5 4.4,-0.1 q1.2,0.2 2.2,-0.15"/>`
+    + `<path class="sketch-stroke sketch-priya-river" d="M-45,${y - 1.0} q1.6,1.8 3.4,1.6 q2.0,-0.2 3.2,-2.0"/>`
+    + `<text class="sketch-label" x="-37.2" y="${y - 2.2}">the lights??</text>`
+    + `<text class="sketch-label" x="-36.9" y="${y - 0.7}">under the river</text>`
+    + `</g>`;
+}
+
 export function buildSketchSvg(): string {
   const places = MAP_PLACES.map((p) => {
     const ly = LABEL_ABOVE.has(p.id) ? -1.9 : 2.35;
@@ -100,5 +117,5 @@ export function buildSketchSvg(): string {
   const vbX = P.xMin - 1, vbY = toY(P.zMax) - 1;
   const vbW = (P.xMax - P.xMin) + 2, vbH = (P.zMax - P.zMin) + 2;
   return `<svg viewBox="${vbX} ${vbY} ${vbW} ${vbH}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">`
-    + streetsSvg() + places + star + `</svg>`;
+    + streetsSvg() + places + star + priyaLinesSvg() + `</svg>`;
 }

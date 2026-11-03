@@ -68,7 +68,7 @@ describe('save v1 — write/read roundtrip', () => {
     expect(loaded).toEqual({
       ...data, day_start_money: 111,
       shelf_buys: 0, dog_buys: 0, trims: 0, washes: 0, hoop_makes: 0,
-      map_notes: [], map_slang: [], map_places: [],
+      map_notes: [], map_slang: [], map_places: [], map_priya_lines: false,
     });
   });
 
