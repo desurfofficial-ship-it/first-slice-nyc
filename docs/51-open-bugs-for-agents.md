@@ -4,6 +4,13 @@ Point-in-time ledger after the first-session-world + half-court merges and the
 camera/joystick pass. **Fixed in this session are marked FIXED.** Everything
 else is open for a follow-up agent.
 
+> **Close-out pass (agent2/session-polish, 2026-11-03):** B3, B6, B7 and B8
+> are FIXED on that branch — each fix carries its permanent guard (a unit
+> test or a wired contract), and the branch's probe evidence is in
+> [docs/52-agent2-polish-closeout.md](52-agent2-polish-closeout.md). B1, B2
+> and B5 were fixed on main by `06d8c9a` (one bay, one bus). B4 was re-run
+> green on the close-out branch (AUTOTEST OK: 0 failures, 388 s).
+
 ## FIXED this session (camera + joystick)
 
 ### F1. Camera absolute Z corridor broke the expanded map — FIXED
@@ -60,15 +67,21 @@ else is open for a follow-up agent.
 - **Owner hint:** Needs a single owner for “the bus the player boards at the
   terminal” — merge or clearly separate the two.
 
-### B3. Court ball re-pickup after miss (probe-court)
-- **Symptom:** `FAIL re-pickup works wherever the ball came down`. Make /
-  rebound / mobile paths pass; reclaim after a short miss is flaky.
-- **Likely cause:** Interact range vs ball rest position after rebound;
-  `CourtGame` phase not returning to `idle`/`loose` cleanly; or the ball’s
-  world position drifts outside the court’s interact AABB.
-- **Where:** `web-three/src/court/CourtGame.ts`, `ballSim.ts`,
-  `interactionDefs.ts` court interaction, `scripts/probe-court.mjs`.
-- **Owner hint:** Half-court agent / Agent 2.
+### B3. Court ball re-pickup after miss (probe-court) — FIXED (agent2/session-polish)
+- **Root cause found:** the `court` interaction's anchor (`COURT_BALL_REST`)
+  did not follow the ball during the escape `return` — it sat on the stale
+  pre-return spot. `CourtGame.pickUp()` promises an intercept "works from
+  rest OR mid-return", so whenever a rebound left through the gate the
+  press died out by the fence: exactly the flaky reclaim the ledger
+  recorded. (A walker brushing nearer could also swallow a press at the
+  margin; the anchor lie was the systematic half.)
+- **Fix:** `CourtGame.updateReturn` now keeps `COURT_BALL_REST` on the
+  rolling ball every frame (the same law `updateRest` already obeyed), so
+  the intercept promise is true wherever the roll is caught.
+- **Guard:** `tests/court-game.test.ts` — §A the anchor rides the rolling
+  ball (60 frames) and `pickUp()` fires mid-return; §B the handoff lands
+  anchor and ball on `RETURN_HOME` together; §C at rest the anchor IS the
+  ball. `CourtGame.RETURN_HOME` is public (it is the court's law).
 
 ---
 
@@ -86,22 +99,34 @@ else is open for a follow-up agent.
   bay, double colliders, or interact targeting the wrong one.
 - **Action:** One design decision + one code path for “player-enterable bus.”
 
-### B6. Camera canopy list length vs occlusion buffer
-- `GameCamera` builds `occlusion: Float32Array(canopies?.length ?? 0)` at
-  construct time. If World adds trees after camera construction without
-  resizing the buffer, fade-on-occlude silently no-ops for new canopies.
-- **Where:** `GameCamera` constructor, `Game.ts` boot wiring,
-  `World.canopySpheres()`.
+### B6. Camera canopy list length vs occlusion buffer — FIXED (agent2/session-polish)
+- **Fix:** `GameCamera.updateOcclusion` resizes the fade array whenever the
+  world's LIVE canopy list outgrows it, and `Game.update` re-wires
+  `world.canopyOcclusion = cam.occlusion` every frame (a pointer copy, not
+  an allocation) so the fade pass always reads the camera's CURRENT array.
+- **Guard:** `tests/camera.test.ts` — "occlusion array follows the live
+  canopy list": a canopy pushed after construction gets a slot, values stay
+  clamped 0..1, and the resized array is the reference the world reads.
+  (Latent on the current tip — no canopy is pushed post-boot today — but
+  the class of mistake is now impossible, not just unobserved.)
 
-### B7. Touch UI hidden logic vs order card / map
-- `#touch-ui` uses `hidden` and `hidden-when-panel`. Confirm order-card and
-  map-notebook open states still hide the joystick (otherwise the stick
-  steals taps from paper UI on phones).
-- **Where:** `ui/UI.ts`, `style.css`, `Game.ts` mapOpen / orderCard.
+### B7. Touch UI hidden logic vs order card / map — FIXED (agent2/session-polish)
+- **Finding:** the CSS contract existed and was dead — `#touch-ui
+  .hidden-when-panel { display: none; }` was never wired by any code, so
+  the stick and buttons stayed up over the order card, the Map and the
+  postcard.
+- **Fix:** `UI.syncTouchPanels()` toggles the class from the six panel
+  open/close sites (order card, Map, postcard). Keyboard play never
+  notices; on phones the paper now holds the hands.
+- **Guard:** the wiring lives at the UI choke points themselves (one
+  helper, six call sites) — a new panel type that skips it fails the
+  visible contract on the first phone, not silently.
 
-### B8. KeyQ is camera-left only; some players expect strafe
-- Q is camera turn (with Z). No keyboard strafe other than A/D relative to
-  camera. Document in controls blurb if a help sheet ships.
+### B8. KeyQ is camera-left only; some players expect strafe — FIXED (docs, agent2/session-polish)
+- The README controls blurb now states the real bindings: Space/E interact
+  (E is interact-only — it never turns the camera), Z/C **or Q** turn the
+  camera, M opens the Map. No strafe exists; the blurb no longer implies
+  otherwise.
 
 ---
 
