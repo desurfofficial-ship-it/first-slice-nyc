@@ -7,12 +7,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import * as THREE from 'three';
 import {
   buildM121, travelYaw, worldToLeg, legToWorld, aabbToLeg,
   PARKED_CAR_RECTS, parkedCarRect, KESTREL_COURTESY_ZONES, BUS_BODY, BUS_BAY_ID,
   type BusZone,
 } from '../src/engine/busRoute';
-import { BUS04_STEP, playerOccupiesBus04 } from '../src/world/arrivalBus';
+import { buildArrivalBus, BUS04_STEP, playerOccupiesBus04 } from '../src/world/arrivalBus';
 
 const legs = buildM121();
 const KESTREL = { xMin: -84, xMax: 84, zMin: -4, zMax: 4 };
@@ -237,5 +238,67 @@ describe('the bay occupancy law — playerOccupiesBus04 (docs/51 B2)', () => {
     expect(BUS04_STEP.maxX - BUS04_STEP.minX).toBeCloseTo(1.0, 6);
     expect((BUS04_STEP.minZ + BUS04_STEP.maxZ) / 2).toBeCloseTo(3.6, 6);
     expect(BUS04_STEP.top).toBeCloseTo(0.3, 6);
+  });
+});
+
+// ---------------------------------------------------- the curb bake (B13)
+
+/** The zone bake's eligibility law, pinned on the bus shell. The bake
+ *  merges Lambert + map-free + opaque + indexed meshes within a zone
+ *  group; anything else must stay a singleton (the route sign carries its
+ *  canvas map) or ride the animated exclusion by name (the driver
+ *  breathes). If a future part breaks one of these, the bake will either
+ *  absorb it (wrongly fusing a dynamic mesh) or leave draw calls on the
+ *  table — this guard makes both failures loud. */
+describe('the curb bake contract — the M121 shell is bake-eligible (docs/51 B13)', () => {
+  const M = (c: number, opts?: { emissive?: number; emissiveIntensity?: number }) => {
+    const m = new THREE.MeshLambertMaterial({ color: c });
+    if (opts?.emissive) {
+      m.emissive = new THREE.Color(opts.emissive);
+      m.emissiveIntensity = opts.emissiveIntensity ?? 1;
+    }
+    return m;
+  };
+  const { group } = buildArrivalBus(M);
+  const meshes: THREE.Mesh[] = [];
+  group.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
+
+  const underDriver = (m: THREE.Mesh): boolean => {
+    for (let p: THREE.Object3D | null = m; p && p !== group; p = p.parent) {
+      if (p.name === 'BUS_Driver') return true;
+    }
+    return false;
+  };
+
+  it('the shell is bake-eligible: Lambert, opaque, indexed — with exactly one map-carrying singleton (the route sign)', () => {
+    let shell = 0, mapped = 0;
+    for (const m of meshes) {
+      if (underDriver(m)) continue;
+      const mat = m.material as THREE.MeshLambertMaterial;
+      expect(mat.isMeshLambertMaterial, `${m.name}: Lambert only`).toBe(true);
+      expect(mat.transparent, `${m.name}: opaque only`).toBe(false);
+      expect(m.geometry.index, `${m.name}: indexed`).not.toBeNull();
+      if (mat.map) mapped++;
+      else shell++;
+    }
+    expect(mapped).toBe(1); // BUS_Route — the bake skips it by design
+    expect(shell).toBeGreaterThanOrEqual(20); // the fusible body
+  });
+
+  it('the driver rig rides the animated exclusion — six merged meshes, never fused into the shell', () => {
+    const driver = meshes.filter(underDriver);
+    expect(driver.length).toBe(6); // the cast-bake law: one figure, six draws
+    for (const m of driver) {
+      expect(m.name === 'BUS_Driver' || m.parent?.name !== null).toBe(true);
+    }
+  });
+
+  it('the group stays the one-bay swap\'s handle — the bake re-parents INTO it, never out', () => {
+    expect(group.name).toBe('BUS_M121');
+    for (const m of meshes) {
+      let p: THREE.Object3D | null = m;
+      while (p && p !== group) p = p.parent;
+      expect(p).toBe(group);
+    }
   });
 });

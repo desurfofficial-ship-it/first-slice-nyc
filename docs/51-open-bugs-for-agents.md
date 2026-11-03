@@ -360,15 +360,23 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
 ### B12. Visual-audit follow-ups (Doc 31)
 - Day-4 greeting frame is the weakest: figures too small, composition spends
   pixels on blank wall/asphalt. Raise/tilt camera so the two figures own the
-  middle third.
+  middle third. — **FIXED 2026-11-04** (visual-d4 shot 2: parked low
+  three-quarter north of the M121 shell — the first parked pose stood inside
+  it; the pair owns the middle third, she meets his eye, the bus + tree +
+  newsbox carry the rest).
 - Multiple evidence frames still show staged Day-1 HUD ($87, Day-1 objective)
   while depicting Day-3/4 moments — fix probe/save staging for evidence shots.
+  — **FIXED 2026-11-04** (visual-d3 was the last offender: the Day-3 morning
+  block stages $111/$111 and the dusk postcard $120 — the tests' own
+  day2Done/day3Done law — with objectiveText() riding each staged step;
+  re-shot and eyeballed: $111 on the kid-on-stool chip, $120 on the
+  three-windows dusk).
 - Minor CLEAR items: floating AC units, lamp poles without bases, clipped
   signs, antenna prop, door scale on teal door, etc. Fix only after one
   in-engine look (Anti-Slop gate).
 - **Where:** evidence frame probes, camera framing for Day-4 greeting,
   prop placement.
-- **Status:** OPEN — polish / evidence hygiene.
+- **Status:** OPEN — item 3 (the CLEAR prop pass) remains; items 1–2 fixed.
 
 ### B13. Performance ledger still over ideal on full-street views
 - Doc 07 target “<150 typical street scene” is not met for plaza-wide rigs
@@ -381,40 +389,29 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   is UNDER the 250 line for the first time; Kestrel still over 150, gate
   line stays published. The statics' colors now ride vertex attributes and
   the census audit reads them (23 distinct [vc] shades surface).
-- **Update 2026-11-04 (person material law, this commit):** the top-3 costs
-  on a full Kestrel + Times Square view were measured with
-  `diag-perf-breakdown.mjs` + a per-family shadow census
-  (`diag-shadow-census.mjs`): (1) the shadow pass re-rendered every cast
-  member's ~9–13 body-part meshes — characters+peds were 69 of PLAZA's 132
-  shadow calls for ~1.2k tris, and TIMES_SQ's shadow gap was 161 calls on a
-  61-mesh view; (2) the named-world props added 56; (3) each person also
-  allocated a fresh material per part per body. The one construction-law
-  fix (no gameplay, no look change): **the person material law** — the
-  whole cast now shares ONE white `MeshLambertMaterial({vertexColors})`
-  (the statics' own bake law: white × vertex color is bit-for-bit the same
-  shade) and every rigid same-pivot part group merges into one mesh (the
-  W4p2 dusk-pair method): 6 meshes per person, down from 9–13, in BOTH
-  passes. Rig pivots, animation, and `updatePersonAnim` untouched.
-- **Measured before/after (same rigs, same method, `diag-perf-breakdown.mjs`):**
-  PLAZA 470 → **406** (−64) · CART_CORNER 408 → **337** (−71) ·
-  SYCAMORE×GABLE 134 → **115** (−19) · TIMES_SQ 222 → **130** (−92, −41% —
-  the square is UNDER the 150 line) · PLATFORM_A 179 → **146** (−33).
-  `probe-perf.mjs`: boot-spawn 236 → 186, mid-street-east 302 → 257,
-  plaza-life 432 → 362. Tri counts bit-stable (±0.04%). Materials per
-  person bucket: 12–33 → **1**. No rig regressed — the ledger gate holds.
-- **Verified:** `tests/rig.test.ts` carries the permanent guard (six
-  meshes, one shared material instance, vertex colors ride, uv dropped,
-  both passes cast — for the fullest look incl. strap+shawl+glasses+bun);
-  full vitest **463/463**; `tsc --noEmit` clean; `probe-characters` after
-  (slide 2.7% — feet still plant; visual identity shots kept
-  `shots/characters/after-*.png`); `probe-subway` ALL PASS (30 laws);
-  `probe-court` ALL PASS; `probe-doc12` green; full E2E AUTOTEST OK
-  0 failures 354 s, console clean. Diagnostics kept:
-  `diag-shadow-census.mjs` (per-family shadow attribution),
-  `diag-identify-unnamed.mjs` (the (unnamed) bucket identifier).
-- **Still owed for B13:** Kestrel plaza rigs remain over 150 (sign boards
-  and named-world prop cast-shadow discipline are the next measured
-  levers — docs/47 still holds them for an art call).
+- **Update 2026-11-03 (cast bake, same day):** every figure merged to 6
+  draws (was 11–12) — colors ride vertex attributes, one shared material
+  for the whole cast, rigid pivots fused (leg+boot, arm+hand,
+  torso+shawl+strap, skull+hair+glasses). PLAZA 468 → 404,
+  CART_CORNER 406 → 335, SYCAMORE×GABLE 132 → 113 — every rig under its
+  previous ledger. Measured and rejected: small-prop shadow-caster
+  discipline (−12/−16 for visible contact shadows — bad trade); the
+  remaining frustum tail is canvas-texture sign faces (atlas = a program).
+  Next honest frontier per diag-shadow-price: the shadow pass itself
+  (~108–125 calls).
+- **Update 2026-11-04 (curb bake, e7dcc7d+1):** the zone-bake law extended
+  one group later — the M121's shell (the arrivalBus header itself ceded
+  "the shell could bake") and the named dressing groups fuse within their
+  own groups; the driver rig rides the animated exclusion, the route sign
+  stays a map singleton. PLAZA 404 → 370, CART_CORNER 335 → 301,
+  SYCAMORE×GABLE 115 → 115 — every rig under its previous ledger; the
+  150 ideal line stays published FAIL. The shadow frontier priced and
+  closed for now (diag-shadow-frontier.mjs): SHADOW_HALF 35→30 is −5/−1,
+  35→26 is −11/−5, far 160→120 is ±0, ALL figure casts are −37 — every
+  lever an art regression for almost nothing; the ~113–124 shadow calls
+  are the dusk look itself (74 figure casts + the buildings that cast
+  it). Frontier back to the main pass: sign atlas (a program), interiors'
+  window visibility, SUB_Root depth.
 
 ### B14. Documentation hygiene
 - Some older docs (Phase 0 exit, AGENTS.md “code pending”) still read as if

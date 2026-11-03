@@ -243,9 +243,8 @@ export class Pedestrians {
       vehicle.steering.add(new SeparationBehavior());
       this.manager.add(vehicle);
 
-      // the same handcrafted rig the cast wears — one shared vertex-color
-      // material for the whole cast, so three more neighbors cost three
-      // rigs and zero new materials AND zero new draw-program state
+      // the same handcrafted rig the cast wears — bank-shared materials,
+      // so three more neighbors cost three rigs, zero new materials
       const { group } = buildArticulatedPerson(look);
       group.position.set(start[0], groundY(start[0], start[1], roads), start[1]);
       group.rotation.y = rng() * Math.PI * 2;

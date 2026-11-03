@@ -385,3 +385,34 @@ Work Log:
 
 Stage Summary:
 - One construction-law fix, measured honestly, every rig improved, zero gameplay or look change. Person material law is now a test-guarded rule.
+## 2026-11-03 — agent5: the gate grows a terminal (arrival pass 4)
+
+The probe saw it and so did the studio frames: the arrival card's backdrop
+was one dim slab and a floating GATE 12 sign — the push-in spent its whole
+two seconds staring at a void, and the portrait card read as signs hanging
+in nothing. Fixes, all in arrival.ts buildCoach():
+
+- The terminal face is built: precast bays with panel reveals and pilasters,
+  a head house with a coping and a rooftop water tower, a lit centre
+  entrance under a glowing hood (panes, stile, push bars, kick), a ticket
+  window, a departure board (amber rows over ink, unreadable on purpose),
+  light pools under the poles and the door, a bench and a bin in the lane,
+  and past the parapet the lit skyline you watched from the bus window —
+  six dark towers, seeded amber windows, the ride's last promise kept.
+- Apron widened 26 → 32 so the dusk grass no longer peeks past the
+  facade's east end.
+- Two rasterizer lessons banked the hard way (documented in the code):
+  lit signage flies as a bare plane 0.06 north of the wall with NO backing
+  board — a casing's face lands a depth-tie away and the software GL hands
+  the tie to the dark box; and every lit face keeps ≥0.03 of real air in
+  front of what backs it. Diags that proved it: scripts/diag-gate-prod.mjs
+  (production frames, both orientations) and scripts/diag-gate-set.mjs
+  (scene census + standalone-camera studio frames).
+
+Stage Summary:
+- tsc clean; vitest 469/469 on the merged tree (with the curb-bake wave);
+  build clean; probe-a5g both orientations ok; probe-a5c + arrival-portrait
+  ERRORS: none. Pushed main 3f4a61a..1220c72, merge clean, Pages CI success.
+- Next gaps: the card's title-dim could drop a touch darker so the new
+  lights punch harder; the door-slide moment could carry a warm interior
+  spill through the open doorway.

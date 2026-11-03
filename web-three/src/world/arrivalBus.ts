@@ -16,9 +16,12 @@
  * bay this shell yields (World swaps visibility by BUS04_RECT); the tail
  * gap 0.15 m is what keeps the two rects disjoint through every halt.
  *
- * Names live under the BUS_M121 group; the bake skips that exact name
- * (the rig and duffel are dynamic dressing; the shell could bake, but one
- * name in the skip list is simpler than a split).
+ * Names live under the BUS_M121 group; the DISTRICT bake skips that exact
+ * name (the zone bake, though, now runs INSIDE the group — docs/51 B13
+ * "the curb bake": the shell fuses per signature, the driver rig rides
+ * the animated exclusion, and the group-level one-bay visibility swap is
+ * untouched). The rig and the route sign are the only non-fusible parts:
+ * the driver breathes; the sign carries its canvas map.
  */
 
 import * as THREE from 'three';
@@ -76,7 +79,17 @@ export interface ArrivalBus {
   update(dt: number): void;
 }
 
-function routeTexture(): THREE.CanvasTexture {
+function routeTexture(): THREE.Texture {
+  // The node side (vitest) has no DOM: the curb-bake contract test builds
+  // the shell headless. A 1×1 flat stand-in keeps the shape — it still
+  // carries a map, so the zone bake skips it exactly like the real sign.
+  if (typeof document === 'undefined') {
+    const data = new Uint8Array([0x2b, 0x24, 0x30, 0xff]);
+    const tex = new THREE.DataTexture(data, 1, 1);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.needsUpdate = true;
+    return tex;
+  }
   const cv = document.createElement('canvas');
   cv.width = 256;
   cv.height = 64;
