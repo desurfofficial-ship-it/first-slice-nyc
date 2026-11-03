@@ -60,6 +60,7 @@
  */
 
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Tweens, easeLinear } from '../engine/tweens';
 import { PAL } from '../core/palette';
 import type { UI } from '../ui/UI';
@@ -664,35 +665,70 @@ export class ArrivalCinematic {
         box(strip, 'RideStoopRailTop', ironMat, x, 0.95, sz + 0.45, 1.06, 0.035, 0.035);
       }
       if (o.fire) {
-        // a real zigzag: platforms, rails, and stairs that LAND — the old
-        // lone tilted plank (1.1 long at ±51°) couldn't span the 2.9 m
-        // floor rise, so its ends hung in mid-air and the terminal zoom
-        // caught them as floating sticks. The stringer here is sized from
-        // the actual rise/run triangle (edge to edge), treads ride it.
+        // a real zigzag, merged to ONE mesh per building — the previous
+        // pass fixed the stair length but the terminal zoom still caught
+        // three tells: rails floated with nothing holding them, a lone
+        // stringer ran through the treads like a stick, and five treads
+        // over a 2.9 m rise was a ship ladder. Now: posts carry the
+        // rails, a stringer PAIR frames each flight, nine treads land on
+        // the stringer line (steep, like the real ones), a wall arm +
+        // diagonal brace triangle carries every platform, and a sidewalk
+        // ladder climbs to the bottom deck. All of it one draw call.
+        const parts: THREE.BufferGeometry[] = [];
+        const part = (gx: number, gy: number, gz: number,
+          gw: number, gh: number, gd: number, rz = 0, rx = 0): void => {
+          const geo = new THREE.BoxGeometry(gw, gh, gd);
+          if (rz) geo.rotateZ(rz);
+          if (rx) geo.rotateX(rx);
+          geo.translate(gx, gy, gz);
+          parts.push(geo);
+        };
         const floors = Math.max(1, Math.floor((h - 3.5) / 2.9));
         const bx = x + w * 0.26;
-        const fz = z + depth / 2 + 0.2;
+        const wallZ = z + depth / 2;
+        const fz = wallZ + 0.2;
         const run = 1.0; // platform edge to platform edge (half-width 0.525)
         const rise = 2.9;
         const sLen = Math.hypot(run, rise);
         const sAng = Math.atan2(rise, run);
         for (let f = 0; f <= floors; f++) {
-          const py = 2.7 + f * 2.9;
+          // the bottom deck sits just ABOVE the sign band (3.5 m grade,
+          // fascia to 3.36) — the escape never crosses the shop's letters,
+          // the way a real one starts at the second floor over a store
+          const py = 3.55 + f * 2.9;
           if (py > h - 1) break;
-          box(strip, 'RideFirePlatform', ironMat, bx, py, fz, 1.05, 0.05, 0.34);
-          box(strip, 'RideFireRailA', ironMat, bx, py + 0.5, fz + 0.15, 1.05, 0.035, 0.035);
-          box(strip, 'RideFireRailB', ironMat, bx, py + 0.25, fz + 0.15, 1.05, 0.025, 0.025);
+          part(bx, py, fz, 1.05, 0.05, 0.34); // the deck
+          // rails ride on posts — no more floating dashes
+          for (const ex of [-0.5, 0.5]) {
+            part(bx + ex, py + 0.28, fz + 0.15, 0.035, 0.56, 0.035);
+          }
+          part(bx, py + 0.54, fz + 0.15, 1.05, 0.04, 0.04);
+          part(bx, py + 0.3, fz + 0.15, 1.05, 0.03, 0.03);
+          // the bracket triangle: a wall arm out to the deck edge plus a
+          // diagonal up to its tip — how a real escape hangs off brick
+          for (const ex of [-0.38, 0.38]) {
+            part(bx + ex, py - 0.07, wallZ + 0.2, 0.04, 0.04, 0.36);
+            const bDy = 0.27; const bDz = 0.3;
+            part(bx + ex, py - 0.07 - bDy / 2, wallZ + 0.02 + bDz / 2,
+              0.04, Math.hypot(bDy, bDz), 0.04, 0, -Math.atan2(bDz, bDy));
+          }
           if (f < floors) {
             const dir = f % 2 === 0 ? 1 : -1; // the zigzag
-            const stringer = box(strip, 'RideFireStringer', ironMat, bx, py + rise / 2, fz, sLen, 0.05, 0.07);
-            stringer.rotation.z = dir * sAng;
-            for (let s = 0; s < 5; s++) {
-              const t = (s + 0.5) / 5;
-              box(strip, 'RideFireStep', ironMat,
-                bx + dir * (t - 0.5) * run, py + rise * t, fz, 0.3, 0.035, 0.26);
+            for (const sz of [fz - 0.1, fz + 0.1]) { // the stringer pair
+              part(bx, py + rise / 2, sz, sLen, 0.05, 0.06, dir * sAng);
+            }
+            for (let s = 0; s < 9; s++) {
+              const t = (s + 0.5) / 9;
+              part(bx + dir * (t - 0.5) * run, py + rise * t, fz, 0.26, 0.03, 0.24);
             }
           }
         }
+        const ironGeo = mergeGeometries(parts, false);
+        for (const p of parts) p.dispose();
+        const iron = new THREE.Mesh(ironGeo, ironMat);
+        iron.name = 'RideFireEscape';
+        strip.add(iron);
+        this.disposables.push(ironGeo);
       }
     };
 
@@ -1164,6 +1200,7 @@ export class ArrivalCinematic {
       const bw = (glassR - glassL) / bays;
       for (let b = 0; b < bays; b++) {
         const bx0 = glassL + b * bw;
+        const paneW = bw - px(0.06);
         // transom: small panes, kept dim — the ceiling strip does the glow
         ctx.fillStyle = '#2f2a36';
         ctx.fillRect(bx0, glassY, bw - px(0.06), transomH);
@@ -1171,19 +1208,61 @@ export class ArrivalCinematic {
         ctx.fillRect(bx0 + px(0.05), glassY + px(0.06), bw - px(0.16), transomH - px(0.12));
         // the display pane (the px(0.06) remainder is the dark mullion)
         ctx.fillStyle = '#3a3242';
-        ctx.fillRect(bx0, mainY, bw - px(0.06), mainH);
-        // a dusk reflection streak on the glass
-        ctx.fillStyle = 'rgba(255,255,255,0.10)';
-        ctx.fillRect(bx0 + bw * 0.18, mainY + px(0.08), px(0.14), mainH - px(0.24));
-        // the warm interior: alternating warmth per bay, shelf silhouettes
-        // against the light, a ceiling strip bleeding into the transom
+        ctx.fillRect(bx0, mainY, paneW, mainH);
+        // the room behind the glass, painted on the glow canvas: warm air
+        // pooling low, side returns falling to shadow — a BOX with depth,
+        // not a sticker (the terminal zoom read the old flat fill as
+        // cardboard taped to the brick)
         gtx.fillStyle = b % 2 === 0 ? '#ffca7a' : '#f2b05e';
-        gtx.fillRect(bx0, mainY, bw - px(0.06), mainH);
-        gtx.fillStyle = 'rgba(70,40,16,0.62)';
-        gtx.fillRect(bx0 + px(0.08), mainY + mainH * 0.22, bw - px(0.22), mainH * 0.16);
-        gtx.fillRect(bx0 + px(0.08), mainY + mainH * 0.58, bw - px(0.22), mainH * 0.13);
+        gtx.fillRect(bx0, mainY, paneW, mainH);
+        // ceiling shadow + floor shadow: the lamplight pools mid-pane
+        let grad = gtx.createLinearGradient(0, mainY, 0, mainY + mainH);
+        grad.addColorStop(0, 'rgba(58,32,12,0.55)');
+        grad.addColorStop(0.3, 'rgba(58,32,12,0)');
+        grad.addColorStop(0.78, 'rgba(58,32,12,0)');
+        grad.addColorStop(1, 'rgba(58,32,12,0.6)');
+        gtx.fillStyle = grad;
+        gtx.fillRect(bx0, mainY, paneW, mainH);
+        // the recess returns — the side walls of the box fall to shadow
+        grad = gtx.createLinearGradient(bx0, 0, bx0 + px(0.22), 0);
+        grad.addColorStop(0, 'rgba(40,22,8,0.5)');
+        grad.addColorStop(1, 'rgba(40,22,8,0)');
+        gtx.fillStyle = grad;
+        gtx.fillRect(bx0, mainY, px(0.22), mainH);
+        grad = gtx.createLinearGradient(bx0 + paneW, 0, bx0 + paneW - px(0.22), 0);
+        grad.addColorStop(0, 'rgba(40,22,8,0.5)');
+        grad.addColorStop(1, 'rgba(40,22,8,0)');
+        gtx.fillStyle = grad;
+        gtx.fillRect(bx0 + paneW - px(0.22), mainY, px(0.22), mainH);
+        // the shelves: a dark line, then stock silhouettes sitting on it
+        // against the light — cans, boxes, whatever the shop sells
+        for (const sy of [mainY + mainH * 0.34, mainY + mainH * 0.62]) {
+          gtx.fillStyle = 'rgba(62,34,14,0.72)';
+          gtx.fillRect(bx0 + px(0.08), sy, paneW - px(0.16), px(0.05));
+          let sx = bx0 + px(0.14);
+          while (sx < bx0 + paneW - px(0.2)) {
+            const iw = px(0.07) + Math.round(rand() * px(0.09));
+            const ih = px(0.1) + Math.round(rand() * px(0.14));
+            gtx.fillStyle = rand() < 0.25 ? 'rgba(92,50,20,0.85)' : 'rgba(56,30,12,0.82)';
+            gtx.fillRect(sx, sy - ih, iw, ih);
+            sx += iw + px(0.04);
+          }
+        }
+        // pendant lamps: two bright drops hanging from the ceiling strip
+        for (const lx of [bx0 + paneW * 0.3, bx0 + paneW * 0.7]) {
+          gtx.fillStyle = '#ffe9c0';
+          gtx.fillRect(lx - px(0.012), mainY + px(0.02), px(0.024), px(0.16));
+          gtx.fillRect(lx - px(0.05), mainY + px(0.17), px(0.1), px(0.06));
+        }
+        // the ceiling strip bleeding into the transom
         gtx.fillStyle = '#ffe9c0';
         gtx.fillRect(bx0 + px(0.05), mainY - px(0.07), bw - px(0.16), px(0.1));
+        // a dusk reflection streak on the glass, cool so it survives the
+        // glow pass — glass over a lit room, not a hole
+        ctx.fillStyle = 'rgba(255,255,255,0.10)';
+        ctx.fillRect(bx0 + bw * 0.18, mainY + px(0.08), px(0.14), mainH - px(0.24));
+        gtx.fillStyle = 'rgba(255,240,220,0.28)';
+        gtx.fillRect(bx0 + bw * 0.18, mainY + px(0.08), px(0.14), mainH - px(0.24));
       }
       // kickplate under the whole run
       ctx.fillStyle = '#1a161e';
