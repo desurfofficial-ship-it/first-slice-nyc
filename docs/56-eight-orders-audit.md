@@ -1,4 +1,4 @@
-# 55 — The Eight Orders, Audited
+# 56 — The Eight Orders, Audited
 
 Every claim VS-F03 makes about serving now has a test that would scream
 if it stopped being true. Nothing about the conversations changed —
@@ -66,3 +66,27 @@ anyway, which live-proves the payoff really is not a branch.
   beats poll on wall-clock frames; under load they starve. Not fixed
   here — recorded, because a flaky green is a lie we don't want to
   keep in the suite.
+
+## Addendum — repairing the pocket wave (same evening)
+
+The third merge wave (one Pocket button that opens Map / Album / Sound)
+arrived with the behavior wired but the **properties never declared** —
+`this.pocketBtn`, `this.pocketMenu`, `this.audioPeek` are used ~15 times
+in UI.ts and declared nowhere, so **origin/main did not typecheck**. The
+same wave also broke the E2E's thumb path: Map / Album / Sound now live
+inside the pocket's hidden dropdown, and the guard's direct clicks hit
+nothing (correctly — a thumb can't press a button it can't see).
+
+Repaired in one pass:
+
+- UI.ts declares the three pocket properties, following the existing
+  field pattern (`el<HTMLButtonElement>('btn-pocket')` etc.).
+- The pointer guard rides the real path now: open the pocket, then
+  press the tool — and it pins the pocket's own click law ("the pocket
+  opens by CLICK and shows the tools") as a first-class PASS line.
+- tsc clean · vitest 463/463 · E2E AUTOTEST OK, 0 failures / 378 s,
+  pointer path 6/6, console clean.
+
+The lesson is the repo's oldest one, met again: **a gate skipped is a
+bill sent to the next agent.** The pocket idea is good; it just needed
+its `tsc --noEmit` before the push.

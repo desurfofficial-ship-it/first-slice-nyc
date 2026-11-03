@@ -57,6 +57,12 @@ export class UI {
   private albumEmpty = el<HTMLDivElement>('album-empty');
   private albumClose = el<HTMLButtonElement>('album-close');
   private albumCountBadge = el<HTMLSpanElement>('album-count');
+  // ---- the pocket — one button that opens Map / Album / Sound ----
+  // (declared here: the pocket wave wired the behavior but left the
+  // properties undeclared — main did not typecheck without these)
+  private pocketBtn = el<HTMLButtonElement>('btn-pocket');
+  private pocketMenu = el<HTMLDivElement>('pocket-menu');
+  private audioPeek = el<HTMLSpanElement>('audio-peek');
   private fade = el<HTMLDivElement>('fade');
   private titleCard = el<HTMLDivElement>('title-card');
   readonly loading = el<HTMLDivElement>('loading');
