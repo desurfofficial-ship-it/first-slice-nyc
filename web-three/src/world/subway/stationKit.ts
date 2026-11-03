@@ -219,13 +219,17 @@ export function buildStair(ctx: KitCtx, cx: number): void {
   const z0 = STAIR_SLOT.minZ + 0.15;
   for (let i = 0; i < STAIR_STEPS; i++) {
     const top = 0.1 - STAIR_RISE * (i + 1);
-    const depth = i === STAIR_STEPS - 1 ? 0.45 : 0.3;
+    const depth = i === STAIR_STEPS - 1 ? 0.55 : 0.3;
     const zc = z0 + 0.3 * i + depth / 2;
     const h = top - (STATION.floorTop - 0.2);
     box(ctx, `SUB_Stair_${tag}_${i}`, cx, top - h / 2, zc, w, h, depth, 0x8f8a82);
   }
-  // landing bridging the last tread to the platform edge
-  box(ctx, `SUB_StairLanding_${tag}`, cx, STATION.floorTop + 0.05, 7.75, w, 0.1, 0.7, 0x8f8a82);
+  // landing bridging the last tread to the platform edge.
+  // Top is exactly floorTop (-3.2) — a +0.05 centre used to leave a 10 cm
+  // down-step onto the platform and the probe sometimes measured the
+  // second-to-last tread (-2.87). Flush landing + deeper last tread help
+  // the stair descent land on the platform (docs/51 B1).
+  box(ctx, `SUB_StairLanding_${tag}`, cx, STATION.floorTop - 0.05, 7.85, w, 0.1, 0.9, 0x8f8a82);
   // below-grade slot walls either side of the treads
   const slotMidZ = (STAIR_SLOT.minZ + STAIR_SLOT.maxZ) / 2;
   const slotDepth = STAIR_SLOT.maxZ - STAIR_SLOT.minZ;

@@ -145,9 +145,9 @@ export class GameCamera {
   private sideStep = 0;
   /** Per-canopy occlusion 0..1 (1 = the sight line runs through this
    *  canopy) — World reads this every frame and fades the leaves. Public:
-   *  Game wires it to the world once at boot — and RE-reads it every frame
-   *  (docs/51 B6: if the world grows canopies after boot, updateOcclusion
-   *  swaps in a longer array and the per-frame re-wire carries it over). */
+   *  Game wires it to the world at boot VIA setCanopies(), which returns
+   *  the (possibly re-seated) buffer so the World's reference never goes
+   *  stale (docs/51 B6). */
   occlusion: Float32Array;
   private focusTarget = new THREE.Vector3();
   private desired = new THREE.Vector3();
@@ -276,6 +276,21 @@ export class GameCamera {
       const clear = Math.sqrt(d2) - this.canopies[i].r - FADE_MARGIN;
       this.occlusion[i] = THREE.MathUtils.clamp(1 - clear / FADE_SOFT, 0, 1);
     }
+  }
+
+  /** Re-seat the canopy list and size the occlusion buffer to match.
+   *  Returns the buffer so the caller re-binds `world.canopyOcclusion` in
+   *  the same breath — a buffer swapped under a by-reference reader would
+   *  stale-ate the fade silently. Grow allocates; shrink zero-fills. */
+  setCanopies(canopies: CanopySphere[] | null): Float32Array {
+    this.canopies = canopies;
+    const n = canopies?.length ?? 0;
+    if (n > this.occlusion.length) {
+      this.occlusion = new Float32Array(n);
+    } else if (n < this.occlusion.length) {
+      this.occlusion.fill(0, n);
+    }
+    return this.occlusion;
   }
 
   private shortenBoom(from: THREE.Vector3, to: THREE.Vector3): THREE.Vector3 {

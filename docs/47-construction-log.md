@@ -995,6 +995,46 @@ notebook's two pages stack correctly on the phone width.
 [main]` read as `ain]` in one terminal capture) and was cleared by a
 byte-exact check before any "fix" was attempted. The workflow was never
 broken; the terminal output was.
+
+## The court you can put down, the stick that waits its turn (SHIPPED 2026-11-02, branch `fix/map-button-reachable`)
+
+**Scope:** the open-bugs ledger (docs/51) — B3 and B7 fixed, B6 tripwired,
+B4 re-verified. The half-court's own probe drove the work.
+
+**B3 — the ball that could not be picked up.** The probe forensics (a
+phase-walk sampler installed around the failing press) showed the truth:
+the state machine was still in `flight` with the ball parked on the
+slab. The sim's rest detector required `speed < 0.35` for 0.45 s, but a
+ball rolling into the chain-link reflected at ANY speed — an endless
+micro-bounce — and even the `age > 7` escape still demanded
+`speed < 0.8`. The court's own referee (7.5 **game**-seconds) is an
+eternity on a dt-clamped machine: ≈20+ wall-seconds of unpickable ball.
+Fixed in three layers: crawl-speed wall contacts die instead of
+reflecting; a grounded ball at age 7 rests, whatever the jitter says;
+the flight referee drops to 4 game-seconds (a real flight resolves in
+≤3). The promised mid-return intercept works now too — the interaction's
+live spot follows the rolling ball. **probe-court: ALL PASS**, including
+the mobile touch-shot.
+
+**B7 — the stick that stole the screen.** The `hidden-when-panel` CSS
+hook shipped on day one and nothing ever set the class. One private
+`UI.syncPanelOverTouch()`, wired to all four paper surfaces (name box,
+postcard, order card, Map). Verified on an emulated phone: Map open →
+`#touch-ui` display none.
+
+**B6 — the tripwire, not the refactor.** Verified structurally safe
+today: every canopy push happens in the World constructor, before the
+camera exists. The E2E driver now carries `occlusionInSync()` — if
+anyone ever grows canopies after boot, the suite fails instead of the
+fade silently missing trees.
+
+**B4 — re-verified:** full 4-day E2E on this tip — AUTOTEST OK, 0
+failures, 432 s, zero console errors, POINTER guard 3/3, occlusion
+tripwire PASS.
+
+**Verification:** tsc clean · vitest **367/367** · build clean ·
+probe-court ALL PASS · E2E green (above). B1/B2/B5 remain open — they
+need an owner decision (two bus systems, one bay), not a drive-by fix.
 ---
 
 ## Post-arc repair — the terminal bay, made honest (SHIPPED 2026-11-03)
@@ -1156,3 +1196,296 @@ validator green (129 IDs, 12/12 masses, 18/18 anchors) · probe-subway
 ALL PASS 22/22 · probe-w4-bus OK 13/13 · probe-solid ALL CLEAN (4/4) ·
 probe-w0-census OK (ledger above) · **E2E: OK — 0 failures, 458 s**,
 console clean (E2E_W=320 E2E_H=700).
+
+## The canopy bake — one instanced canopy for the whole block (2026-11-03)
+
+**What landed.** Lever 2 from the recorded list above, now made:
+`makeTree` (props.ts) returns blob RECORDS instead of canopy meshes —
+same rng grammar call-for-call (r, cy, [leaf pick], ox, oz; the block's
+other seeded content downstream of a tree roll does not shift), same
+silhouette, same autumn gradient law (crown goldA, mid goldB, base green).
+`buildInstancedTreeRows` becomes the ONE canopy system for every tree on
+the block: 4 InstancedMeshes (leafA 0x5d7d4a · leafB 0x516e42 · goldA
+0xf7b32b · goldB 0xffb85c), the W1 simple rows keeping their slots 0/1 and
+the shipped/full/fill trees joining the same meshes with the autumn golds
+in 2/3. The fade-on-occlude law moves from per-tree material opacity to a
+per-instance `aFade` attribute (InstancedBufferAttribute + onBeforeCompile
+multiplying `diffuseColor.a` after `color_fragment`): ONE tree still
+dissolves toward gauze while its neighbours stay opaque — probe-camfade's
+screenshots prove it (occ 0.44/0.99/0.71 on the plaza/crosswalk trees, the
+rest of the street solid). Sway composes exactly the old scene-graph chain
+per blob: T(x, baseY+h, z)·R_y(yaw)·R_sway·T(blob)·S(r), the W1 rows
+keeping their no-yaw grammar. The simple rows stay fade-frozen at aFade 1
+(the recorded docs/47 W1 tradeoff).
+
+**A mapping bug fixed on the way.** The fade loop read
+`canopyOcclusion[i]` for `trees[i]`, assuming the sphere cache listed the
+shipped trees first — but the W1 simple rows' spheres interleave the cache
+before the Kestrel fills and the four playground trees, so those ten trees
+were fading from the WRONG trees' spheres (a fill faded when a Gable-row
+canopy blocked the lens). Each tree record now names its own
+`sphereIndex`; the fade reads its own occlusion. The shipped 12 (indices
+0–11) were always correct — the probe-camfade beats all sit on them.
+
+**The numbers, honestly.** The census rigs (boot state, zones unlit):
+PLAZA 1071 → **949** (−122), CART_CORNER 898 → **802** (−96),
+SYCAMORE×GABLE 518 → **451** (−67). Every rig under its previous ledger
+(the enforced gate) and better than the recorded est (−60..−80 real): the
+est assumed partial frustum visibility, but all 63 blob meshes were
+visible casters at PLAZA, and canopies cast — so both passes paid the 63
+and both now pay 4. The tris line: PLAZA 138.9k → 140.2k (+1.3k, ~+0.9%)
+— the four instanced meshes span the block (three.js auto-bounds the
+instances, the sway is ±0.02 rad), so a handful of off-frustum blobs
+rasterize that per-blob meshes used to cull; the honest price of the call
+win, and the existing W1 rows already shipped with the same shape of
+trade. The Doc 07 gate line (150/250) remains FAILED and published: the
+shadow pass is still 44–84% of every rig, and the only lever that reaches
+the line is the recorded shadow-camera follow — which changes the shipped
+look and still needs an art call before it is made.
+
+**One flake, honestly.** One probe-subway run mid-session failed
+"console stays clean (2 errors)" without persisting the error text; four
+consecutive re-runs on the same dist passed ALL (22/22, zero errors). No
+code change between the runs; recorded as a non-reproducing transient,
+not a fix.
+
+**Verification**: tsc clean · vitest **367/367** · build clean · registry
+validator green (129 IDs, 12/12 masses, 18/18 anchors) · probe-autumn
+PASS (gold gradient, drift tints, plumage morphs, pit rims — the turning
+tree reads exactly as before) · probe-camfade PASS (the fade law on
+aFade) · probe-env5 PASS (lamps clear the canopies) · probe-solid ALL
+CLEAN (4/4) · probe-subway ALL PASS 22/22 · probe-w4-bus OK 13/13 ·
+probe-w0-census OK (ledger above) · **E2E: OK — 0 failures, 355 s**,
+console clean (E2E_W=320 E2E_H=700).
+
+## The shadow follow — the sun's box walks with the player (2026-11-03)
+
+**What landed.** Lever 1 from the recorded list — the only one that could
+reach the Doc 07 line — now made, plus the two smaller recorded levers.
+
+**The follow.** The sun's shadow camera was a FIXED ±60 m box over the
+whole street: every caster inside it re-rendered into the shadow map every
+frame, view-independent, so the corner rig paid ~430 calls for a map it
+never sampled and the shadow pass measured 44–84% of every census rig.
+The box now follows the player (`updateSunFollow`, called from
+updateDynamics with the live player position): extents ±60 → ±35
+(SHADOW_HALF), the recorded ±35–40 range. The follow snaps the target onto
+the shadow map's texel lattice IN LIGHT SPACE (the shadow camera's own
+Matrix4.lookAt basis, precomputed once — 2048 px / 70 m → 0.034 m texels,
+ground-projected to ~0.08 m along the shadow direction at the sun's ~28°
+elevation), so the map's texel grid stays world-aligned while the box
+moves: shadow edges never shimmer as the player walks. The light direction
+is the authored offset vector (−38, 23, 22) bit-for-bit on every frame —
+both poles move by the same snapped delta. Boot state before the first
+update: the authored static box, unchanged.
+
+**The figure part-merge (lever 3, the W4p2 dusk-pair method).** The hair
+chain is rigid inside the head group (the head glances as a unit) — its
+2–4 boxes/sphere merge into ONE mesh per figure; the strap's three boxes
+ride the body rigidly — one merged mesh (the old position + rz tilt baked
+T·Rz into the geometry). Same boxes, same offsets, same bank materials,
+same silhouettes — rig tests untouched (they pin hip pivots and hair-top
+height, both preserved). The recorded law held: only the rigid chains
+merge; limbs are animating groups (arms swing at the shoulder, legs at the
+hip) and stay parts. A figure goes ~14 → ~11–12 meshes in BOTH passes —
+hair and strap cast.
+
+**The wing fold (the recorded W4 micro-lever).** A morph bucket whose
+every bird sits folded now drops its wing DRAW entirely: the zero-scale
+instances were the cheapest visual "off" but still cost the call; hiding
+the InstancedMesh costs nothing and flips back on the same frame a bird
+takes off.
+
+**The numbers, honestly.** Census rigs (boot state, zones unlit):
+PLAZA 949 → **847** (−102), CART_CORNER 802 → **719** (−83),
+SYCAMORE×GABLE 451 → **277** (−174); tris −5.2k / −4.3k / −10.6k (the
+shadow pass stops rasterizing far casters). Both extents were measured at
+PLAZA/CART/SYCAMORE before choosing: ±40 gave −46 / −46 / −158, ±35 gave
+−76 / −55 / −165 — 35 wins every rig with a smaller map (2048 px now
+covers 70 m, so near-field texels got SHARPER, 0.059 → 0.034 m). The
+follow alone at ±35: 873 / 747 / 286; the figure merge + wing fold took
+off another −26 / −28 / −9.
+
+**The gate line: still failed, still published.** Kestrel 847 > 150 FAIL,
+intersection 277 > 250 FAIL. What the shadow pass still pays for at ±35
+(new diag tool `diag-shadow-buckets.mjs`, kept as evidence — reads the
+LIVE shadow frustum and buckets its casters): street rigs hold ~315–350
+casters — bake tiles 60–90, peds 39, unnamed street furniture ~47 (the
+water tower, lamp posts, cart parts, the tire swing — contact shadows; the
+recorded cast-shadow-discipline lever, real visual cost, still needs the
+art call), cast rigs ~14 each. The rigid-chain merge is now SPENT — the
+next call cut inside a figure needs vertex colors (one white material, one
+draw per rig), which changes what the census's palette audit reads and
+needs its own law decision before it is made.
+
+**The art trade, stated plainly.** Near-field shadows — everything within
+~35 m of the player, where the camera actually lives — keep their exact
+texels and got sharper. Long dusk shadows beyond the box edge no longer
+render: at the plaza-wide census vista the far street (35+ m out) loses
+its cast shadows. The Times Square vista is unaffected (its 11 zone-bake
+casters follow the player out of the map — the square was shadowless by
+design); the underground rigs read the box at street level above them,
+unchanged law. Reversible by two constants (SHADOW_HALF, and deleting the
+updateSunFollow call) if the lead vetoes.
+
+**One flake, honestly.** First E2E on the changed build: 6 failures, all
+cascading from `day 4: grabbed ladder 1` firing on the grab box's z-EDGE
+(z −6.7, 7 cm of overlap) and dropping the next frame — the ride never
+left the ground and the driver walked the street. Control: pristine HEAD
+on the same sandbox's chromium → 0 failures (355 s). Immediate rerun on
+the IDENTICAL changed build → **0 failures (357 s)**, the grab landing
+15 cm deeper (z −6.9). This is the documented knife-edge family (the
+day-1 dismount note: "a build whose fps profile differs by a hair flipped
+that coin") — the perf win itself shifts the SwiftShader fps profile, and
+ANY call cut can flip it; recorded, not fixed.
+
+**Verification**: tsc clean · vitest **367/367** · build clean · registry
+validator green (129 IDs, 12/12 masses, 18/18 anchors) · probe-autumn
+PASS · probe-camfade PASS (occ 0.44/0.99/0.71 — the fade law on aFade,
+untouched) · probe-env5 PASS (lamps clear the canopies) · probe-solid ALL
+CLEAN (4/4) · probe-subway ALL PASS 22/22 · probe-w4-bus OK 13/13 ·
+probe-w0-census OK (ledger above) · **E2E: OK — 0 failures, 357 s**,
+console clean (E2E_W=320 E2E_H=700).
+
+---
+
+## The first-session merge (Agent 5 → main, docs/52)
+
+Agent 5's parallel first-session branch (docs/48, base `a5bc3d6`) merged
+onto the first-session-world tip (`ced660d`). The reconciliation: docs/50's
+world is the paved path; Agent 5's arrival film lands re-targeted (its own
+diorama coach — the bay keeps one bus), the stair-glue + floor-snap-down
+laws unite with the below-grade law in one `groundHeight`, the W4 band law
+is extracted pure (`bandOfLoop`), the cab-yield logic becomes a tested
+function, and the duplicate world (`firstSession.ts`, the z −80 district,
+the street coach) is retired. A correction this log owes: the first draft
+of this entry claimed two main-tip breaks (the Pages trigger, the hydrant
+loop) — both were display artifacts of the audit tooling (it strips `[h`/
+`[m` byte sequences); byte-level checks show both files were always
+correct and no repo fix was needed (docs/52 §3).
+The W2 playground route was re-walked around the kit (the old line rode the
+pergola rail by the snap-circle — invisible platforming the new stair law
+honestly refuses). Full evidence in docs/52 §5: typecheck clean, vitest
+390/390, build clean, probe-subway 22/22 + mobile ALL PASS, W1/W2/W3/W5
+ghosts PASS, solid CLEAN, doc12 clean, the film's probes clean. E2E on this
+box: 3–5 environmental flake failures of ~104 on BOTH trees (dusk-timed
+rails; both trees ~48% slower than the documented rig) — docs/51 B4.
+
+---
+
+## The e2e flake family, driver-side fix (2026-11-03, post-merge)
+
+The 4-day autotest failed 1–5 of ~104 checks on this box (both the merge
+and pure main) — all one family: the dusk-timed goodnight rails, "tomorrow
+begins", the awning confirm. The deterministic probes proved the game
+correct, so the driver was racing it. Three driver-only fixes
+(`src/game/autotest.ts`): lingerStage joined the volley's break list (one
+volley could fire the goodnight AND roll the day in a breath),
+`pressUntil` presses on the real input path until the beat reacts (the
+awning's nearest body can be Idris — a press serves, the next offers), and
+the day-roll checks poll the state instead of sleeping wall time.
+**Evidence: two consecutive full runs, 0 failures (476 s / 477 s, 127
+checks), console clean — on the box that flaked.** docs/51 B4 closed.
+## The vertex bake — the statics' colors move into geometry (2026-11-03)
+
+**What landed.** The recorded "next call cut needs vertex colors" lever,
+applied where no law decision blocks it — the statics. `bakeStatics` and
+`bakeZoneStatics` now split sources at the material's emissive: a
+NON-emissive flat-color Lambert source rides the shared white
+`vertexColors` material (two exist — fog on/off), its exact color baked
+into a per-vertex `color` attribute; the batch signature becomes
+`VC|fog|cast|recv` and every (fog, cast, receive) combo in a tile fuses
+into ONE draw regardless of how many distinct prop colors it holds.
+Emissive sources keep the old color-keyed path (emissive is material-wide
+and cannot ride vertices). Lambert's diffuse math is untouched —
+`color × 1` became `white × color`, the same product bit-for-bit; uv is
+dropped on VC batches (no map), which also lets uv-less and uv-ful
+sources fuse. The W4 cast-only fold still applies on the VC keys.
+
+**The palette-snap idea was measured first and honestly killed.** New
+diag tool `diag-bake-colors.mjs` (kept as evidence): the bakes had
+already spent color equality — 666 bake/zone meshes collapse to 419
+distinct (color|emissive|cast|recv) combos at drift 0, and snapping every
+source to the nearest Doc 04 color buys only −25 more even at a visible
+drift of 40/255. The remaining draws are genuinely distinct colors, not
+drift — a snap would have shifted art for almost nothing.
+
+**The palette-audit law decision, made and recorded.** The census's
+palette audit reads color WHERE IT LIVES: material.color for plain
+meshes AND `geometry.attributes.color` for vertex-colored ones (one count
+per distinct shade per mesh, sample named `…[vc]`). On tip the audit
+surfaces 23 distinct vertex shades (4a3a30 ×25, 6d5344 ×36, 8f8a82 ×31,
+the old bake colors, now riding geometry) — the fusion cannot masquerade
+as palette slop, and off-palette vertex colors still surface. The white
+VC material itself reads as the one intentional off-palette entry.
+
+**The numbers, honestly.** Census rigs (boot state, zones unlit):
+PLAZA 846 → **462** (−384, −45%), CART_CORNER 718 → **405** (−313),
+SYCAMORE×GABLE 279 → **132** (−147) — the intersection rig sits UNDER
+the Doc 07 line (132 < 250) for the first time. Tris +10.7k / +15.2k /
++11.0k (fused per-tile bounds rasterize slightly more; the same honest
+price family as the canopy bake's +1.3k). The gate line stays published:
+Kestrel max 462 > 150 FAIL — but docs/51 B13's operational law ("no
+phase ships above previous ledger") is met with the largest single cut
+since the zone bake.
+
+**Verification**: tsc clean · vitest **390/390** · build clean ·
+probe-autumn PASS · probe-camfade PASS · probe-env5 PASS · probe-solid
+ALL CLEAN · probe-subway ALL PASS 22/22 · probe-w4-bus OK 13/13 ·
+probe-w0-census OK (ledger above) · plaza + cart-corner screenshots read
+correctly by eye (brick, teal, court, awnings, signs — the vertex colors
+render identically) · **E2E: OK — 0 failures, 360 s**, console clean
+(E2E_W=320 E2E_H=700). Known-not-ours, recorded where found: the
+probe-w1-ghost WALKABILITY gate wedges at x ≈ −44, z 4.4–7.6 on THIS
+build and on a pristine-HEAD control rebuilt in the same sandbox — a
+pre-existing tip break, not the bake's (colliders do not ride render
+batches); it is being filed and fixed separately. Sandbox note: the
+recycled box ships Chrome headless-shell 156 — probe-w4-bus now needs
+~6 min wall (the loop lap alone measured 171 s inside the probe); short
+`timeout` wrappers read as browser crashes and are not.
+
+---
+
+## The reopened north walk — the stale entrance blocker retires (2026-11-03)
+
+**The find.** Running the W1 ghost gate on the vertex-bake build wedged
+37/37 walk legs (walker stuck at x −43.7..−45.5, z 4.4–7.6). A control
+rebuild of pristine tip in the same sandbox wedged identically — the
+break shipped on main, it is not the bake's (colliders do not ride
+render batches). New diag tools `diag-wedge.mjs` (collider dump of the
+region) and `diag-ground.mjs` (ground-law probe at the plot) pin it:
+collider i=62 was `boxFromCenter(-42, 0.4, 6.2, 2.6, 1.0, 3.5)` — the
+W0 "nobody walks into the earth" blocker, spanning the north walk's
+FULL depth (z 4.45..7.95), with the W1 walk route STARTING at its exact
+center. The whole gate had been riding the collision eject's tie-break:
+eject east = pass, west = wedged against the box's own west face.
+
+**The archaeology.** The blocker was authored for the W0 placeholder
+stair-cut boxes. Agent-5 retired both together on their branch —
+`makeSubwayEntrance` is furniture-only on tip ("the real descendable
+stairwell lives below (docs/50, the K-line slot west of the headhouse)"),
+and their World comment said "the earth is open now". The docs/50 merge
+restored the blocker WITHOUT the hole: a collision box guarding retired
+geometry, pinching the north walk shut between itself and the K-line
+rails (x −46.1..−45.9), leaving only the 2.6 m pocket the newsboxes
+partially fill. docs/52 recorded W1 PASS on the merge tip — the eject
+had gone east then; the recent stationKit/stair-landing fixes flipped
+the tie and exposed the latent break.
+
+**The fix, minimal.** The blocker push retires again, with the full
+story in a comment at the site. Ground law verified before the cut:
+(−42, 6.2) reads flat sidewalk (0.1 — verified at three points around
+the plot; the box top was the only thing standing there), the K-line
+shaft at x −47 still descends (−0.89), the newsboxes and decks are
+unchanged. No route edit, no test edit — the world was wrong, the gate's
+premise (a spawn in free space) becomes true.
+
+**Verification**: tsc clean · vitest **395/395** · build clean ·
+probe-w1-ghost PASS (8/8 masses, wedged=false, minGround −0.01, 0 page
+errors) · W2 + W3 ghosts PASS · probe-solid ALL CLEAN · probe-peds OK ·
+probe-a5b/a5c/a5f clean (boot state −30, 0.1, 6.2 day 1 step 0; Rosa
+reaches the meet) · probe-subway ALL PASS 22/22 · probe-w4-bus OK 13/13
+· probe-w0-census 468 / 406 / 132 (noise vs the vertex-bake ledger;
+Kestrel gate line stays published FAIL > 150) · **E2E: OK — 0 failures,
+356 s**, console clean (E2E_W=320 E2E_H=700). docs/51 B15 carries the
+ledger entry; B13 carries the vertex-bake update.

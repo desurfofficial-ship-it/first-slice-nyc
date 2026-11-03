@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { approachSpeed, bodyConflictsWithCab, cabRectAt, noseLimit, type TrafficBody } from '../src/engine/traffic';
+import { approachSpeed, bodyConflictsWithCab, cabRectAt, noseLimit, pedestrianSpeedCap, type TrafficBody } from '../src/engine/traffic';
 
 const CRUISE = 9.0;
 const STOP_GAP = 2.5;
@@ -157,5 +157,38 @@ describe('braking a car that approaches another car end-to-end', () => {
     // held one metre short of the leader's face, never inside it
     expect(leaderFace.minX - nose).toBeCloseTo(STOP_GAP, 1);
     expect(leaderFace.minX - nose).toBeGreaterThanOrEqual(STOP_GAP - 0.01);
+  });
+});
+
+describe('pedestrian rule 2 (pedestrianSpeedCap) — the beside-cab deadlock', () => {
+  // The day-4 laundromat crossing (e2e): a walker who steps into the lane
+  // BESIDE the cab froze it forever — clearance 0 with the nose already
+  // past them, the resolve holding them at the south face, the walk budget
+  // burning. Beside bodies impose no cap; the cab crawls past and the
+  // resolve walks them clear of the tail.
+  const TAIL = -7.74;
+  const NOSE = -3.34;
+
+  it('a body beside the cab brakes nothing — the cab crawls past', () => {
+    // pressed against the south face, mid-span, dead centre of the deadlock
+    expect(pedestrianSpeedCap(CRUISE, STOP_GAP, GAIN, -5.03, 0.45, TAIL, NOSE, true)).toBe(CRUISE);
+  });
+
+  it('a body just ahead of the nose still gets the full braking curve', () => {
+    const cap = pedestrianSpeedCap(CRUISE, STOP_GAP, GAIN, 0.0, 0.45, TAIL, NOSE, true);
+    expect(cap).toBeCloseTo(((-0.45 - NOSE) - STOP_GAP) * GAIN, 6);
+    expect(cap).toBeLessThan(CRUISE);
+  });
+
+  it('a body inside the stop line stops the cab exactly', () => {
+    expect(pedestrianSpeedCap(CRUISE, STOP_GAP, GAIN, -0.7, 0.45, TAIL, NOSE, true)).toBe(0);
+  });
+
+  it('a body fully behind the tail never blocks (the old freeze bug)', () => {
+    expect(pedestrianSpeedCap(CRUISE, STOP_GAP, GAIN, -11, 0.45, TAIL, NOSE, true)).toBe(CRUISE);
+  });
+
+  it('a body in the lane but outside the sweep window never blocks', () => {
+    expect(pedestrianSpeedCap(CRUISE, STOP_GAP, GAIN, 30, 0.45, TAIL, NOSE, false)).toBe(CRUISE);
   });
 });

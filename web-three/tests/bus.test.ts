@@ -12,6 +12,7 @@ import {
   PARKED_CAR_RECTS, parkedCarRect, KESTREL_COURTESY_ZONES, BUS_BODY, BUS_BAY_ID,
   type BusZone,
 } from '../src/engine/busRoute';
+import { BUS04_STEP, playerOccupiesBus04 } from '../src/world/arrivalBus';
 
 const legs = buildM121();
 const KESTREL = { xMin: -84, xMax: 84, zMin: -4, zMax: 4 };
@@ -199,5 +200,42 @@ describe('leg-space transforms', () => {
     close(facing(-1, 0), -1, 0); // west (atan2 may return −π; same rotation)
     close(facing(0, 1), 0, 1);   // north
     close(facing(0, -1), 0, -1); // south
+  });
+});
+
+describe('the bay occupancy law — playerOccupiesBus04 (docs/51 B2)', () => {
+  // The one-bay-one-bus swap (World.syncBayOccupancy + the arriving bus's
+  // bay hold) reads this law: TRUE means the shell must stay under the
+  // player. Every case here is a physical spot a real player occupies.
+
+  it('feet on the 0.55 floor inside the rect hold the bay', () => {
+    expect(playerOccupiesBus04(-32, 0.55, 2)).toBe(true);   // mid-aisle
+    expect(playerOccupiesBus04(-37, 0.55, 2)).toBe(true);   // by the windshield
+    expect(playerOccupiesBus04(-27.2, 0.55, 1.2)).toBe(true); // rear door corner
+  });
+
+  it('THE B2 HOLE: feet on the boarding step (y 0.3, outside the rect) hold the bay', () => {
+    // Before the step branch, the loop M121 could park on the bay exactly
+    // here and retire the shell — step, floor and all — out from under a
+    // boarding player, its own body then walling the door shut.
+    expect(playerOccupiesBus04(-27.65, 0.3, 3.6)).toBe(true); // step center
+    expect(playerOccupiesBus04(-28.4, 0.3, 3.6)).toBe(true);  // center hung off the step's west edge (capsule radius)
+    expect(playerOccupiesBus04(-27.3, 0.3, 4.0)).toBe(true);  // a stride north, still stepping up
+    expect(playerOccupiesBus04(-27.65, 0.55, 3.5)).toBe(true); // the first floor-snap frame at the door line
+  });
+
+  it('the street never holds the bay — the y band keeps its truth', () => {
+    expect(playerOccupiesBus04(-27.65, 0.1, 4.2)).toBe(false); // sidewalk north of the step
+    expect(playerOccupiesBus04(-32, 0.1, 2)).toBe(false);      // inside the rect footprint, at street level
+    expect(playerOccupiesBus04(-27.65, 0.19, 3.6)).toBe(false); // step zone but street-height feet (no step under them)
+  });
+
+  it('the law and the mesh share one set of numbers (BUS04_STEP ↔ BUS_Step_1)', () => {
+    // The builder places BUS_Step_1 from BUS04_STEP; the door gap it serves
+    // is x −28.2..−27.1. If these drift, the step stops serving the door.
+    expect((BUS04_STEP.minX + BUS04_STEP.maxX) / 2).toBeCloseTo(-27.65, 6);
+    expect(BUS04_STEP.maxX - BUS04_STEP.minX).toBeCloseTo(1.0, 6);
+    expect((BUS04_STEP.minZ + BUS04_STEP.maxZ) / 2).toBeCloseTo(3.6, 6);
+    expect(BUS04_STEP.top).toBeCloseTo(0.3, 6);
   });
 });

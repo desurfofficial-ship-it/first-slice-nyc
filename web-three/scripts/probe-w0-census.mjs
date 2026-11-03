@@ -126,6 +126,26 @@ const census = await page.evaluate(() => {
       const e = colorCount.get(hex) ?? { n: 0, pal: hit, sample: m.name || o.name || '?' };
       e.n++; colorCount.set(hex, e);
     }
+    // the palette-audit law (docs/47): color is read WHERE IT LIVES. The
+    // vertex-color bake fused each tile's flat colors into one shared white
+    // material — the variety moved into geometry.attributes.color. The audit
+    // samples those vertex colors (one count per distinct shade per mesh) so
+    // the fusion cannot masquerade as palette slop, and so off-palette
+    // vertex colors still surface.
+    const colAttr = g && g.attributes ? g.attributes.color : null;
+    if (colAttr && colAttr.itemSize === 3 && !Array.isArray(o.material) && o.material?.color) {
+      const tmp = new (o.material.color.constructor)();
+      const seen = new Set();
+      for (let i = 0; i < colAttr.count; i++) {
+        tmp.setRGB(colAttr.getX(i), colAttr.getY(i), colAttr.getZ(i));
+        const hex = tmp.getHexString();
+        if (seen.has(hex)) continue;
+        seen.add(hex);
+        const hit = PAL.has(hex);
+        const e = colorCount.get(hex) ?? { n: 0, pal: hit, sample: (o.name || '?') + '[vc]' };
+        e.n++; colorCount.set(hex, e);
+      }
+    }
   });
   // top-level children counts (biggest offenders)
   const children = [];

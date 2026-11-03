@@ -58,6 +58,20 @@ export class UI {
 
   isTouch = false;
 
+  // ---------------- the arrival (Doc 02 opening) ----------------
+  // Render-only: the cinematic owns its machine; Game wires the callbacks.
+
+  private cine = el<HTMLDivElement>('cine');
+  private cineBox = el<HTMLDivElement>('cine-box');
+  private cineSpeaker = el<HTMLDivElement>('cine-speaker');
+  private cineText = el<HTMLDivElement>('cine-text');
+  private cineChips = el<HTMLDivElement>('cine-chips');
+  private cineTitleCard = el<HTMLDivElement>('cine-title');
+  private cineSkipBtn = el<HTMLButtonElement>('cine-skip');
+
+  onCineTap: (() => void) | null = null;
+  onCineSkip: (() => void) | null = null;
+
   constructor() {
     this.nameOk.addEventListener('click', () => this.onNameSubmit?.());
     this.nameInput.addEventListener('keydown', (e) => {
@@ -68,6 +82,15 @@ export class UI {
     this.audioBtn.addEventListener('click', () => {
       gameAudio.setMuted(!gameAudio.isMuted());
       this.syncAudioButton();
+    });
+    // the arrival overlay is the advance button: any tap moves the scene on
+    this.cine.addEventListener('pointerdown', (e) => {
+      if (e.target === this.cineSkipBtn) return; // the skip chip has its own job
+      this.onCineTap?.();
+    });
+    this.cineSkipBtn.addEventListener('click', (e: Event) => {
+      e.stopPropagation();
+      this.onCineSkip?.();
     });
     // the Map's folded corner: a tap opens the notebook (M on keyboard)
     this.mapBtn.addEventListener('click', () => this.onMapToggle?.());
@@ -204,6 +227,17 @@ export class UI {
     this.interactBtn.classList.add('occupied');
   }
 
+  /** On a phone the stick zone and the turn buttons live under the thumb.
+   *  While a paper panel owns the screen — the order card, the Map, the
+   *  postcard, the name box — the stick must not steal taps from it. The
+   *  `hidden-when-panel` CSS hook shipped on day one; this is the wiring
+   *  it waited for (docs/51 B7). */
+  private syncPanelOverTouch() {
+    const panelOpen = !this.nameBox.hidden || !this.postcardPanel.hidden
+      || !this.orderCard.hidden || !this.mapPanel.hidden;
+    this.touchUI.classList.toggle('hidden-when-panel', panelOpen);
+  }
+
   /** The half-court's shot meter (docs/49): a transient skill read, not
    *  HUD chrome — visible only while the ball is in your shot pocket.
    *  band = [lo, hi] charge values of the gold release band. */
@@ -231,12 +265,14 @@ export class UI {
     this.nameBox.hidden = false;
     this.nameInput.value = '';
     this.prompt.hidden = true;
+    this.syncPanelOverTouch();
     window.setTimeout(() => this.nameInput.focus(), 30);
   }
 
   closeNameBox() {
     this.nameBox.hidden = true;
     this.nameInput.blur();
+    this.syncPanelOverTouch();
   }
 
   // ---------------- the serving conversation (docs/11 + docs/12) ----------------
@@ -265,6 +301,7 @@ export class UI {
     this.syncTouchPanels();
     this.prompt.hidden = true;
     this.interactBtn.classList.remove('occupied');
+    this.syncPanelOverTouch();
   }
 
   /** The reply landed — what comes back, in the same paper. */
@@ -288,6 +325,7 @@ export class UI {
     this.orderResponse.hidden = true;
     this.orderHint.hidden = true;
     this.orderRespondedShown = false;
+    this.syncPanelOverTouch();
   }
 
   // ---------------- the Map, as a notebook (docs/11 + docs/12) ----------------
@@ -298,12 +336,14 @@ export class UI {
     this.refreshMap(notes, slang);
     this.mapBtn.setAttribute('aria-pressed', 'true');
     this.prompt.hidden = true;
+    this.syncPanelOverTouch();
   }
 
   closeMap() {
     this.mapPanel.hidden = true;
     this.syncTouchPanels();
     this.mapBtn.setAttribute('aria-pressed', 'false');
+    this.syncPanelOverTouch();
   }
 
   /** Redraw page 2 — the margins hold what the city taught you. */
@@ -346,12 +386,12 @@ export class UI {
     }
     this.postcardCaption.textContent = caption;
     this.postcardPanel.hidden = false;
-    this.syncTouchPanels();
+    this.syncPanelOverTouch();
   }
 
   hidePostcard() {
     this.postcardPanel.hidden = true;
-    this.syncTouchPanels();
+    this.syncPanelOverTouch();
   }
 
   // ---------------- fade / title ----------------
@@ -372,6 +412,69 @@ export class UI {
     this.titleCard.textContent = text;
     this.titleCard.hidden = false;
     window.setTimeout(() => { this.titleCard.hidden = true; }, holdMs);
+  }
+
+  // ---------------- the arrival (Doc 02 opening) ----------------
+
+  /** Letterbox in — the film starts. HUD stays hidden until the handover. */
+  showCine() {
+    this.cine.hidden = false;
+    this.cineTitleCard.hidden = true;
+    this.cineBox.hidden = true;
+    // restart the bar slide
+    this.cine.classList.remove('on');
+    void this.cine.offsetWidth;
+    this.cine.classList.add('on');
+  }
+
+  /** Bars stay after the dip-to-black swap (the terminal is still the film). */
+  cineVisible() {
+    this.cine.hidden = false;
+    this.cine.classList.add('on');
+  }
+
+  cineHide() {
+    this.cine.hidden = true;
+    this.cine.classList.remove('on');
+    this.cineTitleCard.hidden = true;
+  }
+
+  /** One dialogue line; speaker label above. Chips never outlive their line. */
+  cineLine(speaker: string, text: string) {
+    this.cineBox.hidden = false;
+    this.cineChips.hidden = true;
+    this.cineSpeaker.textContent = speaker;
+    this.cineText.textContent = text;
+    // restart the line-in animation
+    this.cineBox.style.animation = 'none';
+    void this.cineBox.offsetWidth;
+    this.cineBox.style.animation = '';
+  }
+
+  /** The Doc 02 one-tap responses — personality, never penalty. */
+  cineChoices(lines: readonly string[], onPick: (i: number) => void) {
+    this.cineChips.hidden = false;
+    this.cineChips.textContent = '';
+    lines.forEach((line, i) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.textContent = line;
+      chip.addEventListener('pointerdown', (e) => {
+        e.stopPropagation(); // a chip pick is not also an overlay tap
+        onPick(i);
+      });
+      this.cineChips.appendChild(chip);
+    });
+  }
+
+  cineHideBox() {
+    this.cineBox.hidden = true;
+    this.cineChips.hidden = true;
+  }
+
+  /** The title over the terminal face — holds until the handover clears it. */
+  cineTitle() {
+    this.cineTitleCard.hidden = false;
   }
 
   dismissLoading() {

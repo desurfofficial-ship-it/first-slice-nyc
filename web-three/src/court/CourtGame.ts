@@ -239,7 +239,13 @@ export class CourtGame {
     const events = this.sim.advance(dt);
     for (const ev of events) this.onEvent(ev);
     this.syncMesh();
-    if (this.sim.resting || this.flightTimeout > 7.5) this.settle();
+    // 4 game-seconds, not 7.5: a real flight resolves in ≤3 (G = 11.5, full
+    // arc ≈ 2.4 s). The timeout is the "the sim lost the ball" referee, and
+    // game-time crawls on a low-fps phone (the dt clamp halves it at ~5 fps)
+    // — at 7.5 a stuck ball froze the court for 20+ wall-seconds, unpickable
+    // the whole time (docs/51 B3). 4 game-s ≈ 12 wall-s worst case, and the
+    // sim's own grounded rest still fires first on honest rolls.
+    if (this.sim.resting || this.flightTimeout > 4) this.settle();
   }
 
   private onEvent(ev: SimEvent): void {
@@ -291,6 +297,13 @@ export class CourtGame {
       this.phase = 'return';
       this.returnT = 0;
       this.returnFrom = { x: p.x, y: GROUND_Y + BALL_R, z: p.z };
+      // the hotspot is honest from the FIRST frame of the roll: a press
+      // made between the settle frame and the next updateReturn still
+      // reads this spot (tryInteract runs before court.update in a frame),
+      // and the pre-shot spot is meters away from the escapee (docs/51 B3)
+      COURT_BALL_REST.x = p.x;
+      COURT_BALL_REST.y = GROUND_Y + BALL_R;
+      COURT_BALL_REST.z = p.z;
       return;
     }
     this.phase = 'rest';
@@ -314,10 +327,7 @@ export class CourtGame {
     this.sim.state.spinAxis = { x: 0, y: 1, z: 0 };
     this.syncMesh();
     // the interaction's live spot rides the rolling ball — pickUp() promises
-    // an intercept "works from rest OR mid-return", and a promise is only
-    // true if the anchor tells the truth about where the ball IS. The stale
-    // pre-return spot used to leave the press dead whenever a rebound left
-    // through the gate (docs/51 B3 — the flaky re-pickup, found and fixed).
+    // an intercept "works from rest OR mid-return" (docs/51 B3).
     COURT_BALL_REST.x = p.x;
     COURT_BALL_REST.y = p.y;
     COURT_BALL_REST.z = p.z;

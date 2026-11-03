@@ -134,8 +134,17 @@ const walks = await page.evaluate(() => {
       [7.75, 6.5], [7.75, 10], [7.75, 15], [7.75, 19], [9, 21.5],
       [7, 23.5], [5.5, 24], [3, 24], [-1, 24], [-5.5, 24.6],
     ],
+    // A5 merge note: the old middle legs cut straight across the kit platform
+    // (x −8.55..−5.45, top 0.6 — unclimbable from the ground by the 0.35
+    // STEP_UP law) by riding the pergola rail at x −6.5 (top 0.45, 0.43 m
+    // off the line) — the pre-A5 snap-circle grabbed it as ground and the
+    // walk "crossed" on invisible platforming. The stair law (docs/48 + the
+    // merged groundHeight) correctly refuses rail-rides, so the route now
+    // walks the kit's EAST lane (x −4.7, 0.75 m clear of the east face) the
+    // way a person actually moves through the park: in the south gate, around
+    // the kit, back out the gate.
     'playground (Marlow → gate → kit → back)': [
-      [-7, -33.5], [-7, -31], [-7, -28], [-3.9, -24], [-7, -22.2], [-7, -28], [-7, -33.5],
+      [-7, -33.5], [-7, -31], [-7, -28], [-3.9, -24], [-4.7, -22.2], [-4.7, -28], [-7, -33.5],
     ],
     'the stoop lane (Gable walk past all five stoops)': [
       [-50, 35], [-42.6, 35], [-35, 35], [-27.4, 35], [-19.8, 35], [-12.2, 35], [-8, 35],
