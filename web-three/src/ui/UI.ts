@@ -136,11 +136,29 @@ export class UI {
       this.isTouch = coarse;
       if (!this.touchUI.hidden) this.touchUI.hidden = !coarse;
     }
+    this.syncTouchUI();
+  }
+
+  /** B7 (docs/51): paper owns the screen. While the name box, the order
+   *  card, the Map notebook or the postcard is open, the touch controls
+   *  step aside — the stick's zone is a quarter of the phone, and left
+   *  live it spawns under the resting thumb, captures the pointer and
+   *  eats gestures meant for the paper (the turn/interact buttons also
+   *  glowed through the Map's scrim). The CSS hook
+   *  (`#touch-ui.hidden-when-panel`) existed from the rebuild; this is the
+   *  wiring it was waiting for. The `hidden` ATTRIBUTE remains the master
+   *  switch (not a touch device / game not started); the class only
+   *  suppresses while a panel holds the screen. */
+  private syncTouchUI(): void {
+    const panelOpen = !this.nameBox.hidden || !this.orderCard.hidden
+      || !this.mapPanel.hidden || !this.postcardPanel.hidden;
+    this.touchUI.classList.toggle('hidden-when-panel', panelOpen);
   }
 
   showGame() {
     this.root.hidden = false;
     if (this.isTouch) this.touchUI.hidden = false;
+    this.syncTouchUI();
   }
 
   // ---------------- HUD ----------------
@@ -224,12 +242,14 @@ export class UI {
     this.nameBox.hidden = false;
     this.nameInput.value = '';
     this.prompt.hidden = true;
+    this.syncTouchUI();
     window.setTimeout(() => this.nameInput.focus(), 30);
   }
 
   closeNameBox() {
     this.nameBox.hidden = true;
     this.nameInput.blur();
+    this.syncTouchUI();
   }
 
   // ---------------- the serving conversation (docs/11 + docs/12) ----------------
@@ -257,6 +277,7 @@ export class UI {
     this.orderCard.hidden = false;
     this.prompt.hidden = true;
     this.interactBtn.classList.remove('occupied');
+    this.syncTouchUI();
   }
 
   /** The reply landed — what comes back, in the same paper. */
@@ -279,6 +300,7 @@ export class UI {
     this.orderResponse.hidden = true;
     this.orderHint.hidden = true;
     this.orderRespondedShown = false;
+    this.syncTouchUI();
   }
 
   // ---------------- the Map, as a notebook (docs/11 + docs/12) ----------------
@@ -288,11 +310,13 @@ export class UI {
     this.refreshMap(notes, slang);
     this.mapBtn.setAttribute('aria-pressed', 'true');
     this.prompt.hidden = true;
+    this.syncTouchUI();
   }
 
   closeMap() {
     this.mapPanel.hidden = true;
     this.mapBtn.setAttribute('aria-pressed', 'false');
+    this.syncTouchUI();
   }
 
   /** Redraw page 2 — the margins hold what the city taught you. */
@@ -335,10 +359,12 @@ export class UI {
     }
     this.postcardCaption.textContent = caption;
     this.postcardPanel.hidden = false;
+    this.syncTouchUI();
   }
 
   hidePostcard() {
     this.postcardPanel.hidden = true;
+    this.syncTouchUI();
   }
 
   // ---------------- fade / title ----------------

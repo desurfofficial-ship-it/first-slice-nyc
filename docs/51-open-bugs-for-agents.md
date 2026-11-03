@@ -49,6 +49,34 @@ Everything still listed under OPEN is live work for a follow-up agent.
 
 ---
 
+## FIXED (touch paper law) — 2026-11-03
+
+### B7. Touch UI hidden logic vs order card / map — FIXED 2026-11-03
+- **Was:** the `hidden-when-panel` hook existed in CSS but nothing wired
+  it — the joystick zone (46%×44% of a phone), the interact and turn
+  buttons stayed live under every open paper surface. On the order card
+  (a bottom-center paper with live margins) a resting thumb spawned a
+  phantom stick, captured the pointer and ate gestures; the buttons
+  glowed through the Map's scrim. Found while probing: `index.html`
+  also carried a byte-identical duplicate of the whole order-card +
+  map-panel block — 14 duplicate ids, invalid HTML (the first copies
+  are the live ones; the dead pair is removed).
+- **Fix:** `UI.syncTouchUI()` toggles `hidden-when-panel` on `#touch-ui`
+  whenever the name box / order card / Map / postcard is open, wired
+  into every panel open/close + `showGame` + `detectTouch`. The
+  `hidden` attribute stays the master switch (touch device / game
+  started); the class only suppresses while paper holds the screen.
+- **Commit / branch:** `agent/b7-touch-ui-panel-hide` (fix + this ledger
+  entry in one commit).
+- **Verified:** `npx tsc --noEmit` clean; `npx vitest run` 390/390; new
+  `scripts/probe-touch-ui.mjs` under phone emulation (390×844, coarse
+  pointer): 11/11 — joy zone receives taps with no panel open; every
+  surface suppresses + restores the controls; a corner tap beside the
+  open order card never reaches the stick; zero console/page errors.
+  `probe-camfade` re-run green (shared markup).
+
+---
+
 ## OPEN — probe failures (merged features)
 
 ### B1. Subway stair y-level (probe-subway)
@@ -108,13 +136,6 @@ Everything still listed under OPEN is live work for a follow-up agent.
   resizing the buffer, fade-on-occlude silently no-ops for new canopies.
 - **Where:** `GameCamera` constructor, `Game.ts` boot wiring,
   `World.canopySpheres()`.
-- **Status:** OPEN.
-
-### B7. Touch UI hidden logic vs order card / map
-- `#touch-ui` uses `hidden` and `hidden-when-panel`. Confirm order-card and
-  map-notebook open states still hide the joystick (otherwise the stick
-  steals taps from paper UI on phones).
-- **Where:** `ui/UI.ts`, `style.css`, `Game.ts` mapOpen / orderCard.
 - **Status:** OPEN.
 
 ### B8. KeyQ is camera-left only; some players expect strafe

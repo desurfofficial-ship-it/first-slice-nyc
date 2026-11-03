@@ -60,34 +60,6 @@
     <button id="map-close" type="button" aria-label="Fold the Map">&times; fold it</button>
   </div>
 
-  <!-- The order card — the serving conversation (docs/11 + docs/12) -->
-  <div id="order-card" hidden role="dialog" aria-modal="true" aria-label="An order">
-    <div id="order-bubble"></div>
-    <div id="order-line"></div>
-    <div id="order-replies" role="group" aria-label="What you do"></div>
-    <div id="order-response" hidden aria-live="polite"></div>
-    <div id="order-hint" hidden>Space &mdash; done &middot; the counter waits</div>
-  </div>
-
-  <!-- Map — the folded-paper notebook (docs/11 + docs/12 prototype 2) -->
-  <div id="map-panel" hidden role="dialog" aria-modal="true" aria-label="Map — your notebook">
-    <div id="map-sheet">
-      <div class="map-page" id="map-page-1">
-        <div class="map-star">&#10022;</div>
-        <div class="map-boot-line">You are here.<br>That&rsquo;s enough.</div>
-        <div class="map-page-hint">page 2 &mdash; what I noticed</div>
-      </div>
-      <div class="map-page" id="map-page-2">
-        <div class="map-margin-title">Things I noticed</div>
-        <ul id="map-notes"></ul>
-        <div class="map-margin-title">Words</div>
-        <ul id="map-slang"></ul>
-        <div id="map-empty" class="map-empty">Nothing yet. The city is patient.</div>
-      </div>
-    </div>
-    <button id="map-close" type="button" aria-label="Fold the Map">&times; fold it</button>
-  </div>
-
   <!-- Name-your-cart -->
   <div id="name-box" class="panel" hidden role="dialog" aria-modal="true" aria-label="Name your cart">
     <label for="cart-name-input">Name your cart, then press Enter.</label>
