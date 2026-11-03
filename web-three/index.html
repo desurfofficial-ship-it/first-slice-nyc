@@ -21,6 +21,7 @@
     <div id="hud-top-right">
       <button id="btn-audio" type="button" aria-label="Turn sound on or off" aria-pressed="false" title="Sound">&#9835;</button>
       <button id="btn-map" type="button" aria-label="Open Map — your notebook" aria-pressed="false" title="Map (M)"><span id="map-peek">Map</span></button>
+      <button id="btn-album" type="button" aria-label="Open your album — empty so far" title="Your album"><span id="album-peek">Album (<span id="album-count">0</span>)</span></button>
       <div id="money">$87</div>
       <div id="timer">0:00</div>
     </div>
@@ -78,8 +79,19 @@
     </div>
     <div id="postcard-actions">
       <button id="postcard-keep" type="button">Keep this postcard</button>
+      <button id="postcard-share" type="button" hidden>Share it&hellip;</button>
       <button id="postcard-stay" type="button">Stay a while</button>
     </div>
+  </div>
+
+  <!-- The album — kept postcards on a shelf -->
+  <div id="album-panel" hidden role="dialog" aria-modal="true" aria-label="Your album of kept postcards">
+    <div id="album-sheet">
+      <div id="album-title">Kept postcards</div>
+      <div id="album-grid"></div>
+      <div id="album-empty" class="map-empty">Nothing kept yet. The first postcard is waiting at the end of Day 1.</div>
+    </div>
+    <button id="album-close" type="button" aria-label="Close the album">&times; put it back</button>
   </div>
 
   <!-- Touch controls -->

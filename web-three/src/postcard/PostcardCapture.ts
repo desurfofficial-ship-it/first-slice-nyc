@@ -238,3 +238,59 @@ export function downloadPostcard(dataUrl: string, filename: string): void {
   a.click();
   a.remove();
 }
+
+// ------------------------------------------------------- the share sheet ----
+// The GDD's UGC flywheel wants a REAL share: the platform's own sheet, the
+// card handed over as a file. The honest gate is capability, not feature
+// detection theater — a share button that exists only where the Web Share
+// API can actually take a file, and the download as the fallback path.
+
+/** True only where `share` can carry files. Injected nav keeps tests honest. */
+export function canShareFiles(nav: Navigator = navigator): boolean {
+  try {
+    return typeof nav.share === 'function' && typeof nav.canShare === 'function';
+  } catch {
+    return false;
+  }
+}
+
+function dataUrlToFile(dataUrl: string, filename: string): File | null {
+  try {
+    const comma = dataUrl.indexOf(',');
+    if (comma < 0) return null;
+    const meta = dataUrl.slice(0, comma);
+    const b64 = dataUrl.slice(comma + 1);
+    const mime = /data:([^;]+)/.exec(meta)?.[1] ?? 'image/png';
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new File([bytes], filename, { type: mime });
+  } catch {
+    return null;
+  }
+}
+
+/** Share the postcard through the platform sheet when it can take the file;
+ *  download is the fallback (and the only path on desktop browsers without
+ *  the API). The user closing the sheet is 'shared', not a failure — the
+ *  card was offered, which is all a postcard ever asks. */
+export async function sharePostcard(
+  dataUrl: string,
+  filename: string,
+  nav: Navigator = navigator,
+): Promise<'shared' | 'downloaded'> {
+  const file = dataUrlToFile(dataUrl, filename);
+  if (file && typeof nav.share === 'function' && typeof nav.canShare === 'function') {
+    try {
+      if (nav.canShare({ files: [file] })) {
+        await nav.share({ files: [file], title: 'FIRST SLICE', text: filename.replace(/\.png$/, '').replace(/_/g, ' ') });
+        return 'shared';
+      }
+    } catch (err) {
+      if ((err as { name?: string })?.name === 'AbortError') return 'shared';
+      // anything else falls through to the download — the card lands somewhere
+    }
+  }
+  downloadPostcard(dataUrl, filename);
+  return 'downloaded';
+}

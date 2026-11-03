@@ -8,6 +8,7 @@ import { gameAudio } from '../game/audio';
 import type { OrderCard } from '../core/content';
 import { SLANG_CARDS } from '../core/content';
 import { buildSketchSvg } from './sketch';
+import type { AlbumEntry } from '../postcard/Album';
 
 function el<T extends HTMLElement>(id: string): T {
   const e = document.getElementById(id);
@@ -33,6 +34,7 @@ export class UI {
   readonly postcardImg = el<HTMLImageElement>('postcard-img');
   readonly postcardCaption = el<HTMLDivElement>('postcard-caption');
   readonly postcardKeep = el<HTMLButtonElement>('postcard-keep');
+  readonly postcardShare = el<HTMLButtonElement>('postcard-share');
   readonly postcardStay = el<HTMLButtonElement>('postcard-stay');
   // ---- the serving conversation (docs/11 + docs/12) ----
   readonly orderCard = el<HTMLDivElement>('order-card');
@@ -48,6 +50,13 @@ export class UI {
   private mapSlangList = el<HTMLUListElement>('map-slang');
   private mapEmpty = el<HTMLDivElement>('map-empty');
   private mapClose = el<HTMLButtonElement>('map-close');
+  // ---- the album — the shelf where kept postcards live ----
+  readonly albumBtn = el<HTMLButtonElement>('btn-album');
+  readonly albumPanel = el<HTMLDivElement>('album-panel');
+  readonly albumGrid = el<HTMLDivElement>('album-grid');
+  private albumEmpty = el<HTMLDivElement>('album-empty');
+  private albumClose = el<HTMLButtonElement>('album-close');
+  private albumCountBadge = el<HTMLSpanElement>('album-count');
   private fade = el<HTMLDivElement>('fade');
   private titleCard = el<HTMLDivElement>('title-card');
   readonly loading = el<HTMLDivElement>('loading');
@@ -96,6 +105,16 @@ export class UI {
     // the Map's folded corner: a tap opens the notebook (M on keyboard)
     this.mapBtn.addEventListener('click', () => this.onMapToggle?.());
     this.mapClose.addEventListener('click', () => this.onMapToggle?.());
+    // the album: the HUD button opens the shelf, a card on it re-prints
+    this.albumBtn.addEventListener('click', () => this.onAlbumToggle?.());
+    this.albumClose.addEventListener('click', () => this.onAlbumToggle?.());
+    this.albumGrid.addEventListener('click', (e) => {
+      const card = (e.target as HTMLElement).closest('[data-album-id]');
+      if (card) this.onAlbumPick?.((card as HTMLElement).dataset.albumId ?? '');
+    });
+    // the share sheet rides the postcard panel (visibility is Game's call —
+    // the button exists only where the Web Share API can take the file)
+    this.postcardShare.addEventListener('click', () => this.onPostcardShare?.());
     // the order card's buttons; after a response, a tap anywhere is "done"
     this.orderCard.addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest('[data-reply]');
@@ -132,6 +151,12 @@ export class UI {
   onOrderChoose: ((reply: number | null) => void) | null = null;
   /** The Map folded / opened — Game owns the state side. */
   onMapToggle: (() => void) | null = null;
+  /** The album folded / opened — Game owns the shelf. */
+  onAlbumToggle: (() => void) | null = null;
+  /** A card on the album shelf was tapped (its id). */
+  onAlbumPick: ((id: string) => void) | null = null;
+  /** Share the postcard in the panel (only wired where it can take files). */
+  onPostcardShare: (() => void) | null = null;
 
   private detectTouch() {
     const coarse = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -162,7 +187,7 @@ export class UI {
    *  didn't. Keyboard play never notices. */
   private syncTouchPanels() {
     const panelUp = !this.orderCard.hidden || !this.mapPanel.hidden
-      || !this.postcardPanel.hidden;
+      || !this.postcardPanel.hidden || !this.albumPanel.hidden;
     this.touchUI.classList.toggle('hidden-when-panel', panelUp);
   }
 
@@ -215,7 +240,7 @@ export class UI {
    *  panels swallow the prompt too: the card owns the counter while open. */
   setPrompt(verb: string | null) {
     if (verb === null || !this.nameBox.hidden || !this.postcardPanel.hidden
-      || !this.orderCard.hidden || !this.mapPanel.hidden) {
+      || !this.orderCard.hidden || !this.mapPanel.hidden || !this.albumPanel.hidden) {
       this.prompt.hidden = true;
       this.interactBtn.classList.remove('occupied');
       return;
@@ -235,7 +260,7 @@ export class UI {
    *  it waited for (docs/51 B7). */
   private syncPanelOverTouch() {
     const panelOpen = !this.nameBox.hidden || !this.postcardPanel.hidden
-      || !this.orderCard.hidden || !this.mapPanel.hidden;
+      || !this.orderCard.hidden || !this.mapPanel.hidden || !this.albumPanel.hidden;
     this.touchUI.classList.toggle('hidden-when-panel', panelOpen);
   }
 
@@ -429,6 +454,54 @@ export class UI {
 
   hidePostcard() {
     this.postcardPanel.hidden = true;
+    this.syncTouchPanels();
+    this.syncPanelOverTouch();
+  }
+
+  /** The share button exists only where the platform sheet can take the
+   *  file (progressive honesty — desktop Linux gets Keep, not a dead Share). */
+  setShareVisible(v: boolean) {
+    this.postcardShare.hidden = !v;
+  }
+
+  // ---------------- the album ----------------
+
+  setAlbumCount(n: number) {
+    this.albumCountBadge.textContent = String(n);
+    this.albumBtn.setAttribute('aria-label',
+      n === 0 ? 'Open your album — empty so far' : `Open your album — ${n} card${n === 1 ? '' : 's'}`);
+  }
+
+  get albumCount(): number {
+    return Number(this.albumCountBadge.textContent ?? '0') || 0;
+  }
+
+  showAlbum(entries: AlbumEntry[]) {
+    this.albumGrid.textContent = '';
+    for (const e of entries) {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'album-card';
+      card.dataset.albumId = e.id;
+      card.setAttribute('aria-label', `Day ${e.day} postcard — ${e.caption.split('\n')[0]}`);
+      const img = document.createElement('img');
+      img.src = e.thumb;
+      img.alt = '';
+      const tag = document.createElement('span');
+      tag.className = 'album-tag';
+      tag.textContent = e.kind === 'wow' ? `DAY ${e.day} · THE SQUARE` : `DAY ${e.day}`;
+      card.append(img, tag);
+      this.albumGrid.append(card);
+    }
+    this.albumEmpty.hidden = entries.length > 0;
+    this.albumPanel.hidden = false;
+    // the album is a paper panel too — the B7 contract is for every sheet
+    this.syncTouchPanels();
+    this.syncPanelOverTouch();
+  }
+
+  hideAlbum() {
+    this.albumPanel.hidden = true;
     this.syncTouchPanels();
     this.syncPanelOverTouch();
   }

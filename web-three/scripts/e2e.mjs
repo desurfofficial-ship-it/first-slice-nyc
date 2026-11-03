@@ -86,6 +86,12 @@ await page.goto(`http://localhost:${PORT}/?autotest=1&fx=off${WALKLOG}`, { waitU
   ok(!(await p.isVisible('#map-sheet')), 'the Map folds again by click');
   await attempt('click the audio button', () => p.click('#btn-audio', { timeout: 5000 }));
   ok((await p.getAttribute('#btn-audio', 'aria-pressed')) === 'true', 'the audio button toggles by click');
+  // the album is the HUD's other paper: same thumb-path law as the Map —
+  // it must open by CLICK, not only by keyboard, or phones never see the shelf
+  await attempt('click the album button', () => p.click('#btn-album', { timeout: 5000 }));
+  ok(await p.isVisible('#album-panel'), 'the album opens by CLICK on the HUD button');
+  await attempt('click put-it-back', () => p.click('#album-close', { timeout: 5000 }));
+  ok(!(await p.isVisible('#album-panel')), 'the album folds again by click');
   await p.close();
   if (pointerFails.length > 0) {
     console.error('POINTER GUARD FAILED:\n' + pointerFails.join('\n'));

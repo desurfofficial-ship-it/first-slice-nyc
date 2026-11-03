@@ -25,7 +25,8 @@ import { InputManager } from '../engine/Input';
 import { Tweens, type Tween } from '../engine/tweens';
 import { capsuleInBox, moveAxisX, moveAxisZ, type Capsule } from '../engine/collide';
 import { UI } from '../ui/UI';
-import { capturePostcard, downloadPostcard } from '../postcard/PostcardCapture';
+import { capturePostcard, downloadPostcard, canShareFiles, sharePostcard } from '../postcard/PostcardCapture';
+import { addToAlbum, entryId, loadAlbum, makeThumb, storeAlbum, type AlbumEntry } from '../postcard/Album';
 import { updatePersonAnim, type PersonRig } from '../world/personRig';
 import { FAMILIAR_SPEED, familiarBeatForDay } from '../world/dressing';
 import { InteractionRegistry, NEVER_NEAR, type InteractionCtx } from './interactions';
@@ -89,6 +90,12 @@ export class Game {
   private readonly kidCapsule: Capsule = { x: 0, y: 0.05, z: 0, radius: 0.25, height: 1.4 };
   private checkpoint = { x: -30, y: 0.05, z: 6.2 };
   private lastPostcardUrl: string | null = null;
+  private lastPostcardKind: 'day' | 'wow' = 'day';
+  private lastPostcardCaption = '';
+  /** The album shelf (the GDD's postcard ask): kept cards survive the tab;
+   *  the full-size paper of THIS session rides memory for re-prints. */
+  private album: AlbumEntry[] = [];
+  private readonly sessionFull = new Map<string, string>();
 
   private wasInL1 = false;
   private wasInL2 = false;
@@ -294,13 +301,20 @@ export class Game {
     this.ui.onOrderChoose = (reply) => this.advanceOrder(reply);
     this.ui.onMapToggle = () => this.toggleMap();
     this.ui.postcardKeep.addEventListener('click', () => {
-      if (this.lastPostcardUrl) {
-        downloadPostcard(this.lastPostcardUrl, this.wowPostcard
-          ? `first_slice_times_square_day${this.state.day}.png`
-          : `first_slice_postcard_day${this.state.day}.png`);
-      }
+      if (!this.lastPostcardUrl) return;
+      downloadPostcard(this.lastPostcardUrl, this.postcardFilename());
+      void this.fileAlbumCard(); // keep = a download copy AND paper on the shelf
     });
     this.ui.postcardStay.addEventListener('click', () => this.dismissPostcard());
+    this.ui.onPostcardShare = () => void this.shareCurrentPostcard();
+    this.ui.onAlbumToggle = () => this.toggleAlbum();
+    this.ui.onAlbumPick = (id) => this.pickFromAlbum(id);
+    // the shelf loads before the first day does — kept paper survives the
+    // tab, the reload, the week; the share button exists only where the
+    // platform sheet can take the file (honest capability, not theater)
+    this.album = loadAlbum();
+    this.ui.setAlbumCount(this.album.length);
+    this.ui.setShareVisible(canShareFiles());
 
     // ---------------- events ----------------
     window.addEventListener('resize', () => this.onResize());
@@ -1475,6 +1489,8 @@ export class Game {
       day: s.day, replay: s.replayDay, dayStartMoney: s.dayStartMoney, money: s.money, cartName: s.cartName,
       awningUp: s.awningUp, // Day 2 without shade says so kindly (Doc 33 §5.1)
     });
+    this.lastPostcardCaption = caption;
+    this.lastPostcardKind = 'day';
     if (s.day > 1) s.dayComplete = true;
     s.setStep(s.day >= 4 ? Step.D4_POSTCARD : (s.day === 3 ? Step.D3_POSTCARD : (s.day > 1 ? Step.D2_POSTCARD : Step.DONE)));
     this.ui.setObjective('');
@@ -1522,6 +1538,8 @@ export class Game {
     if (this.wowPostcard || this.postcardRig || !this.ui.postcardPanel.hidden) return;
     const s = this.state;
     const caption = tsWowCaption({ day: s.day, cartName: s.cartName || 'First Slice' });
+    this.lastPostcardCaption = caption;
+    this.lastPostcardKind = 'wow';
     const capCam = new THREE.PerspectiveCamera(55, 768 / 1160, 0.1, 400);
     // the arrival view, held: from mid-plaza the stacked south tower fills
     // the portrait frame — screens top-two-thirds, warm plaza below (the
@@ -1549,6 +1567,68 @@ export class Game {
     } finally {
       capCam.dispose();
     }
+  }
+
+  /** The card's filename — Keep and Share agree on it, so a re-shared card
+   *  never renames itself behind the player's back. */
+  private postcardFilename(): string {
+    return this.wowPostcard
+      ? `first_slice_times_square_day${this.state.day}.png`
+      : `first_slice_postcard_day${this.state.day}.png`;
+  }
+
+  /** Keep = paper on the album shelf + the download copy (the same click).
+   *  The shelf stores the thumb — a print, not the negative; the full card
+   *  rides session memory for this visit's re-prints. Idempotent: keeping
+   *  twice is still one card (the id is day+kind+caption). */
+  private async fileAlbumCard(): Promise<void> {
+    const url = this.lastPostcardUrl;
+    if (!url) return;
+    const id = entryId(this.state.day, this.lastPostcardKind, this.lastPostcardCaption);
+    this.sessionFull.set(id, url);
+    const thumb = await makeThumb(url);
+    this.album = addToAlbum(this.album, {
+      id,
+      day: this.state.day,
+      kind: this.lastPostcardKind,
+      caption: this.lastPostcardCaption,
+      cartName: this.state.cartName || 'First Slice',
+      thumb,
+      keptAt: Date.now(),
+    });
+    // storeAlbum quota-degrades on its own and returns what actually stuck —
+    // the badge counts the shelf, never the wish
+    this.album = storeAlbum(this.album);
+    this.ui.setAlbumCount(this.album.length);
+  }
+
+  /** The platform share sheet; where it can't take files the card downloads
+   *  (the button itself only shows where it can — canShareFiles's law). */
+  private async shareCurrentPostcard(): Promise<void> {
+    if (!this.lastPostcardUrl) return;
+    const where = await sharePostcard(this.lastPostcardUrl, this.postcardFilename());
+    if (where === 'downloaded') {
+      this.ui.showNote('Saved to your downloads — no share sheet here, so the paper went there.');
+    }
+  }
+
+  private toggleAlbum(): void {
+    if (!this.ui.albumPanel.hidden) {
+      this.ui.hideAlbum();
+      return;
+    }
+    this.ui.showAlbum(this.album);
+  }
+
+  /** A tap on a shelf card re-prints it: full-size if this session kept the
+   *  paper, album-size if it came from an older visit (the shelf says so). */
+  private pickFromAlbum(id: string): void {
+    const entry = this.album.find((e) => e.id === id);
+    if (!entry) return;
+    const full = this.sessionFull.get(id);
+    downloadPostcard(full ?? entry.thumb,
+      `first_from_the_album_day${entry.day}${entry.kind === 'wow' ? '_times_square' : ''}.png`);
+    if (!full) this.ui.showNote('From the shelf — this one prints at album size.');
   }
 
   private dismissPostcard(): void {

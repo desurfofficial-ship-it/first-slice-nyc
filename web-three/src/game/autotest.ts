@@ -630,6 +630,23 @@ export function runAutotest(game: Game): void {
       check(sawLightsOut, 'Rosa, from below: "They\u2019re gonna want the usual." \u2014 the open loop');
       check(s.money === 112, 'money label reads $112');
 
+      // -- the album + the share sheet (the GDD's postcard ask): keep has a
+      //    shelf now, and the share button is honest — it exists only where
+      //    the Web Share API can take files (headless Linux can't, so it
+      //    stays hidden instead of pretending).
+      check(game.ui.postcardShare.hidden === true, 'share button hides where files cannot be shared');
+      game.ui.postcardKeep.click(); // the thumb path — a real click on the real button
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < 8000 && game.ui.albumCount < 1) await nextFrame();
+      }
+      check(game.ui.albumCount === 1, 'keep files the day-1 card in the album');
+      game.ui.albumBtn.click();
+      check(!game.ui.albumPanel.hidden, 'the album opens from the HUD button');
+      check(game.ui.albumGrid.childElementCount === 1, 'the shelf shows the kept card');
+      (document.getElementById('album-close') as HTMLButtonElement).click(); // the real button, real click
+      check(game.ui.albumPanel.hidden === true, 'the album closes');
+
       // -- seam 3: the end breathes — postcard closes, lingering is allowed --
       await waitFrames(30); // settle pad: a press mid-transition is eaten at software-render fps (docs/47 W3)
       await interact();
@@ -736,6 +753,13 @@ export function runAutotest(game: Game): void {
       }
       check(s.step === Step.D2_POSTCARD && !game.ui.postcardPanel.hidden, 'day 2 postcard composes');
       check(dbg.caption().includes('Day 2'), 'postcard says Day 2');
+      // the shelf grows with the week: day 2's card joins day 1's (docs/54)
+      game.ui.postcardKeep.click();
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < 8000 && game.ui.albumCount < 2) await nextFrame();
+      }
+      check(game.ui.albumCount === 2, 'day 2\u2019s card joins the shelf \u2014 the album keeps the week');
       await waitFrames(10); // settle pad, tightened: the linger clock runs
       await interact();
       check(!game.player.frozen, 'day 2 end lingers too');
