@@ -153,3 +153,71 @@ export const HALL_NOTICES: Record<number, string> = {
 export function hallNoticeForDay(day: number): string {
   return HALL_NOTICES[day] ?? HALL_NOTICES[2] ?? 'ALDER WORKS';
 }
+
+// --------------------------------------------------------- the skyline diary ----
+
+/**
+ * The far skyline (the card of towers at z 90) gets lit windows of its own —
+ * the GDD's "skyline of lit windows, beyond the single gold one". The city
+ * across the avenue was always on at dusk; now you can see it.
+ *
+ * House rules hold (Doc 33 §2.3 — never random-flicker): the pattern is
+ * SEEDED, so the same tower shows the same lit windows every run, the way
+ * real tenants keep their lamps. And the far city keeps a small diary, like
+ * the brownstone does: a dark window across the avenue wakes on Day 3
+ * (someone new), another is up early by Day 4.
+ */
+
+export const SKYLINE_WARMTH = { steady: 1.3, diary: 2.0 } as const;
+
+/** mulberry32 — a tiny seeded PRNG. The skyline's pattern is a fact, not a
+ *  roll: same seed in, same mask out, provable in a unit test. */
+export function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Which cells of one tower's window grid are lit, row-major. Top floors
+ *  keep darker (a penthouse is not a showroom); a tower that would read as
+ *  empty is topped up deterministically — every third dark cell. */
+export function skylineWindowMask(seed: number, cols: number, rows: number): boolean[] {
+  const rnd = mulberry32(seed * 7919 + 1013);
+  const mask: boolean[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const base = r === rows - 1 ? 0.2 : 0.44;
+      mask.push(rnd() < base);
+    }
+  }
+  let lit = 0;
+  for (const m of mask) if (m) lit++;
+  if (lit < mask.length * 0.25) {
+    for (let i = 0; i < mask.length && lit < mask.length * 0.25; i += 3) {
+      if (!mask[i]) { mask[i] = true; lit++; }
+    }
+  }
+  return mask;
+}
+
+/** The far city's diary: two DARK cells in one tower's grid, picked
+ *  deterministically from the mask (they exist precisely because the mask
+ *  left them dark). The light itself wakes by day — `skylineDiaryWarmth`. */
+export function skylineDiaryIndices(seed: number, cols: number, rows: number): { newcomer: number; riser: number } {
+  const mask = skylineWindowMask(seed, cols, rows);
+  const dark: number[] = [];
+  for (let i = 0; i < mask.length; i++) if (!mask[i]) dark.push(i);
+  const pick = (nth: number): number => (dark.length > nth ? dark[(nth * 7) % dark.length] : -1);
+  return { newcomer: pick(0), riser: pick(1) };
+}
+
+/** When the far diary lights up, and how warm: nothing until Day 3, then
+ *  one warmth for either window (at ninety metres they read the same). */
+export function skylineDiaryWarmth(day: number): number {
+  return day >= 3 ? SKYLINE_WARMTH.diary : 0;
+}

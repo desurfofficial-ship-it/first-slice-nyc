@@ -33,7 +33,8 @@ import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './pe
 import { buildSubwaySystem, STATION, ZONE_KEEP_RE, type SubwaySystem, type ColliderSpec } from './subway';
 import { buildTimesSquare, type TimesSquare } from './timesSquare';
 import { buildArrivalBus, BUS04_RECT, playerOccupiesBus04, type ArrivalBus } from './arrivalBus';
-import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay } from './dressing';
+import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay,
+  skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH } from './dressing';
 import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT } from '../core/content';
 // the half-court upgrade (docs/48/49) — basketball-owned module, the one
 // sanctioned import seam between the world and the court
@@ -188,6 +189,8 @@ export class World {
   readonly ambientWindowMatLate!: THREE.MeshLambertMaterial;   // got home late → away
   readonly ambientWindowMatNew!: THREE.MeshLambertMaterial;    // someone new, Day 3
   readonly ambientWindowMatRiser!: THREE.MeshLambertMaterial;  // the early riser, Day 4
+  readonly skylineWinMat!: THREE.MeshLambertMaterial;          // the far city, always on at dusk
+  readonly skylineWinDiaryMat!: THREE.MeshLambertMaterial;     // two windows across the avenue, day-keyed
   /** The half-court ball (docs/38): rests by the key, flies when shot.
    *  Excluded from the static bake — it moves. (Assigned by buildCourt.) */
   ball!: THREE.Mesh;
@@ -734,6 +737,68 @@ export class World {
       this.deco(`Tower_${i}`, -10 + i * 7, heights[i] / 2, 90, 6, heights[i], 6, PAL.skyline, { fog: false });
     }
     this.deco('Spire', 11, 92, 90, 0.6, 24, 0.6, PAL.skyline, { fog: false });
+
+    // ---- the skyline's lit windows (GDD: beyond the single gold one) ------
+    // One InstancedMesh of tiny warm panes on the towers' south faces, one
+    // draw call, ~two hundred lights. The mask is SEEDED (dressing.ts): the
+    // same tower shows the same lit windows every run — tenants keep their
+    // lamps — and the far diary wakes two dark windows with the week.
+    {
+      const winGeo = new THREE.PlaneGeometry(0.55, 0.8);
+      const winMat = new THREE.MeshLambertMaterial({
+        color: PAL.windowDim, emissive: PAL.gold, emissiveIntensity: 0, fog: false,
+      });
+      const diaryMat = new THREE.MeshLambertMaterial({
+        color: PAL.windowDim, emissive: PAL.gold, emissiveIntensity: 0, fog: false,
+      });
+      this.skylineWinMat = winMat;
+      this.skylineWinDiaryMat = diaryMat;
+      const cells: Array<[number, number]> = [];   // [x, y] world positions
+      const diaryCells: Array<[number, number]> = [];
+      for (let i = 0; i < heights.length; i++) {
+        const h = heights[i];
+        const cols = 4;
+        const rows = Math.max(3, Math.floor((h - 6) / 3.2));
+        const mask = skylineWindowMask(i + 1, cols, rows);
+        const cx = -10 + i * 7;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            if (!mask[r * cols + c]) continue;
+            cells.push([cx - 1.95 + c * 1.3, 4 + r * 3.2]);
+          }
+        }
+        // the diary lives on two towers only — a city is big, a diary is small
+        if (i === 2 || i === 5) {
+          const diary = skylineDiaryIndices(i + 1, cols, rows);
+          for (const idx of [diary.newcomer, diary.riser]) {
+            if (idx < 0) continue;
+            const r = Math.floor(idx / cols);
+            const c = idx % cols;
+            diaryCells.push([cx - 1.95 + c * 1.3, 4 + r * 3.2]);
+          }
+        }
+      }
+      const place = (mesh: THREE.InstancedMesh, list: Array<[number, number]>) => {
+        // the panes face the street (the player looks north from −z)
+        const m = new THREE.Matrix4().makeRotationY(Math.PI);
+        for (let k = 0; k < list.length; k++) {
+          m.setPosition(list[k][0], list[k][1], 90 - 3.06); // just off the south face (z 87)
+          mesh.setMatrixAt(k, m);
+        }
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.frustumCulled = false; // one plane's bounding sphere must not cull the grid
+      };
+      const steady = new THREE.InstancedMesh(winGeo, winMat, Math.max(1, cells.length));
+      place(steady, cells);
+      steady.count = cells.length;
+      steady.name = 'SkylineWindows';
+      this.scene.add(steady);
+      const diaryMesh = new THREE.InstancedMesh(winGeo, diaryMat, Math.max(1, diaryCells.length));
+      place(diaryMesh, diaryCells);
+      diaryMesh.count = diaryCells.length;
+      diaryMesh.name = 'SkylineWindowsDiary';
+      this.scene.add(diaryMesh);
+    }
 
     // ---------------- invisible bounds (the master-world core) -------------
     // W1: the shipped x ±48 / z ∓22/22.5 walls are RETIRED (docs/45 W1 —
@@ -2681,6 +2746,12 @@ export class World {
 
     this.scene.traverse((o) => {
       if (!(o instanceof THREE.Mesh) || excluded(o)) return;
+      // An InstancedMesh IS a Mesh, but its geometry is one instance's —
+      // baking it merges a single phantom quad at the origin and STRIPS the
+      // real instanced draw from the scene (the canopy dodged this by being
+      // built after the bake; the skyline's panes live before it). Instanced
+      // draws own themselves — the bake never touches them.
+      if ((o as THREE.InstancedMesh).isInstancedMesh) return;
       const mat = o.material;
       if (!(mat instanceof THREE.MeshLambertMaterial) || mat.map || mat.transparent) return;
       const geo = o.geometry;
@@ -5192,6 +5263,10 @@ export class World {
     this.ambientWindowMatLate.emissiveIntensity = plan.lateHome;
     this.ambientWindowMatNew.emissiveIntensity = plan.newFace;
     this.ambientWindowMatRiser.emissiveIntensity = plan.earlyRiser;
+    // the far city keeps its lamps on — the same warm fact every day; the
+    // diary across the avenue wakes with the week (Day 3, then Day 4)
+    this.skylineWinMat.emissiveIntensity = SKYLINE_WARMTH.steady;
+    this.skylineWinDiaryMat.emissiveIntensity = skylineDiaryWarmth(day);
     // the barrier's last day is Day 3; the asphalt remembers
     const diary = barrierDiary(day);
     this.barrier.visible = diary.barrierVisible;
