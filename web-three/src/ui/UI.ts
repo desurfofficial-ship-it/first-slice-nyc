@@ -9,6 +9,7 @@ import type { OrderCard } from '../core/content';
 import { SLANG_CARDS } from '../core/content';
 import { buildSketchSvg } from './sketch';
 import type { AlbumEntry } from '../postcard/Album';
+import { touchPanelUp } from './touchLaw';
 
 function el<T extends HTMLElement>(id: string): T {
   const e = document.getElementById(id);
@@ -225,14 +226,26 @@ export class UI {
     return this.objective.textContent ?? '';
   }
 
-  /** Paper panels hold the hands (docs/51 B7): while the order card, the
-   *  Map, or a postcard is up, the touch stick and buttons stand down —
-   *  the CSS contract (`#touch-ui.hidden-when-panel`) existed; the wiring
-   *  didn't. Keyboard play never notices. */
-  private syncTouchPanels() {
-    const panelUp = !this.orderCard.hidden || !this.mapPanel.hidden
-      || !this.postcardPanel.hidden || !this.albumPanel.hidden;
-    this.touchUI.classList.toggle('hidden-when-panel', panelUp);
+  /** Paper panels hold the hands (docs/51 B7): while any paper surface is up
+   *  — the name box, the order card, the Map, the postcard, the album — the
+   *  touch stick and buttons stand down. ONE law, ONE toggle. The history,
+   *  because the next agent deserves it: this class shipped TWO parallel
+   *  wirings of the same CSS class (`syncTouchPanels` and
+   *  `syncPanelOverTouch`, each with its own surface list) and correctness
+   *  hung on call order — every panel door had to call both,
+   *  last-writer-wins; the album wave then grew each list by hand. The
+   *  pocket menu is deliberately NOT a surface: it is a role=menu dropdown
+   *  that closes on outside-tap — the tap that dismisses it belongs to the
+   *  world. Consolidated: every door calls this once;
+   *  tests/touch-law.test.ts keeps it one. Keyboard play never notices. */
+  private syncTouchUI() {
+    this.touchUI.classList.toggle('hidden-when-panel', touchPanelUp({
+      nameBox: !this.nameBox.hidden,
+      orderCard: !this.orderCard.hidden,
+      mapPanel: !this.mapPanel.hidden,
+      postcardPanel: !this.postcardPanel.hidden,
+      albumPanel: !this.albumPanel.hidden,
+    }));
   }
 
   showNote(text: string, ttlMs = 6500) {
@@ -297,17 +310,6 @@ export class UI {
     this.interactBtn.classList.add('occupied');
   }
 
-  /** On a phone the stick zone and the turn buttons live under the thumb.
-   *  While a paper panel owns the screen — the order card, the Map, the
-   *  postcard, the name box — the stick must not steal taps from it. The
-   *  `hidden-when-panel` CSS hook shipped on day one; this is the wiring
-   *  it waited for (docs/51 B7). */
-  private syncPanelOverTouch() {
-    const panelOpen = !this.nameBox.hidden || !this.postcardPanel.hidden
-      || !this.orderCard.hidden || !this.mapPanel.hidden || !this.albumPanel.hidden;
-    this.touchUI.classList.toggle('hidden-when-panel', panelOpen);
-  }
-
   /** The half-court's shot meter (docs/49): a transient skill read, not
    *  HUD chrome — visible only while the ball is in your shot pocket.
    *  band = [lo, hi] charge values of the gold release band. */
@@ -335,14 +337,14 @@ export class UI {
     this.nameBox.hidden = false;
     this.nameInput.value = '';
     this.prompt.hidden = true;
-    this.syncPanelOverTouch();
+    this.syncTouchUI();
     window.setTimeout(() => this.nameInput.focus(), 30);
   }
 
   closeNameBox() {
     this.nameBox.hidden = true;
     this.nameInput.blur();
-    this.syncPanelOverTouch();
+    this.syncTouchUI();
   }
 
   // ---------------- the serving conversation (docs/11 + docs/12) ----------------
@@ -368,10 +370,9 @@ export class UI {
     this.orderHint.hidden = true;
     this.orderRespondedShown = false;
     this.orderCard.hidden = false;
-    this.syncTouchPanels();
     this.prompt.hidden = true;
     this.interactBtn.classList.remove('occupied');
-    this.syncPanelOverTouch();
+    this.syncTouchUI();
   }
 
   /** The reply landed — what comes back, in the same paper. */
@@ -390,12 +391,11 @@ export class UI {
 
   hideOrderCard() {
     this.orderCard.hidden = true;
-    this.syncTouchPanels();
     this.orderReplies.hidden = false;
     this.orderResponse.hidden = true;
     this.orderHint.hidden = true;
     this.orderRespondedShown = false;
-    this.syncPanelOverTouch();
+    this.syncTouchUI();
   }
 
   // ---------------- the Map, as a notebook (docs/11 + docs/12) ----------------
@@ -443,18 +443,16 @@ export class UI {
 
   openMap(notes: readonly string[], slang: readonly string[]) {
     this.mapPanel.hidden = false;
-    this.syncTouchPanels();
     this.refreshMap(notes, slang);
     this.mapBtn.setAttribute('aria-pressed', 'true');
     this.prompt.hidden = true;
-    this.syncPanelOverTouch();
+    this.syncTouchUI();
   }
 
   closeMap() {
     this.mapPanel.hidden = true;
-    this.syncTouchPanels();
     this.mapBtn.setAttribute('aria-pressed', 'false');
-    this.syncPanelOverTouch();
+    this.syncTouchUI();
   }
 
   /** Redraw page 2 — the margins hold what the city taught you. */
@@ -504,18 +502,14 @@ export class UI {
     this.postcardCaption.textContent = caption;
     this.postcardStay.textContent = stayLabel;
     this.postcardPanel.hidden = false;
-    // the B7 contract includes the postcard (panelUp reads postcardPanel) —
-    // the wiring has to ride both doors of the panel, or touch players
-    // hold a stick that the paper is holding (upstream wired the card and
-    // the Map; the postcard was read but never announced)
-    this.syncTouchPanels();
-    this.syncPanelOverTouch();
+    // the B7 contract includes the postcard — syncTouchUI rides both doors
+    // of the panel, or touch players hold a stick that the paper is holding
+    this.syncTouchUI();
   }
 
   hidePostcard() {
     this.postcardPanel.hidden = true;
-    this.syncTouchPanels();
-    this.syncPanelOverTouch();
+    this.syncTouchUI();
   }
 
   /** The share button exists only where the platform sheet can take the
@@ -556,14 +550,12 @@ export class UI {
     this.albumEmpty.hidden = entries.length > 0;
     this.albumPanel.hidden = false;
     // the album is a paper panel too — the B7 contract is for every sheet
-    this.syncTouchPanels();
-    this.syncPanelOverTouch();
+    this.syncTouchUI();
   }
 
   hideAlbum() {
     this.albumPanel.hidden = true;
-    this.syncTouchPanels();
-    this.syncPanelOverTouch();
+    this.syncTouchUI();
   }
 
   // ---------------- fade / title ----------------

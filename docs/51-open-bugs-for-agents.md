@@ -263,6 +263,39 @@ camera/joystick pass, and the 2026-11-03 full-docs audit.
   helper, six call sites) — a new panel type that skips it fails the
   visible contract on the first phone, not silently.
 
+### B7a. Two parallel B7 wirings shipped and could disagree — CONSOLIDATED 2026-11-03
+- **Found:** parallel agents each wired the same CSS class: `UI` carried
+  `syncTouchPanels()` (order card / Map / postcard — missed the name box)
+  AND `syncPanelOverTouch()` (name box and the other three). Every panel
+  door had to call both back-to-back and correctness hung on call order
+  (last-writer-wins). The drift then got worse, not better: the album wave
+  grew BOTH lists by hand (albumPanel added to each) while the name box
+  stayed split — the rebased branch found the two lists still disagreeing
+  on a five-panel UI.
+- **Fix:** ONE law, ONE toggle. `touchPanelUp()` (pure export,
+  `src/ui/touchLaw.ts` — the B2 `playerOccupiesBus04` precedent) reads the
+  union of the FIVE paper surfaces (name box, order card, Map, postcard,
+  album); `UI.syncTouchUI()` is its only toggle caller; all ten panel doors
+  (two per surface) call it once. The retired functions are gone. The
+  pocket menu is deliberately NOT a surface: it is a role=menu dropdown
+  that closes on outside-tap — the tap that dismisses it belongs to the
+  world (recorded in the law's doc comment).
+- **Guard:** `tests/touch-law.test.ts` — union semantics (each surface
+  alone holds the stick down, all closed frees the hands), the source
+  contract `classList.toggle('hidden-when-panel')` appears EXACTLY ONCE in
+  UI.ts, all ten doors call `syncTouchUI()`, and the CSS hook exists.
+- **Probe:** `scripts/probe-touch-ui.mjs` — phone-emulated in-engine probe
+  (390×844, coarse pointer, SwiftShader): 13 assertions — controls live on
+  the open street (the joy zone actually receives a corner tap), suppress +
+  restore across all five papers, a resting-thumb corner tap beside the
+  open order card never reaches the stick nor spawns it, zero console/page
+  errors. **PROBE GREEN.**
+- **Commit / branch:** `agent/touch-ui-one-law` (rebased onto the album /
+  pocket wave, `5f973e1`).
+- **Verified:** `tsc --noEmit` clean; full vitest **482/482** (476 on the
+  rebased main + 6 new guards); `vite build`
+  clean; probe-touch-ui PROBE GREEN (above).
+
 ### B8. KeyQ is camera-left only; some players expect strafe — FIXED (docs, agent2/session-polish)
 - The README controls blurb now states the real bindings: Space/E interact
   (E is interact-only — it never turns the camera), Z/C **or Q** turn the
