@@ -263,6 +263,17 @@ export interface StationOpts {
   home: boolean;
 }
 
+/** Meshes that live systems hold by reference and mutate per-frame — the
+ *  zone bake (World.bakeZoneStatics) must never merge these, or the merge
+ *  DETACHES the mesh and the system's writes land on a dead object:
+ *  · SUB_Ceiling_N — index.ts toggles .visible below grade (the dollhouse
+ *    lid, docs/50 §5). Found by the bug-hunt sweep: baked, the toggle went
+ *    dead, and the ceiling slab walling the cutaway view shut from above.
+ *  · SUB_Turnstile{Hub,Arm}_* — index.ts spins the arms on a fare pass
+ *    (docs/52 §4.6). Baked, the spin went visually dead (the probe was
+ *    measuring a detached mesh). */
+export const ZONE_KEEP_RE = /SUB_Ceiling_|SUB_Turnstile/;
+
 export interface StationResult {
   /** The ceiling slab — hidden while the player is below grade (the
    *  terminal lifts off with it: the dollhouse). */

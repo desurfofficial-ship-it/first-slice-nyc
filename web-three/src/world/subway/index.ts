@@ -19,12 +19,12 @@ import {
   type RideEnd, type RideState,
 } from './ride';
 import {
-  buildStair, buildStation, STATION, STAIR_SLOT, turnstileHubAt,
+  buildStair, buildStation, STATION, STAIR_SLOT, turnstileHubAt, ZONE_KEEP_RE,
   type ColliderSpec, type KitCtx,
 } from './stationKit';
 import { buildTrainPair, buildTunnel } from './trainKit';
 
-export { STAIR_SLOT, STATION, RIDE_SWAP_DX };
+export { STAIR_SLOT, STATION, RIDE_SWAP_DX, ZONE_KEEP_RE };
 export type { ColliderSpec };
 
 const TRAIN_DOOR_A_X = -41.1; // the aligned car's interactive door, station A

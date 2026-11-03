@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { updateZones, type ZoneDef } from '../src/world/subway/zone';
-import { turnstileHubAt } from '../src/world/subway/stationKit';
+import { turnstileHubAt, ZONE_KEEP_RE } from '../src/world/subway/stationKit';
 import {
   beginRide, createRide, endRide, RIDE_BEATS, RIDE_SWAP_DX, RIDE_T,
   swapFeet, tickRide, type RideEvent,
@@ -173,5 +173,29 @@ describe('turnstile pass detection (stationKit.turnstileHubAt)', () => {
 
   it('station B detects through its own translated hubs', () => {
     expect(turnstileHubAt(9.9, 10.5, -332 + 0.65, -332)).toBe(1);
+  });
+});
+
+// ---------------------------------------------------- the zone bake's keep-set
+
+describe('ZONE_KEEP_RE — meshes systems hold by reference (the bake contract)', () => {
+  // The zone bake merges a zone group's statics one level down. Any mesh a
+  // live system mutates by reference MUST stay out of the merge, or the
+  // merge detaches it and the system's writes land on a dead object (found
+  // by the bug-hunt sweep: the dollhouse lid walled the cutaway shut and
+  // the fare spin went quiet — both writes were landing on detached meshes).
+  it('keeps the dollhouse ceiling (index.ts toggles .visible below grade)', () => {
+    expect(ZONE_KEEP_RE.test('SUB_Ceiling_A')).toBe(true);
+    expect(ZONE_KEEP_RE.test('SUB_Ceiling_B')).toBe(true);
+  });
+  it('keeps the turnstile hubs and arms (index.ts spins them on a pass)', () => {
+    expect(ZONE_KEEP_RE.test('SUB_TurnstileHub_A_-48.75')).toBe(true);
+    expect(ZONE_KEEP_RE.test('SUB_TurnstileArm_B_-336.65_2')).toBe(true);
+  });
+  it('still merges the honest statics (the keep-set is narrow)', () => {
+    expect(ZONE_KEEP_RE.test('SUB_Pillar_A_3')).toBe(false);
+    expect(ZONE_KEEP_RE.test('SUB_Bench_A_1')).toBe(false);
+    expect(ZONE_KEEP_RE.test('SUB_Wall_S_A')).toBe(false);
+    expect(ZONE_KEEP_RE.test('TSS_Step_3')).toBe(false);
   });
 });

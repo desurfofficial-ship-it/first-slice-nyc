@@ -407,7 +407,12 @@ export class GameCamera {
   snapBehind(playerPos: { x: number; y: number; z: number }) {
     this.sideStep = this.computeDesired(playerPos);
     this.desired.x += this.sideStep;
-    const goal = this.shortenBoom(this.focusTarget, this.desired);
+    // interiorMode law (docs/50): below grade the station is a cutaway
+    // diorama — the boom must skip shortenBoom exactly like update() does,
+    // or a snap parks the lens on the (invisible) yard slab. update()
+    // self-corrects over the next frames; snapBehind is the instant path
+    // (boot, any future fast-travel), so it must obey the same law.
+    const goal = this.interiorMode ? this.desired : this.shortenBoom(this.focusTarget, this.desired);
     this.camera.position.copy(goal);
     this.camera.lookAt(this.focusTarget);
     this.updateOcclusion();

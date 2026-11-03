@@ -30,7 +30,7 @@ import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
 import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
-import { buildSubwaySystem, STATION, type SubwaySystem, type ColliderSpec } from './subway';
+import { buildSubwaySystem, STATION, ZONE_KEEP_RE, type SubwaySystem, type ColliderSpec } from './subway';
 import { buildTimesSquare, type TimesSquare } from './timesSquare';
 import { buildArrivalBus, BUS04_RECT, type ArrivalBus } from './arrivalBus';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay } from './dressing';
@@ -2718,18 +2718,23 @@ export class World {
    *  Animated subtrees stay out by name: the cast rigs (Priya, the
    *  busker, the usher, the square's crowd, riders, waiters) breathe;
    *  TSS_Screen_N tick per screen (each screen owns its material
-   *  instance — merging them would fuse the sync beat). Singleton
-   *  signature groups stay as-is, exactly like bakeStatics. */
+   *  instance — merging them would fuse the sync beat); TSS_Banner_N
+   *  sway by reference. ZONE_KEEP_RE is the by-reference set the subway
+   *  holds (the dollhouse ceiling, the turnstile arms) — merging those
+   *  DETACHES the mesh and the system's writes land on a dead object
+   *  (the bug-hunt sweep caught exactly that: the cutaway walled shut
+   *  from above, the fare spin gone quiet). Singleton signature groups
+   *  stay as-is, exactly like bakeStatics. */
   private bakeZoneStatics(): void {
     const groups: THREE.Group[] = [
       this.subway.groups.stationA, this.subway.groups.stationB,
       this.subway.groups.tunnel, this.subway.groups.scenery,
       this.timesSquare.group,
     ];
-    const ANIMATED = /priya|busker|usher|crowd|mover|rider|sub_wait|sub_sax|tss_screen_\d+$/i;
+    const ANIMATED = /priya|busker|usher|crowd|mover|rider|sub_wait|sub_sax|tss_screen_\d+$|tss_banner/i;
     const animated = (o: THREE.Object3D, g: THREE.Group): boolean => {
       for (let p: THREE.Object3D | null = o; p && p !== g; p = p.parent) {
-        if (p.name && ANIMATED.test(p.name)) return true;
+        if (p.name && (ANIMATED.test(p.name) || ZONE_KEEP_RE.test(p.name))) return true;
       }
       return false;
     };

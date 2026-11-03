@@ -169,3 +169,27 @@ describe('occlusion array follows the live canopy list (docs/51 B6)', () => {
     expect(cam.occlusion[0]).toBeGreaterThan(0.5);
   });
 });
+
+describe('snapBehind obeys the interiorMode law (docs/50 cutaway)', () => {
+  // A wall across the boom's path, 3 m behind the player (camYaw 0 → the
+  // boom runs toward −z; desired lands ~8 m out, past the wall).
+  const WALL = {
+    minX: -20, maxX: 20, minY: -10, maxY: 10, minZ: -3.2, maxZ: -2.6,
+  };
+
+  it('above grade the snap still shortens against a wall (unchanged)', () => {
+    const cam = new GameCamera(1.6, [WALL]);
+    cam.snapBehind({ x: 0, y: 0, z: 0 });
+    // the lens parks on the player's side of the wall — never inside it
+    expect(cam.camera.position.z).toBeGreaterThan(-3.2);
+  });
+
+  it('below grade the snap skips shortenBoom — the cutaway stays visible', () => {
+    const cam = new GameCamera(1.6, [WALL]);
+    cam.interiorMode = true; // the world flips this from subway.underground
+    cam.snapBehind({ x: 0, y: -3.2, z: 0 });
+    // the boom reaches its full desired length: the yard slab (the wall
+    // here) must not drag the lens onto its face and fill the frame
+    expect(cam.camera.position.z).toBeLessThan(-3.2);
+  });
+});
