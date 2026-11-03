@@ -381,6 +381,29 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   is UNDER the 250 line for the first time; Kestrel still over 150, gate
   line stays published. The statics' colors now ride vertex attributes and
   the census audit reads them (23 distinct [vc] shades surface).
+- **Update 2026-11-03 (cast bake, same day):** every figure merged to 6
+  draws (was 11–12) — colors ride vertex attributes, one shared material
+  for the whole cast, rigid pivots fused (leg+boot, arm+hand,
+  torso+shawl+strap, skull+hair+glasses). PLAZA 468 → 404,
+  CART_CORNER 406 → 335, SYCAMORE×GABLE 132 → 113 — every rig under its
+  previous ledger. Measured and rejected: small-prop shadow-caster
+  discipline (−12/−16 for visible contact shadows — bad trade); the
+  remaining frustum tail is canvas-texture sign faces (atlas = a program).
+  Next honest frontier per diag-shadow-price: the shadow pass itself
+  (~108–125 calls).
+- **Update 2026-11-04 (curb bake, e7dcc7d+1):** the zone-bake law extended
+  one group later — the M121's shell (the arrivalBus header itself ceded
+  "the shell could bake") and the named dressing groups fuse within their
+  own groups; the driver rig rides the animated exclusion, the route sign
+  stays a map singleton. PLAZA 404 → 370, CART_CORNER 335 → 301,
+  SYCAMORE×GABLE 115 → 115 — every rig under its previous ledger; the
+  150 ideal line stays published FAIL. The shadow frontier priced and
+  closed for now (diag-shadow-frontier.mjs): SHADOW_HALF 35→30 is −5/−1,
+  35→26 is −11/−5, far 160→120 is ±0, ALL figure casts are −37 — every
+  lever an art regression for almost nothing; the ~113–124 shadow calls
+  are the dusk look itself (74 figure casts + the buildings that cast
+  it). Frontier back to the main pass: sign atlas (a program), interiors'
+  window visibility, SUB_Root depth.
 
 ### B14. Documentation hygiene
 - Some older docs (Phase 0 exit, AGENTS.md “code pending”) still read as if

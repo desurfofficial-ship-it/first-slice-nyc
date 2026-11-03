@@ -44,6 +44,50 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PAL } from '../core/palette';
 
+/** One material for every human on the block — the vertex-bake law applied
+ *  to the cast (docs/47 lever 3, the W4p2 dusk-pair method taken whole):
+ *  each part's color rides a per-vertex color attribute, so every rigid
+ *  group merges into ONE mesh and the whole cast shares this single
+ *  Lambert. Lambert's diffuse math is untouched — part color × 1 became
+ *  white × part color, the same product bit-for-bit (the vertex bake
+ *  proved this on the statics; here it pays the same dividend: a figure
+ *  costs 6 draw calls, not 12, in BOTH the main and the shadow pass). */
+export const personMaterial = new THREE.MeshLambertMaterial({
+  color: 0xffffff,
+  vertexColors: true,
+});
+
+/** Bake `color` into a per-vertex color attribute — merge food for
+ *  mergedMesh(). The attribute matches BoxGeometry/SphereGeometry's
+ *  position/normal/uv layout, so mergeGeometries fuses them. */
+function colored(geo: THREE.BufferGeometry, color: number): THREE.BufferGeometry {
+  const c = new THREE.Color(color);
+  const n = geo.attributes.position.count;
+  const arr = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+  return geo;
+}
+
+/** One rigid group → ONE mesh: bake each part's placement (T·Rz, the same
+ *  composition the old per-mesh position/rotation.z produced) into its
+ *  geometry, color it, merge, hang the single mesh off the pivot. */
+function mergedMesh(
+  parts: Array<{ geo: THREE.BufferGeometry; color: number; x: number; y: number; z: number; rz?: number }>,
+): THREE.Mesh {
+  const geos = parts.map(({ geo, color, x, y, z, rz }) => {
+    const g = colored(geo, color);
+    if (rz) g.rotateZ(rz);
+    g.translate(x, y, z);
+    return g;
+  });
+  const mesh = new THREE.Mesh(mergeGeometries(geos, false)!, personMaterial);
+  mesh.castShadow = true;
+  return mesh;
+}
+
 export interface PersonRig {
   root: THREE.Group;
   body: THREE.Group;
@@ -116,52 +160,49 @@ export interface PersonLook {
  * Limb numbers mirror tools3d/procedural_glb.py (same abs positions the old
  * rigid build used — the hierarchy only adds pivots, it never moved a box).
  */
-export function buildArticulatedPerson(
-  o: PersonLook,
-  mat: (color: number) => THREE.Material,
-): { group: THREE.Group; rig: PersonRig } {
+export function buildArticulatedPerson(o: PersonLook): { group: THREE.Group; rig: PersonRig } {
   const group = new THREE.Group();
   if (o.scale !== undefined) group.scale.setScalar(o.scale);
-  const mesh = (geo: THREE.BufferGeometry, color: number, x: number, y: number, z: number, rz = 0) => {
-    const m = new THREE.Mesh(geo, mat(color));
-    m.position.set(x, y, z);
-    m.rotation.z = rz;
-    m.castShadow = true;
-    return m;
-  };
 
   const root = new THREE.Group(); // bob + forward lean (updatePersonAnim)
   group.add(root);
 
-  // hips at y=0.72 (leg top); legs + boots hang from the pivots
+  // hips at y=0.72 (leg top); each leg + boot is ONE merged mesh (pants and
+  // boot colors ride vertex attributes — the pivot still swings the pair)
   const hipL = new THREE.Group(); hipL.position.set(-0.11, 0.72, 0);
   const hipR = new THREE.Group(); hipR.position.set(0.11, 0.72, 0);
   for (const hip of [hipL, hipR]) {
-    hip.add(mesh(new THREE.BoxGeometry(0.13, 0.62, 0.16), o.pants, 0, -0.31, 0));
-    hip.add(mesh(new THREE.BoxGeometry(0.16, 0.1, 0.28), o.shoe ?? PAL.ink, 0, -0.67, 0.03));
+    hip.add(mergedMesh([
+      { geo: new THREE.BoxGeometry(0.13, 0.62, 0.16), color: o.pants, x: 0, y: -0.31, z: 0 },
+      { geo: new THREE.BoxGeometry(0.16, 0.1, 0.28), color: o.shoe ?? PAL.ink, x: 0, y: -0.67, z: 0.03 },
+    ]));
     root.add(hip);
   }
 
-  // torso/arms/head ride the body group (breathe idle)
+  // torso/arms/head ride the body group (breathe idle). Torso + shawl +
+  // strap are all rigid on `body` → ONE mesh (optional pieces join the
+  // merge only when the look wears them)
   const body = new THREE.Group();
   body.position.set(0, 0.72, 0);
-  body.add(mesh(new THREE.BoxGeometry(0.5, 0.62, 0.3), o.jacket, 0, 0.31, 0));
+  const bodyParts: Array<{ geo: THREE.BufferGeometry; color: number; x: number; y: number; z: number; rz?: number }> = [
+    { geo: new THREE.BoxGeometry(0.5, 0.62, 0.3), color: o.jacket, x: 0, y: 0.31, z: 0 },
+  ];
 
   const armL = new THREE.Group(); armL.position.set(-0.325, 0.56, 0);
   const armR = new THREE.Group(); armR.position.set(0.325, 0.56, 0);
   for (const [arm, sx, rz] of [[armL, -0.325, 0.09], [armR, 0.325, -0.09]] as const) {
-    arm.add(mesh(new THREE.BoxGeometry(0.11, 0.52, 0.13), o.jacket, 0, -0.22, 0, rz));
-    arm.add(mesh(new THREE.BoxGeometry(0.09, 0.09, 0.09), o.skin, sx * 0.06, -0.5, 0.01));
+    arm.add(mergedMesh([
+      { geo: new THREE.BoxGeometry(0.11, 0.52, 0.13), color: o.jacket, x: 0, y: -0.22, z: 0, rz },
+      { geo: new THREE.BoxGeometry(0.09, 0.09, 0.09), color: o.skin, x: sx * 0.06, y: -0.5, z: 0.01 },
+    ]));
     body.add(arm);
   }
 
+  // the head group glances as a unit — skull + hair chain + glasses are all
+  // rigid inside it → ONE mesh (the W4p2 hair merge, extended to the whole
+  // head; the glance rotation is untouched)
   const head = new THREE.Group();
   head.position.set(0, 0.78, 0.01);
-  head.add(mesh(new THREE.BoxGeometry(0.3, 0.32, 0.28), o.skin, 0, 0, 0));
-  // the hair chain is RIGID inside the head group (the head glances as a
-  // unit) — its 2-4 boxes/spheres merge into ONE mesh by the W4p2 dusk-pair
-  // method (docs/47 lever 3): same boxes, same offsets, same material, one
-  // draw call instead of up to four — in BOTH passes, hair casts
   const hairGeos: THREE.BufferGeometry[] = [
     new THREE.BoxGeometry(0.32, 0.13, 0.3).translate(0, 0.2, -0.025),
     new THREE.BoxGeometry(0.32, 0.2, 0.07).translate(0, 0.08, -0.145),
@@ -172,36 +213,36 @@ export function buildArticulatedPerson(
     hairGeos.push(new THREE.BoxGeometry(0.3, 0.03, 0.16).translate(0, 0.135, 0.14));
     hairGeos.push(new THREE.BoxGeometry(0.32, 0.1, 0.31).translate(0, 0.195, -0.02));
   }
-  const hair = new THREE.Mesh(mergeGeometries(hairGeos, false)!, mat(o.hair));
-  hair.castShadow = true;
-  head.add(hair);
+  const headParts: Array<{ geo: THREE.BufferGeometry; color: number; x: number; y: number; z: number; rz?: number }> = [
+    { geo: new THREE.BoxGeometry(0.3, 0.32, 0.28), color: o.skin, x: 0, y: 0, z: 0 },
+    { geo: mergeGeometries(hairGeos, false)!, color: o.hair, x: 0, y: 0, z: 0 },
+  ];
   if (o.glasses) {
     // one dark bar across the eyes — reads as glasses at iso distance,
     // costs one box, and instantly separates Idris and Sal from the crowd
-    head.add(mesh(new THREE.BoxGeometry(0.27, 0.05, 0.035), 0x1c1a20, 0, 0.04, 0.145));
+    headParts.push({ geo: new THREE.BoxGeometry(0.27, 0.05, 0.035), color: 0x1c1a20, x: 0, y: 0.04, z: 0.145 });
   }
+  head.add(mergedMesh(headParts));
   body.add(head);
-  root.add(body);
 
   if (o.shawl !== undefined) {
     // shoulders wrap — the same silhouette trick as the stranger's duffel
-    body.add(mesh(new THREE.BoxGeometry(0.55, 0.13, 0.35), o.shawl, 0, 0.56, -0.01));
+    bodyParts.push({ geo: new THREE.BoxGeometry(0.55, 0.13, 0.35), color: o.shawl, x: 0, y: 0.56, z: -0.01 });
   }
   if (o.strap !== undefined) {
     // courier look: a strap that wraps the torso (front AND back — the game
     // camera spends most of its life behind the player) and the bag it holds.
-    // All three boxes ride the body group rigidly — merged into ONE mesh by
-    // the same W4p2 method (their old position+rz tilt baked into the
-    // geometry: T·Rz composition preserved)
+    // All three boxes ride the body group rigidly (their old position+rz
+    // tilt baked into the geometry: T·Rz composition preserved)
     const strapGeos = [
       new THREE.BoxGeometry(0.05, 0.82, 0.06).rotateZ(0.62).translate(0.03, 0.3, 0.165),
       new THREE.BoxGeometry(0.05, 0.82, 0.06).rotateZ(0.62).translate(0.03, 0.3, -0.165),
       new THREE.BoxGeometry(0.16, 0.14, 0.13).translate(-0.29, 0.0, 0.0),
     ];
-    const strap = new THREE.Mesh(mergeGeometries(strapGeos, false)!, mat(o.strap));
-    strap.castShadow = true;
-    body.add(strap);
+    bodyParts.push({ geo: mergeGeometries(strapGeos, false)!, color: o.strap, x: 0, y: 0, z: 0 });
   }
+  body.add(mergedMesh(bodyParts));
+  root.add(body);
 
   const rig = attachRig(group, { root, body, hipL, hipR, armL, armR, head });
   return { group, rig };

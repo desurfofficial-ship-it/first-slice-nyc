@@ -443,4 +443,21 @@ describe('serving is zero-fail — every card, every reply (docs/12 law)', () =>
       expect(card.replies.length, `${card.id} reply count cap`).toBeLessThanOrEqual(4);
     }
   });
+
+  it('card 5\u2019s nine-years payoff lands on EVERY choice — the payoff, not a branch', () => {
+    const card = RUSH_CARDS[4];
+    expect(card.id).toBe('idris');
+    for (let r = 0; r < card.replies.length; r++) {
+      const s = new GameState();
+      s.step = Step.RUSH;
+      s.rushServed = 4;
+      s.openCounterOrder();
+      expect(s.pendingCard?.id).toBe('idris');
+      const effects = s.chooseReply(r);
+      const quietLine = effects.some(
+        (e) => e.kind === 'map-note' && e.text === IDRIS_NINE_YEARS_NOTE,
+      );
+      expect(quietLine, `idris reply ${r} still carries Rosa\u2019s quiet line`).toBe(true);
+    }
+  });
 });

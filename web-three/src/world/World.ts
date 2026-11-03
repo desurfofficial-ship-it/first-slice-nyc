@@ -199,6 +199,12 @@ export class World {
   subway!: SubwaySystem;
   timesSquare!: TimesSquare;
   arrivalBus!: ArrivalBus;
+  /** The named street-dressing groups (the vendor cart, the fruit stand)
+   *  the curb bake may merge WITHIN — never across groups. They are
+   *  scene-level statics that must not join a district tile (they sit off
+   *  the tile grid's assumptions), so the zone-bake law applies one level
+   *  down instead (docs/51 B13, the curb bake). */
+  private readonly zoneDressing: THREE.Group[] = [];
   /** The subway cast rigs (Priya, the busker, riders) — one breathe tick. */
   private readonly subwayCast: THREE.Group[] = [];
   /** Beat buffers Game drains each frame (ride notes, the sync beat). */
@@ -1426,6 +1432,10 @@ export class World {
     // visibility is the law down there. The zone bake keeps the law:
     // merge WITHIN each zone group, re-parent into it.
     this.bakeZoneStatics();
+    // the curb bake (docs/51 B13): the same law one group later — the
+    // M121's shell and the street dressing are boot-built by now, so
+    // their statics fuse within their own groups.
+    this.bakeZoneStatics([this.arrivalBus.group, ...this.zoneDressing]);
 
     // ---- ambient pedestrians (Yuka steering) ----------------------------
     // Built AFTER the static bake so their rigs are never merge candidates;
@@ -1518,7 +1528,7 @@ export class World {
       ],
     ];
     this.peds = new Pedestrians(
-      this.scene, pedLooks, (c) => this.bank.get(c), 20261030, pedPaths,
+      this.scene, pedLooks, 20261030, pedPaths,
       [
         { x: -14, z: 3.05, r: 1.9 },   // delivery van, north curb
         { x: 24, z: 3.05, r: 1.9 },    // parked sedan — north curb (was -3.05:
@@ -1627,7 +1637,7 @@ export class World {
     const figure = (
       name: string, look: PedLook, x: number, y: number, z: number, yaw: number, sit = false,
     ): void => {
-      const { group, rig } = buildArticulatedPerson(look, (c) => this.bank.get(c));
+      const { group, rig } = buildArticulatedPerson(look);
       // batch discipline (the census caught it): each novel (color, cast,
       // receive) signature opens a new baked batch per district tile — so a
       // tile's figures SHARE one palette and receive shadows like the
@@ -1803,7 +1813,7 @@ export class World {
     ];
     const byMat = new Map<THREE.MeshLambertMaterial, THREE.BufferGeometry[]>();
     for (const [look, x, z, yaw, pose] of looks) {
-      const { group, rig } = buildArticulatedPerson(look, (c) => this.bank.get(c));
+      const { group, rig } = buildArticulatedPerson(look);
       pose(rig);
       group.position.set(x, 0.1, z);
       group.rotation.y = yaw;
@@ -2915,14 +2925,21 @@ export class World {
    *  DETACHES the mesh and the system's writes land on a dead object
    *  (the bug-hunt sweep caught exactly that: the cutaway walled shut
    *  from above, the fare spin gone quiet). Singleton signature groups
-   *  stay as-is, exactly like bakeStatics. */
-  private bakeZoneStatics(): void {
-    const groups: THREE.Group[] = [
-      this.subway.groups.stationA, this.subway.groups.stationB,
-      this.subway.groups.tunnel, this.subway.groups.scenery,
-      this.timesSquare.group,
-    ];
-    const ANIMATED = /priya|busker|usher|crowd|mover|rider|sub_wait|sub_sax|tss_screen_\d+$|tss_banner/i;
+   *  stay as-is, exactly like bakeStatics.
+   *
+   *  The CURB BAKE (docs/51 B13) extends the same law to the arrival
+   *  bus's shell and the named dressing groups, passed explicitly by the
+   *  boot sequence (they are built after the first call): the shell boxes
+   *  are static dressing the arrivalBus header itself cedes ("the shell
+   *  could bake"), the one-bay swap is a GROUP-level visibility write and
+   *  the door gap is wall geometry — both survive the merge. The driver
+   *  rig breathes, so it rides the animated exclusion by name. */
+  private bakeZoneStatics(groups: THREE.Group[] = [
+    this.subway.groups.stationA, this.subway.groups.stationB,
+    this.subway.groups.tunnel, this.subway.groups.scenery,
+    this.timesSquare.group,
+  ]): void {
+    const ANIMATED = /priya|busker|usher|crowd|mover|rider|sub_wait|sub_sax|tss_screen_\d+$|tss_banner|bus_driver/i;
     const animated = (o: THREE.Object3D, g: THREE.Group): boolean => {
       for (let p: THREE.Object3D | null = o; p && p !== g; p = p.parent) {
         if (p.name && (ANIMATED.test(p.name) || ZONE_KEEP_RE.test(p.name))) return true;
@@ -3573,6 +3590,8 @@ export class World {
   private buildVendorCart(): void {
     const cart = makeVendorCart(this.bank, this.signMaterials.bind(this), 'DIRTY WATER DOGS');
     cart.position.set(29.8, 0.05, -4.55);
+    cart.name = 'Dressing_VendorCart';
+    this.zoneDressing.push(cart);
     this.scene.add(cart);
     this.colliders.push(boxFromCenter(29.8, 0.6, -4.55, 1.7, 1.2, 0.9));
   }
@@ -4425,6 +4444,7 @@ export class World {
     // tarp canopy, the van's brand on the avenue. W3 correction (docs/47):
     // the registry's x 62.5 straddled the avenue spine at x 61.5.
     const stand = new THREE.Group();
+    stand.name = 'Dressing_FruitStand';
     const crateWood = this.bank.get(0x8a6a4a);
     const crateGeo = new THREE.BoxGeometry(1, 1, 1);
     for (const [cxx, cyy, cs] of [[-0.5, 0.3, 0.6], [0.35, 0.3, 0.6], [-0.1, 0.9, 0.55]] as const) {
@@ -4448,6 +4468,7 @@ export class World {
     fruit.position.set(0, 1.55, 0.62);
     stand.add(fruit);
     stand.position.set(63.3, 0.05, -18);
+    this.zoneDressing.push(stand);
     this.scene.add(stand);
     this.colliders.push(boxFromCenter(63.3, 0.6, -18, 2.2, 1.2, 1.2));
   }
@@ -4880,10 +4901,10 @@ export class World {
    * characters doesn't walk, they move." The old build was one rigid group
    * (and the runtime GLB swap was a static mannequin with zero animations),
    * so everyone skated around. The articulated build lives in personRig.ts
-   * (DOM-free, unit-tested); World only supplies its material factory.
+   * (DOM-free, unit-tested); the cast shares one vertex-colored material.
    */
   buildPerson(o: Parameters<typeof buildArticulatedPerson>[0]): THREE.Group {
-    return buildArticulatedPerson(o, (color) => this.mat(color)).group;
+    return buildArticulatedPerson(o).group;
   }
 
   /** Persistent cast member: the articulated person (rig included). */

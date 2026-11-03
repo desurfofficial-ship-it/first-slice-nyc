@@ -80,15 +80,34 @@ await page.goto(`http://localhost:${PORT}/?autotest=1&fx=off${WALKLOG}`, { waitU
   p.on('pageerror', (err) => pointerFails.push(`PAGEERROR: ${err.message}`));
   await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'load' });
   await p.waitForSelector('#hud:not([hidden])', { timeout: 60000 });
-  await attempt('click the Map button', () => p.click('#btn-map', { timeout: 5000 }));
+  // The pocket wave (docs: one button opens Map / Album / Sound) moved the
+  // HUD buttons into a dropdown. The real thumb path now opens the pocket
+  // first — so the guard does too, and pins the pocket's own click law.
+  const openPocket = async () => {
+    if ((await p.getAttribute('#pocket-menu', 'hidden')) !== null) {
+      await p.click('#btn-pocket', { timeout: 5000 });
+    }
+  };
+  await attempt('click the Pocket', openPocket);
+  ok(await p.isVisible('#pocket-menu'), 'the pocket opens by CLICK and shows the tools');
+  await attempt('click the Map button', async () => {
+    await openPocket();
+    await p.click('#btn-map', { timeout: 5000 });
+  });
   ok(await p.isVisible('#map-sheet'), 'the Map opens by CLICK on the HUD button');
   await attempt('click fold-it', () => p.click('#map-close', { timeout: 5000 }));
   ok(!(await p.isVisible('#map-sheet')), 'the Map folds again by click');
-  await attempt('click the audio button', () => p.click('#btn-audio', { timeout: 5000 }));
+  await attempt('click the audio button', async () => {
+    await openPocket();
+    await p.click('#btn-audio', { timeout: 5000 });
+  });
   ok((await p.getAttribute('#btn-audio', 'aria-pressed')) === 'true', 'the audio button toggles by click');
   // the album is the HUD's other paper: same thumb-path law as the Map —
   // it must open by CLICK, not only by keyboard, or phones never see the shelf
-  await attempt('click the album button', () => p.click('#btn-album', { timeout: 5000 }));
+  await attempt('click the album button', async () => {
+    await openPocket();
+    await p.click('#btn-album', { timeout: 5000 });
+  });
   ok(await p.isVisible('#album-panel'), 'the album opens by CLICK on the HUD button');
   await attempt('click put-it-back', () => p.click('#album-close', { timeout: 5000 }));
   ok(!(await p.isVisible('#album-panel')), 'the album folds again by click');

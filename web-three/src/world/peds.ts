@@ -181,7 +181,6 @@ export class Pedestrians {
   constructor(
     scene: THREE.Scene,
     looks: PedLook[],
-    mat: (color: number) => THREE.Material,
     seed: number,
     paths: Array<Array<[number, number]>>,
     staticObstacles: Array<{ x: number; z: number; r: number }>,
@@ -246,7 +245,7 @@ export class Pedestrians {
 
       // the same handcrafted rig the cast wears — bank-shared materials,
       // so three more neighbors cost three rigs, zero new materials
-      const { group } = buildArticulatedPerson(look, mat);
+      const { group } = buildArticulatedPerson(look);
       group.position.set(start[0], groundY(start[0], start[1], roads), start[1]);
       group.rotation.y = rng() * Math.PI * 2;
       this.group.add(group);

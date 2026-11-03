@@ -326,3 +326,46 @@ Work Log:
 
 Stage Summary:
 - main = 42a112a, all seven docs/54 commits live on origin. Gap list unchanged: Regulars arcs beyond Day 4 (needs design), audio partner outreach (business, not code), touch panel hardening on real devices.
+
+---
+Task ID: 2
+Agent: Z.ai (GLM)
+Task: docs/55 — the Phase 1 exit checklist (Doc 07 §9 gate mapped to real probes). Checklist + evidence paths only; no new features.
+
+Work Log:
+- Fresh clone (sandbox had recycled); tip 4b385b2. Read Doc 07 §8–§9, Doc 06 Phase 1 + §7 DoD + §9 fridge test, docs/51 (B12–B14 are the only OPEN items), AGENTS.md.
+- Inventoried every evidence path cited: 26 test files, ~86 probe/diag/visual scripts, world/game/ui sources. Baseline on the tip: tsc clean, vitest 457/457 (suite grew 419→457 from parallel agents' guards).
+- Wrote docs/55-phase1-exit-checklist.md: one checkbox per Doc 07 §9 criterion (5), each with exact commands, pass/fail rule, evidence path, owner blank; VS-F01–F10 mapped to current-main files + existing probes; B12–B14 under "must clear before exit"; honest gaps named (device farm, 10-tester panel, fridge print, 1-Second Law audit — all manual, tooling listed).
+- False-alarm worth the ink: the Pages deploy trigger read as `branches: ain]` in command output and nearly shipped as a "fix". Blob-hash proof (`git hash-object` == `HEAD:` blob) + `od -c` showed the file was always `branches: [main]` — this sandbox's command OUTPUT strips `[m` sequences (ANSI-escape detection). A `printf 'x [main] y'` experiment confirms. Lesson recorded in docs/55 §3 B14: when command output and the file API disagree, trust `git hash-object` + `od -c`; never ship a fix whose only evidence is pasted output (the docs/51 lesson, met in the wild).
+- docs/51 untouched this session: B14's conditional was "update if you touch stale links" — no stale link existed to touch. B12–B14 stay OPEN, now visible from docs/55.
+
+Stage Summary:
+- docs/55 on main: the exit gate is now runnable — every criterion has a command, a pass rule, an evidence path, and a blank owner. Zero production code touched; tsc clean, vitest 457/457.
+Task ID: 6
+Agent: Z.ai (GLM)
+Task: Close the dialogue-robustness gap — verify VS-F03's "8 order types + chef's welcome v0" with tests that cannot rot.
+
+Work Log:
+- Audited the serving conversation against docs/07 VS-F03: the eight cards exist (five counter + three cart), zero-fail was already swept, but the count, the chef's-welcome-on-every-card law, margin-slang safety, and any live press of the chef's welcome were all unguarded.
+- Added tests/content-order.test.ts (5 pins: the exact eight, chef's welcome on every card, well-formed paper, docs/12 teach lines verbatim, margin-slang safety).
+- Added the payoff-not-a-branch pin to the zero-fail describe: card 5's nine-years note lands on every reply.
+- The E2E now presses the chef's welcome on card 5 — the kit's four always-available gestures each have a live beat; Rosa's quiet line proven to ride every choice, live.
+- First E2E of the round ran 555 s under load and failed 31 timing-gated day-2+ checks in a cascade; clean re-run at 356 s. Recorded as a known flake shape (dusk beats starve under load), not fixed this round.
+
+Stage Summary:
+- tsc clean; vitest 463/463; build clean; E2E AUTOTEST OK 0 failures / 356 s / console clean.
+- Gap list: Regulars arcs beyond Day 4 (needs design), audio partner outreach (business), touch panel hardening on real devices, the dusk-beat flake shape under load.
+
+---
+Task ID: 7
+Agent: Z.ai (GLM)
+Task: Repair the pocket wave (undeclared UI properties; thumb path moved under a dropdown) and land the eight-orders audit through three merge waves.
+
+Work Log:
+- Merged three incoming waves (phase-1 exit checklist docs/55, mobile note-overlap fix, the Pocket menu). Renumbered my audit to docs/56 — docs/55 was claimed concurrently; both worklog entries kept in the merge.
+- Found origin/main did not typecheck: the pocket commits used pocketBtn / pocketMenu / audioPeek without declaring them. Declared all three in UI.ts following the existing el() field pattern.
+- The pocket also broke the E2E pointer guard (Map/Album/Sound now live in a hidden dropdown). The guard now rides the real thumb path — open pocket, press tool — and pins the pocket's own click law (6/6 PASS).
+- Gates on the final tree: tsc clean, vitest 463/463, E2E AUTOTEST OK 0 failures / 378 s, console clean.
+
+Stage Summary:
+- The eight-orders audit + pocket repair are on main. Gap list: Regulars arcs beyond Day 4 (needs design), audio partner outreach (business), touch hardening on real devices, the dusk-beat flake shape under load.

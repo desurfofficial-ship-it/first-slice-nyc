@@ -57,6 +57,12 @@ export class UI {
   private albumEmpty = el<HTMLDivElement>('album-empty');
   private albumClose = el<HTMLButtonElement>('album-close');
   private albumCountBadge = el<HTMLSpanElement>('album-count');
+  // ---- the pocket — one button that opens Map / Album / Sound ----
+  // (declared here: the pocket wave wired the behavior but left the
+  // properties undeclared — main did not typecheck without these)
+  private pocketBtn = el<HTMLButtonElement>('btn-pocket');
+  private pocketMenu = el<HTMLDivElement>('pocket-menu');
+  private audioPeek = el<HTMLSpanElement>('audio-peek');
   private fade = el<HTMLDivElement>('fade');
   private titleCard = el<HTMLDivElement>('title-card');
   readonly loading = el<HTMLDivElement>('loading');
@@ -93,6 +99,23 @@ export class UI {
       gameAudio.setMuted(!gameAudio.isMuted());
       this.syncAudioButton();
     });
+    // One Pocket button opens Map / Album / Sound — saves the top lane on phones
+    this.pocketBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.togglePocket();
+    });
+    window.addEventListener('pointerdown', (e) => {
+      if (this.pocketMenu.hidden) return;
+      const t = e.target as Node;
+      if (this.pocketBtn.contains(t) || this.pocketMenu.contains(t)) return;
+      this.closePocket();
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Escape' && !this.pocketMenu.hidden) {
+        e.preventDefault();
+        this.closePocket();
+      }
+    });
     // the arrival overlay is the advance button: any tap moves the scene on
     this.cine.addEventListener('pointerdown', (e) => {
       if (e.target === this.cineSkipBtn) return; // the skip chip has its own job
@@ -102,11 +125,16 @@ export class UI {
       e.stopPropagation();
       this.onCineSkip?.();
     });
-    // the Map's folded corner: a tap opens the notebook (M on keyboard)
-    this.mapBtn.addEventListener('click', () => this.onMapToggle?.());
+    // Map / Album from the pocket — fold the menu, then open the paper
+    this.mapBtn.addEventListener('click', () => {
+      this.closePocket();
+      this.onMapToggle?.();
+    });
     this.mapClose.addEventListener('click', () => this.onMapToggle?.());
-    // the album: the HUD button opens the shelf, a card on it re-prints
-    this.albumBtn.addEventListener('click', () => this.onAlbumToggle?.());
+    this.albumBtn.addEventListener('click', () => {
+      this.closePocket();
+      this.onAlbumToggle?.();
+    });
     this.albumClose.addEventListener('click', () => this.onAlbumToggle?.());
     this.albumGrid.addEventListener('click', (e) => {
       const card = (e.target as HTMLElement).closest('[data-album-id]');
@@ -143,7 +171,23 @@ export class UI {
   private syncAudioButton() {
     const muted = gameAudio.isMuted();
     this.audioBtn.setAttribute('aria-pressed', String(muted));
-    this.audioBtn.textContent = muted ? '\u{1F507}' : '\u266B';
+    // Keep the "Sound" label; only the glyph flips (Pocket menu item)
+    this.audioPeek.textContent = muted ? '\u{1F507}' : '\u266B';
+  }
+
+  private togglePocket() {
+    if (this.pocketMenu.hidden) this.openPocket();
+    else this.closePocket();
+  }
+
+  private openPocket() {
+    this.pocketMenu.hidden = false;
+    this.pocketBtn.setAttribute('aria-expanded', 'true');
+  }
+
+  closePocket() {
+    this.pocketMenu.hidden = true;
+    this.pocketBtn.setAttribute('aria-expanded', 'false');
   }
 
   onNameSubmit: (() => void) | null = null;
@@ -436,10 +480,12 @@ export class UI {
   /** "Map wants to write this down" — the folded corner does a small
    *  honest wiggle. Once per note; it never opens itself (Doc 12 rule). */
   wiggleMap() {
-    this.mapBtn.classList.remove('wiggle');
-    void this.mapBtn.offsetWidth;
-    this.mapBtn.classList.add('wiggle');
-    window.setTimeout(() => this.mapBtn.classList.remove('wiggle'), 1200);
+    // Map lives inside the Pocket now — wiggle the launcher so the player sees it
+    const target = this.pocketBtn;
+    target.classList.remove('wiggle');
+    void target.offsetWidth;
+    target.classList.add('wiggle');
+    window.setTimeout(() => target.classList.remove('wiggle'), 1200);
   }
 
   // ---------------- postcard ----------------
