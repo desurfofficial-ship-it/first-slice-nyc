@@ -245,3 +245,53 @@ Stage Summary:
   vitest 437/437, build clean, probe-subway ALL PASS (30), E2E 0 failures
   / 344 s / console clean. Remaining OPEN in docs/51: B4 (clean machine),
   B12 (evidence hygiene), B13 (perf ledger), B14 (docs hygiene).
+
+## 2026-11-03 — agent5: the arrival rebuilds its world (portrait-first pass 3)
+
+The field report said "the shitty building is still there." The probe agreed:
+portrait frames at t=1–5 showed the skyline as a flat lavender slab wall
+filling the window from second one, two cloud planes parked 26 m from the
+lens as giant white smears, and three ceiling lamps magnified into bright
+trapezoids. Fixes, all in arrival.ts:
+
+- Skyline moved 40 m → 110 m out (SKYLINE_Z −10): a 24 m tower now tops out
+  ~10° above the lens — a distant dusk band with sky above it, not a wall.
+  Far haze row 130 m, lowrise shopfront band IN FRONT of the towers at 98 m
+  (20 buildings, wide enough to own the horizon), city apron widened/deepened
+  to own the ground from 86 m out.
+- One wide far-ground slab (200×200, dusk olive) under everything from the
+  strip's far edge past the skyline + three flat-shaded horizon mounds —
+  no seam of naked sky can open between countryside and city floor.
+- Every ride material now fog:false — the world's amber Fog(40,170) would
+  wash a 110 m skyline to soup; the painted haze rows do that job instead.
+- Tower faces: darker charcoal-plum bases, edge-shading columns so
+  neighbours never fuse into one slab; haze mix unchanged.
+- Clouds re-staged 138–165 m out behind the towers; sun glow 150 m out,
+  34 m plane, towers silhouette against it.
+- Interior lamps: smaller, warmer, recessed under a dark valance.
+- Staging moved −150 → −190: the map's west row (x ≈ −60) leaked into the
+  ride cone's right edge at 146 m as a fog-washed sliver; cone math + sky
+  dome far-plane math documented at RIDE_POS.
+- Birds now actually ride the staging (they were staged at group x −19 from
+  an older origin and had never been visible).
+
+Gates: tsc clean; vitest 428/428 (24 files); build clean; probe
+probe-arrival-portrait.mjs (720×1280) frames t1/t3/t4.8/t6.5/t8.2/t9.6 +
+driver/reply/card all judged clean — no leaks, no slabs, no smears;
+a5c landscape probe handover state unchanged, console clean.
+
+---
+Task ID: 3
+Agent: Z.ai (GLM)
+Task: Fix bugs and keep polishing (the Map unreachable by thumb); upgrade the Map; work the GDD-audit thin-places list; keep main green through four concurrent-agent merge waves.
+
+Work Log:
+- Found the real "still not seeing the map": #hud is click-through and the buttons never opted back in — every keyboard test passed, the thumb path was dead (no M key on phones). Fixed with #hud button pointer-events + a labeled Map chip; the E2E harness gained a pointer-path guard that clicks the real buttons.
+- Upgraded the Map per the audit: page 1 now carries Map's own pencil sketch of the neighborhood — streets from the first fold, nine places revealed only by walking to them (5 m, throttled), the gold star at your feet; map_places rides the save v1-safe. Untangled duplicate map-panel/order-card blocks the merge churn had left in index.html.
+- Audit list: zero-fail sweep (every card x every reply + clamp cases, money law), two orphan slang cards wired (bodega, on line — the margins can now hold all four), a save fuzz wall (fields x wrong shapes + truncation + byte flips), and the day-kept jingle from the existing synth.
+- Closed the dusk-rail flake family driver-side: the reach-top trigger re-parks the capsule east, so the day-3 goodnight pad was out of range — walk back in + pressUntil + a dismount camera snap (its yaw had drifted until KeyA walked east).
+- Surfaced and repaired a bad foreign commit (GameCamera gutted to a one-word placeholder; stationKit to PLACEHOLDER_WILL_FAIL), kept the known-good files, and merged four concurrent-agent waves (bus B2, first-session world, Wow Walk postcard, vertex bakes) with every gate green at each step.
+
+Stage Summary:
+- main = ed1e24d, deployed and live-verified: the labeled Map chip opens the notebook with the sketch on production. tsc clean; vitest 430/430; E2E AUTOTEST OK 0 failures / 351 s / console clean; probe-court, probe-subway, probe-doc12 all pass.
+- The audit's open tail (needs design/owners, recorded in docs/51): postcard share sheet + album, Regulars arcs beyond Day 4, audio stems.
