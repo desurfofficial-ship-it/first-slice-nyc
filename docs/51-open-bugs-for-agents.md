@@ -71,6 +71,33 @@ name/date before coding; mark FIXED in the same PR when done.
 
 ---
 
+## FIXED this session (walkability + perf ledger) — 2026-11-03
+
+### B15. North walk pinched shut at the W0 subway entrance plot — FIXED
+- **Found:** the probe-w1-ghost WALKABILITY gate wedged on 37/37 legs
+  (walker stuck at x −43.7..−45.5, z 4.4–7.6) — control-verified on a
+  pristine rebuild of the then-tip, so it shipped broken.
+- **Was:** the docs/50 merge restored the W0 blocker
+  `boxFromCenter(-42, 0.4, 6.2, 2.6, 1.0, 3.5)` ("nobody walks into the
+  earth") — but the placeholder stair-cut boxes it guarded were retired
+  by Agent-5 (`makeSubwayEntrance` is furniture-only now; the real
+  descendable shaft is the K-line slot at x −48.5..−45.9). The blocker
+  spanned the north walk's FULL depth, and the W1 route STARTS at its
+  center — the whole gate hinged on which way the eject pushed the walker.
+- **Fix:** retire the stale blocker again (Agent-5's own reconciliation,
+  which the merge lost). Ground at the plot reads the flat sidewalk (0.1);
+  the shaft at x −47 still descends (−0.89 verified); the entrance
+  furniture, decks and the (−42, 4.55) anchor keep their clearances.
+- **Commit:** the vertex-bake session (442b8c4 is perf; this fix is the
+  next commit on main).
+- **Verified:** probe-w1-ghost PASS (8/8 masses, wedged=false, 0 page
+  errors), W2 + W3 ghosts PASS, probe-solid ALL CLEAN, probe-peds OK,
+  probe-a5b/a5c/a5f clean, probe-subway 22/22, probe-w4-bus 13/13,
+  vitest 395/395, E2E 0 failures 356 s (E2E_W=320 E2E_H=700), console
+  clean. Tools kept: scripts/diag-wedge.mjs, scripts/diag-ground.mjs.
+
+---
+
 ## OPEN — probe failures (merged features)
 
 ### B1. Subway stair y-level (probe-subway) — FIXED 2026-11-03
@@ -265,6 +292,11 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   ships above previous ledger.” Continue district visibility, material
   discipline, and measured before/after on the three fixed camera rigs.
 - **Status:** OPEN — ongoing construction law, not a single bug.
+- **Update 2026-11-03 (vertex bake, 442b8c4):** PLAZA 846 → 462,
+  CART_CORNER 718 → 405, SYCAMORE×GABLE 279 → 132 — the intersection rig
+  is UNDER the 250 line for the first time; Kestrel still over 150, gate
+  line stays published. The statics' colors now ride vertex attributes and
+  the census audit reads them (23 distinct [vc] shades surface).
 
 ### B14. Documentation hygiene
 - Some older docs (Phase 0 exit, AGENTS.md “code pending”) still read as if
