@@ -1128,31 +1128,81 @@ export class ArrivalCinematic {
     // the grade: a storefront with a lit sign, or the stoop base
     if (opts.storefront) {
       const gy = ph - px(gradeH);
+      // cast-iron shopfront backing, painted near-black
       ctx.fillStyle = '#2f2a36';
       ctx.fillRect(0, gy, pw, px(gradeH));
       ctx.fillStyle = '#443c48';
       ctx.fillRect(0, gy, px(0.28), px(gradeH));
       ctx.fillRect(pw - px(0.28), gy, px(0.28), px(gradeH));
-      const glassY = gy + px(0.92);
-      const glassH = px(1.75);
-      ctx.fillStyle = '#3a3242';
-      ctx.fillRect(px(0.4), glassY, pw - px(0.8), glassH);
+      // the sign fascia + its shadow line
       ctx.fillStyle = ['#1f6f66', '#8f3040', '#1f6f66'][variant % 3];
       ctx.fillRect(px(0.32), gy + px(0.14), pw - px(0.64), px(0.64));
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(px(0.32), gy + px(0.73), pw - px(0.64), px(0.05));
       const name = ['DELI', 'BAR', 'PIZZA'][variant % 3];
       const fs = px(0.42);
       ctx.fillStyle = '#ffe0b0';
       ctx.font = `bold ${fs}px sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(name, pw / 2, gy + px(0.46));
-      ctx.fillStyle = '#54485a';
-      ctx.fillRect(pw - px(1.15), glassY - px(0.15), px(0.72), glassH + px(0.15));
-      gtx.fillStyle = '#ffca7a';
-      gtx.fillRect(px(0.4), glassY, pw - px(0.8), glassH);
+      ctx.fillText(name, pw / 2, gy + px(0.44));
+
+      // the shopfront itself — kickplate, mullioned display bays, a
+      // transom band, a glazed door. The old grade was ONE flat glowing
+      // rectangle and a blank slab; at the terminal zoom it read as a
+      // cream cardboard band taped to the brick.
+      const doorW = px(0.95);
+      const glassL = px(0.4);
+      const glassR = pw - px(0.4) - doorW - px(0.12);
+      const glassY = gy + px(0.92);
+      const glassH = px(1.75);
+      const kickH = px(0.3);
+      const transomH = px(0.34);
+      const mainY = glassY + transomH;
+      const mainH = glassH - transomH - kickH;
+      const bayW = px(1.15);
+      const bays = Math.max(1, Math.round((glassR - glassL) / bayW));
+      const bw = (glassR - glassL) / bays;
+      for (let b = 0; b < bays; b++) {
+        const bx0 = glassL + b * bw;
+        // transom: small panes, kept dim — the ceiling strip does the glow
+        ctx.fillStyle = '#2f2a36';
+        ctx.fillRect(bx0, glassY, bw - px(0.06), transomH);
+        ctx.fillStyle = '#4a4050';
+        ctx.fillRect(bx0 + px(0.05), glassY + px(0.06), bw - px(0.16), transomH - px(0.12));
+        // the display pane (the px(0.06) remainder is the dark mullion)
+        ctx.fillStyle = '#3a3242';
+        ctx.fillRect(bx0, mainY, bw - px(0.06), mainH);
+        // a dusk reflection streak on the glass
+        ctx.fillStyle = 'rgba(255,255,255,0.10)';
+        ctx.fillRect(bx0 + bw * 0.18, mainY + px(0.08), px(0.14), mainH - px(0.24));
+        // the warm interior: alternating warmth per bay, shelf silhouettes
+        // against the light, a ceiling strip bleeding into the transom
+        gtx.fillStyle = b % 2 === 0 ? '#ffca7a' : '#f2b05e';
+        gtx.fillRect(bx0, mainY, bw - px(0.06), mainH);
+        gtx.fillStyle = 'rgba(70,40,16,0.62)';
+        gtx.fillRect(bx0 + px(0.08), mainY + mainH * 0.22, bw - px(0.22), mainH * 0.16);
+        gtx.fillRect(bx0 + px(0.08), mainY + mainH * 0.58, bw - px(0.22), mainH * 0.13);
+        gtx.fillStyle = '#ffe9c0';
+        gtx.fillRect(bx0 + px(0.05), mainY - px(0.07), bw - px(0.16), px(0.1));
+      }
+      // kickplate under the whole run
+      ctx.fillStyle = '#1a161e';
+      ctx.fillRect(glassL, glassY + glassH - kickH, glassR - glassL, kickH);
+      // the door: glazed, lit from inside, a push bar
+      const dx = glassR + px(0.12);
+      ctx.fillStyle = '#443c48';
+      ctx.fillRect(dx, glassY, doorW, glassH);
+      ctx.fillStyle = '#2c262e';
+      ctx.fillRect(dx + px(0.12), glassY + px(0.12), doorW - px(0.24), glassH - px(0.24));
+      gtx.fillStyle = '#e8a95c';
+      gtx.fillRect(dx + px(0.18), glassY + px(0.2), doorW - px(0.36), glassH * 0.42);
+      ctx.fillStyle = '#9aa0ae';
+      ctx.fillRect(dx + px(0.18), glassY + px(0.95), doorW - px(0.36), px(0.07));
+      // the sign letters glow too
       gtx.fillStyle = '#ffd9a0';
       gtx.font = `bold ${fs}px sans-serif`;
       gtx.textAlign = 'center'; gtx.textBaseline = 'middle';
-      gtx.fillText(name, pw / 2, gy + px(0.46));
+      gtx.fillText(name, pw / 2, gy + px(0.44));
     } else if (opts.door) {
       // the stoop grade: a tall door under a lit transom, stone enframement
       ctx.fillStyle = '#57505c';
