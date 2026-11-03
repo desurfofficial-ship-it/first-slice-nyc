@@ -83,9 +83,15 @@ function buildCar(
   for (const wx of [-3.6, 0, 3.6]) {
     box(ctx, `SUB_CarWin_${cx}_${wx}`, cx + wx, -2.0, zN + 0.02, 1.5, 0.9, 0.03, 0x2c3440, { collide: false });
   }
-  // end walls
+  // end walls — dressed as the operator's cab (docs/50 §4.5): a door and a
+  // tinted glass inset on EVERY end (married pairs drive from both ends).
+  // The glass is dark on purpose: the cab is the operator's office, and the
+  // ride's honesty ("the tunnel moves, the train doesn't") never has to
+  // survive a stare down the front of the car.
   for (const [ex, tag] of [[cx - C.len / 2, 'w'], [cx + C.len / 2, 'e']] as const) {
     box(ctx, `SUB_CarEnd_${cx}_${tag}`, ex, wallY, STATION.trackZ, 0.14, wallH, C.halfW * 2, shell);
+    box(ctx, `SUB_CabGlass_${cx}_${tag}`, ex + (tag === 'w' ? 0.09 : -0.09), C.floorTop + 1.42, STATION.trackZ, 0.03, 0.62, 1.05, 0x2c3440, { collide: false });
+    box(ctx, `SUB_CabDoor_${cx}_${tag}`, ex + (tag === 'w' ? 0.1 : -0.1), C.floorTop + 0.95, STATION.trackZ - C.halfW + 0.5, 0.02, 1.75, 0.75, 0x3a3a42, { collide: false });
   }
 
   // interior: lengthwise benches both sides (solid — the aisle is the walk),

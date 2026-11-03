@@ -138,6 +138,12 @@
    could carry a TS loop, but adding a path re-distributes every existing
    walker (the `i % paths.length` assignment) and would have moved Main
    Agent's chat-walker indices. Documented for W4 part 2 instead.
+   **PAID on `agent2/session-polish`** (zone-contained, home walkers
+   untouched): the static crowd got the idle breathe/head-scan tick, a
+   crosser takes the east crosswalk, a gawker walks-and-stops on the west
+   stretch — and the two shipped movers were caught walking SIDEWAYS
+   (yaw 0/π for x-travel; the rig's forward is +z) and now face their
+   travel (yaw ±π/2). Evidence: `scripts/probe-polish-shots.mjs`.
 4. **The M121 does not drive.** It is the arrival's room, not the W4
    part-2 bus loop (which owns the driving bus). They will meet.
 5. **The subway exists to ride, not to simulate.** The train never moves
@@ -145,10 +151,18 @@
    probe-pinned — but a player who stares out the FRONT windshield during
    the ride will notice the platform staying put. The doors close before
    the seam; the front car's cab is dressed; the illusion holds at the
-   windows the design reads.
+   windows the design reads. **ADDITIONALLY ADDRESSED on
+   `agent2/session-polish`:** the car ends now read as the operator's cab
+   (door + dark tinted glass inset, both ends — married pairs drive from
+   both ends), so the "stare down the front" question closes at the glass
+   instead of opening at a blank wall.
 6. **The turnstiles do not spin.** The arms are dressed, the pass clicks,
    the open lane does the gating (the capsule law). A spin pass is a
-   small polish item.
+   small polish item. **PAID on `agent2/session-polish`:** a pass through
+   a gate's z-line spins that hub a third-turn over 0.5 s and fires the
+   (previously dead) turnstile voice; the open lane still crosses free.
+   Pure detector `turnstileHubAt` + six laws in `tests/subway.test.ts`;
+   in-engine evidence in `probe-polish-shots.mjs`.
 
 ## 5. Every touch on the shipped world (the dig list)
 

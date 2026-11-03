@@ -77,7 +77,7 @@ export const BUS_BAY_ID = 'BUS-02';
 export const PARKED_CAR_RECTS: ReadonlyArray<{ x: number; z: number; alongZ: boolean }> = [
   { x: 24, z: 3.05, alongZ: false },      // CAR-SEDAN (shipped)
   { x: -14, z: 3.05, alongZ: false },     // CAR-VAN (shipped)
-  { x: 44, z: 3.05, alongZ: false },      // Kestrel N curb east end
+  { x: 51, z: 3.05, alongZ: false },      // Kestrel N curb east end (past the court — x 44 sat in the fence's curb squeeze, the gate through-line moved it, docs/49)
   { x: -44, z: 3.05, alongZ: false },     // Kestrel N curb west end
   { x: 68.98, z: 10, alongZ: true },      // Sycamore west edge
   { x: 68.98, z: 24, alongZ: true },      // Sycamore west edge (z 24 — mid-block; z 34 sat in the Gable walk's crossing, the W5 ghost gate moved it, docs/47)

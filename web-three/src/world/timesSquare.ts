@@ -298,13 +298,24 @@ export function buildTimesSquare(
     [-344.5, -0.8, 0.4], [-342.8, 0.2, 2.8], [-341.2, 1.2, 0.2],   // on the steps
     [-355, 6.2, 0.5], [-331, 6.4, 0.1], [-338, -4.8, Math.PI], [-312, -4.9, Math.PI],
   ];
+  const crowdGroups: THREE.Group[] = [];
   crowdSpots.forEach(([cx2, cz2, cy2], i) => {
     const [j, p, s, h] = crowdLooks[i % crowdLooks.length];
     rig(`TSS_Crowd_${i}`, { jacket: j, pants: p, skin: s, hair: h, style: i % 2 ? 'bun' : 'flat', scale: 0.93 + (i % 3) * 0.05 }, cx2, cz2, cy2);
+    crowdGroups.push((group.children[group.children.length - 1] as THREE.Group));
   });
-  // two movers walking the north sidewalk (the rig's own walk cycle)
-  const moverA = rig('TSS_Mover_A', { jacket: 0x514659, pants: 0x473e50, skin: 0xe8b08e, hair: 0x453b4c, style: 'cap' }, -366, 6.1, 0);
-  const moverB = rig('TSS_Mover_B', { jacket: 0x2A9D8F, pants: 0x3a3a42, skin: 0x8a5a3a, hair: 0x2b2730, style: 'bun' }, -300, 6.7, Math.PI);
+  // two movers walking the north sidewalk (the rig's own walk cycle) —
+  // facing the direction of travel (the rig's forward is +z at yaw 0, so
+  // an x-axis stroll reads east/west only at yaw ±π/2 — the shipped 0/π
+  // walked the square sideways, caught on the docs/51 polish pass)
+  const moverA = rig('TSS_Mover_A', { jacket: 0x514659, pants: 0x473e50, skin: 0xe8b08e, hair: 0x453b4c, style: 'cap' }, -366, 6.1, Math.PI / 2);
+  const moverB = rig('TSS_Mover_B', { jacket: 0x2A9D8F, pants: 0x3a3a42, skin: 0x8a5a3a, hair: 0x2b2730, style: 'bun' }, -300, 6.7, -Math.PI / 2);
+  // docs/50 §4.3, paid — the square's crowd carries its own life, inside
+  // the zone: a crosser takes the east crosswalk on the honest diagonal,
+  // a gawker walks the west stretch and STOPS to let the screens work.
+  // The home block's walker indices never hear about any of this.
+  const moverC = rig('TSS_Mover_C', { jacket: 0xF7B32B, pants: 0x3d4a55, skin: 0xd9a06b, hair: 0x2b2730, style: 'flat' }, -306, -5.2, 0);
+  const moverD = rig('TSS_Mover_D', { jacket: 0x6D4C7D, pants: 0x3a3a42, skin: 0xe8b08e, hair: 0x6a4a3a, style: 'bun' }, -362, 6.5, -Math.PI / 2);
   const moverAGroup = moverA.root.parent as THREE.Group;
   const moverBGroup = moverB.root.parent as THREE.Group;
 
@@ -316,6 +327,12 @@ export function buildTimesSquare(
     { g: moverAGroup, x: -366, dir: 1, x0: -366, x1: -356, v: 1.15 },
     { g: moverBGroup, x: -300, dir: -1, x0: -306, x1: -296, v: 1.0 },
   ];
+  // the crosser (east crosswalk, z-axis) and the gawker (west stretch,
+  // stop-and-stare): two behaviors, not four clones of the same pacer
+  const crosserG = moverC.root.parent as THREE.Group;
+  const gawkerG = moverD.root.parent as THREE.Group;
+  const crosser = { z: -5.2, dir: 1, z0: -5.2, z1: 5.4, v: 0.95 };
+  const gawker = { x: -362, dir: -1, x0: -366, x1: -356, v: 0.8, wait: 0 };
 
   const api: TimesSquare = {
     group, colliders,
@@ -363,9 +380,33 @@ export function buildTimesSquare(
         if (m.x > m.x1) { m.x = m.x1; m.dir = -1; }
         if (m.x < m.x0) { m.x = m.x0; m.dir = 1; }
         m.g.position.x = m.x;
-        m.g.rotation.y = m.dir > 0 ? 0 : Math.PI;
+        m.g.rotation.y = m.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
         updatePersonAnim(m.g, dt);
       }
+      // the crosser takes the crosswalk straight across the canyon
+      crosser.z += crosser.dir * crosser.v * dt;
+      if (crosser.z > crosser.z1) { crosser.z = crosser.z1; crosser.dir = -1; }
+      if (crosser.z < crosser.z0) { crosser.z = crosser.z0; crosser.dir = 1; }
+      crosserG.position.z = crosser.z;
+      crosserG.rotation.y = crosser.dir > 0 ? 0 : Math.PI;
+      updatePersonAnim(crosserG, dt);
+      // the gawker walks, stops for the screens, walks on (the idle head
+      // scan does the staring — the auto mode already knows how)
+      if (gawker.wait > 0) {
+        gawker.wait -= dt;
+        gawkerG.rotation.y = 0; // facing the north-row screens
+      } else {
+        gawker.x += gawker.dir * gawker.v * dt;
+        if (gawker.x > gawker.x1) { gawker.x = gawker.x1; gawker.dir = -1; }
+        if (gawker.x < gawker.x0) { gawker.x = gawker.x0; gawker.dir = 1; }
+        if (Math.random() < dt * 0.25) gawker.wait = 2.2 + Math.random() * 1.6;
+        gawkerG.rotation.y = gawker.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+      }
+      gawkerG.position.x = gawker.x;
+      updatePersonAnim(gawkerG, dt);
+      // the seated crowd breathes too (the idle branch is the whole show
+      // at speed 0 — breathe, weight shift, the layered head scan)
+      for (const cg2 of crowdGroups) updatePersonAnim(cg2, dt);
       return beat;
     },
   };

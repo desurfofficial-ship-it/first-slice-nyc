@@ -15,16 +15,16 @@
 import * as THREE from 'three';
 import { updateZones, type ZoneDef } from './zone';
 import {
-  beginRide, createRide, endRide, RIDE_SWAP_DX, swapFeet, tickRide,
+  aboardCar, beginRide, createRide, endRide, RIDE_SWAP_DX, swapFeet, tickRide,
   type RideEnd, type RideState,
 } from './ride';
 import {
-  buildStair, buildStation, STATION, STAIR_SLOT,
+  buildStair, buildStation, STATION, STAIR_SLOT, turnstileHubAt, ZONE_KEEP_RE,
   type ColliderSpec, type KitCtx,
 } from './stationKit';
 import { buildTrainPair, buildTunnel } from './trainKit';
 
-export { STAIR_SLOT, STATION, RIDE_SWAP_DX };
+export { STAIR_SLOT, STATION, RIDE_SWAP_DX, ZONE_KEEP_RE };
 export type { ColliderSpec };
 
 const TRAIN_DOOR_A_X = -41.1; // the aligned car's interactive door, station A
@@ -96,6 +96,11 @@ export function buildSubwaySystem(
   const stationB = buildStation(ctx(groups.stationB), {
     cx: -332, name: '42 ST-TIMES SQ', accent: '#6D4C7D', ads: [1, 2, 0], home: false,
   });
+  // the fare banks' live parts (docs/50 §4.6): a pass through a gate
+  // spins that hub a third-turn and clicks — the arms earn their dressing
+  const hubs = { a: stationA.turnstileHubs, b: stationB.turnstileHubs };
+  const spinT = { a: [0, 0], b: [0, 0] };
+  const prevFareZ = { a: 0, b: 0 };
   buildStair(ctx(groups.stationA), STAIR_A_CX);
   buildStair(ctx(groups.stationB), STAIR_B_CX);
 
@@ -161,8 +166,11 @@ export function buildSubwaySystem(
           onBeat(e.beat!);
         } else if (e.type === 'swap') {
           // the seam: translate the player to the identical car — feet keep
-          // their local offset around the door (the cars are the same car)
-          feet.x = swapFeet(feet.x, e.end === 'B' ? 'A' : 'B');
+          // their local offset around the door (the cars are the same car).
+          // Aboard only: a player who stepped back onto the platform during
+          // closing stays behind (the ride continues; the arrival's
+          // doors-open event sets them free — no 288 m teleport on foot).
+          if (aboardCar(feet.z)) feet.x = swapFeet(feet.x, e.end === 'B' ? 'A' : 'B');
         }
         // 'arrived' carries no world work — the doors event said it all
       }
@@ -210,6 +218,31 @@ export function buildSubwaySystem(
           // 14), so folding the offset into one period is invisible at the
           // window and keeps the pattern near the stations
           groups.scenery.position.x %= 14;
+        }
+      }
+
+      // ---- the fare banks: cross a gate and the turnstile spins ----
+      // The station under the feet runs the check (the other is 288 m away);
+      // the pass fires once — a strict sign change of z through FARE_Z.
+      const atA = feet.x > -60 && feet.x < -30;
+      const atB = feet.x < -310 && feet.x > -355;
+      if (feet.y < -0.4 && (atA || atB)) {
+        const tag = atA ? 'a' : 'b';
+        const hub = turnstileHubAt(prevFareZ[tag], feet.z, feet.x, atA ? -44 : -332);
+        if (hub >= 0) {
+          spinT[tag][hub] = 0.5;
+          onBeat('turnstile');
+        }
+      }
+      if (atA) prevFareZ.a = feet.z;
+      if (atB) prevFareZ.b = feet.z;
+      for (const tag of ['a', 'b'] as const) {
+        for (let h = 0; h < 2; h++) {
+          if (spinT[tag][h] <= 0) continue;
+          const dT = Math.min(dt, spinT[tag][h]); // this frame's spin time
+          spinT[tag][h] = Math.max(0, spinT[tag][h] - dt);
+          const dA = ((Math.PI * 2) / 3) * (dT / 0.5); // one arm-pass, 0.5 s
+          for (const arm of hubs[tag][h]) arm.rotation.y += dA;
         }
       }
 
