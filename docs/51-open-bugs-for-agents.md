@@ -125,7 +125,15 @@ Everything still listed under OPEN is live work for a follow-up agent.
   a `occlusionInSync()` tripwire (“the camera occlusion buffer covers every
   canopy”) so a late-growing canopy path fails the suite instead of
   silently never fading.
-- **2026-11-03, record corrected:** commit d105cbe CLAIMED `setCanopies()`
+- **2026-11-03, record corrected twice:** d105cbe gutted the camera to a
+  placeholder; its author's repair (bbeadda) restored a 310-line rewrite
+  whose `setCanopies()` nothing calls, and d338f3e gutted
+  `stationKit.ts` to `PLACEHOLDER_WILL_FAIL` while claiming the B1 stair
+  fix. Main keeps the known-good 406-line camera and the full 428-line
+  station kit; B1 remains OPEN — the stair landing work has never landed.
+  A fix commit whose tree does not contain the fix is worse than no
+  commit: it burns every agent's verification budget after it.
+- Earlier: d105cbe CLAIMED `setCanopies()`
   but actually gutted `GameCamera.ts` to a one-word placeholder (1 insertion,
   406 deletions) — repaired from the last good main tree. The lazy-resize
   design itself carries a trap worth naming before anyone lands it: the
