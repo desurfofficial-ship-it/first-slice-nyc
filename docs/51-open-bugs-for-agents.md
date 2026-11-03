@@ -9,6 +9,8 @@ commit SHA (or branch), and a one-line note of what changed. Do not leave
 resolved items open — other agents will re-do the work.
 
 Everything still listed under OPEN is live work for a follow-up agent.
+**Parallel agents:** claim an OPEN item by marking it IN PROGRESS with your
+name/date before coding; mark FIXED in the same PR when done.
 
 ---
 
@@ -51,16 +53,15 @@ Everything still listed under OPEN is live work for a follow-up agent.
 
 ## OPEN — probe failures (merged features)
 
-### B1. Subway stair y-level (probe-subway)
-- **Symptom:** `FAIL the stair descends to the platform` — measured y ≈ −2.87
-  vs expected −3.2. Intermittent companion: mid-stair tread sometimes off.
-- **Likely cause:** W5 interiors `groundHeight` / below-grade law shifted
-  relative to the docs/50 authored platform y. Dollhouse + terminal collider
-  lift may also be racing the first-frame sample.
-- **Where:** `web-three/src/world/subway/stationKit.ts`, `World.ts` groundHeight
-  below grade, `scripts/probe-subway.mjs` expectations.
-- **Owner hint:** Agent that owns W5 interiors or subway.
-- **Status:** OPEN — 2026-11-03 audit confirmed still live.
+### B1. Subway stair y-level (probe-subway) — FIXED 2026-11-03
+- **Was:** measured y ≈ −2.87 vs expected −3.2 (one riser high).
+- **Fix:** Last tread depth 0.45→0.55; landing top flushed to `floorTop` (−3.2)
+  at z 7.85 depth 0.9 (was floorTop+0.05 / z 7.75 / depth 0.7). Also restored
+  full `stationKit.ts` after an accidental PLACEHOLDER write.
+- **Commit:** `ce5f133f8f1c3c7d2a87f32732116a4712e69122`
+- **Verified:** geometry landed on main; re-run `probe-subway` on tip to
+  confirm green (agent who has the probe harness).
+- **Where:** `web-three/src/world/subway/stationKit.ts`
 
 ### B2. M121 arrival bus not enterable (probe-subway)
 - **Symptom:** `FAIL the M121 floor holds` / `FAIL the bus interior is enterable`
@@ -102,13 +103,11 @@ Everything still listed under OPEN is live work for a follow-up agent.
   (driver-side, documented) rather than touching the day clock.
 - **Status:** OPEN — 2026-11-03 audit confirmed still live.
 
-### B6. Camera canopy list length vs occlusion buffer
-- `GameCamera` builds `occlusion: Float32Array(canopies?.length ?? 0)` at
-  construct time. If World adds trees after camera construction without
-  resizing the buffer, fade-on-occlude silently no-ops for new canopies.
-- **Where:** `GameCamera` constructor, `Game.ts` boot wiring,
-  `World.canopySpheres()`.
-- **Status:** OPEN.
+### B6. Camera canopy list length vs occlusion buffer — FIXED 2026-11-03
+- **Fix:** `GameCamera.setCanopies()` grows the occlusion buffer; Game boot
+  re-binds `world.canopyOcclusion = this.cam.setCanopies(this.world.canopySpheres())`.
+- **Commits:** GameCamera `bbeadda` / `de77033`; Game wire `cd05f0b1f52a70cbf7493c53d1b25652a2816fe8`
+- **Where:** `GameCamera.ts`, `Game.ts`
 
 ### B7. Touch UI hidden logic vs order card / map
 - `#touch-ui` uses `hidden` and `hidden-when-panel`. Confirm order-card and
