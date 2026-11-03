@@ -1667,3 +1667,57 @@ shawl, glasses and cap verified in the frames by eye) · probe-a5b/a5c/a5f
 clean · probe-subway ALL PASS · probe-w4-bus OK · probe-w0-census (ledger
 above) · **E2E: OK — 0 failures, 394 s**, console clean
 (E2E_W=320 E2E_H=700). docs/51 B13 carries this update.
+
+---
+
+## The curb bake — the M121's shell and the street dressing fuse (2026-11-04)
+
+**The find.** With the cast bake in, the per-rig breakdown
+(`diag-budget-split.mjs` — total vs main-only via the sun's castShadow
+toggle, plus a frustum census per top-level owner with merge signatures)
+showed the shadow pass at ~113–124 calls per Kestrel rig and the main pass
+dominated by two static shells still drawing part-by-part: BUS_M121
+(44 draws, 31 same-signature — the zone bake skips the group's NAME
+outright) and the anonymous dressing groups (the DIRTY WATER DOGS cart and
+the GOLDEN ORCHARD fruit stand — unnamed, so no bake could ever see them).
+
+**The lever — the zone-bake law, one group later.** `bakeZoneStatics`
+takes its group list as a parameter now; the boot sequence calls it a
+second time with the arrival bus's group and the named dressing groups
+(`Dressing_VendorCart`, `Dressing_FruitStand`). The same eligibility law
+applies: Lambert, map-free, opaque, indexed, not animated — so the shell
+boxes fuse per signature while the BUS_Route canvas sign stays a singleton
+and the driver rig rides the animated exclusion (`bus_driver` joined the
+ANIMATED set; the rig breathes, merging it would kill the radio murmur's
+arm). The one-bay-one-bus swap is a GROUP-level visibility write and the
+door gap is wall geometry — both survive the merge, exactly as the
+arrivalBus header itself conceded ("the shell could bake"). The route
+texture gained a headless DOM fallback (a 1×1 flat stand-in) so the
+contract test can build the shell in node.
+
+**The numbers, honestly.** probe-w0-census, fresh dist: PLAZA 404 →
+**370** (−34), CART_CORNER 335 → **301** (−34), SYCAMORE×GABLE 115 →
+**115** (the dressing is east of its frustum). Every rig under its
+previous ledger; the Kestrel gate line stays published FAIL (370 > 150).
+
+**The shadow frontier, priced and closed for now.** `diag-shadow-frontier
+.mjs` measured the levers the ledger named: SHADOW_HALF 35→30 saves −5/−1
+calls, 35→26 saves −11/−5 — a global dusk-fade regression for almost
+nothing (the box is player-centered; its casters are near the player, not
+at its rim). Shadow-camera far 160→120: ±0 (noise). Turning every person
+rig's casts off bounds ALL figure-shadow levers at −37 per rig — the same
+family the ledger already rejected for props (contact shadows are the
+dusk look). REJECTED all three with numbers; the shadow pass's ~113–124
+calls are 74 legitimate figure casts plus the buildings and trees that
+make the recorded long shadows. The honest frontier moves back to the
+main pass: the sign atlas (a program), interiors' window visibility, and
+SUB_Root's depth.
+
+**Verification**: tsc clean · vitest **463/463** (+3 curb-bake contract
+guards: the shell is bake-eligible with exactly one map-carrying
+singleton, the driver rig stays six unfused meshes, the group remains the
+one-bay swap's handle) · build clean · probe-solid ALL CLEAN · probe-peds
+OK · probe-w4-bus OK · probe-subway ALL PASS · probe-a5c-arrival clean ·
+probe-w1-ghost PASS · probe-w0-census (ledger above) · **E2E: OK — 0
+failures, 397 s**, console clean (E2E_W=320 E2E_H=700). docs/51 B13
+carries this update.
