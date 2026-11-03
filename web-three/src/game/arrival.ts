@@ -38,6 +38,15 @@
  * water towers and lit crowns; the near blocks wear painted tenement
  * facades; the countryside grew gable roofs, telephone wires and smoke.
  *
+ * The origami-forest lesson (the third pass over the probe stills): the
+ * trees were detail-0 icosahedra — five flat facets a lump — and the far
+ * woods were single squashed ones, so the treeline read as origami rocks
+ * and their facets lay across the fields as dark wedges. Every canopy and
+ * mound is now a smooth sphere (the street trees' own shape language,
+ * props.makeTree), crowns get two shoulder spheres so silhouettes lean,
+ * and every tree was re-placed against its neighbours' volumes — nothing
+ * splices through a barn, a silo, a house or a tenement any more.
+ *
  * The stretched-canvas lesson (the second field report, two fingers and a
  * "still shitty"): a 128 px facade stretched over a 13 m block turns every
  * window into cathedral glass. So the painted faces are now drawn to
@@ -337,9 +346,11 @@ export class ArrivalCinematic {
       path: this.lambert(0x9a8a72),
       gold: this.lambert(0xc9a44a),
       silo: this.lambert(0xcfc8bd),
-      leafA: this.lambertFlat(0x6f9450),
-      leafB: this.lambertFlat(0x5d7d4a),
-      leafC: this.lambertFlat(0x9aa050),
+      // canopies are smooth-shaded: flat shading on a sphere still draws
+      // a facet seam per quad band — the origami look, half-size
+      leafA: this.lambert(0x6f9450),
+      leafB: this.lambert(0x5d7d4a),
+      leafC: this.lambert(0x9aa050),
       frame: this.lambert(0x241f28),
       panel: this.lambertEmissive(0x453e4a, 0.08),
       panelDark: this.lambertEmissive(0x36303e, 0.05),
@@ -368,9 +379,12 @@ export class ArrivalCinematic {
       this.disposables.push(m.geometry as THREE.BufferGeometry);
       return m;
     };
-    const blob = (parent: THREE.Object3D, name: string, mat: THREE.Material,
+    /** A smooth canopy/hill sphere — the street trees' own shape language
+     *  (props.makeTree uses SphereGeometry(1, 9, 7)): one soft dusk gradient
+     *  instead of five flat facets. Everything organic uses this now. */
+    const puff = (parent: THREE.Object3D, name: string, mat: THREE.Material,
       x: number, y: number, z: number, r: number, sy = 1) => {
-      const m = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), mat);
+      const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8), mat);
       m.name = name;
       m.position.set(x, y, z);
       m.scale.set(1, sy, 1);
@@ -394,10 +408,10 @@ export class ArrivalCinematic {
     // don't slide). Its top face sits y −0.01, under the strip's grass and
     // the city apron both. The mounds give the horizon a pulse.
     box(g, 'RideFarGround', this.lambert(0x5a6b4d), RIDE_POS.x, -0.16, 20, 200, 0.3, 200);
-    const farMoundMat = this.lambertFlat(0x4a5f44);
-    blob(g, 'RideFarMoundA', farMoundMat, RIDE_POS.x - 34, 0.85, 46, 9, 0.18);
-    blob(g, 'RideFarMoundB', farMoundMat, RIDE_POS.x + 20, 0.75, 52, 8, 0.16);
-    blob(g, 'RideFarMoundC', farMoundMat, RIDE_POS.x - 6, 0.65, 60, 11, 0.13);
+    const farMoundMat = this.lambert(0x4a5f44);
+    puff(g, 'RideFarMoundA', farMoundMat, RIDE_POS.x - 34, 0.85, 46, 9, 0.18);
+    puff(g, 'RideFarMoundB', farMoundMat, RIDE_POS.x + 20, 0.75, 52, 8, 0.16);
+    puff(g, 'RideFarMoundC', farMoundMat, RIDE_POS.x - 6, 0.65, 60, 11, 0.13);
 
     // ground ribbon — deep enough to stay under the window the whole ride
     // and reach back toward the skyline's feet. The mowing stripes and road
@@ -420,22 +434,32 @@ export class ArrivalCinematic {
     box(strip, 'RideFenceRailA', mats.wood, -2.5, 0.9, 2.7, 19, 0.09, 0.09);
     box(strip, 'RideFenceRailB', mats.wood, -2.5, 0.5, 2.7, 19, 0.09, 0.09);
 
-    // trees — tapered trunk + two flat-shaded lobes (the stacked-box tree
-    // read as Minecraft; this reads as a tree at 60 mph)
+    // trees — the street's own silhouette language (props.makeTree):
+    // tapered trunk into a root flare, one crown + two shoulder spheres,
+    // smooth-shaded so the dusk rolls across the canopy instead of
+    // facet-jumping (the detail-0 icosahedra read as origami rocks).
+    // Every x/z below is placed against its neighbours' volumes — the old
+    // row had a trunk inside the farmhouse and canopies splicing the barn
+    // and the first tenement.
     const tree = (x: number, z: number, s: number, leaf: THREE.Material) => {
       cyl(strip, 'RideTreeTrunk', mats.wood, x, 0.5 * s, z, 0.05 * s, 0.1 * s, 1.0 * s, 6);
-      blob(strip, 'RideTreeLobeA', leaf, x, 1.25 * s, z, 0.62 * s, 0.85);
-      blob(strip, 'RideTreeLobeB', leaf, x + 0.16 * s, 1.62 * s, z + 0.08 * s, 0.42 * s, 0.9);
-      blob(strip, 'RideTreeLobeC', leaf, x - 0.2 * s, 1.5 * s, z - 0.1 * s, 0.34 * s, 0.95);
+      const flare = new THREE.Mesh(new THREE.ConeGeometry(0.24 * s, 0.22 * s, 8), mats.wood);
+      flare.name = 'RideTreeFlare';
+      flare.position.set(x, 0.11 * s, z);
+      strip.add(flare);
+      this.disposables.push(flare.geometry as THREE.BufferGeometry);
+      puff(strip, 'RideTreeCrown', leaf, x, 1.32 * s, z, 0.58 * s, 0.92);
+      puff(strip, 'RideTreeShoulderA', leaf, x + 0.36 * s, 1.02 * s, z + 0.1 * s, 0.38 * s, 0.9);
+      puff(strip, 'RideTreeShoulderB', leaf, x - 0.34 * s, 1.12 * s, z - 0.12 * s, 0.34 * s, 0.9);
     };
-    tree(-12.5, -1.6, 1.05, mats.leafB);
-    tree(-9.8, -1.1, 0.85, mats.leafC);
+    tree(-16.8, -1.5, 1.05, mats.leafB);  // west of the barn (was inside its wall)
+    tree(-10.35, -0.5, 0.7, mats.leafC);  // between silo and house, clear of both
     tree(-6.2, -1.5, 1.2, mats.leafA);
     tree(-1.5, -1.0, 0.95, mats.leafB);
-    tree(1.6, -1.6, 1.1, mats.leafC);
+    tree(2.9, -1.3, 1.0, mats.leafC);     // east of the farmhouse (was inside it)
     tree(6.8, -1.2, 0.9, mats.leafA);
-    tree(9.5, -1.7, 1.15, mats.leafB);
-    tree(12.3, -1.1, 0.8, mats.leafC);
+    tree(9.5, -0.9, 1.0, mats.leafB);     // north of the tenement fronts
+    tree(12.3, -0.9, 0.8, mats.leafC);
 
     // the farm cluster — gable roofs (a real prism, not a 4-sided cone),
     // lit windows in pale frames, a stone foundation, chimney smoke; this
@@ -469,8 +493,8 @@ export class ArrivalCinematic {
       }
       // smoke: two settled puffs (no tween — the film is 10 s, the chimney
       // is 8 m out, stillness reads as distance)
-      blob(strip, 'RideSmokeA', smokeMat, x + w * 0.28 + 0.12, h + h * 0.42 + 0.5, z - d * 0.2, 0.16, 1.4);
-      blob(strip, 'RideSmokeB', smokeMat, x + w * 0.28 + 0.3, h + h * 0.42 + 0.9, z - d * 0.2, 0.23, 1.5);
+      puff(strip, 'RideSmokeA', smokeMat, x + w * 0.28 + 0.12, h + h * 0.42 + 0.5, z - d * 0.2, 0.16, 1.4);
+      puff(strip, 'RideSmokeB', smokeMat, x + w * 0.28 + 0.3, h + h * 0.42 + 0.9, z - d * 0.2, 0.23, 1.5);
     };
     house(-8.5, -2.4, 2.6, 2.0, 2.2, mats.wall, mats.roof, [[-0.6, 1.25], [0.6, 1.25]]);
     house(0.4, -2.6, 3.0, 2.8, 2.4, mats.cream, mats.roof, [[-0.95, 2.0], [0, 2.0], [0.95, 2.0], [-0.5, 0.95], [0.5, 0.95]], true);
@@ -532,22 +556,32 @@ export class ArrivalCinematic {
       }
     }
 
-    // the far seam of the countryside — two rows of flat-shaded canopy
-    // blobs and soft mound caps (the old straight boxes terraced like a
-    // quarry; canopies read as woods at 60 mph)
+    // the far seam of the countryside — two depth rows of smooth crowns,
+    // each with a lower shoulder sphere so the treeline leans and undulates
+    // instead of sitting as one row of equal lumps (and no facets: the old
+    // squashed icosahedra threw their edges across the fields as dark
+    // wedges — the streaks the field report caught)
+    const woodA = this.lambert(0x42573e);
+    const woodA2 = this.lambert(0x4a5f44);
+    const woodB = this.lambert(0x3a5138);
+    const woodB2 = this.lambert(0x42573e);
     for (let i = 0; i < 12; i++) {
       const x = -20 + i * 3.6 + ((i * 53) % 17) / 10;
-      const r = 1.3 + ((i * 29) % 13) / 10; // 1.3 … 2.5
-      blob(strip, 'RideWoodA', this.lambertFlat(0x42573e), x, 1.1, -7.4 - ((i * 31) % 10) / 10, r, 0.85);
+      const z = -7.4 - ((i * 31) % 10) / 10;
+      const r = 1.1 + ((i * 29) % 13) / 12; // 1.1 … 2.1
+      puff(strip, 'RideWoodA', woodA, x, 1.0, z, r, 0.8);
+      puff(strip, 'RideWoodA2', woodA2, x + r * 0.45, 0.62, z + r * 0.3, r * 0.62, 0.85);
     }
     for (let i = 0; i < 9; i++) {
       const x = -19 + i * 4.6 + ((i * 41) % 19) / 10;
-      const r = 1.7 + ((i * 23) % 15) / 10; // 1.7 … 3.1
-      blob(strip, 'RideWoodB', this.lambertFlat(0x3a5138), x, 1.0, -10.6 - ((i * 13) % 10) / 10, r, 0.9);
+      const z = -10.6 - ((i * 13) % 10) / 10;
+      const r = 1.4 + ((i * 23) % 15) / 12; // 1.4 … 2.6
+      puff(strip, 'RideWoodB', woodB, x, 1.05, z, r, 0.85);
+      puff(strip, 'RideWoodB2', woodB2, x - r * 0.4, 0.6, z + r * 0.25, r * 0.58, 0.9);
     }
-    blob(strip, 'RideMoundA', mats.hill, -8, 1.25 - 6 * 0.24, -12, 6, 0.24);
-    blob(strip, 'RideMoundB', mats.hill, 4, 1.25 - 7 * 0.24, -13, 7, 0.24);
-    blob(strip, 'RideMoundC', mats.hill, 13, 1.25 - 5 * 0.24, -12.5, 5, 0.24);
+    puff(strip, 'RideMoundA', mats.hill, -8, 1.25 - 6 * 0.24, -12, 6, 0.24);
+    puff(strip, 'RideMoundB', mats.hill, 4, 1.25 - 7 * 0.24, -13, 7, 0.24);
+    puff(strip, 'RideMoundC', mats.hill, 13, 1.25 - 5 * 0.24, -12.5, 5, 0.24);
 
     // the city rolls in ahead — blocks enter the window late in the ride
     // (the last block stopped at the dialogue freeze as a blank wall that
@@ -613,7 +647,10 @@ export class ArrivalCinematic {
       }
       if (o.awning && o.storefront) {
         const aw = box(strip, 'RideAwning', awnMats[v % 2], x - w * 0.16, 2.72, z + depth / 2 + 0.3, w * 0.52, 0.06, 0.72);
-        aw.rotation.x = -0.62;
+        // +0.62: Rx drops the front edge (0,0,1)→(0,−sin,cos) — an awning
+        // slopes DOWN out of the wall. The old −0.62 ramped it up like a
+        // ski jump, back edge floating off the brick.
+        aw.rotation.x = 0.62;
       }
       if (o.stoop) {
         // three stone steps down to the sidewalk, iron rails to hold
@@ -627,10 +664,18 @@ export class ArrivalCinematic {
         box(strip, 'RideStoopRailTop', ironMat, x, 0.95, sz + 0.45, 1.06, 0.035, 0.035);
       }
       if (o.fire) {
-        // a real zigzag: platforms, rails, a stair each way — iron on brick
+        // a real zigzag: platforms, rails, and stairs that LAND — the old
+        // lone tilted plank (1.1 long at ±51°) couldn't span the 2.9 m
+        // floor rise, so its ends hung in mid-air and the terminal zoom
+        // caught them as floating sticks. The stringer here is sized from
+        // the actual rise/run triangle (edge to edge), treads ride it.
         const floors = Math.max(1, Math.floor((h - 3.5) / 2.9));
         const bx = x + w * 0.26;
         const fz = z + depth / 2 + 0.2;
+        const run = 1.0; // platform edge to platform edge (half-width 0.525)
+        const rise = 2.9;
+        const sLen = Math.hypot(run, rise);
+        const sAng = Math.atan2(rise, run);
         for (let f = 0; f <= floors; f++) {
           const py = 2.7 + f * 2.9;
           if (py > h - 1) break;
@@ -638,8 +683,14 @@ export class ArrivalCinematic {
           box(strip, 'RideFireRailA', ironMat, bx, py + 0.5, fz + 0.15, 1.05, 0.035, 0.035);
           box(strip, 'RideFireRailB', ironMat, bx, py + 0.25, fz + 0.15, 1.05, 0.025, 0.025);
           if (f < floors) {
-            const stair = box(strip, 'RideFireStair', ironMat, bx + (f % 2 === 0 ? 0.52 : -0.52), py + 1.45, fz, 1.1, 0.045, 0.26);
-            stair.rotation.z = f % 2 === 0 ? -0.9 : 0.9;
+            const dir = f % 2 === 0 ? 1 : -1; // the zigzag
+            const stringer = box(strip, 'RideFireStringer', ironMat, bx, py + rise / 2, fz, sLen, 0.05, 0.07);
+            stringer.rotation.z = dir * sAng;
+            for (let s = 0; s < 5; s++) {
+              const t = (s + 0.5) / 5;
+              box(strip, 'RideFireStep', ironMat,
+                bx + dir * (t - 0.5) * run, py + rise * t, fz, 0.3, 0.035, 0.26);
+            }
           }
         }
       }
