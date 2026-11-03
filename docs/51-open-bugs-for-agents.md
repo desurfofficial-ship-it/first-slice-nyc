@@ -1,10 +1,18 @@
-# Open bugs for agents — 2026-11-02
+# Open bugs for agents — 2026-11-03
 
-Point-in-time ledger after the first-session-world + half-court merges and the
-camera/joystick pass. **Fixed in this session are marked FIXED.** Everything
-else is open for a follow-up agent.
+Point-in-time ledger after the first-session-world + half-court merges, the
+camera/joystick pass, and the 2026-11-03 full-docs audit.
 
-## FIXED this session (camera + joystick)
+**Rule for every agent:** When you fix an item, **update this file in the same
+PR/commit**. Move it under a FIXED section, mark it FIXED, add the date,
+commit SHA (or branch), and a one-line note of what changed. Do not leave
+resolved items open — other agents will re-do the work.
+
+Everything still listed under OPEN is live work for a follow-up agent.
+
+---
+
+## FIXED this session (camera + joystick) — 2026-11-02
 
 ### F1. Camera absolute Z corridor broke the expanded map — FIXED
 - **Was:** `CAM_Z_MIN/MAX = -4.8..4.9` clamped the boom in **world** space.
@@ -34,6 +42,11 @@ else is open for a follow-up agent.
   `lostpointercapture` + `releasePointerCapture`; `preventDefault` on joy
   pointer events to stop browser gesture theft.
 
+### F5. Two bus implementations coexist — RESOLVED (docs/52)
+- The first-session merge retired Agent 5's street coach. The bay keeps
+  exactly one bus (the M121 loop). Arrival film stages its own diorama coach
+  300 m south and disposes it at handover. No second body in the bay.
+
 ---
 
 ## OPEN — probe failures (merged features)
@@ -47,18 +60,20 @@ else is open for a follow-up agent.
 - **Where:** `web-three/src/world/subway/stationKit.ts`, `World.ts` groundHeight
   below grade, `scripts/probe-subway.mjs` expectations.
 - **Owner hint:** Agent that owns W5 interiors or subway.
+- **Status:** OPEN — 2026-11-03 audit confirmed still live.
 
 ### B2. M121 arrival bus not enterable (probe-subway)
 - **Symptom:** `FAIL the M121 floor holds` / `FAIL the bus interior is enterable`
   (`inBus: false`, floor y 0.3).
 - **Likely cause:** Collision between **W4p2 transit M121** (`engine/busRoute`,
   `buildM121`) and **docs/50 arrivalBus** (`world/arrivalBus.ts`). Two bus
-  systems, one bay; interact / floor collider / enter prompt not wired to
-  the arrival bus the probe expects.
+  systems, one bay; interact / floor collider / enter prompt not fully wired
+  to the arrival experience the probe expects.
 - **Where:** `web-three/src/world/arrivalBus.ts`, `interactionDefs.ts`,
   `World.ts` bus bay, `engine/busRoute.ts`.
-- **Owner hint:** Needs a single owner for “the bus the player boards at the
-  terminal” — merge or clearly separate the two.
+- **Owner hint:** Single owner for “the bus the player boards at the terminal”
+  — merge or clearly separate. Do not re-introduce a second body.
+- **Status:** OPEN — 2026-11-03 audit confirmed still live.
 
 ### B3. Court ball re-pickup after miss (probe-court) — FIXED 2026-11-02
 - **Was:** `FAIL re-pickup works wherever the ball came down`. Make /
@@ -78,6 +93,8 @@ else is open for a follow-up agent.
   follows the ROLL, so the promised mid-return intercept actually works.
   `probe-court.mjs` — pickup retries like a thumb would + failure
   forensics (phase walk + registry dump). **probe-court: ALL PASS.**
+- Note: the 2026-11-03 audit that marked this OPEN ran on a tree cut
+  before the fix landed — its reproduction agrees with this diagnosis.
 
 ---
 
@@ -99,28 +116,7 @@ else is open for a follow-up agent.
 - **Action for a clean machine:** one full pass at the harness default
   viewport; if the dusk rails still flake, widen the driver's wait windows
   (driver-side, documented) rather than touching the day clock.
-
-### B4. Full E2E not re-run on post-W5 tip — re-run at the merge; the flake family is named
-- The first-session merge (docs/52) ran the 4-day autotest on the merged
-  tip AND on pure `origin/main`: both trees fail 1–5 of ~104 checks on the
-  same box, all in one family — the wall-clock-timed dusk rails ("Rosa's
-  goodnight beat", "tomorrow begins") and the awning confirm — with console
-  clean every run. Both trees run ~48% slower here than the documented rig
-  (442 s vs 298 s). The game behavior behind every flaked rail is verified
-  by the deterministic probes (probe-subway, probe-doc12, probe-w4-*).
-- **Action for a clean machine:** one full pass at the harness default
-  viewport; if the dusk rails still flake, widen the driver's wait windows
-  (driver-side, documented) rather than touching the day clock.
-
-### B5. Two bus implementations coexist — RESOLVED by the first-session merge (docs/52)
-- The merge retired Agent 5's street coach: the bay keeps exactly one bus
-  (the M121 loop, docs/47). The arrival film now stages its own diorama
-  coach 300 m south in the ride's staging space and disposes it at the
-  handover — no bay mesh, no bay collider, no double interact target.
-- Remaining (small): the player-enterable experience is the M121's
-  BUS-04 stop; the film implies the step-off ride. If a future agent wants
-  the *authored* bus interior from the film on the street, extend the M121's
-  bay stop — do not add a second body.
+- **Status:** OPEN — 2026-11-03 audit confirmed still live.
 
 ### B6. Camera canopy list length vs occlusion buffer — TRIPWIRED 2026-11-02
 - Verified structurally safe today: every canopy push happens inside the
@@ -129,11 +125,16 @@ else is open for a follow-up agent.
   a `occlusionInSync()` tripwire (“the camera occlusion buffer covers every
   canopy”) so a late-growing canopy path fails the suite instead of
   silently never fading.
+- **2026-11-03:** the proper fix landed too — `GameCamera.setCanopies()`
+  (commit d105cbe) lets the world re-seat the canopy list after boot, so
+  the buffer can grow with it. The tripwire stays: it proves the wiring
+  on every suite run.
 - Original note: `GameCamera` builds `occlusion: Float32Array(canopies?.length ?? 0)` at
   construct time. If World adds trees after camera construction without
   resizing the buffer, fade-on-occlude silently no-ops for new canopies.
 - **Where:** `GameCamera` constructor, `Game.ts` boot wiring,
   `World.canopySpheres()`.
+- **Status:** OPEN.
 
 ### B7. Touch UI hidden logic vs order card / map — FIXED 2026-11-02
 - The `hidden-when-panel` CSS hook existed since day one; NOTHING ever set
@@ -142,26 +143,98 @@ else is open for a follow-up agent.
   taps from paper UI on phones. Verified on an emulated phone: Map open →
   `#touch-ui` display none.
 - **Where:** `ui/UI.ts`, `style.css`, `Game.ts` mapOpen / orderCard.
+- **Status:** OPEN.
 
 ### B8. KeyQ is camera-left only; some players expect strafe
 - Q is camera turn (with Z). No keyboard strafe other than A/D relative to
   camera. Document in controls blurb if a help sheet ships.
+- **Status:** OPEN (low priority / docs).
 
 ---
 
-## Verification after the camera/joystick fix
+## OPEN — first-session / vertical-slice gaps (from 2026-11-03 audit)
 
-Expected local gates:
+These are not pure probe failures; they are design-contract gaps against
+Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
+
+### B9. Authored Day-1 opening still starts on sidewalk
+- **Symptom:** Bus, driver “First time?”, and skyline reveal exist and are
+  playable, but the Day-1 step machine still opens on the sidewalk. The film
+  is a diorama hand-off rather than the authored spawn.
+- **Needed:** Wire spawn at `BUS_SPOTS.door` (or equivalent), fire the first
+  driver line, then hand into the existing greeting. Keep the story state
+  machine sacred (AGENTS.md).
+- **Where:** Day-1 step machine / Game open sequence, arrivalBus integration,
+  docs/50 §4 + §7 hand-offs.
+- **Status:** OPEN — high priority for vertical-slice feel.
+
+### B10. Times Square / Wow Walk beat is a note, not a postcard
+- **Symptom:** The sync beat fires `tsBeats` (Game drains it) but does not yet
+  call the real postcard capture pipeline. Doc 02 / Doc 07 expect a shareable
+  postcard at the wonder moment.
+- **Needed:** One-line (or small) swap to `composePostcard()` once the square
+  vista is authored; keep the existing capture → caption → album path.
+- **Where:** Times Square beat handler, postcard pipeline (already spiked).
+- **Status:** OPEN — high priority for UGC / retention flywheel.
+
+### B11. Subway University (Priya + Map copies badly) incomplete
+- **Symptom:** Station + ride exist; the guided teach beat (Priya, two-line
+  diagram, Map copies badly) is not fully integrated into the ride flow as
+  scripted in Doc 02.
+- **Needed:** Complete the guided ride sequence so the learning moment lands
+  before the player returns to the block.
+- **Where:** subway ride machine, Priya dialogue / notes, Map notebook.
+- **Status:** OPEN.
+
+### B12. Visual-audit follow-ups (Doc 31)
+- Day-4 greeting frame is the weakest: figures too small, composition spends
+  pixels on blank wall/asphalt. Raise/tilt camera so the two figures own the
+  middle third.
+- Multiple evidence frames still show staged Day-1 HUD ($87, Day-1 objective)
+  while depicting Day-3/4 moments — fix probe/save staging for evidence shots.
+- Minor CLEAR items: floating AC units, lamp poles without bases, clipped
+  signs, antenna prop, door scale on teal door, etc. Fix only after one
+  in-engine look (Anti-Slop gate).
+- **Where:** evidence frame probes, camera framing for Day-4 greeting,
+  prop placement.
+- **Status:** OPEN — polish / evidence hygiene.
+
+### B13. Performance ledger still over ideal on full-street views
+- Doc 07 target “<150 typical street scene” is not met for plaza-wide rigs
+  (content + shadow pass). W0 improved numbers but the gate is now “no phase
+  ships above previous ledger.” Continue district visibility, material
+  discipline, and measured before/after on the three fixed camera rigs.
+- **Status:** OPEN — ongoing construction law, not a single bug.
+
+### B14. Documentation hygiene
+- Some older docs (Phase 0 exit, AGENTS.md “code pending”) still read as if
+  greybox/code had not started. Update status language so new agents do not
+  re-do completed design work or mis-scope the current phase.
+- **Status:** OPEN — low priority, do when touching those files.
+
+---
+
+## Verification gates (after any fix)
+
+Expected local gates before claiming FIXED:
 - `npx tsc --noEmit` clean
-- `npx vitest run` — existing `tests/camera.test.ts` must still pass
-  (street-crossing contract unchanged on the Kestrel band)
-- Manual: phone or emulated touch — joystick dead-zone, no stuck stick,
-  E interacts without spinning camera, walk an avenue without boom pinned
-  to world origin
+- `npx vitest run` (especially camera / relevant probes)
+- Relevant probe scripts green (`probe-subway`, `probe-court`, etc.)
+- Full 4-day E2E on a clean machine when touching day/step or dusk rails
+- Manual: phone or emulated touch — joystick, interact, expanded-map camera
+
+When you mark FIXED, append under the FIXED section:
+```
+### Bx. Short title — FIXED YYYY-MM-DD
+- **Fix:** one sentence of what changed.
+- **Commit / branch:** …
+- **Verified:** which probes / E2E / manual.
+```
 
 ## Provenance
-- Camera corridor / street-band: this session, against expanded registry
-  `playableCore` z ±48.
-- Joystick: playtest notes in `style.css` touch section + field reports.
+- Camera corridor / street-band + joystick: 2026-11-02 session, expanded
+  registry `playableCore` z ±48.
 - Probe fails: recorded 2026-11-02 against tip after merges `e5d4567` +
   `87599e4` (+ later W5).
+- Audit additions (B9–B14): 2026-11-03 full docs read + status review against
+  GDD, Doc 02, Doc 07, Doc 50, Doc 51, construction log, visual audit.
