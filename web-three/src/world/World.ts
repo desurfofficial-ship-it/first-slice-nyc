@@ -267,6 +267,12 @@ export class World {
     return this.peds ? this.peds.bodyAt(i) : { x: 0, y: -100, z: 0 };
   }
 
+  /** How many ambient walkers exist — the shuffle's brush slots ride this
+   *  (docs/51 B16: one cooldown per walker, sized once per frame). */
+  walkerCount(): number {
+    return this.peds ? this.peds.walkColliders.length : 0;
+  }
+
   private steamPoints: THREE.Points;
   private steamSeed: Float32Array;
   private steamLife: Float32Array;
@@ -1466,11 +1472,16 @@ export class World {
       // avoidance circle squeezed the U-turn into the building-line trunks
       // (probe-solid's 0.35 m trunk approach — the gate is 0.42).
       [[10, 6.1], [-42, 6.1], [-42, 6.75], [10, 6.75]],
-      // the south-side local: laundry to the district's east end and back.
-      // W4: the return lane rides −6.35, not the old −6.8 — the east-end
-      // trunks (28/38, −7.0) held the extended loop at their circle radius
-      // (0.35 m, probe-solid's gate is 0.42); 0.65 m lateral clears them.
-      [[-34, -6.1], [44, -6.1], [44, -6.35], [-34, -6.35]],
+      // the south-side local: the Shuffle stretch (docs/51 B16 — the walk to
+      // the Alder Heights stairs) to the district's east end and back. The
+      // west reach stops at −43.5: the SUB-02 control house (−57) and the
+      // south trunks (−44/−30/−16, r 0.35 on the building line) leave the
+      // −6.1/−6.35 lanes a clean 0.65 m clear, and the turnaround sits east
+      // of the −44 trunk's circle. W4: the return lane rides −6.35, not the
+      // old −6.8 — the east-end trunks (28/38, −7.0) held the extended loop
+      // at their circle radius (0.35 m, probe-solid's gate is 0.42); 0.65 m
+      // lateral clears them.
+      [[-43.5, -6.1], [44, -6.1], [44, -6.35], [-43.5, -6.35]],
       // W4 — the garden tender (NZ-GARDEN): the gate to the beds and back,
       // inside GRD-GABLE's fence line (x −8.4..4, z 20..30)
       [[4.4, 24.1], [-0.5, 24.4], [-6.5, 24.4], [-6.9, 26],
@@ -1506,11 +1517,14 @@ export class World {
         { x: -41.2, z: 6.9, faceTo: [-42, 6.2], dwell: 3.5 },
       ],
       // the south-side local: watches the cart corner (opinions daily),
-      // reads the stoops at the quiet west end — and W4: pauses at the
-      // Corner Park gate (NZ-DOG), where the pigeons scatter-recover
+      // reads the stoops at the quiet west end, pauses on the Shuffle
+      // stretch to look across at the terminal (docs/51 B16 — a body that
+      // stands in the walk is a body you shuffle past) — and W4: pauses at
+      // the Corner Park gate (NZ-DOG), where the pigeons scatter-recover
       [
         { x: 5.4, z: -6.9, faceTo: [4.0, -6.6], dwell: 3.0 },
         { x: -30.5, z: -6.9, faceTo: [-30.5, -9.0], dwell: 2.5 },
+        { x: -41.5, z: -6.9, faceTo: [-36.4, 4.8], dwell: 3.5 },
         { x: 31.5, z: -6.5, faceTo: [34, -6.3], dwell: 5.0 },
       ],
       // W4 — the garden tender (NZ-GARDEN): watering the beds, a word to

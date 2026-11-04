@@ -35,6 +35,10 @@ import { BENCH_SIT_NOTES, PARK_SIT_NOTES, FREE_WASH_NOTES } from '../core/conten
 import { gameAudio } from './audio';
 import { ArrivalCinematic } from './arrival';
 import { RIDE_BEAT_TEXT, TS_SYNC_NOTE } from '../core/content';
+import {
+  SHUFFLE_ZONE, WAIT_AFTER_STILL, WAIT_NOTE,
+  SpeechWisp, brushScan, inZone, stillTick,
+} from '../world/shuffle';
 import { CourtGame } from '../court/CourtGame';
 
 /** One waypoint on the familiar face's daily walk. dwell = seconds she
@@ -446,6 +450,7 @@ export class Game {
     // zones
     this.checkZones();
     this.perFrameChecks(dt);
+    this.updateShuffle(dt);
     this.updateNotes(dt);
 
     // camera — the walker steers by `moveYaw` (the frozen reference during an
@@ -637,6 +642,55 @@ export class Game {
   private onLadderLeave(): void {
     if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4) {
       this.ladderHintPending = true;
+    }
+  }
+
+  // -------------------------------------------------------- the shuffle ----
+  // The Shuffle (VS-F04, docs/51 B16): the crowd-walk beat on the approach to
+  // the Alder Heights stairs. Doc 02: brushing someone is a CORRECT
+  // interaction — they say their line, nothing fails, nothing counts (the Map
+  // hard rules hold; the day machine is sacred). Doc 07 TBD-3: twenty honest
+  // seconds of standing still gets the city's patience, once per visit. The
+  // laws are pure (world/shuffle.ts, tests/shuffle.test.ts); this only
+  // renders what they return — and the wisp is invisible at rest, so the
+  // perf ledger never moves for this beat.
+
+  private shuffleCool: number[] = [];
+  private shuffleStill = 0;
+  private shuffleWaited = false;
+  private shuffleLast: { x: number; z: number } | null = null;
+  private shuffleWisp: SpeechWisp | null = null;
+
+  private updateShuffle(dt: number): void {
+    if (this.shuffleWisp) this.shuffleWisp.update(dt);
+    const c = this.player.capsule;
+    if (this.player.frozen || this.dayFading
+      || !inZone(c.x, c.y, c.z, SHUFFLE_ZONE)) {
+      this.shuffleStill = 0;
+      this.shuffleWaited = false;
+      this.shuffleLast = null;
+      return;
+    }
+    // the wait (TBD-3): movement resets the clock; standing piles it up
+    const moved = this.shuffleLast !== null
+      && Math.hypot(c.x - this.shuffleLast.x, c.z - this.shuffleLast.z) > 0.15 * dt;
+    this.shuffleStill = stillTick(this.shuffleStill, moved, dt);
+    this.shuffleLast = { x: c.x, z: c.z };
+    if (!this.shuffleWaited && this.shuffleStill >= WAIT_AFTER_STILL) {
+      this.shuffleWaited = true;
+      this.ui.showNote(WAIT_NOTE);
+    }
+    // the brushes: every walker whose circle you cross says their line
+    const n = this.world.walkerCount();
+    if (this.shuffleCool.length !== n) this.shuffleCool = new Array<number>(n).fill(0);
+    const walkers: Array<{ x: number; z: number }> = [];
+    for (let i = 0; i < n; i++) {
+      const b = this.world.walkerPos(i);
+      walkers.push({ x: b.x, z: b.z });
+    }
+    for (const i of brushScan(c.x, c.z, walkers, this.shuffleCool, dt)) {
+      if (!this.shuffleWisp) this.shuffleWisp = new SpeechWisp(this.world.scene);
+      this.shuffleWisp.say(walkers[i].x, 2.1, walkers[i].z);
     }
   }
 

@@ -546,3 +546,47 @@ Work Log:
 
 Stage Summary:
 - tsc clean; vitest 476/476; E2E AUTOTEST OK 0 failures idle (380 s) and under load (553 s, ×4.00 budgets). The flake is closed, not recorded. Gap list: Regulars arcs beyond Day 4 (design), audio outreach (business), touch hardening on real devices.
+
+## 2026-11-04 — agent2: the Shuffle builds — the walk to the stairs carries a crowd (docs/51 B16)
+
+The decree: "build it." Docs 01/02/07/08/10/22 had already defined the spec
+(B16's audit pass); the build follows it literally and adds nothing.
+
+The shape of it (zero GameState changes, zero save fields, zero new steps —
+the day machine untouched, the crosswalk untouched):
+- `world/shuffle.ts` — the laws, pure and unit-owned: `brushScan` (a walker
+  whose circle you cross within 1.0 m, cooldown spent, comes back as a hit —
+  the return carries ONLY indices: no fail flag, no score, no counters),
+  `stillTick` (movement resets, standing piles), the zone (x −49..−14,
+  surface-only: descending the stairs leaves the beat), and the
+  `SpeechWisp` — one shared canvas sprite, invisible at rest, so the perf
+  ledger never moves for this.
+- `Game.updateShuffle` renders what the laws return: the wisp hops to
+  whoever just said "Scuse me."; twenty honest game-seconds of standing
+  still mid-stretch surface TBD-3's "The city will wait." once per visit.
+- `World.ts` — the south-side local's loop extends west −34 → −43.5 (their
+  own lane, the walk to the Alder Heights stairs) + a west-end routine beat
+  (pauses to look across at the terminal). ZERO new bodies: bank-shared
+  rigs stay three, the census never moves.
+
+The evidence (all logs in /tmp/fsnyc-shuffle/, screenshots in
+web-three/probe-shots/ — gitignored, the probe regenerates them):
+- tsc clean; vitest 487/487 (29 files — shuffle.test.ts pins 11 laws);
+  build 485 ms.
+- probe-shuffle.mjs SHUFFLE OK, six checks: the stretch walks west end to
+  end down the local's lane (x −43.7); a walker lives on it; a forced brush
+  fires the wisp at opacity 1 (shuffle-wisp.png — the player and a walker
+  by the M121, "Scuse me." clean above them); no fresh show while the
+  contact cools; TBD-3 surfaces the note (shuffle-wait.png).
+- probe-peds PEDS OK (the west lane rides clean); probe-subway ALL PASS;
+  probe-perf before→after IDENTICAL: 165/245/300 draws, same triangles —
+  the B13 ledger law holds.
+- e2e full 4-day: AUTOTEST OK, 0 failures, 533 s, console clean.
+
+Two machine-honesty lessons went into docs/51 B16 for the next probe
+author: software GL runs the game clock at ~0.15–0.3× wall at 900×700 (a
+"20-second" wait is a 60–90-second wall wait — poll with caps, never
+nap-and-assume; probe-subway's batch-tick trick doesn't apply to beats that
+live in the frame loop), and westward walks must track progress as x
+DECREASING (my first guard was an east-walking copy-paste and false-stalled
+the run at −31.5).

@@ -536,7 +536,7 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   re-do completed design work or mis-scope the current phase.
 - **Status:** OPEN — low priority, do when touching those files.
 
-### B16. The Shuffle (VS-F04) is a stub — one flavor note; the crowd-walk mini-game is not built
+### B16. The Shuffle (VS-F04) is a stub — one flavor note; the crowd-walk mini-game is not built — FIXED 2026-11-04
 - **The docs' spec (read these, do not re-derive):** Doc 07 §3 IN —
   "Crowd walk mini-game, forgiveness rules". Doc 02 §10:00–15:00 (the Wow
   Wonk, wonder beat #1's approach): "a gentle mini-game about walking
@@ -581,6 +581,43 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   the brush-counts-as-correct law; e2e rails untouched.
 - **Status:** OPEN — a feature-sized build (VS-F04's own IN-scope row); it
   needs its own decree and must not be smuggled into a docs pass.
+- **FIXED 2026-11-04 (agent2, decree granted — "build it"):** the beat is
+  built on the docs' own terms, and the day machine stays sacred (no step,
+  no money, no save, no GameState change at all):
+  - **The crowd.** The south-side local's loop extends west from −34 to
+    −43.5 (`World.ts`) — the walk to the Alder Heights stairs now carries a
+    walker on the local's own lane, plus a west-end routine beat (they pause
+    to look across at the terminal). ZERO new bodies: bank-shared rigs stay
+    three, the census never moves, the perf ledger never regresses.
+  - **The brush law.** `world/shuffle.ts`, pure: a walker whose circle you
+    cross within 1.0 m says “Scuse me.” once per 4 game-seconds. No fail
+    flag, no score, no counters (the Map hard rules hold) — brushing is
+    correct by construction. The yield sidestep is the body language; the
+    wisp is the voice.
+  - **The speech wisp.** One shared canvas sprite (`SpeechWisp`),
+    invisible at rest — zero draw calls when nobody speaks.
+  - **TBD-3 landed with it.** Twenty honest game-seconds of standing still
+    mid-stretch surfaces “The city will wait.” once per visit.
+  - **The crosswalk untouched.** `cross()` never changed; the Day-1 corner
+    keeps teaching Doc 08 note #4; the commuter's crossing keeps its own
+    beat outside the zone (x −49..−14, surface-only).
+- **Verified:** `tsc --noEmit` clean; vitest **487/487** (29 files;
+  `tests/shuffle.test.ts` pins 11 laws — the brush returns only speech, the
+  per-walker cooldown, the chorus, cross-street no-op, contact distance,
+  the 20-second threshold, the surface-only zone, the authored copy);
+  build 485 ms; **probe-shuffle.mjs SHUFFLE OK** — six checks: the stretch
+  walks west end to end down the local's lane (reached x −43.7), a walker
+  lives on it, a forced brush fires the wisp
+  (`probe-shots/shuffle-wisp.png`), no fresh show while the contact cools,
+  TBD-3 surfaces the note (`probe-shots/shuffle-wait.png`); probe-peds
+  PEDS OK (the west lane rides clean); probe-subway ALL PASS;
+  **probe-perf before→after identical: 165/245/300 draws** — zero at-rest
+  regression, the B13 ledger law holds; e2e full 4-day **AUTOTEST OK:
+  0 failures, 533 s, console clean** — rails untouched.
+- **Machine-honesty note for the next probe author:** software GL runs the
+  game clock at a fraction of wall time (~0.15–0.3× at 900×700) — every
+  time-based check must poll with a wall-time cap, never nap-and-assume,
+  and westward walks must track progress as x DECREASING.
 
 ---
 
