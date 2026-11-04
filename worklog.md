@@ -502,6 +502,37 @@ plan: Doc 56" pointers, and the stale forward-reference to a
 `docs/56-playtest-01-results.md` was corrected — results analysis lands at
 `docs/57-` or later; `docs/56-` is the plan.
 
+## 2026-11-04 — agent2: The Shuffle verdict — the user was right (docs/51 B16)
+
+Asked to read the docs and find out whether the Shuffle mini-game was built —
+no guessing. Read every mention (docs/01, 02, 07, 08, 10, 22, 55, 56,
+agent3-living-world-audit), then read the code on main @ `5f973e1`.
+
+**Verdict: NOT built. VS-F04 is a stub.** The docs demand a crowd-walk
+mini-game: Doc 07 §3 "Crowd walk mini-game, forgiveness rules"; Doc 02
+§10:00–15:00 "drift toward gaps; brushing someone just makes them say
+'scuse me,' which is a correct interaction, not a failure"; Doc 07 TBD-3's
+soft skip ("The city will wait"). What main has: `GameState.ts:444
+cross(atStrip)` fires ONE note (the Doc 08 #4 text at the stripes, an
+own-way line elsewhere) + checkpoint + step advance — the forgiveness half
+only (the docs/22 Seam-1 fix, `Game.ts:650` z < −4.1). "Scuse me" exists
+nowhere outside the two note-text constants (grep across src/ + tests/):
+no brush handler, no bubble, no reaction. The TBD-3 soft skip: zero hits.
+The peds system is real bodies + collision courtesy (`tests/crowd.test.ts`
+proves walkers yield) — physics, not a mini-game.
+
+Corroborations: docs/agent3-living-world-audit's F04 row already said
+"Missing — one flavor note when crossing; no crowd mini-game" (still true;
+its other stale rows — Map UI, album, subway — have since landed). And
+docs/55's F04 status note had been quoting the note text as if the brush
+existed — overclaim now corrected in the same commit.
+
+Landed (docs only, zero src/ changes): docs/51 B16 filed with the full
+doc-sourced spec, current-main evidence, and a close rule (crowd on the
+subway walk, brush → "scuse me" correct-interaction, TBD-3 prompt, crosswalk
+forgiveness untouched; probe + unit test required). docs/55 F04 row now
+reads "Stub — not the spec". The build itself is a feature-sized decree and
+stays un-smuggled.
 ---
 Task ID: 8
 Agent: Z.ai (GLM)
