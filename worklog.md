@@ -501,3 +501,17 @@ docs/55 updated in the same commit: boxes 1 and 2 now carry "Operational
 plan: Doc 56" pointers, and the stale forward-reference to a
 `docs/56-playtest-01-results.md` was corrected — results analysis lands at
 `docs/57-` or later; `docs/56-` is the plan.
+
+---
+Task ID: 8
+Agent: Z.ai (GLM)
+Task: Close the dusk-beat flake shape — make the E2E's wall-clock budgets honest on a slow machine.
+
+Work Log:
+- Reproduced the 555 s cascade on purpose (two CPU burners): root cause is the game's 100 ms dt clamp — under load, game time dilates and every blind wall-clock poll starves. The guard failed first ("click fold-it"), proving the whole harness needed the same law.
+- Added one measured factor, pace (60 frames ÷ clamp, cap 4×, printed as [pace]): every blind event poll rides budget() — dusk/window/postcard, day-wake, album, noteSays, cabClear, holdUntil. walkTo keeps its own progress law. The pointer guard measures the same factor in-page and stretches click timeouts + settle waits.
+- Verified under sustained load: guard 6/6 PASS at ×4.00, driver 605 ms frames ×4.00, AUTOTEST OK 0 failures — the run that cascaded now passes. Idle runs unchanged (×1.00).
+- Also: merged 15 incoming commits (sign atlas, phase-1 playtest plan, B12 closeout) — clean, gates re-run.
+
+Stage Summary:
+- tsc clean; vitest 476/476; E2E AUTOTEST OK 0 failures idle (380 s) and under load (553 s, ×4.00 budgets). The flake is closed, not recorded. Gap list: Regulars arcs beyond Day 4 (design), audio outreach (business), touch hardening on real devices.

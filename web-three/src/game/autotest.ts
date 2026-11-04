@@ -369,13 +369,21 @@ export function runAutotest(game: Game): void {
     return card.id;
   };
 
+  /** The measured slow-machine factor (docs/56 flake post-mortem): game
+   *  time is dt-clamped at 100 ms, so on a busy machine the wall clock and
+   *  the game clock disagree. `pace` is set once at run() start (measured,
+   *  capped at 4) and every wait-for-the-game budget rides it. 1 = a fast
+   *  machine, budgets unchanged. */
+  let pace = 1;
+  const budget = (ms: number) => Math.round(ms * pace);
+
   /** Poll until the toast (or the Map's pages) carries a fragment. */
   const noteSays = async (frag: string, timeout = 9000): Promise<boolean> => {
     const t0 = performance.now();
     for (;;) {
       if (game.debug.noteText().includes(frag)) return true;
       if (game.debug.mapNotes().some((n) => n.includes(frag))) return true;
-      if (performance.now() - t0 > timeout) return false;
+      if (performance.now() - t0 > budget(timeout)) return false;
       await nextFrame();
     }
   };
@@ -387,7 +395,7 @@ export function runAutotest(game: Game): void {
    *  cab loops the block in ~10 s, so east always comes). */
   const cabClear = async (timeout = 16) => {
     const t0 = performance.now();
-    while (performance.now() - t0 < timeout * 1000) {
+    while (performance.now() - t0 < budget(timeout * 1000)) {
       if (game.world.taxi.position.x > 2) break;
       await nextFrame();
     }
@@ -399,7 +407,7 @@ export function runAutotest(game: Game): void {
   const holdUntil = async (code: string, pred: () => boolean, timeout = 10) => {
     game.input.injectKey(code, true);
     const t0 = performance.now();
-    while (performance.now() - t0 < timeout * 1000) {
+    while (performance.now() - t0 < budget(timeout * 1000)) {
       await nextFrame();
       if (pred()) break;
     }
@@ -432,6 +440,27 @@ export function runAutotest(game: Game): void {
       if (game.bootedFromDay >= 2) location.reload();
 
       await waitFrames(30);
+
+      // ---- the slow-machine budget (docs/56 flake post-mortem) ----
+      // Every authored chain (glide → flicker → postcard → linger) advances
+      // by the game's dt, and dt is CLAMPED at 100 ms (Game.loop) — on a
+      // busy machine the game's own time runs slower than the wall clock,
+      // and a wall-clock poll starves even though nothing is wrong (the
+      // 555 s red run: 31 timing-gated checks fell in a cascade from day-2
+      // dusk; the clean 356 s re-run changed nothing but the load). The
+      // fix: measure the dilation once — average real frame time against
+      // the 100 ms clamp — and hand it to `budget()` (hoisted above, shared
+      // by noteSays / cabClear / holdUntil too). The condition verifies;
+      // the budget only waits.
+      {
+        const t0 = performance.now();
+        const N = 60;
+        for (let i = 0; i < N; i++) await nextFrame();
+        const frameAvg = (performance.now() - t0) / N;
+        pace = Math.min(4, Math.max(1, frameAvg / 100));
+        console.info(`[pace] avg frame ${frameAvg.toFixed(1)} ms over 60 — event budgets ×${pace.toFixed(2)}`);
+      }
+
       check(game.player.onGround && p().y < 0.2, `player stands on the sidewalk (y=${p().y.toFixed(2)})`);
       // docs/51 B6 tripwire: the occlusion buffer is sized at camera
       // construction; every canopy push must have happened by now (all of
@@ -509,7 +538,7 @@ export function runAutotest(game: Game): void {
       // for the car to clear the crossing before stepping off the curb
       {
         const t0 = performance.now();
-        while (performance.now() - t0 < 14000) {
+        while (performance.now() - t0 < budget(14000)) {
           if (game.world.taxi.position.x > 2) break;
           await nextFrame();
         }
@@ -620,7 +649,7 @@ export function runAutotest(game: Game): void {
       let sawLightsOut = false;
       {
         const t0 = performance.now();
-        while (performance.now() - t0 < 45000 && !(s.step === Step.DONE && !game.ui.postcardPanel.hidden)) {
+        while (performance.now() - t0 < budget(45000) && !(s.step === Step.DONE && !game.ui.postcardPanel.hidden)) {
           if (dbg.noteText().includes('first warm thing')) sawFirstWarm = true;
           if (dbg.noteText().includes('Lights out, rookie')) sawLightsOut = true;
           await nextFrame();
@@ -640,7 +669,7 @@ export function runAutotest(game: Game): void {
       game.ui.postcardKeep.click(); // the thumb path — a real click on the real button
       {
         const t0 = performance.now();
-        while (performance.now() - t0 < 8000 && game.ui.albumCount < 1) await nextFrame();
+        while (performance.now() - t0 < budget(8000) && game.ui.albumCount < 1) await nextFrame();
       }
       check(game.ui.albumCount === 1, 'keep files the day-1 card in the album');
       game.ui.albumBtn.click();
@@ -659,7 +688,7 @@ export function runAutotest(game: Game): void {
       check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight beat');
       {
         const t0 = performance.now();
-        while (performance.now() - t0 < 30000 && dbg.rosaIntensity() <= 1.5) await nextFrame();
+        while (performance.now() - t0 < budget(30000) && dbg.rosaIntensity() <= 1.5) await nextFrame();
       }
       check(dbg.rosaIntensity() > 1.5, 'Rosa\u2019s window warms');
       await waitFrames(30); // settle pad (docs/47 W3) — the day-roll press must not land mid-warm
@@ -673,7 +702,7 @@ export function runAutotest(game: Game): void {
         // poll-then-check (the harness law): the day roll lands a beat after
         // the fade on slow frames
         const t0 = performance.now();
-        while (performance.now() - t0 < 8000 && !(s.day === 2 && s.step === Step.D2_IDRIS)) await nextFrame();
+        while (performance.now() - t0 < budget(8000) && !(s.day === 2 && s.step === Step.D2_IDRIS)) await nextFrame();
       }
       check(s.day === 2 && s.step === Step.D2_IDRIS, 'day 2 begins \u2014 Idris is on his way');
       check(s.money === 112 && s.cartName === "Wade's Spot", 'day 2 keeps name and money');
@@ -745,13 +774,13 @@ export function runAutotest(game: Game): void {
       await walkTo(12.5, -6.8, 10); // walk into the reach-top trigger — the dismount parks outside it (see Day 1 note)
       {
         const t0 = performance.now();
-        while (performance.now() - t0 < 30000 && dbg.secondIntensity() <= 2.5) await nextFrame();
+        while (performance.now() - t0 < budget(30000) && dbg.secondIntensity() <= 2.5) await nextFrame();
       }
       check(dbg.secondIntensity() > 2.5, 'second window lights');
       check(game.world.kidSil.visible, 'the kid is at the glass');
       {
         const t0 = performance.now();
-        while (performance.now() - t0 < 30000 && !(s.step === Step.D2_POSTCARD && !game.ui.postcardPanel.hidden)) await nextFrame();
+        while (performance.now() - t0 < budget(30000) && !(s.step === Step.D2_POSTCARD && !game.ui.postcardPanel.hidden)) await nextFrame();
       }
       check(s.step === Step.D2_POSTCARD && !game.ui.postcardPanel.hidden, 'day 2 postcard composes');
       check(dbg.caption().includes('Day 2'), 'postcard says Day 2');
@@ -759,7 +788,7 @@ export function runAutotest(game: Game): void {
       game.ui.postcardKeep.click();
       {
         const t0 = performance.now();
-        while (performance.now() - t0 < 8000 && game.ui.albumCount < 2) await nextFrame();
+        while (performance.now() - t0 < budget(8000) && game.ui.albumCount < 2) await nextFrame();
       }
       check(game.ui.albumCount === 2, 'day 2\u2019s card joins the shelf \u2014 the album keeps the week');
       await waitFrames(10); // settle pad, tightened: the linger clock runs
@@ -784,7 +813,7 @@ export function runAutotest(game: Game): void {
       await waitMs(2400);
       {
         const t0 = performance.now();
-        while (performance.now() - t0 < 8000 && !(s.day === 3 && s.step === Step.D3_WAKE)) await nextFrame();
+        while (performance.now() - t0 < budget(8000) && !(s.day === 3 && s.step === Step.D3_WAKE)) await nextFrame();
       }
       check(s.day === 3 && s.step === Step.D3_WAKE, 'day 3 begins \u2014 Rosa has news');
       check(loadSave().day === 3, 'day-3 snapshot written');
@@ -843,7 +872,7 @@ export function runAutotest(game: Game): void {
         // under software rendering — poll, don't sample; the full street is
         // heavy now, so give the walk real room)
         const t0 = performance.now();
-        while (performance.now() - t0 < 20000 && !s.kidAtCorner) await nextFrame();
+        while (performance.now() - t0 < budget(20000) && !s.kidAtCorner) await nextFrame();
       }
       check(s.kidAtCorner && s.step === Step.D3_STOOL, 'the kid reached the corner on his own feet');
       await interact();
@@ -887,7 +916,7 @@ export function runAutotest(game: Game): void {
       await walkTo(12.5, -6.8, 10); // walk into the reach-top trigger — the dismount parks outside it (see Day 1 note)
       {
         const t0 = performance.now();
-        while (performance.now() - t0 < 30000 && !(s.step === Step.D3_POSTCARD && !game.ui.postcardPanel.hidden)) await nextFrame();
+        while (performance.now() - t0 < budget(30000) && !(s.step === Step.D3_POSTCARD && !game.ui.postcardPanel.hidden)) await nextFrame();
       }
       check(s.step === Step.D3_POSTCARD && !game.ui.postcardPanel.hidden, 'day 3 postcard composes' + snap());
       check(dbg.caption().includes('Day 3'), 'postcard says Day 3' + snap());
@@ -920,7 +949,7 @@ export function runAutotest(game: Game): void {
       await waitMs(2400);
       {
         const t0 = performance.now();
-        while (performance.now() - t0 < 8000 && !(s.day === 4 && s.step === Step.D4_WAKE)) await nextFrame();
+        while (performance.now() - t0 < budget(8000) && !(s.day === 4 && s.step === Step.D4_WAKE)) await nextFrame();
       }
       check(s.day === 4 && s.step === Step.D4_WAKE, 'day 4 begins \u2014 the light stayed because someone keeps it');
       check(loadSave().day === 4, 'day-4 snapshot written');
@@ -969,7 +998,7 @@ export function runAutotest(game: Game): void {
       // the Map beat gates on her arrival — poll, never sample
       {
         const t0 = performance.now();
-        while (performance.now() - t0 < 60000 && !s.strangerAtCart) await nextFrame();
+        while (performance.now() - t0 < budget(60000) && !s.strangerAtCart) await nextFrame();
       }
       check(s.strangerAtCart, 'the stranger reached the cart on her own two feet');
       await walkTo(2.6, -4.6, 12, false, 1.2);
@@ -992,7 +1021,7 @@ export function runAutotest(game: Game): void {
       {
         // the wash runs on the game's clock — poll for the drum to stop
         const t0 = performance.now();
-        while (performance.now() - t0 < 20000 && s.apronWashing) await nextFrame();
+        while (performance.now() - t0 < budget(20000) && s.apronWashing) await nextFrame();
       }
       check(!s.apronWashing && s.apronClean, 'the wash finished — warm from the dryer');
 
@@ -1037,7 +1066,7 @@ export function runAutotest(game: Game): void {
       await walkTo(12.5, -6.8, 8);
       {
         const t0 = performance.now();
-        while (performance.now() - t0 < 45000 && !(s.step === Step.D4_POSTCARD && !game.ui.postcardPanel.hidden)) await nextFrame();
+        while (performance.now() - t0 < budget(45000) && !(s.step === Step.D4_POSTCARD && !game.ui.postcardPanel.hidden)) await nextFrame();
       }
       check(s.step === Step.D4_POSTCARD && !game.ui.postcardPanel.hidden, 'day 4 postcard composes' + snap());
       check(dbg.caption().includes('Day 4'), 'postcard says Day 4' + snap());
