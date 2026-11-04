@@ -530,11 +530,62 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   independently; the merge kept main's implementation and dropped the
   duplicate (one paved path). Verified on the merged tree: tsc clean, vitest
   469/469, build clean, probe-subway ALL PASS, probe-a5c-arrival green.
+
+- **Update 2026-11-04 (the Shuffle phase row + the underground economy, this
+  commit):** two things landed together — the honest publication of the B16
+  phase's cost, and the first program item off the named frontier.
+  **The phase row (published, not silent):** the six-walker Shuffle crowd
+  rides the six-draw person law, and the merged main's World.ts additions
+  came in with it — measured on the tip with `diag-perf-breakdown.mjs`:
+  PLAZA 370 → 400, CART_CORNER 301 → 333, SYCAMORE×GABLE 115 → 128 (the
+  crowd's east loop end grazes this rig's shadow-box edge: +6..12 figure
+  casts), TIMES_SQ 130 → 130. Above the previous ledger on three rigs; the
+  cause is the felt crowd itself (the B16 build), the lever priced and
+  rejected (per-figure instancing needs shared vertex colors; the rig bakes
+  colors per figure — the floor stays 6 draws per person).
+  **The PLATFORM_A rig was staging-broken — its numbers are void:** the
+  census feet (x −40, z −3.2, y −3.2) teleport UNDER the world and physics
+  ejects the capsule to the surface within a frame — every published
+  PLATFORM_A number (179, 146, 166) measured a surface player through an
+  underground camera. The rig now stands on a real platform floor (the fare
+  pocket, probe-subway's own staging) with the converged interiorMode lens.
+  **The underground economy (the "SUB_Root depth" program item):** below
+  grade the station is an open-top cutaway whose own casters live within
+  ~15 m of the player, so the dollhouse flip now shrinks the sun's shadow
+  box to SHADOW_HALF_UNDERGROUND = 18 (`src/world/shadowLaw.ts`, applied by
+  `World.setUndergroundShadow`, texel lattice recomputed + re-snapped).
+  Same-pose A/B on the corrected rig: **231 → 186 (−45, −19%)**; the
+  parked-census camera priced 166 → 130. The platform's own shadows are
+  bit-identical on the evidence frames (diag-underground-shots: pillar,
+  railing, and player shading unchanged; the street beyond the box edge
+  stops paying). Wired contract: `tests/shadow-law.test.ts` (the numbers +
+  never-widen-below-grade) and probe-subway now asserts the shrunk box on
+  the descent (half 18, symmetric). Street rigs are untouched (the economy
+  only exists below grade). Verified: tsc clean, vitest 514/514, build
+  clean, probe-subway ALL PASS ×2 (with the two new checks).
+
 ### B14. Documentation hygiene
-- Some older docs (Phase 0 exit, AGENTS.md “code pending”) still read as if
+- Some older docs (Phase 0 exit, AGENTS.md "code pending") still read as if
   greybox/code had not started. Update status language so new agents do not
   re-do completed design work or mis-scope the current phase.
-- **Status:** OPEN — low priority, do when touching those files.
+- **Checked this session (no fix needed):** the Pages deploy trigger was
+  suspected corrupt (`branches: ain]`) — it is not. Blob-hash proof:
+  worktree `git hash-object` == `HEAD:.github/workflows/deploy-pages.yml`
+  (`a390447b`), and the file's true bytes are `branches: [main]`. The
+  "corruption" was a terminal-output artifact — this sandbox's command
+  output strips `[m` sequences (ANSI-escape detection), so `[main]`
+  displays as `ain]`. Lesson for the next agent: when command output and
+  the file API disagree, trust `git hash-object` + `od -c`, and never ship
+  a fix whose only evidence is a paste of the command output.
+- **FIXED 2026-11-04:** both owed files updated. AGENTS.md's header now
+  reads "Production — Phase 1 build-out on main" (was "Pre-Production …
+  code pending"), names the live tree, the 500+ passing tests, and points
+  new agents at the ledger + docs/55 instead of pre-scaffold habits;
+  docs/18 (Phase 0 exit) carries a dated status note that its "Still Open"
+  list described the exit moment and has since shipped, redirecting readers
+  to docs/55 + this ledger for live state. A new agent reading
+  AGENTS.md → roadmap → docs/55 now cannot mis-scope the current phase.
+- **Status:** FIXED 2026-11-04 — the pass rule holds.
 
 ### B16. The Shuffle (VS-F04) is a stub — one flavor note; the crowd-walk mini-game is not built — FIXED 2026-11-04
 - **The docs' spec (read these, do not re-derive):** Doc 07 §3 IN —

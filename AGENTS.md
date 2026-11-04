@@ -2,7 +2,7 @@
 
 > **You are an AI agent contributing to FIRST SLICE: A New York Story** — a cozy lowpoly mobile life-sim where people who have never been to NYC fall in love with the city one postcard at a time. This file is your operating contract. Read it fully before touching anything. When instructions here conflict with habit, **this file wins**.
 
-**Current phase:** Pre-Production (docs-complete, code pending — see [docs/06-production-roadmap.md](docs/06-production-roadmap.md)). The highest-value contributions right now: design-doc depth, content pipelines, and slice specs. Do not scaffold game code before Phase 0 exit is signed.
+**Current phase:** Production — Phase 1 build-out on `main` (design docs complete and shipped against; see [docs/06-production-roadmap.md](docs/06-production-roadmap.md) and the phase state in [docs/55-phase1-exit-checklist.md](docs/55-phase1-exit-checklist.md)). The codebase is live: the Three.js client in `web-three/` builds, plays the authored four-day chain end to end, and carries 500+ passing tests with probe evidence per feature. Do not re-scaffold, do not restart from a greybox, and do not re-derive specs that docs/01–56 already lock — read the ledger ([docs/51-open-bugs-for-agents.md](docs/51-open-bugs-for-agents.md)) first and build forward from main.
 
 > **ACTIVE MILESTONE:** [docs/37-living-neighborhood-milestone-brief.md](docs/37-living-neighborhood-milestone-brief.md) — *From scripted story to a living, interactive neighborhood.* If you were assigned the Living Neighborhood implementation, **start there**: audit-first workflow, phase order, red lines, test matrix, and Definition of Done are all in that brief.
 

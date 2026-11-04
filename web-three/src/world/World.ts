@@ -19,6 +19,7 @@ import {
   type BusZone, type LegCoords,
 } from '../engine/busRoute';
 import { buildArticulatedPerson, updatePersonAnim } from './personRig';
+import { SHADOW_HALF, shadowHalfFor } from './shadowLaw';
 import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecycleBin, makeHydrant,
   makeSubwayEntrance, makeBulletinBoard, makeBench, makeBusStop, makeNewspaperBoxes, makeBarrier,
   makeACUnit, makeBrownstoneStoop, makeStorefront, makeStool, makeVan,
@@ -323,7 +324,9 @@ export class World {
   // the ones the player actually stands in, keep their exact texels; casters
   // beyond the box edge no longer render into the map, which is the recorded
   // art trade (long dusk shadows fade out ~SHADOW_HALF m from the player).
-  private static readonly SHADOW_HALF = 35;
+  // Below grade the box shrinks to the underground economy's half (see
+  // shadowLaw.ts) — setUndergroundShadow applies it on the dollhouse flip.
+  private static readonly SHADOW_HALF = SHADOW_HALF;
   /** The authored light offset (position − target): the reference's rotation
    *  (-28, -60). The follow moves BOTH poles by the same snapped delta, so
    *  the light direction never changes by a thousandth of a degree. */
@@ -343,6 +346,8 @@ export class World {
   /** The lattice coords the shadow box last snapped to (skip redundant writes). */
   private sunU = Number.NaN;
   private sunV = Number.NaN;
+  /** The underground economy's current state (skip redundant shadow writes). */
+  private undergroundShadow = false;
 
   /** A baked mesh's district from its world position (mesh center). */
   private static districtKey(x: number, z: number): string {
@@ -413,6 +418,29 @@ export class World {
       b.right.z * us + b.up.z * vs + b.back.z * w,
     );
     this.sun.position.copy(this.sun.target.position).add(this.sunOffset);
+  }
+
+  /** The underground shadow economy (docs/51 B13): on the dollhouse flip the
+   *  sun's box shrinks to SHADOW_HALF_UNDERGROUND — the open-top cutaway's
+   *  own casters live within ~15 m, so only the street beyond the box edge
+   *  stops paying the shadow pass (measured: PLATFORM_A 166 → 130, the real
+   *  lens 254 → 211, the platform's own shadows bit-identical on the evidence
+   *  frames). Surfacing restores the street half bit-for-bit; the texel
+   *  lattice recomputes (it rides the box size) and the snap coords reset so
+   *  the next follow re-snaps onto the new lattice. */
+  private setUndergroundShadow(under: boolean): void {
+    if (under === this.undergroundShadow) return;
+    this.undergroundShadow = under;
+    const half = shadowHalfFor(under);
+    const cam = this.sun.shadow.camera;
+    cam.left = -half;
+    cam.right = half;
+    cam.top = half;
+    cam.bottom = -half;
+    cam.updateProjectionMatrix();
+    this.sunBasis.texel = (2 * half) / this.sun.shadow.mapSize.x;
+    this.sunU = Number.NaN;
+    this.sunV = Number.NaN;
   }
 
   /** Decorative props a generated .glb (public/models/<id>.glb) may replace. */
@@ -5597,6 +5625,7 @@ export class World {
       this.subway.update(dt, feet, (key) => this.subwayBeats.push(key));
       if (this.subway.underground !== this.dollhouseOn) {
         this.dollhouseOn = this.subway.underground;
+        this.setUndergroundShadow(this.dollhouseOn);
         for (const m of this.terminalShell) m.visible = !this.dollhouseOn;
         // the mass collider rides with the shell: the camera's boom ray-cast
         // sees the cutaway the lens sees, or shortenBoom parks the lens on

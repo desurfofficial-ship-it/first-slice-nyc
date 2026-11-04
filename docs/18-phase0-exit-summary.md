@@ -1,7 +1,15 @@
 # FIRST SLICE — Phase 0 Exit Summary
 
 **Date:** 2026-10-28  
-**Status:** Design work largely complete. Execution phase beginning.
+**Status:** Phase 0 exited; execution is well underway. (2026-11-04 status
+language update, docs/51 B14: this file's "Still Open" list below described
+the exit moment — every item on it has since shipped on `main`. The greybox
+became the full Three.js block, the four tech spikes are all landed and
+probed, the greybox playtest chain grew into the authored four-day E2E, and
+the palette conformance + audio passes shipped with the render passes. Do
+not treat this list as outstanding work; the live phase state is
+[docs/55-phase1-exit-checklist.md](55-phase1-exit-checklist.md) and the
+ledger is [docs/51-open-bugs-for-agents.md](51-open-bugs-for-agents.md).)
 
 ---
 

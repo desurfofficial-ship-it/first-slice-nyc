@@ -104,6 +104,12 @@ const run = await page.evaluate(async () => {
   await sleep(400);
   out.stairY = +p.y.toFixed(2);
   out.underground = g.world.subway.underground;
+  // the underground shadow economy (docs/51 B13): the dollhouse flip must
+  // shrink the sun's box to the platform half — and the follow re-snap must
+  // have re-laid it symmetric (the walk crossed texel cells on the way down)
+  const smc = g.world.sun.shadow.camera;
+  out.shadowHalfUnder = +smc.right.toFixed(3);
+  out.shadowSymmetric = Math.abs(smc.right + smc.left) < 1e-4 && Math.abs(smc.top + smc.bottom) < 1e-4;
 
   // 2. the dollhouse: the terminal mass lifts when underground
   let terminalVisible = null;
@@ -258,6 +264,8 @@ check(run.stairMidY2 < -0.5 && run.stairMidY2 > -2.7, `a mid-stair tread holds (
 check(Math.abs(run.stairY - (-3.2)) < 0.25, `the stair descends to the platform (y ${run.stairY})`);
 check(run.underground === true, 'the underground state flips on');
 check(run.terminalHidden, 'the terminal lifts off (the dollhouse)');
+check(run.shadowHalfUnder === 18, `the underground shadow box shrinks (half ${run.shadowHalfUnder})`);
+check(run.shadowSymmetric, 'the shrunk box stays symmetric on its lattice');
 check(Math.abs(run.platformY - (-3.2)) < 0.05, `the platform floor holds (y ${run.platformY})`);
 check(run.stationLit === true, 'station A lights its zone');
 check(run.priya === true, 'Priya stands her post at the fare bank');

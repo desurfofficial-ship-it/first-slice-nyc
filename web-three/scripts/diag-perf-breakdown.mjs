@@ -57,7 +57,14 @@ const rigs = [
   ['CART_CORNER',    { pos: [10, 2.6, -5.2],   at: [-24, 1.5, -0.5], feet: [4, -6.2, 0.05] }],
   ['SYCAMORE_GABLE', { pos: [56, 2.6, 0.5],    at: [84, 2.2, 8],   feet: [44, 6.2, 0.05] }],
   ['TIMES_SQ',       { pos: [-340, 2.4, -8],   at: [-343, 2, 4],   feet: [-343, 0.1, 0.05] }],
-  ['PLATFORM_A',     { pos: [-40, -2.2, 10.5], at: [-47, -2.5, 15], feet: [-40, -3.2, -3.2] }],
+  // docs/51 B13 rig correction: the old PLATFORM_A feet (x −40, z −3.2,
+  // y −3.2) teleport UNDER the world and physics ejects the capsule to the
+  // surface within a frame — the rig never measured an underground player
+  // (it read a surface player through an underground camera). The feet now
+  // stand on a real platform floor (the fare pocket, probe-subway's own
+  // staging) and the rig camera matches the converged interiorMode lens —
+  // the interiorMode cutaway from above grade, looking at the player.
+  ['PLATFORM_A',     { pos: [-41.6, 3.4, 5.6], at: [-44.6, -1.9, 9.0], feet: [-44.6, 9.0, -3.1] }],
 ];
 
 const out = {};

@@ -686,3 +686,49 @@ Stage Summary:
   full 4-day E2E AUTOTEST OK 0 failures (554 s); probe-shuffle SHUFFLE OK;
   probe-peds PEDS OK; probe-subway ALL PASS; probe-a5h ok; probe-album
   PASS ×4; probe-moments shelf verified.
+
+## 2026-11-04 — agent5: B13's ledger row published + the underground shadow economy landed; B14 closed
+
+The ledger said the Shuffle phase had to publish its perf row ("never silent
+regression") and named two program items for the 150 line. This session
+published the row, took the first program item, and closed B14.
+
+**The phase row, measured and published (docs/51 B13):** the six-walker
+Shuffle crowd rides the six-draw person law — PLAZA 370 → 400, CART_CORNER
+301 → 333, SYCAMORE×GABLE 115 → 128, TIMES_SQ 130 → 130 on the tip. The
+lever (per-figure instancing) is priced and rejected: the rig bakes colors
+per figure, so instancing needs shared vertex colors — the floor stays 6
+draws per person. The row is published, not silent.
+
+**The PLATFORM_A rig was staging-broken — its published numbers are void.**
+The census feet (x −40, z −3.2, y −3.2) teleport UNDER the world; physics
+ejects the capsule to the surface within a frame (measured: y 0, half 35,
+170 calls 700 ms later). Every PLATFORM_A number to date measured a surface
+player through an underground camera. The rig now stands on the fare pocket
+(probe-subway's own staging) with the converged interiorMode lens.
+
+**The underground economy (the "SUB_Root depth" program item):** below
+grade the station is an open-top cutaway whose own casters live within
+~15 m — so the dollhouse flip now shrinks the sun's shadow box to
+SHADOW_HALF_UNDERGROUND = 18 (shadowLaw.ts, applied by
+World.setUndergroundShadow: extents + texel lattice recompute + snap reset).
+Same-pose A/B on the corrected dwell rig: 231 → 186 (−45, −19%). Evidence
+frames (diag-underground-shots, the real lens after an honest stair
+descent): the platform's own shading is unchanged — only the street beyond
+the box edge stops paying. Priced and rejected on the way: sun.castShadow
+kills the dollhouse look by construction; mapSize 1024 saves zero calls.
+Street rigs are untouched (the economy exists only below grade).
+
+**Wired contracts:** tests/shadow-law.test.ts (the numbers +
+never-widen-below-grade); probe-subway now asserts the descent shrinks the
+box (half 18, symmetric on its lattice).
+
+**B14 closed:** AGENTS.md's header reads "Production — Phase 1 build-out on
+main" (was "Pre-Production … code pending"); docs/18 carries a dated status
+note (its "Still Open" list described the exit moment — all shipped) and
+redirects to docs/55 + the ledger for live state.
+
+Stage Summary:
+- tsc clean; vitest 514/514 (+3 shadow-law); build clean; probe-subway
+  ALL PASS ×2 (with the two new descent checks); ledger rows published in
+  docs/51 B13 + docs/55 §3; rig correction recorded with the eject proof.
