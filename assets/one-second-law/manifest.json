@@ -1,0 +1,116 @@
+{
+  "seed": 20261105,
+  "regen": "npm run build && node scripts/probe-one-second.mjs --seed 20261105",
+  "frames": [
+    {
+      "frame": "osl_01_d3_court_noon.png",
+      "day": 3,
+      "district": "court",
+      "tod": "noon",
+      "at": [
+        43.2,
+        0.1,
+        5
+      ]
+    },
+    {
+      "frame": "osl_02_d4_subway-platform_noon.png",
+      "day": 4,
+      "district": "subway-platform",
+      "tod": "noon",
+      "at": [
+        -329.1,
+        -3.1,
+        13.2
+      ]
+    },
+    {
+      "frame": "osl_03_d1_bodega-front_noon.png",
+      "day": 1,
+      "district": "bodega-front",
+      "tod": "noon",
+      "at": [
+        -27.8,
+        0.1,
+        6.6
+      ]
+    },
+    {
+      "frame": "osl_07_d2_playground_noon.png",
+      "day": 2,
+      "district": "playground",
+      "tod": "noon",
+      "at": [
+        -7,
+        0.1,
+        -26
+      ]
+    },
+    {
+      "frame": "osl_10_d2_laundry-bay_noon.png",
+      "day": 2,
+      "district": "laundry-bay",
+      "tod": "noon",
+      "at": [
+        -6.6,
+        0.05,
+        5.9
+      ]
+    },
+    {
+      "frame": "osl_04_d4_fire-escape_dusk.png",
+      "day": 4,
+      "district": "fire-escape",
+      "tod": "dusk",
+      "at": [
+        9.4,
+        0.05,
+        -7.2
+      ]
+    },
+    {
+      "frame": "osl_05_d1_terminal-bay_dusk.png",
+      "day": 1,
+      "district": "terminal-bay",
+      "tod": "dusk",
+      "at": [
+        -27.65,
+        0.1,
+        4.6
+      ]
+    },
+    {
+      "frame": "osl_06_d3_kestrel-green_dusk.png",
+      "day": 3,
+      "district": "kestrel-green",
+      "tod": "dusk",
+      "at": [
+        18,
+        0.1,
+        30
+      ]
+    },
+    {
+      "frame": "osl_08_d3_gable-street_dusk.png",
+      "day": 3,
+      "district": "gable-street",
+      "tod": "dusk",
+      "at": [
+        0,
+        0.1,
+        40
+      ]
+    },
+    {
+      "frame": "osl_09_d2_plaza-bulletin_dusk.png",
+      "day": 2,
+      "district": "plaza-bulletin",
+      "tod": "dusk",
+      "at": [
+        -37.6,
+        0.05,
+        5.9
+      ]
+    }
+  ]
+}

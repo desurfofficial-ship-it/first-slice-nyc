@@ -145,6 +145,19 @@ node scripts/probe-polish-shots.mjs  # turnstile / ladder / doorway beats
 ```
 Archives live in `web-three/shots/` and `web-three/probe-shots/`.
 
+**Prep landed 2026-11-05 (the randomizer the audit asks for):** the tooling
+above produces authored beats; the audit demands *random* moments. That
+missing tool now exists — `node scripts/probe-one-second.mjs [--seed N]`
+draws 10 seeded-random paused frames stratified across the exact axes this
+item names (10 distinct districts · every day 2–3 frames · noon/dusk 5–5),
+each coordinate a real standable spot harvested from the shipped probes
+(nothing invented), each frame walked a few real steps so the follow cam
+settles like a paused session, HUD dressed to the day (docs/51 B12's law),
+portrait 720×1280. The first draw (seed `20261105`) is committed: the 10
+frames + `manifest.json` + the status note are in `assets/one-second-law/`.
+**The box stays unchecked** — the never-visitor pass is the human half, and
+it has not run.
+
 **The audit itself (manual):** during 3 real sessions, pause at 10 random
 moments (vary day, district, time-of-day — randomize, don't curate). Show
 each frame for 1 second to a never-visitor. Ask: "Where are you?"
