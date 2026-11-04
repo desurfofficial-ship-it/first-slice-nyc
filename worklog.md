@@ -461,3 +461,42 @@ Stage Summary:
 - docs/51 B12 → FIXED with the per-item verdict table; docs/31 header now
   points at the close-out. No probe assertions touched (frames are evidence,
   not gates); no docs/51 links changed.
+
+## agent5 — first-session Doc 02 alignment pass (the walkthrough audit)
+
+The user pinned docs/02-first-session-walkthrough.md as the first session's
+contract. Audited every beat against the build: the driver exchange, Map's
+note, the upside-down Map line, the delivery tutorial, the starter trinity,
+Mr. Idris, the Shuffle note, Priya's window lines + Map's crooked copy, the
+usher's promise line, the busker coin, B-Side Records, cart naming, $87 →
+$112, the gold window payoff, "Lights out, rookie!", the key jingle and the
+"regulars are waiting" postcards — all shipped. Three beats were missing;
+this pass builds them:
+
+- WHO GOT OFF THE BUS (Doc 02 §0:00–2:00): six starter characters
+  (core/starters.ts — Dee/Marisol/Ms. Ada/Booker/Sixto + The Regular, the
+  shipped courier look byte-kept for drivers, probes and old saves). The
+  pick card opens at the film handover, humans only (?pickcard=1 is the
+  harness hatch, ?starter=<id> dresses directly); a pick rebuilds the rig
+  (same boxes — personRig's law), carries the cup, gives Dee her board
+  (Starter_Board), persists as a v1-safe save field that old blobs parse
+  byte-identically (the schema-freeze test caught the first draft).
+- THE SLEEPING NEIGHBOR (Doc 02's opening line): the ride interior now has
+  the passenger in the netted trucker hat asleep against the glass — the
+  real person rig (personRig sit mode) at the shell's dollhouse scale under
+  the 36° cine lens, cap + mesh back + teal patch riding the head pivot,
+  head bowed, a ±6 mm breath in frame(). Half-cropped by the mullion, the
+  way a neighbor is; portrait's narrow cone keeps its clean window.
+- B-SIDE RECORDS' HAND-WRITTEN SIGN (Doc 02 §15:00–20:00): "Back soon. /
+  The city knows when." taped inside the door glass on the SOUTH facade
+  (the first draft taped itself to the building's rear — wallRun's `at`
+  is the wall plane, not the room's near face), hand-drawn underline and
+  two tape strips on the canvas.
+
+Stage Summary:
+- tsc clean; vitest 477/477 (starters.test.ts +8: the pick-card contract,
+  the classic look byte-kept, the save round-trip); build 4xx ms.
+- probe-a5h-first-session.mjs: ?starter=dee wears the pick (board assert),
+  the film handover shows the six-tile card, tapping Dee folds the card and
+  mounts the board, B-Side's sign framed on its facade. a5g re-shot both
+  orientations — the neighbor reads in landscape, portrait stays clean.

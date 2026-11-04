@@ -57,6 +57,9 @@ export class UI {
   private albumEmpty = el<HTMLDivElement>('album-empty');
   private albumClose = el<HTMLButtonElement>('album-close');
   private albumCountBadge = el<HTMLSpanElement>('album-count');
+  // ---- who got off the bus (Doc 02: six starters) ----
+  readonly starterCard = el<HTMLDivElement>('starter-card');
+  private starterChoices = el<HTMLDivElement>('starter-choices');
   // ---- the pocket — one button that opens Map / Album / Sound ----
   // (declared here: the pocket wave wired the behavior but left the
   // properties undeclared — main did not typecheck without these)
@@ -87,6 +90,8 @@ export class UI {
 
   onCineTap: (() => void) | null = null;
   onCineSkip: (() => void) | null = null;
+  /** Doc 02's starter pick — fired with the tapped starter's id. */
+  onStarterPick: ((id: string) => void) | null = null;
 
   constructor() {
     this.nameOk.addEventListener('click', () => this.onNameSubmit?.());
@@ -231,7 +236,8 @@ export class UI {
    *  didn't. Keyboard play never notices. */
   private syncTouchPanels() {
     const panelUp = !this.orderCard.hidden || !this.mapPanel.hidden
-      || !this.postcardPanel.hidden || !this.albumPanel.hidden;
+      || !this.postcardPanel.hidden || !this.albumPanel.hidden
+      || !this.starterCard.hidden;
     this.touchUI.classList.toggle('hidden-when-panel', panelUp);
   }
 
@@ -284,7 +290,8 @@ export class UI {
    *  panels swallow the prompt too: the card owns the counter while open. */
   setPrompt(verb: string | null) {
     if (verb === null || !this.nameBox.hidden || !this.postcardPanel.hidden
-      || !this.orderCard.hidden || !this.mapPanel.hidden || !this.albumPanel.hidden) {
+      || !this.orderCard.hidden || !this.mapPanel.hidden || !this.albumPanel.hidden
+      || !this.starterCard.hidden) {
       this.prompt.hidden = true;
       this.interactBtn.classList.remove('occupied');
       return;
@@ -304,7 +311,8 @@ export class UI {
    *  it waited for (docs/51 B7). */
   private syncPanelOverTouch() {
     const panelOpen = !this.nameBox.hidden || !this.postcardPanel.hidden
-      || !this.orderCard.hidden || !this.mapPanel.hidden || !this.albumPanel.hidden;
+      || !this.orderCard.hidden || !this.mapPanel.hidden || !this.albumPanel.hidden
+      || !this.starterCard.hidden;
     this.touchUI.classList.toggle('hidden-when-panel', panelOpen);
   }
 
@@ -342,6 +350,35 @@ export class UI {
   closeNameBox() {
     this.nameBox.hidden = true;
     this.nameInput.blur();
+    this.syncPanelOverTouch();
+  }
+
+  // ---------------- who got off the bus (Doc 02 six starters) ----------------
+
+  /** The pick card: six tiles, every one safe. Open only for humans on the
+   *  film path; drivers and ?starter= boots apply directly. */
+  showStarterPick(starters: Array<{ id: string; name: string; blurb: string }>) {
+    this.starterChoices.innerHTML = '';
+    for (const s of starters) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'starter-tile';
+      b.dataset.starter = s.id;
+      b.innerHTML = `<span class="starter-name">${escapeHtml(s.name)}</span>`
+        + `<span class="starter-blurb">${escapeHtml(s.blurb)}</span>`;
+      b.addEventListener('click', () => this.onStarterPick?.(s.id));
+      this.starterChoices.appendChild(b);
+    }
+    this.starterCard.hidden = false;
+    this.syncTouchPanels();
+    this.syncPanelOverTouch();
+    this.prompt.hidden = true;
+    this.interactBtn.classList.remove('occupied');
+  }
+
+  closeStarterPick() {
+    this.starterCard.hidden = true;
+    this.syncTouchPanels();
     this.syncPanelOverTouch();
   }
 

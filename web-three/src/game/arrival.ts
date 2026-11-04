@@ -61,6 +61,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { updatePersonAnim, type PersonLook } from '../world/personRig';
 import { Tweens, easeLinear } from '../engine/tweens';
 import { PAL } from '../core/palette';
 import type { UI } from '../ui/UI';
@@ -168,6 +169,9 @@ export interface ArrivalHost {
   player: { capsule: { x: number; y: number; z: number }; rotationY: number };
   playerVisual: THREE.Object3D;
   rosa: THREE.Group;
+  /** The World's person builder — the ride's sleeping neighbor is the real
+   *  rig (personRig sit mode), not a slab stack. */
+  buildPerson(o: PersonLook): THREE.Group;
   /** Game-side handover extras (Map note, checkpoint). */
   onHandover(): void;
 }
@@ -233,6 +237,9 @@ export class ArrivalCinematic {
   private lastPhase: ArrivalPhase = 'off';
   /** The window frame rides WITH the camera — parallax-free interior. */
   private windowFrame: THREE.Group | null = null;
+  /** Doc 02's sleeping neighbor (netted trucker hat): the breath is the
+   *  only motion — a slow rise you barely see, driven in frame(). */
+  private neighborRig: { root: THREE.Group; body: THREE.Group; head: THREE.Group; mode: string } | null = null;
   private disposables: Array<{ dispose(): void }> = [];
   /** Guards the async arrival card against a skip landing mid-fade. */
   private runId = 0;
@@ -280,6 +287,12 @@ export class ArrivalCinematic {
     } else if ((this.machine.phase === 'choice' || this.machine.phase === 'reply') && this.strip) {
       // the bus creeps toward the gate while you talk
       this.strip.position.x -= CREEP_SPEED * dt;
+    }
+    // the neighbor's breath — 1.7 s cycle, ±6 mm, the only motion she has
+    if (this.neighborRig) {
+      const tS = this.machine.elapsed * 1.7;
+      this.neighborRig.root.position.y = -0.34 + Math.sin(tS) * 0.006;
+      this.neighborRig.head.rotation.x = -0.62 + Math.sin(tS) * 0.012;
     }
   }
 
@@ -1044,6 +1057,53 @@ export class ArrivalCinematic {
     lid.position.set(0.21, -APERTURE.y + 0.061, GLASS_Z + 0.06);
     frame.add(lid);
     this.disposables.push(lid.geometry as THREE.BufferGeometry);
+
+    // --- the neighbor: asleep against the glass since Yonkers -------------
+    // Doc 02's opening line, present from frame one. The REAL person rig
+    // (personRig, sit mode) — real shoulders and a bowed head read as a
+    // sleeper where stacked slabs read as cargo. She sits the row ahead at
+    // the window side, back to us: netted trucker hat (the mesh panel is
+    // what you see from behind), head tipped to the glass, a breath you
+    // can barely see. Half-cropped by the mullion, the way a neighbor is.
+    const doze = this.host.buildPerson({
+      jacket: 0xb59a72, pants: 0x5a544e, skin: 0xd9a06b, hair: 0xece5d8, style: 'cap',
+    });  // hair colors the cap — cream, the trucker-hat foam front
+    doze.name = 'Shell_Neighbor';
+    doze.scale.setScalar(0.095); // the shell is a dollhouse bus under a 36°
+                                 // cine lens — the sleeper rides the same scale
+    doze.position.set(0.23, -0.1, -0.42); // half-cropped by the mullion, cap and
+                                          // shoulder over the row-ahead seat back
+    doze.rotation.y = Math.PI; // faces the glass; the camera sees her back
+    const dozeRig = doze.userData.rig as {
+      root: THREE.Group; body: THREE.Group; head: THREE.Group; mode: string;
+    } | undefined;
+    if (dozeRig) {
+      dozeRig.mode = 'sit';
+      updatePersonAnim(doze, 1 / 60, { mode: 'sit' }); // one call bakes the pose
+      dozeRig.head.rotation.x = -0.62; // the bow: crown tipped to the glass
+      dozeRig.body.rotation.x = 0.14;  // the lean into the window
+      // the net back + foam-front patch ride the cap (the cap's own crown
+      // is merged in the head mesh; these two boxes are the tell)
+      const netPanel = new THREE.Mesh(
+        new THREE.BoxGeometry(0.26, 0.075, 0.055),
+        new THREE.MeshLambertMaterial({ color: 0x8a8378, fog: false }),
+      );
+      netPanel.name = 'Neighbor_HatNet';
+      netPanel.position.set(0, 0.185, -0.15);
+      dozeRig.head.add(netPanel);
+      this.disposables.push(netPanel.geometry as THREE.BufferGeometry);
+      const patch = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 0.055, 0.012),
+        this.lambert(0x2a9d8f),
+      );
+      patch.name = 'Neighbor_HatPatch';
+      patch.position.set(0, 0.185, 0.15); // teal logo, foam front
+      dozeRig.head.add(patch);
+      this.disposables.push(patch.geometry as THREE.BufferGeometry);
+      this.neighborRig = dozeRig;
+    }
+    frame.add(doze);
+
     this.windowFrame = frame;
     this.host.cam.camera.add(frame);
 

@@ -5,6 +5,7 @@
  */
 
 import { MAX_DAY, type SaveData } from './Save';
+import { DEFAULT_STARTER } from './starters';
 import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
   D4_WAKE_NOTE, D4_STRANGER_GREET_NOTE, D4_RUSH_DONE_NOTE, D4_MAP_NOTE,
@@ -124,6 +125,9 @@ export class GameState {
   awningConfirm = false;
   rosaChatI = 0;
   cartName = '';
+  /** Doc 02's starter pick — who got off the bus. Cosmetic only: it dresses
+   *  the player rig. Persisted so the face survives the week. */
+  starterId = DEFAULT_STARTER;
   itemsLeft = new Set<string>(['mango', 'coffee', 'bread']);
   rushServed = 0;
   soloServed = 0;
@@ -798,6 +802,7 @@ export class GameState {
       day_complete: this.dayComplete,
       replay: this.replayDay,
       cart_name: this.cartName,
+      starter: this.starterId,
       money: this.money,
       awning: this.awningUp,
       kid_kept: this.kidKept,

@@ -66,6 +66,9 @@ export interface SaveData {
   /** Map copied Priya's two lines badly (docs/51 B11) — the crooked copy
   *  is on page 1. v1-safe: missing reads false. */
   map_priya_lines?: boolean;
+  /** Doc 02's starter pick — who got off the bus. One of core/starters' ids;
+  *  absent/unknown reads as 'classic' (the shipped look). v1-safe. */
+  starter?: string;
 }
 
 export function defaultSave(): SaveData {
@@ -157,6 +160,12 @@ export function parseSave(raw: string | null): SaveData {
     map_slang: strList(d, 'map_slang', 8),
     map_places: strList(d, 'map_places', 12),
     map_priya_lines: bool('map_priya_lines', false),
+    // Doc 02's starter pick — present only when a face was chosen, so a
+    // pre-registry v1 save still parses byte-identically (the schema-freeze
+    // law: absence reads as 'classic' at the read site, not as a new key)
+    ...(typeof d.starter === 'string' && d.starter.length > 0 && d.starter.length <= 40
+      ? { starter: d.starter }
+      : {}),
   };
 }
 

@@ -908,6 +908,11 @@ export const BAKERY_LINES: string[] = [
 /** B-SIDE RECORDS — the Happy-Accident shop (docs/41 §2.9, GDD §4.3): the
  *  listening corner is free; the used bin is $3. */
 export const RECORD_BIN_PRICE = 3;
+/** Doc 02 §15:00–20:00: the door's hand-written sign, the one you read the
+ *  day you exit one stop early. It matters at Week 3. Everything matters at
+ *  Week 3. */
+export const RECORD_SIGN_TOP = 'Back soon.';
+export const RECORD_SIGN_SUB = 'The city knows when.';
 export const RECORD_BIN_OFFER =
   'The used bin knows things \u2014 three dollars and it\u2019s yours. [Space] again to flip through.';
 export const RECORD_BIN_BROKE =
