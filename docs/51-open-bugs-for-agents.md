@@ -582,6 +582,43 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
 - **Status:** OPEN — a feature-sized build (VS-F04's own IN-scope row); it
   needs its own decree and must not be smuggled into a docs pass.
 
+### B17. The Regulars' ledger does not exist — arcs run on day rails and stop at Day 4
+- **The docs' spec (read these, do not re-derive):** Doc 01 System 4.1 (the
+  Regulars as a system: provable history, arcs delivered one beat per
+  session or two, payoffs). Living-world audit §7 rec #4 (the greeting
+  ladder — per-character line tables indexed by authored milestones,
+  counts derived from existing flags, never stored points) and §9's Wait
+  ruling (the existing cast needs counts and routines before the cast
+  grows — Samir/Priya/Mabel wait). docs/33 §4.3 (shifts are authored,
+  flagged, permanent — never random). docs/30 (Day 5 inherits the filed
+  permit; audit rec #1 makes it the delivery band).
+- **What main @ `d3c80a0` actually has — two proto-arcs, no ledger.**
+  Idris: a 4-beat constancy run (D1 `IDRIS_SPAWN_NOTE` → D2
+  `REGULAR_UNLOCKED` + `idris_served` latch → D3/D4 "Third day."/"Fourth
+  day." order reactions) that stops because the days stop. The early shift:
+  two escalating rush lines (D3 "I've been up since four." → D4 "You're
+  part of the commute now.") with no `who:` of her own — a `'rush'` body.
+  The lunch parent: the only count-ladder (`lunchServed` 1/2/3+ lines).
+  Rosa: day-keyed `rosaChatI` tables + window-count lines (2/3/4), not
+  milestone-keyed. The Day-4 rail still says "Day 5 is still being
+  written." (`content.ts` rail line; docs/29's honest wall).
+- **What's missing:** (1) per-character milestone ladders for the corner
+  six; (2) cross-day morning counts where derivation is impossible (one
+  optional v1-safe counter, the Count Law); (3) the D5 step band to deliver
+  beats past the rail; (4) the roster graduation rule (a body becomes a
+  Regular by save-fact + re-greet, not by authorial whim).
+- **The decree:** docs/58-regulars-arc-design.md — the ledger definition,
+  the corner roster (six, named by their proofs), the 3+1 arc shape, the
+  Wait ruling restated, acceptance gates. This entry is the queue marker;
+  the decree is the spec.
+- **Close rule:** docs/58 §9 — all five acceptance gates green on main AND
+  the Day-5 band ships with the roster beats it must carry. The gap-list
+  line then reads "Regulars ledger v0 — shipped; new cast waits for the
+  Day-5 loop's return signal."
+- **Status:** OPEN — a feature-sized build riding the Day-5 band; design
+  is done, the build is its own wave and must not be smuggled into a docs
+  pass.
+
 ---
 
 ## Verification gates (after any fix)

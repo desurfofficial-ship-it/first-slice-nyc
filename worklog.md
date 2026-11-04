@@ -546,3 +546,52 @@ Work Log:
 
 Stage Summary:
 - tsc clean; vitest 476/476; E2E AUTOTEST OK 0 failures idle (380 s) and under load (553 s, ×4.00 budgets). The flake is closed, not recorded. Gap list: Regulars arcs beyond Day 4 (design), audio outreach (business), touch hardening on real devices.
+
+Task ID: 9
+Agent: Z.ai (GLM)
+Task: Design the Regulars arc beyond Day 4 — the top unclaimed gap item, design-first per the gap list.
+
+Work Log:
+- Synced main to origin/main `d3c80a0` (the slow-machine law + B16 verdict +
+  phase-1 playtest plan had landed since the last round); tree clean, gates
+  re-run: tsc clean, vitest 476/476.
+- Read the design corpus before designing: docs/01 System 4.1 (the GDD's
+  Regulars law), docs/06 PRD-4 (phase-2 first wave: Rosa, Idris, Priya,
+  Samir, Mabel, Mrs. Chen), docs/07's scope cut ("Idris's two sugars hook
+  only"), docs/33 §4 (people law: shifts authored/flagged/permanent), the
+  living-world audit §7 rec #1 + rec #4 and §9's Wait ruling, docs/30 (the
+  permit as Day 5's inheritance), Save.ts v1-safe optional-field pattern.
+- **The finding: main already runs two proto-arcs.** Idris has a 4-beat
+  constancy run (D1 spawn note → D2 REGULAR_UNLOCKED + idris_served latch →
+  D3 "Third day. Same cup." → D4 "Fourth day.") that stops only because the
+  days stop. The early shift has two escalating rush lines (D3 → D4, "You're
+  part of the commute now.") with no `who:` of her own. The lunch parent is
+  the only count-ladder (`lunchServed` 1/2/3+). Rosa's tables are day-keyed,
+  not milestone-keyed. So the gap was never "no Regulars" — it's no ledger.
+- Landed **docs/58-regulars-arc-design.md** (design decree, zero src/):
+  the ledger definition (provable history / greeting ladder / arc beats /
+  kept-mark — all four exist in pieces on main); the **Count Law** (counts
+  derived from flags+days where honest; one optional clamped v1-safe
+  counter when not; the player never sees a number, they hear "fourth
+  day"); the corner roster — six people named by their proofs (Idris, Rosa,
+  the kid, Sal, the stranger, the early shift) with beats beyond Day 4 and
+  kept-mark payoffs; the **3+1 arc shape** (hook → shift → sixth morning →
+  kept-mark) riding the audit's Day-5 permit band; the Wait ruling restated
+  (new named cast and the 6–10 beat form stay phase 2); laws check; five
+  acceptance gates (ladder pins, Count Law determinism pin, permanence pin,
+  E2E beat, no-smuggling pin); close rule; three open questions for the
+  lead (D5 sequencing, the early shift's name deliberately unpicked —
+  Feelings-First, the kid's double kept-mark).
+- Filed **B17** in docs/51 (the queue agents actually read): "The Regulars'
+  ledger does not exist — arcs run on day rails and stop at Day 4", with
+  the doc-sourced spec, current-main evidence, close rule pointing at
+  docs/58 §9. docs/58 numbered 58 deliberately: docs/55+docs/56 reserve
+  `docs/57-` for the first playtest results analysis.
+
+Stage Summary:
+- Docs only — zero src/ changes. tsc clean; vitest 476/476 on the tree the
+  decree was written against. E2E run before push (docs-only round, gates
+  still run per protocol). Gap list: Regulars ledger BUILD (the wave,
+  riding Day 5 per audit rec #1), audio outreach (business), touch
+  hardening on real devices. The design debt is paid; the build debt is
+  filed as B17 and now has a spec to build against.
