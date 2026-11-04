@@ -7,7 +7,7 @@
 
 import * as THREE from 'three';
 import { describe, it, expect } from 'vitest';
-import { buildArticulatedPerson, updatePersonAnim, personMaterial, type PersonRig } from '../src/world/personRig';
+import { buildArticulatedPerson, updatePersonAnim, personMaterial, PERSON_SHADOW_LAYER, type PersonRig } from '../src/world/personRig';
 
 const make = (style: 'bun' | 'cap' | 'flat' = 'flat') =>
   buildArticulatedPerson({ jacket: 0xf7b32b, pants: 0x3a3440, skin: 0xd9a06b, hair: 0x3a3440, style });
@@ -44,7 +44,7 @@ describe('draw-call merge (docs/47 lever 3, the cast bake)', () => {
     expect(rig.head.children.length).toBe(1);
     const meshes: THREE.Mesh[] = [];
     group.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
-    expect(meshes.length).toBe(6); // hipL hipR armL armR body head
+    expect(meshes.length).toBe(7); // hipL hipR armL armR body head + 1 shadow proxy
   });
 
   it('colors ride vertex attributes; every figure shares one material', () => {
@@ -202,5 +202,48 @@ describe('teleports', () => {
     updatePersonAnim(group, 1 / 60);
     // smoothing caps the effort — swing stays under the full-walk amplitude
     expect(Math.abs(rig.hipL.rotation.x)).toBeLessThan(0.62);
+  });
+});
+
+describe('shadow proxy (docs/51 B13, the shadow economy)', () => {
+  const meshesOf = (group: THREE.Group) => {
+    const out: THREE.Mesh[] = [];
+    group.traverse((o) => { if ((o as THREE.Mesh).isMesh) out.push(o as THREE.Mesh); });
+    return out;
+  };
+
+  it('exactly ONE caster per figure — the proxy, on the shadow layer only', () => {
+    const { group, rig } = make('cap');
+    const casters = meshesOf(group).filter((m) => m.castShadow);
+    expect(casters.length).toBe(1);
+    const proxy = casters[0];
+    // the main camera (layer 0) can never draw the proxy; only the sun's
+    // shadow camera, which World's boot enables PERSON_SHADOW_LAYER on
+    const mainEye = new THREE.Layers();
+    expect(proxy.layers.test(mainEye)).toBe(false);
+    const sunEye = new THREE.Layers();
+    sunEye.enable(PERSON_SHADOW_LAYER);
+    expect(proxy.layers.test(sunEye)).toBe(true);
+    // it rides `root` — sit/climb's sink and lean move the shadow with the body
+    expect(rig.root.children).toContain(proxy);
+  });
+
+  it('the six articulated meshes stopped casting (the proxy speaks for them)', () => {
+    const { group } = make('bun');
+    for (const m of meshesOf(group).filter((m) => !m.castShadow)) {
+      expect(m.castShadow).toBe(false);
+    }
+    // and the material contract still holds: every mesh is the shared bake
+    for (const m of meshesOf(group)) expect(m.material).toBe(personMaterial);
+  });
+
+  it('proxy silhouette: feet at 0, standing height ~1.7, merge food for personMaterial', () => {
+    const { group } = make('flat');
+    const proxy = meshesOf(group).find((m) => m.castShadow)!;
+    proxy.geometry.computeBoundingBox();
+    expect(proxy.geometry.boundingBox!.min.y).toBeCloseTo(0, 1);
+    expect(proxy.geometry.boundingBox!.max.y).toBeGreaterThan(1.6);
+    expect(proxy.geometry.boundingBox!.max.y).toBeLessThan(1.95);
+    expect(proxy.geometry.attributes.color).toBeDefined(); // personMaterial is vertexColors
   });
 });

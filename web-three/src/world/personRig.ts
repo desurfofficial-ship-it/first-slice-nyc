@@ -38,6 +38,11 @@
  * Optional look fields dress the SAME boxes (no new geometry families):
  * shoe color, a messenger strap (player), a shawl (Rosa), glasses (Idris,
  * Sal) and a whole-body scale for pedestrian height variety.
+ *
+ * Shadow economy (docs/51 B13): the six articulated meshes never cast —
+ * one standing-silhouette proxy on PERSON_SHADOW_LAYER casts for the whole
+ * figure, so the sun's pass draws 1 mesh per person instead of 6 (measured
+ * at the gate rigs: Pedestrians shadow draws 48 → 9 at PLAZA).
  */
 
 import * as THREE from 'three';
@@ -51,7 +56,16 @@ import { PAL } from '../core/palette';
  *  Lambert. Lambert's diffuse math is untouched — part color × 1 became
  *  white × part color, the same product bit-for-bit (the vertex bake
  *  proved this on the statics; here it pays the same dividend: a figure
- *  costs 6 draw calls, not 12, in BOTH the main and the shadow pass). */
+ *  costs 6 draw calls, not 12, in the main pass — and ONE in the shadow
+ *  pass, via the proxy below). */
+
+/** The shadow-proxy layer. Every figure's shadow rides ONE merged standing
+ *  silhouette that lives ONLY on this layer: the main camera (layer 0) can
+ *  never draw it, and the sun's shadow camera enables it in World's boot
+ *  (docs/51 B13 — the shadow pass pays 1 draw per figure, not 6; the eye
+ *  keeps the full articulated walk). WebGLShadowMap tests every caster
+ *  against the shadow camera's own layers, so this is the whole contract. */
+export const PERSON_SHADOW_LAYER = 1;
 export const personMaterial = new THREE.MeshLambertMaterial({
   color: 0xffffff,
   vertexColors: true,
@@ -83,9 +97,27 @@ function mergedMesh(
     g.translate(x, y, z);
     return g;
   });
+  // NOTE: no castShadow here — the articulated meshes stopped casting when
+  // the shadow proxy took over (the proxy is the figure's only caster).
   const mesh = new THREE.Mesh(mergeGeometries(geos, false)!, personMaterial);
-  mesh.castShadow = true;
   return mesh;
+}
+
+/** The one shared silhouette: a standing figure's shadow footprint (legs
+ *  column, torso, arms at rest, head) — ~50 tris, built once, reused by
+ *  every figure on the block. Feet at y=0, ~1.7 m tall, facing +Z. */
+let proxyGeo: THREE.BufferGeometry | null = null;
+function shadowProxyGeometry(): THREE.BufferGeometry {
+  if (proxyGeo) return proxyGeo;
+  const boxes: Array<[THREE.BufferGeometry, number, number, number]> = [
+    [new THREE.BoxGeometry(0.36, 0.78, 0.2), 0, 0.36, 0.03],   // both legs + boots
+    [new THREE.BoxGeometry(0.5, 0.62, 0.3), 0, 1.03, 0],       // torso
+    [new THREE.BoxGeometry(0.11, 0.55, 0.14), -0.325, 1.03, 0], // armL at rest
+    [new THREE.BoxGeometry(0.11, 0.55, 0.14), 0.325, 1.03, 0],  // armR at rest
+    [new THREE.BoxGeometry(0.32, 0.36, 0.3), 0, 1.53, -0.01],  // head + hair
+  ];
+  proxyGeo = mergeGeometries(boxes.map(([geo, x, y, z]) => colored(geo, 0xffffff).translate(x, y, z)), false)!;
+  return proxyGeo;
 }
 
 export interface PersonRig {
@@ -243,6 +275,15 @@ export function buildArticulatedPerson(o: PersonLook): { group: THREE.Group; rig
   }
   body.add(mergedMesh(bodyParts));
   root.add(body);
+
+  // the shadow proxy rides `root` (not `group`): sit/climb sink and lean
+  // move the shadow with the body, and the group's whole-figure scale still
+  // applies. castShadow on, PERSON_SHADOW_LAYER only — the eye pass and
+  // every postcard camera (layer 0) never see it.
+  const proxy = new THREE.Mesh(shadowProxyGeometry(), personMaterial);
+  proxy.castShadow = true;
+  proxy.layers.set(PERSON_SHADOW_LAYER);
+  root.add(proxy);
 
   const rig = attachRig(group, { root, body, hipL, hipR, armL, armR, head });
   return { group, rig };

@@ -606,6 +606,31 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   only exists below grade). Verified: tsc clean, vitest 514/514, build
   clean, probe-subway ALL PASS ×2 (with the two new checks).
 
+- **Update 2026-11-05 (the shadow economy, second half — the figure proxy,
+  4346d10+this):** the upgraded x-ray (`diag-rig-xray.mjs`, real frustum
+  attribution now — main and sun planes separately) showed the gate rigs'
+  real composition: the census's scary TOP owners (SUB_Root 186, TSS_Group
+  93, INT_* ~149) are fully frustum-culled at the rigs; PLAZA's 400 was
+  main ~241 + **shadow 155**, and the shadow pass was drawing every
+  figure's six meshes even when the rig was behind the eye. The move: one
+  merged standing-silhouette proxy per figure (~50 tris, shared geometry)
+  on `PERSON_SHADOW_LAYER` (layer 1) — `castShadow` on, the six articulated
+  meshes stop casting, World's boot enables the layer on the sun's shadow
+  camera (the whole contract; WebGLShadowMap tests casters against the
+  shadow camera's layers). The eye keeps the full walk; postcards never see
+  the proxy. **The row: PLAZA 400 → 334, CART_CORNER 333 → 261,
+  SYCAMORE×GABLE 129 → 94, TIMES_SQ 130 → 52, PLATFORM_A 146 → 114** —
+  every rig under its previous ledger; the square and the platform are
+  now UNDER the 150 line; Kestrel's street rigs stay published FAIL
+  (334 / 261). Shadow pass at PLAZA 155 → 96 (every figure exactly 1
+  draw). Evidence: `shots/b13-shadow-proxy-plaza.png` (crowd shadows
+  readable at the plaza rig, golden-hour length). The remainder is priced
+  per class in docs/47's entry (crowd law 45–54, named cast ~21, GLB
+  vehicles ~31, wildlife ~21, shadow-pass statics ~60, the named-tail
+  programs ~150); the 150 line still needs those programs, not a lever.
+  Verified: tsc clean, vitest 526/526, build clean, probe-subway ALL
+  PASS, probe-solid ALL CLEAN, E2E 0 failures (413 s, 320×700).
+
 ### B14. Documentation hygiene — FIXED 2026-11-03
 - **Was:** AGENTS.md read "Pre-Production, docs-complete, code pending — do
   not scaffold game code before Phase 0 exit is signed" weeks after

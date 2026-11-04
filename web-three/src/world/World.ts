@@ -18,7 +18,7 @@ import {
   PARKED_CAR_RECTS, parkedCarRect, BUS_BODY, BUS_BAY_ID, KESTREL_COURTESY_ZONES,
   type BusZone, type LegCoords,
 } from '../engine/busRoute';
-import { buildArticulatedPerson, updatePersonAnim } from './personRig';
+import { buildArticulatedPerson, updatePersonAnim, PERSON_SHADOW_LAYER } from './personRig';
 import { SHADOW_HALF, shadowHalfFor } from './shadowLaw';
 import { glassSideVisible, type GlassFace } from './interiorGlass';
 import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecycleBin, makeHydrant,
@@ -517,6 +517,11 @@ export class World {
     this.sun.shadow.camera.updateProjectionMatrix();
     this.sun.shadow.bias = -0.0002;
     this.sun.shadow.normalBias = 0.03; // large flat walls — kill shadow acne crawl
+    // the shadow economy's second half (docs/51 B13): the sun's pass also
+    // sees the person shadow-proxy layer, where every figure's ONE merged
+    // silhouette lives (personRig). Without this the proxies would be
+    // invisible to the shadow camera and every human would lose their shadow.
+    this.sun.shadow.camera.layers.enable(PERSON_SHADOW_LAYER);
     scene.add(this.sun);
     scene.add(this.sun.target);
     // the follow lattice (the basis Object3D.lookAt builds: back = toward the

@@ -206,7 +206,7 @@ maps the epics; this maps the code.
 | F07 | Subway University ride | `src/world/subway/` (`index.ts`, `ride.ts`, `trainKit.ts`, `stationKit.ts`, `zone.ts`), `src/game/interactionDefs.ts` (priya) | `tests/subway.test.ts` (incl. diagram-beat laws, B11); `probe-subway.mjs`; `probe-subway-mobile.mjs` (390×844 touch) | Guided ride, two-line teach drawn on the window, Map's crooked copy latched to the save |
 | F08 | Skyline of Lit Windows v1 | `src/world/World.ts` (`goldWindowMat`, `skylineWinMat`, diary windows), `src/world/dressing.ts` (`skylineWindowMask`, `SKYLINE_WARMTH`) | `tests/skyline.test.ts`; `probe-skyline.mjs` | One gold window + the seeded warm panes beyond it; diary windows day-keyed |
 | F09 | Cast of 5 + crowd | `src/game/interactionDefs.ts` (rosa, idris, priya, kid, usher), `src/world/peds.ts`, `src/world/personRig.ts` | `tests/crowd.test.ts`; `probe-characters.mjs` (idle / stride / close-ups, mobile portrait), `probe-a5f-meet-flow.mjs`, `probe-kid2.mjs`, `probe-kidfollow.mjs` | All five exist with interactions; ambient walkers are bodies (probe-solid) |
-| F10 | Performance & polish | `src/game/Game.ts` (renderer), `src/camera/GameCamera.ts` | `probe-perf.mjs`, `diag-perf-breakdown.mjs`, `probe-shadow-cost.mjs`, `probe-scene-census.mjs`, `probe-w0-census.mjs` | Ledger rule: no phase ships above the previous ledger. Kestrel still over 150 — B13, open |
+| F10 | Performance & polish | `src/game/Game.ts` (renderer), `src/camera/GameCamera.ts`, `src/world/personRig.ts` (the figure shadow proxy) | `probe-perf.mjs`, `diag-perf-breakdown.mjs`, `probe-shadow-cost.mjs`, `probe-scene-census.mjs`, `probe-w0-census.mjs`, `diag-rig-xray.mjs` (real frustum attribution) | Ledger rule: no phase ships above the previous ledger. Latest row: PLAZA 334 / CART_CORNER 261 / SYCAMORE 94 / TIMES_SQ 52 / PLATFORM_A 114 — every rig under its previous ledger; Kestrel's street rigs still over 150 — B13, open, priced per class in docs/51 |
 
 All probes run against `web-three/dist/` — `npm run build` first, always.
 
@@ -239,20 +239,27 @@ updated, see docs/51.)
   on the fixed rigs (PLAZA, CART_CORNER, SYCAMORE×GABLE, TIMES_SQ,
   PLATFORM_A — the platform rig's staging was corrected 2026-11-04, see
   docs/51 B13: the old feet ejected the capsule; the numbers are void).
-- **Where it stands (2026-11-04):** the B16 Shuffle phase's row is
-  published (PLAZA 400, CART_CORNER 333, SYCAMORE 128, TIMES_SQ 130 — the
-  felt crowd's six-draw law, lever priced and rejected); the underground
-  economy program item is landed (the dollhouse flip shrinks the sun's box
-  to 18 — the corrected dwell rig 231 → 186, `shadowLaw.ts` +
-  `tests/shadow-law.test.ts` + probe-subway's wired checks); and the last
-  named program — interiors' window visibility — is landed (the glass-side
-  law, `src/world/interiorGlass.ts`: the fit-out shows near a shell only
-  through the room's own window runs; wrong side −30 calls at the hall
-  east yard, the five ledger rigs bit-identical, see docs/51 B13). The
-  named frontier is exhausted; the street 150 line still reads FAIL
-  against the priced composition (the dusk shadow pass, the six-draw cast
-  law, the felt crowd, the baked tiles — every remaining lever already
-  rejected with numbers), and closing B13 against it is the owner's call.
+- **Where it stands (2026-11-05):** the B16 Shuffle phase's row is
+  published (the felt crowd's six-draw law, lever priced and rejected);
+  the underground economy program item is landed (the dollhouse flip
+  shrinks the sun's box to 18 — the corrected dwell rig 231 → 186,
+  `shadowLaw.ts` + `tests/shadow-law.test.ts` + probe-subway's wired
+  checks); the last named program — interiors' window visibility — is
+  landed (the glass-side law, `src/world/interiorGlass.ts`: the fit-out
+  shows near a shell only through the room's own window runs; wrong side
+  −30 calls at the hall east yard, the five ledger rigs bit-identical,
+  see docs/51 B13); and the figure shadow-proxy is landed (docs/51 B13,
+  2026-11-05): every person pays ONE shadow draw instead of six —
+  **PLAZA 334, CART_CORNER 261, SYCAMORE 94, TIMES_SQ 52 (under the
+  150 line), PLATFORM_A 114**. The street 150 line still reads FAIL
+  against the priced composition, now measured per class by the
+  rewritten `diag-rig-xray.mjs` (real main/shadow frustum attribution):
+  the felt crowd's six-draw main law (~45–54), the named cast (~21),
+  GLB vehicles (~31), instanced wildlife (~21), the shadow pass's
+  static share (~60), and the named 1-draw static tail (~150 — animated
+  windows, diary panes, transparent glass, dollhouse groups, each
+  excluded from the static bake for a written reason). Closing B13
+  against that composition is the owner's call.
 - **Pass rule:** Kestrel ≤ 150 on the ledger rig, or a published honest
   ledger row with the phase's before/after — never silent regression.
 - **Owner:** __

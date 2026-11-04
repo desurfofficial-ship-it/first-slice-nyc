@@ -1789,3 +1789,57 @@ probe-w0-census (ledger above) · **E2E: OK — 0 failures, 402 s**, console
 clean (E2E_W=320 E2E_H=700). New diagnostics committed:
 `diag-xray2.mjs`, `diag-flat-dump.mjs`, `diag-atlas-shot.mjs`.
 docs/51 B13 carries this update.
+
+## 2026-11-05 — the shadow economy, second half: every figure pays ONE shadow draw (docs/51 B13)
+
+**The diagnosis that found it.** The old x-ray listed owners without
+frustum tests, so its rows were the same at every rig — upgraded
+`diag-rig-xray.mjs` to real attribution (Gribb-Hartmann planes from the
+live camera against geometry bounding spheres, main frustum and the sun's
+shadow frustum separately, per top-level owner). First honest reading:
+the census's scary TOP owners (SUB_Root 186, TSS_Group 93, INT_* ~149)
+are entirely frustum-culled at the gate rigs; the real PLAZA 400 was
+**main 241 + shadow 155**, and the shadow pass drew every figure twice —
+nine walkers × 6 meshes casting even when their rig was behind the eye.
+
+**The move.** `personRig.ts` now ships every figure with a shadow proxy:
+one merged standing silhouette (~50 tris, module-singleton geometry) on
+`PERSON_SHADOW_LAYER` (layer 1), `castShadow = true`, hung off `root` so
+sit/climb sink and lean move the shadow with the body. The six articulated
+meshes stopped casting — the eye pass keeps the full walk, the sun's pass
+pays 1 mesh per person. The whole contract is two lines: WebGLShadowMap
+tests casters against the shadow camera's own layers (three r186,
+WebGLShadowMap.js L522), and World's boot enables the layer on the sun
+(`this.sun.shadow.camera.layers.enable(PERSON_SHADOW_LAYER)`). Postcard
+and eye cameras are layer 0 and can never see the proxies.
+
+**The numbers, honestly.** probe-w0-census, fresh dist, same rigs:
+PLAZA **400 → 334** (−66), CART_CORNER **333 → 261** (−72),
+SYCAMORE×GABLE **129 → 94** (−35), and the two rigs diag-perf-breakdown
+publishes: TIMES_SQ **130 → 52**, PLATFORM_A **146 → 114**. Every rig
+under its previous ledger at every step; the Kestrel gate line stays
+published FAIL (334 > 150, CART_CORNER 261 > 250). Shadow-pass
+composition at PLAZA fell 155 → 96; every figure now costs exactly 1
+shadow draw (Pedestrians 9, Rosa/Sal/driver/Player 1 each). Evidence
+frame with the crowd's shadows readable at the plaza rig:
+`web-three/shots/b13-shadow-proxy-plaza.png`.
+
+**What remains, priced by the new x-ray** (PLAZA 334 = main ~240 +
+shadow ~96): the felt crowd's six-draw main-pass law (45–54 — B16
+priced and rejected again), the named cast (Rosa/Sal/driver/Player
+~21), GLB vehicles at 5–7 draws each (~31 across both passes), instanced
+wildlife/canopy (~21), the dusk shadow pass's static share (~60), and
+the long tail of named 1-draw statics (~150: animated windows, diary
+panes, transparent glass, dollhouse groups — each excluded from the
+static bake for a written reason in World's NAMED_SKIP / transparent /
+mapped gates). The 150 line still needs those programs, not a lever;
+the x-ray now prices each class per rig so the next cut lands on data.
+
+**Verification**: tsc clean · vitest **526/526** (+3 shadow-proxy guards:
+exactly one caster per figure on the shadow layer only, the six
+articulated meshes stopped casting, proxy silhouette feet-at-0 ~1.7 m
+with merge food for personMaterial; the bus driver's count rode along)
+· build clean · probe-subway ALL PASS · probe-solid ALL CLEAN ·
+**E2E: OK — 0 failures, 413 s**, console clean (E2E_W=320 E2E_H=700).
+New diagnostics: `diag-rig-xray.mjs` (rewritten), `diag-proxy-shot.mjs`.
+docs/51 B13 and docs/55 carry this update.
