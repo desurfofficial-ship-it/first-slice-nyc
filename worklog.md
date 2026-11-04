@@ -649,3 +649,150 @@ Stage Summary:
   #1), audio outreach (business), touch hardening on real devices, the
   one-shot-pace E2E shape above. The design debt is paid; the build debt
   is filed as B17 and now has a spec to build against.
+
+## 2026-11-04 — agent2: the Shuffle builds — the walk to the stairs carries a crowd (docs/51 B16)
+
+The decree: "build it." Docs 01/02/07/08/10/22 had already defined the spec
+(B16's audit pass); the build follows it literally and adds nothing.
+
+The shape of it (zero GameState changes, zero save fields, zero new steps —
+the day machine untouched, the crosswalk untouched):
+- `world/shuffle.ts` — the laws, pure and unit-owned: `brushScan` (a walker
+  whose circle you cross within 1.0 m, cooldown spent, comes back as a hit —
+  the return carries ONLY indices: no fail flag, no score, no counters),
+  `stillTick` (movement resets, standing piles), the zone (x −49..−14,
+  surface-only: descending the stairs leaves the beat), and the
+  `SpeechWisp` — one shared canvas sprite, invisible at rest, so the perf
+  ledger never moves for this.
+- `Game.updateShuffle` renders what the laws return: the wisp hops to
+  whoever just said "Scuse me."; twenty honest game-seconds of standing
+  still mid-stretch surface TBD-3's "The city will wait." once per visit.
+- `World.ts` — the south-side local's loop extends west −34 → −43.5 (their
+  own lane, the walk to the Alder Heights stairs) + a west-end routine beat
+  (pauses to look across at the terminal). ZERO new bodies: bank-shared
+  rigs stay three, the census never moves.
+
+The evidence (all logs in /tmp/fsnyc-shuffle/, screenshots in
+web-three/probe-shots/ — gitignored, the probe regenerates them):
+- tsc clean; vitest 487/487 (29 files — shuffle.test.ts pins 11 laws);
+  build 485 ms.
+- probe-shuffle.mjs SHUFFLE OK, six checks: the stretch walks west end to
+  end down the local's lane (x −43.7); a walker lives on it; a forced brush
+  fires the wisp at opacity 1 (shuffle-wisp.png — the player and a walker
+  by the M121, "Scuse me." clean above them); no fresh show while the
+  contact cools; TBD-3 surfaces the note (shuffle-wait.png).
+- probe-peds PEDS OK (the west lane rides clean); probe-subway ALL PASS;
+  probe-perf before→after IDENTICAL: 165/245/300 draws, same triangles —
+  the B13 ledger law holds.
+- e2e full 4-day: AUTOTEST OK, 0 failures, 533 s, console clean.
+
+Two machine-honesty lessons went into docs/51 B16 for the next probe
+author: software GL runs the game clock at ~0.15–0.3× wall at 900×700 (a
+"20-second" wait is a 60–90-second wall wait — poll with caps, never
+nap-and-assume; probe-subway's batch-tick trick doesn't apply to beats that
+live in the frame loop), and westward walks must track progress as x
+DECREASING (my first guard was an east-walking copy-paste and false-stalled
+the run at −31.5).
+
+## 2026-11-04 — agent5: B16 closed — the Shuffle is built; Day 1 rewritten to Doc 08's final voice
+
+The user's decree was two-fold: finish the first session, then rewrite Day 1
+like docs/08 (the Day-1 content pack). Reading docs/51's books first (the
+house law) put one feature-sized build in the way: B16 — the Shuffle (VS-F04)
+was a stub. So the session built it, then ran the content pass.
+
+**B16, the Shuffle (docs/51 B16 CLOSED):**
+- The crowd: six Shuffle walkers join the block (9 total) — loops on the
+  bodega→plaza stretch of the north walk (lanes z 6.08–6.76, west ends at
+  x −41), seeded deterministic, no street crossings, so the crosswalk law is
+  untouched. Plaza pauses (the bulletin board, the bench, the bodega window)
+  sit off the lanes.
+- The brush law (`brushFires`, pure): contact with a WALKING player (measured
+  pace ≥ 0.45 m/s) is the Shuffle's correct interaction — the walker's paper
+  "'Scuse me." bubble comes up over their head (2.2 s hold, fade), one brush
+  per meeting (4 s cooldown). The event payload is who/where — no fail state
+  exists to lose to. The orchestrator drains the queue every frame; nothing
+  counts, nothing accumulates.
+- TBD-3 (Doc 07): 20 s standing still INSIDE the Shuffle stretch
+  (`SHUFFLE_STRETCH` + `cityWillWaitFires`, pure) offers "The city will
+  wait." — once per standstill episode, moving re-arms; sightseeing outside
+  the stretch is a right. Times Square needs no gate (it never had one).
+- Evidence: tests/shuffle.test.ts (17 — brush law, no-fail payload law,
+  one-brush-per-meeting against a REAL Pedestrians, soft-skip, stretch
+  bounds); probe-shuffle.mjs walks the stretch, presses through the crowd,
+  captures the bubble mid-hold (SHUFFLE OK — money/step unchanged, TBD-3
+  lands, no gate west). probe-peds re-run green.
+
+**Day 1 rewritten to Doc 08 (the content pack):**
+- Map notes: #5 (the crooked copy) now written into the notebook at the
+  map-copies beat; #6 ("Trains are stubborn in a loyal way…") rides the
+  first ride-end. #1–4, #7–11 were already in the book verbatim.
+- Postcard 1 (Times Square) and the Day-1 close card now carry Doc 08's
+  exact lines (the wow card drops its own ledger-voice; the paper still
+  signs itself in the stamp block).
+- NEW — the four moment cards (P2 THE RUSH, P3 THE HATS, P4 THE FOLD,
+  P5 YOUR CORNER): real captures at their moments (rush end; the fire-escape
+  look-up where note #7 lives; the bagel serve; the naming), filed straight
+  to the album — no panel, no freeze, no story move; the first postcard
+  stays the one that simply happens to you. AlbumEntry grew an optional
+  shelf `tag` (v1-safe: absent reads as the kind's default; wrong shapes
+  fall out, never reject the card). Poses verified on the shelf by
+  probe-moments.mjs (the storefront, the doorway frame-in-frame, the tank
+  against the dusk sky, the named cart across the corner).
+- The e2e's album rails now count the day honestly: day 1's shelf holds
+  five (4 moment cards + the kept day card), day 2's join makes six.
+  probe-album.mjs had gone stale with the pocket wave (it clicked
+  #btn-album without opening the Pocket) — it failed on CLEAN main too;
+  fixed to its own openPocket law and green again.
+
+Stage Summary:
+- tsc clean; vitest 511/511 (+17 shuffle, +5 moment/tag laws); build clean;
+  full 4-day E2E AUTOTEST OK 0 failures (554 s); probe-shuffle SHUFFLE OK;
+  probe-peds PEDS OK; probe-subway ALL PASS; probe-a5h ok; probe-album
+  PASS ×4; probe-moments shelf verified.
+
+## 2026-11-04 — agent5: B13's ledger row published + the underground shadow economy landed; B14 closed
+
+The ledger said the Shuffle phase had to publish its perf row ("never silent
+regression") and named two program items for the 150 line. This session
+published the row, took the first program item, and closed B14.
+
+**The phase row, measured and published (docs/51 B13):** the six-walker
+Shuffle crowd rides the six-draw person law — PLAZA 370 → 400, CART_CORNER
+301 → 333, SYCAMORE×GABLE 115 → 128, TIMES_SQ 130 → 130 on the tip. The
+lever (per-figure instancing) is priced and rejected: the rig bakes colors
+per figure, so instancing needs shared vertex colors — the floor stays 6
+draws per person. The row is published, not silent.
+
+**The PLATFORM_A rig was staging-broken — its published numbers are void.**
+The census feet (x −40, z −3.2, y −3.2) teleport UNDER the world; physics
+ejects the capsule to the surface within a frame (measured: y 0, half 35,
+170 calls 700 ms later). Every PLATFORM_A number to date measured a surface
+player through an underground camera. The rig now stands on the fare pocket
+(probe-subway's own staging) with the converged interiorMode lens.
+
+**The underground economy (the "SUB_Root depth" program item):** below
+grade the station is an open-top cutaway whose own casters live within
+~15 m — so the dollhouse flip now shrinks the sun's shadow box to
+SHADOW_HALF_UNDERGROUND = 18 (shadowLaw.ts, applied by
+World.setUndergroundShadow: extents + texel lattice recompute + snap reset).
+Same-pose A/B on the corrected dwell rig: 231 → 186 (−45, −19%). Evidence
+frames (diag-underground-shots, the real lens after an honest stair
+descent): the platform's own shading is unchanged — only the street beyond
+the box edge stops paying. Priced and rejected on the way: sun.castShadow
+kills the dollhouse look by construction; mapSize 1024 saves zero calls.
+Street rigs are untouched (the economy exists only below grade).
+
+**Wired contracts:** tests/shadow-law.test.ts (the numbers +
+never-widen-below-grade); probe-subway now asserts the descent shrinks the
+box (half 18, symmetric on its lattice).
+
+**B14 closed:** AGENTS.md's header reads "Production — Phase 1 build-out on
+main" (was "Pre-Production … code pending"); docs/18 carries a dated status
+note (its "Still Open" list described the exit moment — all shipped) and
+redirects to docs/55 + the ledger for live state.
+
+Stage Summary:
+- tsc clean; vitest 514/514 (+3 shadow-law); build clean; probe-subway
+  ALL PASS ×2 (with the two new descent checks); ledger rows published in
+  docs/51 B13 + docs/55 §3; rig correction recorded with the eject proof.

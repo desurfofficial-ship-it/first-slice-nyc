@@ -19,6 +19,7 @@ import {
   type BusZone, type LegCoords,
 } from '../engine/busRoute';
 import { buildArticulatedPerson, updatePersonAnim } from './personRig';
+import { SHADOW_HALF, shadowHalfFor } from './shadowLaw';
 import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecycleBin, makeHydrant,
   makeSubwayEntrance, makeBulletinBoard, makeBench, makeBusStop, makeNewspaperBoxes, makeBarrier,
   makeACUnit, makeBrownstoneStoop, makeStorefront, makeStool, makeVan,
@@ -261,11 +262,25 @@ export class World {
     return this.peds ? this.peds.bodies() : [];
   }
 
+  /** The frame's Shuffle brushes (docs/51 B16) and clears the batch. The
+   *  walkers already said their "'Scuse me." in-world (the bubble rides
+   *  peds.update); the orchestrator drains so the queue never grows —
+   *  brushing is a correct interaction, nothing to count, nothing to lose. */
+  drainBrushes(): Array<{ i: number; x: number; z: number }> {
+    return this.peds ? this.peds.drainBrushes() : [];
+  }
+
   /** Live position of ambient walker `i` — the interaction registry's walker
    *  conversations read this every frame (Doc 37 §3B: moving NPCs stay live).
    *  Out of range → parked below the world (the y-band excludes it). */
   walkerPos(i: number): { x: number; y: number; z: number } {
     return this.peds ? this.peds.bodyAt(i) : { x: 0, y: -100, z: 0 };
+  }
+
+  /** How many ambient walkers exist — the shuffle's brush slots ride this
+   *  (docs/51 B16: one cooldown per walker, sized once per frame). */
+  walkerCount(): number {
+    return this.peds ? this.peds.walkColliders.length : 0;
   }
 
   private steamPoints: THREE.Points;
@@ -309,7 +324,9 @@ export class World {
   // the ones the player actually stands in, keep their exact texels; casters
   // beyond the box edge no longer render into the map, which is the recorded
   // art trade (long dusk shadows fade out ~SHADOW_HALF m from the player).
-  private static readonly SHADOW_HALF = 35;
+  // Below grade the box shrinks to the underground economy's half (see
+  // shadowLaw.ts) — setUndergroundShadow applies it on the dollhouse flip.
+  private static readonly SHADOW_HALF = SHADOW_HALF;
   /** The authored light offset (position − target): the reference's rotation
    *  (-28, -60). The follow moves BOTH poles by the same snapped delta, so
    *  the light direction never changes by a thousandth of a degree. */
@@ -329,6 +346,8 @@ export class World {
   /** The lattice coords the shadow box last snapped to (skip redundant writes). */
   private sunU = Number.NaN;
   private sunV = Number.NaN;
+  /** The underground economy's current state (skip redundant shadow writes). */
+  private undergroundShadow = false;
 
   /** A baked mesh's district from its world position (mesh center). */
   private static districtKey(x: number, z: number): string {
@@ -399,6 +418,29 @@ export class World {
       b.right.z * us + b.up.z * vs + b.back.z * w,
     );
     this.sun.position.copy(this.sun.target.position).add(this.sunOffset);
+  }
+
+  /** The underground shadow economy (docs/51 B13): on the dollhouse flip the
+   *  sun's box shrinks to SHADOW_HALF_UNDERGROUND — the open-top cutaway's
+   *  own casters live within ~15 m, so only the street beyond the box edge
+   *  stops paying the shadow pass (measured: PLATFORM_A 166 → 130, the real
+   *  lens 254 → 211, the platform's own shadows bit-identical on the evidence
+   *  frames). Surfacing restores the street half bit-for-bit; the texel
+   *  lattice recomputes (it rides the box size) and the snap coords reset so
+   *  the next follow re-snaps onto the new lattice. */
+  private setUndergroundShadow(under: boolean): void {
+    if (under === this.undergroundShadow) return;
+    this.undergroundShadow = under;
+    const half = shadowHalfFor(under);
+    const cam = this.sun.shadow.camera;
+    cam.left = -half;
+    cam.right = half;
+    cam.top = half;
+    cam.bottom = -half;
+    cam.updateProjectionMatrix();
+    this.sunBasis.texel = (2 * half) / this.sun.shadow.mapSize.x;
+    this.sunU = Number.NaN;
+    this.sunV = Number.NaN;
   }
 
   /** Decorative props a generated .glb (public/models/<id>.glb) may replace. */
@@ -1452,6 +1494,16 @@ export class World {
       { jacket: 0x4a5568, pants: 0x3b3f4a, skin: 0xc98e5a, hair: 0x2b2730, style: 'cap', shoe: 0x4a3428, scale: 1.05 },
       { jacket: 0x7d5a62, pants: 0x47404b, skin: 0xe8b08e, hair: 0x6e3b2a, style: 'bun', scale: 0.95 },
       { jacket: 0x5d6b4a, pants: 0x39423a, skin: 0x8a5a3b, hair: 0x1f1b23, style: 'flat', scale: 1.09 },
+      // THE SHUFFLE CROWD (docs/51 B16): the walk to the subway carries a
+      // crowd the player weaves through — Doc 02's teach lives on the
+      // bodega→plaza stretch, where a subway entrance always draws bodies.
+      // Four more neighbors, west-end loops, brush-able and yielding.
+      { jacket: 0x946a4f, pants: 0x33383f, skin: 0xd9a06b, hair: 0x1f1b23, style: 'bun', shoe: 0x2e2a33, scale: 1.02 },
+      { jacket: 0x3f5e5a, pants: 0x443f4a, skin: 0xc98e5a, hair: 0x3a2c22, style: 'cap', shoe: 0x4a3428, scale: 0.98 },
+      { jacket: 0x6b4a63, pants: 0x3a3f45, skin: 0x8a5a3b, hair: 0x14141c, style: 'flat', shoe: 0x33291f, scale: 1.07 },
+      { jacket: 0x54628f, pants: 0x2f333b, skin: 0xe8b08e, hair: 0x5a4632, style: 'bun', shoe: 0x3a3028, scale: 0.93 },
+      { jacket: 0x8a5a48, pants: 0x3a3540, skin: 0xc98e5a, hair: 0x241f28, style: 'flat', shoe: 0x2e2a33, scale: 1.0 },
+      { jacket: 0x4f6b5e, pants: 0x33383f, skin: 0xe8b08e, hair: 0x1a1a22, style: 'bun', shoe: 0x4a3428, scale: 0.96 },
     ];
     const pedPaths: Array<Array<[number, number]>> = [
       // the commuter: full block, crossing only at the crosswalk (x ≈ -6.5,
@@ -1467,11 +1519,16 @@ export class World {
       // avoidance circle squeezed the U-turn into the building-line trunks
       // (probe-solid's 0.35 m trunk approach — the gate is 0.42).
       [[10, 6.1], [-42, 6.1], [-42, 6.75], [10, 6.75]],
-      // the south-side local: laundry to the district's east end and back.
-      // W4: the return lane rides −6.35, not the old −6.8 — the east-end
-      // trunks (28/38, −7.0) held the extended loop at their circle radius
-      // (0.35 m, probe-solid's gate is 0.42); 0.65 m lateral clears them.
-      [[-34, -6.1], [44, -6.1], [44, -6.35], [-34, -6.35]],
+      // the south-side local: the Shuffle stretch (docs/51 B16 — the walk to
+      // the Alder Heights stairs) to the district's east end and back. The
+      // west reach stops at −43.5: the SUB-02 control house (−57) and the
+      // south trunks (−44/−30/−16, r 0.35 on the building line) leave the
+      // −6.1/−6.35 lanes a clean 0.65 m clear, and the turnaround sits east
+      // of the −44 trunk's circle. W4: the return lane rides −6.35, not the
+      // old −6.8 — the east-end trunks (28/38, −7.0) held the extended loop
+      // at their circle radius (0.35 m, probe-solid's gate is 0.42); 0.65 m
+      // lateral clears them.
+      [[-43.5, -6.1], [44, -6.1], [44, -6.35], [-43.5, -6.35]],
       // W4 — the garden tender (NZ-GARDEN): the gate to the beds and back,
       // inside GRD-GABLE's fence line (x −8.4..4, z 20..30)
       [[4.4, 24.1], [-0.5, 24.4], [-6.5, 24.4], [-6.9, 26],
@@ -1479,6 +1536,16 @@ export class World {
       // W4 — the avenue shopper (NZ-AVENUE): the Sycamore Ave west walk,
       // past the diner window and the fruit stand (x 61.5/62.2 lanes)
       [[61.5, -18], [61.5, 18], [62.2, 18], [62.2, -18]],
+      // THE SHUFFLE CROWD's loops (docs/51 B16): all four stay on the north
+      // walk (z 6.08–6.76) between the bodega (x −20) and the plaza (x −41),
+      // lanes offset so the stretch reads as a crowd with gaps to walk
+      // toward — never a wall. No street crossings, so the crosswalk law is
+      // untouched; west ends stop at x −41 (east of the headhouse railings,
+      // whose opening the shopper's own turnaround already owns).
+      [[-31, 6.12], [-41, 6.12], [-41, 6.7], [-31, 6.7]],   // the plaza weaver
+      [[-26, 6.14], [-36.5, 6.14], [-36.5, 6.68], [-26, 6.68]], // the stair local
+      [[-22.5, 6.08], [-39.5, 6.08], [-39.5, 6.76], [-22.5, 6.76]], // the west commuter
+      [[-20, 6.16], [-28.5, 6.16], [-28.5, 6.66], [-20, 6.66]], // the bodega local
     ];
     // ---- their routines (Phase 4, Doc 37 §3E): the day's small beats ------
     // Every trigger sits OFF the walk lanes (at the building line or the
@@ -1507,11 +1574,14 @@ export class World {
         { x: -41.2, z: 6.9, faceTo: [-42, 6.2], dwell: 3.5 },
       ],
       // the south-side local: watches the cart corner (opinions daily),
-      // reads the stoops at the quiet west end — and W4: pauses at the
-      // Corner Park gate (NZ-DOG), where the pigeons scatter-recover
+      // reads the stoops at the quiet west end, pauses on the Shuffle
+      // stretch to look across at the terminal (docs/51 B16 — a body that
+      // stands in the walk is a body you shuffle past) — and W4: pauses at
+      // the Corner Park gate (NZ-DOG), where the pigeons scatter-recover
       [
         { x: 5.4, z: -6.9, faceTo: [4.0, -6.6], dwell: 3.0 },
         { x: -30.5, z: -6.9, faceTo: [-30.5, -9.0], dwell: 2.5 },
+        { x: -41.5, z: -6.9, faceTo: [-36.4, 4.8], dwell: 3.5 },
         { x: 31.5, z: -6.5, faceTo: [34, -6.3], dwell: 5.0 },
       ],
       // W4 — the garden tender (NZ-GARDEN): watering the beds, a word to
@@ -1527,6 +1597,22 @@ export class World {
         { x: 61.6, z: -12, faceTo: [60.1, -12], dwell: 5.0 },
         { x: 61.7, z: -16.5, faceTo: [63.3, -18], dwell: 4.0 },
         { x: 61.6, z: 2.2, faceTo: [61.5, 2], dwell: 2.0 },
+      ],
+      // the Shuffle crowd's beats (docs/51 B16): small plaza pauses — the
+      // bulletin board, the bench, the bodega window — off the walk lanes,
+      // so a pause never plugs both directions
+      [
+        { x: -33.2, z: 7.0, faceTo: [-37.6, 7.5], dwell: 3.0 }, // the bulletin board
+        { x: -39.8, z: 6.9, faceTo: [-40.5, 4.55], dwell: 2.5 }, // a glance at the plaza bench
+      ],
+      [
+        { x: -34.8, z: 6.95, faceTo: [-37.6, 7.5], dwell: 2.5 }, // the board, from the east
+      ],
+      [
+        { x: -25.8, z: 6.9, faceTo: [-23.3, 7.62], dwell: 2.5 }, // waits near the bus bench
+      ],
+      [
+        { x: -18.8, z: 6.9, faceTo: [-18.5, 7.55], dwell: 3.0 }, // the bodega's warm window
       ],
     ];
     this.peds = new Pedestrians(
@@ -5539,6 +5625,7 @@ export class World {
       this.subway.update(dt, feet, (key) => this.subwayBeats.push(key));
       if (this.subway.underground !== this.dollhouseOn) {
         this.dollhouseOn = this.subway.underground;
+        this.setUndergroundShadow(this.dollhouseOn);
         for (const m of this.terminalShell) m.visible = !this.dollhouseOn;
         // the mass collider rides with the shell: the camera's boom ray-cast
         // sees the cutaway the lens sees, or shortenBoom parks the lens on

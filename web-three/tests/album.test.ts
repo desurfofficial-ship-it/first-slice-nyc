@@ -105,6 +105,35 @@ describe('album id — keep twice, still one card', () => {
   });
 });
 
+describe('the shelf tag (Doc 08 moment cards — "THE RUSH", "THE HATS"…)', () => {
+  it('a valid tag round-trips through the parser', () => {
+    const shelf = parseAlbum([entry({ id: 'd1-wow-x', kind: 'wow', tag: 'THE RUSH' })]);
+    expect(shelf).toHaveLength(1);
+    expect(shelf[0].tag).toBe('THE RUSH');
+  });
+
+  it('an absent tag parses as absent — old shelves read unchanged', () => {
+    const shelf = parseAlbum([entry({ id: 'd1-day-y' })]);
+    expect(shelf[0].tag).toBeUndefined();
+  });
+
+  it('wrong tag shapes fall out to absent, never reject the card', () => {
+    for (const bad of [42, null, {}, '', 'x'.repeat(25)]) {
+      const shelf = parseAlbum([entry({ id: 'd1-wow-z', kind: 'wow', tag: bad as unknown as string })]);
+      expect(shelf).toHaveLength(1);
+      expect(shelf[0].tag).toBeUndefined();
+    }
+  });
+
+  it('a tagged entry survives the store round-trip', () => {
+    const store = memoryStore();
+    const kept = storeAlbum([entry({ id: 'd1-wow-w', kind: 'wow', tag: 'YOUR CORNER' })], store);
+    expect(kept).toHaveLength(1);
+    const back = loadAlbum(store);
+    expect(back[0].tag).toBe('YOUR CORNER');
+  });
+});
+
 describe('addToAlbum — newest first, idempotent, capped', () => {
   it('adds on top', () => {
     const out = addToAlbum([entry()], entry({ id: 'new', keptAt: 2 }));

@@ -1,7 +1,7 @@
 # FIRST SLICE: A New York Story
 ## Document 07 — Vertical Slice Design (v0.2)
 
-> **Status:** Advanced in Phase 0. Core feature specs solid. Day-1 content pack complete (see Doc 08). Remaining TBDs have clear owners and recommendations. This document is the contract for Roadmap Phase 1 (weeks 7–16).
+> **Status:** This is the Roadmap Phase 1 contract and it is **in production**: the first-session world ([docs/50](50-agent2-first-session-world.md)) implements the Day-1 spine on `web-three/`, and the remaining gaps against this contract are tracked item-by-item in [docs/51](51-open-bugs-for-agents.md) — the ledger, not this banner, is the live list. Day-1 content pack complete (see Doc 08). Remaining TBDs have clear owners and recommendations.
 
 ---
 

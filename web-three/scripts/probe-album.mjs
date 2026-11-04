@@ -34,6 +34,15 @@ const ok = (c, w) => { console.log(`${c ? 'PASS' : 'FAIL'} ${w}`); if (!c) fails
 page.on('pageerror', (e) => fails.push(`PAGEERROR: ${e.message}`));
 await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'load' });
 await page.waitForSelector('#hud:not([hidden])', { timeout: 60000 });
+// the pocket wave moved the HUD chips into the dropdown — the album button
+// lives behind #btn-pocket now (the e2e's own openPocket law)
+const openPocket = async () => {
+  if ((await page.getAttribute('#pocket-menu', 'hidden')) !== null) {
+    await page.click('#btn-pocket', { timeout: 5000 });
+    await page.waitForTimeout(400);
+  }
+};
+await openPocket();
 await page.click('#btn-album', { timeout: 5000 }).catch(() => fails.push('click #btn-album'));
 ok(await page.isVisible('#album-panel'), 'the album opens by CLICK on the HUD button');
 ok((await page.textContent('#album-empty'))?.includes('Nothing kept yet'), 'the honest empty shelf says so');

@@ -530,13 +530,67 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   independently; the merge kept main's implementation and dropped the
   duplicate (one paved path). Verified on the merged tree: tsc clean, vitest
   469/469, build clean, probe-subway ALL PASS, probe-a5c-arrival green.
-### B14. Documentation hygiene
-- Some older docs (Phase 0 exit, AGENTS.md “code pending”) still read as if
-  greybox/code had not started. Update status language so new agents do not
-  re-do completed design work or mis-scope the current phase.
-- **Status:** OPEN — low priority, do when touching those files.
 
-### B16. The Shuffle (VS-F04) is a stub — one flavor note; the crowd-walk mini-game is not built
+- **Update 2026-11-04 (the Shuffle phase row + the underground economy, this
+  commit):** two things landed together — the honest publication of the B16
+  phase's cost, and the first program item off the named frontier.
+  **The phase row (published, not silent):** the six-walker Shuffle crowd
+  rides the six-draw person law, and the merged main's World.ts additions
+  came in with it — measured on the tip with `diag-perf-breakdown.mjs`:
+  PLAZA 370 → 400, CART_CORNER 301 → 333, SYCAMORE×GABLE 115 → 128 (the
+  crowd's east loop end grazes this rig's shadow-box edge: +6..12 figure
+  casts), TIMES_SQ 130 → 130. Above the previous ledger on three rigs; the
+  cause is the felt crowd itself (the B16 build), the lever priced and
+  rejected (per-figure instancing needs shared vertex colors; the rig bakes
+  colors per figure — the floor stays 6 draws per person).
+  **The PLATFORM_A rig was staging-broken — its numbers are void:** the
+  census feet (x −40, z −3.2, y −3.2) teleport UNDER the world and physics
+  ejects the capsule to the surface within a frame — every published
+  PLATFORM_A number (179, 146, 166) measured a surface player through an
+  underground camera. The rig now stands on a real platform floor (the fare
+  pocket, probe-subway's own staging) with the converged interiorMode lens.
+  **The underground economy (the "SUB_Root depth" program item):** below
+  grade the station is an open-top cutaway whose own casters live within
+  ~15 m of the player, so the dollhouse flip now shrinks the sun's shadow
+  box to SHADOW_HALF_UNDERGROUND = 18 (`src/world/shadowLaw.ts`, applied by
+  `World.setUndergroundShadow`, texel lattice recomputed + re-snapped).
+  Same-pose A/B on the corrected rig: **231 → 186 (−45, −19%)**; the
+  parked-census camera priced 166 → 130. The platform's own shadows are
+  bit-identical on the evidence frames (diag-underground-shots: pillar,
+  railing, and player shading unchanged; the street beyond the box edge
+  stops paying). Wired contract: `tests/shadow-law.test.ts` (the numbers +
+  never-widen-below-grade) and probe-subway now asserts the shrunk box on
+  the descent (half 18, symmetric). Street rigs are untouched (the economy
+  only exists below grade). Verified: tsc clean, vitest 514/514, build
+  clean, probe-subway ALL PASS ×2 (with the two new checks).
+
+### B14. Documentation hygiene — FIXED 2026-11-03
+- **Was:** AGENTS.md read "Pre-Production, docs-complete, code pending — do
+  not scaffold game code before Phase 0 exit is signed" weeks after
+  `web-three/` shipped; docs/09 + docs/18 read as if the greybox and spikes
+  had not started; docs/07's banner still said "Advanced in Phase 0". New
+  agents were being pointed away from the real front.
+- **Fix:** AGENTS.md now states the real phase (Vertical Slice production,
+  Phase 1 of docs/06; Phase 0 exit signed 2026-10-28) and points the ACTIVE
+  WORK pointer at this ledger + the docs/50 paved path; its §3 repo map
+  shows the real tree (`web-three/` game + tests + probes) and §4 the
+  observed branch/commit practice. docs/09 and docs/18 carry dated
+  status-update banners (Doc 07 banner style) so their historical bodies
+  are read as history — bodies untouched, no history rewritten.
+- **Guard:** `tests/docs-hygiene.test.ts` — 3 checks: the `**Current phase:**`
+  line exists, never claims "code pending" again, and names the real phase;
+  AGENTS.md links the ledger + paved path; both Phase-0 history docs keep
+  their dated banner and ledger pointer. A future phase change must update
+  the line consciously (the test fails loudly until it does).
+- **Commit / branch:** `docs/b14-status-hygiene`
+- **Verified:** full vitest on the rebased tree (count recorded in the
+  commit message + worklog), `tsc --noEmit` clean.
+- **Where:** `AGENTS.md`, `docs/09`, `docs/18`, `docs/07` (banner),
+  `web-three/tests/docs-hygiene.test.ts`.
+
+---
+
+### B16. The Shuffle (VS-F04) is a stub — one flavor note; the crowd-walk mini-game is not built — FIXED 2026-11-04
 - **The docs' spec (read these, do not re-derive):** Doc 07 §3 IN —
   "Crowd walk mini-game, forgiveness rules". Doc 02 §10:00–15:00 (the Wow
   Wonk, wonder beat #1's approach): "a gentle mini-game about walking
@@ -579,8 +633,67 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   forgiveness and own-way line stay as-is. Evidence: a probe that walks the
   segment, forces a brush, and captures the ped reaction; a unit test for
   the brush-counts-as-correct law; e2e rails untouched.
-- **Status:** OPEN — a feature-sized build (VS-F04's own IN-scope row); it
+- **Status:** CLOSED — built the same day (see "B16 — FIXED 2026-11-04" below).
   needs its own decree and must not be smuggled into a docs pass.
+- **FIXED 2026-11-04 (agent2, decree granted — "build it") — SUPERSEDED SAME DAY by the second build below (the merge kept the contact law + the felt crowd; the 1 m proximity scan fired "’Scuse me." at walkers passing a STANDING player, and one extended loop is not Doc 02’s "walking through people"):** the beat is
+  built on the docs' own terms, and the day machine stays sacred (no step,
+  no money, no save, no GameState change at all):
+  - **The crowd.** The south-side local's loop extends west from −34 to
+    −43.5 (`World.ts`) — the walk to the Alder Heights stairs now carries a
+    walker on the local's own lane, plus a west-end routine beat (they pause
+    to look across at the terminal). ZERO new bodies: bank-shared rigs stay
+    three, the census never moves, the perf ledger never regresses.
+  - **The brush law.** `world/shuffle.ts`, pure: a walker whose circle you
+    cross within 1.0 m says “Scuse me.” once per 4 game-seconds. No fail
+    flag, no score, no counters (the Map hard rules hold) — brushing is
+    correct by construction. The yield sidestep is the body language; the
+    wisp is the voice.
+  - **The speech wisp.** One shared canvas sprite (`SpeechWisp`),
+    invisible at rest — zero draw calls when nobody speaks.
+  - **TBD-3 landed with it.** Twenty honest game-seconds of standing still
+    mid-stretch surfaces “The city will wait.” once per visit.
+  - **The crosswalk untouched.** `cross()` never changed; the Day-1 corner
+    keeps teaching Doc 08 note #4; the commuter's crossing keeps its own
+    beat outside the zone (x −49..−14, surface-only).
+- **Verified:** `tsc --noEmit` clean; vitest **487/487** (29 files;
+  `tests/shuffle.test.ts` pins 11 laws — the brush returns only speech, the
+  per-walker cooldown, the chorus, cross-street no-op, contact distance,
+  the 20-second threshold, the surface-only zone, the authored copy);
+  build 485 ms; **probe-shuffle.mjs SHUFFLE OK** — six checks: the stretch
+  walks west end to end down the local's lane (reached x −43.7), a walker
+  lives on it, a forced brush fires the wisp
+  (`probe-shots/shuffle-wisp.png`), no fresh show while the contact cools,
+  TBD-3 surfaces the note (`probe-shots/shuffle-wait.png`); probe-peds
+  PEDS OK (the west lane rides clean); probe-subway ALL PASS;
+  **probe-perf before→after identical: 165/245/300 draws** — zero at-rest
+  regression, the B13 ledger law holds; e2e full 4-day **AUTOTEST OK:
+  0 failures, 533 s, console clean** — rails untouched.
+- **Machine-honesty note for the next probe author:** software GL runs the
+  game clock at a fraction of wall time (~0.15–0.3× at 900×700) — every
+  time-based check must poll with a wall-time cap, never nap-and-assume,
+  and westward walks must track progress as x DECREASING.
+
+### B16. The Shuffle (VS-F04) — FIXED 2026-11-04
+- **Fix:** the crowd-walk mini-game is built world-side: six Shuffle walkers
+  loop the bodega→plaza stretch (lanes z 6.08–6.76, west ends at x −41 —
+  9 walkers total, seeded deterministic, no street crossings so the crosswalk
+  law is untouched); brushing a walker while WALKING (measured player pace
+  ≥ 0.45 m/s, `brushFires` pure law) fires their reaction — a paper
+  "’Scuse me." bubble above their head (2.2 s hold, fade; one brush per
+  meeting, 4 s cooldown) — a correct interaction with NO fail state: the
+  brush event's payload is who/where, nothing to lose, nothing counted; and
+  the TBD-3 soft skip: 20 s of standing still INSIDE the Shuffle stretch
+  (`SHUFFLE_STRETCH`, `cityWillWaitFires` pure law) offers "The city will
+  wait." once per standstill episode — comfort, not a checkpoint; Times
+  Square stays reachable with no gate (free-roam world). The crosswalk's
+  forgiveness + own-way line stay as shipped.
+- **Commit / branch:** agent5/merge-to-main → main (push of 2026-11-04).
+- **Verified:** tests/shuffle.test.ts (17 tests: the brush law, the no-fail
+  payload law, one-brush-per-meeting against a REAL Pedestrians instance,
+  the soft-skip law, the stretch bounds); scripts/probe-shuffle.mjs
+  (SHUFFLE OK — crowd on the stretch, brush fires with the bubble captured
+  on screen, money/step unchanged, TBD-3 note lands, no gate west);
+  vitest 511/511; tsc clean; full 4-day E2E AUTOTEST OK 0 failures (554 s).
 
 ### B17. The Regulars' ledger does not exist — arcs run on day rails and stop at Day 4
 - **The docs' spec (read these, do not re-derive):** Doc 01 System 4.1 (the

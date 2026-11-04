@@ -200,7 +200,7 @@ maps the epics; this maps the code.
 | F01 | Map companion v1 | `web-three/src/ui/UI.ts`, `src/ui/sketch.ts`, `src/core/GameState.ts`, `src/core/Save.ts` | `tests/map-notebook.test.ts`; `scripts/probe-doc12.mjs` (order card + Map notebook + dusk payoff, desktop AND phone width) | Notes, margins, slang cards, save roundtrip guarded; the Map-copies-badly doodle rides the save (`map_priya_lines`, B11) |
 | F02 | The Corner environment | `web-three/src/world/World.ts`, `streetAssets.ts`, `props.ts`, `dressing.ts`, `leaves.ts` | `tests/interiors.test.ts`, `tests/descend.test.ts` (fire escape), `tests/solidity.test.ts`, `tests/wall-slide.test.ts`; `probe-w5-interiors.mjs`, `probe-climb.mjs`, `probe-ladder.mjs`, `probe-reach-top.mjs`, `probe-solid.mjs`, `diag-bodega.mjs` | Block + bodega interior + cart + fire escape present; art-pass-1 residue tracked as B12 CLEAR items |
 | F03 | Serving conversation v1 | `web-three/src/core/content.ts` (`OrderCard`/`OrderReply`), `src/game/interactionDefs.ts`, `src/game/Game.ts` | `tests/state.test.ts`, `tests/interactions.test.ts`; `probe-doc12.mjs`; money rails in `scripts/e2e.mjs` ("a serve is a serve regardless of the choice") | Choice replies incl. chef's welcome; no timers, no fail states; teach only when asked |
-| F04 | The Shuffle | `src/core/GameState.ts` (`Step.CROSS`, `cross(atStrip)`), `src/world/peds.ts` | `tests/state.test.ts` ("crossing at the stripes teaches the Shuffle; crossing anywhere counts" — Seam 1), `tests/crowd.test.ts`; `probe-peds.mjs` | **Stub — not the spec.** The forgiveness half is law (crossing anywhere counts, Seam 1) + the Doc 08 #4 note text; the mini-game itself (crowd-dense walk, drift-to-gaps teach, brush → "scuse me", TBD-3 soft skip) is NOT built — docs/51 B16. The crowd tests prove collision courtesy, not the Shuffle |
+| F04 | The Shuffle | `src/world/peds.ts` (`brushFires`, the brush queue + the "’Scuse me." bubble), `src/core/GameState.ts` (`SHUFFLE_STRETCH`/`cityWillWaitFires`; `Step.CROSS` forgiveness — Seam 1), `src/world/World.ts` (the six-walker Shuffle crowd), `src/game/Game.ts` (TBD-3 standstill tracker, brush drain) | `tests/shuffle.test.ts` (17 — the brush law, the no-fail payload law, one-brush-per-meeting against a REAL Pedestrians, the soft-skip law, the stretch bounds), `tests/state.test.ts`, `tests/crowd.test.ts`; `probe-shuffle.mjs` (SHUFFLE OK — the bubble captured on screen, TBD-3 lands, no gate west) | **Built 2026-11-04 (docs/51 B16 CLOSED) — two builds met in one merge and one survived: the first (main’s `shuffle.ts`, a 1 m proximity scan over the existing walkers) was superseded by the contact law — brushing means touching a body at walking pace, not passing near a standing one — and the felt crowd (six walkers on the stretch). The crosswalk’s forgiveness and own-way line stay as shipped |
 | F05 | Postcard pipeline v1 | `src/postcard/PostcardCapture.ts` (`capturePostcard`, `composePostcard`, `sharePostcard`), `src/postcard/Album.ts`, `src/core/content.ts` (`composeCaption`, `tsWowCaption`), `src/ui/UI.ts` | `tests/album.test.ts`, `tests/wow-postcard.test.ts`; `probe-album.mjs` (share button stays honest where files cannot be shared), `diag-wow-card.mjs` | capture → caption → album → share wired; per-day captions + the sync-beat card (B10) |
 | F06 | The Wow Walk | `src/world/timesSquare.ts`, `src/game/Game.ts` (`tsBeats` drain, `composeWowPostcard`) | `tests/wow-postcard.test.ts`; `diag-wow-card.mjs` (drives the honest subway route into the square); `probe-subway.mjs` | Scripted sequencer + billboard sync beat + auto-postcard; the paper holds the hands while the card is up |
 | F07 | Subway University ride | `src/world/subway/` (`index.ts`, `ride.ts`, `trainKit.ts`, `stationKit.ts`, `zone.ts`), `src/game/interactionDefs.ts` (priya) | `tests/subway.test.ts` (incl. diagram-beat laws, B11); `probe-subway.mjs`; `probe-subway-mobile.mjs` (390×844 touch) | Guided ride, two-line teach drawn on the window, Map's crooked copy latched to the save |
@@ -214,36 +214,46 @@ All probes run against `web-three/dist/` — `npm run build` first, always.
 
 ## 3. Must clear before exit — the only OPEN items in docs/51
 
-Everything else in the ledger is FIXED with evidence. These three are open.
-They are work items, not checklist changes.
+Everything else in the ledger is FIXED with evidence. One is open (B13).
+It is a work item, not a checklist change. (B12 closed 2026-11-04 — all
+three of its items fixed or written down as accepted risk in docs/51.
+B14 closed 2026-11-04 — AGENTS.md's header + docs/18's status language
+updated, see docs/51.)
 
-### B12 — Visual-audit follow-ups (Doc 31)
-- **What's owed:** Day-4 greeting frame composes the two figures into the
-  middle third; evidence frames carry the correct day's HUD (staged Day-1
-  HUD on Day-3/4 moments is evidence hygiene, not game truth); the minor
-  CLEAR items (floating AC units, baseless lamp poles, clipped signs,
-  antenna, teal-door scale) get one in-engine look each before fixing —
-  the Anti-Slop gate (AGENTS.md §1b).
-- **Probe:** `node scripts/probe-visual-evidence.mjs`, `visual-d4b.mjs`
-  (Day-4 evidence frames), `probe-polish-shots.mjs`.
-- **Pass rule:** evidence frames show the correct-day HUD; the greeting
-  frame composes right in-engine; each CLEAR item either fixed or
-  written down as "looked at, honest as-is".
-- **Owner:** __
+### B12 — Visual-audit follow-ups (Doc 31) — CLOSED 2026-11-04
+- **Was owed:** Day-4 greeting frame composition; evidence frames carrying
+  the correct day's HUD; the minor CLEAR items (floating AC units, baseless
+  lamp poles, clipped signs, antenna, teal-door scale) each getting one
+  in-engine look before fixing — the Anti-Slop gate (AGENTS.md §1b).
+- **Closed:** all 14 published frames re-captured and read frame-by-frame;
+  every CLEAR item ended in a code fix + re-shot evidence or a written
+  accepted-risk (docs/51 B12 has the per-item verdicts). Probe evidence:
+  `visual-d3.mjs` / `visual-d4.mjs` / `visual-d4b.mjs` re-shots in
+  `web-three/assets/web-three/frames/`; no src/ changes, zero gameplay
+  surface touched.
 
 ### B13 — Performance ledger still over ideal on full-street views
 - **What's owed:** Doc 07's "< 150 draw calls typical street" for Kestrel;
   the standing gate is "no phase ships above previous ledger".
 - **Probe:** `node scripts/probe-perf.mjs && node scripts/diag-perf-breakdown.mjs`
-  on the three fixed rigs (PLAZA, CART_CORNER, SYCAMORE×GABLE — 846→462,
-  718→405, 279→132 after the vertex bake `442b8c4`).
+  on the fixed rigs (PLAZA, CART_CORNER, SYCAMORE×GABLE, TIMES_SQ,
+  PLATFORM_A — the platform rig's staging was corrected 2026-11-04, see
+  docs/51 B13: the old feet ejected the capsule; the numbers are void).
+- **Where it stands (2026-11-04):** the B16 Shuffle phase's row is
+  published (PLAZA 400, CART_CORNER 333, SYCAMORE 128, TIMES_SQ 130 — the
+  felt crowd's six-draw law, lever priced and rejected); the underground
+  economy program item is landed (the dollhouse flip shrinks the sun's box
+  to 18 — the corrected dwell rig 231 → 186, `shadowLaw.ts` +
+  `tests/shadow-law.test.ts` + probe-subway's wired checks). The street
+  150 line still needs the named programs (interiors' window visibility),
+  not a lever.
 - **Pass rule:** Kestrel ≤ 150 on the ledger rig, or a published honest
   ledger row with the phase's before/after — never silent regression.
 - **Owner:** __
 
-### B14 — Documentation hygiene
-- **What's owed:** older docs still read as if greybox/code had not started
-  (AGENTS.md's header literally says "code pending" while main carries 457
+### B14 — Documentation hygiene — CLOSED 2026-11-04
+- **Was owed:** older docs still read as if greybox/code had not started
+  (AGENTS.md's header literally said "code pending" while main carries 500+
   passing tests). Status language updated so the next agent does not
   re-scope the phase.
 - **Checked this session (no fix needed):** the Pages deploy trigger was
@@ -255,10 +265,11 @@ They are work items, not checklist changes.
   displays as `ain]`. Lesson for the next agent: when command output and
   the file API disagree, trust `git hash-object` + `od -c`, and never ship
   a fix whose only evidence is a paste of the command output.
-- **Still owed:** AGENTS.md header + docs/18 (Phase 0 exit) status language.
+- **Fixed:** both owed files updated 2026-11-04 (AGENTS.md's header now
+  reads "Production — Phase 1 build-out on main"; docs/18 carries a dated
+  status note redirecting to the live phase state). Details in docs/51 B14.
 - **Pass rule:** a new agent reading AGENTS.md → roadmap → docs/55 cannot
-  mis-scope the current phase.
-- **Owner:** __
+  mis-scope the current phase. Holds.
 
 ---
 

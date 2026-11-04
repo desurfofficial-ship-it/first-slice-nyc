@@ -143,6 +143,30 @@ const ROUTINE_TRIGGER_R = 0.9;   // close enough to the spot to take the beat
 const ROUTINE_RELEASE_R = 1.4;   // past this, the beat may fire again next lap
 const CHAT_RANGE = 1.7;          // two dwelling walkers this close talk (face each other)
 
+/**
+ * The brush law (docs/51 B16 — the Shuffle's missing half): contact with a
+ * WALKING player is the Shuffle's correct interaction, never a failure.
+ * It fires the walker's "'Scuse me." — a reaction, not a penalty; nothing
+ * anywhere reads a brush as a fail state. The ped's cooldown keeps a held
+ * standoff from machine-gunning the line: one brush per meeting.
+ *
+ * Pure so the law is unit-testable (tests/shuffle.test.ts).
+ *
+ * @param held         the walker is touching the player's capsule right now
+ * @param playerMoving the player is actually walking through (a brush is
+ *                     walking through someone — two people standing pressed
+ *                     together is a crowd, not a dance)
+ * @param cooldownLeft the walker's brush cooldown, seconds
+ * @returns true when this contact registers as a brush
+ */
+export function brushFires(held: boolean, playerMoving: boolean, cooldownLeft: number): boolean {
+  return held && playerMoving && cooldownLeft <= 0;
+}
+
+/** Seconds before the same walker can "'scuse" again — one brush per
+ *  meeting; the block's courtesy has a memory but not a grudge. */
+export const BRUSH_COOLDOWN = 4;
+
 interface Ped {
   vehicle: Vehicle;
   group: THREE.Group;
@@ -150,6 +174,11 @@ interface Ped {
   box: AABB;     // the walker's real body, synced under them every frame
   holdTime: number;  // seconds spent held off a body (player/cab) this stand
   slideSide: number; // locked sidestep direction while yielding (-1 | +1)
+  // ---- the Shuffle (docs/51 B16) ----
+  brushCooldown: number; // seconds until this walker can brush again
+  bubbleT: number;       // > 0 → the "'Scuse me." bubble is up
+  bubble: THREE.Sprite;  // the paper bubble above their head (hidden)
+  bubbleMat: THREE.SpriteMaterial;
   // ---- the day's routine (Phase 4) ----
   stops: RoutineStop[];  // their scheduled beats, taken round-robin per lap
   stopIdx: number;       // which beat is next
@@ -162,11 +191,67 @@ interface Ped {
 
 const MAX_DT = 0.1; // matches the game loop's clamp — Yuka integrates with the same dt
 
+/** A brush walking pace — slower than this and you're loitering against
+ *  someone, not passing them (m/s; the walkers' own walk is 0.95–1.3). */
+export const BRUSH_MIN_SPEED = 0.45;
+
+let brushTex: THREE.CanvasTexture | THREE.Texture | null = null;
+/** The "'Scuse me." paper bubble — one texture, every walker's mouth
+ *  (Doc 02: brushing someone just makes them say "scuse me"). Drawn in
+ *  the house's ink-on-cream voice, a tail pointing down-left to the
+ *  speaker. Built lazily: no canvas exists outside the browser — and the
+ *  node tests that construct walkers never render one, so a blank texture
+ *  keeps the constructor honest there. */
+function theBrushTexture(): THREE.Texture {
+  if (brushTex) return brushTex;
+  if (typeof document === 'undefined') {
+    brushTex = new THREE.Texture();
+    return brushTex;
+  }
+  const cv = document.createElement('canvas');
+  cv.width = 256;
+  cv.height = 120;
+  const c = cv.getContext('2d')!;
+  const r = 24;
+  c.beginPath();
+  c.moveTo(r + 8, 8);
+  c.lineTo(256 - r - 8, 8);
+  c.quadraticCurveTo(256 - 8, 8, 256 - 8, 8 + r);
+  c.lineTo(256 - 8, 76 - r);
+  c.quadraticCurveTo(256 - 8, 76, 256 - r - 8, 76);
+  c.lineTo(66, 76);
+  c.lineTo(40, 112);          // the tail — down-left, toward the speaker
+  c.lineTo(52, 76);
+  c.lineTo(r + 8, 76);
+  c.quadraticCurveTo(8, 76, 8, 76 - r);
+  c.lineTo(8, 8 + r);
+  c.quadraticCurveTo(8, 8, r + 8, 8);
+  c.closePath();
+  c.fillStyle = '#f6efe2';
+  c.fill();
+  c.strokeStyle = 'rgba(58,52,64,0.4)';
+  c.lineWidth = 3;
+  c.stroke();
+  c.fillStyle = '#3a3440';
+  c.font = 'italic 600 40px Georgia, serif';
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillText('\u2019Scuse me.', 132, 42);
+  brushTex = new THREE.CanvasTexture(cv);
+  brushTex.colorSpace = THREE.SRGBColorSpace;
+  return brushTex;
+}
+
 export class Pedestrians {
   readonly group = new THREE.Group();
   private manager = new EntityManager();
   private peds: Ped[] = [];
   private obstacles: GameEntity[] = [];
+  /** Brushes this frame batch — drained by the orchestrator each frame and
+   *  turned into the walkers' "'Scuse me." (the reaction, never a fail). */
+  private brushes: Array<{ i: number; x: number; z: number }> = [];
+  private lastPlayer: { x: number; z: number } | null = null;
+  private playerSpeed = 0;
   private playerObstacle: GameEntity;
   private cartObstacle: GameEntity;
   private taxiObstacle: GameEntity;
@@ -249,6 +334,17 @@ export class Pedestrians {
       group.position.set(start[0], groundY(start[0], start[1], roads), start[1]);
       group.rotation.y = rng() * Math.PI * 2;
       this.group.add(group);
+      // the Shuffle's "'Scuse me." — a paper bubble above their head, shared
+      // texture, per-walker material (the fade is per mouth, not per word)
+      const bubbleMat = new THREE.SpriteMaterial({
+        map: theBrushTexture(), transparent: true, opacity: 0, depthWrite: false,
+      });
+      const bubble = new THREE.Sprite(bubbleMat);
+      bubble.scale.set(1.28, 0.6, 1);
+      bubble.position.set(0, 2.12, 0);
+      bubble.visible = false;
+      bubble.renderOrder = 40;
+      group.add(bubble);
       // W4: each walker clamps to their own loop's bbox (bandOfLoop) —
       // inflated 1.6 m laterally (curb-yield room) and 0.65 m in z (the
       // shipped ±7.5 discipline the Kestrel trio inherits unchanged), so a
@@ -260,6 +356,11 @@ export class Pedestrians {
         holdTime: 0,
         slideSide: 0,
         band,
+        // the Shuffle — nobody has brushed you yet today
+        brushCooldown: 1.2, // the first seconds a player sees them: no chatter
+        bubbleT: 0,
+        bubble,
+        bubbleMat,
         // the day's beats — round-robin from wherever the seeded start landed
         stops: routines[i % Math.max(1, routines.length)] ?? [],
         stopIdx: i, // staggered so the block's beats don't all fire at once
@@ -286,6 +387,16 @@ export class Pedestrians {
   /** XZ bodies for World's taxi-yield list — a crossing walker holds the cab. */
   bodies(): Array<{ x: number; z: number }> {
     return this.peds.map((p) => ({ x: p.vehicle.position.x, z: p.vehicle.position.z }));
+  }
+
+  /** The frame's brushes (walker index + where it happened) and clears the
+   *  batch. The orchestrator turns each into the walker's "'Scuse me." —
+   *  a correct interaction (docs/51 B16): nothing here is ever a failure,
+   *  so the queue carries no severity, no penalty, nothing to lose. */
+  drainBrushes(): Array<{ i: number; x: number; z: number }> {
+    const out = this.brushes;
+    this.brushes = [];
+    return out;
   }
 
   /**
@@ -318,6 +429,19 @@ export class Pedestrians {
     if (taxi) this.taxiObstacle.position.set(taxi.x, 0, taxi.z);
     if (cast) this.castObstacle.position.set(cast.x, 0, cast.z);
     if (bus) this.busObstacle.position.set(bus.x, 0, bus.z);
+
+    // the player's pace — a brush is WALKING through someone (docs/51 B16):
+    // the speed here decides contact-vs-dance, so it must be measured, not
+    // assumed. Frame-rate independent (position delta over this frame's dt).
+    if (player) {
+      if (this.lastPlayer && dt > 0) {
+        this.playerSpeed = Math.hypot(player.x - this.lastPlayer.x, player.z - this.lastPlayer.z) / dt;
+      }
+      this.lastPlayer = { x: player.x, z: player.z };
+    } else {
+      this.lastPlayer = null;
+      this.playerSpeed = 0;
+    }
 
     // ---- routines (Phase 4, Doc 37 §3E): the day's scheduled beats -------
     // Position-triggered, round-robin, no random: a walker near their next
@@ -386,6 +510,16 @@ export class Pedestrians {
         const held = resolveCirclesXZ(pi.x, pi.z, player.x, player.z, PED_REACH, PLAYER_R, MAX_PUSH, a, null);
         if (held) {
           pi.x += a.x; pi.z += a.z;
+          // THE SHUFFLE (docs/51 B16): brushing a walker while walking is
+          // the CORRECT interaction — they say "'Scuse me.", the walk goes
+          // on, nothing counts against you. One brush per meeting.
+          pd.brushCooldown = Math.max(0, pd.brushCooldown - dt);
+          if (brushFires(true, this.playerSpeed >= BRUSH_MIN_SPEED, pd.brushCooldown)) {
+            this.brushes.push({ i, x: pi.x, z: pi.z });
+            pd.brushCooldown = BRUSH_COOLDOWN;
+            pd.bubbleT = 2.2;
+            pd.bubble.visible = true;
+          }
           // "pardon me": held off a body for a beat, a walker STEPS ASIDE
           // instead of leaning into the push forever — a slide perpendicular
           // to the player line, on the side they were already passing.
@@ -476,6 +610,12 @@ export class Pedestrians {
       // the rig measures its own position delta → the walk cycle is free
       // (a dwelling walker's delta is zero → it reads as a natural idle)
       updatePersonAnim(p.group, dt);
+      // the brush bubble rides its own mouth: hold ~2 s, fade the last half
+      if (p.bubbleT > 0) {
+        p.bubbleT -= dt;
+        p.bubbleMat.opacity = Math.min(1, Math.max(0, p.bubbleT / 1.1));
+        if (p.bubbleT <= 0) { p.bubble.visible = false; p.bubbleMat.opacity = 0; }
+      }
       // the walker's real body follows (feet on their ground; a box at the
       // walker's feet height blocks the capsule exactly like the cast's)
       p.box.minX = v.x - 0.28;

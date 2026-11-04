@@ -669,12 +669,17 @@ export function runAutotest(game: Game): void {
       game.ui.postcardKeep.click(); // the thumb path — a real click on the real button
       {
         const t0 = performance.now();
-        while (performance.now() - t0 < budget(8000) && game.ui.albumCount < 1) await nextFrame();
+        // the four moment cards already sit on the shelf; this keep files the
+        // fifth (the day card) — wait for the whole day's paper
+        while (performance.now() - t0 < budget(8000) && game.ui.albumCount < 5) await nextFrame();
       }
-      check(game.ui.albumCount === 1, 'keep files the day-1 card in the album');
+      // Doc 08 §2: the day's five keepsakes — the four moment cards (THE
+      // RUSH, THE FOLD, YOUR CORNER, THE HATS) filed silently at their
+      // moments, plus THIS keep (the day card). The shelf holds the day.
+      check(game.ui.albumCount === 5, 'keep files the day-1 card — the shelf holds the day\u2019s five (4 moment cards + this)');
       game.ui.albumBtn.click();
       check(!game.ui.albumPanel.hidden, 'the album opens from the HUD button');
-      check(game.ui.albumGrid.childElementCount === 1, 'the shelf shows the kept card');
+      check(game.ui.albumGrid.childElementCount === 5, 'the shelf shows the day\u2019s five cards');
       (document.getElementById('album-close') as HTMLButtonElement).click(); // the real button, real click
       check(game.ui.albumPanel.hidden === true, 'the album closes');
 
@@ -784,13 +789,14 @@ export function runAutotest(game: Game): void {
       }
       check(s.step === Step.D2_POSTCARD && !game.ui.postcardPanel.hidden, 'day 2 postcard composes');
       check(dbg.caption().includes('Day 2'), 'postcard says Day 2');
-      // the shelf grows with the week: day 2's card joins day 1's (docs/54)
+      // the shelf grows with the week: day 2's card joins day 1's five
+      // (the Day-1 content pack's moment cards + day card — docs/54, Doc 08)
       game.ui.postcardKeep.click();
       {
         const t0 = performance.now();
-        while (performance.now() - t0 < budget(8000) && game.ui.albumCount < 2) await nextFrame();
+        while (performance.now() - t0 < budget(8000) && game.ui.albumCount < 6) await nextFrame();
       }
-      check(game.ui.albumCount === 2, 'day 2\u2019s card joins the shelf \u2014 the album keeps the week');
+      check(game.ui.albumCount === 6, 'day 2\u2019s card joins the shelf — the album keeps the week (5 from day 1 + this)');
       await waitFrames(10); // settle pad, tightened: the linger clock runs
       await interact();
       check(!game.player.frozen, 'day 2 end lingers too');
