@@ -628,9 +628,24 @@ Work Log:
   `docs/57-` for the first playtest results analysis.
 
 Stage Summary:
-- Docs only — zero src/ changes. tsc clean; vitest 476/476 on the tree the
-  decree was written against. E2E run before push (docs-only round, gates
-  still run per protocol). Gap list: Regulars ledger BUILD (the wave,
-  riding Day 5 per audit rec #1), audio outreach (business), touch
-  hardening on real devices. The design debt is paid; the build debt is
-  filed as B17 and now has a spec to build against.
+- Docs from me — zero src/ changes from this task (agent5's pass 6 arrived
+  mid-round and was merged: arrival.ts + starters tests, gates re-run green
+  on the merged tree). tsc clean; vitest 476/476 pre-merge, 484/484 merged.
+- E2E evidence, honestly: first attempt starved — one-shot pace measured
+  225 ms frames (×2.25 budgets) at startup under a sandbox load spike, and
+  the day-3 climb→postcard transition never fired ("ladder caps at the rail
+  (y=4.35)" PASS, postcard compose FAIL, full day-4 cascade, 600 s tool
+  timeout killed the run). Agent5's merged diff touches no climb/ladder/
+  postcard path — checked before suspecting the merge. Clean retry on the
+  same tree: AUTOTEST OK, 0 failures, 385 s, at ×2.18 startup pace. The
+  residual shape is now precise: the slow-machine law measures pace ONCE
+  at startup; a load spike arriving AFTER the measurement can still starve
+  the walkTo/climb path (walkTo keeps its own progress law by design).
+  Noted for a future driver pass — not fixed here, this task is docs.
+- Push: BLOCKED — no token on disk (worklog line 314 rule: fresh token per
+  push, never stored). Local main is green and 2 ahead (90fc1ec decree +
+  8f363bc merge); pushes the moment a token is provided.
+- Gap list: Regulars ledger BUILD (the wave, riding Day 5 per audit rec
+  #1), audio outreach (business), touch hardening on real devices, the
+  one-shot-pace E2E shape above. The design debt is paid; the build debt
+  is filed as B17 and now has a spec to build against.
