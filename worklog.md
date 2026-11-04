@@ -792,3 +792,42 @@ Stage Summary:
   probe-w5-interiors PASS (6 checks); probe-subway ALL PASS; probe-perf
   identical (207/281/354, zero page errors); five ledger rigs
   bit-identical; E2E AUTOTEST OK 0 failures 531 s console clean.
+
+## 2026-11-05 — agent5: B13 — the vertex fuse: the wrappers and the never-upgraded fallbacks join the color-ride law
+
+Synced on origin/main's 13 (touch-law B7, doc hygiene B14, the glass-side
+law B13) and took the ledger's only open item. The composition note priced
+the shadow pass, the cast law, the felt crowd, the tiles — but
+`diag-prop-bake-audit.mjs` (new, committed) showed two families nobody had
+priced: the vehicle GLB wrappers (cab 7 draws, sedan 6 — one mesh per glTF
+material, excluded from the bake forever by the glbProps law) and the
+fallback props whose GLB upgrade can never land (mailbox 4, trashcan 3 —
+no such .glb ships, yet the placeholders stay bake-excluded for a swap
+that is never coming).
+
+The cut lives one level below the bake: `src/world/vertexFuse.ts` (pure,
+the shadowLaw.ts pattern) fuses a prop's OWN parts into one vertex-colored
+mesh on the shared vc material — inside the wrapper (the cab drives and
+hides as a body; the bake law untouched) or in the builder pre-position.
+Bail law: any mapped/transparent/emissive/metallic/double-sided/skinned/
+unindexed/flag-mixed part bails the WHOLE prop. 14 pins in
+`tests/vertex-fuse.test.ts`.
+
+One honest look change, documented with A/B frames
+(`b13_vcfuse_{sedan,mailbox,trashcan}-{before,after}.png`): the vehicle
+GLBs ship position-only parts, so the shipped cars were ambient-only flat
+(un-lit); the fuse computes per-face normals — the fused cars are lit like
+every other Lambert prop in the world. Mailbox/trashcan A/B bit-identical.
+In-engine: cab 7→1, sedan 6→1, mailbox 4→1, trashcan 3→1.
+
+Ledger (diag-perf-breakdown, before → after): PLAZA 400 → 368 (−32),
+CART_CORNER 333 → 308 (−25), SYCAMORE×GABLE 128 → 118 (−10), TIMES_SQ
+130 → 130, PLATFORM_A 186 → 180 (−6) — every rig at-or-under its previous
+ledger; 150/250 stay published FAIL (the close remains the owner's call).
+
+Gates: tsc clean · vitest 548/548 (+14) · build clean · probe-cars clean
+(taxiWrapper meshes=1, sedanWrapper meshes=1) · probe-solid ALL CLEAN ·
+probe-peds OK · probe-a5c-arrival errors none · full 4-day E2E AUTOTEST
+OK 0 failures (540 s), console clean. Housekeeping: reconciled the stale
+package-lock (main's `@types/node` had never reached it — a fresh
+checkout's entry-gate tsc failed until `npm install` pinned it).

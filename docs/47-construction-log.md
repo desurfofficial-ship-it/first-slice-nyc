@@ -1789,3 +1789,57 @@ probe-w0-census (ledger above) · **E2E: OK — 0 failures, 402 s**, console
 clean (E2E_W=320 E2E_H=700). New diagnostics committed:
 `diag-xray2.mjs`, `diag-flat-dump.mjs`, `diag-atlas-shot.mjs`.
 docs/51 B13 carries this update.
+
+## The vertex fuse — the wrappers and fallback props join the color-ride law (2026-11-05)
+
+The composition note priced "the shadow pass, the six-draw cast law, the
+felt crowd, the baked tiles" — but two families in the census had never
+been priced at all. The two shipped vehicle wrappers drew one mesh per
+glTF material (cab 7, sedan 6, forever — the district bake must never
+swallow a `glbProps` member, because the async upgrade swaps the object
+after the bake). And the fallback props whose upgrade can never land (no
+`models/mailbox.glb` / `models/trashcan.glb` ships) sat in `glbProps`
+too — Mailbox 4 draws, Trashcan 3, on every rig that sees them, excluded
+from the tiles for a swap that is never coming.
+
+**The law (`src/world/vertexFuse.ts`, pure — the shadowLaw.ts pattern):**
+fuse a prop's OWN parts into one vertex-colored mesh on the shared
+`vcMaterial`, one level below the bake. Inside the wrapper the fused mesh
+still moves as a body (the cab drives), still hides as one (the district
+seat), and the bake law stays untouched. The bail law is
+`mergeGltfParts`' law, stricter: a mapped, transparent, emissive,
+metallic, double-sided, skinned, unindexed, or flag-mixed part bails the
+WHOLE prop untouched. BoxGeometry's six face groups flatten harmlessly
+(one material over grouped geometry draws once). Wired contract:
+`tests/vertex-fuse.test.ts` (14 pins — the fuse, the exact color ride,
+the bounding sphere, the flag law, eight bail shapes). Callers:
+`upgradePropWithGLB` (after `mergeGltfParts`) and the mailbox/trashcan
+builders (fused pre-position).
+
+**The honest look note.** The vehicle GLBs ship position-only parts — no
+normals, the same reason the bake's guard refuses them — so the shipped
+car look was ambient-only flat color. The fuse computes per-face normals:
+the fused draw is lit like every other Lambert prop in the world (the
+procedural placeholder cars always were; the flat GLB look was the seam's
+artifact, not a design). A/B frames:
+`web-three/assets/web-three/frames/b13_vcfuse_{sedan,mailbox,trashcan}-{
+before,after}.png` — mailbox and trashcan bit-identical; the sedan reads
+flat → shaded. In-engine: cab 7 → 1, sedan 6 → 1, mailbox 4 → 1,
+trashcan 3 → 1 (`diag-prop-bake-audit.mjs`, committed; `probe-cars`
+reads taxiWrapper meshes=1, sedanWrapper meshes=1, console clean).
+
+**The numbers, honestly** (diag-perf-breakdown, before → after on the
+same tip): PLAZA 400 → **368** (−32 — main pass plus the shadow pass
+that rides the fused casters), CART_CORNER 333 → **308** (−25),
+SYCAMORE×GABLE 128 → **118** (−10), TIMES_SQ 130 → 130 (±0),
+PLATFORM_A 186 → **180** (−6). Every rig at-or-under its previous
+ledger at every step; the 150/250 gate lines stay published FAIL against
+the priced composition.
+
+**Verification**: tsc clean · vitest **548/548** (+14 vertex-fuse) ·
+build clean · probe-cars clean · probe-solid ALL CLEAN · probe-peds OK ·
+probe-a5c-arrival errors none · full 4-day E2E **AUTOTEST OK 0 failures
+(540 s)**, console clean. Housekeeping: main's `@types/node` addition
+had never reached package-lock.json — reconciled here (a fresh checkout's
+entry-gate tsc failed until it did). docs/51 B13 + docs/55 §3 carry the
+row.

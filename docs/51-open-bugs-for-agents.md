@@ -606,6 +606,47 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   only exists below grade). Verified: tsc clean, vitest 514/514, build
   clean, probe-subway ALL PASS ×2 (with the two new checks).
 
+- **Update 2026-11-05 (the GLB-wrapper + fallback-prop cut — the last
+  unpriced composition item, agent5):** the composition note priced "the
+  shadow pass, the six-draw cast law, the felt crowd, the baked tiles" —
+  but the census still carried two families nobody had priced:
+  **(a) the two shipped vehicle wrappers** (`car_taxi_glb` 7 draws,
+  `car_sedan_glb` 6 — one mesh per glTF material) and **(b) the procedural
+  fallback props whose GLB upgrade can never land** (no
+  `models/mailbox.glb` / `models/trashcan.glb` ships; the placeholders sit
+  in `glbProps`, so the district bake excludes them forever — Mailbox 4
+  draws, Trashcan 3, on every rig that sees them). The bake's own law is
+  correct in both cases (a baked batch can't be swapped by the async
+  upgrade, and a glbProps member can't join a tile) — so the cut happens
+  ONE LEVEL DOWN: `src/world/vertexFuse.ts` (the shadowLaw.ts pattern, pure)
+  fuses a prop's OWN parts into one vertex-colored mesh on the shared
+  `vcMaterial` — inside the wrapper (the cab still drives as a body, the
+  district seat still hides it as one) or in the builder (mailbox, trashcan,
+  fused pre-position). The bail law is mergeGltfParts' law, stricter: any
+  mapped / transparent / emissive / metallic / double-sided / skinned /
+  unindexed / flag-mixed part bails the WHOLE prop untouched
+  (`tests/vertex-fuse.test.ts`, 14 pins).
+  **The honest look note:** the vehicle GLBs ship position-only parts (no
+  normals — the same reason the bake's guard refuses them), so the shipped
+  car look was ambient-only flat color; the fuse computes per-face normals
+  so the fused draw is lit like every other Lambert prop in the world (the
+  procedural placeholder cars always were). A/B frames:
+  `web-three/assets/web-three/frames/b13_vcfuse_{sedan,mailbox,trashcan}-{before,after}.png`
+  — mailbox bit-identical, trashcan bit-identical, sedan flat → shaded
+  (the world's own lighting law; the taxi wears the same law —
+  `probe-cars` reads taxiWrapper meshes=1, sedanWrapper meshes=1).
+  **The numbers (diag-perf-breakdown, before → after on the same tip):**
+  PLAZA 400 → **368** (−32, main + the shadow pass that rides the fused
+  casters), CART_CORNER 333 → **308** (−25), SYCAMORE×GABLE 128 → **118**
+  (−10), TIMES_SQ 130 → 130 (±0), PLATFORM_A 186 → **180** (−6) — every
+  rig at-or-under its previous ledger; the 150/250 lines stay published
+  FAIL. Verified: tsc clean, vitest **548/548** (+14), build clean,
+  probe-cars clean, probe-solid ALL CLEAN, probe-peds OK, probe-a5c-arrival
+  errors none, full 4-day E2E **AUTOTEST OK 0 failures (540 s)** console
+  clean. Also reconciled: main's `@types/node` addition had never reached
+  package-lock.json — `npm install` pinned it (the entry-gate tsc failed
+  on a fresh checkout until it did).
+
 ### B14. Documentation hygiene — FIXED 2026-11-03
 - **Was:** AGENTS.md read "Pre-Production, docs-complete, code pending — do
   not scaffold game code before Phase 0 exit is signed" weeks after

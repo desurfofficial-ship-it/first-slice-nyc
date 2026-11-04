@@ -239,20 +239,23 @@ updated, see docs/51.)
   on the fixed rigs (PLAZA, CART_CORNER, SYCAMORE×GABLE, TIMES_SQ,
   PLATFORM_A — the platform rig's staging was corrected 2026-11-04, see
   docs/51 B13: the old feet ejected the capsule; the numbers are void).
-- **Where it stands (2026-11-04):** the B16 Shuffle phase's row is
-  published (PLAZA 400, CART_CORNER 333, SYCAMORE 128, TIMES_SQ 130 — the
-  felt crowd's six-draw law, lever priced and rejected); the underground
-  economy program item is landed (the dollhouse flip shrinks the sun's box
-  to 18 — the corrected dwell rig 231 → 186, `shadowLaw.ts` +
-  `tests/shadow-law.test.ts` + probe-subway's wired checks); and the last
-  named program — interiors' window visibility — is landed (the glass-side
-  law, `src/world/interiorGlass.ts`: the fit-out shows near a shell only
-  through the room's own window runs; wrong side −30 calls at the hall
-  east yard, the five ledger rigs bit-identical, see docs/51 B13). The
-  named frontier is exhausted; the street 150 line still reads FAIL
-  against the priced composition (the dusk shadow pass, the six-draw cast
-  law, the felt crowd, the baked tiles — every remaining lever already
-  rejected with numbers), and closing B13 against it is the owner's call.
+- **Where it stands (2026-11-05):** the B16 Shuffle phase's row is
+  published (the felt crowd's six-draw law, lever priced and rejected); the
+  underground economy program item is landed (the dollhouse flip shrinks
+  the sun's box to 18 — `shadowLaw.ts` + `tests/shadow-law.test.ts` +
+  probe-subway's wired checks); interiors' window visibility is landed (the
+  glass-side law, `src/world/interiorGlass.ts`); and the last unpriced
+  composition item — the two vehicle wrappers and the never-upgraded
+  fallback props — is landed (the vertex-fuse law, `src/world/vertexFuse.ts`:
+  a flat-colored prop fuses to ONE vertex-colored draw inside the wrapper
+  the bake must never swallow; `tests/vertex-fuse.test.ts`, 14 pins).
+  Latest honest row (diag-perf-breakdown, 2026-11-05): **PLAZA 368,
+  CART_CORNER 308, SYCAMORE×GABLE 118, TIMES_SQ 130, PLATFORM_A 180** —
+  every rig under its previous ledger at every step; the street 150 line
+  still reads FAIL against the priced composition (the dusk shadow pass,
+  the six-draw cast law, the felt crowd, the baked tiles — every remaining
+  lever already rejected with numbers), and closing B13 against it is the
+  owner's call.
 - **Pass rule:** Kestrel ≤ 150 on the ledger rig, or a published honest
   ledger row with the phase's before/after — never silent regression.
 - **Owner:** __

@@ -30,6 +30,7 @@ import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecy
   makeSprayBasin, SHARED_GEOS, type SignPair } from './props';
 import { drawIntoAtlas, atlasMaterial, atlasTexture } from './signAtlas';
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
+import { fuseFlatParts } from './vertexFuse';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
 import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
@@ -3359,6 +3360,12 @@ export class World {
       // bit-identical. Any mesh we can't merge (multi-material groups,
       // mismatched attributes) keeps the original scene untouched.
       visual = this.mergeGltfParts(visual);
+      // B13 (docs/51): the wrapper the bake must never swallow fuses ITSELF
+      // — the shipped vehicles are flat untextured unmetallic colors, so the
+      // per-material meshes become ONE vertex-colored draw on the shared vc
+      // material (the statics' own color-ride law). Anything that would not
+      // survive with its look intact bails whole, per mergeGltfParts' law.
+      visual = fuseFlatParts(visual, this.vcMaterial(true)).root;
 
       placeholder.updateWorldMatrix(true, false);
       const phBox = new THREE.Box3().setFromObject(placeholder);
@@ -3485,9 +3492,13 @@ export class World {
     const slot = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.05, 0.03), this.mat(PAL.ink));
     slot.position.set(0, 0.74, 0.26);
     for (const m of [body, top, leg, slot]) { m.castShadow = true; g.add(m); }
-    g.position.set(x, 0, z);
-    this.registerGlbProp('mailbox', g);
-    return g;
+    // B13: no mailbox.glb ships, so this placeholder's upgrade can never
+    // land — it is a FINAL static that the bake will never take (glbProps
+    // law). Fuse it here, pre-position, on the shared vc material: 4 → 1.
+    const out = fuseFlatParts(g, this.vcMaterial(true)).root as THREE.Group;
+    out.position.set(x, 0, z);
+    this.registerGlbProp('mailbox', out);
+    return out;
   }
 
   private makeTrashcan(x: number, z: number): THREE.Group {
@@ -3502,9 +3513,12 @@ export class World {
     band.rotation.x = Math.PI / 2;
     band.position.y = 0.5;
     for (const m of [can, rim, band]) { m.castShadow = true; g.add(m); }
-    g.position.set(x, 0, z);
-    this.registerGlbProp('trashcan', g);
-    return g;
+    // B13: same law as the mailbox — no trashcan.glb ships, so fuse the
+    // final static here: 3 → 1.
+    const out = fuseFlatParts(g, this.vcMaterial(true)).root as THREE.Group;
+    out.position.set(x, 0, z);
+    this.registerGlbProp('trashcan', out);
+    return out;
   }
 
   private makeStreetlamp(x: number, z: number): THREE.Group {
