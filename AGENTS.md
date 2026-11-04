@@ -2,9 +2,9 @@
 
 > **You are an AI agent contributing to FIRST SLICE: A New York Story** — a cozy lowpoly mobile life-sim where people who have never been to NYC fall in love with the city one postcard at a time. This file is your operating contract. Read it fully before touching anything. When instructions here conflict with habit, **this file wins**.
 
-**Current phase:** Production — Phase 1 build-out on `main` (design docs complete and shipped against; see [docs/06-production-roadmap.md](docs/06-production-roadmap.md) and the phase state in [docs/55-phase1-exit-checklist.md](docs/55-phase1-exit-checklist.md)). The codebase is live: the Three.js client in `web-three/` builds, plays the authored four-day chain end to end, and carries 500+ passing tests with probe evidence per feature. Do not re-scaffold, do not restart from a greybox, and do not re-derive specs that docs/01–56 already lock — read the ledger ([docs/51-open-bugs-for-agents.md](docs/51-open-bugs-for-agents.md)) first and build forward from main.
+**Current phase:** Vertical Slice production (Phase 1 of [docs/06-production-roadmap.md](docs/06-production-roadmap.md)). Phase 0 exit was signed 2026-10-28 ([docs/18](docs/18-phase0-exit-summary.md)); the code is real — `web-three/` is a playable Three.js slice with a vitest suite, probe harnesses, and a 4-day E2E. Entry gates for any change: `npx tsc --noEmit` and `npx vitest run` in `web-three/`. Don't redesign what already ships: the first-session world in [docs/50](docs/50-agent2-first-session-world.md) is the paved path.
 
-> **ACTIVE MILESTONE:** [docs/37-living-neighborhood-milestone-brief.md](docs/37-living-neighborhood-milestone-brief.md) — *From scripted story to a living, interactive neighborhood.* If you were assigned the Living Neighborhood implementation, **start there**: audit-first workflow, phase order, red lines, test matrix, and Definition of Done are all in that brief.
+> **ACTIVE WORK:** the open-bugs ledger [docs/51-open-bugs-for-agents.md](docs/51-open-bugs-for-agents.md). Claim an unowned bug (skip ones with an owner hint — agents work in parallel), fix it with its permanent guard (§1c.1), and update the ledger **and** [worklog.md](worklog.md) in the same commit. The Living Neighborhood milestone (Doc 37) was implemented through docs/34 + docs/38 and is no longer the active front; future construction plans live in docs/45.
 
 ---
 
@@ -169,29 +169,30 @@ Automations and scheduled bots are optional later. They do not replace a paved p
 first-slice-nyc/
 ├── README.md                  # Pitch overview + docs index + previews
 ├── AGENTS.md                  # ← you are here
-├── docs/
-│   ├── 01-game-design-document.md      # GDD v2.0 — source of truth
-│   ├── 02-first-session-walkthrough.md # Minute-by-minute opening script
-│   ├── 03-events-compendium.md         # 30 events/systems, each with a wonder beat
-│   ├── 04-art-direction-bible.md       # Palette, camera, the 1-Second Law
-│   ├── 05-viral-growth-playbook.md     # Postcard-as-ad, UGC engine, market
-│   ├── 06-production-roadmap.md        # Phases 0–6, epics, KPI gates, risks
-│   ├── 07-vertical-slice-design.md     # Phase 1 contract (v0.1, WIP)
-│   ├── 33-living-neighborhood-design.md
-│   └── 34-living-block-implemented.md
-├── assets/                    # Screenshots/previews
-└── agents/                    # (planned) skills/<name>/SKILL.md extensions
+├── docs/                      # 01–52: GDD, scripts, art bible, build logs.
+│   │                          #   The two live coordination files:
+│   ├── 50-agent2-first-session-world.md  # the paved path — current world truth
+│   │                          #   (51-open-bugs-for-agents.md — the live bug ledger, check it first)
+│   └── …                      #   full index in README
+├── web-three/                 # THE GAME — Vite + TypeScript + Three.js
+│   ├── src/                   #   camera, world, game, court, subway, ui, …
+│   ├── tests/                 #   vitest suite — permanent guards live here
+│   └── scripts/               #   probe-*.mjs in-engine verification harnesses
+├── site/                      # pitch site (static)
+├── tools/, tools3d/, scripts/ # asset generation (Blender / GLB pipelines)
+├── assets/                    # screenshots / styleframes / greybox frames
+└── worklog.md                 # append-only agent worklog — add yours at the end
 ```
 
-Game code for the browser greybox lives in `web-three/`. Do not replace GDD systems with a generic city demo.
+The game lives in `web-three/` — no longer a greybox; it is the vertical-slice build. Do not replace GDD systems with a generic city demo.
 
 ## 4. Environment & Commands
 
 **Docs repo (this one):**
 ```bash
 git status && git log --oneline -5     # orient first, always
-# Commit format: type(scope): summary  — e.g.  docs(vs): add VS-F05 postcard capture spec
-# Branches: docs/<topic>, skill/<name>, feat/<epic-id> (once /game exists)
+# Commit format: type(scope): summary  — e.g.  fix(web-three): B6 — occlusion buffer grows with post-boot canopies
+# Branches: fix/<bug-id>-<topic>, feat/<topic>, docs/<topic>
 ```
 
 **Pitch-site sandbox (separate Next.js project at `/home/z/my-project`, not this repo):**
