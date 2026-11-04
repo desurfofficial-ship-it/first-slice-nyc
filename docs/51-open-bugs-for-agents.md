@@ -536,6 +536,52 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   re-do completed design work or mis-scope the current phase.
 - **Status:** OPEN — low priority, do when touching those files.
 
+### B16. The Shuffle (VS-F04) is a stub — one flavor note; the crowd-walk mini-game is not built
+- **The docs' spec (read these, do not re-derive):** Doc 07 §3 IN —
+  "Crowd walk mini-game, forgiveness rules". Doc 02 §10:00–15:00 (the Wow
+  Wonk, wonder beat #1's approach): "a gentle mini-game about walking
+  through people without stopping (drift toward gaps; brushing someone just
+  makes them say 'scuse me,' which is a *correct* interaction, not a
+  failure)" — taught on the guided walk toward the subway. Doc 01 §412:
+  learned on the Wow Walk, "a tiny movement mini-game, forgiving by
+  design". Doc 10: the crosswalk is the Shuffle teaching moment (greybox
+  stand-in). Doc 08 note #4: the Map-note text. Doc 07 TBD-3: soft skip —
+  after 20 s standing still, "The city will wait" prompt; skipping still
+  grants the Times Square postcard.
+- **What main @ `5f973e1` actually has — the forgiveness half + the note,
+  nothing else.** `GameState.ts:444` `cross(atStrip)`: ONE note effect (at
+  the stripes: the Doc 08 #4 text; anywhere else: "You found your own way
+  across. The crosswalk still likes you.") + a checkpoint + advance to
+  CLAIM_CART. The world trigger is `Game.ts:650` (`z < -4.1` — the docs/22
+  Seam-1 fix). The note text is the only place "scuse me" exists
+  (`content.ts:156`, `GameState.ts:448`) — no code can make anyone say it.
+  Ambient peds are real bodies with collision courtesy
+  (`tests/crowd.test.ts`: walkers yield, pair separation, cab push) —
+  physics and decoration, not a mini-game.
+- **What's missing, per the spec:** (1) the crowd-dense walk segment itself —
+  Doc 02 places the Shuffle on the guided walk to the subway, where the
+  player moves THROUGH people; the Day-1 crosswalk note is the greybox
+  stand-in (docs/10, docs/22), not the slice's beat; (2) drift-toward-gaps
+  as a felt mechanic; (3) brush → "scuse me" from the brushed ped as a
+  correct interaction, never a fail (zero reaction code: no bubble, no
+  speech, no brush-proximity handler); (4) the TBD-3 soft skip ("The city
+  will wait" — zero hits in src/ and tests/).
+- **Provenance note:** docs/agent3-living-world-audit.md already called this
+  row "Missing — one flavor note when crossing; no crowd mini-game". That
+  audit is stale on other rows (Map UI, album, subway have since landed),
+  but on F04 it is still TRUE. docs/55's F04 status note quoted the note
+  text as if the brush existed — corrected in the same commit that files
+  this entry.
+- **Close rule:** the walk to the subway carries a crowd the player weaves
+  through; brushing a ped fires their "scuse me" (correct interaction, no
+  fail state); standing still 20 s mid-walk offers "The city will wait"
+  (TBD-3) and skipping still reaches Times Square; the crosswalk's
+  forgiveness and own-way line stay as-is. Evidence: a probe that walks the
+  segment, forces a brush, and captures the ped reaction; a unit test for
+  the brush-counts-as-correct law; e2e rails untouched.
+- **Status:** OPEN — a feature-sized build (VS-F04's own IN-scope row); it
+  needs its own decree and must not be smuggled into a docs pass.
+
 ---
 
 ## Verification gates (after any fix)
