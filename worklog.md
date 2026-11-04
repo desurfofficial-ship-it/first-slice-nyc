@@ -461,3 +461,43 @@ Stage Summary:
 - docs/51 B12 → FIXED with the per-item verdict table; docs/31 header now
   points at the close-out. No probe assertions touched (frames are evidence,
   not gates); no docs/51 links changed.
+
+## 2026-11-04 — agent2: the playtest gate gets its plan (docs/56 — Doc 07 §9 device + playtest evidence)
+
+Doc 55 boxes 1 (device layer) and 2 (playtest targets) needed evidence no
+probe can produce: a person, on a phone, staying for the whole first session.
+Docs only this session — zero src/ changes. New
+[docs/56-phase1-playtest-plan.md](docs/56-phase1-playtest-plan.md):
+
+- The 30-min first-session script as an observer table — minute markers taken
+  ONLY from Doc 02's own section clocks (0:00 arrival … 26:00 first postcard),
+  each row saying what to record, never what to do. Beat divergence on main
+  is a docs/51 finding, not a plan edit.
+- Funnel metrics copied verbatim from Doc 07 §8 (reach postcard ≥ 85%,
+  share intent ≥ 70%, looked-after ≥ 4/5, learned-repeatable ≥ 80%,
+  25–35 min with no drop before minute 12, residents ≥ 2/3) plus the VS-F05
+  bar (10/10 keep, ≥ 6 send) — each with its manual capture proxy.
+- Device matrix: iPhone 11-class + Galaxy A14 (the §9-1 named pair) + desktop
+  control; ≥ 3 full human sessions per mobile column; desktop replays any
+  mobile failure once to classify device debt vs design debt.
+- Per-session captures: crash log (console export even when clean), session
+  length (three numbers), postcard Y/N unaided, share intent (touched +
+  stated, never prompted), and exactly three interview questions with
+  scoring rules (Q1 looked-after/where, Q2 repeat-a-fact verbatim, Q3
+  resident true/off detail).
+- The single results ledger — empty on purpose, 12 rows — plus a logging
+  protocol with teeth: append-only, no evidence dir = no row, corrections
+  are new rows, tallies compute over Type=human only, agents may log
+  Type=pilot rows (docs/21 honesty rules inherited) and must never write a
+  human row. Box 2 of docs/55 turns green only when row 10 lands.
+
+The honesty finding of the pass: Doc 07 §6's instrumented funnel
+(`session_start → … → session_end`) is design-only — nothing in
+`web-three/src/` emits it (grep at baseline `b257ff3`; no telemetry module).
+Every metric in docs/56 runs on a manual proxy instead; wiring the funnel is
+feature work, declared out of scope, and marked unfinished per house style.
+
+docs/55 updated in the same commit: boxes 1 and 2 now carry "Operational
+plan: Doc 56" pointers, and the stale forward-reference to a
+`docs/56-playtest-01-results.md` was corrected — results analysis lands at
+`docs/57-` or later; `docs/56-` is the plan.

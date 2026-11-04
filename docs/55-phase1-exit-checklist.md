@@ -60,6 +60,10 @@ probe still green at its mobile viewport; on-device manual pass for all 10
 features on BOTH devices; VS-F10 budgets hold (60 fps iPhone 11 / SE 3,
 30 fps floor Galaxy A14, < 150 draw calls typical street, < 1.2 GB).
 
+**Operational plan:** [Doc 56](56-phase1-playtest-plan.md) — the Doc 02
+minute-marker script, the device matrix, and the per-session capture list
+this device walk uses.
+
 **Honest gap:** there is no device farm in the repo. The browser probes are
 the CI-grade stand-in until the on-device run happens. The gap is the work —
 not a reason to shrink the rule.
@@ -77,6 +81,10 @@ person stayed. Panel per Doc 07 §8: 5 never-been-to-NYC, 3 cozy-genre
 players, 2 NYC residents. Instrumented funnel + 15-min interview. The
 driver's share of this: ~127 checks across 4 days prove the path itself.
 
+**Operational plan:** [Doc 56](56-phase1-playtest-plan.md) — the session
+script, capture list, three interview questions, logging protocol, and the
+empty results ledger (§6) this box's rows land in.
+
 | # | Metric (Doc 07 §8) | Target | How measured | Evidence path |
 |---|---|---|---|---|
 | 2a | Reach first postcard unaided | ≥ 85% | observer sheet / session recording per tester | `assets/playtests/01/` |
@@ -89,9 +97,9 @@ driver's share of this: ~127 checks across 4 days prove the path itself.
 **Pass rule:** all six rows meet target across the full panel. Any miss gets
 a docs/51 entry (the fix is design work, never a silent tweak).
 
-**Evidence:** results write-up (new doc when it happens, e.g.
-`docs/56-playtest-01-results.md`) + raw sheets → `assets/playtests/01/`.
-**Owner:** __
+**Evidence:** results write-up (new doc at the next free number when it
+happens — `docs/56-` is now the playtest plan) + raw sheets →
+`assets/playtests/01/`. **Owner:** __
 
 ---
 
