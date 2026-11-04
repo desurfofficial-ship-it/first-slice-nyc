@@ -17,6 +17,7 @@ import { composeCaption, tsWowCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE
   MAP_PLACES, MAP_PLACE_NOTICE_R,
 } from '../core/content';
 import { loadSave, writeSave, type SaveData } from '../core/Save';
+import { STARTERS, starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
 import { PAL } from '../core/palette';
 import { World, phys } from '../world/World';
 import { Player, lerpAngle } from '../player/Player';
@@ -63,8 +64,9 @@ export class Game {
   readonly tweens = new Tweens();
 
   private renderer: THREE.WebGLRenderer;
-  /** The player's articulated visual — public readonly for the test harness. */
-  readonly playerVisual: THREE.Group;
+  /** The player's articulated visual — public for the test harness. Reassigned
+   *  by applyStarter (Doc 02 six starters): same boxes, a new face. */
+  playerVisual: THREE.Group;
   readonly cupProp: THREE.Object3D;
   /** The customer at the cart — public for the E2E harness (bubble check). */
   customer: THREE.Group | null = null;
@@ -78,6 +80,17 @@ export class Game {
    *  fade is still holding s.day at its default. */
   readonly bootedFromDay: number;
   private duskStarted = false;
+  /** Boot-shape flags (Doc 02 starters): a driver/probe boot and a film-
+   *  requested boot never see the pick card — only humans on the film path
+   *  choose a face. ?starter=<id> dresses the walker directly. */
+  private driverBoot = false;
+  private filmRequested = false;
+  /** ?pickcard=1 — the pick-card harness hatch (same law as ?film=1: the
+   *  driver asks for it explicitly). Forces the offer at the film handover
+   *  so evidence probes can tap the tiles. */
+  private forcePickCard = false;
+  /** The pick card has been offered this session (offer once, never nag). */
+  private starterOffered = false;
   private postcardRig = false;
   /** The Wow card (docs/51 B10) is open — the panel currently shows the
    *  sync beat's keepsake, NOT the day-end card. Dismissal takes the light
@@ -238,6 +251,7 @@ export class Game {
       player: this.player,
       playerVisual: this.playerVisual,
       rosa: this.world.rosa,
+      buildPerson: (o) => this.world.buildPerson(o),
       onHandover: () => this.onArrivalHandover(),
     });
     this.registry.register(...buildInteractions({
@@ -270,6 +284,12 @@ export class Game {
     const save = loadSave();
     this.bootedFromDay = save.day;
     if (save.day >= 2) {
+      // the face rides the save (Doc 02 starters): a returning player wakes
+      // up as whoever got off the bus
+      if (isStarterId(save.starter)) {
+        this.state.starterId = save.starter!;
+        this.applyStarter(save.starter!, false);
+      }
       void this.beginDay(save.day, save, save.day_complete || save.replay);
     } else {
       this.state.money = START_MONEY;
@@ -278,6 +298,11 @@ export class Game {
       this.world.dressDay(1); // Day 1 is dressed by construction defaults; this makes it honest
       this.ui.setMoneyQuiet(this.state.money);
       const params = new URLSearchParams(location.search);
+      // ?starter=<id> — the harness's direct dress: apply (and persist) with
+      // no card, so drivers can test any face without tapping one
+      const qStarter = params.get('starter');
+      if (isStarterId(qStarter)) this.applyStarter(qStarter!, true);
+      else if (isStarterId(save.starter)) this.applyStarter(save.starter!, false);
       // Headless drivers skip the film — same rules, same street, and the
       // SAME default camera yaw: the probes drive the walker with a
       // hard-coded input convention calibrated to camYaw 0. Two honest
@@ -288,11 +313,14 @@ export class Game {
       // humans; a driver getting a 13 s cinematic that owns the input and
       // repositions the walker mid-probe would invalidate the fleet.
       const isDriver = (navigator as { webdriver?: boolean }).webdriver === true;
+      this.driverBoot = isDriver
+        || params.has('autotest') || params.has('probe');
       // ?film=1 is the film's own driver escape hatch: the film's evidence
       // probes run under Playwright AND need the film — they ask for it
       // explicitly, the way any future harness will.
-      const filmRequested = params.has('film');
-      if ((params.has('autotest') || params.has('probe') || isDriver) && !filmRequested) {
+      this.filmRequested = params.has('film');
+      this.forcePickCard = params.has('pickcard');
+      if (this.driverBoot && !this.filmRequested) {
         this.ui.showNote(MAP_NOTE_BOOT);
       } else {
         // the arrival — Doc 02's opening, staged on the terminal coach
@@ -300,6 +328,11 @@ export class Game {
       }
     }
     this.ui.onNameSubmit = () => this.confirmName(this.ui.nameInput.value);
+    this.ui.onStarterPick = (id) => {
+      this.applyStarter(id, true);
+      this.ui.closeStarterPick();
+      this.ui.showNote('There you are. Now the story has a face.');
+    };
     this.ui.onCineTap = () => { if (this.arrival.active) this.arrival.tap(); };
     this.ui.onCineSkip = () => { if (this.arrival.active) this.arrival.skip(); };
     this.ui.onOrderChoose = (reply) => this.advanceOrder(reply);
@@ -372,10 +405,11 @@ export class Game {
       if (inp.interactPressed) this.arrival.tap();
       if (inp.restartPressed) this.arrival.skip();
     } else if (inp.restartPressed && !this.dayFading && this.ui.nameBox.hidden
-      && this.ui.orderCard.hidden) {
+      && this.ui.orderCard.hidden && this.ui.starterCard.hidden) {
       location.reload(); // R = restart the day (save rules decide what resumes)
       return;
-    } else if (inp.interactPressed && !this.dayFading && this.ui.nameBox.hidden) {
+    } else if (inp.interactPressed && !this.dayFading && this.ui.nameBox.hidden
+      && this.ui.starterCard.hidden) {
       if (!this.ui.postcardPanel.hidden) this.dismissPostcard();
       else if (this.state.pendingCard) this.advanceOrder(null); // the card owns the counter
       else if (!this.mapOpen) this.tryInteract();
@@ -383,7 +417,7 @@ export class Game {
     // M folds / opens the Map — the notebook is always available, never forced
     const mapDown = this.input.isDown('KeyM');
     if (mapDown && !this.mapKeyWasDown && !this.dayFading && this.ui.nameBox.hidden
-      && this.ui.orderCard.hidden) {
+      && this.ui.orderCard.hidden && this.ui.starterCard.hidden) {
       this.toggleMap();
     }
     this.mapKeyWasDown = mapDown;
@@ -411,7 +445,7 @@ export class Game {
     this.cam.interiorMode = this.world.subway.underground;
     this.drainFarWorld(dt);
     if (!this.dayFading && this.ui.nameBox.hidden && this.ui.orderCard.hidden && !this.mapOpen
-      && !this.arrival.active) {
+      && this.ui.starterCard.hidden && !this.arrival.active) {
       // movement — paused on the bench (Doc 37 §3C: the seat holds you;
       // physics would drag the capsule off it, so the walker simply rests)
       if (!this.sitting) this.player.update(dt, inp.move);
@@ -1251,6 +1285,67 @@ export class Game {
   private onArrivalHandover(): void {
     this.checkpoint = { x: this.player.capsule.x, y: this.player.capsule.y, z: this.player.capsule.z };
     this.ui.showNote(MAP_NOTE_BOOT);
+    // Doc 02: "Six starter characters to pick from (30 seconds, all
+    // delightful)." An explicit ?pickcard=1 ask wins (same law as ?film=1);
+    // otherwise only humans on the film path see it — drivers and film
+    // evidence probes keep the shipped face.
+    if (!this.starterOffered && this.state.starterId === DEFAULT_STARTER
+      && (this.forcePickCard || (!this.driverBoot && !this.filmRequested))) {
+      this.starterOffered = true;
+      this.ui.showStarterPick(STARTERS);
+    }
+  }
+
+  /** Dress the walker as a picked starter — Doc 02 §0:00–2:00. Same boxes
+   *  (personRig's law), new colors; the coffee cup re-parents; Dee's board
+   *  rides the back the way the stranger's duffel does. `persist` writes a
+   *  day-1 save blob so a reload keeps the face and skips the card. */
+  private applyStarter(id: string, persist: boolean): void {
+    const st = starterById(id);
+    this.state.starterId = st.id;
+    const old = this.playerVisual;
+    const g = this.world.buildPerson(st.look);
+    g.name = 'Player';
+    g.position.copy(old.position);
+    g.rotation.copy(old.rotation);
+    if (st.prop === 'skateboard') g.add(this.makeSkateboardProp());
+    g.add(this.cupProp); // THREE re-parents: the cup stays with its owner
+    this.world.scene.add(g);
+    const i = this.cast.indexOf(old);
+    if (i >= 0) this.cast[i] = g;
+    this.playerVisual = g;
+    this.world.scene.remove(old);
+    if (persist) writeSave({ ...loadSave(), starter: st.id });
+  }
+
+  /** Dee's board: deck + grip stripe + four wheels, carried diagonal across
+   *  the back (model faces local +Z, so −Z is the spine side). */
+  private makeSkateboardProp(): THREE.Group {
+    const g = new THREE.Group();
+    g.name = 'Starter_Board';
+    const deck = new THREE.Mesh(
+      new THREE.BoxGeometry(0.46, 0.035, 0.11),
+      new THREE.MeshLambertMaterial({ color: 0x2b2730 }),
+    );
+    deck.castShadow = true;
+    const grip = new THREE.Mesh(
+      new THREE.BoxGeometry(0.44, 0.012, 0.1),
+      new THREE.MeshLambertMaterial({ color: 0x2a9d8f }),
+    );
+    grip.position.y = 0.02;
+    g.add(deck, grip);
+    for (const [wx, wz] of [[-0.16, 0.07], [0.16, 0.07], [-0.16, -0.07], [0.16, -0.07]]) {
+      const wheel = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.024, 0.024, 0.02, 8),
+        new THREE.MeshLambertMaterial({ color: 0xece5d8 }),
+      );
+      wheel.rotation.x = Math.PI / 2;
+      wheel.position.set(wx, -0.03, wz);
+      g.add(wheel);
+    }
+    g.position.set(0.03, 1.12, -0.26); // between the shoulders, on the back
+    g.rotation.z = 0.3; // the diagonal carry
+    return g;
   }
 
   /** Day 4: the stranger appears at the terminal — the spot where the whole
@@ -2092,6 +2187,7 @@ export class Game {
     this.noteAge = 999;
     if (sd !== null) {
       s.cartName = sd.cart_name;
+      if (isStarterId(sd.starter)) s.starterId = sd.starter!;
       s.money = sd.money;
       s.awningUp = sd.awning;
       s.kidKept = sd.kid_kept;
