@@ -1721,3 +1721,71 @@ OK · probe-w4-bus OK · probe-subway ALL PASS · probe-a5c-arrival clean ·
 probe-w1-ghost PASS · probe-w0-census (ledger above) · **E2E: OK — 0
 failures, 397 s**, console clean (E2E_W=320 E2E_H=700). docs/51 B13
 carries this update.
+
+---
+
+## The sign atlas — the named frontier, taken (2026-11-04)
+
+**The find.** With three bake waves in, `diag-xray2.mjs` (a rebuilt rig
+x-ray: the rig camera applied through the gate probe's own render hook, so
+the frustum listing matches the measured view; ancestor-visibility
+respected — the old TOP list counted phantoms under hidden zone groups)
+and `diag-flat-dump.mjs` (every frustum-visible mesh with its parent
+chain) split the main pass honestly. The shadow pass is priced and closed
+(~113–126 calls, the dusk look). The main pass's biggest reducible family
+was the one the curb-bake entry named: canvas-textured sign faces — ~20
+per Kestrel rig, each its own CanvasTexture and Lambert, one draw each,
+excluded from every bake by `mat.map`.
+
+**The lever — one sheet, uv rects, an ATLAS batch.** `signAtlas.ts` is a
+shelf-packed 2048×1024 canvas with an 8 px bleed guard per slot (the
+padding pre-filled with the sign's own background, so mipmaps bleed the
+sign's edge color, never the void). The lettering ops moved into
+`signFaceOps` — the exact strokes `textTexture` always ran, now drawn
+translated into their shelf slot, bit-identical pixels, one texture
+upload instead of ~60. `signMaterials` allocates a rect and returns the
+ONE shared atlas material; the rect rides `SignPair.rect` onto the
+GEOMETRY (`remapUVs` — material is shared, uv is per-face), so
+`makeSignBoard`'s front/back planes and the subway entrance's F bullet
+cap sample their slot. `bakeStatics` gains the ATLAS signature
+(`ATLAS|fog|cast|receive`, keyed on `map === atlasTexture()`): uv kept,
+no color bake, merged world-wide — sign faces are a few square meters
+TOTAL, so the per-tile rasterization law never applies ('ATLAS' registers
+under no district, so visibility never hides it). Exclusions stay law:
+signs over the station box (Terminal_Sign) ride the sheet but keep their
+own meshes — the dollhouse lift would strand them; Bodega_RoofSign stays
+individual (childed to the roof, which ducks when the player steps
+inside); the hall notice face keeps its own canvas (dressDay re-letters
+it at runtime); the M121 rollsign stays a singleton (the curb-bake law);
+LMK06_GhostSign stays (transparent). Overflow valve: a sign that does not
+fit returns null and keeps its own canvas — a future giant sign cannot
+break the boot.
+
+**The numbers, honestly.** probe-w0-census, fresh dist: PLAZA 370 →
+**340** (−30), CART_CORNER 301 → **279** (−22), SYCAMORE×GABLE 117 →
+**110** (−7). Every rig under its previous ledger; the Kestrel gate line
+stays published FAIL (340 > 150, CART_CORNER 279 > 250). In-engine: two
+ATLAS batches land (54 static faces + 6 van-livery cast faces), the four
+survivors are exactly the law's (Terminal_Sign ×2, Bodega_RoofSign ×2).
+Frames eyeballed at CART_CORNER / PLAZA / bodega close-up: ROSA'S blade,
+storefront and rooftop boards, SUBWAY board, F bullet, ONE WAY pole, van
+livery — all crisp, no uv smearing, no bleed.
+
+**What this closes and what remains.** The ledger's named main-pass
+frontier is banked. What remains at the rigs, priced: the shadow pass
+(~113–126, the dusk look — closed by diag-shadow-frontier), figures at
+the six-draw law, instanced wildlife/canopy, the baked district tiles,
+the four documented sign exclusions, the transparent cart ghost and hall
+glass. The next honest levers are still programs: interiors' window
+visibility (an art feature, not a cut) and SUB_Root's depth. The 150 line
+needs one of those programs, not another lever.
+
+**Verification**: tsc clean · vitest **476/476** (+6 signatlas guards:
+the packer shelves/wraps/refuses with the bleed guard intact, faces ride
+their slot mapped exactly once on shared geometry, the fallback path
+keeps identity uvs) · build clean · probe-w1/w2/w3-ghost PASS ·
+probe-w5-interiors PASS (the rooms still toggle) · probe-w4-bus OK ·
+probe-w0-census (ledger above) · **E2E: OK — 0 failures, 402 s**, console
+clean (E2E_W=320 E2E_H=700). New diagnostics committed:
+`diag-xray2.mjs`, `diag-flat-dump.mjs`, `diag-atlas-shot.mjs`.
+docs/51 B13 carries this update.

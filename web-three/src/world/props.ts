@@ -16,6 +16,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { remapUVs, type AtlasRect } from './signAtlas';
 
 // ---- palette anchors (Doc 04) ------------------------------------------
 const PAL_GOLD = 0xf7b32b;
@@ -43,9 +44,15 @@ export class MatBank {
 // the static bake merges the edges of every sign in a district) + two thin
 // textured planes (front/back). Two calls per sign, same look.
 
-/** What the World's sign factory returns: the unique face material (canvas
- *  texture) and the SHARED plain material for the board's edges. */
-export interface SignPair { face: THREE.MeshLambertMaterial; plain: THREE.MeshLambertMaterial }
+/** What the World's sign factory returns: the shared atlas face material
+ *  (uv rect on the sheet, docs/51 B13 frontier) and the SHARED plain
+ *  material for the board's edges. `rect` rides on the geometry — planes
+ *  sample their shelf slot; absent, the face owns its own canvas. */
+export interface SignPair {
+  face: THREE.MeshLambertMaterial;
+  plain: THREE.MeshLambertMaterial;
+  rect?: AtlasRect;
+}
 export type SignPairFactory = (text: string, w: number, h: number, bg: number, fg: number, px: number) => SignPair;
 
 /** A sign board: plain box + two textured faces. `faces 'z'` = text on the
@@ -60,6 +67,7 @@ export function makeSignBoard(
   g.add(box);
   if (faces === 'z') {
     const plane = new THREE.PlaneGeometry(sx, sy);
+    if (pair.rect) remapUVs(plane, pair.rect);
     const front = new THREE.Mesh(plane, pair.face);
     front.position.z = sz / 2 + 0.004;
     const back = new THREE.Mesh(plane, pair.face);
@@ -69,6 +77,7 @@ export function makeSignBoard(
   } else {
     // ±x faces of a box measure (sz × sy), not (sx × sy)
     const plane = new THREE.PlaneGeometry(sz, sy);
+    if (pair.rect) remapUVs(plane, pair.rect);
     const east = new THREE.Mesh(plane, pair.face);
     east.rotation.y = Math.PI / 2;
     east.position.x = sx / 2 + 0.004;
@@ -281,6 +290,7 @@ export function makeSubwayEntrance(
   // canvas-texture box face, not a board (one call, not worth two planes).
   const fPair = sign('F', 64, 64, PAL_CREAM, PAL_INK, 44);
   const bullet = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.1, 16), fPair.face);
+  if (fPair.rect) remapUVs(bullet.geometry, fPair.rect); // the cap samples its shelf slot
   bullet.rotation.x = Math.PI / 2;
   bullet.position.set(-1.3, 2.0, -1.48);
   g.add(bullet);

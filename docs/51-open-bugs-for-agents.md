@@ -505,6 +505,18 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   are the dusk look itself (74 figure casts + the buildings that cast
   it). Frontier back to the main pass: sign atlas (a program), interiors'
   window visibility, SUB_Root depth.
+- **Update 2026-11-04 (sign atlas, same day):** the named frontier taken.
+  One 2048×1024 shelf (signAtlas.ts, 8 px bleed guards, background-prefilled
+  slots) carries every static sign face; uv rects ride the geometry, the
+  bake keys an ATLAS batch on the shared map and fuses the block's faces
+  world-wide (54 static + 6 van-livery draws → 2). PLAZA 370 → 340,
+  CART_CORNER 301 → 279, SYCAMORE×GABLE 117 → 110 — every rig under its
+  previous ledger; the 150/250 lines stay published FAIL (340 / 279).
+  Law holds: Terminal_Sign and Bodega_RoofSign keep their own meshes
+  (dollhouse lift / roof duck), the notice face and rollsign keep their
+  canvases. Remaining at the rigs is priced: the dusk shadow pass, the
+  six-draw cast law, instanced wildlife, baked tiles. The 150 line needs
+  a program (interiors' window visibility, SUB_Root depth), not a lever.
 
 - **Update 2026-11-04 (parallel verification, this merge):** the two rigs the
   ledger above never published, measured on the merged tree with the same
