@@ -183,3 +183,57 @@ function, and the per-walker band law's pure extraction. The full
 reconciliation record, the corrected audit record (two suspected main-tip
 breaks turned out to be audit-tool display artifacts — docs/52 §3), and
 the merged-tip proof live in **docs/52**.
+
+---
+
+## 12. Addendum — A5i: the Doc 02 reconciliation pass (2026-11-05)
+
+Doc 02 (the minute-by-minute first session) was read end-to-end against
+the shipped game and diffed beat by beat. Most of the script already
+shipped (the arrival film's driver/choices/title, Map's boot note, the
+six-starter pick card, Rosa's upside-down-map greet, the five-order rush
+as conversations, the Shuffle, Subway University's teach + crooked copy +
+busker coin, the record shop's "Back soon. The city knows when.", the
+wow sync + the Wow card + the usher's promise line, the cart-naming, the
+fire-escape dusk with the gold window + Rosa's send-off + the key
+jingle). Four beats were missing — all four are now in, evidenced:
+
+1. **The fun-fact stickers (§2:00–5:00).** Each of Rosa's three items
+   now reads its Doc 02 sticker at pickup, queued after the pick line:
+   bodegas/10,000 (mango), "regular = milk, two sugars" (coffee can),
+   "bread arrives before sunrise" (bread). `ITEM_STICKERS` (content.ts),
+   fired by `GameState.collect`; the shelf flavor lines stay.
+2. **Rosa's cart handover (§20:00–26:00).** "It's ugly now. So was mine.
+   It's yours. What're you calling it?" lands as the name box opens —
+   the box answers her question (`ROSA_CART_HANDOVER_NOTE`).
+3. **Rosa walks you to the empty corner + the register count.** On the
+   cross, Rosa leaves the counter and walks the proven stranger legs
+   (door, crosswalk — the cab's courtesy hold covers her — south curb)
+   to Day 3's audited shoulder spot (6.35, −4.3), collider synced every
+   frame. When the solo rush's third cup lands she is at your shoulder
+   and the register count reads: $87 → $112, "Twenty-five dollars on
+   your first day," "Nineteen years ago I made eleven" + the mango pat,
+   "Lock up tight. The city takes care of itself at night."
+   (`ROSA_REGISTER_NOTES`; `startRosaCornerWalk`).
+4. **The street performer's four seconds (§10:00–15:00).** Once per
+   session, after the square has synced, stepping back to the B stair
+   mouth slows the WORLD to 0.45× for four seconds while a one-shot
+   melody plays (`audio.streetSong`, five notes + a fifth pad). No
+   objective, no prompt — the player's feet, camera and paper keep
+   honest time. Fires on the natural return (the ride home starts
+   beneath that stair mouth); the other square probes never re-enter
+   the stair box, so their timings are untouched.
+
+**Evidence:** `probe-a5i-doc02-beats.mjs` — 18/18 in-engine checks,
+0 errors (sticker read, handover note under the name box, Rosa's walk
+lands at the shoulder, register chain reads, CLIMB offered at $112,
+listen arms once and ends); screenshots `shots/a5i-claim-handover.png`,
+`a5i-rosa-at-shoulder.png`, `a5i-register-count.png`,
+`a5i-street-performer-listen.png`. Unit pins in `tests/state.test.ts`
+(sticker per item, handover note, register notes with the day's math).
+Full 4-day E2E after the change: **139 checks, 0 failures, console
+clean** (426 s on the small-viewport harness). vitest 553/553.
+
+Doc 08's content pack (12 Map notes, 4 slang cards, the story card, all
+six Day-1 postcards) was audited in the same pass and already ships 1:1
+— no changes needed there.

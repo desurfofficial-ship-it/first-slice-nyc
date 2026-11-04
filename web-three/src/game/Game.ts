@@ -136,6 +136,14 @@ export class Game {
   private mapOpen = false;
   private mapKeyWasDown = false;
 
+  // ---- the street performer's listen (Doc 02 §10:00–15:00) ----
+  // Once per session: after the square has synced, stepping back to the B
+  // stair mouth slows the world (×0.45) for LISTEN_SECONDS while a melody
+  // plays. listenT < 0 = never armed; listenDone = the one shot is spent.
+  private static readonly LISTEN_SECONDS = 4.0;
+  private listenT = -1;
+  private listenDone = false;
+
   // ---- the familiar face (Doc 33 §2.2): one waypoint walk per day ----
   private familiarPath: FamiliarStop[] = [];
   private familiarNode = 0;
@@ -396,6 +404,14 @@ export class Game {
   private frame(dt: number): void {
     const s = this.state;
 
+    // Doc 02 §10:00–15:00 — the street performer's listen: once, on the way
+    // back from the square, the city slows for four seconds and just plays.
+    // The world breathes at 0.45×; your feet, the paper and the camera keep
+    // honest time. No objective. No prompt. Just the city.
+    const listening = this.listenT >= 0 && this.listenT < Game.LISTEN_SECONDS;
+    const wdt = listening ? dt * 0.45 : dt;
+    if (this.listenT >= 0) this.listenT += dt;
+
     this.tweens.update(dt);
     // the arrival rides its own clock while active (machine, strip, phases)
     if (this.arrival.active) this.arrival.frame(dt);
@@ -438,13 +454,14 @@ export class Game {
     // world.update used to run after player.update, so the walker resolved
     // against last frame's taxi box — up to 0.9 m stale at the dt clamp, and
     // a player visibly sank into a passing cab before anything stopped them.
+    // (wdt — the listen beat's slowed city — applies from here down.)
     const peds: Array<{ x: number; z: number }> = [];
     if (this.world.kidGround.visible) peds.push({ x: this.world.kidGround.position.x, z: this.world.kidGround.position.z });
     if (this.world.stranger.visible) peds.push({ x: this.world.stranger.position.x, z: this.world.stranger.position.z });
     if (this.world.familiar.visible) peds.push({ x: this.world.familiar.position.x, z: this.world.familiar.position.z });
-    this.world.updateDynamics(dt, this.player.capsule, peds, this.duskStarted);
+    this.world.updateDynamics(wdt, this.player.capsule, peds, this.duskStarted);
     this.cam.interiorMode = this.world.subway.underground;
-    this.drainFarWorld(dt);
+    this.drainFarWorld(wdt);
     if (!this.dayFading && this.ui.nameBox.hidden && this.ui.orderCard.hidden && !this.mapOpen
       && this.ui.starterCard.hidden && !this.arrival.active) {
       // movement — paused on the bench (Doc 37 §3C: the seat holds you;
@@ -505,7 +522,7 @@ export class Game {
     // around the fresh player position, trees breathe, pigeons worry about
     // your shoes. (Phase 1 — colliders + the cab + the M121, yielding to the
     // kid AND the stranger AND the familiar face — ran before the walker.)
-    this.world.updateAmbient(dt, this.player.capsule, this.duskStarted);
+    this.world.updateAmbient(wdt, this.player.capsule, this.duskStarted);
     this.syncGlows();
     this.maybeBuskerHorn(dt);
 
@@ -705,6 +722,20 @@ export class Game {
     // ladders let you all the way down (climb-speed descent, floor release)
     if (this.player.ladder !== null && this.player.vy < -1.2 && c.y < 0.45) {
       this.player.ladder = null;
+    }
+
+    // Doc 02 §10:00–15:00 — the street performer. Once per session, after
+    // the square has synced and you turn back toward the B stairs, someone
+    // on the sidewalk plays and the city slows four seconds to listen. No
+    // objective. No prompt. Just the city. (stairB's box, surface level)
+    if (!this.listenDone && !this.arrival.active
+      && this.world.timesSquare.syncedToday) {
+      const atStairTop = c.x > -336.8 && c.x < -333.6 && c.z > 3.6 && c.z < 8.2 && c.y > -0.5;
+      if (atStairTop) {
+        this.listenDone = true;
+        this.listenT = 0;
+        gameAudio.streetSong();
+      }
     }
   }
 
@@ -1136,6 +1167,10 @@ export class Game {
         break;
       case 'crossed':
         this.checkpoint = { x: e.checkpoint.x, y: 0.05, z: e.checkpoint.z };
+        // Doc 02 §20:00–26:00 — "Rosa walks you to the empty corner." She
+        // leaves the counter while you cross; she reaches the shoulder spot
+        // as the solo rush starts, and the register count finds her there.
+        this.startRosaCornerWalk();
         break;
       case 'dusk-start':
         this.startDusk();
@@ -1409,6 +1444,32 @@ export class Game {
       if (this.state.step === Step.D4_MAP) {
         this.ui.setObjective('She\u2019s at the cart. There\u2019s something you can give her that isn\u2019t coffee.');
       }
+    });
+  }
+
+  /** Doc 02 §20:00–26:00 — "Rosa walks you to the empty corner." She leaves
+   *  the counter as you cross (the same proven stranger legs: the door, the
+   *  crosswalk where the cab waits, the cart's flank) and takes the corner's
+   *  SOUTH-EAST edge — Day 3's audited spot, clear of the walk lane (docs/51:
+   *  the lane runs x 0..5; her collider synced every frame she moves). By
+   *  the time the solo rush ends she is at your shoulder for the register. */
+  private startRosaCornerWalk(): void {
+    const rosa = this.world.rosa;
+    if (this.rosaWalking) return; // a beat already owns her feet
+    const rosaRig = rosa.userData.rig as PersonRig | undefined;
+    if (rosaRig && rosaRig.mode === 'sweep') rosaRig.mode = 'auto';
+    this.walkActor(rosa, [
+      [-20.4, 13.5], // behind the counter — where the rush left her
+      [-16, 13.4],   // the aisle
+      [-16, 6.8],    // out the door
+      [-10, 6.2],    // north sidewalk, east — your crosswalk
+      [-5, 4.6],     // crosswalk north edge
+      [-5, -3.4],    // the Shuffle (the cab's courtesy hold covers her too)
+      [-5, -4.5],    // south curb
+      [0.8, -4.6],
+      [6.35, -4.3],  // her corner spot — facing the cart (Day 3's audited spot)
+    ], 2.0, () => {
+      rosa.rotation.y = -1.94; // southwest — the cart, the stool, the street
     });
   }
 
@@ -1948,6 +2009,10 @@ export class Game {
       z: this.world.familiar.position.z,
       mode: (this.world.familiar.userData.rig as PersonRig | undefined)?.mode ?? 'auto',
     }),
+    // Doc 02 §10:00–15:00 — the street performer's listen (reads only)
+    listenFired: () => this.listenDone,
+    listenActive: () => this.listenT >= 0 && this.listenT < Game.LISTEN_SECONDS,
+    rosaCorner: () => ({ x: this.world.rosa.position.x, z: this.world.rosa.position.z }),
   };
 
   private applyCartIdentity(name: string): void {

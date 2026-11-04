@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { GameState, Step } from '../src/core/GameState';
 import { composeCaption, rosaChatLine, RUSH_CARDS, SOLO_CARDS, IDRIS_NINE_YEARS_NOTE,
-  USUAL_NOTE } from '../src/core/content';
+  USUAL_NOTE, ROSA_CART_HANDOVER_NOTE, ROSA_REGISTER_NOTES, ITEM_STICKERS } from '../src/core/content';
 
 function day1ThroughRush(): GameState {
   const s = new GameState();
@@ -78,6 +78,24 @@ describe('Day 1 — the exact journey (Doc 02 / Doc 10 contract)', () => {
     const s = day1ThroughRush();
     expect(s.step).toBe(Step.RUSH);
     expect(s.itemsLeft.size).toBe(0);
+  });
+
+  it('each pickup reads its fun-fact sticker (Doc 02 §2:00–5:00)', () => {
+    const s = new GameState();
+    s.tryRosa();
+    s.enterBodega();
+    for (const id of ['mango', 'coffee', 'bread'] as const) {
+      const effects = s.collect(id);
+      const notes = effects.filter((e) => e.kind === 'note');
+      const texts = notes.map((e) => (e.kind === 'note' ? e.text : ''));
+      expect(texts.some((t) => t.startsWith('The '))).toBe(true); // the pick line
+      expect(texts).toContain(ITEM_STICKERS[id]);                  // the sticker, queued after
+    }
+    // a wrong id never claims a sticker it does not carry
+    const bare = new GameState();
+    bare.tryRosa();
+    bare.enterBodega();
+    expect(bare.collect('nothing')).toEqual([]);
   });
 
   it('collecting an item twice is refused', () => {
@@ -163,7 +181,11 @@ describe('Day 1 — the exact journey (Doc 02 / Doc 10 contract)', () => {
     const s = day1Served();
     expect(s.step).toBe(Step.CROSS);
     s.cross(true);
-    expect(s.claimCart().length).toBeGreaterThan(0);
+    const effects = s.claimCart();
+    expect(effects.length).toBeGreaterThan(0);
+    // Doc 02 §20:00–26:00 — Rosa's handover line lands as the box opens
+    expect(effects.some((e) => e.kind === 'note' && e.text === ROSA_CART_HANDOVER_NOTE)).toBe(true);
+    expect(effects.some((e) => e.kind === 'name-cart-open')).toBe(true);
     expect(s.step).toBe(Step.NAME_CART);
     s.confirmName('   ');
     expect(s.cartName).toBe('First Slice');
@@ -196,6 +218,22 @@ describe('Day 1 — the exact journey (Doc 02 / Doc 10 contract)', () => {
     expect(s.mapNotes).toContain(USUAL_NOTE);
     // money unchanged by solo serves on day 1 (Rosa counts $112 exactly)
     expect(s.money).toBe(112);
+  });
+
+  it('the solo rush ends on Rosa\u2019s register count (Doc 02 §20:00–26:00)', () => {
+    const s = day1ThroughNaming();
+    s.confirmName("Wade's Spot");
+    let effects: ReturnType<GameState['chooseReply']> = [];
+    for (let i = 0; i < SOLO_CARDS.length; i++) {
+      s.openCartOrder();
+      effects = s.chooseReply(s.pendingCard?.defaultReply ?? 0);
+      s.chooseReply(-1);
+    }
+    const texts = effects.filter((e) => e.kind === 'note').map((e) => (e.kind === 'note' ? e.text : ''));
+    for (const line of ROSA_REGISTER_NOTES) expect(texts).toContain(line);
+    // the count says the day's real math, and the climb is offered after
+    expect(texts.some((t) => t.includes('$87 → $112'))).toBe(true);
+    expect(s.step).toBe(Step.CLIMB);
   });
 
   it('the kid answers \u201CI don\u2019t know either!\u201D on the ask path (VS-F03)', () => {

@@ -174,6 +174,21 @@ export const NAME_NOTE = 'Your corner. Your name. The city wrote it down with yo
 export const USUAL_NOTE = 'The usual is a tiny love letter. It means: I come here, and you noticed.'; // Doc 08 note #10
 export const IDRIS_SPAWN_NOTE = 'Mr. Idris: \u201CCoffee. Regular. I\u2019ll be back tomorrow.\u201D';
 
+/** Doc 02 §20:00–26:00 — the cart handover, Rosa's own words at the claim.
+ *  The name box opens under this line: "What're you calling it?" is the
+ *  question the box answers. */
+export const ROSA_CART_HANDOVER_NOTE =
+  'Rosa: \u201CIt\u2019s ugly now. So was mine. It\u2019s yours. What\u2019re you calling it?\u201D';
+
+/** Doc 02 §20:00–26:00 — the register count, the ownership beat's payoff.
+ *  Rosa at your shoulder, the day's math said out loud, the mango pat.
+ *  Day-1 canonical numbers ($87 → $112 is the E2E's specification too). */
+export const ROSA_REGISTER_NOTES: string[] = [
+  'Rosa counts your register with you: $87 \u2192 $112. \u201CTwenty-five dollars on your first day.\u201D',
+  'Rosa, quieter: \u201CNineteen years ago I made eleven.\u201D She pats the cart twice \u2014 the same way she patted the mangoes.',
+  'Rosa: \u201CLock up tight. The city takes care of itself at night. That part took me a while to learn.\u201D',
+];
+
 export const TOP_NOTE_DAY1 = 'Stoop = outdoor living room. You\u2019re invited. That\u2019s the important part.'; // Doc 08 note #9
 export const TOP_NOTE_DAY2 = 'Same seat. The city kept it warm for you.';
 
@@ -535,6 +550,16 @@ const ITEM_FLAVOR: Record<string, string> = {
   mango: 'Heavy for its size — that\'s how you know it\'s a good one.',
   coffee: 'The tin with the faded label — the one the regulars ask for.',
   bread: 'Still warm from the morning tray.',
+};
+
+/** Doc 02 §2:00–5:00 — "three items inside the bodega, each with a
+ *  fun-fact sticker." The sticker's text is canon; the flavor line is the
+ *  2026-10-29 playtest addition (the shelf stopped being anonymous cubes).
+ *  Both read at the pickup: the pick line first, the sticker queued after. */
+export const ITEM_STICKERS: Record<string, string> = {
+  mango: 'The sticker on the tray: \u201CBodegas: NYC\u2019s cornerstones. There are over 10,000. You now know the most important one.\u201D',
+  coffee: 'The sticker on the tin: \u201CA \u2018regular coffee\u2019 means milk and two sugars. Nobody knows why. It\u2019s just true.\u201D',
+  bread: 'The sticker on the rack: \u201CBread arrives before sunrise, every day, rain or shine. The city eats early.\u201D',
 };
 
 /** What picking something says out loud — nobody wonders what they just took. */

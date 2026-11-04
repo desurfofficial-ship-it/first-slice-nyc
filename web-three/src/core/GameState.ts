@@ -6,13 +6,14 @@
 
 import { MAX_DAY, type SaveData } from './Save';
 import { DEFAULT_STARTER } from './starters';
-import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, D3_ORDERS, D4_ORDERS,
+import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, ITEM_STICKERS, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
   D4_WAKE_NOTE, D4_STRANGER_GREET_NOTE, D4_RUSH_DONE_NOTE, D4_MAP_NOTE,
   D4_SAL_MEET_NOTE, D4_SAL_CHAT_NOTE, D4_PERMIT_OFFER_NOTE, D4_PERMIT_FILED_NOTE,
   D4_PERMIT_ALREADY_NOTE, IDRIS_D3_FAVOR_REACTION, ROSA_FOUR_MORNINGS_NOTE,
   RUSH_CARDS, SOLO_CARDS, RUSH_NOTE_5, USUAL_NOTE,
-  IDRIS_NINE_YEARS_NOTE, IDRIS_UNLOCK_NOTE, type OrderCard } from './content';
+  IDRIS_NINE_YEARS_NOTE, IDRIS_UNLOCK_NOTE, ROSA_CART_HANDOVER_NOTE,
+  ROSA_REGISTER_NOTES, type OrderCard } from './content';
 
 export const Step = {
   MEET_ROSA: 0,
@@ -340,6 +341,9 @@ export class GameState {
       { kind: 'collect', id },
       // playtest 2026-10-29: picking used to be silent — say what was taken
       { kind: 'note', text: itemPickNote(id, this.itemsLeft.size) },
+      // Doc 02 §2:00–5:00 — the fun-fact sticker rides the item; the note
+      // queue reads it right after the pick line (the queue holds four)
+      ...(ITEM_STICKERS[id] ? [{ kind: 'note' as const, text: ITEM_STICKERS[id] }] : []),
     ];
     if (this.itemsLeft.size === 0) {
       out.push(...this.setStep(Step.RUSH));
@@ -438,6 +442,10 @@ export class GameState {
       this.noteEffect(out, USUAL_NOTE);
     }
     if (this.soloServed >= SOLO_CARDS.length) {
+      // Doc 02 §20:00–26:00 — Rosa appears at your shoulder and counts the
+      // register with you. The notes queue behind the unlock toast; the
+      // corner walk (Game side) has her standing there while they read.
+      for (const text of ROSA_REGISTER_NOTES) out.push({ kind: 'note', text });
       out.push(...this.setStep(Step.CLIMB));
     } else {
       out.push({ kind: 'spawn-customer', who: this.soloServed === 2 ? 'idris' : 'solo', x: 4, z: -4.6 });
@@ -461,7 +469,13 @@ export class GameState {
 
   claimCart(): Effect[] {
     if (this.step !== Step.CLAIM_CART) return [];
-    return [{ kind: 'name-cart-open' }, ...this.setStep(Step.NAME_CART)];
+    // Doc 02 §20:00–26:00 — the handover line lands as the box opens:
+    // "What're you calling it?" is the question the name box answers.
+    return [
+      { kind: 'note', text: ROSA_CART_HANDOVER_NOTE },
+      { kind: 'name-cart-open' },
+      ...this.setStep(Step.NAME_CART),
+    ];
   }
 
   confirmName(raw: string): Effect[] {
