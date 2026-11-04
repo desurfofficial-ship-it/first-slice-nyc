@@ -47,7 +47,8 @@ page.on('console', (msg) => {
   if (text.includes('PASS ') || text.includes('FAIL ') || text.includes('AUTOTEST')) {
     console.log('DRIVER:', text); // stream the driver log live
   } else if (text.includes('[walk]') || text.includes('[beat]') || text.includes('[press]') || text.includes('[crawl]')
-    || text.includes('[aim]') || text.includes('[basis]') || text.includes('[drag]') || text.includes('[stuck]')) {
+    || text.includes('[aim]') || text.includes('[basis]') || text.includes('[drag]') || text.includes('[stuck]')
+    || text.includes('[pace]')) {
     console.log('TRACE :', text); // timeline traces for slow-machine forensics
   } else if (msg.type() === 'error') {
     consoleErrors.push(text);
@@ -80,36 +81,59 @@ await page.goto(`http://localhost:${PORT}/?autotest=1&fx=off${WALKLOG}`, { waitU
   p.on('pageerror', (err) => pointerFails.push(`PAGEERROR: ${err.message}`));
   await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'load' });
   await p.waitForSelector('#hud:not([hidden])', { timeout: 60000 });
+  // ---- the guard's own slow-machine law (docs/56) ----
+  // The driver scales its event budgets by the measured dt-clamp dilation;
+  // the guard's playwright clicks are wall-clock too. Measure the same
+  // factor here (30 rAF frames ÷ the game's 100 ms clamp) and stretch the
+  // click timeouts and settle waits with it — a busy machine is not a
+  // broken thumb.
+  const pace = await p.evaluate(() => new Promise((resolve) => {
+    let n = 0;
+    const t0 = performance.now();
+    const tick = () => {
+      n++;
+      if (n >= 30) resolve(Math.min(4, Math.max(1, (performance.now() - t0) / n / 100)));
+      else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  })).catch(() => 1);
+  console.log(`PACE: guard budgets ×${Number(pace).toFixed(2)}`);
+  const T = (ms) => Math.round(ms * pace);
+  const settle = (ms = 400) => p.waitForTimeout(T(ms));
   // The pocket wave (docs: one button opens Map / Album / Sound) moved the
   // HUD buttons into a dropdown. The real thumb path now opens the pocket
   // first — so the guard does too, and pins the pocket's own click law.
   const openPocket = async () => {
     if ((await p.getAttribute('#pocket-menu', 'hidden')) !== null) {
-      await p.click('#btn-pocket', { timeout: 5000 });
+      await p.click('#btn-pocket', { timeout: T(5000) });
+      await settle();
     }
   };
   await attempt('click the Pocket', openPocket);
   ok(await p.isVisible('#pocket-menu'), 'the pocket opens by CLICK and shows the tools');
   await attempt('click the Map button', async () => {
     await openPocket();
-    await p.click('#btn-map', { timeout: 5000 });
+    await p.click('#btn-map', { timeout: T(5000) });
+    await settle();
   });
   ok(await p.isVisible('#map-sheet'), 'the Map opens by CLICK on the HUD button');
-  await attempt('click fold-it', () => p.click('#map-close', { timeout: 5000 }));
+  await attempt('click fold-it', async () => { await p.click('#map-close', { timeout: T(5000) }); await settle(); });
   ok(!(await p.isVisible('#map-sheet')), 'the Map folds again by click');
   await attempt('click the audio button', async () => {
     await openPocket();
-    await p.click('#btn-audio', { timeout: 5000 });
+    await p.click('#btn-audio', { timeout: T(5000) });
+    await settle();
   });
   ok((await p.getAttribute('#btn-audio', 'aria-pressed')) === 'true', 'the audio button toggles by click');
   // the album is the HUD's other paper: same thumb-path law as the Map —
   // it must open by CLICK, not only by keyboard, or phones never see the shelf
   await attempt('click the album button', async () => {
     await openPocket();
-    await p.click('#btn-album', { timeout: 5000 });
+    await p.click('#btn-album', { timeout: T(5000) });
+    await settle();
   });
   ok(await p.isVisible('#album-panel'), 'the album opens by CLICK on the HUD button');
-  await attempt('click put-it-back', () => p.click('#album-close', { timeout: 5000 }));
+  await attempt('click put-it-back', async () => { await p.click('#album-close', { timeout: T(5000) }); await settle(); });
   ok(!(await p.isVisible('#album-panel')), 'the album folds again by click');
   await p.close();
   if (pointerFails.length > 0) {

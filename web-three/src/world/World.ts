@@ -26,6 +26,7 @@ import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecy
   makeSignBoard, makeControlHouse, makePergola, makeGardenBed, makeShed,
   makeCompostBin, makeWaterBarrel, makeParkGate, makeSwingSet, makeSandbox,
   makeSprayBasin, SHARED_GEOS, type SignPair } from './props';
+import { drawIntoAtlas, atlasMaterial, atlasTexture } from './signAtlas';
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
@@ -2801,9 +2802,22 @@ export class World {
       // draws own themselves — the bake never touches them.
       if ((o as THREE.InstancedMesh).isInstancedMesh) return;
       const mat = o.material;
-      if (!(mat instanceof THREE.MeshLambertMaterial) || mat.map || mat.transparent) return;
+      // The ATLAS faces (docs/51 B13 frontier, signAtlas) ride the shared
+      // sign sheet — mapped, but mergeable with their uv rects. Every OTHER
+      // mapped material keeps its own draw: the atlas is the only sheet.
+      const onAtlas = !!mat.map && mat.map === atlasTexture();
+      if (!(mat instanceof THREE.MeshLambertMaterial) || mat.transparent) return;
+      if (mat.map && !onAtlas) return;
       const geo = o.geometry;
       if (!geo.index || !geo.attributes.position || !geo.attributes.normal) return;
+      o.updateWorldMatrix(true, false);
+      if (onAtlas) {
+        // signs over the station box lift with the terminal dollhouse
+        // (collectTerminalShell, same rect) — they ride the sheet but keep
+        // their own meshes, or the cutaway would strand them in the air
+        const e = o.matrixWorld.elements;
+        if (e[12] > -50.5 && e[12] < -20.5 && e[14] > 7.7 && e[14] < 20.2 && e[13] > -0.2) return;
+      }
       // The vertex-color fusion (docs/47, the recorded "next figure cut"
       // lever applied where it is safe — statics): a NON-EMISSIVE flat-color
       // source rides the shared white vertexColors material — its color
@@ -2811,24 +2825,27 @@ export class World {
       // the color and every (fog, cast, receive) combo in the tile fuses
       // into ONE draw regardless of how many distinct prop colors it holds.
       // Emissive sources keep the color-keyed path (emissive is
-      // material-wide and cannot ride vertices).
+      // material-wide and cannot ride vertices). Atlas sources keep uv —
+      // their color IS the sheet — and key on the shared map instead.
       const emissive = mat.emissive.getHexString() !== '000000';
-      const key = emissive
+      const key = onAtlas
+        ? `ATLAS|${mat.fog ? 1 : 0}`
+          + `|${o.castShadow ? 1 : 0}|${o.receiveShadow ? 1 : 0}`
+        : emissive
         ? `${mat.color.getHexString()}|${mat.emissive.getHexString()}`
           + `|${mat.emissiveIntensity}|${mat.fog ? 1 : 0}`
           + `|${o.castShadow ? 1 : 0}|${o.receiveShadow ? 1 : 0}`
         : `VC|${mat.fog ? 1 : 0}`
           + `|${o.castShadow ? 1 : 0}|${o.receiveShadow ? 1 : 0}`;
       let b = batches.get(key);
-      if (!b) batches.set(key, b = { srcs: [], cast: o.castShadow, receive: o.receiveShadow, mat: emissive ? mat : this.vcMaterial(mat.fog) });
-      o.updateWorldMatrix(true, false);
+      if (!b) batches.set(key, b = { srcs: [], cast: o.castShadow, receive: o.receiveShadow, mat: onAtlas ? atlasMaterial()! : emissive ? mat : this.vcMaterial(mat.fog) });
       const g = geo.clone();
       g.applyMatrix4(o.matrixWorld);
       // keep every batch attribute-identical for mergeGeometries
       for (const name of Object.keys(g.attributes)) {
         if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
       }
-      if (!emissive) {
+      if (!emissive && !onAtlas) {
         // vertex-color batches carry no uv (no map) and one color attribute
         // filled with the source's exact material color — Lambert's diffuse
         // was color × 1, now white × color: bit-for-bit the same shade, and
@@ -2850,7 +2867,11 @@ export class World {
       // Batching per 28 m × 32 m district tile keeps the draw-call win AND
       // lets off-screen tiles cull exactly like the individual meshes did —
       // and gives the district visibility pass its unit of work.
-      const tile = World.districtKey(o.matrixWorld.elements[12], o.matrixWorld.elements[14]);
+      // EXCEPTION — the atlas: sign faces are a few square meters TOTAL, so
+      // the rasterization worry never applies; one world-wide batch beats
+      // 4–8 per-tile ones at every rig. The batch still registers under a
+      // key no district owns ('ATLAS'), so district visibility never hides it.
+      const tile = onAtlas ? 'ATLAS' : World.districtKey(o.matrixWorld.elements[12], o.matrixWorld.elements[14]);
       b.srcs.push({ geo: g, mesh: o, tile });
     });
 
@@ -5053,12 +5074,22 @@ export class World {
     return g;
   }
 
-  /** Wall/blade sign FACTORY: the unique canvas-texture face material + the
-   *  SHARED plain edge material (banked — every sign's edges bake-merge
-   *  with its district). W0: the old 6-material-array box cost 6 draw
-   *  calls per sign; a board (box + two face planes) costs 2. */
+  /** Wall/blade sign FACTORY: the shared atlas face material (uv rect on
+   *  the sheet — docs/51 B13 frontier) + the SHARED plain edge material
+   *  (banked — every sign's edges bake-merge with its district). W0: the
+   *  old 6-material-array box cost 6 draw calls per sign; a board (box +
+   *  two face planes) costs 2; the atlas bake fuses the planes to ~1. */
   private signMaterials(text: string, w: number, h: number, bg: number, fg: number, px: number, _faces: 'z' | 'x' = 'z'): SignPair {
     void _faces; // the board helper decides orientation; the pair is orientation-free
+    // the atlas shelf first (docs/51 B13 frontier): one sheet, one material,
+    // the statics bake fuses every face into one draw. Overflow (a giant
+    // future sign) falls back to its own canvas — the seam never breaks.
+    const rect = drawIntoAtlas(
+      (ctx) => this.signFaceOps(text, w, h, bg, fg, px)(ctx, w, h),
+      w, h,
+      '#' + bg.toString(16).padStart(6, '0'),
+    );
+    if (rect) return { face: atlasMaterial()!, plain: this.bank.get(bg), rect };
     return {
       face: new THREE.MeshLambertMaterial({ map: this.textTexture(text, w, h, bg, fg, px) }),
       plain: this.bank.get(bg),
@@ -5080,11 +5111,24 @@ export class World {
 
   /** Wall-mounted sign texture (block signs stopped being anonymous boxes).
    *  '\n' splits lines: line 1 renders at full size, following lines smaller
-   *  beneath it — "ROSA'S / DELI & GROCERY", the classic two-deck bodega sign. */
+   *  beneath it — "ROSA'S / DELI & GROCERY", the classic two-deck bodega sign.
+   *  The lettering OPS live in signFaceOps so the atlas shelf (signMaterials)
+   *  can draw the exact same face into its sheet. */
   private textTexture(text: string, w: number, h: number, bg: number, fg: number, px: number): THREE.CanvasTexture {
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
     const ctx = c.getContext('2d')!;
+    this.signFaceOps(text, w, h, bg, fg, px)(ctx, w, h);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  /** The sign-face lettering ops, shared by the standalone canvas path
+   *  (textTexture) and the atlas shelf (signAtlas) — one look, two carriers. */
+  private signFaceOps(text: string, w: number, h: number, bg: number, fg: number, px: number):
+      (ctx: CanvasRenderingContext2D, cw: number, ch: number) => void {
+    return (ctx) => {
     ctx.fillStyle = '#' + bg.toString(16).padStart(6, '0');
     ctx.fillRect(0, 0, w, h);
     ctx.strokeStyle = '#' + fg.toString(16).padStart(6, '0');
@@ -5103,9 +5147,7 @@ export class World {
       ctx.font = `700 ${Math.round(px * 0.58)}px "Trebuchet MS", sans-serif`;
       ctx.fillText(lines.slice(1).join(' '), w / 2, h * 0.70, w - 40);
     }
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
+    };
   }
 
   private makeLabel(text: string): THREE.Sprite {

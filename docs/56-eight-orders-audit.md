@@ -90,3 +90,32 @@ Repaired in one pass:
 The lesson is the repo's oldest one, met again: **a gate skipped is a
 bill sent to the next agent.** The pocket idea is good; it just needed
 its `tsc --noEmit` before the push.
+
+## Addendum two — the flake shape, closed (Nov 4)
+
+The 555 s red run in the Verification section is now a **closed case**,
+not just a recorded one. Root cause, found by reproducing the load on
+purpose: the game clamps `dt` at 100 ms (Game.loop), so on a busy
+machine the game's own time runs slower than the wall clock — and every
+wait-for-the-game poll in the driver was a **blind wall-clock timer**.
+At 1.55× dilation the dusk chains (glide → flicker → postcard) missed
+their budgets, and 31 timing-gated checks fell in a cascade that looked
+like a gameplay regression and was really a physics lie.
+
+The fix is one measured factor, `pace`:
+
+- measured once at driver start (60 frames ÷ the 100 ms clamp, capped
+  at 4×) and printed as a `[pace]` line for forensics;
+- every blind event poll rides it — the dusk/window/postcard polls,
+  the day-wake and album polls, `noteSays`, `cabClear`, `holdUntil`;
+- `walkTo` keeps its own progress-window logic (a walk still closing is
+  not a failed walk — that law already survives slow machines);
+- the E2E's pointer guard got the same law on the node side: it
+  measures the same dilation in-page and stretches its playwright click
+  timeouts and settle waits — **a busy machine is not a broken thumb**.
+
+Proof, same sandbox, two burners pinned to the CPU for the whole guard
+and the first beats: guard 6/6 PASS at ×4.00 budgets, driver measured
+605 ms frames (×4.00), and the run that used to cascade instead ended
+**AUTOTEST OK, 0 failures**. Idle runs are unchanged (×1.00, budgets
+untouched — the factor only ever adds slack).

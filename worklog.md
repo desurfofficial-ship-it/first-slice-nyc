@@ -500,3 +500,88 @@ Stage Summary:
   the film handover shows the six-tile card, tapping Dee folds the card and
   mounts the board, B-Side's sign framed on its facade. a5g re-shot both
   orientations — the neighbor reads in landscape, portrait stays clean.
+
+## 2026-11-04 — agent2: the playtest gate gets its plan (docs/56 — Doc 07 §9 device + playtest evidence)
+
+Doc 55 boxes 1 (device layer) and 2 (playtest targets) needed evidence no
+probe can produce: a person, on a phone, staying for the whole first session.
+Docs only this session — zero src/ changes. New
+[docs/56-phase1-playtest-plan.md](docs/56-phase1-playtest-plan.md):
+
+- The 30-min first-session script as an observer table — minute markers taken
+  ONLY from Doc 02's own section clocks (0:00 arrival … 26:00 first postcard),
+  each row saying what to record, never what to do. Beat divergence on main
+  is a docs/51 finding, not a plan edit.
+- Funnel metrics copied verbatim from Doc 07 §8 (reach postcard ≥ 85%,
+  share intent ≥ 70%, looked-after ≥ 4/5, learned-repeatable ≥ 80%,
+  25–35 min with no drop before minute 12, residents ≥ 2/3) plus the VS-F05
+  bar (10/10 keep, ≥ 6 send) — each with its manual capture proxy.
+- Device matrix: iPhone 11-class + Galaxy A14 (the §9-1 named pair) + desktop
+  control; ≥ 3 full human sessions per mobile column; desktop replays any
+  mobile failure once to classify device debt vs design debt.
+- Per-session captures: crash log (console export even when clean), session
+  length (three numbers), postcard Y/N unaided, share intent (touched +
+  stated, never prompted), and exactly three interview questions with
+  scoring rules (Q1 looked-after/where, Q2 repeat-a-fact verbatim, Q3
+  resident true/off detail).
+- The single results ledger — empty on purpose, 12 rows — plus a logging
+  protocol with teeth: append-only, no evidence dir = no row, corrections
+  are new rows, tallies compute over Type=human only, agents may log
+  Type=pilot rows (docs/21 honesty rules inherited) and must never write a
+  human row. Box 2 of docs/55 turns green only when row 10 lands.
+
+The honesty finding of the pass: Doc 07 §6's instrumented funnel
+(`session_start → … → session_end`) is design-only — nothing in
+`web-three/src/` emits it (grep at baseline `b257ff3`; no telemetry module).
+Every metric in docs/56 runs on a manual proxy instead; wiring the funnel is
+feature work, declared out of scope, and marked unfinished per house style.
+
+docs/55 updated in the same commit: boxes 1 and 2 now carry "Operational
+plan: Doc 56" pointers, and the stale forward-reference to a
+`docs/56-playtest-01-results.md` was corrected — results analysis lands at
+`docs/57-` or later; `docs/56-` is the plan.
+
+## 2026-11-04 — agent2: The Shuffle verdict — the user was right (docs/51 B16)
+
+Asked to read the docs and find out whether the Shuffle mini-game was built —
+no guessing. Read every mention (docs/01, 02, 07, 08, 10, 22, 55, 56,
+agent3-living-world-audit), then read the code on main @ `5f973e1`.
+
+**Verdict: NOT built. VS-F04 is a stub.** The docs demand a crowd-walk
+mini-game: Doc 07 §3 "Crowd walk mini-game, forgiveness rules"; Doc 02
+§10:00–15:00 "drift toward gaps; brushing someone just makes them say
+'scuse me,' which is a correct interaction, not a failure"; Doc 07 TBD-3's
+soft skip ("The city will wait"). What main has: `GameState.ts:444
+cross(atStrip)` fires ONE note (the Doc 08 #4 text at the stripes, an
+own-way line elsewhere) + checkpoint + step advance — the forgiveness half
+only (the docs/22 Seam-1 fix, `Game.ts:650` z < −4.1). "Scuse me" exists
+nowhere outside the two note-text constants (grep across src/ + tests/):
+no brush handler, no bubble, no reaction. The TBD-3 soft skip: zero hits.
+The peds system is real bodies + collision courtesy (`tests/crowd.test.ts`
+proves walkers yield) — physics, not a mini-game.
+
+Corroborations: docs/agent3-living-world-audit's F04 row already said
+"Missing — one flavor note when crossing; no crowd mini-game" (still true;
+its other stale rows — Map UI, album, subway — have since landed). And
+docs/55's F04 status note had been quoting the note text as if the brush
+existed — overclaim now corrected in the same commit.
+
+Landed (docs only, zero src/ changes): docs/51 B16 filed with the full
+doc-sourced spec, current-main evidence, and a close rule (crowd on the
+subway walk, brush → "scuse me" correct-interaction, TBD-3 prompt, crosswalk
+forgiveness untouched; probe + unit test required). docs/55 F04 row now
+reads "Stub — not the spec". The build itself is a feature-sized decree and
+stays un-smuggled.
+---
+Task ID: 8
+Agent: Z.ai (GLM)
+Task: Close the dusk-beat flake shape — make the E2E's wall-clock budgets honest on a slow machine.
+
+Work Log:
+- Reproduced the 555 s cascade on purpose (two CPU burners): root cause is the game's 100 ms dt clamp — under load, game time dilates and every blind wall-clock poll starves. The guard failed first ("click fold-it"), proving the whole harness needed the same law.
+- Added one measured factor, pace (60 frames ÷ clamp, cap 4×, printed as [pace]): every blind event poll rides budget() — dusk/window/postcard, day-wake, album, noteSays, cabClear, holdUntil. walkTo keeps its own progress law. The pointer guard measures the same factor in-page and stretches click timeouts + settle waits.
+- Verified under sustained load: guard 6/6 PASS at ×4.00, driver 605 ms frames ×4.00, AUTOTEST OK 0 failures — the run that cascaded now passes. Idle runs unchanged (×1.00).
+- Also: merged 15 incoming commits (sign atlas, phase-1 playtest plan, B12 closeout) — clean, gates re-run.
+
+Stage Summary:
+- tsc clean; vitest 476/476; E2E AUTOTEST OK 0 failures idle (380 s) and under load (553 s, ×4.00 budgets). The flake is closed, not recorded. Gap list: Regulars arcs beyond Day 4 (design), audio outreach (business), touch hardening on real devices.

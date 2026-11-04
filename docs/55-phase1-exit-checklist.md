@@ -60,6 +60,10 @@ probe still green at its mobile viewport; on-device manual pass for all 10
 features on BOTH devices; VS-F10 budgets hold (60 fps iPhone 11 / SE 3,
 30 fps floor Galaxy A14, < 150 draw calls typical street, < 1.2 GB).
 
+**Operational plan:** [Doc 56](56-phase1-playtest-plan.md) — the Doc 02
+minute-marker script, the device matrix, and the per-session capture list
+this device walk uses.
+
 **Honest gap:** there is no device farm in the repo. The browser probes are
 the CI-grade stand-in until the on-device run happens. The gap is the work —
 not a reason to shrink the rule.
@@ -77,6 +81,10 @@ person stayed. Panel per Doc 07 §8: 5 never-been-to-NYC, 3 cozy-genre
 players, 2 NYC residents. Instrumented funnel + 15-min interview. The
 driver's share of this: ~127 checks across 4 days prove the path itself.
 
+**Operational plan:** [Doc 56](56-phase1-playtest-plan.md) — the session
+script, capture list, three interview questions, logging protocol, and the
+empty results ledger (§6) this box's rows land in.
+
 | # | Metric (Doc 07 §8) | Target | How measured | Evidence path |
 |---|---|---|---|---|
 | 2a | Reach first postcard unaided | ≥ 85% | observer sheet / session recording per tester | `assets/playtests/01/` |
@@ -89,9 +97,9 @@ driver's share of this: ~127 checks across 4 days prove the path itself.
 **Pass rule:** all six rows meet target across the full panel. Any miss gets
 a docs/51 entry (the fix is design work, never a silent tweak).
 
-**Evidence:** results write-up (new doc when it happens, e.g.
-`docs/56-playtest-01-results.md`) + raw sheets → `assets/playtests/01/`.
-**Owner:** __
+**Evidence:** results write-up (new doc at the next free number when it
+happens — `docs/56-` is now the playtest plan) + raw sheets →
+`assets/playtests/01/`. **Owner:** __
 
 ---
 
@@ -192,7 +200,7 @@ maps the epics; this maps the code.
 | F01 | Map companion v1 | `web-three/src/ui/UI.ts`, `src/ui/sketch.ts`, `src/core/GameState.ts`, `src/core/Save.ts` | `tests/map-notebook.test.ts`; `scripts/probe-doc12.mjs` (order card + Map notebook + dusk payoff, desktop AND phone width) | Notes, margins, slang cards, save roundtrip guarded; the Map-copies-badly doodle rides the save (`map_priya_lines`, B11) |
 | F02 | The Corner environment | `web-three/src/world/World.ts`, `streetAssets.ts`, `props.ts`, `dressing.ts`, `leaves.ts` | `tests/interiors.test.ts`, `tests/descend.test.ts` (fire escape), `tests/solidity.test.ts`, `tests/wall-slide.test.ts`; `probe-w5-interiors.mjs`, `probe-climb.mjs`, `probe-ladder.mjs`, `probe-reach-top.mjs`, `probe-solid.mjs`, `diag-bodega.mjs` | Block + bodega interior + cart + fire escape present; art-pass-1 residue tracked as B12 CLEAR items |
 | F03 | Serving conversation v1 | `web-three/src/core/content.ts` (`OrderCard`/`OrderReply`), `src/game/interactionDefs.ts`, `src/game/Game.ts` | `tests/state.test.ts`, `tests/interactions.test.ts`; `probe-doc12.mjs`; money rails in `scripts/e2e.mjs` ("a serve is a serve regardless of the choice") | Choice replies incl. chef's welcome; no timers, no fail states; teach only when asked |
-| F04 | The Shuffle | `src/core/GameState.ts` (`Step.CROSS`, `cross(atStrip)`), `src/world/peds.ts` | `tests/state.test.ts` ("crossing at the stripes teaches the Shuffle; crossing anywhere counts" — Seam 1), `tests/crowd.test.ts`; `probe-peds.mjs` | Forgiveness is law: crossing anywhere counts; the brush is the dance ("scuse me") |
+| F04 | The Shuffle | `src/core/GameState.ts` (`Step.CROSS`, `cross(atStrip)`), `src/world/peds.ts` | `tests/state.test.ts` ("crossing at the stripes teaches the Shuffle; crossing anywhere counts" — Seam 1), `tests/crowd.test.ts`; `probe-peds.mjs` | **Stub — not the spec.** The forgiveness half is law (crossing anywhere counts, Seam 1) + the Doc 08 #4 note text; the mini-game itself (crowd-dense walk, drift-to-gaps teach, brush → "scuse me", TBD-3 soft skip) is NOT built — docs/51 B16. The crowd tests prove collision courtesy, not the Shuffle |
 | F05 | Postcard pipeline v1 | `src/postcard/PostcardCapture.ts` (`capturePostcard`, `composePostcard`, `sharePostcard`), `src/postcard/Album.ts`, `src/core/content.ts` (`composeCaption`, `tsWowCaption`), `src/ui/UI.ts` | `tests/album.test.ts`, `tests/wow-postcard.test.ts`; `probe-album.mjs` (share button stays honest where files cannot be shared), `diag-wow-card.mjs` | capture → caption → album → share wired; per-day captions + the sync-beat card (B10) |
 | F06 | The Wow Walk | `src/world/timesSquare.ts`, `src/game/Game.ts` (`tsBeats` drain, `composeWowPostcard`) | `tests/wow-postcard.test.ts`; `diag-wow-card.mjs` (drives the honest subway route into the square); `probe-subway.mjs` | Scripted sequencer + billboard sync beat + auto-postcard; the paper holds the hands while the card is up |
 | F07 | Subway University ride | `src/world/subway/` (`index.ts`, `ride.ts`, `trainKit.ts`, `stationKit.ts`, `zone.ts`), `src/game/interactionDefs.ts` (priya) | `tests/subway.test.ts` (incl. diagram-beat laws, B11); `probe-subway.mjs`; `probe-subway-mobile.mjs` (390×844 touch) | Guided ride, two-line teach drawn on the window, Map's crooked copy latched to the save |
