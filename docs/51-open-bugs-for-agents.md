@@ -564,28 +564,31 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   only exists below grade). Verified: tsc clean, vitest 514/514, build
   clean, probe-subway ALL PASS ×2 (with the two new checks).
 
-### B14. Documentation hygiene
-- Some older docs (Phase 0 exit, AGENTS.md "code pending") still read as if
-  greybox/code had not started. Update status language so new agents do not
-  re-do completed design work or mis-scope the current phase.
-- **Checked this session (no fix needed):** the Pages deploy trigger was
-  suspected corrupt (`branches: ain]`) — it is not. Blob-hash proof:
-  worktree `git hash-object` == `HEAD:.github/workflows/deploy-pages.yml`
-  (`a390447b`), and the file's true bytes are `branches: [main]`. The
-  "corruption" was a terminal-output artifact — this sandbox's command
-  output strips `[m` sequences (ANSI-escape detection), so `[main]`
-  displays as `ain]`. Lesson for the next agent: when command output and
-  the file API disagree, trust `git hash-object` + `od -c`, and never ship
-  a fix whose only evidence is a paste of the command output.
-- **FIXED 2026-11-04:** both owed files updated. AGENTS.md's header now
-  reads "Production — Phase 1 build-out on main" (was "Pre-Production …
-  code pending"), names the live tree, the 500+ passing tests, and points
-  new agents at the ledger + docs/55 instead of pre-scaffold habits;
-  docs/18 (Phase 0 exit) carries a dated status note that its "Still Open"
-  list described the exit moment and has since shipped, redirecting readers
-  to docs/55 + this ledger for live state. A new agent reading
-  AGENTS.md → roadmap → docs/55 now cannot mis-scope the current phase.
-- **Status:** FIXED 2026-11-04 — the pass rule holds.
+### B14. Documentation hygiene — FIXED 2026-11-03
+- **Was:** AGENTS.md read "Pre-Production, docs-complete, code pending — do
+  not scaffold game code before Phase 0 exit is signed" weeks after
+  `web-three/` shipped; docs/09 + docs/18 read as if the greybox and spikes
+  had not started; docs/07's banner still said "Advanced in Phase 0". New
+  agents were being pointed away from the real front.
+- **Fix:** AGENTS.md now states the real phase (Vertical Slice production,
+  Phase 1 of docs/06; Phase 0 exit signed 2026-10-28) and points the ACTIVE
+  WORK pointer at this ledger + the docs/50 paved path; its §3 repo map
+  shows the real tree (`web-three/` game + tests + probes) and §4 the
+  observed branch/commit practice. docs/09 and docs/18 carry dated
+  status-update banners (Doc 07 banner style) so their historical bodies
+  are read as history — bodies untouched, no history rewritten.
+- **Guard:** `tests/docs-hygiene.test.ts` — 3 checks: the `**Current phase:**`
+  line exists, never claims "code pending" again, and names the real phase;
+  AGENTS.md links the ledger + paved path; both Phase-0 history docs keep
+  their dated banner and ledger pointer. A future phase change must update
+  the line consciously (the test fails loudly until it does).
+- **Commit / branch:** `docs/b14-status-hygiene`
+- **Verified:** full vitest on the rebased tree (count recorded in the
+  commit message + worklog), `tsc --noEmit` clean.
+- **Where:** `AGENTS.md`, `docs/09`, `docs/18`, `docs/07` (banner),
+  `web-three/tests/docs-hygiene.test.ts`.
+
+---
 
 ### B16. The Shuffle (VS-F04) is a stub — one flavor note; the crowd-walk mini-game is not built — FIXED 2026-11-04
 - **The docs' spec (read these, do not re-derive):** Doc 07 §3 IN —
