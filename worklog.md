@@ -831,3 +831,60 @@ probe-peds OK · probe-a5c-arrival errors none · full 4-day E2E AUTOTEST
 OK 0 failures (540 s), console clean. Housekeeping: reconciled the stale
 package-lock (main's `@types/node` had never reached it — a fresh
 checkout's entry-gate tsc failed until `npm install` pinned it).
+
+## 2026-11-05 — agent2: the tip re-proven in a clean checkout + the 1-Second audit gets its randomizer (docs/55 item 4 prep)
+
+The session opened on a recycled sandbox (fresh clone @ 76ca204) and the
+books saying the Shuffle decree was answered in the merge — my own earlier
+build (0115e9b, the proximity-scan cut) was superseded by the contact law
+that survived (docs/55 F04's two-builds note). So the work became the two
+things left that an agent can honestly do: re-prove the tip from zero, and
+build the piece of the exit checklist nobody had built yet.
+
+**The clean-checkout proof (every gate, this sandbox):** npm ci + a fresh
+Playwright chromium; then tsc clean · vitest **551/551** (35 files) · build
+clean (444 ms) · `probe-shuffle.mjs` **SHUFFLE OK** — all six close-rule
+checks (9 walkers, 5 on the stretch, the forced brush fires "'Scuse me."
+with the bubble at opacity 1 — `shots/shuffle-bubble.png` re-captured and
+eyeballed — money and step untouched, TBD-3 lands, no gate west) ·
+`probe-peds.mjs` PEDS OK · full 4-day E2E **AUTOTEST OK, 0 failures
+(572 s), console clean**. B16's evidence holds on a machine that has never
+seen the tree — the strongest form of "e2e rails untouched".
+
+**The 1-Second Law audit's missing tool (docs/55 item 4):** the checklist
+names existing probes as the frame source, but every one of them curates —
+and the audit says "randomize, don't curate". `probe-one-second.mjs` is the
+randomizer: a seeded draw (mulberry32, `--seed`, default 20261105) of 10
+paused frames stratified across the item's own axes — 10 distinct
+districts, every day 2–3 frames, noon/dusk 5–5. The laws it keeps:
+- **no invented coordinates** (docs/45): 13 anchors, each harvested from a
+  shipped probe or a World.ts W2 builder list, `minDay`-constrained so no
+  frame shows a place before its day opens it (Times Square and the
+  platform are Day 4's; the wider grid is Day 2's);
+- **the standable proof**: after teleport, the frame's staging walks real
+  key-driven steps (the probe-court pattern) — an anchor that cannot move
+  fails the run (the fire-escape anchor taught this one: it faces its own
+  ladder, so the proof accepts either direction);
+- **the staging never leaks between beats** (the B12 law): day, wallet,
+  cart name, objective and world flags set explicitly per frame, the note
+  cleared AFTER setStep (the wake toast re-fires otherwise — found by the
+  platform frame wearing Day 4's "Rosa is at your cart" 350 m from the
+  cart), and each day stages its widest-range step so the objective header
+  never names a beat the player couldn't be mid-way through;
+- **the camera is never parked** — the audit pauses a real session, so the
+  frame is the follow cam's own framing; portrait 720×1280; any page error
+  fails the run.
+
+First draw committed to the checklist's named path: `assets/one-second-law/`
+(10 frames + `manifest.json` + README status note), docs/55 §4 carries the
+prep line. **The box stays unchecked** — the never-visitor pass is the
+human half and has not run. Two frames in the honest set carry real
+camera-occlusion moments (a boom wedged behind the laundry container, a
+canopy filling half a frame) — that is what un-curated pauses look like,
+and the audit's human is the judge; if either fails the 1-second read, the
+checklist's own rule applies (a docs/51 entry with the frame attached).
+
+Gates this session: tsc clean · vitest 551/551 · build clean ·
+probe-shuffle SHUFFLE OK · probe-peds PEDS OK · E2E AUTOTEST OK 0 failures
+(572 s) · probe-one-second ONE-SECOND PREP OK ×3 (final at the evidence
+path; same-seed re-run reproduces the same 10 frames bit-for-bit).
