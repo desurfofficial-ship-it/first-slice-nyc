@@ -24,6 +24,9 @@ export interface AlbumEntry {
   /** album-size jpeg data URL (data:image/jpeg;…) */
   thumb: string;
   keptAt: number;
+  /** The shelf tag for moment cards ("THE SQUARE", "THE RUSH", …) —
+   *  optional, v1-safe: absent reads as the kind's default on the shelf. */
+  tag?: string;
 }
 
 export const ALBUM_KEY = 'first_slice_album';
@@ -74,9 +77,14 @@ export function parseAlbum(raw: unknown): AlbumEntry[] {
     if (typeof cartName !== 'string' || cartName.length > 40) continue;
     if (!isDataImage(thumb) || thumb.length > 200_000) continue;
     if (typeof keptAt !== 'number' || !Number.isFinite(keptAt)) continue;
+    // the shelf tag: optional, string, short — wrong shapes fall out to the
+    // kind's default rather than rejecting the whole card
+    const tag = typeof e.tag === 'string' && e.tag.length > 0 && e.tag.length <= 24
+      ? e.tag
+      : undefined;
     if (seen.has(id)) continue;
     seen.add(id);
-    out.push({ id, day, kind, caption, cartName, thumb, keptAt });
+    out.push({ id, day, kind, caption, cartName, thumb, keptAt, tag });
   }
   out.sort((a, b) => b.keptAt - a.keptAt);
   return out.slice(0, ALBUM_MAX);

@@ -586,7 +586,11 @@ export class UI {
       img.alt = '';
       const tag = document.createElement('span');
       tag.className = 'album-tag';
-      tag.textContent = e.kind === 'wow' ? `DAY ${e.day} · THE SQUARE` : `DAY ${e.day}`;
+      // moment cards carry their own tag ("THE RUSH", "THE HATS"…); the
+      // square's card keeps its name, day cards stay day-tagged
+      tag.textContent = e.kind === 'wow'
+        ? `DAY ${e.day} · ${e.tag || 'THE SQUARE'}`
+        : `DAY ${e.day}`;
       card.append(img, tag);
       this.albumGrid.append(card);
     }

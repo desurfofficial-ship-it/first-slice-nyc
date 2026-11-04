@@ -7,14 +7,16 @@
  */
 
 import * as THREE from 'three';
-import { GameState, Step, START_MONEY, type Effect } from '../core/GameState';
+import { GameState, Step, START_MONEY, cityWillWaitFires, inShuffleStretch, type Effect } from '../core/GameState';
 import { composeCaption, tsWowCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE_OBJECTIVE,
   D3_ORDERS, D4_ORDERS, BREWING_NOTE, STOOL_OFFER_NOTE, STOOL_UP_NOTE, D3_GOLDEN_NOTE,
   D3_CLIMB_NOTE, DAY3_BEGIN_NOTE, D4_GOLDEN_NOTE, D4_CLIMB_NOTE, DAY4_BEGIN_NOTE,
   D4_STRANGER_ONHOUSE_NOTE, D4_STRANGER_WATCH_NOTE, D4_STRANGER_DEPART_NOTE,
   D4_KID_APRON_NOTE, D4_APRON_CLEAN_NOTE, FAMILIAR_NOD_NOTE, FAMILIAR_WORD_NOTE,
   RUSH_CARDS, SOLO_CARDS, GOLD_WINDOW_NOTE, LIGHTS_OUT_NOTE, WATER_TOWERS_NOTE,
-  MAP_PLACES, MAP_PLACE_NOTICE_R,
+  MAP_PLACES, MAP_PLACE_NOTICE_R, CITY_WILL_WAIT_NOTE, MAP_COPIED_NOTE, RIDE_END_NOTE,
+  RUSH_NOTE_5, MOMENT_RUSH_CAPTION, MOMENT_TOWERS_CAPTION, MOMENT_FOLD_CAPTION,
+  momentCornerCaption, MOMENT_TAGS, type MomentCardKind,
 } from '../core/content';
 import { loadSave, writeSave, type SaveData } from '../core/Save';
 import { STARTERS, starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
@@ -105,6 +107,9 @@ export class Game {
   private lastPostcardUrl: string | null = null;
   private lastPostcardKind: 'day' | 'wow' = 'day';
   private lastPostcardCaption = '';
+  /** The shelf tag a Keep will file under ("THE SQUARE", "THE RUSH"…) —
+   *  moment cards carry their own name on the album shelf. */
+  private lastPostcardTag: string | undefined = undefined;
   /** The album shelf (the GDD's postcard ask): kept cards survive the tab;
    *  the full-size paper of THIS session rides memory for re-prints. */
   private album: AlbumEntry[] = [];
@@ -950,15 +955,57 @@ export class Game {
    *  it cheap — the buffers drain to empty every frame. */
   private lastRidePhase: string = 'idle';
   private saxOn = false;
-  private drainFarWorld(_dt: number): void {
+  // ---- the Shuffle's soft skip (docs/51 B16, Doc 07 TBD-3) ----------------
+  private stillFor = 0;      // seconds the player has stood still IN the stretch
+  private waitFired = false; // the patience line fires once per standstill episode
+  private rideEndSaid = false; // doc 08 note #6 — once per session, first arrival
+  private lastWalkPos: { x: number; z: number } | null = null;
+  private drainFarWorld(dt: number): void {
     const w = this.world;
+    // the Shuffle's brushes: the walkers already said their "'Scuse me."
+    // in-world; the drain just keeps the queue honest (nothing to count —
+    // brushing is a correct interaction, never a failure, never a stat)
+    w.drainBrushes();
+    // TBD-3: standing still 20 s mid-walk offers the city's patience. Only
+    // inside the stretch (sightseeing elsewhere is a right); moving resets.
+    // Times Square needs no completion to reach — the world has no gate to
+    // skip past, so the line is comfort, not a checkpoint.
+    const px = this.player.capsule.x;
+    const pz = this.player.capsule.z;
+    if (inShuffleStretch(px, pz)) {
+      if (this.lastWalkPos
+        && Math.hypot(px - this.lastWalkPos.x, pz - this.lastWalkPos.z) < 0.05) {
+        this.stillFor += dt;
+      } else {
+        this.stillFor = 0;
+        this.waitFired = false;
+      }
+      if (!this.waitFired && cityWillWaitFires(this.stillFor)) {
+        this.waitFired = true;
+        this.pushNote(CITY_WILL_WAIT_NOTE);
+      }
+    } else {
+      this.stillFor = 0;
+      this.waitFired = false;
+    }
+    this.lastWalkPos = { x: px, z: pz };
     // ride phase transitions → the train's own voice
     const phase = w.subway.ride.phase;
     if (phase !== this.lastRidePhase) {
       if (phase === 'closing') gameAudio.doorChime();
       if (phase === 'riding') gameAudio.rumbleStart();
       if (phase === 'departing') { gameAudio.doorChime(); gameAudio.rumbleStop(); }
-      if (phase === 'arrived') { gameAudio.announce(); gameAudio.rumbleStop(); }
+      if (phase === 'arrived') {
+        gameAudio.announce(); gameAudio.rumbleStop();
+        // doc 08 note #6 — the ride's parting reassurance (Map writes it
+        // down; the notebook dedupes, the voice says it once per session)
+        if (!this.rideEndSaid) {
+          this.rideEndSaid = true;
+          this.state.collectNote(RIDE_END_NOTE);
+          this.pushNote(RIDE_END_NOTE);
+          if (this.mapOpen) this.ui.refreshMap(this.state.mapNotes, this.state.mapSlang);
+        }
+      }
       if (phase === 'idle') gameAudio.rumbleStop();
       this.lastRidePhase = phase;
     }
@@ -981,6 +1028,10 @@ export class Game {
       if (key === 'map-copies' && this.state.copyPriyaLines()) {
         this.ui.revealPriyaLines();
         this.ui.wiggleMap();
+        // doc 08 note #5 — Map writes the lesson down in her own hand (the
+        // spoken teach rode the beats; the notebook keeps her crooked copy)
+        this.state.collectNote(MAP_COPIED_NOTE);
+        if (this.mapOpen) this.ui.refreshMap(this.state.mapNotes, this.state.mapSlang);
       }
       const text = RIDE_BEAT_TEXT[key];
       if (text) this.ui.showNote(text);
@@ -1008,6 +1059,11 @@ export class Game {
         break;
       case 'note':
         this.pushNote(e.text);
+        // Doc 08 postcard 2 (First Rush): the rush-end beat composes its
+        // keepsake while the note reads — a real capture, filed to the album
+        if (e.text === RUSH_NOTE_5) {
+          this.tweens.sequence(this.tweens.wait(0.9), this.tweens.call(() => this.composeMomentCard('rush')));
+        }
         break;
       case 'map-note':
         // the Map writes it down AND says so — a note is a small event
@@ -1062,6 +1118,11 @@ export class Game {
         break;
       case 'serve-customer':
         this.removeCustomer();
+        // Doc 08 postcard 4 (The Fold): the bagel was order three — the
+        // first fold composes its keepsake as the enormous thing changes hands
+        if (this.state.step === Step.RUSH && this.state.rushServed === 3) {
+          this.tweens.sequence(this.tweens.wait(0.6), this.tweens.call(() => this.composeMomentCard('fold')));
+        }
         break;
       case 'name-cart-open':
         this.player.frozen = true;
@@ -1069,6 +1130,9 @@ export class Game {
         break;
       case 'name-cart-applied':
         this.applyCartIdentity(e.name);
+        // Doc 08 postcard 5 (Your Corner): the named cart, framed — the
+        // caption signs itself with the name the city just wrote down
+        this.tweens.sequence(this.tweens.wait(0.8), this.tweens.call(() => this.composeMomentCard('corner')));
         break;
       case 'crossed':
         this.checkpoint = { x: e.checkpoint.x, y: 0.05, z: e.checkpoint.z };
@@ -1466,6 +1530,9 @@ export class Game {
           // the stoop note already rode the arrival — the wooden hats ride
           // the view up (Doc 08 note #7, first clear look from the escape)
           this.pushNote(WATER_TOWERS_NOTE);
+          // Doc 08 postcard 3 (Water Towers): the same beat composes the
+          // hats' keepsake — the up-west vista, filed to the album
+          this.composeMomentCard('towers');
         }
       }),
       ...(day1 ? [
@@ -1593,6 +1660,7 @@ export class Game {
     });
     this.lastPostcardCaption = caption;
     this.lastPostcardKind = 'day';
+    this.lastPostcardTag = undefined;
     if (s.day > 1) s.dayComplete = true;
     s.setStep(s.day >= 4 ? Step.D4_POSTCARD : (s.day === 3 ? Step.D3_POSTCARD : (s.day > 1 ? Step.D2_POSTCARD : Step.DONE)));
     this.ui.setObjective('');
@@ -1642,6 +1710,7 @@ export class Game {
     const caption = tsWowCaption({ day: s.day, cartName: s.cartName || 'First Slice' });
     this.lastPostcardCaption = caption;
     this.lastPostcardKind = 'wow';
+    this.lastPostcardTag = 'THE SQUARE';
     const capCam = new THREE.PerspectiveCamera(55, 768 / 1160, 0.1, 400);
     // the arrival view, held: from mid-plaza the stacked south tower fills
     // the portrait frame — screens top-two-thirds, warm plaza below (the
@@ -1679,6 +1748,76 @@ export class Game {
       : `first_slice_postcard_day${this.state.day}.png`;
   }
 
+  /** Doc 08 §2 — the Day-1 moment cards (P2 First Rush, P3 Water Towers,
+   *  P4 The Fold, P5 Your Corner). REAL captures at their moments, filed
+   *  straight to the album: no panel, no freeze, no story move — the first
+   *  postcard (the square) stays the one that simply happens to you, and
+   *  these are the paper the day leaves behind. Each moment already carries
+   *  its note; a capture that fails never wedges the beat (the wow card's
+   *  precedent). Poses are authored rigs (the TS-01 precedent): P2/P4 look
+   *  down Rosa's counter to the warm window; P3 is the up-west vista where
+   *  the wooden hats clear the roofline; P5 stands across the corner from
+   *  the newly named cart. */
+  private composeMomentCard(kind: MomentCardKind): void {
+    const s = this.state;
+    if (s.day !== 1) return; // Doc 08 is the Day-1 content pack
+    const cartName = s.cartName || 'First Slice';
+    const caption = kind === 'rush' ? MOMENT_RUSH_CAPTION
+      : kind === 'towers' ? MOMENT_TOWERS_CAPTION
+      : kind === 'fold' ? MOMENT_FOLD_CAPTION
+      : momentCornerCaption(cartName);
+    const capCam = new THREE.PerspectiveCamera(55, 768 / 1160, 0.1, 400);
+    if (kind === 'towers') {
+      // up-west from the escape's height: the tank clears the south
+      // roofline against the dusk sky (the corner's own first clear view)
+      capCam.position.set(7, 15.5, -3.5);
+      capCam.lookAt(-14, 17.5, -12.5);
+    } else if (kind === 'corner') {
+      // across the corner from the cart — the frame the name now owns
+      capCam.position.set(0.6, 1.8, -2.0);
+      capCam.lookAt(4, 1.2, -6.6);
+    } else {
+      // inside Rosa's: the fold frames the counter from the aisle (the top
+      // runs diagonally to the door light); the rush frames the storefront
+      // itself — the warm window, the awning, ROSA'S — the light slanting
+      // through is a street-side truth (the interior pier hides the glass)
+      if (kind === 'fold') {
+        // the doorway frame-in-frame: folding it while walking — the warm
+        // thing in your hands, the street waiting through the gap (pulled
+        // back so the piers frame the world; the awning closes the top)
+        capCam.position.set(-16.0, 1.7, 14.2);
+        capCam.lookAt(-16.0, 1.45, 8.4);
+      } else {
+        capCam.position.set(-12.6, 2.0, 5.0);
+        capCam.lookAt(-17.4, 2.1, 8.4);
+      }
+    }
+    try {
+      const result = capturePostcard(
+        this.renderer, this.world.scene, capCam, caption,
+        cartName, s.day, 'october',
+      );
+      const id = entryId(s.day, 'wow', caption);
+      this.sessionFull.set(id, result.dataUrl); // this session re-prints full-size
+      void (async () => {
+        try {
+          const thumb = await makeThumb(result.dataUrl);
+          this.album = addToAlbum(this.album, {
+            id, day: s.day, kind: 'wow', caption, cartName, thumb,
+            keptAt: Date.now(), tag: MOMENT_TAGS[kind],
+          });
+          this.album = storeAlbum(this.album);
+          this.ui.setAlbumCount(this.album.length); // the badge ticks — the cue
+        } catch { /* the shelf never wedges a beat */ }
+      })();
+    } catch {
+      // the moment already carries its note; a failed capture must never
+      // wedge the walk (the wow card's law)
+    } finally {
+      capCam.dispose();
+    }
+  }
+
   /** Keep = paper on the album shelf + the download copy (the same click).
    *  The shelf stores the thumb — a print, not the negative; the full card
    *  rides session memory for this visit's re-prints. Idempotent: keeping
@@ -1697,6 +1836,7 @@ export class Game {
       cartName: this.state.cartName || 'First Slice',
       thumb,
       keptAt: Date.now(),
+      tag: this.lastPostcardTag,
     });
     // storeAlbum quota-degrades on its own and returns what actually stuck —
     // the badge counts the shelf, never the wish

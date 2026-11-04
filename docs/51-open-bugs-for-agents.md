@@ -579,8 +579,30 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   forgiveness and own-way line stay as-is. Evidence: a probe that walks the
   segment, forces a brush, and captures the ped reaction; a unit test for
   the brush-counts-as-correct law; e2e rails untouched.
-- **Status:** OPEN — a feature-sized build (VS-F04's own IN-scope row); it
+- **Status:** CLOSED — built the same day (see "B16 — FIXED 2026-11-04" below).
   needs its own decree and must not be smuggled into a docs pass.
+
+### B16. The Shuffle (VS-F04) — FIXED 2026-11-04
+- **Fix:** the crowd-walk mini-game is built world-side: six Shuffle walkers
+  loop the bodega→plaza stretch (lanes z 6.08–6.76, west ends at x −41 —
+  9 walkers total, seeded deterministic, no street crossings so the crosswalk
+  law is untouched); brushing a walker while WALKING (measured player pace
+  ≥ 0.45 m/s, `brushFires` pure law) fires their reaction — a paper
+  "’Scuse me." bubble above their head (2.2 s hold, fade; one brush per
+  meeting, 4 s cooldown) — a correct interaction with NO fail state: the
+  brush event's payload is who/where, nothing to lose, nothing counted; and
+  the TBD-3 soft skip: 20 s of standing still INSIDE the Shuffle stretch
+  (`SHUFFLE_STRETCH`, `cityWillWaitFires` pure law) offers "The city will
+  wait." once per standstill episode — comfort, not a checkpoint; Times
+  Square stays reachable with no gate (free-roam world). The crosswalk's
+  forgiveness + own-way line stay as shipped.
+- **Commit / branch:** agent5/merge-to-main → main (push of 2026-11-04).
+- **Verified:** tests/shuffle.test.ts (17 tests: the brush law, the no-fail
+  payload law, one-brush-per-meeting against a REAL Pedestrians instance,
+  the soft-skip law, the stretch bounds); scripts/probe-shuffle.mjs
+  (SHUFFLE OK — crowd on the stretch, brush fires with the bubble captured
+  on screen, money/step unchanged, TBD-3 note lands, no gate west);
+  vitest 511/511; tsc clean; full 4-day E2E AUTOTEST OK 0 failures (554 s).
 
 ---
 

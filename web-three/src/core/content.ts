@@ -89,9 +89,8 @@ export function composeCaption(s: {
   if (s.day <= 1) {
     return (
       `Day 1. $${s.dayStartMoney} \u2192 $${s.money}.\n` +
-      'Met: Rosa. Idris. Learned: the usual is a tiny love letter.\n' +
-      'The regulars are waiting.\n\n' +
-      `\u2014 ${s.cartName}, Day 1`
+      'Met: Rosa. Idris. Learned: the usual is a tiny love letter. The regulars are waiting.\n' +
+      `\n\u2014 ${s.cartName}, Day 1`
     );
   }
   if (s.replay) {
@@ -156,6 +155,20 @@ export const RUSH_NOTE_5 = 'Five orders. One apron that still smelled like mango
 export const CROSS_NOTE_STRIP =
   'The Shuffle: walk toward the gaps. Brushing someone is correct. They say \u201Cscuse me.\u201D That is the dance.';
 export const CROSS_NOTE_OWN_WAY = 'You found your own way across. The crosswalk still likes you.';
+
+/** TBD-3 (Doc 07) — the Shuffle's soft skip. Stand still long enough on the
+ *  walk and the city says its one patient line; nothing is ever lost by it. */
+export const CITY_WILL_WAIT_NOTE = 'The city will wait.';
+
+/** Doc 08 note #5 — Map's own page for the window lesson. The ride carries
+ *  Priya's spoken teach; THIS is what Map writes down (patient handwriting,
+ *  a little crooked, allowed to be). */
+export const MAP_COPIED_NOTE =
+  'Two lines. One goes under the river. One stays with the lights. (I copied them a little crooked. Priya said that\u2019s fine.)';
+
+/** Doc 08 note #6 — the end of the subway ride's small reassurance. */
+export const RIDE_END_NOTE =
+  'Trains are stubborn in a loyal way. If you miss it, stay on. It comes back.';
 
 export const NAME_NOTE = 'Your corner. Your name. The city wrote it down with you.';   // Doc 08 note #11
 export const USUAL_NOTE = 'The usual is a tiny love letter. It means: I come here, and you noticed.'; // Doc 08 note #10
@@ -1080,18 +1093,38 @@ export const RIDE_BEAT_TEXT: Record<string, string> = {
 export const TS_SYNC_NOTE =
   'The screens all turn at once \u2014 warm light, just for you. Times Square. 300,000 people cross here every day. Today, so did you.';
 
-/** The Wow card's caption (docs/51 B10) — the sync beat, kept as a real
- *  shareable postcard. Day-card voice (see composeCaption) but about the
- *  square, not the ledger: the story machine stays sacred, the card is the
- *  wonder moment's keepsake. */
-export function tsWowCaption(s: { day: number; cartName: string }): string {
-  return (
-    `Day ${s.day}. The screens all turned at once.\n` +
-    'Warm light, just for you. 300,000 people cross here every day.\n' +
-    'Today, so did you.\n\n' +
-    `\u2014 ${s.cartName}, Day ${s.day}`
-  );
+/** The Wow card's caption (docs/51 B10; Doc 08 §2 postcard 1 — the exact
+ *  final-voice lines, fridge-tested). The paper still signs itself: the
+ *  stamp block carries the cart name and day (capturePostcard's args),
+ *  the caption is the square's own two lines. */
+export function tsWowCaption(_s: { day: number; cartName: string }): string {
+  return 'Times Square \u2014 300,000 people cross here every day.\nToday, so did you.';
 }
+
+// ------------------- Doc 08 §2 — the Day-1 moment cards -------------------
+// Four more keepsakes the first day composes (P2 First Rush, P3 Water
+// Towers, P4 The Fold, P5 Your Corner). REAL captures at their moments,
+// filed straight to the album \u2014 no panel, no freeze, no story move: the
+// first postcard (the square) stays the one that simply happens to you
+// (Doc 02 design goal 5), and these are the paper the day leaves behind.
+// Captions are Doc 08's exact lines, one wonder beat each.
+export const MOMENT_RUSH_CAPTION =
+  'Five orders. One apron that still smelled like mangoes.\nThe city let me keep up.';
+export const MOMENT_TOWERS_CAPTION =
+  'The buildings wear wooden hats.\nI don\u2019t know why yet. I like them.';
+export const MOMENT_FOLD_CAPTION =
+  'Folding it is part of the recipe.\nGrease on the napkin is proof you were here.';
+export function momentCornerCaption(cartName: string): string {
+  return `${cartName} \u2014 Day 1.\nIt was ugly. So was Rosa\u2019s, once. It\u2019s mine now.`;
+}
+/** The album shelf tag per moment card (the square's card says THE SQUARE). */
+export const MOMENT_TAGS = {
+  rush: 'THE RUSH',
+  towers: 'THE HATS',
+  fold: 'THE FOLD',
+  corner: 'YOUR CORNER',
+} as const;
+export type MomentCardKind = keyof typeof MOMENT_TAGS;
 
 export const BUSKER_LINES = [
   'The sax does the thing saxophones do to a tile room. You stay for the whole phrase.',

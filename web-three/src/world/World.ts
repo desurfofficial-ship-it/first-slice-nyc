@@ -261,6 +261,14 @@ export class World {
     return this.peds ? this.peds.bodies() : [];
   }
 
+  /** The frame's Shuffle brushes (docs/51 B16) and clears the batch. The
+   *  walkers already said their "'Scuse me." in-world (the bubble rides
+   *  peds.update); the orchestrator drains so the queue never grows —
+   *  brushing is a correct interaction, nothing to count, nothing to lose. */
+  drainBrushes(): Array<{ i: number; x: number; z: number }> {
+    return this.peds ? this.peds.drainBrushes() : [];
+  }
+
   /** Live position of ambient walker `i` — the interaction registry's walker
    *  conversations read this every frame (Doc 37 §3B: moving NPCs stay live).
    *  Out of range → parked below the world (the y-band excludes it). */
@@ -1452,6 +1460,16 @@ export class World {
       { jacket: 0x4a5568, pants: 0x3b3f4a, skin: 0xc98e5a, hair: 0x2b2730, style: 'cap', shoe: 0x4a3428, scale: 1.05 },
       { jacket: 0x7d5a62, pants: 0x47404b, skin: 0xe8b08e, hair: 0x6e3b2a, style: 'bun', scale: 0.95 },
       { jacket: 0x5d6b4a, pants: 0x39423a, skin: 0x8a5a3b, hair: 0x1f1b23, style: 'flat', scale: 1.09 },
+      // THE SHUFFLE CROWD (docs/51 B16): the walk to the subway carries a
+      // crowd the player weaves through — Doc 02's teach lives on the
+      // bodega→plaza stretch, where a subway entrance always draws bodies.
+      // Four more neighbors, west-end loops, brush-able and yielding.
+      { jacket: 0x946a4f, pants: 0x33383f, skin: 0xd9a06b, hair: 0x1f1b23, style: 'bun', shoe: 0x2e2a33, scale: 1.02 },
+      { jacket: 0x3f5e5a, pants: 0x443f4a, skin: 0xc98e5a, hair: 0x3a2c22, style: 'cap', shoe: 0x4a3428, scale: 0.98 },
+      { jacket: 0x6b4a63, pants: 0x3a3f45, skin: 0x8a5a3b, hair: 0x14141c, style: 'flat', shoe: 0x33291f, scale: 1.07 },
+      { jacket: 0x54628f, pants: 0x2f333b, skin: 0xe8b08e, hair: 0x5a4632, style: 'bun', shoe: 0x3a3028, scale: 0.93 },
+      { jacket: 0x8a5a48, pants: 0x3a3540, skin: 0xc98e5a, hair: 0x241f28, style: 'flat', shoe: 0x2e2a33, scale: 1.0 },
+      { jacket: 0x4f6b5e, pants: 0x33383f, skin: 0xe8b08e, hair: 0x1a1a22, style: 'bun', shoe: 0x4a3428, scale: 0.96 },
     ];
     const pedPaths: Array<Array<[number, number]>> = [
       // the commuter: full block, crossing only at the crosswalk (x ≈ -6.5,
@@ -1479,6 +1497,16 @@ export class World {
       // W4 — the avenue shopper (NZ-AVENUE): the Sycamore Ave west walk,
       // past the diner window and the fruit stand (x 61.5/62.2 lanes)
       [[61.5, -18], [61.5, 18], [62.2, 18], [62.2, -18]],
+      // THE SHUFFLE CROWD's loops (docs/51 B16): all four stay on the north
+      // walk (z 6.08–6.76) between the bodega (x −20) and the plaza (x −41),
+      // lanes offset so the stretch reads as a crowd with gaps to walk
+      // toward — never a wall. No street crossings, so the crosswalk law is
+      // untouched; west ends stop at x −41 (east of the headhouse railings,
+      // whose opening the shopper's own turnaround already owns).
+      [[-31, 6.12], [-41, 6.12], [-41, 6.7], [-31, 6.7]],   // the plaza weaver
+      [[-26, 6.14], [-36.5, 6.14], [-36.5, 6.68], [-26, 6.68]], // the stair local
+      [[-22.5, 6.08], [-39.5, 6.08], [-39.5, 6.76], [-22.5, 6.76]], // the west commuter
+      [[-20, 6.16], [-28.5, 6.16], [-28.5, 6.66], [-20, 6.66]], // the bodega local
     ];
     // ---- their routines (Phase 4, Doc 37 §3E): the day's small beats ------
     // Every trigger sits OFF the walk lanes (at the building line or the
@@ -1527,6 +1555,22 @@ export class World {
         { x: 61.6, z: -12, faceTo: [60.1, -12], dwell: 5.0 },
         { x: 61.7, z: -16.5, faceTo: [63.3, -18], dwell: 4.0 },
         { x: 61.6, z: 2.2, faceTo: [61.5, 2], dwell: 2.0 },
+      ],
+      // the Shuffle crowd's beats (docs/51 B16): small plaza pauses — the
+      // bulletin board, the bench, the bodega window — off the walk lanes,
+      // so a pause never plugs both directions
+      [
+        { x: -33.2, z: 7.0, faceTo: [-37.6, 7.5], dwell: 3.0 }, // the bulletin board
+        { x: -39.8, z: 6.9, faceTo: [-40.5, 4.55], dwell: 2.5 }, // a glance at the plaza bench
+      ],
+      [
+        { x: -34.8, z: 6.95, faceTo: [-37.6, 7.5], dwell: 2.5 }, // the board, from the east
+      ],
+      [
+        { x: -25.8, z: 6.9, faceTo: [-23.3, 7.62], dwell: 2.5 }, // waits near the bus bench
+      ],
+      [
+        { x: -18.8, z: 6.9, faceTo: [-18.5, 7.55], dwell: 3.0 }, // the bodega's warm window
       ],
     ];
     this.peds = new Pedestrians(

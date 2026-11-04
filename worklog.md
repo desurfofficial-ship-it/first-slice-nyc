@@ -585,3 +585,60 @@ Work Log:
 
 Stage Summary:
 - tsc clean; vitest 476/476; E2E AUTOTEST OK 0 failures idle (380 s) and under load (553 s, ×4.00 budgets). The flake is closed, not recorded. Gap list: Regulars arcs beyond Day 4 (design), audio outreach (business), touch hardening on real devices.
+
+## 2026-11-04 — agent5: B16 closed — the Shuffle is built; Day 1 rewritten to Doc 08's final voice
+
+The user's decree was two-fold: finish the first session, then rewrite Day 1
+like docs/08 (the Day-1 content pack). Reading docs/51's books first (the
+house law) put one feature-sized build in the way: B16 — the Shuffle (VS-F04)
+was a stub. So the session built it, then ran the content pass.
+
+**B16, the Shuffle (docs/51 B16 CLOSED):**
+- The crowd: six Shuffle walkers join the block (9 total) — loops on the
+  bodega→plaza stretch of the north walk (lanes z 6.08–6.76, west ends at
+  x −41), seeded deterministic, no street crossings, so the crosswalk law is
+  untouched. Plaza pauses (the bulletin board, the bench, the bodega window)
+  sit off the lanes.
+- The brush law (`brushFires`, pure): contact with a WALKING player (measured
+  pace ≥ 0.45 m/s) is the Shuffle's correct interaction — the walker's paper
+  "'Scuse me." bubble comes up over their head (2.2 s hold, fade), one brush
+  per meeting (4 s cooldown). The event payload is who/where — no fail state
+  exists to lose to. The orchestrator drains the queue every frame; nothing
+  counts, nothing accumulates.
+- TBD-3 (Doc 07): 20 s standing still INSIDE the Shuffle stretch
+  (`SHUFFLE_STRETCH` + `cityWillWaitFires`, pure) offers "The city will
+  wait." — once per standstill episode, moving re-arms; sightseeing outside
+  the stretch is a right. Times Square needs no gate (it never had one).
+- Evidence: tests/shuffle.test.ts (17 — brush law, no-fail payload law,
+  one-brush-per-meeting against a REAL Pedestrians, soft-skip, stretch
+  bounds); probe-shuffle.mjs walks the stretch, presses through the crowd,
+  captures the bubble mid-hold (SHUFFLE OK — money/step unchanged, TBD-3
+  lands, no gate west). probe-peds re-run green.
+
+**Day 1 rewritten to Doc 08 (the content pack):**
+- Map notes: #5 (the crooked copy) now written into the notebook at the
+  map-copies beat; #6 ("Trains are stubborn in a loyal way…") rides the
+  first ride-end. #1–4, #7–11 were already in the book verbatim.
+- Postcard 1 (Times Square) and the Day-1 close card now carry Doc 08's
+  exact lines (the wow card drops its own ledger-voice; the paper still
+  signs itself in the stamp block).
+- NEW — the four moment cards (P2 THE RUSH, P3 THE HATS, P4 THE FOLD,
+  P5 YOUR CORNER): real captures at their moments (rush end; the fire-escape
+  look-up where note #7 lives; the bagel serve; the naming), filed straight
+  to the album — no panel, no freeze, no story move; the first postcard
+  stays the one that simply happens to you. AlbumEntry grew an optional
+  shelf `tag` (v1-safe: absent reads as the kind's default; wrong shapes
+  fall out, never reject the card). Poses verified on the shelf by
+  probe-moments.mjs (the storefront, the doorway frame-in-frame, the tank
+  against the dusk sky, the named cart across the corner).
+- The e2e's album rails now count the day honestly: day 1's shelf holds
+  five (4 moment cards + the kept day card), day 2's join makes six.
+  probe-album.mjs had gone stale with the pocket wave (it clicked
+  #btn-album without opening the Pocket) — it failed on CLEAN main too;
+  fixed to its own openPocket law and green again.
+
+Stage Summary:
+- tsc clean; vitest 511/511 (+17 shuffle, +5 moment/tag laws); build clean;
+  full 4-day E2E AUTOTEST OK 0 failures (554 s); probe-shuffle SHUFFLE OK;
+  probe-peds PEDS OK; probe-subway ALL PASS; probe-a5h ok; probe-album
+  PASS ×4; probe-moments shelf verified.

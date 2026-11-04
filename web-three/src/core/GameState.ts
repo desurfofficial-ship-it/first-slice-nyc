@@ -456,6 +456,9 @@ export class GameState {
     ];
   }
 
+  /** TBD-3 (Doc 07) — the Shuffle's soft skip lives as a module law below
+   *  the class (cityWillWaitFires) — pure, unit-testable, state-free. */
+
   claimCart(): Effect[] {
     if (this.step !== Step.CLAIM_CART) return [];
     return [{ kind: 'name-cart-open' }, ...this.setStep(Step.NAME_CART)];
@@ -825,6 +828,23 @@ export class GameState {
       map_priya_lines: this.priyaLinesCopied,
     };
   }
+}
+
+/** TBD-3 (Doc 07) — the Shuffle's soft skip: how long you must stand still
+ *  on the walk before the city offers its patience. Pure so the law is
+ *  unit-testable (tests/shuffle.test.ts). */
+export const CITY_WILL_WAIT_S = 20;
+export function cityWillWaitFires(stillFor: number): boolean {
+  return stillFor >= CITY_WILL_WAIT_S;
+}
+
+/** The Shuffle stretch (docs/51 B16): the bodega→plaza stretch of the north
+ *  walk where the crowd lives and the soft skip watches. Outside it, the
+ *  player's standing still is theirs — sightseeing is a right, not a stall. */
+export const SHUFFLE_STRETCH = { xMin: -42, xMax: -14, zMin: 3.5, zMax: 9.5 } as const;
+export function inShuffleStretch(x: number, z: number): boolean {
+  return x >= SHUFFLE_STRETCH.xMin && x <= SHUFFLE_STRETCH.xMax
+    && z >= SHUFFLE_STRETCH.zMin && z <= SHUFFLE_STRETCH.zMax;
 }
 
 function rosaChatLineOf(s: GameState): { text: string; nextChatIndex: number } {
