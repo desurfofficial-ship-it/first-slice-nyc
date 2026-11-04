@@ -36,7 +36,8 @@ import { buildTimesSquare, type TimesSquare } from './timesSquare';
 import { buildArrivalBus, BUS04_RECT, playerOccupiesBus04, type ArrivalBus } from './arrivalBus';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay,
   skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH } from './dressing';
-import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT } from '../core/content';
+import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT,
+  RECORD_SIGN_TOP, RECORD_SIGN_SUB } from '../core/content';
 // the half-court upgrade (docs/48/49) — basketball-owned module, the one
 // sanctioned import seam between the world and the court
 import { paintCourtCanvas, makeCourtSurface } from '../court/courtPaint';
@@ -2438,6 +2439,43 @@ export class World {
     ]);
 
     const g = this.roomKit('RECORDS');
+    // Doc 02's hand-written sign — taped inside the door glass, read the
+    // day you exit one stop early. It matters at Week 3.
+    const signC = document.createElement('canvas');
+    signC.width = 256; signC.height = 224;
+    const sctx = signC.getContext('2d')!;
+    sctx.fillStyle = '#FFF8F0';
+    sctx.fillRect(0, 0, 256, 224);
+    sctx.strokeStyle = 'rgba(58,52,64,0.35)';
+    sctx.lineWidth = 3;
+    sctx.strokeRect(10, 10, 236, 204);
+    sctx.fillStyle = '#3A3440';
+    sctx.textAlign = 'center';
+    sctx.font = 'italic 800 44px "Trebuchet MS", sans-serif';
+    sctx.fillText(RECORD_SIGN_TOP, 128, 96, 220);
+    sctx.font = 'italic 500 26px "Trebuchet MS", sans-serif';
+    sctx.fillText(RECORD_SIGN_SUB, 128, 148, 220);
+    sctx.strokeStyle = '#3A3440';
+    sctx.lineWidth = 4;
+    sctx.beginPath(); // the hand-drawn underline, slightly uneven
+    sctx.moveTo(52, 168);
+    sctx.quadraticCurveTo(128, 176, 204, 166);
+    sctx.stroke();
+    // two tape strips, hand-hung
+    sctx.fillStyle = 'rgba(214,200,166,0.85)';
+    sctx.save(); sctx.translate(40, 8); sctx.rotate(-0.5); sctx.fillRect(-14, -10, 28, 30); sctx.restore();
+    sctx.save(); sctx.translate(216, 8); sctx.rotate(0.5); sctx.fillRect(-14, -10, 28, 30); sctx.restore();
+    const signTex = new THREE.CanvasTexture(signC);
+    signTex.colorSpace = THREE.SRGBColorSpace;
+    const sign = new THREE.Mesh(
+      new THREE.BoxGeometry(0.52, 0.46, 0.02),
+      new THREE.MeshLambertMaterial({ map: signTex }),
+    );
+    sign.name = 'Records_BackSoonSign';
+    sign.position.set(-25, 1.52, -32.05); // taped inside the door glass, street side (south face)
+    sign.rotation.set(0, Math.PI, -0.04); // faces the street (-z), hand-hung tilt
+    g.add(sign);
+
     const floor = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.06, 11.6), this.bank.get(PAL.interior));
     floor.name = 'Records_Floor';
     floor.position.set(-25, 0.13, -26);
