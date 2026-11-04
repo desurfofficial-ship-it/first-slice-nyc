@@ -518,6 +518,48 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   six-draw cast law, instanced wildlife, baked tiles. The 150 line needs
   a program (interiors' window visibility, SUB_Root depth), not a lever.
 
+- **Update 2026-11-04 (interiors' window visibility — the last named
+  program, agent2):** the glass-side law. The shipped W5 toggle keyed the
+  fit-out on player proximity alone: within the shell ± 1.6 m the room
+  showed, whichever side you stood on — behind the hall's blind east yard
+  the fit-out conjured through masonry no window can show (measured:
+  hall=true, 197 calls at the stance). The law makes the room's own
+  windows the visibility authority: near shows the fit-out only on the
+  outward side of one of the room's registered window runs (or inside —
+  the inside test short-circuits first). Pure law in
+  `src/world/interiorGlass.ts` (the shadowLaw.ts pattern), per-room runs
+  registered verbatim from the openings each builder cut, hysteresis
+  margins (enter 1.6 / exit 0.8) driving band and glass alike so
+  window-edge loitering never flickers. **The numbers, honestly:**
+  identical-stance before/after (`diag-glass-stance.mjs`, committed) —
+  the hall east yard 197 → **167 calls (−30, −15%)** with the fit-out
+  honestly hidden; all three glass-side controls call-identical (diner
+  north band window 165 = 165, hall west window 169 = 169, laundry bay
+  mouth 322 = 322); the five ledger rigs **bit-identical** (PLAZA 400,
+  CART_CORNER 333, SYCAMORE×GABLE 128, TIMES_SQ 130, PLATFORM_A 186 —
+  the W5 far state already had the rooms hidden at street scale; the
+  flat-dump proof is in the probe notes below). The 150/250 lines stay
+  published FAIL — and the priced note that goes with it: with this
+  program the named frontier is exhausted (sign atlas, SUB_Root depth,
+  interiors' window visibility all landed); what remains at the rigs is
+  the priced composition itself (the dusk shadow pass, the six-draw cast
+  law, the felt crowd, the baked tiles), every lever already rejected
+  with numbers. Closing B13 against the 150 line is the owner's call;
+  the row above is the evidence either way.
+- **Probe notes for the next agent:** (1) the flat-dump at PLAZA /
+  CART_CORNER shows zero `INT_*` groups visible — the W5 far state
+  already zeroed interiors at street scale, so "interiors' window
+  visibility" was never going to move the street rigs; its win is the
+  wrong-side stance and honest windows, now measured. (2) The diner's
+  and barber's blind faces have no standable floor (contiguous blocks —
+  the capsule ejects onto the shell, which the inside test reads); the
+  hall's east yard is the one clean wrong-side floor. (3) The live feed
+  oscillates a hair — a stance parked ON a band edge (0.1–0.2 m) flickers
+  the fit-out (pre-existing band-edge behavior, both laws); stances sit
+  ≥ 0.9 m inside their zone. (4) probe-w5-interiors gained check 6 (the
+  glass law: wrong side hidden, window sides show); tests/interior-glass
+  .test.ts pins the pure law (11 checks).
+
 - **Update 2026-11-04 (parallel verification, this merge):** the two rigs the
   ledger above never published, measured on the merged tree with the same
   `diag-perf-breakdown.mjs`: **TIMES_SQ 222 → 130 (−41% — the square is

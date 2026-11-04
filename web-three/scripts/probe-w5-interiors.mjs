@@ -11,6 +11,9 @@
  *   4. THE WALK-IN: the capsule enters the laundry through the shipped bay
  *      and stands in the room (the hollow is real, floors read).
  *   5. The census + a portrait shot of the bakery interior (docs/45 §4).
+ *   6. THE GLASS-SIDE LAW (docs/51 B13 — interiors' window visibility):
+ *      the near band shows the fit-out only through the room's own glass —
+ *      the hall's blind east yard stays hidden, the window sides show.
  *
  * Usage: node scripts/probe-w5-interiors.mjs   (exit 1 on any failure)
  */
@@ -193,10 +196,39 @@ if (bakery.glass) fails.push('bakery: the shipped glass face did not swap out in
 if (bakery.upper) fails.push('bakery: the tower did not duck inside');
 console.log(`BAKERY inside: room=${bakery.room} glassSwapped=${!bakery.glass} duck=${!bakery.upper} calls=${bakery.calls}`);
 
+// ---- 6. the glass-side law (docs/51 B13 — interiors' window visibility) --
+// The near band shows the fit-out only THROUGH the room's own glass. The
+// hall's east yard is the clean wrong-side floor (in the old band, behind
+// the blind east wall — the fit-out conjured there before the law); the
+// diner's Kestrel band window and the hall's west window are the glass
+// controls; the laundry bay mouth is section 2's own walk-in.
+const glassLaw = await page.evaluate(async () => {
+  const g = window.__game;
+  const p = g.player.capsule;
+  const named = (n) => g.world.scene.getObjectByName(n);
+  const out = {};
+  const stance = async (x, z, y = 0.05) => {
+    p.x = x; p.z = z; p.y = y;
+    g.world.update(1 / 60, p);
+    await new Promise((res) => setTimeout(res, 350));
+    return { hall: named('INT_HALL').visible, diner: named('INT_DINER').visible, calls: g.renderer.info.render.calls };
+  };
+  // the wrong side: the hall's east yard — blind wall, no window run faces it
+  out.wrongSide = await stance(-47.5, 26);
+  // the glass controls
+  out.dinerGlass = await stance(52.5, -7.0);
+  out.hallGlass = await stance(-60.5, 22.8);
+  return out;
+});
+if (glassLaw.wrongSide.hall) fails.push('glass law: hall fit-out visible from the blind east yard (wrong side conjures)');
+if (!glassLaw.dinerGlass.diner) fails.push('glass law: diner fit-out hidden at the Kestrel band window (glass side broken)');
+if (!glassLaw.hallGlass.hall) fails.push('glass law: hall fit-out hidden at the west window (glass side broken)');
+console.log(`GLASS LAW: wrongSide hall=${glassLaw.wrongSide.hall} (${glassLaw.wrongSide.calls} calls) · diner glass=${glassLaw.dinerGlass.diner} · hall glass=${glassLaw.hallGlass.hall}`);
+
 console.log('PAGEERRORS', errors.length);
 if (errors.length) fails.push(...errors.slice(0, 3));
 
-writeFileSync(join(OUT, 'w5-interiors-report.json'), JSON.stringify({ boot, laundry, cecil, bakery, errors, fails }, null, 1));
+writeFileSync(join(OUT, 'w5-interiors-report.json'), JSON.stringify({ boot, laundry, cecil, bakery, glassLaw, errors, fails }, null, 1));
 if (fails.length) {
   console.log('W5 PROBE FAILS:');
   for (const f of fails) console.log(' -', f);

@@ -732,3 +732,63 @@ Stage Summary:
 - tsc clean; vitest 514/514 (+3 shadow-law); build clean; probe-subway
   ALL PASS ×2 (with the two new descent checks); ledger rows published in
   docs/51 B13 + docs/55 §3; rig correction recorded with the eject proof.
+
+---
+
+## 2026-11-04 — agent2 — the last named program: interiors' window visibility (B13)
+
+Continued from the B16 verdict session (the Shuffle build landed by the
+parallel merge; this session took the one remaining named B13 program).
+The user's pointer was docs/55; its §3 names B13 the only open docs/51
+item, and B13's remaining named program was "interiors' window visibility".
+
+**The find, before any code.** diag-flat-dump at PLAZA / CART_CORNER shows
+ZERO `INT_*` groups visible: the W5 far state already zeroed the interiors
+at street scale — the named program was never going to move the street
+rigs. Its real defect was behavioral: the shipped W5 toggle keyed the
+fit-out on player proximity ALONE, so within the shell ± 1.6 m the room
+conjured on whichever side you stood — behind the hall's blind east yard
+it drew through masonry no window can show (measured: hall=true, 197
+calls). That is the program: make the room's own windows the visibility
+authority — an art feature (windows show the room exactly when a window
+can show it), not a cut.
+
+**The glass-side law.** src/world/interiorGlass.ts (pure, headless — the
+shadowLaw.ts pattern): the near band shows the fit-out only on the outward
+side of one of the room's registered window runs, within the run's extent
+widened by the band's own hysteresis margin (enter 1.6 / exit 0.8 — band
+and glass breathe together, window-edge loitering never flickers). Inside
+the shell short-circuits first (the inside test's business). World
+registers the runs per room, verbatim from the openings each builder cut
+(laundry's shipped bay; barber/pizza/bakery/records south storefronts;
+the hall's two west windows; the diner's Kestrel + avenue corner glass;
+the Cecil sight-line window). Rooms that ever skip registration fall back
+to the shipped band-only law.
+
+**The numbers, honestly** (diag-glass-stance.mjs, committed; identical
+stances, before = stash-rebuild of the shipped World.ts):
+hall east yard 197 → 167 calls (−30, −15%) with the fit-out honestly
+hidden; controls call-identical — diner north band window 165 = 165, hall
+west window 169 = 169, laundry bay mouth 322 = 322; the five ledger rigs
+bit-identical (PLAZA 400, CART_CORNER 333, SYCAMORE×GABLE 128, TIMES_SQ
+130, PLATFORM_A 186). The 150/250 lines stay published FAIL; with this
+program the named frontier is exhausted (atlas, SUB_Root depth, window
+visibility) — what remains is the priced composition itself. Closing B13
+against the 150 line is the owner's call; docs/51 B13 carries the row.
+
+**Wired contracts:** tests/interior-glass.test.ts (11 law checks — glass
+sides show, blind walls hide, the through-floor Cecil case, the fallback,
+the hysteresis); probe-w5-interiors gained check 6 (wrong side hidden,
+window sides show, in-engine).
+
+**Probe notes for the next agent:** the diner's and barber's blind faces
+have no standable floor (contiguous blocks — the capsule ejects onto the
+shell, which the inside test reads); the hall's east yard is the one clean
+wrong-side floor. The live feed oscillates a hair — a stance parked ON a
+band edge flickers the fit-out (pre-existing, both laws); park ≥ 0.9 m in.
+
+Stage Summary:
+- tsc clean; vitest 534/534 (+11 interior-glass); build clean;
+  probe-w5-interiors PASS (6 checks); probe-subway ALL PASS; probe-perf
+  identical (207/281/354, zero page errors); five ledger rigs
+  bit-identical; E2E AUTOTEST OK 0 failures 531 s console clean.

@@ -20,6 +20,7 @@ import {
 } from '../engine/busRoute';
 import { buildArticulatedPerson, updatePersonAnim } from './personRig';
 import { SHADOW_HALF, shadowHalfFor } from './shadowLaw';
+import { glassSideVisible, type GlassFace } from './interiorGlass';
 import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecycleBin, makeHydrant,
   makeSubwayEntrance, makeBulletinBoard, makeBench, makeBusStop, makeNewspaperBoxes, makeBarrier,
   makeACUnit, makeBrownstoneStoop, makeStorefront, makeStool, makeVan,
@@ -61,6 +62,11 @@ interface InteriorHandle {
   /** Extra near-band margin on the z1 side — the Cecil's top landing sits
    *  2.5 m past the shell (the room shows while you stand at the rail). */
   padZ1?: number;
+  /** The room's glass runs (docs/51 B13 — interiors' window visibility):
+   *  the near band shows the fit-out only through these. Every W5 room
+   *  registers the runs its builder cut; a room that ever skips the
+   *  registration falls back to the shipped band-only law. */
+  glass?: GlassFace[];
   group: THREE.Group;                 // the fit-out (near only)
   nearParts: THREE.Object3D[];        // clear panes (near only)
   farParts: THREE.Object3D[];         // shipped glass faces (far only)
@@ -2054,6 +2060,14 @@ export class World {
   //      fit-out shows and the clear panes swap in — the camera "sees
   //      through the glass" without raycasts. While the player is INSIDE,
   //      the tower above the room ducks (the shipped bodega-roof grammar).
+  //   3a. The glass-side law (docs/51 B13 — interiors' window visibility,
+  //      the named program): "near" shows the fit-out only THROUGH the
+  //      room's own glass — the player stands on the outward side of one
+  //      of the room's window runs (src/world/interiorGlass.ts, the pure
+  //      law; each room registers the runs its builder cut). Behind a
+  //      blind wall the fit-out stays hidden — no window, no room. The
+  //      hysteresis margins (enter 1.6 / exit 0.8) drive band and glass
+  //      alike, so window-edge loitering never flickers.
   //   4. Toggleables stay OUT of the W0 bake (skip set below) — a baked
   //      batch cannot be hidden per-room.
   //
@@ -2187,18 +2201,24 @@ export class World {
     this.interiorHandles.push(h as InteriorHandle & { near: boolean; inside: boolean });
   }
 
-  /** The W5 room visibility toggle — docs/45 W5's exit criterion. Hysteresis
-   *  on the near band (enter 1.6 m, exit 0.8 m past the shell) so a player
-   *  loitering on the sill never flickers the room. */
+  /** The W5 room visibility toggle — docs/45 W5's exit criterion, plus the
+   *  glass-side law (docs/51 B13, interiors' window visibility): the near
+   *  band shows the fit-out only THROUGH the room's own glass — the player
+   *  stands on the outward side of a window run — or inside the room.
+   *  Hysteresis on both (enter 1.6 m, exit 0.8 m past the shell/glass) so a
+   *  player loitering on the sill or the window edge never flickers the
+   *  room. Behind a blind wall the fit-out stays hidden — no window, no
+   *  room; the facade keeps its far look. */
   private updateInteriors(px: number, py: number, pz: number): void {
     const inRect = (x0: number, x1: number, z0: number, z1: number): boolean =>
       px >= x0 && px <= x1 && pz >= z0 && pz <= z1;
     for (const h of this.interiorHandles) {
       const m = h.near ? 0.8 : 1.6;
       const z1e = h.z1 + m + (h.padZ1 ?? 0);
-      const near = inRect(h.x0 - m, h.x1 + m, h.z0 - m, z1e);
       const [y0, y1] = h.yBand ?? [-1, 5];
       const inside = inRect(h.x0, h.x1, h.z0, h.z1) && py >= y0 && py <= y1;
+      const near = inside || (inRect(h.x0 - m, h.x1 + m, h.z0 - m, z1e)
+        && glassSideVisible(h.glass, px, pz, m));
       if (near !== h.near) {
         h.near = near;
         h.group.visible = near;
@@ -2308,6 +2328,9 @@ export class World {
     }
     this.registerInterior({
       id: 'LAUNDRY-INT', x0: -11, x1: 1, z0: 8.2, z1: 19,
+      // glass: the shipped bay's opening on the south facade (the wallRun
+      // cut above) — the one window the street knows this room by
+      glass: [{ axis: 'z', side: 'min', at: 8.15, a0: -7.925, a1: -2.075 }],
       group: g, nearParts: [], farParts, duck: [duckUpper],
     });
   }
@@ -2367,6 +2390,11 @@ export class World {
     }
     this.registerInterior({
       id: 'BARBER-INT', x0: 34.2, x1: 39, z0: 8.2, z1: 19.6,
+      // glass: the two south windows (the clear panes ride their runs)
+      glass: [
+        { axis: 'z', side: 'min', at: 8.1, a0: 34.45, a1: 35.85 },
+        { axis: 'z', side: 'min', at: 8.1, a0: 37.25, a1: 38.75 },
+      ],
       group: g,
       nearParts: [
         this.facadePane('Barber_Clear_W', 'x', 8.1, 34.45, 35.85, 0.55, 2.55, this.roomClearMat),
@@ -2431,6 +2459,11 @@ export class World {
     }
     this.registerInterior({
       id: 'PIZZA-INT', x0: 24.1, x1: 29.9, z0: 8.2, z1: 19.6,
+      // glass: the two south windows
+      glass: [
+        { axis: 'z', side: 'min', at: 8.1, a0: 24.55, a1: 26.35 },
+        { axis: 'z', side: 'min', at: 8.1, a0: 27.85, a1: 29.45 },
+      ],
       group: g,
       nearParts: [
         this.facadePane('Pizza_Clear_W', 'x', 8.1, 24.55, 26.35, 0.55, 2.55, this.roomClearMat),
@@ -2498,6 +2531,12 @@ export class World {
     }
     this.registerInterior({
       id: 'BAKERY-INT', x0: -37.8, x1: -30.2, z0: -31.8, z1: -20.2,
+      // glass: the two south windows of the Marlow storefront (the shipped
+      // sign and the bagel-silhouette window face SOUTH, docs/47 W5)
+      glass: [
+        { axis: 'z', side: 'min', at: -31.9, a0: -37.15, a1: -34.95 },
+        { axis: 'z', side: 'min', at: -31.9, a0: -33.05, a1: -30.85 },
+      ],
       group: g,
       nearParts: [
         this.facadePane('Bakery_Clear_W', 'x', -31.9, -37.15, -34.95, 0.55, 2.55, this.roomClearMat),
@@ -2592,6 +2631,11 @@ export class World {
     }
     this.registerInterior({
       id: 'RECORD-INT', x0: -27.8, x1: -22.2, z0: -31.8, z1: -20.2,
+      // glass: the two south windows of the shipped storefront
+      glass: [
+        { axis: 'z', side: 'min', at: -31.9, a0: -27.15, a1: -25.95 },
+        { axis: 'z', side: 'min', at: -31.9, a0: -24.05, a1: -22.85 },
+      ],
       group: g,
       nearParts: [
         this.facadePane('Records_Clear_W', 'x', -31.9, -27.15, -25.95, 0.55, 2.55, this.roomClearMat),
@@ -2666,6 +2710,12 @@ export class World {
     }
     this.registerInterior({
       id: 'HALL-INT', x0: -59.8, x1: -48.2, z0: 20.2, z1: 31.8,
+      // glass: the two west windows (the wallRun cuts above; the panes sit
+      // on the face at x −60.04) — the Juniper side is the window side
+      glass: [
+        { axis: 'x', side: 'min', at: -60.04, a0: 22.0, a1: 23.6 },
+        { axis: 'x', side: 'min', at: -60.04, a0: 28.4, a1: 30.0 },
+      ],
       group: g, nearParts: [], farParts: [], duck: [duckUpper],
     });
   }
@@ -2743,6 +2793,13 @@ export class World {
     this.scene.add(this.facadePane('Diner_Glass_E', 'z', 59.925, -18.25, -16.55, 0.98, 2.42, this.roomGlassMat));
     this.registerInterior({
       id: 'DINER-INT', x0: 50.2, x1: 59.8, z0: -19.8, z1: -8.2,
+      // glass: the two Kestrel band windows on the north face + the avenue
+      // window on the east face (the corner diner — glass on two facades)
+      glass: [
+        { axis: 'z', side: 'max', at: -8.075, a0: 50.75, a1: 54.05 },
+        { axis: 'z', side: 'max', at: -8.075, a0: 55.95, a1: 59.25 },
+        { axis: 'x', side: 'max', at: 59.925, a0: -18.25, a1: -16.55 },
+      ],
       group: g, nearParts: [], farParts: [], duck: [duckUpper],
     });
   }
@@ -2820,6 +2877,9 @@ export class World {
       id: 'CECIL-ROOM', x0: 10.2, x1: 15.8, z0: -14.1, z1: -9.1,
       yBand: [7.8, 12.0],
       padZ1: 2.7, // the top landing (z −8..−6.6) is outside the shell — the room shows from the rail
+      // glass: the street window on the north face (the sight-line — the
+      // gold window reads across Kestrel from the bed, docs/47 W5)
+      glass: [{ axis: 'z', side: 'max', at: -8.03, a0: 14.32, a1: 15.48 }],
       group: g, nearParts: [], farParts: [], duck: [duckAbove],
     });
   }
