@@ -228,6 +228,28 @@ describe('per-walker band (bandOfLoop — the W4 law, proved where it lives)', (
   });
 });
 
+describe('the lens law on walker bodies (docs/51 B18 — seeThroughCamera)', () => {
+  function loneCrowd(): Pedestrians {
+    const scene = new THREE.Scene();
+    return new Pedestrians(
+      scene,
+      [{ jacket: 0x4a5568, pants: 0x3b3f4a, skin: 0xc98e5a, hair: 0x2b2730, style: 'cap' }],
+      42,
+      [[[2, 6], [6, 6]]],
+      [],
+    );
+  }
+
+  it('every walker collider rides seeThroughCamera — the lens never stops on a body', () => {
+    const peds = loneCrowd();
+    // the boxes sync under live walkers every frame; the flag must survive
+    // the sync (it rides the same object the bounds mutate)
+    for (const b of peds.walkColliders) {
+      expect((b as { seeThroughCamera?: boolean }).seeThroughCamera).toBe(true);
+    }
+  });
+});
+
 describe('the anti-stuck law (docs/51 B17 — a blocked loop resumes)', () => {
   function loneCrowd(): Pedestrians {
     const scene = new THREE.Scene();

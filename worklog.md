@@ -1099,6 +1099,7 @@ Gates at close: tsc clean · vitest 582/582 (38 files, incl. the new
 docs-hygiene reference pin + 13 diary pins) · build OK ·
 probe-m3-diary 9/9 · 4-day E2E AUTOTEST OK 0 failures (569 s).
 
+<<<<<<< HEAD
 ---
 Task ID: OPEN-WORLD-ROAM-M4.1
 Agent: main (Claude)
@@ -1173,3 +1174,28 @@ schedule pins) · build OK · probe-peds PEDS OK (day + dusk sections) ·
 probe-cars exit 0 · scene census 321 drawables at rest, IDENTICAL to the
 pre-M4 baseline (the pruned-walk fix included) · 4-day E2E AUTOTEST OK
 0 failures (543 s, console clean).
+
+## 2026-11-05 — agent2: the furniture pack made discoverable — repo_path in
+the curated manifest + an AGENTS.md repo-map pointer (assets task)
+
+The decree for this pass: "Push the assets (models) to the repo so other
+agents can use them when they are also building." The pack itself was
+already on main (01abc1e — 141 GLBs, 35 MB); what a fresh checkout could
+not do was *find* it: the curated manifest pointed at the HuggingFace
+dataset layout (lods/<ASIN>/…), and the AGENTS.md §3 repo map did not
+name the pack at all. Two quiet fixes, no game code touched:
+- docs/data/abo-curated.json — every one of the 141 entries now carries
+  repo_path (assets/furniture/<bucket>/<ASIN>.glb), verified resolving
+  on disk (141/141); the dataset-relative lod1/lod2 paths stay for
+  re-fetch. Also proven: a clean re-clone carries all 141 GLBs + the
+  manifest + ATTRIBUTION.md + license + tools3d scripts + the 12
+  byte-identical slot copies + the vendored basis transcoder.
+- AGENTS.md §3 — the repo map now lists assets/furniture/ and carries a
+  "furniture pack — reusable by any agent" paragraph: where the files
+  live, the manifest's fields, the loader (src/world/furniture.ts), the
+  costume law (docs/57), the idempotent re-fetch scripts, and the
+  CC-BY-4.0 credit duty. The docs/ range comment caught up while there
+  (01–52 → 01–57).
+- Gates: manifest parses (141 entries) · all repo_paths resolve ·
+  AGENTS.md tree alignment kept · no game source touched, so the
+  standing suite's verdict stands.

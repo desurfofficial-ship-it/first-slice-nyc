@@ -954,15 +954,25 @@ export class World {
     // the cart's body blocks — you lean on the counter, you don't stand in it
     this.cartCollider = boxFromCenter(4, 1.0, -6.6, 2.2, 2.0, 1.4);
     this.colliders.push(this.cartCollider);
-    this.rosaCollider = boxFromCenter(-27, 0.85, 6.8, 0.56, 1.7, 0.56);
-    this.idrisCollider = boxFromCenter(-2, 0.85, -4.6, 0.56, 1.7, 0.56);
-    this.kidCollider = boxFromCenter(15, 0.7, 6.35, 0.5, 1.4, 0.5);
-    this.customerCollider = boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56);
+    // Every person collider rides the chain-link lens law (seeThroughCamera):
+    // bodies stop bodies, lenses don't stop on bodies (docs/51 B18 — the
+    // step-off spawn sits inside the Shuffle lanes; a walker loitering
+    // behind it pulled the handover snap to the truncation floor, ~1.3 m,
+    // burying the lens in the player's own hair at the game's first
+    // playable frame). The same read protects every cast beat: a body
+    // crossing the boom sweeps a foreground silhouette instead of yanking
+    // the camera. syncPersonCollider mutates only the bounds — the flag
+    // rides the same object forever.
+    const person = (b: AABB): AABB => { b.seeThroughCamera = true; return b; };
+    this.rosaCollider = person(boxFromCenter(-27, 0.85, 6.8, 0.56, 1.7, 0.56));
+    this.idrisCollider = person(boxFromCenter(-2, 0.85, -4.6, 0.56, 1.7, 0.56));
+    this.kidCollider = person(boxFromCenter(15, 0.7, 6.35, 0.5, 1.4, 0.5));
+    this.customerCollider = person(boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56));
     // stranger/Sal/familiar — parked underground until their beats make them
     // visible (the customer's trick); updateDynamics syncs them with the cast
-    this.strangerCollider = boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56);
-    this.salCollider = boxFromCenter(-7, 0.85, 7.85, 0.56, 1.7, 0.56);
-    this.familiarCollider = boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56);
+    this.strangerCollider = person(boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56));
+    this.salCollider = person(boxFromCenter(-7, 0.85, 7.85, 0.56, 1.7, 0.56));
+    this.familiarCollider = person(boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56));
     this.colliders.push(this.rosaCollider, this.idrisCollider, this.kidCollider, this.customerCollider,
       this.strangerCollider, this.salCollider, this.familiarCollider);
 
