@@ -280,3 +280,46 @@ cards recomposed — roll readable, title on glass, lit doorway below),
 vitest **553/553** · `probe-a5g` PASS both orientations, 0 page errors ·
 `probe-a5i` **18/18** · `probe-a5h` ok · full 4-day E2E **0 failures,
 console clean** (576 s).
+
+---
+
+## 14. Addendum — A5k: the soak gate found a frozen neighbor — the band law rebuilt (2026-11-05)
+
+The doc 55 item-5 soak complement (`probe-w4-soak`, 30 sim-minutes at the
+app's own worst-case dt) ran for the first time in this sandbox and
+failed 41 stillness windows: **walker 3, the garden tender, pinned at
+(−0.5, 23.45)** — exactly the garden loop's band-clamp south edge — for
+21 sim-minutes while its velocity screamed north at full cruise. The
+tracer (`dbg-a5o-garden-pin.mjs`) caught the lie that defeats every
+velocity-based watchdog: the brain said full speed, the body never moved.
+
+**The root cause was a band that inverts.** `bandOfLoop` capped z at the
+street's ±7.5 discipline; the garden loop lives at z 24.1..26.8, so the
+cap produced minZ 23.45 > maxZ 7.5, and the clamp resolved to exactly
+23.45 for EVERY input — a band that is a single point. Born in W4 p1
+with the loop; every soak since had passed by sampling luck. The same
+bug silently shrank the avenue shopper to a 15 m patrol.
+
+**Fixed on two layers** (docs/51 B17):
+1. `bandOfLoop` is the loop's own inflated bbox (±64 typo net) — every
+   street lane's band is tighter-or-equal to the old one; the garden loop
+   keeps its fence line. 4 new band pins in `tests/crowd.test.ts`,
+   including "never inverted" against the garden loop's real numbers.
+2. The **anti-stuck law**: a non-dwelling walker still (< 5 cm) over 8
+   consecutive one-second windows gets its waypoint advanced — position
+   delta, never velocity. A blocked loop now resumes in ≤ 8 sim-s;
+   nothing can freeze longer. 3 law pins, one reproducing the historical
+   pin exactly.
+
+**Fallout:** the freed avenue loop exposed its authored mid-block
+jaywalk (Kestrel Street at x 61.8, outside the crosswalk paint) and an
+in-roadway bus-stop beat. Re-authored onto the south walk — diner and
+fruit-stand beats unchanged, the M121 stop watched from across the
+street. A walker crosses at the paint or not at all.
+
+**Gates:** `probe-w4-soak` **OK** (1838 sim-s, 44 samples, 0 failures,
+page clean) · `probe-w4-bus` OK · `probe-peds` OK · `probe-shuffle` OK ·
+`probe-solid` ALL CLEAN · `probe-a5i` 18/18 · `probe-a5h` ok · vitest
+**559/559** · tsc clean · full 4-day E2E re-run on the fix (see §13's
+gate for the arrival recompose; this fix's E2E: 0 failures, console
+clean).

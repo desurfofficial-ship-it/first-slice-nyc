@@ -818,6 +818,46 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
 
 ---
 
+### B17. The garden tender stands frozen at the garden's south edge for 21 sim-minutes — FIXED 2026-11-05
+- **Found:** `probe-w4-soak` (the doc 55 item-5 soak complement) failed 41
+  stillness windows — walker 3 pinned at (−0.5, 23.45) from ~sample 11 to
+  the 1800 sim-s gate. `dbg-a5o-garden-pin.mjs` caught it in the act: the
+  vehicle's velocity read full cruise north (0.963 m/s at its waypoint)
+  while the position never moved.
+- **Root cause (two bugs, one birth):** `bandOfLoop`'s z discipline —
+  `minZ: Math.max(-7.5, minZ - 0.65), maxZ: Math.min(7.5, maxZ + 0.65)` —
+  INVERTS for any loop living entirely outside the home street band. The
+  garden tender (z 24.1..26.8) read minZ 23.45 > maxZ 7.5, and the clamp
+  `max(minZ, min(maxZ, z))` resolved to exactly 23.45 for EVERY z — a
+  band that is a single point. Born in W4 p1 (`b80760c`) with the loop;
+  the W4 soak had passed only by sampling luck (frame interleaving
+  decides whether the active waypoint sits due-north of the clamp edge
+  when the walker first reaches it). The same bug silently shrank the
+  avenue shopper's reach to its middle 15 m — waypoints at z ±18
+  unreachable, but the walker kept pacing, so no stillness ever fired.
+- **Fix:** (1) `bandOfLoop` is now the loop's OWN bbox, inflated (1.6 x /
+  0.65 z) with a ±64 typo net — for every street lane the result is
+  tighter-or-equal to the old band (lanes top at |z| 6.85; the commuter's
+  lands exactly at ±7.5), the garden loop gets 23.45..27.45. (2) The
+  anti-stuck law: a non-dwelling walker whose position moves < 5 cm over
+  8 consecutive one-second windows gets its waypoint advanced — the
+  position delta is the signal, never the velocity (the pin's velocity
+  lied at full cruise). No walker can now freeze longer than 8 sim-s.
+- **Fallout fixed with it:** the freed avenue loop exposed its authored
+  mid-block jaywalk (crossing Kestrel Street at x 61.8, outside the
+  Kestrel×Sycamore paint) and an in-roadway bus-stop beat (z 2.2). The
+  loop is re-authored onto the south walk (diner + fruit-stand beats
+  unchanged; the M121 stop watched from across the street at z −6.9 —
+  BUS-03 serves the north curb; nobody waits for it standing in the road).
+- **Commit / branch:** agent5/merge-to-main (2026-11-05).
+- **Verified:** `probe-w4-soak` **OK** — 1838 sim-s, 44 samples, 9 walkers,
+  0 failures, page clean (the gate that found it) · `probe-w4-bus` OK ·
+  `probe-peds` OK · `probe-shuffle` OK · `probe-solid` ALL CLEAN ·
+  `tests/crowd.test.ts` 26/26 (band law pins + the anti-stuck law against
+  the historical pin reproduced) · vitest 559/559 · tsc clean.
+
+---
+
 ## Verification gates (after any fix)
 
 Expected local gates before claiming FIXED:

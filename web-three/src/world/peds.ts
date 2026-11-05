@@ -67,8 +67,9 @@ function groundY(x: number, z: number, roads: readonly RoadRect[]): number {
 /** W4: a road surface rectangle — walkers stand at y 0 inside one, y 0.1
  *  (the walk slab) anywhere else. The district's five roads, registry spec.
  *  (The shipped ±47.2/±7.5 band clamp retired: every walker now clamps to
- *  their own loop's bbox — see the constructor — which is tighter and
- *  carries the same ±7.5 z-discipline for the Kestrel trio.) */
+ *  their own loop's bbox — see bandOfLoop — which for the Kestrel trio
+ *  reproduces the ±7.5 z-discipline exactly, and lets the district loops
+ *  keep their own ground.) */
 export interface RoadRect { xMin: number; xMax: number; zMin: number; zMax: number }
 const PED_R = 0.3;        // a walker's physical half-width
 const PED_REACH = 0.28 * Math.SQRT2; // walk-collider CORNER reach — on the
@@ -109,9 +110,21 @@ export function bandOfLoop(
     if (px < minX) minX = px; if (px > maxX) maxX = px;
     if (pz < minZ) minZ = pz; if (pz > maxZ) maxZ = pz;
   }
+  // The band is the loop's OWN bbox, inflated. No street-band z cap: the
+  // old Math.max(−7.5, …)/Math.min(7.5, …) discipline inverted the band
+  // for any loop that lives entirely outside the home street (the garden
+  // tender read minZ 23.45 > maxZ 7.5, and the clamp
+  // max(minZ, min(maxZ, z)) then resolved to exactly 23.45 for EVERY z —
+  // the walker stood frozen at the south edge for 21 sim-minutes while
+  // its velocity screamed north at full speed; the soak probe had passed
+  // W4 only by sampling luck, and the avenue shopper's reach silently
+  // shrank to its middle 15 m). The street trio is unaffected: their
+  // authored lanes top out at |z| 6.85, so inflation alone reproduces
+  // the ±7.5 line exactly, and every other street lane stays under it.
+  // The ±64 net is the district's own extent — a typo net, not a wall.
   return {
     minX: Math.max(-84, minX - 1.6), maxX: Math.min(84, maxX + 1.6),
-    minZ: Math.max(-7.5, minZ - 0.65), maxZ: Math.min(7.5, maxZ + 0.65),
+    minZ: Math.max(-64, minZ - 0.65), maxZ: Math.min(64, maxZ + 0.65),
   };
 }
 
@@ -187,6 +200,13 @@ interface Ped {
   cooldown: number;      // seconds before another beat can fire
   latched: boolean;      // this beat already fired — walk away before it re-arms
   band: { minX: number; maxX: number; minZ: number; maxZ: number }; // this walker's own clamp
+  // ---- the anti-stuck law (docs/51 B17) ----
+  fpb: FollowPathBehavior; // their own path follower (the nudge target)
+  stuckTime: number;       // consecutive still windows (displacement < 5 cm/s)
+  stillClock: number;      // seconds into the current window
+  stillDist: number;       // meters moved inside the current window
+  lastX: number;           // position at the previous update (the truth, not
+  lastZ: number;           // the velocity — a pinned walker's velocity lies)
 }
 
 const MAX_DT = 0.1; // matches the game loop's clamp — Yuka integrates with the same dt
@@ -323,7 +343,8 @@ export class Pedestrians {
       vehicle.position.set(start[0], 0, start[1]);
       vehicle.maxSpeed = 0.95 + rng() * 0.35;
       vehicle.maxForce = 6;
-      vehicle.steering.add(new FollowPathBehavior(path, 0.7));
+      const fpb = new FollowPathBehavior(path, 0.7);
+      vehicle.steering.add(fpb);
       vehicle.steering.add(new ObstacleAvoidanceBehavior(this.obstacles, 2.2));
       vehicle.steering.add(new SeparationBehavior());
       this.manager.add(vehicle);
@@ -346,8 +367,7 @@ export class Pedestrians {
       bubble.renderOrder = 40;
       group.add(bubble);
       // W4: each walker clamps to their own loop's bbox (bandOfLoop) —
-      // inflated 1.6 m laterally (curb-yield room) and 0.65 m in z (the
-      // shipped ±7.5 discipline the Kestrel trio inherits unchanged), so a
+      // inflated 1.6 m laterally (curb-yield room) and 0.65 m in z, so a
       // district walker pushed off Gable can never be clamped into Juniper.
       const band = bandOfLoop(pts);
       this.peds.push({
@@ -356,6 +376,12 @@ export class Pedestrians {
         holdTime: 0,
         slideSide: 0,
         band,
+        fpb,
+        stuckTime: 0,
+        stillClock: 0,
+        stillDist: 0,
+        lastX: start[0],
+        lastZ: start[1],
         // the Shuffle — nobody has brushed you yet today
         brushCooldown: 1.2, // the first seconds a player sees them: no chatter
         bubbleT: 0,
@@ -574,6 +600,35 @@ export class Pedestrians {
       // so their loop's bounds are applied to their bodies directly
       pi.x = Math.max(pd.band.minX, Math.min(pd.band.maxX, pi.x));
       pi.z = Math.max(pd.band.minZ, Math.min(pd.band.maxZ, pi.z));
+    }
+
+    // the anti-stuck law (docs/51 B17): a walker that is not dwelling and
+    // still hasn't MOVED for 8 sim-seconds is grinding against something
+    // its steering cannot resolve — advance the waypoint so the loop
+    // resumes around the blockage. The signal is POSITION DELTA over
+    // one-second windows, never the vehicle's velocity: the W4 garden pin
+    // stood frozen for 21 minutes with its velocity screaming north at
+    // full speed — the brain's intent is exactly the thing that lies.
+    // Eight windows is longer than any routine dwell (max 6 s) and longer
+    // than any legal stall; a 20-minute freeze is the alternative.
+    for (const pd of this.peds) {
+      if (pd.dwellLeft > 0) {
+        pd.stuckTime = 0; pd.stillClock = 0; pd.stillDist = 0;
+        pd.lastX = pd.vehicle.position.x; pd.lastZ = pd.vehicle.position.z;
+        continue;
+      }
+      const v = pd.vehicle.position;
+      pd.stillDist += Math.hypot(v.x - pd.lastX, v.z - pd.lastZ);
+      pd.lastX = v.x; pd.lastZ = v.z;
+      pd.stillClock += dt;
+      if (pd.stillClock >= 1) {
+        pd.stuckTime = pd.stillDist < 0.05 ? pd.stuckTime + 1 : 0;
+        pd.stillClock = 0; pd.stillDist = 0;
+      }
+      if (pd.stuckTime >= 8) {
+        pd.stuckTime = 0; pd.stillClock = 0; pd.stillDist = 0;
+        pd.fpb.path.advance();
+      }
     }
 
     for (const p of this.peds) {
