@@ -911,6 +911,35 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
 
 ---
 
+### B18. The cart — the game's hero object — is still the greybox placeholder (a translucent ghost at 0.35 opacity)
+- **What it is:** the cart the player serves from all week, names on Day 1
+  ("It's mine now."), and buys the awning for, is `CartPlaceholder`
+  (World.ts): four Lambert boxes at `opacity: 0.35, transparent: true` —
+  the greybox-era stand-in (docs/17/19 "box + awning primitive is
+  enough"), never replaced. Live play reads it as a ghost; the P5 moment
+  card (`moment-corner.png`, docs/59's study) makes it unavoidable: the
+  card that hands the cart its name shows a see-through hologram.
+- **Found by:** the postcard quality study (docs/59) — the card didn't
+  break the cart; it exposed the debt every session already lived with.
+- **What's owed:** the authored cart mesh (body, counter, wheels/skirt,
+  the awning it already grows on Day 2, the string lights its name
+  lights) at the corner's own craft bar — the Anti-Slop gate applies
+  (one in-engine look per element before shipping). The placeholder's
+  collider, interact anchors, awning/light toggles and string-light
+  positions are the contract the new mesh must keep (everything from
+  interactionDefs to the Day-2 purchase hangs off them).
+- **Not owed (already honest):** the card's pose (the frame the name owns
+  is correct — the subject is what's unfinished), the string lights, the
+  awning, the sign — those shipped real.
+- **Pass rule:** the corner renders a cart you could photograph for the
+  fridge test at arm's length; P5 re-shot; probe-solid and the
+  interaction suite still green against the same anchors.
+- **Status:** OPEN — feature-sized art work, design-first; file the
+  decree before building.
+- **Found by:** Z.ai (GLM), 2026-11-05, during docs/59's postcard study.
+
+---
+
 ## Verification gates (after any fix)
 
 Expected local gates before claiming FIXED:

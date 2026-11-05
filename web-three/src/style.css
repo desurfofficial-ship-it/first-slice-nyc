@@ -13,7 +13,10 @@
   --night: #1A1420;
 
   --ui-font: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
-  --hand-font: 'Bradley Hand', 'Segoe Print', 'Comic Sans MS', cursive;
+  /* The handwriting voice (docs/59): Caveat rides the bundle (main.ts) so
+     every device speaks one hand; the system stack behind it is the
+     offline fallback. */
+  --hand-font: 'Caveat', 'Bradley Hand', 'Segoe Print', 'Comic Sans MS', cursive;
   --mono-font: 'Courier New', ui-monospace, monospace;
 }
 
@@ -741,7 +744,20 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   width: 100%;
 }
 
-#postcard-img { width: 100%; max-height: 38vh; object-fit: cover; border-radius: 3px; display: block; background: var(--stone); }
+#postcard-img {
+  /* The card's photo, framed (docs/59): top-anchored so the stamp and the
+     day tag survive, aspect-locked to the photo region (768×1088 of the
+     768×1344 card) so the in-image caption strip never peeks in and echo
+     the live caption below — the center crop used to behead the stamp and
+     show the words twice. */
+  width: min(300px, calc(100vw - 96px));
+  aspect-ratio: 768 / 1088;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 3px;
+  display: block;
+  background: var(--stone);
+}
 
 #postcard-caption {
   font-family: var(--hand-font);
@@ -988,7 +1004,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 /* Landscape phones: keep the prompt clear of the joystick */
 @media (max-height: 460px) {
   #prompt { bottom: calc(78px + env(safe-area-inset-bottom)); }
-  #postcard-img { max-height: 30vh; }
+  #postcard-img { width: min(220px, calc(100vw - 96px)); }
 }
 
 /* ---------------- The Arrival (Doc 02 opening) ---------------- */

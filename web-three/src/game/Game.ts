@@ -1888,9 +1888,13 @@ export class Game {
     const capCam = new THREE.PerspectiveCamera(55, 768 / 1160, 0.1, 400);
     if (kind === 'towers') {
       // up-west from the escape's height: the tank clears the south
-      // roofline against the dusk sky (the corner's own first clear view)
-      capCam.position.set(7, 15.5, -3.5);
-      capCam.lookAt(-14, 17.5, -12.5);
+      // roofline against the dusk sky (the corner's own first clear view).
+      // Pose lifted +0.9 m and aimed a hair lower (docs/59): the old stance
+      // parked the near red roof as a dead wedge in the lower frame; from
+      // here the roof reads as a roof, and the street below (the fire
+      // escapes, the trees) joins the vista — a view, not a wall.
+      capCam.position.set(7, 16.4, -3.5);
+      capCam.lookAt(-14, 17.2, -12.5);
     } else if (kind === 'corner') {
       // across the corner from the cart — the frame the name now owns
       capCam.position.set(0.6, 1.8, -2.0);
@@ -1903,9 +1907,13 @@ export class Game {
       if (kind === 'fold') {
         // the doorway frame-in-frame: folding it while walking — the warm
         // thing in your hands, the street waiting through the gap (pulled
-        // back so the piers frame the world; the awning closes the top)
-        capCam.position.set(-16.0, 1.7, 14.2);
-        capCam.lookAt(-16.0, 1.45, 8.4);
+        // back so the piers frame the world; the awning closes the top).
+        // Stance stepped 0.7 m left (docs/59): the doorway sits centered in
+        // the card now, the right pier slims down, and the van under the
+        // tree reads as the street waiting — not as clutter parked in the
+        // aperture's corner.
+        capCam.position.set(-16.7, 1.7, 14.2);
+        capCam.lookAt(-17.0, 1.45, 8.4);
       } else {
         capCam.position.set(-12.6, 2.0, 5.0);
         capCam.lookAt(-17.4, 2.1, 8.4);

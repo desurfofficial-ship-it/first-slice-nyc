@@ -1102,3 +1102,51 @@ Stage Summary:
   fresh-token rule) — local main carries the docs/58 decree, both merges,
   and this task. Gap list: Regulars ledger build (B17, design done),
   audio outreach, real-device touch pass.
+
+Task ID: 11
+Agent: Z.ai (GLM)
+Task: Study the postcard end to end and raise it to its own doctrine's bar — the fridge test — study first, execution second, quality over speed.
+
+Work Log:
+- Built the study harness (diag-postcard-study.mjs): drives the game's OWN
+  compose paths on a staged dusk and saves every authored card (4 day-end,
+  4 moment, the panel, the shelf). First lesson arrived immediately: the
+  day-end card is born at the glide's END pose — the first batch judged
+  the wrong frames and was re-shot through the real chain before any
+  verdict stood.
+- The findings, at full resolution: (1) the handwriting stack ships no
+  font — three voices across the exit devices, none the game's (the
+  study's captures show the Linux serif fallback plainly); (2) the panel
+  center-crops the card: stamp beheaded, words twice (in-image strip +
+  live caption); (3) the paper grain rode Math.random() — no two prints
+  of a moment alike; (4) the stamp ellipsized long cart names; (5) the
+  towers pose parked a dead roof wedge, the fold pose let the aperture
+  drift. The day-end cards themselves are GOOD (the thumbnail "caterpillar"
+  halos were downscale aliasing — full res is soft); the corner card
+  exposed a real debt: the cart is still CartPlaceholder at 0.35 opacity
+  — filed as docs/51 B18, not patched over.
+- The execution: Caveat rides the bundle (@fontsource, OFL, main.ts) and
+  leads every stack — canvas POSTCARD_HAND_FONT + CSS --hand-font, sizes
+  retuned (30/40, strip y 1088, the six-line budget holds); a fonts.load
+  preload at import so the first card never waits on a cold swap. The
+  panel is aspect-locked to the photo region, top-anchored — stamp and
+  day tag survive, the words appear once. The grain is seeded
+  (FNV-1a identity → mulberry32): the same moment composes the same paper
+  twice. wrapStampName wraps at a space, never mid-name. Two rig
+  reframes picked from an eight-candidate experiment
+  (diag-postcard-poses.mjs renders candidates through the real pipeline;
+  losers deleted): towers lifted +0.9 m (a vista, not a wall), fold
+  stepped 0.7 m left (the doorway centered, the street waiting under the
+  tree).
+- Pinned: tests/postcard-paper.test.ts (12 checks) — the voice agrees
+  across canvas + CSS + bundle, the strip fit law, the seed laws, the
+  stamp wrap law. Plus the study/pose diagnostics committed for the next
+  pass.
+
+Stage Summary:
+- tsc clean · vitest 581/581 (38 files) · build clean (Caveat rides it) ·
+  E2E AUTOTEST OK 0 failures 408 s, console clean, pointer guard 6/6 ·
+  docs/59 (the pass's construction log) · docs/51 B18 filed. Push still
+  blocked on a token (fresh-token rule; none on disk) — local main now
+  carries Tasks 9-11. Gap list: the authored cart (B18, design-first),
+  Regulars ledger build (B17), audio outreach, real-device touch pass.
