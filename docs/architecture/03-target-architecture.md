@@ -1,6 +1,6 @@
 # 03 — Target Architecture: a life sim on an open block
 
-**The product law (settled with the director, 2026-11):** FIRST SLICE **stays a life sim** — the four-day story is the spine. The change going forward is that **the player can free roam the city on their own clock**. Open world ≠ genre swap; it means the rails become a choice.
+**The product law (settled with the director, 2026-11):** FIRST SLICE **is a life sim, not an open-world game** — the four-day story is the spine. The change going forward is that **the player can free roam the city on their own clock**. Free roam ≠ genre swap; it means the rails become a choice.
 
 ## 1. The Roam contract (shipped as Milestone M0)
 
@@ -24,7 +24,7 @@ Implemented in `web-three/src/game/freeroam.ts` (pure), `game/Game.ts` (`toggleR
 | Interactions | `game/interactionDefs.ts` registry records | One record per addition | re-introduce scattered switches |
 | Day dressing | `world/dressing.ts` + `World.dressDay` | Diary-driven only | spawn/teardown at runtime |
 
-## 3. What the city gains next (the open-world backlog, in order)
+## 3. What the city gains next (the free-roam backlog, in order)
 
 1. **M1 — beats as places, not pressure:** the Map's page 1 grows *optional* story markers (the beat's spot drawn as a doodle); a deferred beat just waits — Rosa's line can say "whenever you're ready" instead of the objective line repeating.
 2. **M2 — the block becomes a district map:** docs/45's future plots open as new walkable strips; dressing stays diary-driven; the subway ride becomes a real edge between districts (the ride machine in `world/subway/` is already its own state machine).
@@ -33,4 +33,4 @@ Implemented in `web-three/src/game/freeroam.ts` (pure), `game/Game.ts` (`toggleR
 
 ## 4. Non-goals (standing)
 
-No WebGPU/engine swap, no procedural km² streaming, no business-tycoon loop, no energy/wait timers (the No-FOMO law), no deleting the story to "finish" the open world. The cozy postcard look is the brand; performance work serves it, never replaces it ([07](07-performance-and-testing-strategy.md)).
+No WebGPU/engine swap, no procedural km² streaming, no business-tycoon loop, no energy/wait timers (the No-FOMO law), no deleting the story to "finish" the roam layer. The cozy postcard look is the brand; performance work serves it, never replaces it ([07](07-performance-and-testing-strategy.md)).

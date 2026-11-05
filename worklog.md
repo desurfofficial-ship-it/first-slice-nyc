@@ -923,3 +923,34 @@ Stage Summary:
   probe-roam 28/28 · 4-day E2E AUTOTEST OK 0 failures (535 s) · build OK.
 - The story path is byte-for-byte the shipped behavior; roam adds a mode,
   never removes a beat. Next up (docs/architecture/05): M1 beats-as-places.
+
+---
+Task ID: OPEN-WORLD-ROAM-M0.1 (direction correction + push)
+Agent: Main Agent (continuation)
+Task: The director corrected the vocabulary: "it is no more an open world,
+it's a sim, and the player will be able to free roam going forward — still
+a life sim." Put the correction in the permanent places, verify the repo
+stays green, and push the unpushed M0 commit with the director's PAT.
+
+Work Log:
+- Re-ran the baseline first (safety): tsc clean · vitest 559/559 (36
+  files) — the M0 commit's recorded gates reproduce from a cold clone.
+- Grepped every open-world/open-world-adjacent phrase in *.md and src
+  comments. The rejection contexts (docs/33, docs/37, AGENTS §0 — "not a
+  generic open-world city") are left as-is: they already state this
+  correction's negative form. worklog history stays untouched (append-only).
+- Re-toned the contract's own words to one voice — a life sim, not an
+  open-world game; free roam is a capability, not a genre: AGENTS.md
+  (direction block + phase-line parenthetical), docs/architecture/03
+  (product law, backlog heading, non-goals), 05 (retired risk), 01
+  (audit line), freeroam.ts + freeroam.test.ts headers. No strings or
+  behavior changed — comments, docs, and one test title only.
+- Gates after the edits: tsc clean · vitest 559/559 · build OK.
+
+Stage Summary:
+- The direction now lives where the next agent will read it: AGENTS.md's
+  DIRECTION block and Doc 03's product law both say it outright. The Roam
+  law, module fences, and the M1–M4 roadmap are unchanged.
+- origin/main was still at ee815fb; pushed c6a088c (M0) plus this
+  correction commit to main. Reminder recorded for the director: rotate
+  the PAT after the push (it traveled through chat).

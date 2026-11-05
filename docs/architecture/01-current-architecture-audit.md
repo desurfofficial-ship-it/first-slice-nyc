@@ -17,7 +17,7 @@
 
 ## 2. What the audit found (strengths)
 
-1. **State/render separation is real, not aspirational.** Every gameplay fact lives in `GameState`; `Game.applyEffect` is the one pipe into the world. This is what made the open-world change safe.
+1. **State/render separation is real, not aspirational.** Every gameplay fact lives in `GameState`; `Game.applyEffect` is the one pipe into the world. This is what made the Roam change safe.
 2. **The interaction registry killed the four-place sync problem** (`game/interactions.ts` header documents the trap it replaced). Adding ambient interactions is one `register()`.
 3. **Testing is a pyramid, not a garnish:** 559 vitest assertions on pure modules, Playwright probes per feature (`scripts/probe-*.mjs`), and a 4-day in-page E2E driver (`game/autotest.ts` via `scripts/e2e.mjs`, 535 s, 0 failures at audit time).
 4. **Save discipline:** v1 schema with optional trailing fields and a written migration law (`core/Save.ts` header) — additive change is a solved problem here.

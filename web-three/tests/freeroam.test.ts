@@ -1,5 +1,5 @@
 /**
- * The Roam layer — docs/architecture/03's open-world contract, pinned.
+ * The Roam layer — docs/architecture/03's open-block contract, pinned.
  *
  * The law under test: entering Roam never advances, rewinds, or blocks
  * the story. The module is pure state + text (no THREE, no DOM), so these
@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { FreeRoam, roamDiscoveryLine, ROAM_OBJECTIVE, ROAM_ENTER_NOTE, ROAM_EXIT_NOTE } from '../src/game/freeroam';
 import { parseSave, defaultSave } from '../src/core/Save';
 
-describe('the Roam layer — the open-world contract (docs/architecture/03)', () => {
+describe('the Roam layer — the open-block contract (docs/architecture/03)', () => {
   it('enter flips active and returns the roam objective + note', () => {
     const roam = new FreeRoam();
     expect(roam.active).toBe(false);

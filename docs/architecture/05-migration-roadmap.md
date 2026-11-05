@@ -7,7 +7,7 @@
 - **Goal:** free roam as a first-class mode without touching the story.
 - **Shipped:** `game/freeroam.ts` (contract, pure) · `Game.toggleRoam` + guards (objective law, idle-nudge rest) · `World.setBarrierOpen` (whole block walkable from minute one) · pocket Roam chip (`ui/UI.ts`, `index.html`, `style.css`) · optional `Save.roam` (Day-2+ persistence) · handover invitation note.
 - **Proof:** 559/559 vitest (553 legacy + 6 new) · `scripts/probe-roam.mjs` 28/28 in real Chromium (barrier physics, story-stays-live mid-roam, save round-trip, silent boot restore) · 4-day E2E `scripts/e2e.mjs` 0 failures (535 s) · `tsc` clean · console clean.
-- **Risk retired:** "open world means deleting the sim" — it did not; the E2E still plays all four days.
+- **Risk retired:** "free roam means deleting the sim" — it did not; the E2E still plays all four days.
 
 ## M1 — Beats as places, not pressure (small, next)
 

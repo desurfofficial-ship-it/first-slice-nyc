@@ -1,5 +1,5 @@
 /**
- * The Roam layer — FIRST SLICE's open-world contract.
+ * The Roam layer — FIRST SLICE's open-block contract.
  *
  * What this game is (the law this module encodes): a life sim on an open
  * block. The four-day story (GameState's steps) is the spine — it is not
