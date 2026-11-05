@@ -127,7 +127,7 @@ export class Game {
   private brewingNoteShown = false;
   private washTimer = 0;
 
-  // ---- the Roam layer (freeroam.ts — the open-world contract) ----
+  // ---- the Roam layer (freeroam.ts — the open-block contract) ----
   // The story is the spine; roam is the promise that the city runs on the
   // player's clock. The module holds the law, Game holds the levers: the
   // barrier stands down, the objective line relaxes, the idle nudge rests.
@@ -943,7 +943,7 @@ export class Game {
     this.ui.refreshSketch(this.state.visitedPlaces, this.player.capsule.x, this.player.capsule.z);
   }
 
-  /** The Roam toggle — the open-world contract's one switch (freeroam.ts).
+  /** The Roam toggle — the open-block contract's one switch (freeroam.ts).
    *  Entering stands the barrier down and relaxes the objective line;
    *  leaving restores the story's own. GameState is untouched: the story
    *  neither advances nor rewinds because you roamed. From Day 2 on the
@@ -1381,7 +1381,7 @@ export class Game {
   private onArrivalHandover(): void {
     this.checkpoint = { x: this.player.capsule.x, y: this.player.capsule.y, z: this.player.capsule.z };
     this.ui.showNote(MAP_NOTE_BOOT);
-    // The open-world contract, said out loud once: the story is the spine,
+    // The open-block contract, said out loud once: the story is the spine,
     // but the block runs on your clock. The pocket's Roam chip is the switch.
     this.pushNote('Rosa waves from the bodega — follow her, or tap Pocket → Roam and take the block in first.');
     // Doc 02: "Six starter characters to pick from (30 seconds, all

@@ -51,7 +51,7 @@ export class UI {
   private mapSlangList = el<HTMLUListElement>('map-slang');
   private mapEmpty = el<HTMLDivElement>('map-empty');
   private mapClose = el<HTMLButtonElement>('map-close');
-  // ---- the Roam chip (freeroam.ts — the open-world contract's switch) ----
+  // ---- the Roam chip (freeroam.ts — the open-block contract's switch) ----
   readonly roamBtn = el<HTMLButtonElement>('btn-roam');
   private roamPeek = el<HTMLSpanElement>('roam-peek');
   // ---- the album — the shelf where kept postcards live ----

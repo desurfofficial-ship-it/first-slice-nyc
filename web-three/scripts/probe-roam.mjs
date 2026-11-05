@@ -1,5 +1,5 @@
 /**
- * Probe: the Roam layer (docs/architecture/03 — the open-world contract).
+ * Probe: the Roam layer (docs/architecture/03 — the open-block contract).
  * Runs the real game loop with the real toggle; positions are teleported
  * capsule moves, the same concession every probe here makes.
  *
