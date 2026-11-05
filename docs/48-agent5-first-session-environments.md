@@ -183,3 +183,143 @@ function, and the per-walker band law's pure extraction. The full
 reconciliation record, the corrected audit record (two suspected main-tip
 breaks turned out to be audit-tool display artifacts — docs/52 §3), and
 the merged-tip proof live in **docs/52**.
+
+---
+
+## 12. Addendum — A5i: the Doc 02 reconciliation pass (2026-11-05)
+
+Doc 02 (the minute-by-minute first session) was read end-to-end against
+the shipped game and diffed beat by beat. Most of the script already
+shipped (the arrival film's driver/choices/title, Map's boot note, the
+six-starter pick card, Rosa's upside-down-map greet, the five-order rush
+as conversations, the Shuffle, Subway University's teach + crooked copy +
+busker coin, the record shop's "Back soon. The city knows when.", the
+wow sync + the Wow card + the usher's promise line, the cart-naming, the
+fire-escape dusk with the gold window + Rosa's send-off + the key
+jingle). Four beats were missing — all four are now in, evidenced:
+
+1. **The fun-fact stickers (§2:00–5:00).** Each of Rosa's three items
+   now reads its Doc 02 sticker at pickup, queued after the pick line:
+   bodegas/10,000 (mango), "regular = milk, two sugars" (coffee can),
+   "bread arrives before sunrise" (bread). `ITEM_STICKERS` (content.ts),
+   fired by `GameState.collect`; the shelf flavor lines stay.
+2. **Rosa's cart handover (§20:00–26:00).** "It's ugly now. So was mine.
+   It's yours. What're you calling it?" lands as the name box opens —
+   the box answers her question (`ROSA_CART_HANDOVER_NOTE`).
+3. **Rosa walks you to the empty corner + the register count.** On the
+   cross, Rosa leaves the counter and walks the proven stranger legs
+   (door, crosswalk — the cab's courtesy hold covers her — south curb)
+   to Day 3's audited shoulder spot (6.35, −4.3), collider synced every
+   frame. When the solo rush's third cup lands she is at your shoulder
+   and the register count reads: $87 → $112, "Twenty-five dollars on
+   your first day," "Nineteen years ago I made eleven" + the mango pat,
+   "Lock up tight. The city takes care of itself at night."
+   (`ROSA_REGISTER_NOTES`; `startRosaCornerWalk`).
+4. **The street performer's four seconds (§10:00–15:00).** Once per
+   session, after the square has synced, stepping back to the B stair
+   mouth slows the WORLD to 0.45× for four seconds while a one-shot
+   melody plays (`audio.streetSong`, five notes + a fifth pad). No
+   objective, no prompt — the player's feet, camera and paper keep
+   honest time. Fires on the natural return (the ride home starts
+   beneath that stair mouth); the other square probes never re-enter
+   the stair box, so their timings are untouched.
+
+**Evidence:** `probe-a5i-doc02-beats.mjs` — 18/18 in-engine checks,
+0 errors (sticker read, handover note under the name box, Rosa's walk
+lands at the shoulder, register chain reads, CLIMB offered at $112,
+listen arms once and ends); screenshots `shots/a5i-claim-handover.png`,
+`a5i-rosa-at-shoulder.png`, `a5i-register-count.png`,
+`a5i-street-performer-listen.png`. Unit pins in `tests/state.test.ts`
+(sticker per item, handover note, register notes with the day's math).
+Full 4-day E2E after the change: **139 checks, 0 failures, console
+clean** (426 s on the small-viewport harness). vitest 553/553.
+
+Doc 08's content pack (12 Map notes, 4 slang cards, the story card, all
+six Day-1 postcards) was audited in the same pass and already ships 1:1
+— no changes needed there.
+
+---
+
+## 13. Addendum — A5j: the arrival card recomposed + the portrait ride window (2026-11-05)
+
+The two standing candidate weaknesses from the earlier arrival passes,
+both confirmed by re-reading the a5g frames, both fixed:
+
+1. **The title card collided with its own set.** The card lens pushed in
+   on the NEW YORK roll and stopped 1.65 m from it — the roll landed dead
+   frame-center, exactly where the UI title renders: white "FIRST SLICE"
+   on amber "NEW YORK", both unreadable, and at that range the coach read
+   as abstract cream masses. The lens is recomposed: an establishing
+   three-quarter (doorX + 5.6, 3.0, z − 7.2) pushes to (doorX + 2.6, 2.35,
+   z − 4.5) on a look point at the DOOR (doorX + 0.5, 1.5, z − 0.9) — the
+   roll rides the upper third and reads whole, the title lands on the
+   dark window-band glass, the doorway glows just beneath it: "title card
+   over the doors opening" (Doc 02), literally framed. The film coach
+   grew the parts the close lens demanded: a dark doorway recess + warm
+   aisle glow behind the sliding leaf (it used to reveal the cream body
+   face — a door painted on a door), a threshold light spill, and window
+   pillars separating the north glass band (one black stripe no more).
+2. **Portrait spent a quarter of the phone frame on ceiling.** The ride
+   aperture was tuned for 16:9; at 390×844 the 80° vfov frame is ±0.26 ×
+   ±0.46 at the glass, so the 0.2-tall window filled 43% and the shell
+   ceiling ~24%. The aperture is now a per-boot choice off the camera's
+   aspect (`APERTURE_PORTRAIT_Y` 0.34 below aspect 0.9): the window fills
+   ~74% of the portrait frame, the shell law still holds (header + face
+   well inside INTERIOR.y 0.72), landscape boots unchanged.
+
+**Probe honesty fix:** `probe-a5g`'s wall-clock taps landed before the
+machine's game-time gates on slow GL — the landscape run wedged in
+'reply' and its "tcard" shot showed the reply beat (two sessions of
+landscape card evidence were actually reply frames). The advance is now
+phase-driven (wait 'choice' → tap → wait elapsed 3.4 → tap → wait
+'card' → 1.2 s dwell → shoot), deterministic in both orientations.
+
+**Evidence:** `shots/a5g-{portrait,landscape}-tcard-coach.png` (both
+cards recomposed — roll readable, title on glass, lit doorway below),
+`a5g-portrait-t6-lit-city.png` (the 74% window). Gates: tsc clean ·
+vitest **553/553** · `probe-a5g` PASS both orientations, 0 page errors ·
+`probe-a5i` **18/18** · `probe-a5h` ok · full 4-day E2E **0 failures,
+console clean** (576 s).
+
+---
+
+## 14. Addendum — A5k: the soak gate found a frozen neighbor — the band law rebuilt (2026-11-05)
+
+The doc 55 item-5 soak complement (`probe-w4-soak`, 30 sim-minutes at the
+app's own worst-case dt) ran for the first time in this sandbox and
+failed 41 stillness windows: **walker 3, the garden tender, pinned at
+(−0.5, 23.45)** — exactly the garden loop's band-clamp south edge — for
+21 sim-minutes while its velocity screamed north at full cruise. The
+tracer (`dbg-a5o-garden-pin.mjs`) caught the lie that defeats every
+velocity-based watchdog: the brain said full speed, the body never moved.
+
+**The root cause was a band that inverts.** `bandOfLoop` capped z at the
+street's ±7.5 discipline; the garden loop lives at z 24.1..26.8, so the
+cap produced minZ 23.45 > maxZ 7.5, and the clamp resolved to exactly
+23.45 for EVERY input — a band that is a single point. Born in W4 p1
+with the loop; every soak since had passed by sampling luck. The same
+bug silently shrank the avenue shopper to a 15 m patrol.
+
+**Fixed on two layers** (docs/51 B17):
+1. `bandOfLoop` is the loop's own inflated bbox (±64 typo net) — every
+   street lane's band is tighter-or-equal to the old one; the garden loop
+   keeps its fence line. 4 new band pins in `tests/crowd.test.ts`,
+   including "never inverted" against the garden loop's real numbers.
+2. The **anti-stuck law**: a non-dwelling walker still (< 5 cm) over 8
+   consecutive one-second windows gets its waypoint advanced — position
+   delta, never velocity. A blocked loop now resumes in ≤ 8 sim-s;
+   nothing can freeze longer. 3 law pins, one reproducing the historical
+   pin exactly.
+
+**Fallout:** the freed avenue loop exposed its authored mid-block
+jaywalk (Kestrel Street at x 61.8, outside the crosswalk paint) and an
+in-roadway bus-stop beat. Re-authored onto the south walk — diner and
+fruit-stand beats unchanged, the M121 stop watched from across the
+street. A walker crosses at the paint or not at all.
+
+**Gates:** `probe-w4-soak` **OK** (1838 sim-s, 44 samples, 0 failures,
+page clean) · `probe-w4-bus` OK · `probe-peds` OK · `probe-shuffle` OK ·
+`probe-solid` ALL CLEAN · `probe-a5i` 18/18 · `probe-a5h` ok · vitest
+**559/559** · tsc clean · full 4-day E2E re-run on the fix (see §13's
+gate for the arrival recompose; this fix's E2E: 0 failures, console
+clean).

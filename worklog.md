@@ -796,3 +796,268 @@ Stage Summary:
 - tsc clean; vitest 514/514 (+3 shadow-law); build clean; probe-subway
   ALL PASS ×2 (with the two new descent checks); ledger rows published in
   docs/51 B13 + docs/55 §3; rig correction recorded with the eject proof.
+
+---
+
+## 2026-11-04 — agent2 — the last named program: interiors' window visibility (B13)
+
+Continued from the B16 verdict session (the Shuffle build landed by the
+parallel merge; this session took the one remaining named B13 program).
+The user's pointer was docs/55; its §3 names B13 the only open docs/51
+item, and B13's remaining named program was "interiors' window visibility".
+
+**The find, before any code.** diag-flat-dump at PLAZA / CART_CORNER shows
+ZERO `INT_*` groups visible: the W5 far state already zeroed the interiors
+at street scale — the named program was never going to move the street
+rigs. Its real defect was behavioral: the shipped W5 toggle keyed the
+fit-out on player proximity ALONE, so within the shell ± 1.6 m the room
+conjured on whichever side you stood — behind the hall's blind east yard
+it drew through masonry no window can show (measured: hall=true, 197
+calls). That is the program: make the room's own windows the visibility
+authority — an art feature (windows show the room exactly when a window
+can show it), not a cut.
+
+**The glass-side law.** src/world/interiorGlass.ts (pure, headless — the
+shadowLaw.ts pattern): the near band shows the fit-out only on the outward
+side of one of the room's registered window runs, within the run's extent
+widened by the band's own hysteresis margin (enter 1.6 / exit 0.8 — band
+and glass breathe together, window-edge loitering never flickers). Inside
+the shell short-circuits first (the inside test's business). World
+registers the runs per room, verbatim from the openings each builder cut
+(laundry's shipped bay; barber/pizza/bakery/records south storefronts;
+the hall's two west windows; the diner's Kestrel + avenue corner glass;
+the Cecil sight-line window). Rooms that ever skip registration fall back
+to the shipped band-only law.
+
+**The numbers, honestly** (diag-glass-stance.mjs, committed; identical
+stances, before = stash-rebuild of the shipped World.ts):
+hall east yard 197 → 167 calls (−30, −15%) with the fit-out honestly
+hidden; controls call-identical — diner north band window 165 = 165, hall
+west window 169 = 169, laundry bay mouth 322 = 322; the five ledger rigs
+bit-identical (PLAZA 400, CART_CORNER 333, SYCAMORE×GABLE 128, TIMES_SQ
+130, PLATFORM_A 186). The 150/250 lines stay published FAIL; with this
+program the named frontier is exhausted (atlas, SUB_Root depth, window
+visibility) — what remains is the priced composition itself. Closing B13
+against the 150 line is the owner's call; docs/51 B13 carries the row.
+
+**Wired contracts:** tests/interior-glass.test.ts (11 law checks — glass
+sides show, blind walls hide, the through-floor Cecil case, the fallback,
+the hysteresis); probe-w5-interiors gained check 6 (wrong side hidden,
+window sides show, in-engine).
+
+**Probe notes for the next agent:** the diner's and barber's blind faces
+have no standable floor (contiguous blocks — the capsule ejects onto the
+shell, which the inside test reads); the hall's east yard is the one clean
+wrong-side floor. The live feed oscillates a hair — a stance parked ON a
+band edge flickers the fit-out (pre-existing, both laws); park ≥ 0.9 m in.
+
+Stage Summary:
+- tsc clean; vitest 534/534 (+11 interior-glass); build clean;
+  probe-w5-interiors PASS (6 checks); probe-subway ALL PASS; probe-perf
+  identical (207/281/354, zero page errors); five ledger rigs
+  bit-identical; E2E AUTOTEST OK 0 failures 531 s console clean.
+
+## 2026-11-05 — agent5: B13 — the vertex fuse: the wrappers and the never-upgraded fallbacks join the color-ride law
+
+Synced on origin/main's 13 (touch-law B7, doc hygiene B14, the glass-side
+law B13) and took the ledger's only open item. The composition note priced
+the shadow pass, the cast law, the felt crowd, the tiles — but
+`diag-prop-bake-audit.mjs` (new, committed) showed two families nobody had
+priced: the vehicle GLB wrappers (cab 7 draws, sedan 6 — one mesh per glTF
+material, excluded from the bake forever by the glbProps law) and the
+fallback props whose GLB upgrade can never land (mailbox 4, trashcan 3 —
+no such .glb ships, yet the placeholders stay bake-excluded for a swap
+that is never coming).
+
+The cut lives one level below the bake: `src/world/vertexFuse.ts` (pure,
+the shadowLaw.ts pattern) fuses a prop's OWN parts into one vertex-colored
+mesh on the shared vc material — inside the wrapper (the cab drives and
+hides as a body; the bake law untouched) or in the builder pre-position.
+Bail law: any mapped/transparent/emissive/metallic/double-sided/skinned/
+unindexed/flag-mixed part bails the WHOLE prop. 14 pins in
+`tests/vertex-fuse.test.ts`.
+
+One honest look change, documented with A/B frames
+(`b13_vcfuse_{sedan,mailbox,trashcan}-{before,after}.png`): the vehicle
+GLBs ship position-only parts, so the shipped cars were ambient-only flat
+(un-lit); the fuse computes per-face normals — the fused cars are lit like
+every other Lambert prop in the world. Mailbox/trashcan A/B bit-identical.
+In-engine: cab 7→1, sedan 6→1, mailbox 4→1, trashcan 3→1.
+
+Ledger (diag-perf-breakdown, before → after): PLAZA 400 → 368 (−32),
+CART_CORNER 333 → 308 (−25), SYCAMORE×GABLE 128 → 118 (−10), TIMES_SQ
+130 → 130, PLATFORM_A 186 → 180 (−6) — every rig at-or-under its previous
+ledger; 150/250 stay published FAIL (the close remains the owner's call).
+
+Gates: tsc clean · vitest 548/548 (+14) · build clean · probe-cars clean
+(taxiWrapper meshes=1, sedanWrapper meshes=1) · probe-solid ALL CLEAN ·
+probe-peds OK · probe-a5c-arrival errors none · full 4-day E2E AUTOTEST
+OK 0 failures (540 s), console clean. Housekeeping: reconciled the stale
+package-lock (main's `@types/node` had never reached it — a fresh
+checkout's entry-gate tsc failed until `npm install` pinned it).
+
+## 2026-11-05 — agent2: the tip re-proven in a clean checkout + the 1-Second audit gets its randomizer (docs/55 item 4 prep)
+
+The session opened on a recycled sandbox (fresh clone @ 76ca204) and the
+books saying the Shuffle decree was answered in the merge — my own earlier
+build (0115e9b, the proximity-scan cut) was superseded by the contact law
+that survived (docs/55 F04's two-builds note). So the work became the two
+things left that an agent can honestly do: re-prove the tip from zero, and
+build the piece of the exit checklist nobody had built yet.
+
+**The clean-checkout proof (every gate, this sandbox):** npm ci + a fresh
+Playwright chromium; then tsc clean · vitest **551/551** (35 files) · build
+clean (444 ms) · `probe-shuffle.mjs` **SHUFFLE OK** — all six close-rule
+checks (9 walkers, 5 on the stretch, the forced brush fires "'Scuse me."
+with the bubble at opacity 1 — `shots/shuffle-bubble.png` re-captured and
+eyeballed — money and step untouched, TBD-3 lands, no gate west) ·
+`probe-peds.mjs` PEDS OK · full 4-day E2E **AUTOTEST OK, 0 failures
+(572 s), console clean**. B16's evidence holds on a machine that has never
+seen the tree — the strongest form of "e2e rails untouched".
+
+**The 1-Second Law audit's missing tool (docs/55 item 4):** the checklist
+names existing probes as the frame source, but every one of them curates —
+and the audit says "randomize, don't curate". `probe-one-second.mjs` is the
+randomizer: a seeded draw (mulberry32, `--seed`, default 20261105) of 10
+paused frames stratified across the item's own axes — 10 distinct
+districts, every day 2–3 frames, noon/dusk 5–5. The laws it keeps:
+- **no invented coordinates** (docs/45): 13 anchors, each harvested from a
+  shipped probe or a World.ts W2 builder list, `minDay`-constrained so no
+  frame shows a place before its day opens it (Times Square and the
+  platform are Day 4's; the wider grid is Day 2's);
+- **the standable proof**: after teleport, the frame's staging walks real
+  key-driven steps (the probe-court pattern) — an anchor that cannot move
+  fails the run (the fire-escape anchor taught this one: it faces its own
+  ladder, so the proof accepts either direction);
+- **the staging never leaks between beats** (the B12 law): day, wallet,
+  cart name, objective and world flags set explicitly per frame, the note
+  cleared AFTER setStep (the wake toast re-fires otherwise — found by the
+  platform frame wearing Day 4's "Rosa is at your cart" 350 m from the
+  cart), and each day stages its widest-range step so the objective header
+  never names a beat the player couldn't be mid-way through;
+- **the camera is never parked** — the audit pauses a real session, so the
+  frame is the follow cam's own framing; portrait 720×1280; any page error
+  fails the run.
+
+First draw committed to the checklist's named path: `assets/one-second-law/`
+(10 frames + `manifest.json` + README status note), docs/55 §4 carries the
+prep line. **The box stays unchecked** — the never-visitor pass is the
+human half and has not run. Two frames in the honest set carry real
+camera-occlusion moments (a boom wedged behind the laundry container, a
+canopy filling half a frame) — that is what un-curated pauses look like,
+and the audit's human is the judge; if either fails the 1-second read, the
+checklist's own rule applies (a docs/51 entry with the frame attached).
+
+Gates this session: tsc clean · vitest 551/551 · build clean ·
+probe-shuffle SHUFFLE OK · probe-peds PEDS OK · E2E AUTOTEST OK 0 failures
+(572 s) · probe-one-second ONE-SECOND PREP OK ×3 (final at the evidence
+path; same-seed re-run reproduces the same 10 frames bit-for-bit).
+
+---
+Task ID: OPEN-WORLD-ROAM-M0
+Agent: Main Agent (architecture audit + open-world restructure)
+Task: Restructure the repo to the settled direction — a life sim on an open
+block. The four-day story stays the spine; the player gets free roam on
+their own clock. Blueprint in docs/architecture/01–07, shipped as M0.
+
+Work Log:
+- Audited web-three/src (~24.4k lines): the rails were the 33-step linear
+  GameState machine, the Day 1–3 water-main barrier, the story-owned
+  objective line, and the story-paced idle nudge — not the code, which
+  was already layered correctly (pure state → effects → one orchestrator).
+- Shipped the Roam layer: src/game/freeroam.ts (pure contract — one
+  field, zero imports), Game.toggleRoam + guards (objective law in
+  applyEffect, idle-nudge rest in drainFarWorld, sketch-book discovery
+  line in checkSketchReveals, handover invitation), World.setBarrierOpen
+  (visibility-is-collider law; dressDay respects the override), the
+  pocket Roam chip (index.html + UI.ts + style.css, Roam ↔ Story), and
+  the optional Save.roam field (starter-precedent conditional spread;
+  Day 2+ only — Day 1 never writes).
+- Evidence: tests/freeroam.test.ts (6), scripts/probe-roam.mjs (28
+  checks in real Chromium, 0 failures): barrier physics at its own
+  coordinates, story-stays-live mid-roam (pressing Rosa advances
+  MEET_ROSA with roam held), save round-trip both directions, silent
+  boot restore, console clean.
+- Docs: docs/architecture/01–07 (audit, gen-city-auto comparison, target
+  architecture, module map, M0–M4 roadmap, agent framework, perf/testing);
+  README.md pitch + pillar; AGENTS.md direction block + Roam law pointer.
+
+Stage Summary:
+- Gates at close: tsc clean · vitest 559/559 (553 legacy + 6 new) ·
+  probe-roam 28/28 · 4-day E2E AUTOTEST OK 0 failures (535 s) · build OK.
+- The story path is byte-for-byte the shipped behavior; roam adds a mode,
+  never removes a beat. Next up (docs/architecture/05): M1 beats-as-places.
+
+---
+Task ID: OPEN-WORLD-ROAM-M0.1 (direction correction + push)
+Agent: Main Agent (continuation)
+Task: The director corrected the vocabulary: "it is no more an open world,
+it's a sim, and the player will be able to free roam going forward — still
+a life sim." Put the correction in the permanent places, verify the repo
+stays green, and push the unpushed M0 commit with the director's PAT.
+
+Work Log:
+- Re-ran the baseline first (safety): tsc clean · vitest 559/559 (36
+  files) — the M0 commit's recorded gates reproduce from a cold clone.
+- Grepped every open-world/open-world-adjacent phrase in *.md and src
+  comments. The rejection contexts (docs/33, docs/37, AGENTS §0 — "not a
+  generic open-world city") are left as-is: they already state this
+  correction's negative form. worklog history stays untouched (append-only).
+- Re-toned the contract's own words to one voice — a life sim, not an
+  open-world game; free roam is a capability, not a genre: AGENTS.md
+  (direction block + phase-line parenthetical), docs/architecture/03
+  (product law, backlog heading, non-goals), 05 (retired risk), 01
+  (audit line), freeroam.ts + freeroam.test.ts headers. No strings or
+  behavior changed — comments, docs, and one test title only.
+- Gates after the edits: tsc clean · vitest 559/559 · build OK.
+
+Stage Summary:
+- The direction now lives where the next agent will read it: AGENTS.md's
+  DIRECTION block and Doc 03's product law both say it outright. The Roam
+  law, module fences, and the M1–M4 roadmap are unchanged.
+- origin/main was still at ee815fb; pushed c6a088c (M0) plus this
+  correction commit to main. Reminder recorded for the director: rotate
+  the PAT after the push (it traveled through chat).
+
+---
+Task ID: OPEN-WORLD-ROAM-M1 (beats as places) + repo cleanup
+Agent: Main Agent (continuation)
+Task: "Continue building — and delete any unimportant thing from the repo
+to keep it clean, including anything about godot; quality over quantity."
+Two fronts: (1) the cleanup, (2) M1 from docs/architecture/05.
+
+Work Log (cleanup — cee6527, 98 files, −4,629 lines):
+- Deleted greybox-godot/ (the oracle's job now belongs to the vitest
+  suite + the 4-day E2E — a stronger guard than a second codebase),
+  site/ (superseded by the Actions workflow that publishes
+  web-three/dist), tools/gen3d (thin duplicate of tools3d/ Track C),
+  the massing one-shot tools, the applied one-shot registry fixer, the
+  Godot-era capture frames, three orphaned pitch PNGs.
+- Kept: tools3d/ (the working pipeline), render-world.mjs +
+  validate-registry.mjs (the world-registry's guards), the two composed
+  postcards (moved to assets/postcards/), the dated build-log docs —
+  each banner-statused (2026-11-05) per the docs-hygiene pattern so
+  their greybox paths read as history.
+- Live surfaces updated: README (one build, current counts), AGENTS.md
+  repo map, package.json, and the web-three file headers (dead
+  greybox-godot/ paths → docs/23–24 provenance). Gates: tsc clean ·
+  vitest 565/565 · build OK.
+
+Work Log (M1 — beats as places, not pressure):
+- GameState.beatPlaceId(): the data-only beat→place table (21 named
+  beats; the fire escape, the teal door, the subway stairs, the notice,
+  the rail, and DONE stay null on purpose — a marker never points where
+  the objective doesn't).
+- The marker: a dashed ink ring + "whenever you're ready" caption on the
+  sketch (sketch.ts beatMarkerSvg, opacity-flip only; UI.setBeatMarker
+  with the priyaRevealed wait-for-build law), wired at boot,
+  applyEffect('step') (both modes — mid-roam it shows where the story
+  waits), and all three day-begins.
+- Evidence: tests/beats.test.ts (4 pins incl. the marker⇄objective
+  agreement law) · scripts/probe-m1-beats.mjs 10/10 in real Chromium ·
+  4-day E2E AUTOTEST OK 0 failures (534 s) · tsc clean · vitest 569/569.
+
+Stage Summary:
+- The repo is one build, one pipeline, one site — and the Map now tells
+  the player, in Rosa's hand, that the story waits for them. Next up
+  (docs/architecture/05): M2, the district map.

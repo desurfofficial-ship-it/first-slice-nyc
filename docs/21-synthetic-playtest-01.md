@@ -1,5 +1,7 @@
 # Synthetic Playtest 01 — five walkers, one day
 
+> **Status update (2026-11-05):** history — the Godot greybox retired from the repo today (`greybox-godot/` is gone). The harness and JSONL telemetry cited below are the record of how these seams were found; all three seams are fixed and guarded in web-three's tests + E2E ([docs/24](24-web-three-build.md)).
+
 **What this is:** the Day 1 greybox played start to finish by five scripted personas, headless, each one a waypoint walker with a different temperament. **n = 5. Zero humans.** This is not a playtest — it is a harness that finds the seams a human playtest would find first. Raw telemetry: `greybox-godot/spikes/logs/<persona>.jsonl`.
 
 **Harness honesty note:** these walkers follow scripted waypoints. They do not pathfind. "Lost" below means the script ran out of next waypoints — which models, deliberately, what a player with no guidance would feel. The clock (the game's own day timer) freezes at DONE, so the gold-gazer's linger attempts all share a timestamp.

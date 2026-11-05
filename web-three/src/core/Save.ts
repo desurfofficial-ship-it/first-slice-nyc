@@ -1,5 +1,5 @@
 /**
- * FIRST SLICE save v1 — web mirror of greybox-godot/scripts/save.gd.
+ * FIRST SLICE save v1 — web mirror of the original greybox save (docs/23–24).
  * Storage: localStorage (Doc 07 §6 names local JSON; the browser equivalent).
  * Rules (save.gd header — kept exactly):
  *   * a corrupt or unreadable save is a fresh start, never a crash
@@ -69,6 +69,13 @@ export interface SaveData {
   /** Doc 02's starter pick — who got off the bus. One of core/starters' ids;
   *  absent/unknown reads as 'classic' (the shipped look). v1-safe. */
   starter?: string;
+  /** The Roam layer's mode rides the save (docs/architecture/03): present
+  *  only when Roam was active at the last write, so a pre-roam v1 save
+  *  parses byte-identically (the starter's schema-freeze law: absence
+  *  reads as story mode at the read site, not as a new key). Day 1 never
+  *  writes anyway (save.gd law), so a fresh player always boots into the
+  *  story. */
+  roam?: boolean;
 }
 
 export function defaultSave(): SaveData {
@@ -166,6 +173,9 @@ export function parseSave(raw: string | null): SaveData {
     ...(typeof d.starter === 'string' && d.starter.length > 0 && d.starter.length <= 40
       ? { starter: d.starter }
       : {}),
+    // the Roam layer's mode — present only when roam was active at the
+    // last write; absence reads as story mode (freeroam.ts's contract)
+    ...(d.roam === true ? { roam: true } : {}),
   };
 }
 

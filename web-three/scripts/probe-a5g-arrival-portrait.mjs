@@ -46,6 +46,7 @@ async function runSession(w, h, tag) {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`[${tag}] console: ` + m.text()); });
   await page.goto(`http://localhost:${PORT}/?film=1`, { waitUntil: 'load' });
   const shot = (name) => page.screenshot({ path: `shots/a5g-${tag}-${name}.png` });
+  const tap = () => page.evaluate(() => document.getElementById('cine').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
   await sleep(page, 2500);
   await shot('t2-ride-early');
   // the skyline light-up lands at game-time ~4.5 s; capture before and after
@@ -56,26 +57,25 @@ async function runSession(w, h, tag) {
   // ride into the blocks
   await waitElapsed(page, 9.0, 120000);
   await shot('t9-city-close');
-  // advance to the card (tap through choice/reply with the gates)
-  const tap = () => page.evaluate(() => document.getElementById('cine').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
-  await sleep(page, 2500);
-  await tap();
-  await sleep(page, 4500);
-  await tap();
-  await sleep(page, 4200);
-  await tap();
-  await sleep(page, 1500);
-  const cardShot = async () => {
-    for (let i = 0; i < 20; i++) {
-      if (await phase(page) === 'card') break;
-      await sleep(page, 500);
+  // advance to the card — phase-driven, not wall-clock: slow GL runs
+  // game-time far behind wall time, and a fixed tap lands before its gate
+  // and is swallowed (the landscape run used to wedge in 'reply')
+  const waitPhase = async (p) => {
+    const t0 = Date.now();
+    while ((await phase(page)) !== p) {
+      if (Date.now() - t0 > 120000) throw new Error(`never reached ${p}`);
+      await sleep(page, 300);
     }
-    // the card holds 2.8 s — the shot must land INSIDE it (a 2.5 s dwell
-    // outlived the card and caught the handover street instead)
-    await sleep(page, 1200);
-    await shot('tcard-coach');
   };
-  await cardShot();
+  await waitPhase('choice'); // the ride ends on its own clock (10 s game-time)
+  await sleep(page, 400);
+  await tap(); // choice → reply
+  await waitElapsed(page, 3.4, 120000); // the driver's reply lands past the gate
+  await tap(); // reply → card
+  await waitPhase('card');
+  // the card holds 2.8 s — the shot must land INSIDE it
+  await sleep(page, 1200);
+  await shot('tcard-coach');
   await page.close();
 }
 

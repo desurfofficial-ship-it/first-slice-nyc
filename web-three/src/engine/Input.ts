@@ -199,7 +199,7 @@ export class InputManager {
     return this.keys.has(code);
   }
 
-  /** Direct inject for the autotest driver (mirrors Godot's Input.action_press). */
+  /** Direct inject for the autotest driver (mirrors the original action press). */
   injectKey(code: string, down: boolean) {
     if (down) {
       if (!this.keys.has(code)) {

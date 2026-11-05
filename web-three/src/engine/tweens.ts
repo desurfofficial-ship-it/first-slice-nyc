@@ -2,7 +2,7 @@
  * Tiny tween engine — enough for the greybox sequences (dusk crossfade,
  * postcard rig glide, window flicker, fades). Parallel + sequence + delays.
  * No dependencies. Values are captured lazily on first update, matching
- * Godot's tween_property behavior inside sequences.
+ * the original tween_property behavior inside sequences.
  */
 
 export type Ease = (t: number) => number;

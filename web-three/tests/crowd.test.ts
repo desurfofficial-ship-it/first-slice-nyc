@@ -6,10 +6,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import * as THREE from 'three';
 import {
   resolveCirclesXZ, pushCircleOutOfRectXZ, circleRectGapXZ, type CirclePush,
 } from '../src/engine/collide';
-import { curbSideSlide, bandOfLoop } from '../src/world/peds';
+import { curbSideSlide, bandOfLoop, Pedestrians } from '../src/world/peds';
 
 const push = (): CirclePush => ({ x: 0, z: 0 });
 
@@ -145,12 +146,12 @@ describe('overtake bias (curbSideSlide)', () => {
 });
 
 describe('per-walker band (bandOfLoop — the W4 law, proved where it lives)', () => {
-  it("the band is the loop's bbox, inflated (1.6 m x / 0.65 m z)", () => {
+  it("the band is the loop's bbox, inflated (1.6 m x / 0.65 m z — no street cap)", () => {
     const b = bandOfLoop([[0, 5], [20, 5], [20, 7], [0, 7]]);
     expect(b.minX).toBeCloseTo(-1.6);
     expect(b.maxX).toBeCloseTo(21.6);
     expect(b.minZ).toBeCloseTo(4.35);
-    expect(b.maxZ).toBeCloseTo(7.5);
+    expect(b.maxZ).toBeCloseTo(7.65);
   });
 
   it("a walker past its band is pulled back INSIDE its own band — never to a foreign loop's corner", () => {
@@ -167,17 +168,128 @@ describe('per-walker band (bandOfLoop — the W4 law, proved where it lives)', (
     expect(pulledX).toBeGreaterThan(0); // stays on its own block
   });
 
-  it('the band never escapes the playable core (x ±84, z ±7.5)', () => {
-    const far = bandOfLoop([[-200, -50], [200, 50]]);
+  it('the band never escapes the playable core (x ±84, z ±64 — the world extent)', () => {
+    const far = bandOfLoop([[-200, -80], [200, 80]]);
     expect(far.minX).toBe(-84);
     expect(far.maxX).toBe(84);
-    expect(far.minZ).toBe(-7.5);
-    expect(far.maxZ).toBe(7.5);
+    expect(far.minZ).toBe(-64);
+    expect(far.maxZ).toBe(64);
   });
 
   it("the home trio's band keeps the shipped ±7.5 z-discipline", () => {
     const home = bandOfLoop([[-40, 6.2], [-10, 6.2], [-10, -6.2], [-40, -6.2]]);
     expect(home.minZ).toBeCloseTo(-6.85);
     expect(home.maxZ).toBeCloseTo(6.85);
+  });
+
+  it('a loop living entirely north of the street keeps its OWN ground — the band never inverts (docs/51 B17)', () => {
+    // the garden tender's actual loop: the old ±7.5 cap read minZ 23.45,
+    // maxZ 7.5 — an inverted band whose clamp resolved to exactly 23.45
+    // for EVERY z, freezing the walker at the south edge for 21 sim-minutes
+    const garden = bandOfLoop([[4.4, 24.1], [-0.5, 24.4], [-6.5, 24.4], [-6.9, 26],
+      [-4, 26.8], [0, 26.2], [2.8, 25], [4.4, 24.1]]);
+    expect(garden.minZ).toBeCloseTo(23.45);
+    expect(garden.maxZ).toBeCloseTo(27.45);
+    expect(garden.maxZ).toBeGreaterThan(garden.minZ); // never inverted again
+    // the clamp law itself: a position inside the band survives, one north
+    // of it is pulled back — and NO input collapses to a single point
+    for (const z of [0, 7.5, 23.45, 25, 27.45, 40]) {
+      const clamped = Math.max(garden.minZ, Math.min(garden.maxZ, z));
+      expect(clamped).toBeGreaterThanOrEqual(garden.minZ);
+      expect(clamped).toBeLessThanOrEqual(garden.maxZ);
+    }
+  });
+
+  it('a loop crossing the street keeps its full avenue reach (docs/51 B17)', () => {
+    // the avenue shopper's HISTORICAL loop (z −18..18): the old cap shrank
+    // its band to ±7.5 — a silent 15 m patrol. The loop has since been
+    // re-authored onto the south walk (the jaywalk it hid, docs/51 B17),
+    // but the band law stands: a long loop keeps its own reach.
+    const avenue = bandOfLoop([[61.5, -18], [61.5, 18], [62.2, 18], [62.2, -18]]);
+    expect(avenue.minZ).toBeCloseTo(-18.65);
+    expect(avenue.maxZ).toBeCloseTo(18.65);
+  });
+
+  it('the street trio\'s effective bands are unchanged by the fix (tighter-or-equal)', () => {
+    // every real street lane tops out at |z| ≤ 6.85, so inflation alone
+    // never crosses the building line the ±7.5 cap used to guard
+    const lanes: Array<Array<[number, number]>> = [
+      [[-6.5, 6.15], [38, 6.15], [38, 6.85], [-6.5, 6.85], [-6.5, -6.15], [26, -6.15], [26, -6.85], [-6.5, -6.85]],
+      [[10, 6.1], [-42, 6.1], [-42, 6.75], [10, 6.75]],
+      [[-43.5, -6.1], [44, -6.1], [44, -6.35], [-43.5, -6.35]],
+      [[-31, 6.12], [-41, 6.12], [-41, 6.7], [-31, 6.7]],
+    ];
+    for (const pts of lanes) {
+      const b = bandOfLoop(pts);
+      expect(Math.abs(b.minZ)).toBeLessThanOrEqual(7.5 + 1e-9);
+      expect(Math.abs(b.maxZ)).toBeLessThanOrEqual(7.5 + 1e-9);
+      expect(b.maxZ).toBeGreaterThan(b.minZ);
+    }
+  });
+});
+
+describe('the anti-stuck law (docs/51 B17 — a blocked loop resumes)', () => {
+  function loneCrowd(): Pedestrians {
+    const scene = new THREE.Scene();
+    return new Pedestrians(
+      scene,
+      [{ jacket: 0x4a5568, pants: 0x3b3f4a, skin: 0xc98e5a, hair: 0x2b2730, style: 'cap' }],
+      42,
+      [[[2, 6], [6, 6]]],
+      [],
+    );
+  }
+
+  /** The historical pin, reproduced exactly: a band that collapses to one
+   *  point (the W4 garden tender's inverted band clamped z to 23.45 for
+   *  every input). Under it the vehicle's velocity stays at full cruise —
+   *  the brain's intent — while the position never moves: the exact lie
+   *  the law must see through. */
+  function pinnedInternals(peds: Pedestrians) {
+    const pd = (peds as unknown as {
+      peds: Array<{
+        vehicle: { position: { x: number; z: number } };
+        dwellLeft: number; stuckTime: number; stillClock: number; stillDist: number;
+        lastX: number; lastZ: number; fpb: { path: { _index: number } };
+        band: { minX: number; maxX: number; minZ: number; maxZ: number };
+      }>;
+    }).peds[0];
+    return pd;
+  }
+
+  it('eight still windows advance the waypoint — the loop resumes', () => {
+    const peds = loneCrowd();
+    const pd = pinnedInternals(peds);
+    // the pin sits 2.2 m and 1.8 m from the two waypoints — farther than
+    // the path follower's own 0.7 m hand-off, so the ONLY thing that can
+    // move the waypoint is the law under test
+    pd.band = { minX: 4.2, maxX: 4.2, minZ: 6, maxZ: 6 };
+    pd.fpb.path._index = 0;
+    for (let f = 0; f < 60 * 9; f++) { // 9 s — past the 8-window line
+      peds.update(1 / 60, { x: 100, z: 100 }); // the player far away
+    }
+    expect(pd.stuckTime).toBe(0); // the nudge consumed the count
+    expect(pd.fpb.path._index).toBe(1); // the waypoint ADVANCED
+  });
+
+  it('a walking walker never accumulates stillness', () => {
+    const peds = loneCrowd();
+    const pd = pinnedInternals(peds);
+    for (let f = 0; f < 60 * 10; f++) { // 10 s of free walking
+      peds.update(1 / 60, { x: 100, z: 100 });
+    }
+    expect(pd.stuckTime).toBe(0);
+  });
+
+  it('a dwelling walker is never nudged — the beats are sacred', () => {
+    const peds = loneCrowd();
+    const pd = pinnedInternals(peds);
+    pd.band = { minX: 4.2, maxX: 4.2, minZ: 6, maxZ: 6 }; // pinned mid-leg
+    pd.dwellLeft = 30; // a long scheduled beat
+    for (let f = 0; f < 60 * 12; f++) { // 12 s — well past the 8-window line
+      peds.update(1 / 60, { x: 100, z: 100 });
+    }
+    expect(pd.stuckTime).toBe(0);       // the dwell exempts it from the clock
+    expect(pd.fpb.path._index).toBe(0); // the waypoint never moved
   });
 });

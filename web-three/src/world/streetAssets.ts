@@ -10,7 +10,7 @@
  *   - Shared unit geometries; builders build ONE honest prop, World places.
  *   - The fire escape is silhouette only: no colliders, no triggers — the
  *     climbable escape on the fire-escape building stays the only gameplay
- *     one (that geometry belongs to the lead agent's greybox oracle).
+ *     one (that geometry belongs to the lead agent's greybox build).
  */
 
 import * as THREE from 'three';

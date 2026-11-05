@@ -518,6 +518,48 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   six-draw cast law, instanced wildlife, baked tiles. The 150 line needs
   a program (interiors' window visibility, SUB_Root depth), not a lever.
 
+- **Update 2026-11-04 (interiors' window visibility — the last named
+  program, agent2):** the glass-side law. The shipped W5 toggle keyed the
+  fit-out on player proximity alone: within the shell ± 1.6 m the room
+  showed, whichever side you stood on — behind the hall's blind east yard
+  the fit-out conjured through masonry no window can show (measured:
+  hall=true, 197 calls at the stance). The law makes the room's own
+  windows the visibility authority: near shows the fit-out only on the
+  outward side of one of the room's registered window runs (or inside —
+  the inside test short-circuits first). Pure law in
+  `src/world/interiorGlass.ts` (the shadowLaw.ts pattern), per-room runs
+  registered verbatim from the openings each builder cut, hysteresis
+  margins (enter 1.6 / exit 0.8) driving band and glass alike so
+  window-edge loitering never flickers. **The numbers, honestly:**
+  identical-stance before/after (`diag-glass-stance.mjs`, committed) —
+  the hall east yard 197 → **167 calls (−30, −15%)** with the fit-out
+  honestly hidden; all three glass-side controls call-identical (diner
+  north band window 165 = 165, hall west window 169 = 169, laundry bay
+  mouth 322 = 322); the five ledger rigs **bit-identical** (PLAZA 400,
+  CART_CORNER 333, SYCAMORE×GABLE 128, TIMES_SQ 130, PLATFORM_A 186 —
+  the W5 far state already had the rooms hidden at street scale; the
+  flat-dump proof is in the probe notes below). The 150/250 lines stay
+  published FAIL — and the priced note that goes with it: with this
+  program the named frontier is exhausted (sign atlas, SUB_Root depth,
+  interiors' window visibility all landed); what remains at the rigs is
+  the priced composition itself (the dusk shadow pass, the six-draw cast
+  law, the felt crowd, the baked tiles), every lever already rejected
+  with numbers. Closing B13 against the 150 line is the owner's call;
+  the row above is the evidence either way.
+- **Probe notes for the next agent:** (1) the flat-dump at PLAZA /
+  CART_CORNER shows zero `INT_*` groups visible — the W5 far state
+  already zeroed interiors at street scale, so "interiors' window
+  visibility" was never going to move the street rigs; its win is the
+  wrong-side stance and honest windows, now measured. (2) The diner's
+  and barber's blind faces have no standable floor (contiguous blocks —
+  the capsule ejects onto the shell, which the inside test reads); the
+  hall's east yard is the one clean wrong-side floor. (3) The live feed
+  oscillates a hair — a stance parked ON a band edge (0.1–0.2 m) flickers
+  the fit-out (pre-existing band-edge behavior, both laws); stances sit
+  ≥ 0.9 m inside their zone. (4) probe-w5-interiors gained check 6 (the
+  glass law: wrong side hidden, window sides show); tests/interior-glass
+  .test.ts pins the pure law (11 checks).
+
 - **Update 2026-11-04 (parallel verification, this merge):** the two rigs the
   ledger above never published, measured on the merged tree with the same
   `diag-perf-breakdown.mjs`: **TIMES_SQ 222 → 130 (−41% — the square is
@@ -563,6 +605,85 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   the descent (half 18, symmetric). Street rigs are untouched (the economy
   only exists below grade). Verified: tsc clean, vitest 514/514, build
   clean, probe-subway ALL PASS ×2 (with the two new checks).
+
+- **Update 2026-11-05 (the shadow economy, second half — the figure proxy,
+  4346d10+this):** the upgraded x-ray (`diag-rig-xray.mjs`, real frustum
+  attribution now — main and sun planes separately) showed the gate rigs'
+  real composition: the census's scary TOP owners (SUB_Root 186, TSS_Group
+  93, INT_* ~149) are fully frustum-culled at the rigs; PLAZA's 400 was
+  main ~241 + **shadow 155**, and the shadow pass was drawing every
+  figure's six meshes even when the rig was behind the eye. The move: one
+  merged standing-silhouette proxy per figure (~50 tris, shared geometry)
+  on `PERSON_SHADOW_LAYER` (layer 1) — `castShadow` on, the six articulated
+  meshes stop casting, World's boot enables the layer on the sun's shadow
+  camera (the whole contract; WebGLShadowMap tests casters against the
+  shadow camera's layers). The eye keeps the full walk; postcards never see
+  the proxy. **The row: PLAZA 400 → 334, CART_CORNER 333 → 261,
+  SYCAMORE×GABLE 129 → 94, TIMES_SQ 130 → 52, PLATFORM_A 146 → 114** —
+  every rig under its previous ledger; the square and the platform are
+  now UNDER the 150 line; Kestrel's street rigs stay published FAIL
+  (334 / 261). Shadow pass at PLAZA 155 → 96 (every figure exactly 1
+  draw). Evidence: `shots/b13-shadow-proxy-plaza.png` (crowd shadows
+  readable at the plaza rig, golden-hour length). The remainder is priced
+  per class in docs/47's entry (crowd law 45–54, named cast ~21, GLB
+  vehicles ~31, wildlife ~21, shadow-pass statics ~60, the named-tail
+  programs ~150); the 150 line still needs those programs, not a lever.
+  Verified: tsc clean, vitest 526/526, build clean, probe-subway ALL
+  PASS, probe-solid ALL CLEAN, E2E 0 failures (413 s, 320×700).
+
+- **Update 2026-11-05 (the GLB-wrapper + fallback-prop cut — the last
+  unpriced composition item, agent5):** the composition note priced "the
+  shadow pass, the six-draw cast law, the felt crowd, the baked tiles" —
+  but the census still carried two families nobody had priced:
+  **(a) the two shipped vehicle wrappers** (`car_taxi_glb` 7 draws,
+  `car_sedan_glb` 6 — one mesh per glTF material) and **(b) the procedural
+  fallback props whose GLB upgrade can never land** (no
+  `models/mailbox.glb` / `models/trashcan.glb` ships; the placeholders sit
+  in `glbProps`, so the district bake excludes them forever — Mailbox 4
+  draws, Trashcan 3, on every rig that sees them). The bake's own law is
+  correct in both cases (a baked batch can't be swapped by the async
+  upgrade, and a glbProps member can't join a tile) — so the cut happens
+  ONE LEVEL DOWN: `src/world/vertexFuse.ts` (the shadowLaw.ts pattern, pure)
+  fuses a prop's OWN parts into one vertex-colored mesh on the shared
+  `vcMaterial` — inside the wrapper (the cab still drives as a body, the
+  district seat still hides it as one) or in the builder (mailbox, trashcan,
+  fused pre-position). The bail law is mergeGltfParts' law, stricter: any
+  mapped / transparent / emissive / metallic / double-sided / skinned /
+  unindexed / flag-mixed part bails the WHOLE prop untouched
+  (`tests/vertex-fuse.test.ts`, 14 pins).
+  **The honest look note:** the vehicle GLBs ship position-only parts (no
+  normals — the same reason the bake's guard refuses them), so the shipped
+  car look was ambient-only flat color; the fuse computes per-face normals
+  so the fused draw is lit like every other Lambert prop in the world (the
+  procedural placeholder cars always were). A/B frames:
+  `web-three/assets/web-three/frames/b13_vcfuse_{sedan,mailbox,trashcan}-{before,after}.png`
+  — mailbox bit-identical, trashcan bit-identical, sedan flat → shaded
+  (the world's own lighting law; the taxi wears the same law —
+  `probe-cars` reads taxiWrapper meshes=1, sedanWrapper meshes=1).
+  **The numbers (diag-perf-breakdown, before → after on the same tip):**
+  PLAZA 400 → **368** (−32, main + the shadow pass that rides the fused
+  casters), CART_CORNER 333 → **308** (−25), SYCAMORE×GABLE 128 → **118**
+  (−10), TIMES_SQ 130 → 130 (±0), PLATFORM_A 186 → **180** (−6) — every
+  rig at-or-under its previous ledger; the 150/250 lines stay published
+  FAIL. Verified: tsc clean, vitest **548/548** (+14), build clean,
+  probe-cars clean, probe-solid ALL CLEAN, probe-peds OK, probe-a5c-arrival
+  errors none, full 4-day E2E **AUTOTEST OK 0 failures (540 s)** console
+  clean. Also reconciled: main's `@types/node` addition had never reached
+  package-lock.json — `npm install` pinned it (the entry-gate tsc failed
+  on a fresh checkout until it did).
+- **The composed row (the merge of the two same-day levers, agent5 on the
+  merged tree):** the figure shadow-proxy (above) and the vertex fuse
+  (below) landed in parallel and compose. Measured on the merged tree
+  (diag-perf-breakdown, 2026-11-05): **PLAZA 302, CART_CORNER 236 (under
+  its 250 line), SYCAMORE×GABLE 84, TIMES_SQ 52, PLATFORM_A 108** — the
+  session's two cuts together moved the plaza rig 400 → 302 (−98) and the
+  corner 333 → 236 (−97). Only PLAZA stays published FAIL (> 150), against
+  the x-ray's priced remainder. Gates on the merged tree: tsc clean,
+  vitest **551/551** (both agents' pins), build clean, probe-cars clean,
+  probe-solid ALL CLEAN, probe-subway ALL PASS, full 4-day E2E **AUTOTEST
+  OK 0 failures (527 s)** console clean; composed evidence frame
+  `web-three/shots/b13-composed-plaza.png` (committed:
+  `assets/web-three/frames/b13-composed-plaza.png`).
 
 ### B14. Documentation hygiene — FIXED 2026-11-03
 - **Was:** AGENTS.md read "Pre-Production, docs-complete, code pending — do
@@ -731,6 +852,46 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
 - **Status:** OPEN — a feature-sized build riding the Day-5 band; design
   is done, the build is its own wave and must not be smuggled into a docs
   pass.
+
+---
+
+### B17. The garden tender stands frozen at the garden's south edge for 21 sim-minutes — FIXED 2026-11-05
+- **Found:** `probe-w4-soak` (the doc 55 item-5 soak complement) failed 41
+  stillness windows — walker 3 pinned at (−0.5, 23.45) from ~sample 11 to
+  the 1800 sim-s gate. `dbg-a5o-garden-pin.mjs` caught it in the act: the
+  vehicle's velocity read full cruise north (0.963 m/s at its waypoint)
+  while the position never moved.
+- **Root cause (two bugs, one birth):** `bandOfLoop`'s z discipline —
+  `minZ: Math.max(-7.5, minZ - 0.65), maxZ: Math.min(7.5, maxZ + 0.65)` —
+  INVERTS for any loop living entirely outside the home street band. The
+  garden tender (z 24.1..26.8) read minZ 23.45 > maxZ 7.5, and the clamp
+  `max(minZ, min(maxZ, z))` resolved to exactly 23.45 for EVERY z — a
+  band that is a single point. Born in W4 p1 (`b80760c`) with the loop;
+  the W4 soak had passed only by sampling luck (frame interleaving
+  decides whether the active waypoint sits due-north of the clamp edge
+  when the walker first reaches it). The same bug silently shrank the
+  avenue shopper's reach to its middle 15 m — waypoints at z ±18
+  unreachable, but the walker kept pacing, so no stillness ever fired.
+- **Fix:** (1) `bandOfLoop` is now the loop's OWN bbox, inflated (1.6 x /
+  0.65 z) with a ±64 typo net — for every street lane the result is
+  tighter-or-equal to the old band (lanes top at |z| 6.85; the commuter's
+  lands exactly at ±7.5), the garden loop gets 23.45..27.45. (2) The
+  anti-stuck law: a non-dwelling walker whose position moves < 5 cm over
+  8 consecutive one-second windows gets its waypoint advanced — the
+  position delta is the signal, never the velocity (the pin's velocity
+  lied at full cruise). No walker can now freeze longer than 8 sim-s.
+- **Fallout fixed with it:** the freed avenue loop exposed its authored
+  mid-block jaywalk (crossing Kestrel Street at x 61.8, outside the
+  Kestrel×Sycamore paint) and an in-roadway bus-stop beat (z 2.2). The
+  loop is re-authored onto the south walk (diner + fruit-stand beats
+  unchanged; the M121 stop watched from across the street at z −6.9 —
+  BUS-03 serves the north curb; nobody waits for it standing in the road).
+- **Commit / branch:** agent5/merge-to-main (2026-11-05).
+- **Verified:** `probe-w4-soak` **OK** — 1838 sim-s, 44 samples, 9 walkers,
+  0 failures, page clean (the gate that found it) · `probe-w4-bus` OK ·
+  `probe-peds` OK · `probe-shuffle` OK · `probe-solid` ALL CLEAN ·
+  `tests/crowd.test.ts` 26/26 (band law pins + the anti-stuck law against
+  the historical pin reproduced) · vitest 559/559 · tsc clean.
 
 ---
 

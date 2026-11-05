@@ -21,11 +21,14 @@
     <div id="hud-top-right">
       <!-- One pocket button opens Map / Album / Sound — saves the top lane on phones -->
       <div id="pocket">
-        <button id="btn-pocket" type="button" aria-label="Open your pocket — Map, Album, Sound" aria-expanded="false" aria-controls="pocket-menu" title="Pocket">
+        <button id="btn-pocket" type="button" aria-label="Open your pocket — Map, Roam, Album, Sound" aria-expanded="false" aria-controls="pocket-menu" title="Pocket">
           <span id="pocket-peek">Pocket</span>
         </button>
         <div id="pocket-menu" hidden role="menu" aria-label="Your pocket">
           <button id="btn-map" type="button" role="menuitem" aria-label="Open Map — your notebook" aria-pressed="false" title="Map (M)"><span id="map-peek">Map</span></button>
+          <!-- The Roam chip (freeroam.ts): the open-block contract's switch —
+               the story waits, the block runs on your clock -->
+          <button id="btn-roam" type="button" role="menuitem" aria-label="Roam the block — the story waits where it is" aria-pressed="false" title="Roam the block"><span id="roam-peek">Roam</span></button>
           <button id="btn-album" type="button" role="menuitem" aria-label="Open your album — empty so far" title="Your album"><span id="album-peek">Album (<span id="album-count">0</span>)</span></button>
           <button id="btn-audio" type="button" role="menuitem" aria-label="Turn sound on or off" aria-pressed="false" title="Sound">Sound <span id="audio-peek">&#9835;</span></button>
         </div>

@@ -1,5 +1,5 @@
 /**
- * Game orchestrator — the browser port of greybox-godot/scripts/main.gd.
+ * Game orchestrator — the browser port of the original greybox (docs/23–24).
  * Owns the render loop, applies GameState effects to the world/UI, and runs
  * the authored sequences (dusk, gold window, postcard rig, day transitions).
  * Authoritative state lives in GameState; nothing gameplay-bearing is stored
@@ -19,6 +19,7 @@ import { composeCaption, tsWowCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE
   momentCornerCaption, MOMENT_TAGS, type MomentCardKind,
 } from '../core/content';
 import { loadSave, writeSave, type SaveData } from '../core/Save';
+import { FreeRoam, roamDiscoveryLine, ROAM_OBJECTIVE } from './freeroam';
 import { STARTERS, starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
 import { PAL } from '../core/palette';
 import { World, phys } from '../world/World';
@@ -126,6 +127,14 @@ export class Game {
   private brewingNoteShown = false;
   private washTimer = 0;
 
+  // ---- the Roam layer (freeroam.ts — the open-block contract) ----
+  // The story is the spine; roam is the promise that the city runs on the
+  // player's clock. The module holds the law, Game holds the levers: the
+  // barrier stands down, the objective line relaxes, the idle nudge rests.
+  // GameState is never touched — a roam session can neither advance nor
+  // rewind the story.
+  readonly roam = new FreeRoam();
+
   // ---- notes don't stampede (docs/12: the city is patient) ----
   // Two notes arriving together queue instead of replacing: Rosa's quiet
   // line gets its two seconds before the rush-end note lands.
@@ -135,6 +144,14 @@ export class Game {
   private static readonly NOTE_MIN_SHOW = 2.4;
   private mapOpen = false;
   private mapKeyWasDown = false;
+
+  // ---- the street performer's listen (Doc 02 §10:00–15:00) ----
+  // Once per session: after the square has synced, stepping back to the B
+  // stair mouth slows the world (×0.45) for LISTEN_SECONDS while a melody
+  // plays. listenT < 0 = never armed; listenDone = the one shot is spent.
+  private static readonly LISTEN_SECONDS = 4.0;
+  private listenT = -1;
+  private listenDone = false;
 
   // ---- the familiar face (Doc 33 §2.2): one waypoint walk per day ----
   private familiarPath: FamiliarStop[] = [];
@@ -291,7 +308,16 @@ export class Game {
         this.state.starterId = save.starter!;
         this.applyStarter(save.starter!, false);
       }
-      void this.beginDay(save.day, save, save.day_complete || save.replay);
+      void this.beginDay(save.day, save, save.day_complete || save.replay).then(() => {
+        // the mode rides the save (Save.roam): a Day-2+ boot that went to
+        // bed mid-roam wakes up mid-roam — silently, no toast on boot
+        if (save.roam === true) {
+          this.roam.enter();
+          this.world.setBarrierOpen(true);
+          this.ui.setRoamLabel(true);
+          this.ui.setObjective(ROAM_OBJECTIVE);
+        }
+      });
     } else {
       this.state.money = START_MONEY;
       this.state.dayStartMoney = START_MONEY;
@@ -338,6 +364,7 @@ export class Game {
     this.ui.onCineSkip = () => { if (this.arrival.active) this.arrival.skip(); };
     this.ui.onOrderChoose = (reply) => this.advanceOrder(reply);
     this.ui.onMapToggle = () => this.toggleMap();
+    this.ui.onRoamToggle = () => this.toggleRoam();
     this.ui.postcardKeep.addEventListener('click', () => {
       if (!this.lastPostcardUrl) return;
       downloadPostcard(this.lastPostcardUrl, this.postcardFilename());
@@ -365,6 +392,7 @@ export class Game {
     });
 
     this.ui.setObjective(this.state.objectiveText());
+    this.ui.setBeatMarker(this.state.beatPlaceId());
     this.cam.snapBehind({ x: this.player.capsule.x, y: this.player.capsule.y, z: this.player.capsule.z });
 
     // ---------------- loop ----------------
@@ -384,7 +412,7 @@ export class Game {
     // debug/E2E handle
     (window as unknown as { __game: Game }).__game = this;
 
-    // E2E driver (mirrors the Godot headless autotest) — ?autotest=1
+    // E2E driver (mirrors the original headless autotest) — ?autotest=1
     if (new URLSearchParams(location.search).has('autotest') && !this.autotestStarted) {
       this.autotestStarted = true;
       void import('./autotest').then(({ runAutotest }) => runAutotest(this));
@@ -395,6 +423,14 @@ export class Game {
 
   private frame(dt: number): void {
     const s = this.state;
+
+    // Doc 02 §10:00–15:00 — the street performer's listen: once, on the way
+    // back from the square, the city slows for four seconds and just plays.
+    // The world breathes at 0.45×; your feet, the paper and the camera keep
+    // honest time. No objective. No prompt. Just the city.
+    const listening = this.listenT >= 0 && this.listenT < Game.LISTEN_SECONDS;
+    const wdt = listening ? dt * 0.45 : dt;
+    if (this.listenT >= 0) this.listenT += dt;
 
     this.tweens.update(dt);
     // the arrival rides its own clock while active (machine, strip, phases)
@@ -438,13 +474,14 @@ export class Game {
     // world.update used to run after player.update, so the walker resolved
     // against last frame's taxi box — up to 0.9 m stale at the dt clamp, and
     // a player visibly sank into a passing cab before anything stopped them.
+    // (wdt — the listen beat's slowed city — applies from here down.)
     const peds: Array<{ x: number; z: number }> = [];
     if (this.world.kidGround.visible) peds.push({ x: this.world.kidGround.position.x, z: this.world.kidGround.position.z });
     if (this.world.stranger.visible) peds.push({ x: this.world.stranger.position.x, z: this.world.stranger.position.z });
     if (this.world.familiar.visible) peds.push({ x: this.world.familiar.position.x, z: this.world.familiar.position.z });
-    this.world.updateDynamics(dt, this.player.capsule, peds, this.duskStarted);
+    this.world.updateDynamics(wdt, this.player.capsule, peds, this.duskStarted);
     this.cam.interiorMode = this.world.subway.underground;
-    this.drainFarWorld(dt);
+    this.drainFarWorld(wdt);
     if (!this.dayFading && this.ui.nameBox.hidden && this.ui.orderCard.hidden && !this.mapOpen
       && this.ui.starterCard.hidden && !this.arrival.active) {
       // movement — paused on the bench (Doc 37 §3C: the seat holds you;
@@ -505,7 +542,7 @@ export class Game {
     // around the fresh player position, trees breathe, pigeons worry about
     // your shoes. (Phase 1 — colliders + the cab + the M121, yielding to the
     // kid AND the stranger AND the familiar face — ran before the walker.)
-    this.world.updateAmbient(dt, this.player.capsule, this.duskStarted);
+    this.world.updateAmbient(wdt, this.player.capsule, this.duskStarted);
     this.syncGlows();
     this.maybeBuskerHorn(dt);
 
@@ -706,6 +743,20 @@ export class Game {
     if (this.player.ladder !== null && this.player.vy < -1.2 && c.y < 0.45) {
       this.player.ladder = null;
     }
+
+    // Doc 02 §10:00–15:00 — the street performer. Once per session, after
+    // the square has synced and you turn back toward the B stairs, someone
+    // on the sidewalk plays and the city slows four seconds to listen. No
+    // objective. No prompt. Just the city. (stairB's box, surface level)
+    if (!this.listenDone && !this.arrival.active
+      && this.world.timesSquare.syncedToday) {
+      const atStairTop = c.x > -336.8 && c.x < -333.6 && c.z > 3.6 && c.z < 8.2 && c.y > -0.5;
+      if (atStairTop) {
+        this.listenDone = true;
+        this.listenT = 0;
+        gameAudio.streetSong();
+      }
+    }
   }
 
   private respawn(): void {
@@ -893,6 +944,28 @@ export class Game {
     this.ui.refreshSketch(this.state.visitedPlaces, this.player.capsule.x, this.player.capsule.z);
   }
 
+  /** The Roam toggle — the open-block contract's one switch (freeroam.ts).
+   *  Entering stands the barrier down and relaxes the objective line;
+   *  leaving restores the story's own. GameState is untouched: the story
+   *  neither advances nor rewinds because you roamed. From Day 2 on the
+   *  mode rides the save (Day 1 never writes — save.gd law). */
+  toggleRoam(): void {
+    if (this.arrival.active) return; // the film owns the hands first
+    const applied = this.roam.active ? this.roam.exit() : this.roam.enter();
+    this.world.setBarrierOpen(this.roam.active);
+    this.ui.setRoamLabel(this.roam.active);
+    if (applied.objective === null) this.ui.setObjective(this.state.objectiveText());
+    else this.ui.setObjective(applied.objective);
+    this.pushNote(applied.note);
+    const save = loadSave();
+    if (save.day >= 2) {
+      const next = { ...save };
+      if (this.roam.active) next.roam = true;
+      else delete next.roam;
+      writeSave(next);
+    }
+  }
+
   /** Map notices the places you walk to (docs/12: it copies the
    *  neighborhood badly, and only what it has seen). Throttled — a squared
    *  distance pass over nine places, twice a second, costs nothing. A new
@@ -914,6 +987,11 @@ export class Game {
     }
     if (revealed) {
       this.ui.wiggleMap();
+      // roam law: while roaming, the walk IS the content — the objective
+      // line counts the sketchbook instead of the errands
+      if (this.roam.active) {
+        this.ui.setObjective(roamDiscoveryLine(this.state.visitedPlaces.length, MAP_PLACES.length));
+      }
       if (this.mapOpen) this.ui.refreshSketch(this.state.visitedPlaces, px, pz);
     }
   }
@@ -980,7 +1058,7 @@ export class Game {
         this.stillFor = 0;
         this.waitFired = false;
       }
-      if (!this.waitFired && cityWillWaitFires(this.stillFor)) {
+      if (!this.waitFired && !this.roam.active && cityWillWaitFires(this.stillFor)) {
         this.waitFired = true;
         this.pushNote(CITY_WILL_WAIT_NOTE);
       }
@@ -1053,8 +1131,16 @@ export class Game {
   applyEffect(e: Effect): void {
     switch (e.kind) {
       case 'step':
-        this.ui.setObjective(this.state.objectiveText());
-        if (e.step === Step.DONE) this.ui.setObjective(DAY_DONE_OBJECTIVE(this.state.day));
+        // roam law: the objective line belongs to the mode. Story steps
+        // still apply (the sim continues at the player's pace); only the
+        // HUD pressure rests while roaming.
+        if (!this.roam.active) {
+          this.ui.setObjective(this.state.objectiveText());
+          if (e.step === Step.DONE) this.ui.setObjective(DAY_DONE_OBJECTIVE(this.state.day));
+        }
+        // M1: the beat marker is map information, not HUD pressure — it
+        // moves in both modes (mid-roam, it shows where the story waits).
+        this.ui.setBeatMarker(this.state.beatPlaceId());
         if (e.step === Step.D2_IDRIS) this.startIdrisWalk();
         break;
       case 'note':
@@ -1136,6 +1222,10 @@ export class Game {
         break;
       case 'crossed':
         this.checkpoint = { x: e.checkpoint.x, y: 0.05, z: e.checkpoint.z };
+        // Doc 02 §20:00–26:00 — "Rosa walks you to the empty corner." She
+        // leaves the counter while you cross; she reaches the shoulder spot
+        // as the solo rush starts, and the register count finds her there.
+        this.startRosaCornerWalk();
         break;
       case 'dusk-start':
         this.startDusk();
@@ -1295,6 +1385,9 @@ export class Game {
   private onArrivalHandover(): void {
     this.checkpoint = { x: this.player.capsule.x, y: this.player.capsule.y, z: this.player.capsule.z };
     this.ui.showNote(MAP_NOTE_BOOT);
+    // The open-block contract, said out loud once: the story is the spine,
+    // but the block runs on your clock. The pocket's Roam chip is the switch.
+    this.pushNote('Rosa waves from the bodega — follow her, or tap Pocket → Roam and take the block in first.');
     // Doc 02: "Six starter characters to pick from (30 seconds, all
     // delightful)." An explicit ?pickcard=1 ask wins (same law as ?film=1);
     // otherwise only humans on the film path see it — drivers and film
@@ -1409,6 +1502,32 @@ export class Game {
       if (this.state.step === Step.D4_MAP) {
         this.ui.setObjective('She\u2019s at the cart. There\u2019s something you can give her that isn\u2019t coffee.');
       }
+    });
+  }
+
+  /** Doc 02 §20:00–26:00 — "Rosa walks you to the empty corner." She leaves
+   *  the counter as you cross (the same proven stranger legs: the door, the
+   *  crosswalk where the cab waits, the cart's flank) and takes the corner's
+   *  SOUTH-EAST edge — Day 3's audited spot, clear of the walk lane (docs/51:
+   *  the lane runs x 0..5; her collider synced every frame she moves). By
+   *  the time the solo rush ends she is at your shoulder for the register. */
+  private startRosaCornerWalk(): void {
+    const rosa = this.world.rosa;
+    if (this.rosaWalking) return; // a beat already owns her feet
+    const rosaRig = rosa.userData.rig as PersonRig | undefined;
+    if (rosaRig && rosaRig.mode === 'sweep') rosaRig.mode = 'auto';
+    this.walkActor(rosa, [
+      [-20.4, 13.5], // behind the counter — where the rush left her
+      [-16, 13.4],   // the aisle
+      [-16, 6.8],    // out the door
+      [-10, 6.2],    // north sidewalk, east — your crosswalk
+      [-5, 4.6],     // crosswalk north edge
+      [-5, -3.4],    // the Shuffle (the cab's courtesy hold covers her too)
+      [-5, -4.5],    // south curb
+      [0.8, -4.6],
+      [6.35, -4.3],  // her corner spot — facing the cart (Day 3's audited spot)
+    ], 2.0, () => {
+      rosa.rotation.y = -1.94; // southwest — the cart, the stool, the street
     });
   }
 
@@ -1948,6 +2067,10 @@ export class Game {
       z: this.world.familiar.position.z,
       mode: (this.world.familiar.userData.rig as PersonRig | undefined)?.mode ?? 'auto',
     }),
+    // Doc 02 §10:00–15:00 — the street performer's listen (reads only)
+    listenFired: () => this.listenDone,
+    listenActive: () => this.listenT >= 0 && this.listenT < Game.LISTEN_SECONDS,
+    rosaCorner: () => ({ x: this.world.rosa.position.x, z: this.world.rosa.position.z }),
   };
 
   private applyCartIdentity(name: string): void {
@@ -2362,10 +2485,12 @@ export class Game {
       }
       s.setStep(Step.D4_WAKE);
       this.ui.setObjective(s.objectiveText());
+      this.ui.setBeatMarker(s.beatPlaceId());
       this.ui.showNote(DAY4_BEGIN_NOTE);
     } else if (n === 3) {
       s.setStep(Step.D3_WAKE);
       this.ui.setObjective(s.objectiveText());
+      this.ui.setBeatMarker(s.beatPlaceId());
       this.ui.showNote(DAY3_BEGIN_NOTE);
       // a kept Day 3, replayed: the kid already lives at the corner now
       if (s.replayDay && s.stoolUp && s.kidKept) {
@@ -2376,6 +2501,7 @@ export class Game {
     } else {
       s.setStep(Step.D2_WAKE);
       this.ui.setObjective(s.objectiveText());
+      this.ui.setBeatMarker(s.beatPlaceId());
       this.ui.showNote(`Day ${n}. The cart is still yours. That part never resets.`);
     }
 

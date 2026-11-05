@@ -40,7 +40,7 @@ export interface Interaction {
   id: string;
   /** Live position — a getter, so NPCs and restocked shelves track. */
   pos: () => Vec3Like;
-  /** Horizontal reach. Defaults to the oracle's INTERACT_RANGE (2.4). */
+  /** Horizontal reach. Defaults to the greybox's INTERACT_RANGE (2.4). */
   radius?: number;
   /** Vertical band — |pos.y − player.y| above this is out of reach. */
   yBand?: number;

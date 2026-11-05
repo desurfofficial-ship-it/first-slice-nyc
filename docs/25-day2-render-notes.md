@@ -1,5 +1,7 @@
 # Day 2 Render Notes — the day, finally seen
 
+> **Status update (2026-11-05):** history — the Godot greybox retired from the repo today (`greybox-godot/` is gone). The frames and the Day 2 postcard live on in git history and in [assets/postcards/](../assets/postcards/).
+
 **What this is:** Doc 22 §4 said it plainly: *"No display server is available, so nothing here was **seen**."* This pass closes that. `spikes/spectator_d2.gd` (subclass of the Doc 20 spectator, zero edits to the game) plays Day 1's end into Day 2 with real input under Xvfb + llvmpipe, captures 18 frames at the Day 2 beats, and composes the Day 2 postcard with the TS-01 pipeline. Portrait 720×1280, one pass, log committed at `greybox-godot/spikes/logs/spectator_d2_portrait.jsonl`.
 
 **Run:** `SPIKE_OUT=… Xvfb :99 -screen 0 720x1280x24 & sleep 2; DISPLAY=:99 godot --path greybox-godot res://spikes/spectator_d2.tscn --rendering-method gl_compatibility --rendering-driver opengl3 --audio-driver Dummy --resolution 720x1280 -- --spectator2` — wall 103.8 s, `d2_render ok:true` (luminance 0.017–0.99).

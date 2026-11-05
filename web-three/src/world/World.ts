@@ -1,6 +1,6 @@
 /**
- * The Day 1 block — built procedurally from the greybox oracle's exact
- * dimensions (greybox-godot/scripts/main.gd `_build_world`), which implement
+ * The Day 1 block — built procedurally to the original greybox's exact
+ * dimensions (its `_build_world`; the migration record is docs/23–24), which implement
  * Doc 10 (Day 1 greybox layout). Palette per Doc 04. Additions beyond the
  * greybox are limited to Doc 04's object canon (water towers, cart string
  * lights) — no new gameplay-bearing geometry.
@@ -18,8 +18,9 @@ import {
   PARKED_CAR_RECTS, parkedCarRect, BUS_BODY, BUS_BAY_ID, KESTREL_COURTESY_ZONES,
   type BusZone, type LegCoords,
 } from '../engine/busRoute';
-import { buildArticulatedPerson, updatePersonAnim } from './personRig';
+import { buildArticulatedPerson, updatePersonAnim, PERSON_SHADOW_LAYER } from './personRig';
 import { SHADOW_HALF, shadowHalfFor } from './shadowLaw';
+import { glassSideVisible, type GlassFace } from './interiorGlass';
 import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecycleBin, makeHydrant,
   makeSubwayEntrance, makeBulletinBoard, makeBench, makeBusStop, makeNewspaperBoxes, makeBarrier,
   makeACUnit, makeBrownstoneStoop, makeStorefront, makeStool, makeVan,
@@ -29,6 +30,7 @@ import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecy
   makeSprayBasin, SHARED_GEOS, type SignPair } from './props';
 import { drawIntoAtlas, atlasMaterial, atlasTexture } from './signAtlas';
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
+import { fuseFlatParts } from './vertexFuse';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
 import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
@@ -61,6 +63,11 @@ interface InteriorHandle {
   /** Extra near-band margin on the z1 side — the Cecil's top landing sits
    *  2.5 m past the shell (the room shows while you stand at the rail). */
   padZ1?: number;
+  /** The room's glass runs (docs/51 B13 — interiors' window visibility):
+   *  the near band shows the fit-out only through these. Every W5 room
+   *  registers the runs its builder cut; a room that ever skips the
+   *  registration falls back to the shipped band-only law. */
+  glass?: GlassFace[];
   group: THREE.Group;                 // the fit-out (near only)
   nearParts: THREE.Object3D[];        // clear panes (near only)
   farParts: THREE.Object3D[];         // shipped glass faces (far only)
@@ -167,6 +174,11 @@ export class World {
   /** The water-main barrier's body — parked underground the day the city
    *  takes it (Day 4's diary); synced in updateDynamics like the cast. */
   readonly barrierCollider: AABB = boxFromCenter(-9.7, 0.45, 7.62, 1.7, 0.9, 0.56);
+  /** Roam law (freeroam.ts): the barrier stands down while Roam is active,
+   *  so the whole built block is walkable from the first minute. dressDay
+   *  respects the override; leaving Roam restores the authored diary (the
+   *  barrier's last day is Day 3). */
+  barrierOpen = false;
   readonly rosa: THREE.Group;
   readonly idris: THREE.Group;
   readonly kidSil: THREE.Group;
@@ -495,7 +507,7 @@ export class World {
 
     // ---------------- lights (main.gd "--SETUP--") ----------------
     // three r155+ physical lights: intensities need the legacy π factor to
-    // match the reference's Godot energies.
+    // match the original greybox's light energies.
     this.hemi = new THREE.HemisphereLight(0xfff3dd, 0x8a7666, phys(1.0));
     scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight(PAL.amber, phys(1.3));
@@ -511,6 +523,11 @@ export class World {
     this.sun.shadow.camera.updateProjectionMatrix();
     this.sun.shadow.bias = -0.0002;
     this.sun.shadow.normalBias = 0.03; // large flat walls — kill shadow acne crawl
+    // the shadow economy's second half (docs/51 B13): the sun's pass also
+    // sees the person shadow-proxy layer, where every figure's ONE merged
+    // silhouette lives (personRig). Without this the proxies would be
+    // invisible to the shadow camera and every human would lose their shadow.
+    this.sun.shadow.camera.layers.enable(PERSON_SHADOW_LAYER);
     scene.add(this.sun);
     scene.add(this.sun.target);
     // the follow lattice (the basis Object3D.lookAt builds: back = toward the
@@ -702,7 +719,7 @@ export class World {
     // + rungs + wall brackets), open guardrails (posts + bars), and diagonal
     // braces holding the landings. Colliders and trigger volumes untouched —
     // this is a pure visual rebuild of the same numbers.
-    // Landings stay x 10..16 (the oracle's numbers): ladder 2's column (x 16.4)
+    // Landings stay x 10..16 (the greybox's numbers): ladder 2's column (x 16.4)
     // sits 0.4 OFF the slab edge — groundHeight's padded reach (r + r*0.6 =
     // 0.56) still finds the slab there, so the descent dismount (player.ts) can
     // set you down on it, while depenetrate's UNpadded test (r = 0.35 < 0.4)
@@ -929,8 +946,8 @@ export class World {
     this.idris = this.spawnActor('Idris', -2, 0.05, -4.6, { jacket: PAL.plum, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x241f1c, style: 'cap', glasses: true });
     this.idris.visible = false;
     // The kid, at the glass — a small shape against the light. The web port
-    // had him at the oracle's z (7.86), but the articulated kid is shallower
-    // than the oracle capsule: his front face sat BEHIND the emissive window
+    // had him at the greybox's z (7.86), but the articulated kid is shallower
+    // than the greybox capsule: his front face sat BEHIND the emissive window
     // box (front at 7.90), so the lit window rendered over him and he was
     // invisible from the street (playtest: "I didnt see any kid in day 2").
     // z=7.78 puts his silhouette in front of the glass, against the light.
@@ -1533,9 +1550,14 @@ export class World {
       // inside GRD-GABLE's fence line (x −8.4..4, z 20..30)
       [[4.4, 24.1], [-0.5, 24.4], [-6.5, 24.4], [-6.9, 26],
        [-4, 26.8], [0, 26.2], [2.8, 25], [4.4, 24.1]],
-      // W4 — the avenue shopper (NZ-AVENUE): the Sycamore Ave west walk,
-      // past the diner window and the fruit stand (x 61.5/62.2 lanes)
-      [[61.5, -18], [61.5, 18], [62.2, 18], [62.2, -18]],
+      // W4 — the avenue shopper (NZ-AVENUE): the Sycamore Ave west walk's
+      // south block, past the diner window and the Golden Orchard's crates
+      // (x 61.5/62.2 lanes). The old loop spanned z −18..18 and crossed
+      // Kestrel Street MID-BLOCK at x 61.8 — a jaywalk the old inverted
+      // band hid (docs/51 B17): the ±7.5 clamp shrank the patrol but the
+      // street still sat inside it. A walker crosses at the paint or not
+      // at all; the bus-stop beat watches the M121 from the south walk.
+      [[61.5, -18], [61.5, -6.85], [62.2, -6.85], [62.2, -18]],
       // THE SHUFFLE CROWD's loops (docs/51 B16): all four stay on the north
       // walk (z 6.08–6.76) between the bodega (x −20) and the plaza (x −41),
       // lanes offset so the stretch reads as a crowd with gaps to walk
@@ -1592,11 +1614,14 @@ export class World {
         { x: 2.4, z: 24.6, faceTo: [1, 22.5], dwell: 3.0 },
       ],
       // W4 — the avenue shopper (NZ-AVENUE): the diner window, the Golden
-      // Orchard's crates, the M121 pole
+      // Orchard's crates, the M121 stop watched from the south walk —
+      // BUS-03 serves the north curb; nobody waits for it standing in the
+      // roadway (docs/51 B17: the old beat stood at z 2.2, inside the
+      // street rect, and the final soak sample caught it there)
       [
         { x: 61.6, z: -12, faceTo: [60.1, -12], dwell: 5.0 },
         { x: 61.7, z: -16.5, faceTo: [63.3, -18], dwell: 4.0 },
-        { x: 61.6, z: 2.2, faceTo: [61.5, 2], dwell: 2.0 },
+        { x: 61.6, z: -6.9, faceTo: [61.5, 2], dwell: 2.0 },
       ],
       // the Shuffle crowd's beats (docs/51 B16): small plaza pauses — the
       // bulletin board, the bench, the bodega window — off the walk lanes,
@@ -2054,6 +2079,14 @@ export class World {
   //      fit-out shows and the clear panes swap in — the camera "sees
   //      through the glass" without raycasts. While the player is INSIDE,
   //      the tower above the room ducks (the shipped bodega-roof grammar).
+  //   3a. The glass-side law (docs/51 B13 — interiors' window visibility,
+  //      the named program): "near" shows the fit-out only THROUGH the
+  //      room's own glass — the player stands on the outward side of one
+  //      of the room's window runs (src/world/interiorGlass.ts, the pure
+  //      law; each room registers the runs its builder cut). Behind a
+  //      blind wall the fit-out stays hidden — no window, no room. The
+  //      hysteresis margins (enter 1.6 / exit 0.8) drive band and glass
+  //      alike, so window-edge loitering never flickers.
   //   4. Toggleables stay OUT of the W0 bake (skip set below) — a baked
   //      batch cannot be hidden per-room.
   //
@@ -2187,18 +2220,24 @@ export class World {
     this.interiorHandles.push(h as InteriorHandle & { near: boolean; inside: boolean });
   }
 
-  /** The W5 room visibility toggle — docs/45 W5's exit criterion. Hysteresis
-   *  on the near band (enter 1.6 m, exit 0.8 m past the shell) so a player
-   *  loitering on the sill never flickers the room. */
+  /** The W5 room visibility toggle — docs/45 W5's exit criterion, plus the
+   *  glass-side law (docs/51 B13, interiors' window visibility): the near
+   *  band shows the fit-out only THROUGH the room's own glass — the player
+   *  stands on the outward side of a window run — or inside the room.
+   *  Hysteresis on both (enter 1.6 m, exit 0.8 m past the shell/glass) so a
+   *  player loitering on the sill or the window edge never flickers the
+   *  room. Behind a blind wall the fit-out stays hidden — no window, no
+   *  room; the facade keeps its far look. */
   private updateInteriors(px: number, py: number, pz: number): void {
     const inRect = (x0: number, x1: number, z0: number, z1: number): boolean =>
       px >= x0 && px <= x1 && pz >= z0 && pz <= z1;
     for (const h of this.interiorHandles) {
       const m = h.near ? 0.8 : 1.6;
       const z1e = h.z1 + m + (h.padZ1 ?? 0);
-      const near = inRect(h.x0 - m, h.x1 + m, h.z0 - m, z1e);
       const [y0, y1] = h.yBand ?? [-1, 5];
       const inside = inRect(h.x0, h.x1, h.z0, h.z1) && py >= y0 && py <= y1;
+      const near = inside || (inRect(h.x0 - m, h.x1 + m, h.z0 - m, z1e)
+        && glassSideVisible(h.glass, px, pz, m));
       if (near !== h.near) {
         h.near = near;
         h.group.visible = near;
@@ -2308,6 +2347,9 @@ export class World {
     }
     this.registerInterior({
       id: 'LAUNDRY-INT', x0: -11, x1: 1, z0: 8.2, z1: 19,
+      // glass: the shipped bay's opening on the south facade (the wallRun
+      // cut above) — the one window the street knows this room by
+      glass: [{ axis: 'z', side: 'min', at: 8.15, a0: -7.925, a1: -2.075 }],
       group: g, nearParts: [], farParts, duck: [duckUpper],
     });
   }
@@ -2367,6 +2409,11 @@ export class World {
     }
     this.registerInterior({
       id: 'BARBER-INT', x0: 34.2, x1: 39, z0: 8.2, z1: 19.6,
+      // glass: the two south windows (the clear panes ride their runs)
+      glass: [
+        { axis: 'z', side: 'min', at: 8.1, a0: 34.45, a1: 35.85 },
+        { axis: 'z', side: 'min', at: 8.1, a0: 37.25, a1: 38.75 },
+      ],
       group: g,
       nearParts: [
         this.facadePane('Barber_Clear_W', 'x', 8.1, 34.45, 35.85, 0.55, 2.55, this.roomClearMat),
@@ -2431,6 +2478,11 @@ export class World {
     }
     this.registerInterior({
       id: 'PIZZA-INT', x0: 24.1, x1: 29.9, z0: 8.2, z1: 19.6,
+      // glass: the two south windows
+      glass: [
+        { axis: 'z', side: 'min', at: 8.1, a0: 24.55, a1: 26.35 },
+        { axis: 'z', side: 'min', at: 8.1, a0: 27.85, a1: 29.45 },
+      ],
       group: g,
       nearParts: [
         this.facadePane('Pizza_Clear_W', 'x', 8.1, 24.55, 26.35, 0.55, 2.55, this.roomClearMat),
@@ -2498,6 +2550,12 @@ export class World {
     }
     this.registerInterior({
       id: 'BAKERY-INT', x0: -37.8, x1: -30.2, z0: -31.8, z1: -20.2,
+      // glass: the two south windows of the Marlow storefront (the shipped
+      // sign and the bagel-silhouette window face SOUTH, docs/47 W5)
+      glass: [
+        { axis: 'z', side: 'min', at: -31.9, a0: -37.15, a1: -34.95 },
+        { axis: 'z', side: 'min', at: -31.9, a0: -33.05, a1: -30.85 },
+      ],
       group: g,
       nearParts: [
         this.facadePane('Bakery_Clear_W', 'x', -31.9, -37.15, -34.95, 0.55, 2.55, this.roomClearMat),
@@ -2592,6 +2650,11 @@ export class World {
     }
     this.registerInterior({
       id: 'RECORD-INT', x0: -27.8, x1: -22.2, z0: -31.8, z1: -20.2,
+      // glass: the two south windows of the shipped storefront
+      glass: [
+        { axis: 'z', side: 'min', at: -31.9, a0: -27.15, a1: -25.95 },
+        { axis: 'z', side: 'min', at: -31.9, a0: -24.05, a1: -22.85 },
+      ],
       group: g,
       nearParts: [
         this.facadePane('Records_Clear_W', 'x', -31.9, -27.15, -25.95, 0.55, 2.55, this.roomClearMat),
@@ -2666,6 +2729,12 @@ export class World {
     }
     this.registerInterior({
       id: 'HALL-INT', x0: -59.8, x1: -48.2, z0: 20.2, z1: 31.8,
+      // glass: the two west windows (the wallRun cuts above; the panes sit
+      // on the face at x −60.04) — the Juniper side is the window side
+      glass: [
+        { axis: 'x', side: 'min', at: -60.04, a0: 22.0, a1: 23.6 },
+        { axis: 'x', side: 'min', at: -60.04, a0: 28.4, a1: 30.0 },
+      ],
       group: g, nearParts: [], farParts: [], duck: [duckUpper],
     });
   }
@@ -2743,6 +2812,13 @@ export class World {
     this.scene.add(this.facadePane('Diner_Glass_E', 'z', 59.925, -18.25, -16.55, 0.98, 2.42, this.roomGlassMat));
     this.registerInterior({
       id: 'DINER-INT', x0: 50.2, x1: 59.8, z0: -19.8, z1: -8.2,
+      // glass: the two Kestrel band windows on the north face + the avenue
+      // window on the east face (the corner diner — glass on two facades)
+      glass: [
+        { axis: 'z', side: 'max', at: -8.075, a0: 50.75, a1: 54.05 },
+        { axis: 'z', side: 'max', at: -8.075, a0: 55.95, a1: 59.25 },
+        { axis: 'x', side: 'max', at: 59.925, a0: -18.25, a1: -16.55 },
+      ],
       group: g, nearParts: [], farParts: [], duck: [duckUpper],
     });
   }
@@ -2820,6 +2896,9 @@ export class World {
       id: 'CECIL-ROOM', x0: 10.2, x1: 15.8, z0: -14.1, z1: -9.1,
       yBand: [7.8, 12.0],
       padZ1: 2.7, // the top landing (z −8..−6.6) is outside the shell — the room shows from the rail
+      // glass: the street window on the north face (the sight-line — the
+      // gold window reads across Kestrel from the bed, docs/47 W5)
+      glass: [{ axis: 'z', side: 'max', at: -8.03, a0: 14.32, a1: 15.48 }],
       group: g, nearParts: [], farParts: [], duck: [duckAbove],
     });
   }
@@ -3299,6 +3378,12 @@ export class World {
       // bit-identical. Any mesh we can't merge (multi-material groups,
       // mismatched attributes) keeps the original scene untouched.
       visual = this.mergeGltfParts(visual);
+      // B13 (docs/51): the wrapper the bake must never swallow fuses ITSELF
+      // — the shipped vehicles are flat untextured unmetallic colors, so the
+      // per-material meshes become ONE vertex-colored draw on the shared vc
+      // material (the statics' own color-ride law). Anything that would not
+      // survive with its look intact bails whole, per mergeGltfParts' law.
+      visual = fuseFlatParts(visual, this.vcMaterial(true)).root;
 
       placeholder.updateWorldMatrix(true, false);
       const phBox = new THREE.Box3().setFromObject(placeholder);
@@ -3425,9 +3510,13 @@ export class World {
     const slot = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.05, 0.03), this.mat(PAL.ink));
     slot.position.set(0, 0.74, 0.26);
     for (const m of [body, top, leg, slot]) { m.castShadow = true; g.add(m); }
-    g.position.set(x, 0, z);
-    this.registerGlbProp('mailbox', g);
-    return g;
+    // B13: no mailbox.glb ships, so this placeholder's upgrade can never
+    // land — it is a FINAL static that the bake will never take (glbProps
+    // law). Fuse it here, pre-position, on the shared vc material: 4 → 1.
+    const out = fuseFlatParts(g, this.vcMaterial(true)).root as THREE.Group;
+    out.position.set(x, 0, z);
+    this.registerGlbProp('mailbox', out);
+    return out;
   }
 
   private makeTrashcan(x: number, z: number): THREE.Group {
@@ -3442,9 +3531,12 @@ export class World {
     band.rotation.x = Math.PI / 2;
     band.position.y = 0.5;
     for (const m of [can, rim, band]) { m.castShadow = true; g.add(m); }
-    g.position.set(x, 0, z);
-    this.registerGlbProp('trashcan', g);
-    return g;
+    // B13: same law as the mailbox — no trashcan.glb ships, so fuse the
+    // final static here: 3 → 1.
+    const out = fuseFlatParts(g, this.vcMaterial(true)).root as THREE.Group;
+    out.position.set(x, 0, z);
+    this.registerGlbProp('trashcan', out);
+    return out;
   }
 
   private makeStreetlamp(x: number, z: number): THREE.Group {
@@ -5438,6 +5530,20 @@ export class World {
     return tex;
   }
 
+  /** The Roam layer's one world-side lever (freeroam.ts): the water-main
+   *  barrier stands down so the whole built block is walkable from the
+   *  first minute. Visibility is the collider's source of truth — the
+   *  same sync dressDay/updateDynamics use parks the body underground
+   *  when the prop is hidden, so roaming never argues with a physics box
+   *  the eye can't see. Leaving Roam restores the day's authored diary
+   *  (the barrier's last authored day is Day 3). */
+  setBarrierOpen(open: boolean) {
+    this.barrierOpen = open;
+    const diary = barrierDiary(this.flyerDay);
+    this.barrier.visible = open ? false : diary.barrierVisible;
+    this.syncPersonCollider(this.barrierCollider, this.barrier, 0.85, 0.9);
+  }
+
   /**
    * Dress the block for a day (Doc 33 §2.3 — the diary a player reads at a
    * glance). Called by Game.beginDay before the fade-in. Pure material and
@@ -5454,9 +5560,11 @@ export class World {
     // diary across the avenue wakes with the week (Day 3, then Day 4)
     this.skylineWinMat.emissiveIntensity = SKYLINE_WARMTH.steady;
     this.skylineWinDiaryMat.emissiveIntensity = skylineDiaryWarmth(day);
-    // the barrier's last day is Day 3; the asphalt remembers
+    // the barrier's last day is Day 3; the asphalt remembers. The Roam
+    // override wins (freeroam.ts): while roam is active the barrier is
+    // down regardless of the day's diary — the whole block stays walkable.
     const diary = barrierDiary(day);
-    this.barrier.visible = diary.barrierVisible;
+    this.barrier.visible = this.barrierOpen ? false : diary.barrierVisible;
     this.asphaltPatch.visible = diary.patchVisible;
     // the board's slip rotates with the week
     this.flyerDay = day;
@@ -6205,7 +6313,7 @@ export class World {
   }
 }
 
-/** Godot-style light energy → three r155+ physical intensity. */
+/** Greybox-style light energy → three r155+ physical intensity. */
 export function phys(energy: number): number {
   return energy * Math.PI;
 }

@@ -5,9 +5,9 @@
 
 **"Fall in love with New York, one slice at a time."**
 
-*A cozy lowpoly life-simulation game for the billions of people who have never set foot in New York City — but have dreamed about it their whole lives.*
+*A cozy lowpoly life-simulation game for the billions of people who have never set foot in New York City — but have dreamed about it their whole lives. A life sim **on an open block**: follow the story beat by beat, or tap **Roam** and let the city run on your clock.*
 
-[Game Design Document](docs/01-game-design-document.md) · [Vertical Slice](docs/07-vertical-slice-design.md) · [Greybox](greybox-godot/) · [AGENTS.md](AGENTS.md)
+[Game Design Document](docs/01-game-design-document.md) · [Vertical Slice](docs/07-vertical-slice-design.md) · [Architecture Blueprints](docs/architecture/) · [AGENTS.md](AGENTS.md)
 
 </div>
 
@@ -20,6 +20,8 @@
 You start with a humble coffee cart on a quiet corner. Through short daily sessions you learn the city’s ways and slowly build your own piece of it:
 
 **Coffee Cart → Bodega → Café → Food Spot → Rooftop**
+
+And when the day's errands can wait, **the whole block is yours** — the pocket's **Roam** chip opens every corner from the first minute (the story simply waits where you left it), and the Map circles the story's next spot in Rosa's ink, captioned *whenever you're ready*: ride the subway, shoot half-court, sit on a bench with a slice, read the newsboxes, buy the bodega's mango. The walkers, the traffic, the busker and the street keep living whether you follow Rosa or not.
 
 Every session ends with a **postcard** — a beautiful, auto-composed, captioned snapshot of something you discovered. By the end you’ve never been to Manhattan, but you swear you could navigate it.
 
@@ -36,13 +38,14 @@ Every session ends with a **postcard** — a beautiful, auto-composed, captioned
 | **Wonder first** | Every session has a designed “I wish I could see that” moment. |
 | **Postcard beauty** | Lowpoly, golden-hour, vertical-first. Readable in one second. |
 | **Short & satisfying** | One in-game day ≈ 5–8 minutes. Natural stopping point every session. |
+| **Free roam, no leash** | The story is the spine; the city runs on your clock. One Roam chip — no errand is ever forced, no corner is ever locked. |
 | **Share-native** | Postcards and skyline moments are built to be sent to friends. |
 
 ---
 
-## Current Status — Four Days Are Alive, in Two Engines
+## Current Status — Four Days Are Alive in the Browser
 
-Day 1, Day 2, **Day 3, and Day 4 (morning + afternoon)** are playable in **Godot 4.7** (Days 1–2) — and in **the browser** ([`web-three/`](web-three/), the Three.js migration, [Doc 24](docs/24-web-three-build.md)), which is now the leading build: the block has brownstones, storefronts, a subway plaza, street trees, pigeons, a squirrel, Sunrise Laundry, a filed permit on the cart — and four full days.
+Day 1, Day 2, **Day 3, and Day 4 (morning + afternoon)** are playable in **the browser** ([`web-three/`](web-three/), Vite + TypeScript + Three.js, [Doc 24](docs/24-web-three-build.md)): the block has brownstones, storefronts, a subway plaza, street trees, pigeons, a squirrel, Sunrise Laundry, a filed permit on the cart — and four full days.
 
 <div align="center">
 
@@ -55,9 +58,6 @@ Day 1, Day 2, **Day 3, and Day 4 (morning + afternoon)** are playable in **Godot
 ```bash
 # play the browser build locally
 cd web-three && npm install && npm run dev     # http://localhost:5173
-
-# or the Godot greybox
-godot --headless --path greybox-godot -- --autotest
 ```
 
 **Day 1 path:**  
@@ -77,23 +77,10 @@ The block was always this big. Sunrise Laundry is a real place now — Sal, two 
 The flyer board rotates its paper (a lost cat, a stoop sale, a street fair). Windows wake and sleep — someone got home late, someone new moved in, the early riser beats you to the morning. The water-main barrier is gone by Day 4, leaving fresh asphalt. Idris remembers the kid. Rosa has a line she only says when the Map changes hands. And one neighbor — stone-gray cardigan, folded paper under her arm — passes your cart on Day 2, nods on Day 3, and on Day 4, during the wash, spends one word: "Morning." On this block, that's a handshake.
 
 ```bash
-godot --headless --path greybox-godot -- --autotest          # the oracle: Day 1 + 2
-cd web-three && npm test && node scripts/e2e.mjs            # the web build: Day 1 + 2 + 3 + 4
+cd web-three && npm test && node scripts/e2e.mjs   # the build: Day 1 + 2 + 3 + 4
 ```
 
-Last runs: **Godot oracle 0 failures** · **web E2E 0 failures ×2 (full Day 1 → Day 4 afternoon, real input; 393 s / 387 s)** · **154/154 unit tests** · typecheck clean.
-
-### Real captures from the greybox
-
-| Spawn | Bodega | Named Cart | Gold Window |
-|-------|--------|------------|-------------|
-| ![Spawn](assets/greybox-day1/frames/portrait_01_spawn.png) | ![Bodega](assets/greybox-day1/frames/portrait_05_bodega_inside.png) | ![Cart](assets/greybox-day1/frames/portrait_16_cart_named.png) | ![Gold Window](assets/greybox-day1/frames/portrait_21_gold_window_lit.png) |
-
-### Day 2, seen — [Doc 25](docs/25-day2-render-notes.md)
-
-| Title Card | Teal Door | Awning Up | Two Windows |
-|------------|-----------|-----------|-------------|
-| ![Title](assets/greybox-day2/frames/d2_03_title_card.png) | ![Door](assets/greybox-day2/frames/d2_09_teal_door_stoop.png) | ![Awning](assets/greybox-day2/frames/d2_12_awning_up.png) | ![Windows](assets/greybox-day2/frames/d2_15_second_window.png) |
+Last runs: **web E2E AUTOTEST OK, 0 failures (535 s — full Day 1 → Day 4 afternoon, real input)** · **565/565 unit tests** · typecheck clean.
 
 ### Day 3, seen — [Doc 28](docs/28-day3-a-place-at-the-corner.md)
 
@@ -117,7 +104,7 @@ Last runs: **Godot oracle 0 failures** · **web E2E 0 failures ×2 (full Day 1 �
 
 <div align="center">
 
-![Day 1 Postcard](assets/greybox-day1/postcard_day1.png)
+![Day 1 Postcard](assets/postcards/day1.png)
 
 *TS-01 proven: real scene → composed postcard → PNG*
 
@@ -206,10 +193,10 @@ first-slice-nyc/
 ├── docs/                 # Full design documentation
 ├── assets/
 │   ├── styleframes/      # Locked visual targets
-│   └── greybox-day1/     # Real captures + first postcard
-├── greybox-godot/        # Playable Day 1 greybox (Godot 4.7)
-├── web-three/            # The browser game (Three.js) — live on Pages
-├── tools3d/              # Local .glb generation pipeline (TRELLIS + parametric)
+│   ├── postcards/        # The first composed postcards (Day 1, Day 2)
+│   └── web-three/        # In-game evidence frames
+├── web-three/            # THE GAME (Three.js + Vite) — live on Pages
+├── tools3d/              # .glb generation pipeline (TRELLIS + parametric)
 └── AGENTS.md             # Agent operating rules & skills
 ```
 

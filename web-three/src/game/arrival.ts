@@ -202,8 +202,14 @@ const CREEP_SPEED = 0.15;
  *  the close-up duty; the lowrise band (98 m) bridges the two. */
 const SKYLINE_Z = -10;
 /** The window aperture (half-extents at the glass) — the desktop 16:9
- *  target. The interior shell owns everything outside it. */
+ *  target. The interior shell owns everything outside it. Portrait boots
+ *  widen y (the aperture is a per-boot choice: the frame reads the
+ *  camera's aspect when the interior is built) — the 80° portrait vfov
+ *  used to spend a quarter of the phone frame on ceiling; a 0.34 aperture
+ *  gives the window ~74% of the frame and leaves the shell law intact
+ *  (header 0.378 + face is still well inside INTERIOR.y 0.72). */
 const APERTURE = { x: 0.31, y: 0.2 };
+const APERTURE_PORTRAIT_Y = 0.34;
 /** The glass plane ahead of the lens (the interior hangs around it). */
 const GLASS_Z = -0.55;
 /** Interior coverage, worst case the film can meet: vfov 80 (the camera's
@@ -990,6 +996,12 @@ export class ArrivalCinematic {
     // every aspect sees: interior, window, world. Nothing else. Ever.
     const frame = new THREE.Group();
     frame.name = 'RideInterior';
+    // the aperture is chosen once, at build, from the booting aspect — a
+    // mid-film resize degrades gracefully (the shell owns everything
+    // outside either aperture; INTERIOR's math still holds for both)
+    const AP = this.host.cam.camera.aspect < 0.9
+      ? { x: APERTURE.x, y: APERTURE_PORTRAIT_Y }
+      : APERTURE;
     const part = (name: string, mat: THREE.Material,
       x: number, y: number, z: number, w: number, h: number, d: number) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -999,13 +1011,13 @@ export class ArrivalCinematic {
       this.disposables.push(m.geometry as THREE.BufferGeometry);
       return m;
     };
-    const headTop = APERTURE.y + 0.038; // the header's outer face
-    const sillBot = -APERTURE.y - 0.038;
+    const headTop = AP.y + 0.038; // the header's outer face
+    const sillBot = -AP.y - 0.038;
     part('Shell_Ceiling', mats.panel, 0, (headTop + INTERIOR.y) / 2, GLASS_Z - 0.02,
       INTERIOR.x * 2, INTERIOR.y - headTop, 0.16);
     part('Shell_Floor', mats.frame, 0, (sillBot - INTERIOR.y) / 2, GLASS_Z - 0.02,
       INTERIOR.x * 2, sillBot + INTERIOR.y, 0.16);
-    const wallX = APERTURE.x + 0.035; // the mullions' outer face
+    const wallX = AP.x + 0.035; // the mullions' outer face
     part('Shell_WallL', mats.panel, -(wallX + INTERIOR.x) / 2, 0, GLASS_Z - 0.02,
       INTERIOR.x - wallX, INTERIOR.y * 2, 0.16);
     part('Shell_WallR', mats.panel, (wallX + INTERIOR.x) / 2, 0, GLASS_Z - 0.02,
@@ -1031,16 +1043,16 @@ export class ArrivalCinematic {
       part('Shell_Strap', mats.frame, sx, headTop + 0.015, GLASS_Z + 0.06, 0.014, 0.05, 0.006);
     }
     // the aperture: mullions, header, deep sill with a lip
-    part('MullionL', mats.frame, -APERTURE.x, 0, GLASS_Z, 0.07, APERTURE.y * 2 + 0.16, 0.1);
-    part('MullionR', mats.frame, APERTURE.x, 0, GLASS_Z, 0.07, APERTURE.y * 2 + 0.16, 0.1);
-    part('Header', mats.frame, 0, APERTURE.y + 0.038, GLASS_Z, APERTURE.x * 2 + 0.07, 0.075, 0.1);
-    part('Sill', mats.panelDark, 0, -APERTURE.y - 0.038, GLASS_Z + 0.01, APERTURE.x * 2 + 0.07, 0.075, 0.13);
-    part('Sill_Lip', mats.panelDark, 0, -APERTURE.y - 0.015, GLASS_Z + 0.09, APERTURE.x * 2 + 0.12, 0.022, 0.05);
+    part('MullionL', mats.frame, -AP.x, 0, GLASS_Z, 0.07, AP.y * 2 + 0.16, 0.1);
+    part('MullionR', mats.frame, AP.x, 0, GLASS_Z, 0.07, AP.y * 2 + 0.16, 0.1);
+    part('Header', mats.frame, 0, AP.y + 0.038, GLASS_Z, AP.x * 2 + 0.07, 0.075, 0.1);
+    part('Sill', mats.panelDark, 0, -AP.y - 0.038, GLASS_Z + 0.01, AP.x * 2 + 0.07, 0.075, 0.13);
+    part('Sill_Lip', mats.panelDark, 0, -AP.y - 0.015, GLASS_Z + 0.09, AP.x * 2 + 0.12, 0.022, 0.05);
     // the AC unit — why the header has a hump
-    part('Shell_AC', mats.panelDark, 0, APERTURE.y + 0.11, GLASS_Z, 0.52, 0.1, 0.16);
+    part('Shell_AC', mats.panelDark, 0, AP.y + 0.11, GLASS_Z, 0.52, 0.1, 0.16);
     // the glass: a whisper of tint, so the world sits BEHIND something
     const glass = new THREE.Mesh(
-      new THREE.PlaneGeometry(APERTURE.x * 2 - 0.02, APERTURE.y * 2 + 0.08),
+      new THREE.PlaneGeometry(AP.x * 2 - 0.02, AP.y * 2 + 0.08),
       new THREE.MeshBasicMaterial({ color: 0xd8e2ea, transparent: true, opacity: 0.05, depthWrite: false }),
     );
     glass.name = 'Shell_Glass';
@@ -1051,10 +1063,10 @@ export class ArrivalCinematic {
     part('SeatBack', mats.seat, 0, -0.33, -0.34, 0.7, 0.32, 0.14);
     part('SeatBackFar', mats.seat, 0, -0.36, -0.14, 0.66, 0.26, 0.1);
     // somebody's coffee rode here first
-    cyl(frame, 'Sill_Cup', this.lambert(PAL.cream), 0.21, -APERTURE.y + 0.03, GLASS_Z + 0.06, 0.018, 0.014, 0.055, 8);
+    cyl(frame, 'Sill_Cup', this.lambert(PAL.cream), 0.21, -AP.y + 0.03, GLASS_Z + 0.06, 0.018, 0.014, 0.055, 8);
     const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.008, 8), this.lambert(PAL.ink));
     lid.name = 'Sill_CupLid';
-    lid.position.set(0.21, -APERTURE.y + 0.061, GLASS_Z + 0.06);
+    lid.position.set(0.21, -AP.y + 0.061, GLASS_Z + 0.06);
     frame.add(lid);
     this.disposables.push(lid.geometry as THREE.BufferGeometry);
 
@@ -1623,15 +1635,21 @@ export class ArrivalCinematic {
     this.buildCoach();
     this.host.ui.cineVisible(); // the bars stay — the frame is the gate now
 
-    // push-in on the NEW YORK roll, the nose filling the frame
-    this.host.rigPos.x = COACH.noseX + 4.2; this.host.rigPos.y = 2.2; this.host.rigPos.z = COACH.z - 3.1;
-    this.host.rigLook.x = COACH.noseX + 0.05; this.host.rigLook.y = 2.45; this.host.rigLook.z = COACH.z;
+    // Establishing three-quarter on the coach at the gate → a slow push-in
+    // on the OPENING doorway. The look point is the door, not the roll: the
+    // NEW YORK roll rides the upper third (in portrait the title block sat
+    // dead on it — white on amber, both unreadable), the title lands on the
+    // dark window-band glass, and the lit doorway glows just beneath it —
+    // "title card over the doors opening" (Doc 02), literally framed.
+    this.host.rigPos.x = COACH.doorX + 5.6; this.host.rigPos.y = 3.0; this.host.rigPos.z = COACH.z - 7.2;
+    this.host.rigLook.x = COACH.doorX + 0.5; this.host.rigLook.y = 1.5; this.host.rigLook.z = COACH.z - 0.9;
     const t = this.host.tweens;
     t.sequence(
       t.wait(0.25),
       t.parallel(
-        t.num(() => this.host.rigPos.x, (v) => { this.host.rigPos.x = v; }, COACH.noseX + 1.4, 2.0),
-        t.num(() => this.host.rigPos.y, (v) => { this.host.rigPos.y = v; }, 2.55, 2.0),
+        t.num(() => this.host.rigPos.x, (v) => { this.host.rigPos.x = v; }, COACH.doorX + 2.6, 2.0),
+        t.num(() => this.host.rigPos.y, (v) => { this.host.rigPos.y = v; }, 2.35, 2.0),
+        t.num(() => this.host.rigPos.z, (v) => { this.host.rigPos.z = v; }, COACH.z - 4.5, 2.0),
       ),
       t.call(() => this.openFilmDoor()),
     );
@@ -1919,9 +1937,14 @@ export class ArrivalCinematic {
     box('Coach_Stripe', teal, COACH.cx, 1.05, COACH.z, 9.64, 0.34, 2.32);
     // the roof AC pod — every interstate coach wears one
     box('Coach_AC', dark, COACH.cx, 2.76, COACH.z, 2.6, 0.16, 1.7);
-    // window band: north face (the lens side) + the far face
+    // window band: north face (the lens side) + the far face — with pillar
+    // separators, or the band reads as one black stripe (the card lens sits
+    // close enough to see the difference)
     box('Coach_GlassN', glass, COACH.cx + 0.4, 2.05, COACH.z - 1.16, 8.2, 0.78, 0.04);
     box('Coach_GlassS', glass, COACH.cx + 0.4, 2.05, COACH.z + 1.16, 8.2, 0.78, 0.04);
+    for (let wi = 0; wi < 5; wi++) {
+      box('Coach_WindowPillar', body, COACH.cx - 3.6 + wi * 2.0, 2.05, COACH.z - 1.185, 0.12, 0.78, 0.05);
+    }
 
     // the nose (+x, the way the ride travelled): windshield + bumper
     box('Coach_Windshield', glass, COACH.noseX + 0.02, 2.0, COACH.z, 0.06, 0.9, 1.9);
@@ -1970,6 +1993,15 @@ export class ArrivalCinematic {
     // the curb-side door leaf (north face, by the nose) — openFilmDoor slides it
     const leaf = box('Film_CoachDoor', body, COACH.doorX, 1.12, COACH.z - 1.17, 1.0, 1.9, 0.06);
     const leafGlass = box('Film_CoachDoorGlass', glass, COACH.doorX, 1.55, COACH.z - 1.2, 0.8, 0.85, 0.05);
+    // the doorway the slide reveals — the old build slid the leaf to show
+    // the cream BODY FACE behind it (a door painted on a door). The recess
+    // sits between leaf and body: north face 0.01 proud of the body face
+    // (z −1.15), 0.04 behind the leaf plane — no depth tie either way.
+    // A warm strip at its top reads as the lit aisle inside; the threshold
+    // spill puts the light on the tarmac where a spill belongs.
+    box('Film_CoachDoorRecess', dark, COACH.doorX, 1.12, COACH.z - 1.16, 1.04, 1.94, 0.03);
+    box('Film_CoachDoorGlow', this.lambertEmissive(0xffca7a, 0.4), COACH.doorX, 1.72, COACH.z - 1.155, 0.86, 0.3, 0.02);
+    box('Film_CoachDoorSpill', this.lambertEmissive(0xffd9a0, 0.22), COACH.doorX, 0.055, COACH.z - 1.75, 1.15, 0.02, 0.85);
     this.doorLeaf = leaf;
     this.doorGlass = leafGlass;
   }

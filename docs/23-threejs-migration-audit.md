@@ -1,5 +1,7 @@
 # FIRST SLICE — Three.js Migration Audit & Plan
 
+> **Status update (2026-11-05):** history — the migration this doc planned was accepted, and the director has since retired the greybox: `greybox-godot/` is deleted, including the old red line about keeping it untouched. The behavior oracle's job now belongs to the vitest suite + the 4-day E2E ([docs/24](24-web-three-build.md)).
+
 **Date:** 2026-10-29  
 **Status:** Phase 1 complete — audit only. No Three.js implementation started.  
 **Source of truth for intended behavior:** Godot greybox (`greybox-godot/`) + design docs 01–22.

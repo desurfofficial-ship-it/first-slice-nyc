@@ -1,6 +1,6 @@
 /**
- * Greybox walker — port of greybox-godot/scripts/player.gd.
- * Constants are the oracle's: SPEED 4.2, GRAVITY 18, CLIMB 2.6.
+ * Greybox walker — the original greybox's player, ported (docs/23–24).
+ * Constants are the greybox's: SPEED 4.2, GRAVITY 18, CLIMB 2.6.
  * Origin sits at the feet. Camera-relative movement. Ladder climb with
  * sideways step-off (Seam 2 behavior: you can always get off and back on).
  */

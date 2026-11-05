@@ -2,7 +2,9 @@
 
 > **You are an AI agent contributing to FIRST SLICE: A New York Story** — a cozy lowpoly mobile life-sim where people who have never been to NYC fall in love with the city one postcard at a time. This file is your operating contract. Read it fully before touching anything. When instructions here conflict with habit, **this file wins**.
 
-**Current phase:** Vertical Slice production (Phase 1 of [docs/06-production-roadmap.md](docs/06-production-roadmap.md)). Phase 0 exit was signed 2026-10-28 ([docs/18](docs/18-phase0-exit-summary.md)); the code is real — `web-three/` is a playable Three.js slice with a vitest suite, probe harnesses, and a 4-day E2E. Entry gates for any change: `npx tsc --noEmit` and `npx vitest run` in `web-three/`. Don't redesign what already ships: the first-session world in [docs/50](docs/50-agent2-first-session-world.md) is the paved path.
+**Current phase:** Vertical Slice production (Phase 1 of [docs/06-production-roadmap.md](docs/06-production-roadmap.md)) — now with the **Roam layer shipped** (the open-block contract, [docs/architecture/03](docs/architecture/03-target-architecture.md)). Phase 0 exit was signed 2026-10-28 ([docs/18](docs/18-phase0-exit-summary.md)); the code is real — `web-three/` is a playable Three.js slice with a vitest suite, probe harnesses, and a 4-day E2E. Entry gates for any change: `npx tsc --noEmit` and `npx vitest run` in `web-three/`. Don't redesign what already ships: the first-session world in [docs/50](docs/50-agent2-first-session-world.md) is the paved path.
+
+> **DIRECTION (2026-11, corrected):** FIRST SLICE is **not an open-world game — it is a life sim on an open block**. The four-day story is the spine; free roam is a player capability laid over the sim (the city runs on your clock), never a genre swap. The contract, the module fences and the roadmap live in [docs/architecture/](docs/architecture/) (audit → comparison → target → module map → roadmap → agent framework → perf/testing). The Roam law in [docs/architecture/06](docs/architecture/06-agent-development-framework.md) binds every agent: new HUD pressure is mode-aware, new world gates are roam-aware, ambient life carries no `step ===` dependencies.
 
 > **ACTIVE WORK:** the open-bugs ledger [docs/51-open-bugs-for-agents.md](docs/51-open-bugs-for-agents.md). Claim an unowned bug (skip ones with an owner hint — agents work in parallel), fix it with its permanent guard (§1c.1), and update the ledger **and** [worklog.md](worklog.md) in the same commit. The Living Neighborhood milestone (Doc 37) was implemented through docs/34 + docs/38 and is no longer the active front; future construction plans live in docs/45.
 
@@ -178,13 +180,12 @@ first-slice-nyc/
 │   ├── src/                   #   camera, world, game, court, subway, ui, …
 │   ├── tests/                 #   vitest suite — permanent guards live here
 │   └── scripts/               #   probe-*.mjs in-engine verification harnesses
-├── site/                      # pitch site (static)
-├── tools/, tools3d/, scripts/ # asset generation (Blender / GLB pipelines)
-├── assets/                    # screenshots / styleframes / greybox frames
+├── tools3d/, scripts/         # asset generation (GLB pipelines) + registry tooling
+├── assets/                    # styleframes, web evidence frames, postcards
 └── worklog.md                 # append-only agent worklog — add yours at the end
 ```
 
-The game lives in `web-three/` — no longer a greybox; it is the vertical-slice build. Do not replace GDD systems with a generic city demo.
+The game lives in `web-three/` — it is the vertical-slice build and the only build. Do not replace GDD systems with a generic city demo.
 
 ## 4. Environment & Commands
 

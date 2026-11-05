@@ -285,9 +285,9 @@ describe('the curb bake contract — the M121 shell is bake-eligible (docs/51 B1
     expect(shell).toBeGreaterThanOrEqual(20); // the fusible body
   });
 
-  it('the driver rig rides the animated exclusion — six merged meshes, never fused into the shell', () => {
+  it('the driver rig rides the animated exclusion — six merged meshes + the shadow proxy, never fused into the shell', () => {
     const driver = meshes.filter(underDriver);
-    expect(driver.length).toBe(6); // the cast-bake law: one figure, six draws
+    expect(driver.length).toBe(7); // the cast-bake law: one figure, six draws, + 1 shadow proxy (docs/51 B13)
     for (const m of driver) {
       expect(m.name === 'BUS_Driver' || m.parent?.name !== null).toBe(true);
     }

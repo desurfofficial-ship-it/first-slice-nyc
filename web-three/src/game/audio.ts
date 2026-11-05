@@ -258,6 +258,48 @@ class GameAudio {
     window.setTimeout(() => this.tone(587.33, 0.9, 0.04), 540);   // D5 — kept
   }
 
+  /** The street performer's song (Doc 02 §10:00–15:00) — the one-shot
+   *  melody for the four-second listen on the way back from the square.
+   *  Five unhurried notes over ~4 s, a warm fifth underneath; one-shot and
+   *  gain-enveloped like everything here — no loop, no owner to stop. */
+  streetSong(): void {
+    if (!this.ctx || !this.master || this.muted) return;
+    try {
+      const t = this.ctx.currentTime;
+      // D4 · F4 · A4 · G4 · E4 — a phrase that ends where you can walk away
+      const notes: Array<[number, number, number]> = [
+        [293.66, 0.0, 0.9],
+        [349.23, 0.85, 0.8],
+        [440.0, 1.6, 1.0],
+        [392.0, 2.5, 0.8],
+        [329.63, 3.2, 1.2],
+      ];
+      for (const [f, at, dur] of notes) {
+        const o = this.ctx.createOscillator();
+        o.type = 'triangle';
+        o.frequency.setValueAtTime(f, t + at);
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(0, t + at);
+        g.gain.linearRampToValueAtTime(0.035, t + at + 0.06);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + at + dur);
+        o.connect(g).connect(this.master);
+        o.start(t + at);
+        o.stop(t + at + dur + 0.05);
+      }
+      // the fifth underneath, swelling once — somebody is playing WITH him
+      const pad = this.ctx.createOscillator();
+      pad.type = 'sine';
+      pad.frequency.setValueAtTime(146.83, t); // D3
+      const pg = this.ctx.createGain();
+      pg.gain.setValueAtTime(0, t);
+      pg.gain.linearRampToValueAtTime(0.02, t + 0.7);
+      pg.gain.linearRampToValueAtTime(0.0001, t + 4.4);
+      pad.connect(pg).connect(this.master);
+      pad.start(t);
+      pad.stop(t + 4.5);
+    } catch { /* one silent song is not a failure */ }
+  }
+
   /** A pigeon, occasionally (the flock is ambient; so is its voice). */
   coo(): void {
     this.tone(420 + Math.random() * 60, 0.22, 0.02, 'sine', 300);

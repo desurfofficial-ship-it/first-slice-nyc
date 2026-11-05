@@ -6,7 +6,7 @@
 
 import { gameAudio } from '../game/audio';
 import type { OrderCard } from '../core/content';
-import { SLANG_CARDS } from '../core/content';
+import { MAP_PLACES, SLANG_CARDS } from '../core/content';
 import { buildSketchSvg } from './sketch';
 import type { AlbumEntry } from '../postcard/Album';
 import { touchPanelUp } from './touchLaw';
@@ -51,6 +51,9 @@ export class UI {
   private mapSlangList = el<HTMLUListElement>('map-slang');
   private mapEmpty = el<HTMLDivElement>('map-empty');
   private mapClose = el<HTMLButtonElement>('map-close');
+  // ---- the Roam chip (freeroam.ts — the open-block contract's switch) ----
+  readonly roamBtn = el<HTMLButtonElement>('btn-roam');
+  private roamPeek = el<HTMLSpanElement>('roam-peek');
   // ---- the album — the shelf where kept postcards live ----
   readonly albumBtn = el<HTMLButtonElement>('btn-album');
   readonly albumPanel = el<HTMLDivElement>('album-panel');
@@ -136,6 +139,11 @@ export class UI {
       this.closePocket();
       this.onMapToggle?.();
     });
+    // the Roam chip: fold the menu, then flip the mode (Game applies it)
+    this.roamBtn.addEventListener('click', () => {
+      this.closePocket();
+      this.onRoamToggle?.();
+    });
     this.mapClose.addEventListener('click', () => this.onMapToggle?.());
     this.albumBtn.addEventListener('click', () => {
       this.closePocket();
@@ -201,6 +209,8 @@ export class UI {
   onOrderChoose: ((reply: number | null) => void) | null = null;
   /** The Map folded / opened — Game owns the state side. */
   onMapToggle: (() => void) | null = null;
+  /** The Roam chip was tapped — Game owns the mode side (freeroam.ts). */
+  onRoamToggle: (() => void) | null = null;
   /** The album folded / opened — Game owns the shelf. */
   onAlbumToggle: (() => void) | null = null;
   /** A card on the album shelf was tapped (its id). */
@@ -229,6 +239,19 @@ export class UI {
 
   get objectiveText(): string {
     return this.objective.textContent ?? '';
+  }
+
+  /** The Roam chip's two faces (freeroam.ts): "Roam" invites the open
+   *  block; "Story" offers the way back. aria-pressed carries the state
+   *  for readers; the pocket chip keeps the top lane free on phones. */
+  setRoamLabel(active: boolean) {
+    this.roamPeek.textContent = active ? 'Story' : 'Roam';
+    this.roamBtn.setAttribute('aria-pressed', String(active));
+    this.roamBtn.setAttribute(
+      'aria-label',
+      active ? 'Back to the story — the day picks up where you left it' : 'Roam the block — the story waits where it is',
+    );
+    this.roamBtn.title = active ? 'Back to the story' : 'Roam the block';
   }
 
   /** Paper panels hold the hands (docs/51 B7). ONE law, ONE wiring —
@@ -468,6 +491,32 @@ export class UI {
     // the star is where you're standing when you open the fold — world x,
     // y = −z (the sketch's north-up copy)
     star?.setAttribute('transform', `translate(${px.toFixed(1)},${(-pz).toFixed(1)})`);
+    this.applyBeatMarker();
+  }
+
+  /** M1 — the beat marker on the sketch (docs/architecture/05). `placeId`
+   *  is the state's beatPlaceId() — the same helper the objective line
+   *  reads; null hides the ring (beats with no named place, DONE). If the
+   *  sketch isn't built yet, the id waits — refreshSketch applies it on
+   *  the first build (the same law as priyaRevealed). */
+  private beatPlace: string | null = null;
+
+  setBeatMarker(placeId: string | null): void {
+    this.beatPlace = placeId;
+    this.applyBeatMarker();
+  }
+
+  private applyBeatMarker(): void {
+    if (!this.sketchEl) return;
+    const beat = this.sketchEl.querySelector<SVGGElement>('#sketch-beat');
+    if (!beat) return;
+    const place = this.beatPlace ? MAP_PLACES.find((p) => p.id === this.beatPlace) : undefined;
+    if (!place) {
+      beat.classList.remove('active');
+      return;
+    }
+    beat.setAttribute('transform', `translate(${place.x},${-place.z})`);
+    beat.classList.add('active');
   }
 
 
