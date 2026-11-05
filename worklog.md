@@ -1099,7 +1099,6 @@ Gates at close: tsc clean · vitest 582/582 (38 files, incl. the new
 docs-hygiene reference pin + 13 diary pins) · build OK ·
 probe-m3-diary 9/9 · 4-day E2E AUTOTEST OK 0 failures (569 s).
 
-<<<<<<< HEAD
 ---
 Task ID: OPEN-WORLD-ROAM-M4.1
 Agent: main (Claude)
