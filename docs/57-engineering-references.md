@@ -6,6 +6,13 @@
 > first — then build the version FIRST SLICE needs. This doc records what was
 > learned so the next agent doesn't re-study the same ground.
 
+> **2026-11-06, the reboot note.** The legacy docs tree (docs/01–56) was
+> cleared for the narrative reboot — [docs/narrative/](docs/narrative/) is
+> the story canon now. Doc numbers cited below (docs/44, docs/45, docs/51,
+> docs/architecture/*, …) are pre-reboot pointers: read them as history; the
+> files live in git. This ledger stays the engineering memory and the home
+> of the study-before-build findings (AGENTS.md §1e).
+
 ---
 
 ## 0. The law (the directive, kept short)
