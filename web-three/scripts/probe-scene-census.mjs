@@ -47,10 +47,20 @@ const census = await page.evaluate(() => {
     return top.name || top.type || '(unnamed)';
   };
 
-  scene.traverse((o) => {
+  // A PRUNED walk, not scene.traverse: traverse visits every descendant
+  // even under an invisible group, so parked subtrees (the M4 dusk shift's
+  // home rigs, the court's dusk pair — parent visible=false, children true)
+  // were counted as draws they never cost. The renderer skips an invisible
+  // subtree entirely; the census now tells the same truth.
+  const walk = (o, fn) => {
+    if (o.visible === false) return; // an invisible subtree renders nothing
+    fn(o);
+    for (const c of o.children) walk(c, fn);
+  };
+
+  walk(scene, (o) => {
     if (!o.isMesh && !o.isPoints && !o.isLine && !o.isSprite) return;
     total++;
-    if (o.visible === false) return;
     visible++;
     const g = o.geometry;
     const tri = g.index ? g.index.count / 3 : (g.attributes.position?.count ?? 0) / 3;
@@ -78,8 +88,8 @@ const census = await page.evaluate(() => {
   };
   for (const c of scene.children) {
     let count = 0; const sigs = new Map(); const names = new Map();
-    c.traverse((o) => {
-      if (o.isMesh && o.visible !== false) {
+    walk(c, (o) => {
+      if (o.isMesh) {
         count++;
         const s = geoSig(o.geometry);
         sigs.set(s, (sigs.get(s) ?? 0) + 1);

@@ -48,8 +48,8 @@ next agent starts at the right door.
 | World management / streaming | ✅ `src/world/city.ts` (+ `src/world/nearest.ts`) | — | `world/World.ts` district ring (docs/45 W0) |
 | City generation | ✅ `src/city/layout.ts`, `src/city/gen-tile.ts` (11k lines), `src/city/graph.ts` | ✅ `js/city-grid.js`, `js/boroughs.js` | `docs/data/world-registry.json` (authored, docs/44) |
 | Map / atlas | `src/ui/minimap.ts` | ✅ `js/nyc-map.js` | `ui/sketch.ts` + `core/content.ts` MAP_PLACES |
-| Pedestrians | `src/game/pedestrians.ts` | `js/pedestrian-system.js`, `js/pedestrian-routes.js` | `world/peds.ts` (band law, docs/51 B17) |
-| Traffic | `src/game/traffic.ts` (IDM car-following), `src/game/roadnet.ts` | `js/traffic.js`, `js/road-network.js` | `engine/traffic.ts`, `engine/busRoute.ts` |
+| Pedestrians | ✅ `src/game/pedestrians.ts` | ✅ `js/pedestrian-system.js`, `js/pedestrian-routes.js` | `world/peds.ts` (band law, docs/51 B17; shift schedule, docs/57 §3.5) |
+| Traffic | ✅ `src/game/traffic.ts` (IDM car-following), `src/game/roadnet.ts` | ✅ `js/traffic.js`, `js/road-network.js` | `engine/traffic.ts`, `engine/busRoute.ts` |
 | Vehicles | `src/nurbs/`, `src/vehicles/`, `src/game/trains.ts` | `js/vehicle-physics.js`, `js/cars.js`, `js/bus.js` | `world/arrivalBus.ts`, `world/subway/trainKit.ts` |
 | Scene culling / perf | `src/render/shadow-cull.ts`, `src/city/lod.ts` | `js/scene-culling.js` | district ring + bake (`World.ts`), `probe-scene-census.mjs` |
 | Workers | `src/workers/city-worker.ts` | — | none (nothing needs one yet) |
@@ -122,6 +122,38 @@ GDD already did) is not database use. License ledger:
 | Gen City Auto code | MIT | usable with notice in the bundle; adapt approaches, check hot-path law (§1c.3) per file |
 | Slop New York code | MIT | same; its TSL/WebGPU pipeline stays out (non-goal) |
 | SNY's NYC Open Data / OSM geodata | NYC terms / ODbL | **reference-only** — never ingest; never ship a derivative database |
+
+### 3.5 Gen City Auto + Slop New York — ambient density (studied for M4, 2026-11-05)
+
+The question: how do the references key pedestrian/traffic density to time
+of day? **They don't.** Read in source:
+
+- **Gen City Auto** (`src/game/pedestrians.ts`, 147 lines; `src/game/traffic.ts`,
+  850 lines): density is **spatial, not temporal**. Pedestrians keep a fixed
+  `target = 420` and a per-frame spawn budget (12 attempts) around the
+  camera; a pure `density(x,z) = max(0.15, exp(−d²/700²) per hub)` DISCARDS
+  spawns probabilistically, so crowds pool near hubs. Traffic keeps
+  `target = 240` in a 360 m ring with weighted kind pools (car 6, taxi 3,
+  van 1.4, truck 1.0, bus 0.7) and a spawn min-distance that shrinks while
+  the street is under-filled (30 m below half target, else 120 m). No clock
+  anywhere; the `time` param in `update()` is animation, not scheduling.
+- **Slop New York** (`js/lighting.js` TIME_PRESETS, `js/pedestrian-system.js`):
+  the named day presets (Midday 0.24 → Golden Hour 0.48 → Dusk 1.25 →
+  Night 1.55) drive fog, sky and **headlight fades only**; the pedestrian
+  system is a spatial spawn ring (150 m, view protection, player proximity)
+  with no temporal keying.
+
+**FIRST SLICE mapping (M4):** the schedule is our own design — the honest
+shape of this game's clock is the day's two street phases (`dressing.ts
+STREET_PLAN`), because the block runs on your clock and a minute grid would
+invent pressure the No-FOMO law forbids. What was borrowed is the SHAPE of
+the ideas, not the machinery: GCA's pure density read (our table is pure
+data, pinned by tests) and SNY's named presets (our two named phases).
+GCA's hot-path discipline — fixed targets, per-frame spawn budgets, no
+per-frame garbage — matches §1c.3 and was checked per file. `engine/`
+`traffic.ts` and `engine/busRoute.ts` needed no change for M4 (the math is
+stateless; the M121's night park shipped with W4 p2) — the roadmap's touch
+list was a plan, and the deviation is recorded in the roadmap.
 
 ## 4. What neither reference has (build independently, say so)
 

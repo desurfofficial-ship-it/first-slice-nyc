@@ -41,7 +41,8 @@ import { buildSubwaySystem, STATION, ZONE_KEEP_RE, type SubwaySystem, type Colli
 import { buildTimesSquare, type TimesSquare } from './timesSquare';
 import { buildArrivalBus, BUS04_RECT, playerOccupiesBus04, type ArrivalBus } from './arrivalBus';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay,
-  skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH } from './dressing';
+  skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH,
+  STREET_PLAN, PEDESTRIAN_ROLES, type StreetPlan } from './dressing';
 import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT,
   RECORD_SIGN_TOP, RECORD_SIGN_SUB } from '../core/content';
 // the half-court upgrade (docs/48/49) — basketball-owned module, the one
@@ -271,6 +272,20 @@ export class World {
   private leaves!: LeafDrift;
   private peds: Pedestrians;
   private ambientTime = 0;
+  // ---- the street schedule (M4, world/dressing STREET_PLAN) ----
+  /** The dusk flag this World last saw — null until the first update, so
+   *  the day plan applies exactly once at boot. The lever stays Game's
+   *  (the dusk flag); the schedule table stays dressing's; World only
+   *  applies the row on the edge. */
+  private streetPhaseDusk: boolean | null = null;
+  /** The applied plan's cab multiplier — updateTaxi reads it every frame
+   *  (one multiply, hot-path cold). */
+  private cabPaceNow = 1;
+  /** The applied plan — probes read this (the schedule's wiring, provable
+   *  without sampling). */
+  streetPlanNow(): StreetPlan {
+    return STREET_PLAN[this.streetPhaseDusk ? 'dusk' : 'day'];
+  }
 
   /** Read-only XZ of every ambient walker (diagnostics + probes). */
   pedBodies(): Array<{ x: number; z: number }> {
@@ -1531,6 +1546,15 @@ export class World {
       { jacket: 0x54628f, pants: 0x2f333b, skin: 0xe8b08e, hair: 0x5a4632, style: 'bun', shoe: 0x3a3028, scale: 0.93 },
       { jacket: 0x8a5a48, pants: 0x3a3540, skin: 0xc98e5a, hair: 0x241f28, style: 'flat', shoe: 0x2e2a33, scale: 1.0 },
       { jacket: 0x4f6b5e, pants: 0x33383f, skin: 0xe8b08e, hair: 0x1a1a22, style: 'bun', shoe: 0x4a3428, scale: 0.96 },
+      // M4 — THE DUSK SHIFT (world/dressing STREET_PLAN): three more
+      // neighbors whose shift is the evening rush — home while the sun is
+      // up (hidden: zero draw calls at rest, the dressing cost law), out
+      // when the subway draws. Same articulated rig, bank-shared materials,
+      // loops on the shipped north-walk band — the rush thickens the crowd
+      // the Shuffle teach already owns, it does not pave new lanes.
+      { jacket: 0x6e4f3a, pants: 0x32363e, skin: 0xd9a06b, hair: 0x2b2730, style: 'cap', shoe: 0x3a3028, scale: 1.04 },
+      { jacket: 0x715671, pants: 0x3b3f4a, skin: 0x8a5a3b, hair: 0x14141c, style: 'bun', shoe: 0x33291f, scale: 0.94 },
+      { jacket: 0x4a5a6e, pants: 0x443f4a, skin: 0xe8b08e, hair: 0x3a2c22, style: 'flat', shoe: 0x2e2a33, scale: 1.06 },
     ];
     const pedPaths: Array<Array<[number, number]>> = [
       // the commuter: full block, crossing only at the crosswalk (x ≈ -6.5,
@@ -1578,6 +1602,15 @@ export class World {
       [[-26, 6.14], [-36.5, 6.14], [-36.5, 6.68], [-26, 6.68]], // the stair local
       [[-22.5, 6.08], [-39.5, 6.08], [-39.5, 6.76], [-22.5, 6.76]], // the west commuter
       [[-20, 6.16], [-28.5, 6.16], [-28.5, 6.66], [-20, 6.66]], // the bodega local
+      // M4 — the dusk shift's lanes (out only for the evening rush): three
+      // more rectangles on the SAME proven north-walk band (z 6.05–6.8, the
+      // bodega→plaza stretch, no street crossings, so the spawn law —
+      // pts[0] reachable legally from every point — holds trivially). Lanes
+      // offset from the four shipped ones so seven bodies interleave with
+      // gaps to walk toward, never a wall.
+      [[-21.5, 6.28], [-40, 6.28], [-40, 6.6], [-21.5, 6.6]],    // the rush weaver
+      [[-23.5, 6.24], [-36, 6.24], [-36, 6.72], [-23.5, 6.72]],  // the bench local
+      [[-27, 6.3], [-38.5, 6.3], [-38.5, 6.58], [-27, 6.58]],    // the stair weaver
     ];
     // ---- their routines (Phase 4, Doc 37 §3E): the day's small beats ------
     // Every trigger sits OFF the walk lanes (at the building line or the
@@ -1648,6 +1681,18 @@ export class World {
       ],
       [
         { x: -18.8, z: 6.9, faceTo: [-18.5, 7.55], dwell: 3.0 }, // the bodega's warm window
+      ],
+      // M4 — the dusk shift's beats: the evening errands (the bus bench,
+      // the bulletin board, the bodega window), all off the walk lanes at
+      // the building line, same law as every routine above.
+      [
+        { x: -24.2, z: 7.0, faceTo: [-23.3, 7.62], dwell: 4.0 }, // waits by the bus stop
+      ],
+      [
+        { x: -33.4, z: 6.95, faceTo: [-37.6, 7.5], dwell: 3.0 }, // the bulletin board, from the west
+      ],
+      [
+        { x: -19.1, z: 6.95, faceTo: [-18.5, 7.55], dwell: 3.5 }, // one more glance at the bodega
       ],
     ];
     this.peds = new Pedestrians(
@@ -1723,6 +1768,9 @@ export class World {
         { xMin: -76, xMax: -68, zMin: -64, zMax: 64 }, // Juniper Avenue
         { xMin: 68, xMax: 76, zMin: -64, zMax: 64 },   // Sycamore Avenue
       ] as RoadRect[],
+      // M4: each walker's shift on the street schedule — the dusk shift
+      // boots home (the game boots into the day phase)
+      PEDESTRIAN_ROLES,
     );
     // the walkers carry real bodies for the player's collision stack — the
     // audit's "NPCs walking through the player" (doc 35 §1): one synced AABB
@@ -5797,6 +5845,16 @@ export class World {
    * Dynamics-before-player fixes the ordering with no gameplay change.
    */
   updateDynamics(dt: number, player?: { x: number; y: number; z: number }, extra?: Array<{ x: number; z: number }>, dusk = false): void {
+    // the street schedule's edge (M4): apply the phase's row once per flip —
+    // the dusk shift comes on, the park's tender heads home, the cab's pace
+    // follows the table. Ambient reads no story state: the dusk flag is the
+    // same lever the M121's night park and the court pair already use.
+    if (dusk !== this.streetPhaseDusk) {
+      this.streetPhaseDusk = dusk;
+      const plan = STREET_PLAN[dusk ? 'dusk' : 'day'];
+      this.peds.applyStreetPlan(plan);
+      this.cabPaceNow = plan.cabPace;
+    }
     // the persistent cast owns a body each — no more ghosting through Rosa,
     // Idris, or the kid (playtest 2026-10-30: "passed through the npc and rosa")
     this.syncPersonCollider(this.rosaCollider, this.rosa);
@@ -6093,7 +6151,7 @@ export class World {
     // XW-COURT and both junction boxes from the one shared list. Commit law
     // unchanged: once the nose has reached the zone's line the cab goes —
     // a lurch stop inside the paint is its own hazard.
-    let speed: number = CAB.cruise;
+    let speed: number = CAB.cruise * this.cabPaceNow; // the schedule's pace — rush crawls
     for (const zone of KESTREL_COURTESY_ZONES) {
       let occupied = !!(player && player.x > zone.xMin && player.x < zone.xMax
         && player.z > World.COURTESY_Z.zMin && player.z < World.COURTESY_Z.zMax);

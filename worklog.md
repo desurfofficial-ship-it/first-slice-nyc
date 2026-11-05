@@ -1098,3 +1098,78 @@ Stage Summary:
 Gates at close: tsc clean · vitest 582/582 (38 files, incl. the new
 docs-hygiene reference pin + 13 diary pins) · build OK ·
 probe-m3-diary 9/9 · 4-day E2E AUTOTEST OK 0 failures (569 s).
+
+---
+Task ID: OPEN-WORLD-ROAM-M4.1
+Agent: main (Claude)
+Task: Continue building — roadmap M4, ambient schedules (peds/traffic density
+  keyed to time-of-day), under the study-before-build law (AGENTS.md §1e).
+
+Work Log:
+- Reference study FIRST (docs/57 §3.5 has the record): Gen City Auto's
+  pedestrians.ts/traffic.ts read in source — density there is SPATIAL, not
+  temporal (a hub-falloff probability discarding spawns, fixed target
+  counts 420/240, per-frame spawn budgets, weighted kind pools, despawn
+  rings). Slop New York's TIME_PRESETS drive atmosphere only (fog/sky/
+  headlight fades), never crowds; its pedestrian system is a spatial spawn
+  ring. Verdict: neither reference schedules density by time of day — M4
+  is FIRST SLICE's own design; borrowed is only the shape (a pure density
+  read; named presets), and the hot-path discipline (spawn budgets, no
+  per-frame garbage) was checked against §1c.3.
+- The honest clock: this game has no sim-time (the block runs on your
+  clock, the No-FOMO law) — the schedule is a TWO-ROW TABLE keyed on the
+  day's street phases, not a minute grid. Game keeps the lever (the dusk
+  flag); World applies one row on the phase edge; the table is pure data.
+- world/dressing.ts: StreetPhase ('day' | 'dusk') + StreetPlan {duskShift,
+  parkOut, cabPace} + STREET_PLAN + PEDESTRIAN_ROLES (the roster's shifts,
+  documented in build order; an untagged new walker defaults 'street' —
+  the safe side of the floor law).
+- world/peds.ts: StreetRole tags + applyStreetPlan — a 'dusk' walker comes
+  on in roster order (plan.duskShift of them), the 'park' walker follows
+  plan.parkOut, and a 'street' walker ignores the table entirely (the
+  floor: a schedule bug cannot empty the street). Home = group hidden +
+  collider parked at y −999 (the barrier's own trick) + excluded from
+  bodies()/resolveAgainstCab/bodyAt (the cab never brakes for the
+  underground; the registry's y-band never offers them a chat) + frozen
+  through Yuka's integration by the shipped pin (they resume their loop
+  exactly where they left it, body re-synced the frame they return).
+- world/World.ts: the roster grows three dusk-shift neighbors (the evening
+  rush — the subway draw on the shipped bodega→plaza stretch, same
+  articulated rigs, bank-shared materials, loops on the proven north-walk
+  band so no new lanes/colliders exist); updateDynamics applies the plan on
+  the dusk-flag edge (boot = day, so the shipped street is unchanged until
+  the first flip); updateTaxi reads plan.cabPace (rush crawls 9 → 6.3 m/s —
+  the one-honest-car version of a heavier avenue). engine/traffic.ts and
+  engine/busRoute.ts needed NO change (the roadmap's touch list was a
+  plan): traffic's math is stateless and the M121's night park already
+  shipped with W4 p2 — recorded, not forced.
+- probe-scene-census.mjs now tells render truth: scene.traverse counted
+  meshes under invisible parents (the court's dusk pair, and now the home
+  rigs) that the renderer never draws; replaced with a pruned walk.
+- Evidence: tests/street-schedule.test.ts (12 pins: both table rows, the
+  roster shape, the floor law in table AND mechanism, boot-home state,
+  idempotency, roster-order rush, mid-beat ghosts cleared, frozen-through-
+  Yuka, body re-synced on return, home walkers never yield to or block the
+  cab) · scripts/probe-peds.mjs extended with the dusk section in real
+  Chromium (G = the shipped debug lever: plan wiring 0.7/3, 12 roster,
+  11 visible, the tender home, all three rush walkers walking the band,
+  the floor trio still walking at dusk, plus a rush screenshot at the
+  terminal stretch).
+
+Stage Summary:
+- M4 shipped: the street now has a schedule. Day is byte-for-byte the
+  shipped street (9 out, cruise 9, census-identical 321 drawables); dusk
+  reads visibly busier — 11 out, the crowd thickens by the subway entrance,
+  the park settles, the cab crawls. M0 roam → M1 beats-as-places → M2
+  district map → M3 diary → M4 ambient schedules: the whole roadmap of
+  docs/architecture/05 is now shipped.
+- The census fix is a permanent guard: future probes report what renders,
+  not what is parented. The reference study is recorded in docs/57 §3.5
+  (and §2's pedestrians/traffic rows marked studied) — the next agent that
+  touches ambient life starts from findings, not from zero.
+
+Gates at close: tsc clean · vitest 600/600 (40 files, incl. the 12 new
+schedule pins) · build OK · probe-peds PEDS OK (day + dusk sections) ·
+probe-cars exit 0 · scene census 321 drawables at rest, IDENTICAL to the
+pre-M4 baseline (the pruned-walk fix included) · 4-day E2E AUTOTEST OK
+0 failures (543 s, console clean).
