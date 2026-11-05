@@ -26,7 +26,7 @@ Implemented in `web-three/src/game/freeroam.ts` (pure), `game/Game.ts` (`toggleR
 
 ## 3. What the city gains next (the free-roam backlog, in order)
 
-1. **M1 — beats as places, not pressure:** the Map's page 1 grows *optional* story markers (the beat's spot drawn as a doodle); a deferred beat just waits — Rosa's line can say "whenever you're ready" instead of the objective line repeating.
+1. **M1 — beats as places, not pressure — ✅ SHIPPED:** the Map's page 1 carries Rosa's dashed ink circle on the current beat's spot, captioned *"whenever you're ready"* in her hand. Both the objective line and the marker read the one data-only helper (`GameState.beatPlaceId()`), so they can never disagree; beats with no named place (the fire escape, the teal door, the subway stairs, the notice) park the ring. Guarded by `tests/beats.test.ts` + `scripts/probe-m1-beats.mjs` (10/10).
 2. **M2 — the block becomes a district map:** docs/45's future plots open as new walkable strips; dressing stays diary-driven; the subway ride becomes a real edge between districts (the ride machine in `world/subway/` is already its own state machine).
 3. **M3 — the city keeps a diary of you:** roam choices (shelf buys, hoop makes, bench sits — already persisted counters in Save v1) resurface as later-day notes; the familiar-face system generalizes to "the block remembers".
 4. **M4 — ambient schedules:** peds/traffic density keyed to time-of-day already exists in seed form (`ambientWindowPlan`); promote it to a schedule table the whole street reads.

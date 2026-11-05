@@ -392,6 +392,7 @@ export class Game {
     });
 
     this.ui.setObjective(this.state.objectiveText());
+    this.ui.setBeatMarker(this.state.beatPlaceId());
     this.cam.snapBehind({ x: this.player.capsule.x, y: this.player.capsule.y, z: this.player.capsule.z });
 
     // ---------------- loop ----------------
@@ -1137,6 +1138,9 @@ export class Game {
           this.ui.setObjective(this.state.objectiveText());
           if (e.step === Step.DONE) this.ui.setObjective(DAY_DONE_OBJECTIVE(this.state.day));
         }
+        // M1: the beat marker is map information, not HUD pressure — it
+        // moves in both modes (mid-roam, it shows where the story waits).
+        this.ui.setBeatMarker(this.state.beatPlaceId());
         if (e.step === Step.D2_IDRIS) this.startIdrisWalk();
         break;
       case 'note':
@@ -2481,10 +2485,12 @@ export class Game {
       }
       s.setStep(Step.D4_WAKE);
       this.ui.setObjective(s.objectiveText());
+      this.ui.setBeatMarker(s.beatPlaceId());
       this.ui.showNote(DAY4_BEGIN_NOTE);
     } else if (n === 3) {
       s.setStep(Step.D3_WAKE);
       this.ui.setObjective(s.objectiveText());
+      this.ui.setBeatMarker(s.beatPlaceId());
       this.ui.showNote(DAY3_BEGIN_NOTE);
       // a kept Day 3, replayed: the kid already lives at the corner now
       if (s.replayDay && s.stoolUp && s.kidKept) {
@@ -2495,6 +2501,7 @@ export class Game {
     } else {
       s.setStep(Step.D2_WAKE);
       this.ui.setObjective(s.objectiveText());
+      this.ui.setBeatMarker(s.beatPlaceId());
       this.ui.showNote(`Day ${n}. The cart is still yours. That part never resets.`);
     }
 

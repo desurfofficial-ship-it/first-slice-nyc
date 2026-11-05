@@ -21,7 +21,7 @@ You start with a humble coffee cart on a quiet corner. Through short daily sessi
 
 **Coffee Cart → Bodega → Café → Food Spot → Rooftop**
 
-And when the day's errands can wait, **the whole block is yours** — the pocket's **Roam** chip opens every corner from the first minute (the story simply waits where you left it): ride the subway, shoot half-court, sit on a bench with a slice, read the newsboxes, buy the bodega's mango. The walkers, the traffic, the busker and the street keep living whether you follow Rosa or not.
+And when the day's errands can wait, **the whole block is yours** — the pocket's **Roam** chip opens every corner from the first minute (the story simply waits where you left it), and the Map circles the story's next spot in Rosa's ink, captioned *whenever you're ready*: ride the subway, shoot half-court, sit on a bench with a slice, read the newsboxes, buy the bodega's mango. The walkers, the traffic, the busker and the street keep living whether you follow Rosa or not.
 
 Every session ends with a **postcard** — a beautiful, auto-composed, captioned snapshot of something you discovered. By the end you’ve never been to Manhattan, but you swear you could navigate it.
 

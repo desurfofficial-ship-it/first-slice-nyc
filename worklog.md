@@ -954,3 +954,46 @@ Stage Summary:
 - origin/main was still at ee815fb; pushed c6a088c (M0) plus this
   correction commit to main. Reminder recorded for the director: rotate
   the PAT after the push (it traveled through chat).
+
+---
+Task ID: OPEN-WORLD-ROAM-M1 (beats as places) + repo cleanup
+Agent: Main Agent (continuation)
+Task: "Continue building — and delete any unimportant thing from the repo
+to keep it clean, including anything about godot; quality over quantity."
+Two fronts: (1) the cleanup, (2) M1 from docs/architecture/05.
+
+Work Log (cleanup — cee6527, 98 files, −4,629 lines):
+- Deleted greybox-godot/ (the oracle's job now belongs to the vitest
+  suite + the 4-day E2E — a stronger guard than a second codebase),
+  site/ (superseded by the Actions workflow that publishes
+  web-three/dist), tools/gen3d (thin duplicate of tools3d/ Track C),
+  the massing one-shot tools, the applied one-shot registry fixer, the
+  Godot-era capture frames, three orphaned pitch PNGs.
+- Kept: tools3d/ (the working pipeline), render-world.mjs +
+  validate-registry.mjs (the world-registry's guards), the two composed
+  postcards (moved to assets/postcards/), the dated build-log docs —
+  each banner-statused (2026-11-05) per the docs-hygiene pattern so
+  their greybox paths read as history.
+- Live surfaces updated: README (one build, current counts), AGENTS.md
+  repo map, package.json, and the web-three file headers (dead
+  greybox-godot/ paths → docs/23–24 provenance). Gates: tsc clean ·
+  vitest 565/565 · build OK.
+
+Work Log (M1 — beats as places, not pressure):
+- GameState.beatPlaceId(): the data-only beat→place table (21 named
+  beats; the fire escape, the teal door, the subway stairs, the notice,
+  the rail, and DONE stay null on purpose — a marker never points where
+  the objective doesn't).
+- The marker: a dashed ink ring + "whenever you're ready" caption on the
+  sketch (sketch.ts beatMarkerSvg, opacity-flip only; UI.setBeatMarker
+  with the priyaRevealed wait-for-build law), wired at boot,
+  applyEffect('step') (both modes — mid-roam it shows where the story
+  waits), and all three day-begins.
+- Evidence: tests/beats.test.ts (4 pins incl. the marker⇄objective
+  agreement law) · scripts/probe-m1-beats.mjs 10/10 in real Chromium ·
+  4-day E2E AUTOTEST OK 0 failures (534 s) · tsc clean · vitest 569/569.
+
+Stage Summary:
+- The repo is one build, one pipeline, one site — and the Map now tells
+  the player, in Rosa's hand, that the story waits for them. Next up
+  (docs/architecture/05): M2, the district map.

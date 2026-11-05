@@ -9,12 +9,11 @@
 - **Proof:** 559/559 vitest (553 legacy + 6 new) · `scripts/probe-roam.mjs` 28/28 in real Chromium (barrier physics, story-stays-live mid-roam, save round-trip, silent boot restore) · 4-day E2E `scripts/e2e.mjs` 0 failures (535 s) · `tsc` clean · console clean.
 - **Risk retired:** "free roam means deleting the sim" — it did not; the E2E still plays all four days.
 
-## M1 — Beats as places, not pressure (small, next)
+## M1 — Beats as places, not pressure ✅ SHIPPED
 
 - **Goal:** the Map's page 1 grows optional story markers (the current beat's spot as a doodle + a "whenever you're ready" Rosa line on defer).
-- **Touch:** `core/content.ts` (marker doodles), `ui/UI.ts` (sketch layer), one `GameState` helper (beat→place id map — data only).
-- **Risk:** the objective line and the map marker must agree, or the HUD lies. Mitigation: both read from the same `GameState` helper.
-- **Accept:** probe — enter roam, open map, marker visible; defer a beat, story completes later in order; 4-day E2E green.
+- **Shipped:** `GameState.beatPlaceId()` (the data-only beat→place table — the objective line and the marker both read it, so the HUD can't lie) · the beat marker in `ui/sketch.ts` (Rosa's dashed ink ring + her handwritten caption, opacity-flip only — the sketch's no-rebuild law) · `UI.setBeatMarker` (id waits if the sketch isn't built yet, the `priyaRevealed` law) · wired at boot, `applyEffect('step')` (both modes — mid-roam the ring shows where the story waits), and every day-begin.
+- **Proof:** `tests/beats.test.ts` (4 pins: every marked id is a real `MAP_PLACES` id; a marked beat always has an objective line; the named beats mark their spots; the unnamed beats — fire escape, teal door, stairs, notice, rail, DONE — park the ring) · `scripts/probe-m1-beats.mjs` 10/10 in real Chromium (boot ring on the terminal, the ring rides the story, roam holds the marker, the teal door parks it, console clean) · 4-day E2E `scripts/e2e.mjs` AUTOTEST OK 0 failures (534 s) · `tsc` clean · vitest 569/569.
 
 ## M2 — The district map (the block grows)
 
