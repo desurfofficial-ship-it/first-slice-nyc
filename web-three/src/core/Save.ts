@@ -1,5 +1,5 @@
 /**
- * FIRST SLICE save v1 — web mirror of greybox-godot/scripts/save.gd.
+ * FIRST SLICE save v1 — web mirror of the original greybox save (docs/23–24).
  * Storage: localStorage (Doc 07 §6 names local JSON; the browser equivalent).
  * Rules (save.gd header — kept exactly):
  *   * a corrupt or unreadable save is a fresh start, never a crash

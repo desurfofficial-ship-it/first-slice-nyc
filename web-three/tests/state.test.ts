@@ -1,6 +1,6 @@
 /**
- * Day 1 + Day 2 state machine — mirrors the Godot autotest's assertions
- * (greybox-godot/scripts/main.gd `_run_autotest`) at the logic level.
+ * Day 1 + Day 2 state machine — mirrors the original autotest's assertions
+ * (the greybox's `_run_autotest`) at the logic level.
  */
 
 import { describe, it, expect } from 'vitest';

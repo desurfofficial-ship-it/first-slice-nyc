@@ -1,6 +1,6 @@
 /**
- * Authoritative gameplay state for Day 1 + Day 2 — ported 1:1 from
- * greybox-godot/scripts/main.gd (the behavior oracle). No rendering, no DOM:
+ * Authoritative gameplay state for Day 1 + Day 2 — ported 1:1 from the
+ * original greybox (the migration record: docs/23–24). No rendering, no DOM:
  * the scene graph and the UI only ever *reflect* this state.
  */
 

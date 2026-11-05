@@ -1,5 +1,5 @@
 /**
- * All game text — verbatim from the reference implementation (greybox-godot/scripts/main.gd)
+ * All game text — verbatim from the original greybox implementation (docs/23–24)
  * and the design docs (Doc 02 first-session walkthrough, Doc 08 Day 1 content pack,
  * Doc 22 Day 2). Text is content: it does not get paraphrased during a migration.
  *

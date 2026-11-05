@@ -1,6 +1,6 @@
 /**
- * Browser E2E driver — the counterpart of the Godot headless autotest
- * (main.gd `_run_autotest`). Runs the REAL game with real physics and the
+ * Browser E2E driver — the counterpart of the original greybox's headless
+ * autotest (its `_run_autotest`). Runs the REAL game with real physics and the
  * real input layer: walks waypoints with camera-relative steering (injecting
  * WASD exactly like a player), presses interact, climbs both ladders, and
  * verifies the full Day 1 + Day 2 path — the three Doc 21 seams, the money

@@ -1,5 +1,5 @@
 /**
- * Game orchestrator — the browser port of greybox-godot/scripts/main.gd.
+ * Game orchestrator — the browser port of the original greybox (docs/23–24).
  * Owns the render loop, applies GameState effects to the world/UI, and runs
  * the authored sequences (dusk, gold window, postcard rig, day transitions).
  * Authoritative state lives in GameState; nothing gameplay-bearing is stored
@@ -411,7 +411,7 @@ export class Game {
     // debug/E2E handle
     (window as unknown as { __game: Game }).__game = this;
 
-    // E2E driver (mirrors the Godot headless autotest) — ?autotest=1
+    // E2E driver (mirrors the original headless autotest) — ?autotest=1
     if (new URLSearchParams(location.search).has('autotest') && !this.autotestStarted) {
       this.autotestStarted = true;
       void import('./autotest').then(({ runAutotest }) => runAutotest(this));

@@ -4,7 +4,7 @@
  *   caption composite → PNG (download + display in the panel).
  * This is a real capture of the live scene, never a placeholder button.
  *
- * Lessons from the Godot spike, kept here:
+ * Lessons from the original capture spike, kept here:
  *   - capture happens AFTER the dusk tween settles (the sky must not be moving)
  *   - the frame must not be uniform — we check pixel variance before composing
  */

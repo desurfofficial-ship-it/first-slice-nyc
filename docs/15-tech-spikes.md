@@ -1,5 +1,7 @@
 # FIRST SLICE — Tech Spikes (Phase 0 / Early Phase 1)
 
+> **Status update (2026-11-05):** history — the Godot greybox retired from the repo today (`greybox-godot/` is gone). The spike scripts and logs cited below are the record of where these numbers came from; the behavior they pinned now lives in the web-three vitest suite + the 4-day E2E ([docs/24](24-web-three-build.md)).
+
 **Purpose:** De-risk the two most important technical systems before full production begins.  
 A spike is a short, time-boxed investigation that produces a working proof (or a clear “this is harder than expected” report). Spikes are not production code.
 
@@ -55,7 +57,7 @@ Prove we can go from a moment in the 3D world to a shareable image on a real dev
 
 Proven on the Doc 19 greybox under Xvfb + Mesa llvmpipe. Not a device, not Unity — every conclusion below still transfers; device numbers stay open.
 
-- **Pipeline works end to end:** play the real day to the gold-window moment → 2 s glide → 768×1160 offscreen render (HUD never in it) → pixel-variance check → paper frame + caption composite → 768×1344 PNG. Artifact: `assets/greybox-day1/postcard_day1.png`.
+- **Pipeline works end to end:** play the real day to the gold-window moment → 2 s glide → 768×1160 offscreen render (HUD never in it) → pixel-variance check → paper frame + caption composite → 768×1344 PNG. Artifact: `assets/postcards/day1.png`.
 - **trigger→png measured 2.8 s on llvmpipe.** Device target 1.5 s `[TBD — owner: next spike on real hardware]`.
 - **Three lessons the hard way:** (1) reparenting a live Camera3D into a SubViewport errors and grays the capture — the capture camera must be *born inside* the viewport; (2) `is_empty()` passes a uniform gray frame — check pixel variance on a fixed grid; (3) capture after the 6 s dusk tween, or the sky is still moving.
 - Spike script: `greybox-godot/spikes/ts01_postcard.gd`. Raw log: `greybox-godot/spikes/logs/ts01_log.jsonl`.
