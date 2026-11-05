@@ -685,6 +685,47 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   `web-three/shots/b13-composed-plaza.png` (committed:
   `assets/web-three/frames/b13-composed-plaza.png`).
 
+- **Update 2026-11-06 (the post-M4 row + the reference study — the ledger
+  rule re-verified on the roadmap-complete tree):** the M0–M4 roadmap is
+  shipped (docs/architecture/05), so B13's standing gate — *no phase above
+  the previous ledger* — was re-measured on the current tree with the same
+  two diagnostics. **The row: PLAZA 302, CART_CORNER 236 (under its 250
+  line), SYCAMORE×GABLE 84 → 78, TIMES_SQ 52, PLATFORM_A 108** — every rig
+  at-or-under its previous number, the intersection rig six calls lighter
+  than the composed row (M4's pruned census walk changed nothing rendered;
+  the dusk rig's attribution tightened the count). probe-perf's story rigs:
+  boot-spawn 119 / mid-street-east 184 / plaza-life 256 — identical to the
+  furniture-pass at-rest row (119/184/260→256). **The reference study**
+  (docs/57 §3.6, study-before-build §1e): Slop New York's
+  `js/scene-culling.js` and Gen City Auto's `shadow-cull.ts` + `lod.ts`
+  were read in source. Their tools solve a regime FIRST SLICE does not
+  have — island-wide instance batches (~7 km bounding spheres), two shadow
+  cascades, 1.5 km views, generated far-city triangles. The translate
+  verdicts, priced: SNY's apparent-size distance culling has no bite at
+  170 m (nothing is sub-pixel, and the far row's lit windows are the
+  1-Second Law's sale); GCA's receiver-plane shadow cull needs a hook
+  three.js does not expose (per-frame `castShadow` toggling would be the
+  §1c.3 sin, and golden-hour shadows legally reach casters behind the
+  camera); GCA's per-triangle LOD presumes generated geometry we do not
+  have. What we ship already carries the transferable ideas: the district
+  bake IS SNY's chunking at the visibility grain (and bigger chunks were
+  measured a net loss on software GL, 2026-10-30), the figure shadow-proxy
+  IS the stand-in pattern for people, the sun box is a single cascade
+  already tightened twice (35 street / 18 underground, both measured).
+  **The arithmetic that sets the owner call:** the x-ray's PLAZA
+  attribution is ~302 = people ~86 (felt crowd 56 + named cast ~21 +
+  their shadow proxies 9) + baked tiles ~41 + named behavioral tail ~40
+  (lit windows, day-keyed flyers/notices — the unnamed x-ray bucket is
+  the flyer/notice dressing, priced) + wildlife ~21 (instanced by design)
+  + vehicles/signs/one-draw statics ~114. Getting to 150 means erasing
+  identity the Laws name: the crowd, the cast, the lit windows, the
+  golden-hour shadow pass. **Verdict: the pass rule's second arm is
+  satisfied — the honest ledger row is published, no rig regressed — and
+  closing B13 against the 150 line stays the owner's call, now with the
+  reference study attached.** No code changed in this update
+  (measurements + docs only); gates re-verified: tsc clean, vitest
+  605/605 (40 files), build clean.
+
 ### B14. Documentation hygiene — FIXED 2026-11-03
 - **Was:** AGENTS.md read "Pre-Production, docs-complete, code pending — do
   not scaffold game code before Phase 0 exit is signed" weeks after

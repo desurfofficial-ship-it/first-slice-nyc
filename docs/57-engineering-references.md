@@ -155,6 +155,64 @@ per-frame garbage — matches §1c.3 and was checked per file. `engine/`
 stateless; the M121's night park shipped with W4 p2) — the roadmap's touch
 list was a plan, and the deviation is recorded in the roadmap.
 
+### 3.6 Scene culling & perf (studied for B13, 2026-11-06)
+
+The question: how do the references keep a whole city inside a draw-call
+budget? Read in source: Slop New York `js/scene-culling.js` (362 lines),
+Gen City Auto `src/render/shadow-cull.ts` (35) + `src/city/lod.ts` (256).
+
+- **Slop New York** runs *one setup pass after the city is built*, then a
+  per-frame list walk. (1) Every island-wide `InstancedMesh` of small props
+  (bounding spheres ~7 km across — three.js can never frustum-cull them) is
+  split into spatial chunks (`chunkInstancedMesh`, 250–600 m cells, same
+  geometry + material so the pipeline is shared); each chunk gets a
+  **distance cull by apparent size** — `instanceSize × 1100 px` (the
+  90th-percentile instance width vs a 1300 px viewport), clamped
+  `CULL_MIN 300` (the shadow cascades reach that far at street level) to
+  `CULL_MAX 2000`; per frame that is one squared-distance write of
+  `visible` per chunk, zero allocations. (2) Big static casters are
+  replaced in the shadow pass by **position-only stand-ins**: black
+  `MeshBasicNodeMaterial`, position attribute only, cut into 500 m cells on
+  a `SHADOW_PROXY_LAYER` only the shadow cameras render; originals stop
+  casting; a material qualifies only if nothing displaces or cuts its
+  vertices. (3) Everything else large is split into 1000 m cells for plain
+  frustum culling.
+- **Gen City Auto** culls the shadow pass by **receiver planes**
+  (`receiverPlanes`): a caster is drawn only if it sits inside the camera
+  frustum slice between view near/far *swept toward the light* — planes
+  pointing away from the light are dropped, keeping the test conservative,
+  each plane pushed out by a margin. So off-screen geometry never pays the
+  shadow pass even when the light's own frustum contains it. And
+  `lod.ts` classifies every triangle of the far city by material class and
+  **narrowest width** (`2·area / longest edge`): a 5 cm rail is sub-pixel at
+  1.5 km however long it is — wires die at 700 m, lane paint 900–1400 m,
+  kerbs 1200 m; leaf cards and bark vanish entirely in LOD2 and each tree
+  crown becomes one 24-triangle opaque blob. Lit signs and lamp fittings
+  are explicitly kept at any distance (night readability).
+
+**FIRST SLICE mapping (B13):** our world is a 170 m authored block, not a
+7 km island — the regime these tools solve (island-wide instance batches
+nothing can cull, 2-cascade shadows, 1.5 km views) does not exist here.
+What we already have independently: the district-tile static bake IS the
+SNY chunk pattern at the visibility grain the game needs (28×32 m tiles,
+and the 2026-10-30 playtest measured that going bigger trades rasterized
+triangles for draw calls at a net loss on software GL); the figure
+shadow-proxy IS the stand-in idea for people (one shadow draw per person
+instead of six); the sun box is a single cascade already tightened to the
+street (35) and to the underground economy (18, measured 166 → 130). What
+does NOT translate, with reasons: SNY's apparent-size distance culling has
+nothing to bite on at our ranges (nothing is far enough to be sub-pixel —
+and the 1-Second Law sells the far row's lit windows); GCA's
+receiver-plane shadow cull needs to hook the renderer's shadow-cull loop,
+which three.js does not expose (per-frame `castShadow` toggling of
+hundreds of meshes would be the §1c.3 sin it exists to prevent, and
+golden-hour shadows legally stretch casters behind the camera into view);
+GCA's per-triangle LOD presumes generated far-city geometry we do not have
+— ours is authored and finite. The B13 ledger row (docs/51) prices the
+remaining composition per class with this study attached; the references'
+answer to our plaza-rig regime is their WebGPU instancing/cascade pipeline,
+which docs/architecture/03 §4 rules out as an engine swap.
+
 ## 4. What neither reference has (build independently, say so)
 
 - **A story spine.** Four days, beats, the objective line — neither repo has

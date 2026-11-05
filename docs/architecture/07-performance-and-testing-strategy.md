@@ -10,9 +10,9 @@
 
 ## 2. Testing pyramid (who proves what)
 
-| Level | Tool | Counts (2026-11-05) | Owns |
+| Level | Tool | Counts (2026-11-06) | Owns |
 |---|---|---|---|
-| Pure logic | `vitest` (`tests/*.test.ts`) | 36 files / 559 assertions | GameState law, save migration, dressing plans, registry gates, the Roam contract |
+| Pure logic | `vitest` (`tests/*.test.ts`) | 40 files / 605 assertions (2026-11-06) | GameState law, save migration, dressing plans, registry gates, the Roam contract |
 | Feature probes | Playwright on `dist/` (`scripts/probe-*.mjs`) | ~80 harnesses | One real-browser behavior each; mobile portrait; console-clean required |
 | Full story E2E | `game/autotest.ts` via `scripts/e2e.mjs` | 4 days, ~535 s | The life sim's spine — no change ships that breaks it |
 | Visual evidence | `visual-check.mjs` family | shots per feature | The 1-Second Law (readable, beautiful, NY) |

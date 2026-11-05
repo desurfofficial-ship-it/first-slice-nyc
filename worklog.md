@@ -1198,3 +1198,67 @@ name the pack at all. Two quiet fixes, no game code touched:
 - Gates: manifest parses (141 entries) · all repo_paths resolve ·
   AGENTS.md tree alignment kept · no game source touched, so the
   standing suite's verdict stands.
+
+---
+Task ID: B13-LEDGER-POST-M4
+Agent: main (Claude)
+Task: Continue working — the last open ledger item (docs/51 B13) on the
+  roadmap-complete tree: re-measure the ledger, run the study-before-build
+  reference check for the perf/culling system, and publish the honest row.
+  Plus a hygiene catch: the B18 merge had left a stray conflict marker in
+  this worklog.
+
+Work Log:
+- Hygiene first: worklog.md carried a literal `<<<<<<< HEAD` at the M3/M4
+  seam (the 14be680 merge resolved the collision but one marker survived).
+  Dropped it (commit f0c5d08). Also sandboxed this session's filemode noise
+  (571 files showed mode-only changes — core.filemode false locally, no
+  commit touched).
+- Reference study FIRST (docs/57 §3.6 has the record): Slop New York's
+  js/scene-culling.js (362 lines — island-wide instanced props split into
+  250–600 m chunks with apparent-size distance culls, position-only shadow
+  stand-ins on a proxy layer, 1000 m frustum cells) and Gen City Auto's
+  src/render/shadow-cull.ts (receiver-plane shadow culling: casters culled
+  by the camera frustum slice swept toward the light) + src/city/lod.ts
+  (per-triangle material-class + narrowest-width distance culls, crown
+  blobs). Verdict: their regime is a 7 km instanced island with two shadow
+  cascades and 1.5 km views; FIRST SLICE is a 170 m authored block on
+  three.js. Nothing translates wholesale; the transferable ideas are
+  already shipped and measured here (district bake = chunking at the
+  visibility grain; figure shadow-proxy = the stand-in pattern; sun box
+  35/18 = the tightened cascade). Bigger bake chunks were already measured
+  a net loss on software GL (2026-10-30); receiver-plane shadow culling
+  needs a renderer hook three.js does not expose; per-frame castShadow
+  toggling would be the §1c.3 sin; apparent-size culls have no sub-pixel
+  range to bite at our scale. Recorded in docs/57 §3.6.
+- Measured the post-M4 row (diag-perf-breakdown + probe-perf + x-ray +
+  the new diag-unnamed-parents.mjs one-shot): PLAZA 302, CART_CORNER 236,
+  SYCAMORE×GABLE 84 → 78, TIMES_SQ 52, PLATFORM_A 108; probe-perf story
+  rigs 119/184/256 — every rig at-or-under its previous ledger. The
+  x-ray's unnamed bucket was run to ground (diag-unnamed-parents +
+  diag-unnamed-xray): it is the day-keyed flyer/notice/sign dressing
+  (FLYER_SLIPS, hall notices — 4-vertex canvas quads that swap by day),
+  the sky dome and the steam points — behavioral assets the bake's rules
+  correctly leave alone.
+- The owner-call arithmetic published: PLAZA ~302 = people ~86 + baked
+  tiles ~41 + named behavioral tail ~40 + wildlife ~21 + vehicles/signs/
+  one-draw statics ~114. Under 150 means erasing identity the Laws name.
+  docs/51 B13 + docs/55 (F10 row + B13 section) updated; docs/architecture/07
+  pyramid counts refreshed (40 files / 605).
+
+Stage Summary:
+- B13's standing gate re-verified on the roadmap-complete tree: no rig
+  above its previous ledger; SYCAMORE six calls lighter. The honest row is
+  published with the reference study attached — closing B13 against the
+  150 line is the owner's call, with the full priced composition in
+  docs/51. docs/57 §3.6 is the next agent's starting point for any
+  culling/perf work.
+- No game source changed (measurements + docs + two read-only diagnostics);
+  the shipped game is byte-identical.
+
+Gates at close: tsc clean · vitest 605/605 (40 files) · build OK ·
+probe-perf 119/184/256 · diag-perf-breakdown 302/236/78/52/108 ·
+diag-rig-xray + diag-unnamed-parents + diag-unnamed-xray clean runs ·
+zero page errors. Push deferred: the PAT from the previous session was
+rejected (Invalid username or token — likely rotated); commits are on
+local main awaiting a fresh token.
