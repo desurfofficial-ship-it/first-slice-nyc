@@ -1545,9 +1545,14 @@ export class World {
       // inside GRD-GABLE's fence line (x −8.4..4, z 20..30)
       [[4.4, 24.1], [-0.5, 24.4], [-6.5, 24.4], [-6.9, 26],
        [-4, 26.8], [0, 26.2], [2.8, 25], [4.4, 24.1]],
-      // W4 — the avenue shopper (NZ-AVENUE): the Sycamore Ave west walk,
-      // past the diner window and the fruit stand (x 61.5/62.2 lanes)
-      [[61.5, -18], [61.5, 18], [62.2, 18], [62.2, -18]],
+      // W4 — the avenue shopper (NZ-AVENUE): the Sycamore Ave west walk's
+      // south block, past the diner window and the Golden Orchard's crates
+      // (x 61.5/62.2 lanes). The old loop spanned z −18..18 and crossed
+      // Kestrel Street MID-BLOCK at x 61.8 — a jaywalk the old inverted
+      // band hid (docs/51 B17): the ±7.5 clamp shrank the patrol but the
+      // street still sat inside it. A walker crosses at the paint or not
+      // at all; the bus-stop beat watches the M121 from the south walk.
+      [[61.5, -18], [61.5, -6.85], [62.2, -6.85], [62.2, -18]],
       // THE SHUFFLE CROWD's loops (docs/51 B16): all four stay on the north
       // walk (z 6.08–6.76) between the bodega (x −20) and the plaza (x −41),
       // lanes offset so the stretch reads as a crowd with gaps to walk
@@ -1604,11 +1609,14 @@ export class World {
         { x: 2.4, z: 24.6, faceTo: [1, 22.5], dwell: 3.0 },
       ],
       // W4 — the avenue shopper (NZ-AVENUE): the diner window, the Golden
-      // Orchard's crates, the M121 pole
+      // Orchard's crates, the M121 stop watched from the south walk —
+      // BUS-03 serves the north curb; nobody waits for it standing in the
+      // roadway (docs/51 B17: the old beat stood at z 2.2, inside the
+      // street rect, and the final soak sample caught it there)
       [
         { x: 61.6, z: -12, faceTo: [60.1, -12], dwell: 5.0 },
         { x: 61.7, z: -16.5, faceTo: [63.3, -18], dwell: 4.0 },
-        { x: 61.6, z: 2.2, faceTo: [61.5, 2], dwell: 2.0 },
+        { x: 61.6, z: -6.9, faceTo: [61.5, 2], dwell: 2.0 },
       ],
       // the Shuffle crowd's beats (docs/51 B16): small plaza pauses — the
       // bulletin board, the bench, the bodega window — off the walk lanes,

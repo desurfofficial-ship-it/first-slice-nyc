@@ -42,11 +42,15 @@ declare module 'yuka' {
 
   export class Path {
     loop: boolean;
+    _index: number;
     constructor();
     add(point: Vector3): this;
+    current(): Vector3;
+    advance(): this;
   }
 
   export class FollowPathBehavior extends SteeringBehavior {
+    path: Path;
     constructor(path: Path, nextWaypointDistance?: number, weight?: number);
   }
 
