@@ -9,7 +9,7 @@
  * notebook that redraws itself between reads would feel haunted.
  */
 
-import { MAP_PLACES, SKETCH_BOUNDS } from '../core/content';
+import { MAP_PLACES, SKETCH_BOUNDS, BEAT_READY_CAPTION } from '../core/content';
 
 const P = SKETCH_BOUNDS;
 
@@ -103,6 +103,18 @@ function priyaLinesSvg(): string {
     + `</g>`;
 }
 
+/** M1 — the beat marker (docs/architecture/05): Rosa's ink circle around
+ *  the story beat's spot, her one patient line as the caption. Hidden by
+ *  default; the transform and the `active` class are applied from the
+ *  state's beatPlaceId() — the same helper the objective line reads, so
+ *  the marker and the HUD can never disagree. */
+function beatMarkerSvg(): string {
+  return `<g class="sketch-beat" id="sketch-beat">`
+    + `<circle class="sketch-beat-ring" r="2.7"/>`
+    + `<text class="sketch-beat-note" x="0" y="-3.7" text-anchor="middle">${BEAT_READY_CAPTION}</text>`
+    + `</g>`;
+}
+
 export function buildSketchSvg(): string {
   const places = MAP_PLACES.map((p) => {
     const ly = LABEL_ABOVE.has(p.id) ? -1.9 : 2.35;
@@ -117,5 +129,5 @@ export function buildSketchSvg(): string {
   const vbX = P.xMin - 1, vbY = toY(P.zMax) - 1;
   const vbW = (P.xMax - P.xMin) + 2, vbH = (P.zMax - P.zMin) + 2;
   return `<svg viewBox="${vbX} ${vbY} ${vbW} ${vbH}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">`
-    + streetsSvg() + places + star + priyaLinesSvg() + `</svg>`;
+    + streetsSvg() + places + star + beatMarkerSvg() + priyaLinesSvg() + `</svg>`;
 }

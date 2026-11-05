@@ -8,6 +8,8 @@
  * says what you picked. The reference was silent on all three counts.
  */
 
+import type { DiaryFamily } from './diary';
+
 /** Objective line per step (main.gd `_set_step`). */
 export const OBJECTIVES: Record<number, string> = {
   0:  'Someone by the terminal is waving at you.',                       // MEET_ROSA
@@ -1096,6 +1098,22 @@ export const MEMORY_LINES: Record<'shelf' | 'dog' | 'trim' | 'wash' | 'hoop', Me
   },
 };
 
+// ---------------------------------------------------- the diary (M3) ----
+// docs/architecture/05 M3 — the block remembers you TOMORROW: the morning
+// after a family crosses its diary threshold (core/diary.ts picks which;
+// Game applies it through the note queue), the city says one line about
+// yesterday's rounds. One line per family, ever — the watermark in the
+// save (`diary_noted`) keeps the morning from repeating itself. Keys must
+// match core/diary.ts's DiaryFamily. No-FOMO check: no line asks for
+// another round; being known is the whole reward.
+export const DIARY_NOTE_TEXT: Record<DiaryFamily, string> = {
+  shelf: 'Rosa front-stocked \u201Cyour row\u201D before the door chime settled this morning. Nobody asked her to.',
+  dog: 'The cart man started your order while you were still crossing the street. You hadn\u2019t decided yet.',
+  trim: 'The barber\u2019s chair is turned to face the door. Yours is the next cut he expects.',
+  wash: 'Sunrise kept the first machine open this morning. The block notices who comes back.',
+  hoop: 'Someone chalked a small tally under the court\u2019s score. It\u2019s your makes, kept.',
+};
+
 // ---------------------------------------------------- docs/50 far world ----
 // The K line, Times Square, the M121 — the first-session world's missing
 // rooms (Agent 2). Same diary law: day-keyed where it rotates, fixed where
@@ -1221,3 +1239,9 @@ export const SKETCH_BOUNDS = { xMin: -46, xMax: 48, zMin: -10, zMax: 16 } as con
 
 /** How close you must walk for Map to notice a place (meters). */
 export const MAP_PLACE_NOTICE_R = 5;
+
+/** M1 — beats as places (docs/architecture/05): the beat marker's caption
+ *  on the Map's sketch. Rosa circles the story's spot and writes her one
+ *  patient line beside it. Defer reads as handwriting on the fold, never
+ *  as HUD pressure — the objective line stays the HUD's business. */
+export const BEAT_READY_CAPTION = 'whenever you\u2019re ready';

@@ -8,6 +8,8 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PAL } from '../core/palette';
 import { ITEM_LABELS } from '../core/content';
@@ -31,6 +33,7 @@ import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecy
 import { drawIntoAtlas, atlasMaterial, atlasTexture } from './signAtlas';
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { fuseFlatParts } from './vertexFuse';
+import { FURNITURE_SLOTS, type FurnitureSlot } from './furniture';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
 import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
@@ -461,6 +464,13 @@ export class World {
   private glbLoader: GLTFLoader | null = new GLTFLoader();
   /** Which props ended up wearing a generated .glb, and from which file. */
   readonly glbUpgrades = new Map<string, string>();
+  /** ABO furniture (docs/57): which slots ended up wearing a real model,
+   *  and from which file — the probe's evidence map. */
+  readonly furnitureUpgrades = new Map<string, string>();
+  /** The renderer-backed loader (KTX2 transcoder + meshopt decoder) is
+   *  configured once the Game owns its renderer; furniture upgrades fire
+   *  from that call. Until then the street-seam loader loads plain GLBs. */
+  private furnitureWired = false;
 
   constructor() {
     const scene = this.scene;
@@ -2731,6 +2741,23 @@ export class World {
     // kitchenette (NE corner)
     this.fixture(g, 'Hall_Kitchenette', -49.4, 0.45, 30.6, 2.4, 0.9, 1.6, PAL.teal);
     this.colliders.push(boxFromCenter(-49.4, 0.45, 30.6, 2.4, 0.9, 1.6));
+    // ABO furniture slots (docs/57) — the living-room half: sofa + coffee
+    // table on the E wall's clear zone, a real bookcase beside the shelves,
+    // two real chairs at the work table. Colliders authored here; the GLB
+    // swap is visual-only (the rooms never depend on the files).
+    this.fixture(g, 'Hall_Sofa', -48.75, 0.44, 26.0, 0.9, 0.88, 1.9, PAL.teal);
+    this.colliders.push(boxFromCenter(-48.75, 0.44, 26.0, 0.9, 0.88, 1.9));
+    this.fixture(g, 'Hall_CoffeeTable', -50.2, 0.225, 26.0, 1.1, 0.45, 0.6, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-50.2, 0.225, 26.0, 1.1, 0.45, 0.6));
+    this.fixture(g, 'Hall_Bookcase', -50.9, 0.9, 31.3, 1.0, 1.8, 0.35, PAL.bldg2);
+    this.colliders.push(boxFromCenter(-50.9, 0.9, 31.3, 1.0, 1.8, 0.35));
+    this.fixture(g, 'Hall_Chair_A', -53.1, 0.44, 28.5, 0.5, 0.88, 0.5, 0x2b2730);
+    this.colliders.push(boxFromCenter(-53.1, 0.44, 28.5, 0.5, 0.88, 0.5));
+    this.fixture(g, 'Hall_Chair_B', -54.9, 0.44, 28.5, 0.5, 0.88, 0.5, 0x2b2730);
+    this.colliders.push(boxFromCenter(-54.9, 0.44, 28.5, 0.5, 0.88, 0.5));
+    // the sideboard against the S wall, east of the notice wall
+    this.fixture(g, 'Hall_Sideboard', -51.2, 0.51, 20.75, 1.4, 1.02, 0.5, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-51.2, 0.51, 20.75, 1.4, 1.02, 0.5));
 
     // the hall's tall windows: single warm translucent panes, always on —
     // lit from the street, see-through up close (the swap-free pane)
@@ -2780,23 +2807,29 @@ export class World {
     floor.position.set(55, 0.13, -14);
     floor.receiveShadow = true;
     g.add(floor);
-    // counter bar (E wall) + 8 stools
-    this.fixture(g, 'Diner_CounterBar', 58.9, 0.55, -14.5, 0.7, 1.1, 8, PAL.teal);
-    this.fixture(g, 'Diner_CounterTop', 58.9, 1.12, -14.5, 0.8, 0.06, 8.1, PAL.stone);
-    this.colliders.push(boxFromCenter(58.9, 0.55, -14.5, 0.7, 1.1, 8));
+    // counter bar (E wall) + 8 stools. docs/57 re-lay: the W5 build put the
+    // cook line BETWEEN the aisle and the bar (x 57.6) with the stools in
+    // the 0.15 m slot at 58.35 — buried, first as cylinders and then as the
+    // ABO stool models (docs/57's probe caught it). The line now reads
+    // aisle → stools → bar → cook line → E wall; same pieces, same
+    // colliders' sizes, positions only.
+    this.fixture(g, 'Diner_CounterBar', 57.6, 0.55, -14.5, 0.7, 1.1, 8, PAL.teal);
+    this.fixture(g, 'Diner_CounterTop', 57.6, 1.12, -14.5, 0.8, 0.06, 8.1, PAL.stone);
+    this.colliders.push(boxFromCenter(57.6, 0.55, -14.5, 0.7, 1.1, 8));
     for (let i = 0; i < 8; i++) {
       const sz = -10.9 - i * 1.03;
       const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.55, 8), this.bank.get(PAL.cream));
-      stool.position.set(58.35, 0.28, sz);
+      stool.name = `Diner_Stool_${i}`; // ABO furniture slot (docs/57)
+      stool.position.set(56.95, 0.28, sz);
       stool.castShadow = true;
       g.add(stool);
     }
-    // kitchen line behind the counter
-    this.fixture(g, 'Diner_Kitchen', 57.6, 0.5, -14.5, 1.6, 1.0, 8, 0x9a938c);
+    // kitchen line behind the counter (east of the bar, facing it)
+    this.fixture(g, 'Diner_Kitchen', 58.9, 0.5, -14.5, 1.6, 1.0, 8, 0x9a938c);
     const griddle = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 2.2), this.roomWarmMat);
-    griddle.position.set(57.6, 1.04, -13.2);
+    griddle.position.set(58.9, 1.04, -13.2);
     g.add(griddle);
-    this.colliders.push(boxFromCenter(57.6, 0.5, -14.5, 1.6, 1.0, 8));
+    this.colliders.push(boxFromCenter(58.9, 0.5, -14.5, 1.6, 1.0, 8));
     // booths (4, W wall)
     for (const bz of [-11.5, -14, -16.5, -18.5]) {
       this.fixture(g, `Diner_BoothT_${bz}`, 51.6, 0.72, bz, 0.8, 0.06, 1.1, PAL.cream);
@@ -2895,10 +2928,22 @@ export class World {
     // the Map's corkboard (by the door)
     this.fixture(g, 'Cecil_Corkboard', 11.2, 9.5, -9.42, 1.1, 0.8, 0.06, 0x8e6f66);
     this.fixture(g, 'Cecil_CorkNote', 11.2, 9.5, -9.38, 0.5, 0.6, 0.02, PAL.cream);
+    // ABO furniture slots (docs/57) — the authored placeholders the real
+    // models wear at boot (manifest: src/world/furniture.ts). Colliders are
+    // authored here; the swap is visual-only, the room never depends on
+    // the files.
+    this.fixture(g, 'Cecil_Dresser', 10.55, 8.875, -13.2, 0.55, 0.95, 1.1, 0x8e6f66);
+    this.colliders.push(boxFromCenter(10.55, 8.875, -13.2, 0.55, 0.95, 1.1));
+    this.fixture(g, 'Cecil_Nightstand', 15.55, 8.675, -10.6, 0.4, 0.55, 0.45, 0x8e6f66);
+    this.colliders.push(boxFromCenter(15.55, 8.675, -10.6, 0.4, 0.55, 0.45));
+    // the lamp rides the dresser's top — its placeholder stands on it
+    this.fixture(g, 'Cecil_Lamp', 10.62, 9.46, -13.35, 0.16, 0.22, 0.16, 0x2b2730);
     // rug
     const rug = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.02, 1.4), this.bank.get(PAL.teal));
+    rug.name = 'Cecil_Rug';
     rug.position.set(12.6, 8.41, -11.0);
     rug.receiveShadow = true;
+    rug.castShadow = true;
     g.add(rug);
     // the window's warm translucent pane (always visible — lit from inside)
     this.scene.add(this.facadePane('Cecil_Glass', 'x', -8.03, 14.32, 15.48, 9.37, 10.73, this.roomGlassMat));
@@ -3504,6 +3549,120 @@ export class World {
         for (const m of mats) m?.dispose();
       }
     });
+  }
+
+  // ------------------------------------------------- ABO furniture seam
+  // docs/57: the curated Amazon Berkeley Objects pack (CC-BY-4.0) wears the
+  // interiors. The models are the dataset's lod1 GLBs — meshopt-compressed
+  // geometry with KTX2 (basis) textures — so the loader needs the renderer
+  // for the transcoder's format probe; the Game wires it once the renderer
+  // exists. The seam law is the docs/28 one: a missing or malformed file
+  // keeps the authored placeholder, one console.info line, no retry loop,
+  // and NOTHING gameplay-bearing changes (colliders, toggles, anchors).
+
+  /** Called once by the Game after the renderer exists: re-arms the GLB
+   *  loader with the meshopt + KTX2 decoders and fires the furniture
+   *  upgrades. Street-prop upgrades keep their earlier plain loader. */
+  configureGltfDecoders(renderer: THREE.WebGLRenderer): void {
+    if (this.furnitureWired) return;
+    this.furnitureWired = true;
+    const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder);
+    const ktx2 = new KTX2Loader()
+      .setTranscoderPath('vendor/basis/')
+      .detectSupport(renderer);
+    loader.setKTX2Loader(ktx2);
+    this.glbLoader = loader;
+    for (const slot of FURNITURE_SLOTS) void this.upgradeFurnitureWithGLB(slot);
+  }
+
+  /** One furniture slot: swap the named placeholder inside its room group
+   *  for the real model, scaled to the slot's authored height (or footprint
+   *  for flat pieces), XZ-centered on the placeholder, feet on its ground.
+   *  Siblings in `hide` lose visibility ONLY once the model is in — the
+   *  procedural room stays whole when the file is missing. */
+  async upgradeFurnitureWithGLB(slot: FurnitureSlot): Promise<boolean> {
+    const loader = this.glbLoader;
+    if (!loader) return false;
+    const room = this.scene.children.find((c) => c.name === `INT_${slot.room}`);
+    const placeholder = room?.children.find((c) => c.name === slot.fixture);
+    if (!room || !placeholder) {
+      console.info(`[furniture] ${slot.id}: placeholder ${slot.fixture} not found — kept procedural`);
+      return false;
+    }
+    const file = `models/furniture/${slot.id}.glb`;
+    const url = new URL(file, document.baseURI).href;
+    try {
+      const gltf = await loader.loadAsync(url);
+      let visual: THREE.Object3D = gltf.scene;
+      let hasMesh = false;
+      const stray: THREE.Object3D[] = [];
+      visual.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh) hasMesh = true;
+        if ((o as THREE.Light).isLight || (o as THREE.Camera).isCamera) stray.push(o);
+      });
+      if (!hasMesh) throw new Error('no meshes in file');
+      for (const o of stray) o.parent?.remove(o);
+      // the slot's yaw goes on FIRST and the merge bakes it into the
+      // vertices — the bounds below are the occupied ones, so the footprint
+      // guard judges the piece as placed, not as authored
+      visual.rotation.y = slot.rotateY ?? 0;
+      visual.updateWorldMatrix(true, true);
+      // one draw per material (the street seam's merge; furniture files are
+      // single-mesh so this usually returns the scene untouched)
+      visual = this.mergeGltfParts(visual);
+
+      placeholder.updateWorldMatrix(true, false);
+      const phBox = new THREE.Box3().setFromObject(placeholder);
+      const phSize = phBox.getSize(new THREE.Vector3());
+      const box = new THREE.Box3().setFromObject(visual);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      if (!(size.y > 0) || !Number.isFinite(size.y)) throw new Error('degenerate bounds');
+      const worldPos = placeholder.getWorldPosition(new THREE.Vector3());
+
+      // fit law: 'height' scales the model to the slot's authored height;
+      // 'footprint' (flat pieces) covers the placeholder's XZ box. The
+      // footprint guard is the street seam's band (0.5–1.9×) — a mislabeled
+      // model (a lamp wearing the bed slot) bails whole, room keeps its box.
+      const s = slot.fitBy === 'footprint'
+        ? Math.min(phSize.x / size.x, phSize.z / size.z)
+        : slot.height / size.y;
+      const scaledX = size.x * s, scaledZ = size.z * s;
+      if (scaledX < phSize.x * 0.5 || scaledX > phSize.x * 1.9
+        || scaledZ < phSize.z * 0.5 || scaledZ > phSize.z * 1.9) {
+        throw new Error(`footprint mismatch (${scaledX.toFixed(2)}×${scaledZ.toFixed(2)} vs ${phSize.x.toFixed(2)}×${phSize.z.toFixed(2)})`);
+      }
+      if (slot.fitBy === 'footprint' && !(Math.abs(size.y * s - slot.height) < slot.height * 4 + 0.15)) {
+        throw new Error(`flat piece reads ${(size.y * s).toFixed(2)} m thick`);
+      }
+
+      const wrapper = new THREE.Group();
+      wrapper.name = `${slot.fixture}_glb`;
+      wrapper.position.set(worldPos.x, phBox.min.y, worldPos.z);
+      visual.position.set(-center.x, -box.min.y, -center.z);
+      visual.scale.setScalar(s);
+      wrapper.add(visual);
+      wrapper.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.receiveShadow = true; }
+      });
+
+      const parent = placeholder.parent;
+      if (!parent) throw new Error('placeholder was removed from the scene');
+      parent.add(wrapper);
+      parent.remove(placeholder);
+      this.disposeTree(placeholder);
+      for (const name of slot.hide ?? []) {
+        const sibling = parent.children.find((c) => c.name === name);
+        if (sibling) sibling.visible = false;
+      }
+      this.furnitureUpgrades.set(`${slot.room}:${slot.fixture}`, file);
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.info(`[furniture] ${slot.id} keeps its procedural look (${msg})`);
+      return false;
+    }
   }
 
   private makeMailbox(x: number, z: number): THREE.Group {

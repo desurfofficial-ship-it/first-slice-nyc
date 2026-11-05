@@ -6,7 +6,7 @@
 
 import { gameAudio } from '../game/audio';
 import type { OrderCard } from '../core/content';
-import { SLANG_CARDS } from '../core/content';
+import { MAP_PLACES, SLANG_CARDS } from '../core/content';
 import { buildSketchSvg } from './sketch';
 import type { AlbumEntry } from '../postcard/Album';
 import { touchPanelUp } from './touchLaw';
@@ -491,6 +491,32 @@ export class UI {
     // the star is where you're standing when you open the fold — world x,
     // y = −z (the sketch's north-up copy)
     star?.setAttribute('transform', `translate(${px.toFixed(1)},${(-pz).toFixed(1)})`);
+    this.applyBeatMarker();
+  }
+
+  /** M1 — the beat marker on the sketch (docs/architecture/05). `placeId`
+   *  is the state's beatPlaceId() — the same helper the objective line
+   *  reads; null hides the ring (beats with no named place, DONE). If the
+   *  sketch isn't built yet, the id waits — refreshSketch applies it on
+   *  the first build (the same law as priyaRevealed). */
+  private beatPlace: string | null = null;
+
+  setBeatMarker(placeId: string | null): void {
+    this.beatPlace = placeId;
+    this.applyBeatMarker();
+  }
+
+  private applyBeatMarker(): void {
+    if (!this.sketchEl) return;
+    const beat = this.sketchEl.querySelector<SVGGElement>('#sketch-beat');
+    if (!beat) return;
+    const place = this.beatPlace ? MAP_PLACES.find((p) => p.id === this.beatPlace) : undefined;
+    if (!place) {
+      beat.classList.remove('active');
+      return;
+    }
+    beat.setAttribute('transform', `translate(${place.x},${-place.z})`);
+    beat.classList.add('active');
   }
 
 

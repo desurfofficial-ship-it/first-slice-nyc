@@ -1,5 +1,7 @@
 # FIRST SLICE — Greybox First-Build Guide
 
+> **Status update (2026-11-05):** history — this greybox was built, played, and retired from the repo (`greybox-godot/` is gone; the earlier Unity paths below were never the shipped engine). The browser build (`web-three/`) is the shipped Day 1–4 — [docs/24](24-web-three-build.md). The beats and sight lines this guide sequenced live on there; the Unity/`Assets/` paths below are the record of where those beats were first walked.
+
 **Goal of this document:** Get a minimum playable Day 1 greybox standing as quickly as possible.  
 This is the practical companion to [Doc 17 – Greybox Tasks](17-greybox-tasks.md).
 

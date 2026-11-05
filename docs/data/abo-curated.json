@@ -1,0 +1,2822 @@
+[
+ {
+  "bucket": "chairs-dining",
+  "role": "hero",
+  "id": "B075YQ8Q2K",
+  "repo_path": "assets/furniture/chairs-dining/B075YQ8Q2K.glb",
+  "name": "Amazon Brand \u2013 Rivet Florence Mid-Century Modern Wide Open-Back Accent Kitchen Dining Chairs, 18.8\"W, Grey, Set of 2",
+  "product_type": "chair",
+  "brand": "Rivet",
+  "style": "Mid-Century Modern",
+  "lod1": "lods/B075YQ8Q2K/B075YQ8Q2K_lod1.glb",
+  "lod2": "lods/B075YQ8Q2K/B075YQ8Q2K_lod2.glb",
+  "lod1_bytes": 330180,
+  "lod1_triangles": 5516,
+  "size_metres": [
+   0.4698,
+   0.9312,
+   0.6121
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "chairs-dining",
+  "role": "hero",
+  "id": "B0853KZW7Z",
+  "repo_path": "assets/furniture/chairs-dining/B0853KZW7Z.glb",
+  "name": "Amazon Brand \u2013 Rivet Logan Mid-Century Modern Faux Leather Dining Chair, Set of 2, 20.1\"W, Gray",
+  "product_type": "chair",
+  "brand": "Rivet",
+  "style": "Mid-Century Modern",
+  "lod1": "lods/B0853KZW7Z/B0853KZW7Z_lod1.glb",
+  "lod2": "lods/B0853KZW7Z/B0853KZW7Z_lod2.glb",
+  "lod1_bytes": 374608,
+  "lod1_triangles": 5268,
+  "size_metres": [
+   0.5153,
+   0.9315,
+   0.6881
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "chairs-dining",
+  "role": "hero",
+  "id": "B00EUL2B16",
+  "repo_path": "assets/furniture/chairs-dining/B00EUL2B16.glb",
+  "name": "Ashley Furniture Signature Design - Leahlyn Dining Upholstered Side Chair - Pierced Splat Back - Set of 2 - Medium Brown",
+  "product_type": "chair",
+  "brand": "Signature Design by Ashley",
+  "style": "Contemporary",
+  "lod1": "lods/B00EUL2B16/B00EUL2B16_lod1.glb",
+  "lod2": "lods/B00EUL2B16/B00EUL2B16_lod2.glb",
+  "lod1_bytes": 380484,
+  "lod1_triangles": 6962,
+  "size_metres": [
+   0.4572,
+   0.9652,
+   0.5842
+  ],
+  "score": 8.5
+ },
+ {
+  "bucket": "chairs-dining",
+  "role": "hero",
+  "id": "B07FYHGL58",
+  "repo_path": "assets/furniture/chairs-dining/B07FYHGL58.glb",
+  "name": "Phoenix Home Kenitra Contemporary Plastic Dining Chair, Bone White, Set of 4",
+  "product_type": "chair",
+  "brand": "Phoenix Home",
+  "style": "Mid-Century Modern",
+  "lod1": "lods/B07FYHGL58/B07FYHGL58_lod1.glb",
+  "lod2": "lods/B07FYHGL58/B07FYHGL58_lod2.glb",
+  "lod1_bytes": 253300,
+  "lod1_triangles": 12549,
+  "size_metres": [
+   0.4699,
+   0.8255,
+   0.5334
+  ],
+  "score": 8.3
+ },
+ {
+  "bucket": "chairs-dining",
+  "role": "hero",
+  "id": "B07GZY7JFV",
+  "repo_path": "assets/furniture/chairs-dining/B07GZY7JFV.glb",
+  "name": "Phoenix Home Dining Chair, Single, Black",
+  "product_type": "chair",
+  "brand": "Phoenix Home",
+  "style": "Mid-Century Modern",
+  "lod1": "lods/B07GZY7JFV/B07GZY7JFV_lod1.glb",
+  "lod2": "lods/B07GZY7JFV/B07GZY7JFV_lod2.glb",
+  "lod1_bytes": 333052,
+  "lod1_triangles": 13342,
+  "size_metres": [
+   0.4699,
+   0.8255,
+   0.5334
+  ],
+  "score": 8.3
+ },
+ {
+  "bucket": "chairs-dining",
+  "role": "hero",
+  "id": "B075ZZYH4B",
+  "repo_path": "assets/furniture/chairs-dining/B075ZZYH4B.glb",
+  "name": "AmazonBasics Padded Dining Chair - Set of 2, Black",
+  "product_type": "chair",
+  "brand": "AmazonBasics",
+  "style": null,
+  "lod1": "lods/B075ZZYH4B/B075ZZYH4B_lod1.glb",
+  "lod2": "lods/B075ZZYH4B/B075ZZYH4B_lod2.glb",
+  "lod1_bytes": 99740,
+  "lod1_triangles": 2897,
+  "size_metres": [
+   0.3988,
+   0.897,
+   0.5565
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "chairs-dining",
+  "role": "hero",
+  "id": "B076HDDMKM",
+  "repo_path": "assets/furniture/chairs-dining/B076HDDMKM.glb",
+  "name": "AmazonBasics Padded Dining Chair - Set of 2, Brown",
+  "product_type": "chair",
+  "brand": "AmazonBasics",
+  "style": null,
+  "lod1": "lods/B076HDDMKM/B076HDDMKM_lod1.glb",
+  "lod2": "lods/B076HDDMKM/B076HDDMKM_lod2.glb",
+  "lod1_bytes": 104392,
+  "lod1_triangles": 2897,
+  "size_metres": [
+   0.3988,
+   0.897,
+   0.5565
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "chairs-dining",
+  "role": "hero",
+  "id": "B07M6PKM8K",
+  "repo_path": "assets/furniture/chairs-dining/B07M6PKM8K.glb",
+  "name": "Amazon Brand \u2013 Ravenna Home Classic-Style Solid Pine Dining Chair, 40\"H, Black Finish, Set of 2",
+  "product_type": "chair",
+  "brand": "Ravenna Home",
+  "style": "Classic Dining Chair",
+  "lod1": "lods/B07M6PKM8K/B07M6PKM8K_lod1.glb",
+  "lod2": "lods/B07M6PKM8K/B07M6PKM8K_lod2.glb",
+  "lod1_bytes": 246908,
+  "lod1_triangles": 3464,
+  "size_metres": [
+   0.4498,
+   0.9976,
+   0.5553
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "chairs-dining",
+  "role": "hero",
+  "id": "B07MBFDL34",
+  "repo_path": "assets/furniture/chairs-dining/B07MBFDL34.glb",
+  "name": "Amazon Brand \u2013 Ravenna Home Solid Pine Dining Chair with Cutout Back, 38\"H, Gray Finish, Set of 2",
+  "product_type": "chair",
+  "brand": "Ravenna Home",
+  "style": "Farmhouse Dining Chair",
+  "lod1": "lods/B07MBFDL34/B07MBFDL34_lod1.glb",
+  "lod2": "lods/B07MBFDL34/B07MBFDL34_lod2.glb",
+  "lod1_bytes": 107072,
+  "lod1_triangles": 4570,
+  "size_metres": [
+   0.4852,
+   0.9831,
+   0.5419
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "chairs-dining",
+  "role": "hero",
+  "id": "B07QFRSN22",
+  "repo_path": "assets/furniture/chairs-dining/B07QFRSN22.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Mid-Century Foam-Padded Dining Chair, 30.5\"H, Beige",
+  "product_type": "chair",
+  "brand": "Stone & Beam",
+  "style": null,
+  "lod1": "lods/B07QFRSN22/B07QFRSN22_lod1.glb",
+  "lod2": "lods/B07QFRSN22/B07QFRSN22_lod2.glb",
+  "lod1_bytes": 337364,
+  "lod1_triangles": 8812,
+  "size_metres": [
+   0.5842,
+   0.7747,
+   0.6159
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "chairs-dining",
+  "role": "hero",
+  "id": "B084T7K1P4",
+  "repo_path": "assets/furniture/chairs-dining/B084T7K1P4.glb",
+  "name": "Stone & Beam Classic Wishbone Dining Chair, 37.5\" H, White",
+  "product_type": "chair",
+  "brand": "Stone & Beam",
+  "style": null,
+  "lod1": "lods/B084T7K1P4/B084T7K1P4_lod1.glb",
+  "lod2": "lods/B084T7K1P4/B084T7K1P4_lod2.glb",
+  "lod1_bytes": 103376,
+  "lod1_triangles": 6789,
+  "size_metres": [
+   0.4826,
+   0.9525,
+   0.5715
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "chairs-dining",
+  "role": "hero",
+  "id": "B07TD48CNZ",
+  "repo_path": "assets/furniture/chairs-dining/B07TD48CNZ.glb",
+  "name": "Set of 2 dining chairs.",
+  "product_type": "chair",
+  "brand": "Movian",
+  "style": "Set met 2 eetkamerstoelen.",
+  "lod1": "lods/B07TD48CNZ/B07TD48CNZ_lod1.glb",
+  "lod2": "lods/B07TD48CNZ/B07TD48CNZ_lod2.glb",
+  "lod1_bytes": 150928,
+  "lod1_triangles": 12908,
+  "size_metres": [
+   0.461,
+   0.85,
+   0.525
+  ],
+  "score": 7.3
+ },
+ {
+  "bucket": "chairs-dining",
+  "role": "hero",
+  "id": "B07DYJ8J4Z",
+  "repo_path": "assets/furniture/chairs-dining/B07DYJ8J4Z.glb",
+  "name": "Pioneer Square Beja Metal Dining Chair with Wood Seat, Set of 2, Woodland Brown",
+  "product_type": "chair",
+  "brand": "Pioneer Square",
+  "style": null,
+  "lod1": "lods/B07DYJ8J4Z/B07DYJ8J4Z_lod1.glb",
+  "lod2": "lods/B07DYJ8J4Z/B07DYJ8J4Z_lod2.glb",
+  "lod1_bytes": 322692,
+  "lod1_triangles": 18264,
+  "size_metres": [
+   0.4513,
+   0.8435,
+   0.5321
+  ],
+  "score": 6.5
+ },
+ {
+  "bucket": "chairs-dining",
+  "role": "hero",
+  "id": "B07THSZJ6P",
+  "repo_path": "assets/furniture/chairs-dining/B07THSZJ6P.glb",
+  "name": "An Amazon Brand - Movian Arendsee - Set of 2 Dining Chairs, 55 x 55 x 85 cm (L x W x H)",
+  "product_type": "chair",
+  "brand": "Movian",
+  "style": "Set met 2 eetkamerstoelen.",
+  "lod1": "lods/B07THSZJ6P/B07THSZJ6P_lod1.glb",
+  "lod2": "lods/B07THSZJ6P/B07THSZJ6P_lod2.glb",
+  "lod1_bytes": 262628,
+  "lod1_triangles": 21946,
+  "size_metres": [
+   0.485,
+   0.85,
+   0.55
+  ],
+  "score": 6.5
+ },
+ {
+  "bucket": "chairs-office",
+  "role": "hero",
+  "id": "B01D7P5BFS",
+  "repo_path": "assets/furniture/chairs-office/B01D7P5BFS.glb",
+  "name": "AmazonBasics Low-Back, Upholstered Mesh, Adjustable, Swivel Computer Office Desk Chair, Black",
+  "product_type": "chair",
+  "brand": "AmazonBasics",
+  "style": "Modern",
+  "lod1": "lods/B01D7P5BFS/B01D7P5BFS_lod1.glb",
+  "lod2": "lods/B01D7P5BFS/B01D7P5BFS_lod2.glb",
+  "lod1_bytes": 289256,
+  "lod1_triangles": 8175,
+  "size_metres": [
+   0.475,
+   0.97,
+   0.4501
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "chairs-office",
+  "role": "hero",
+  "id": "B01D7P5JW8",
+  "repo_path": "assets/furniture/chairs-office/B01D7P5JW8.glb",
+  "name": "AmazonBasics Low-Back, Upholstered Mesh, Adjustable, Swivel Computer Office Desk Chair, Green",
+  "product_type": "chair",
+  "brand": "AmazonBasics",
+  "style": "Modern",
+  "lod1": "lods/B01D7P5JW8/B01D7P5JW8_lod1.glb",
+  "lod2": "lods/B01D7P5JW8/B01D7P5JW8_lod2.glb",
+  "lod1_bytes": 283728,
+  "lod1_triangles": 8175,
+  "size_metres": [
+   0.5334,
+   0.8117,
+   0.4826
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "chairs-office",
+  "role": "hero",
+  "id": "B075X4YDN6",
+  "repo_path": "assets/furniture/chairs-office/B075X4YDN6.glb",
+  "name": "Amazon Brand \u2013 Rivet Zane Mid-Century Modern Swivel Top-Grain Leather Accent Chair, 28.75\" W, Saddle",
+  "product_type": "chair",
+  "brand": "Rivet",
+  "style": "Industrial",
+  "lod1": "lods/B075X4YDN6/B075X4YDN6_lod1.glb",
+  "lod2": "lods/B075X4YDN6/B075X4YDN6_lod2.glb",
+  "lod1_bytes": 325720,
+  "lod1_triangles": 7346,
+  "size_metres": [
+   0.7294,
+   0.8693,
+   0.8745
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "chairs-office",
+  "role": "hero",
+  "id": "B075X4PTQV",
+  "repo_path": "assets/furniture/chairs-office/B075X4PTQV.glb",
+  "name": "Amazon Brand \u2013 Rivet Zane Mid-Century Modern Swivel Top-Grain Leather Accent Chair, 28.75\" W, Aged Black",
+  "product_type": "chair",
+  "brand": "Rivet",
+  "style": "Mid-Century Modern",
+  "lod1": "lods/B075X4PTQV/B075X4PTQV_lod1.glb",
+  "lod2": "lods/B075X4PTQV/B075X4PTQV_lod2.glb",
+  "lod1_bytes": 412024,
+  "lod1_triangles": 7760,
+  "size_metres": [
+   0.7379,
+   0.8695,
+   0.8745
+  ],
+  "score": 8.5
+ },
+ {
+  "bucket": "chairs-office",
+  "role": "hero",
+  "id": "B07DYJ43BZ",
+  "repo_path": "assets/furniture/chairs-office/B07DYJ43BZ.glb",
+  "name": "JC Home Pompei Adjustable-Height Round-Back Button-Tufted Swivel Accent Chair, Pure White",
+  "product_type": "chair",
+  "brand": "JC Home",
+  "style": "Modern",
+  "lod1": "lods/B07DYJ43BZ/B07DYJ43BZ_lod1.glb",
+  "lod2": "lods/B07DYJ43BZ/B07DYJ43BZ_lod2.glb",
+  "lod1_bytes": 198424,
+  "lod1_triangles": 12027,
+  "size_metres": [
+   0.9398,
+   1.2607,
+   0.7362
+  ],
+  "score": 8.3
+ },
+ {
+  "bucket": "chairs-office",
+  "role": "hero",
+  "id": "B075X33RZK",
+  "repo_path": "assets/furniture/chairs-office/B075X33RZK.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Larkin Living Room Accent Swivel Chair, 30\"W, Smokey Teal",
+  "product_type": "chair",
+  "brand": "Stone & Beam",
+  "style": "Transitional",
+  "lod1": "lods/B075X33RZK/B075X33RZK_lod1.glb",
+  "lod2": "lods/B075X33RZK/B075X33RZK_lod2.glb",
+  "lod1_bytes": 347740,
+  "lod1_triangles": 9940,
+  "size_metres": [
+   0.7601,
+   0.9256,
+   0.8697
+  ],
+  "score": 7.3
+ },
+ {
+  "bucket": "chairs-office",
+  "role": "hero",
+  "id": "B075X33RZL",
+  "repo_path": "assets/furniture/chairs-office/B075X33RZL.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Larkin Living Room Accent Swivel Chair, 30\"W, Melrose Blue",
+  "product_type": "chair",
+  "brand": "Stone & Beam",
+  "style": "Transitional",
+  "lod1": "lods/B075X33RZL/B075X33RZL_lod1.glb",
+  "lod2": "lods/B075X33RZL/B075X33RZL_lod2.glb",
+  "lod1_bytes": 392244,
+  "lod1_triangles": 11076,
+  "size_metres": [
+   0.7499,
+   0.9394,
+   0.8697
+  ],
+  "score": 6.8
+ },
+ {
+  "bucket": "chairs-office",
+  "role": "hero",
+  "id": "B06W5XBL3D",
+  "repo_path": "assets/furniture/chairs-office/B06W5XBL3D.glb",
+  "name": "Office Hippo Physio Approved Ergonomic 2 Lever Office Chair with Height Adjustable Arms and Adjustable Lumbar Support, Fabric, Charcoal",
+  "product_type": "chair",
+  "brand": "Office Hippo",
+  "style": "Adjustable Arms",
+  "lod1": "lods/B06W5XBL3D/B06W5XBL3D_lod1.glb",
+  "lod2": "lods/B06W5XBL3D/B06W5XBL3D_lod2.glb",
+  "lod1_bytes": 368752,
+  "lod1_triangles": 19712,
+  "size_metres": [
+   0.5499,
+   0.9098,
+   0.5296
+  ],
+  "score": 6.5
+ },
+ {
+  "bucket": "chairs-accent",
+  "role": "hero",
+  "id": "B0714QGLSD",
+  "repo_path": "assets/furniture/chairs-accent/B0714QGLSD.glb",
+  "name": "Amazon Brand \u2013 Rivet Sloane Mid-Century Modern Armchair with Tapered Legs, 32.7\"W, Pebble",
+  "product_type": "chair",
+  "brand": "Rivet",
+  "style": "Mid-Century modern",
+  "lod1": "lods/B0714QGLSD/B0714QGLSD_lod1.glb",
+  "lod2": "lods/B0714QGLSD/B0714QGLSD_lod2.glb",
+  "lod1_bytes": 348984,
+  "lod1_triangles": 6832,
+  "size_metres": [
+   0.8454,
+   0.9679,
+   0.9421
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "chairs-accent",
+  "role": "hero",
+  "id": "B071W5VJFK",
+  "repo_path": "assets/furniture/chairs-accent/B071W5VJFK.glb",
+  "name": "Amazon Brand \u2013 Rivet Cove Modern Tufted Accent Chair with Tapered Legs, Mid-Century, 32.7\"W, Light Grey",
+  "product_type": "chair",
+  "brand": "Rivet",
+  "style": "Mid-Century modern",
+  "lod1": "lods/B071W5VJFK/B071W5VJFK_lod1.glb",
+  "lod2": "lods/B071W5VJFK/B071W5VJFK_lod2.glb",
+  "lod1_bytes": 363776,
+  "lod1_triangles": 6658,
+  "size_metres": [
+   0.8207,
+   0.8804,
+   0.8427
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "chairs-accent",
+  "role": "hero",
+  "id": "B072M1W7Z2",
+  "repo_path": "assets/furniture/chairs-accent/B072M1W7Z2.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Cheyanne Living Room Accent Chair, 31\"W, Marshmallow",
+  "product_type": "chair",
+  "brand": "Stone & Beam",
+  "style": "Modern farm_House",
+  "lod1": "lods/B072M1W7Z2/B072M1W7Z2_lod1.glb",
+  "lod2": "lods/B072M1W7Z2/B072M1W7Z2_lod2.glb",
+  "lod1_bytes": 226028,
+  "lod1_triangles": 5157,
+  "size_metres": [
+   0.7555,
+   0.9157,
+   0.8789
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "chairs-accent",
+  "role": "hero",
+  "id": "B073G7BVCT",
+  "repo_path": "assets/furniture/chairs-accent/B073G7BVCT.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Highland Modern Wingback Living Room Accent Chair, 31.9\"W, Oatmeal",
+  "product_type": "chair",
+  "brand": "Stone & Beam",
+  "style": "Contemporary",
+  "lod1": "lods/B073G7BVCT/B073G7BVCT_lod1.glb",
+  "lod2": "lods/B073G7BVCT/B073G7BVCT_lod2.glb",
+  "lod1_bytes": 347216,
+  "lod1_triangles": 7664,
+  "size_metres": [
+   0.7642,
+   1.0823,
+   0.9481
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "chairs-accent",
+  "role": "hero",
+  "id": "B07HP8Z5YP",
+  "repo_path": "assets/furniture/chairs-accent/B07HP8Z5YP.glb",
+  "name": "Movian Andre Accent Chair Turquoise",
+  "product_type": "chair",
+  "brand": "Movian",
+  "style": "Modern",
+  "lod1": "lods/B07HP8Z5YP/B07HP8Z5YP_lod1.glb",
+  "lod2": "lods/B07HP8Z5YP/B07HP8Z5YP_lod2.glb",
+  "lod1_bytes": 326772,
+  "lod1_triangles": 6339,
+  "size_metres": [
+   0.59,
+   0.84,
+   0.6101
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "chairs-accent",
+  "role": "hero",
+  "id": "B07HP93VDJ",
+  "repo_path": "assets/furniture/chairs-accent/B07HP93VDJ.glb",
+  "name": "Movian Andre Accent Chair Yellow",
+  "product_type": "chair",
+  "brand": "Movian",
+  "style": "Modern",
+  "lod1": "lods/B07HP93VDJ/B07HP93VDJ_lod1.glb",
+  "lod2": "lods/B07HP93VDJ/B07HP93VDJ_lod2.glb",
+  "lod1_bytes": 291740,
+  "lod1_triangles": 6339,
+  "size_metres": [
+   0.59,
+   0.84,
+   0.6101
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "sofas",
+  "role": "hero",
+  "id": "B072FVHS9G",
+  "repo_path": "assets/furniture/sofas/B072FVHS9G.glb",
+  "name": "Amazon Brand \u2013 Rivet Sloane Mid-Century Modern Sofa with Tufted Back, 79.9\"W, Pebble",
+  "product_type": "sofa",
+  "brand": "Rivet",
+  "style": "Mid-Century modern",
+  "lod1": "lods/B072FVHS9G/B072FVHS9G_lod1.glb",
+  "lod2": "lods/B072FVHS9G/B072FVHS9G_lod2.glb",
+  "lod1_bytes": 425328,
+  "lod1_triangles": 9887,
+  "size_metres": [
+   2.0552,
+   0.8727,
+   0.968
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "sofas",
+  "role": "hero",
+  "id": "B072PZC1KS",
+  "repo_path": "assets/furniture/sofas/B072PZC1KS.glb",
+  "name": "Amazon Brand \u2013 Rivet Sloane Mid-Century Modern Sofa with Tufted Back, 79.9\"W, Shell",
+  "product_type": "sofa",
+  "brand": "Rivet",
+  "style": "Mid-Century modern",
+  "lod1": "lods/B072PZC1KS/B072PZC1KS_lod1.glb",
+  "lod2": "lods/B072PZC1KS/B072PZC1KS_lod2.glb",
+  "lod1_bytes": 429872,
+  "lod1_triangles": 8422,
+  "size_metres": [
+   2.1373,
+   0.8915,
+   0.9805
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "sofas",
+  "role": "hero",
+  "id": "B075X4QFK2",
+  "repo_path": "assets/furniture/sofas/B075X4QFK2.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam St. Cloud Modern Armless Straight Back Settee, 49\"W, Brown",
+  "product_type": "sofa",
+  "brand": "Stone & Beam",
+  "style": "Mid-Century modern",
+  "lod1": "lods/B075X4QFK2/B075X4QFK2_lod1.glb",
+  "lod2": "lods/B075X4QFK2/B075X4QFK2_lod2.glb",
+  "lod1_bytes": 374852,
+  "lod1_triangles": 7730,
+  "size_metres": [
+   1.2419,
+   1.0207,
+   0.8702
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "sofas",
+  "role": "hero",
+  "id": "B07DBDRN8S",
+  "repo_path": "assets/furniture/sofas/B07DBDRN8S.glb",
+  "name": "Amazon Brand \u2013 Ravenna Home Rai Tufted Arched Armless Loveseat Bench Settee, 52\"W, Light Grey",
+  "product_type": "sofa",
+  "brand": "Ravenna Home",
+  "style": "Mid-Century modern",
+  "lod1": "lods/B07DBDRN8S/B07DBDRN8S_lod1.glb",
+  "lod2": "lods/B07DBDRN8S/B07DBDRN8S_lod2.glb",
+  "lod1_bytes": 308436,
+  "lod1_triangles": 8424,
+  "size_metres": [
+   1.3346,
+   1.1797,
+   0.8145
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "sofas",
+  "role": "hero",
+  "id": "B07DBGQD5B",
+  "repo_path": "assets/furniture/sofas/B07DBGQD5B.glb",
+  "name": "Amazon Brand \u2013 Ravenna Home Rai Tufted Arched Armless Loveseat Bench Settee, 52\"W, Cream",
+  "product_type": "sofa",
+  "brand": "Ravenna Home",
+  "style": "Mid-Century modern",
+  "lod1": "lods/B07DBGQD5B/B07DBGQD5B_lod1.glb",
+  "lod2": "lods/B07DBGQD5B/B07DBGQD5B_lod2.glb",
+  "lod1_bytes": 238052,
+  "lod1_triangles": 8424,
+  "size_metres": [
+   1.3346,
+   1.1797,
+   0.8145
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "sofas",
+  "role": "hero",
+  "id": "B07HPNBTHF",
+  "repo_path": "assets/furniture/sofas/B07HPNBTHF.glb",
+  "name": "Amazon Brand -\u00a0Alkove Porto Hand-Crafted Leather Sofa, 3 Seater, 97 x 210 x 90cm, Mineral",
+  "product_type": "sofa",
+  "brand": "Alkove",
+  "style": "Modern",
+  "lod1": "lods/B07HPNBTHF/B07HPNBTHF_lod1.glb",
+  "lod2": "lods/B07HPNBTHF/B07HPNBTHF_lod2.glb",
+  "lod1_bytes": 357120,
+  "lod1_triangles": 9454,
+  "size_metres": [
+   2.1012,
+   0.9299,
+   1.0492
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "sofas",
+  "role": "hero",
+  "id": "B07HPT2G8F",
+  "repo_path": "assets/furniture/sofas/B07HPT2G8F.glb",
+  "name": "Amazon Brand -\u00a0Alkove Porto Hand-Crafted Leather Sofa, 3 Seater, 97 x 210 x 90cm, Light Grey",
+  "product_type": "sofa",
+  "brand": "Alkove",
+  "style": "Modern",
+  "lod1": "lods/B07HPT2G8F/B07HPT2G8F_lod1.glb",
+  "lod2": "lods/B07HPT2G8F/B07HPT2G8F_lod2.glb",
+  "lod1_bytes": 358724,
+  "lod1_triangles": 9453,
+  "size_metres": [
+   2.1012,
+   0.9299,
+   1.0492
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "sofas",
+  "role": "hero",
+  "id": "B07RF88QZ8",
+  "repo_path": "assets/furniture/sofas/B07RF88QZ8.glb",
+  "name": "Amazon Brand - Solimo Dual-Toned Leatherette 1 Seater Sofa (Red & Black)",
+  "product_type": "sofa",
+  "brand": "Amazon Brand - Solimo",
+  "style": "Contemporary",
+  "lod1": "lods/B07RF88QZ8/B07RF88QZ8_lod1.glb",
+  "lod2": "lods/B07RF88QZ8/B07RF88QZ8_lod2.glb",
+  "lod1_bytes": 248472,
+  "lod1_triangles": 7484,
+  "size_metres": [
+   0.8386,
+   0.7241,
+   0.8095
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "sofas",
+  "role": "hero",
+  "id": "B075X4JJNN",
+  "repo_path": "assets/furniture/sofas/B075X4JJNN.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam St. Cloud Modern Armless Straight Back Settee, 49\"W, Bear",
+  "product_type": "sofa",
+  "brand": "Stone & Beam",
+  "style": "Mid-Century modern",
+  "lod1": "lods/B075X4JJNN/B075X4JJNN_lod1.glb",
+  "lod2": "lods/B075X4JJNN/B075X4JJNN_lod2.glb",
+  "lod1_bytes": 624152,
+  "lod1_triangles": 7730,
+  "size_metres": [
+   1.2419,
+   1.0207,
+   0.8702
+  ],
+  "score": 8.5
+ },
+ {
+  "bucket": "sofas",
+  "role": "hero",
+  "id": "B07RG6YHTS",
+  "repo_path": "assets/furniture/sofas/B07RG6YHTS.glb",
+  "name": "Amazon Brand - Solimo Bliss Leatherette 3 Seater Sofa (Brown)",
+  "product_type": "sofa",
+  "brand": "Amazon Brand - Solimo",
+  "style": "Contemporary",
+  "lod1": "lods/B07RG6YHTS/B07RG6YHTS_lod1.glb",
+  "lod2": "lods/B07RG6YHTS/B07RG6YHTS_lod2.glb",
+  "lod1_bytes": 406364,
+  "lod1_triangles": 20210,
+  "size_metres": [
+   1.862,
+   0.915,
+   0.802
+  ],
+  "score": 8.3
+ },
+ {
+  "bucket": "sofas",
+  "role": "hero",
+  "id": "B075NP5K3L",
+  "repo_path": "assets/furniture/sofas/B075NP5K3L.glb",
+  "name": "Amazon Brand Movian Blankan 3 Seater Sofa, 228 x 87 x 78 cm, Light Grey",
+  "product_type": "sofa",
+  "brand": "Movian",
+  "style": "3-zitsbank.",
+  "lod1": "lods/B075NP5K3L/B075NP5K3L_lod1.glb",
+  "lod2": "lods/B075NP5K3L/B075NP5K3L_lod2.glb",
+  "lod1_bytes": 258424,
+  "lod1_triangles": 7914,
+  "size_metres": [
+   2.2799,
+   0.7798,
+   0.8699
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "sofas",
+  "role": "hero",
+  "id": "B07FJVXVRY",
+  "repo_path": "assets/furniture/sofas/B07FJVXVRY.glb",
+  "name": "Artum Hill UP3-572 Olivia Sofa, Espresso",
+  "product_type": "sofa",
+  "brand": "Artum Hill",
+  "style": null,
+  "lod1": "lods/B07FJVXVRY/B07FJVXVRY_lod1.glb",
+  "lod2": "lods/B07FJVXVRY/B07FJVXVRY_lod2.glb",
+  "lod1_bytes": 406908,
+  "lod1_triangles": 11666,
+  "size_metres": [
+   2.032,
+   0.8128,
+   0.889
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "tables-dining",
+  "role": "hero",
+  "id": "B075YMXWZC",
+  "repo_path": "assets/furniture/tables-dining/B075YMXWZC.glb",
+  "name": "Amazon Brand \u2013 Rivet Mid-Century Modern Oak Dining Table, 63\"L, Walnut Finish",
+  "product_type": "table",
+  "brand": "Rivet",
+  "style": "Mid-Century Modern Style",
+  "lod1": "lods/B075YMXWZC/B075YMXWZC_lod1.glb",
+  "lod2": "lods/B075YMXWZC/B075YMXWZC_lod2.glb",
+  "lod1_bytes": 298792,
+  "lod1_triangles": 500,
+  "size_metres": [
+   1.6089,
+   0.7555,
+   0.8112
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "tables-dining",
+  "role": "hero",
+  "id": "B07K7K25NM",
+  "repo_path": "assets/furniture/tables-dining/B07K7K25NM.glb",
+  "name": "Amazon Brand -\u00a0Alkove Hayes Solid Wood Dining Table with Stainless Steel Base, Seats 6, 180 x 90 x 75cm, Wild Oak/Stainless Steel",
+  "product_type": "table",
+  "brand": "Alkove",
+  "style": "Modern",
+  "lod1": "lods/B07K7K25NM/B07K7K25NM_lod1.glb",
+  "lod2": "lods/B07K7K25NM/B07K7K25NM_lod2.glb",
+  "lod1_bytes": 199664,
+  "lod1_triangles": 540,
+  "size_metres": [
+   1.7998,
+   0.7498,
+   0.8999
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "tables-dining",
+  "role": "hero",
+  "id": "B07K7SJWCH",
+  "repo_path": "assets/furniture/tables-dining/B07K7SJWCH.glb",
+  "name": "Amazon Brand -\u00a0Alkove Hayes Extendable Solid Wood Dining Table, Seats 4-8, 160/205 x 90 x 74cm, Wild Oak",
+  "product_type": "table",
+  "brand": "Alkove",
+  "style": "Modern",
+  "lod1": "lods/B07K7SJWCH/B07K7SJWCH_lod1.glb",
+  "lod2": "lods/B07K7SJWCH/B07K7SJWCH_lod2.glb",
+  "lod1_bytes": 227512,
+  "lod1_triangles": 1960,
+  "size_metres": [
+   1.5977,
+   0.7475,
+   0.8999
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "tables-dining",
+  "role": "hero",
+  "id": "B075YMW6VR",
+  "repo_path": "assets/furniture/tables-dining/B075YMW6VR.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Parson Wood Trestle Dining Table, 78\"-96\"L, Oak Finish",
+  "product_type": "table",
+  "brand": "Stone & Beam",
+  "style": null,
+  "lod1": "lods/B075YMW6VR/B075YMW6VR_lod1.glb",
+  "lod2": "lods/B075YMW6VR/B075YMW6VR_lod2.glb",
+  "lod1_bytes": 180380,
+  "lod1_triangles": 1014,
+  "size_metres": [
+   1.9816,
+   0.7617,
+   1.0003
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "tables-dining",
+  "role": "hero",
+  "id": "B075YQXRJM",
+  "repo_path": "assets/furniture/tables-dining/B075YQXRJM.glb",
+  "name": "Amazon Brand \u2013 Rivet Mid-Century Modern Minimalist Dining Kitchen Table, 53.1\"L, Walnut Wood",
+  "product_type": "table",
+  "brand": "Rivet",
+  "style": null,
+  "lod1": "lods/B075YQXRJM/B075YQXRJM_lod1.glb",
+  "lod2": "lods/B075YQXRJM/B075YQXRJM_lod2.glb",
+  "lod1_bytes": 212708,
+  "lod1_triangles": 386,
+  "size_metres": [
+   1.3489,
+   0.7238,
+   0.8014
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "tables-dining",
+  "role": "hero",
+  "id": "B07B7B94D8",
+  "repo_path": "assets/furniture/tables-dining/B07B7B94D8.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Bradhurst Rustic Wood Dining Table, 86.6\"L, Brown",
+  "product_type": "table",
+  "brand": "Stone & Beam",
+  "style": null,
+  "lod1": "lods/B07B7B94D8/B07B7B94D8_lod1.glb",
+  "lod2": "lods/B07B7B94D8/B07B7B94D8_lod2.glb",
+  "lod1_bytes": 294616,
+  "lod1_triangles": 1831,
+  "size_metres": [
+   2.0312,
+   0.7331,
+   0.9074
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "tables-coffee",
+  "role": "hero",
+  "id": "B01LWVEZ1C",
+  "repo_path": "assets/furniture/tables-coffee/B01LWVEZ1C.glb",
+  "name": "Amazon Brand - Alkove Waverly Large Coffee Table with Shelf in Light Oak Finish",
+  "product_type": "table",
+  "brand": "Alkove",
+  "style": "Contemporary",
+  "lod1": "lods/B01LWVEZ1C/B01LWVEZ1C_lod1.glb",
+  "lod2": "lods/B01LWVEZ1C/B01LWVEZ1C_lod2.glb",
+  "lod1_bytes": 221380,
+  "lod1_triangles": 496,
+  "size_metres": [
+   0.8992,
+   0.4517,
+   0.4496
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "tables-coffee",
+  "role": "hero",
+  "id": "B07B8HYSLD",
+  "repo_path": "assets/furniture/tables-coffee/B07B8HYSLD.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Bruckner Casual Wood Coffee Table, 50\"W, Brown",
+  "product_type": "table",
+  "brand": "Stone & Beam",
+  "style": "Modern farm_House",
+  "lod1": "lods/B07B8HYSLD/B07B8HYSLD_lod1.glb",
+  "lod2": "lods/B07B8HYSLD/B07B8HYSLD_lod2.glb",
+  "lod1_bytes": 295480,
+  "lod1_triangles": 1238,
+  "size_metres": [
+   1.2697,
+   0.5074,
+   0.7115
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "tables-coffee",
+  "role": "hero",
+  "id": "B07DBB1GQW",
+  "repo_path": "assets/furniture/tables-coffee/B07DBB1GQW.glb",
+  "name": "Amazon Brand \u2013 Ravenna Home Heights Wood Lift Top Storage Coffee Table, 43.3\"W, Espresso",
+  "product_type": "table",
+  "brand": "Ravenna Home",
+  "style": "Modern",
+  "lod1": "lods/B07DBB1GQW/B07DBB1GQW_lod1.glb",
+  "lod2": "lods/B07DBB1GQW/B07DBB1GQW_lod2.glb",
+  "lod1_bytes": 131052,
+  "lod1_triangles": 1900,
+  "size_metres": [
+   1.0951,
+   0.4345,
+   0.5737
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "tables-coffee",
+  "role": "hero",
+  "id": "B07GDSF3MR",
+  "repo_path": "assets/furniture/tables-coffee/B07GDSF3MR.glb",
+  "name": "Amazon Brand -\u00a0Rivet Round Coffee Table with Solid Wood Legs, 80 x 80 x 36cm, MDF with Walnut Veneer/Solid Beech Wood",
+  "product_type": "table",
+  "brand": "Rivet",
+  "style": "Modern",
+  "lod1": "lods/B07GDSF3MR/B07GDSF3MR_lod1.glb",
+  "lod2": "lods/B07GDSF3MR/B07GDSF3MR_lod2.glb",
+  "lod1_bytes": 267336,
+  "lod1_triangles": 3786,
+  "size_metres": [
+   0.8,
+   0.36,
+   0.8
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "tables-coffee",
+  "role": "hero",
+  "id": "B07GDYVV9M",
+  "repo_path": "assets/furniture/tables-coffee/B07GDYVV9M.glb",
+  "name": "Amazon Brand -\u00a0Rivet Triangular Coffee Table with Solid Wood Legs, 105 x 60 x 37cm, MDF with Walnut Veneer/Solid Beech Wood",
+  "product_type": "table",
+  "brand": "Rivet",
+  "style": "Modern",
+  "lod1": "lods/B07GDYVV9M/B07GDYVV9M_lod1.glb",
+  "lod2": "lods/B07GDYVV9M/B07GDYVV9M_lod2.glb",
+  "lod1_bytes": 275956,
+  "lod1_triangles": 2470,
+  "size_metres": [
+   1.0077,
+   0.3654,
+   0.6013
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "tables-side",
+  "role": "hero",
+  "id": "B01D3C7Z4A",
+  "repo_path": "assets/furniture/tables-side/B01D3C7Z4A.glb",
+  "name": "Amazon Brand - Hallowood Waverly 1 Drawer Small Side Table in Light Oak Finish | Solid Wooden End/Lamp Stand/Bedside Cabinet/Nightstand, (WAV-LAM590)",
+  "product_type": "table",
+  "brand": "Hallowood",
+  "style": "Contemporary",
+  "lod1": "lods/B01D3C7Z4A/B01D3C7Z4A_lod1.glb",
+  "lod2": "lods/B01D3C7Z4A/B01D3C7Z4A_lod2.glb",
+  "lod1_bytes": 208560,
+  "lod1_triangles": 2112,
+  "size_metres": [
+   0.4277,
+   0.6138,
+   0.4181
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "tables-side",
+  "role": "hero",
+  "id": "B072ZKPK7J",
+  "repo_path": "assets/furniture/tables-side/B072ZKPK7J.glb",
+  "name": "Amazon Brand \u2013 Rivet Mid-Century Modern Round Black Wood Nesting Side End Table, 15.7\" W, Dark Oak",
+  "product_type": "table",
+  "brand": "Rivet",
+  "style": "Modern",
+  "lod1": "lods/B072ZKPK7J/B072ZKPK7J_lod1.glb",
+  "lod2": "lods/B072ZKPK7J/B072ZKPK7J_lod2.glb",
+  "lod1_bytes": 263272,
+  "lod1_triangles": 2426,
+  "size_metres": [
+   0.3988,
+   0.4597,
+   0.3988
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "tables-side",
+  "role": "hero",
+  "id": "B072ZLCB32",
+  "repo_path": "assets/furniture/tables-side/B072ZLCB32.glb",
+  "name": "Amazon Brand \u2013 Rivet Axel Lid Storage Wood and Metal Side End Table Nightstand, Walnut",
+  "product_type": "table",
+  "brand": "Rivet",
+  "style": "Organic modern",
+  "lod1": "lods/B072ZLCB32/B072ZLCB32_lod1.glb",
+  "lod2": "lods/B072ZLCB32/B072ZLCB32_lod2.glb",
+  "lod1_bytes": 164744,
+  "lod1_triangles": 2125,
+  "size_metres": [
+   0.3966,
+   0.6066,
+   0.3966
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "tables-side",
+  "role": "hero",
+  "id": "B07L1DH1PX",
+  "repo_path": "assets/furniture/tables-side/B07L1DH1PX.glb",
+  "name": "Amazon Brand - Solimo Aquilla Engineered Wood Bedside Table with Drawer (Wenge Finish)",
+  "product_type": "table",
+  "brand": "Amazon Brand - Solimo",
+  "style": "Contemporary",
+  "lod1": "lods/B07L1DH1PX/B07L1DH1PX_lod1.glb",
+  "lod2": "lods/B07L1DH1PX/B07L1DH1PX_lod2.glb",
+  "lod1_bytes": 157904,
+  "lod1_triangles": 875,
+  "size_metres": [
+   0.4,
+   0.46,
+   0.461
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "tables-side",
+  "role": "hero",
+  "id": "B07L1DPX3Q",
+  "repo_path": "assets/furniture/tables-side/B07L1DPX3Q.glb",
+  "name": "Amazon Brand - Solimo Uno Engineered Wood Bedside Table (Wenge Finish)",
+  "product_type": "table",
+  "brand": "Amazon Brand - Solimo",
+  "style": "Contemporary",
+  "lod1": "lods/B07L1DPX3Q/B07L1DPX3Q_lod1.glb",
+  "lod2": "lods/B07L1DPX3Q/B07L1DPX3Q_lod2.glb",
+  "lod1_bytes": 167460,
+  "lod1_triangles": 658,
+  "size_metres": [
+   0.4,
+   0.5588,
+   0.3556
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "tables-console",
+  "role": "hero",
+  "id": "B003PBOMJ6",
+  "repo_path": "assets/furniture/tables-console/B003PBOMJ6.glb",
+  "name": "kovalenthor Console Table - Black, for Entryway for Living Room (Grey)",
+  "product_type": "table",
+  "brand": "kovalenthor",
+  "style": null,
+  "lod1": "lods/B003PBOMJ6/B003PBOMJ6_lod1.glb",
+  "lod2": "lods/B003PBOMJ6/B003PBOMJ6_lod2.glb",
+  "lod1_bytes": 281024,
+  "lod1_triangles": 4771,
+  "size_metres": [
+   0.3599,
+   0.7399,
+   0.3599
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "tables-console",
+  "role": "hero",
+  "id": "B01DA8LC0A",
+  "repo_path": "assets/furniture/tables-console/B01DA8LC0A.glb",
+  "name": "Home Discount 1, 2 &amp; 3 Corona Console Tables",
+  "product_type": "table",
+  "brand": "Movian",
+  "style": "Rustic",
+  "lod1": "lods/B01DA8LC0A/B01DA8LC0A_lod1.glb",
+  "lod2": "lods/B01DA8LC0A/B01DA8LC0A_lod2.glb",
+  "lod1_bytes": 273768,
+  "lod1_triangles": 4860,
+  "size_metres": [
+   1,
+   0.4371,
+   0.6002
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "tables-console",
+  "role": "hero",
+  "id": "B072ZKTSNX",
+  "repo_path": "assets/furniture/tables-console/B072ZKTSNX.glb",
+  "name": "Amazon Brand \u2013 Rivet Hairpin Wood and Metal 15.7\" Console Table Bench, Walnut and Dark Metal",
+  "product_type": "table",
+  "brand": "Rivet",
+  "style": "Low Console Table",
+  "lod1": "lods/B072ZKTSNX/B072ZKTSNX_lod1.glb",
+  "lod2": "lods/B072ZKTSNX/B072ZKTSNX_lod2.glb",
+  "lod1_bytes": 165172,
+  "lod1_triangles": 1241,
+  "size_metres": [
+   1.5702,
+   0.4616,
+   0.4255
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "tables-console",
+  "role": "hero",
+  "id": "B072ZNMKGM",
+  "repo_path": "assets/furniture/tables-console/B072ZNMKGM.glb",
+  "name": "Amazon Brand \u2013 Rivet King Street Industrial Cabinet Media Console Table With Functional Storage, Walnut, Black Metal, Glass",
+  "product_type": "table",
+  "brand": "Rivet",
+  "style": "Open Console Table",
+  "lod1": "lods/B072ZNMKGM/B072ZNMKGM_lod1.glb",
+  "lod2": "lods/B072ZNMKGM/B072ZNMKGM_lod2.glb",
+  "lod1_bytes": 219948,
+  "lod1_triangles": 838,
+  "size_metres": [
+   1.1989,
+   0.8001,
+   0.3988
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "tables-folding",
+  "role": "hero",
+  "id": "B07PMK78YH",
+  "repo_path": "assets/furniture/tables-folding/B07PMK78YH.glb",
+  "name": "Phoenix Home Granite Round Plastic Bar Height Folding Table, 32\", White",
+  "product_type": "table",
+  "brand": "Phoenix Home",
+  "style": null,
+  "lod1": "lods/B07PMK78YH/B07PMK78YH_lod1.glb",
+  "lod2": "lods/B07PMK78YH/B07PMK78YH_lod2.glb",
+  "lod1_bytes": 182988,
+  "lod1_triangles": 4756,
+  "size_metres": [
+   0.7921,
+   1.1049,
+   0.7953
+  ],
+  "score": 7.3
+ },
+ {
+  "bucket": "tables-folding",
+  "role": "hero",
+  "id": "B07B82PXCW",
+  "repo_path": "assets/furniture/tables-folding/B07B82PXCW.glb",
+  "name": "Amazon Brand \u2013 Rivet Federal Mid-Century Modern Drop Leaf Dining Kitchen Table, Walnut Wood",
+  "product_type": "table",
+  "brand": "Rivet",
+  "style": "0",
+  "lod1": "lods/B07B82PXCW/B07B82PXCW_lod1.glb",
+  "lod2": "lods/B07B82PXCW/B07B82PXCW_lod2.glb",
+  "lod1_bytes": 362320,
+  "lod1_triangles": 7862,
+  "size_metres": [
+   0.8427,
+   0.7629,
+   0.8115
+  ],
+  "score": 6.0
+ },
+ {
+  "bucket": "desks",
+  "role": "hero",
+  "id": "B075Z7HQK5",
+  "repo_path": "assets/furniture/desks/B075Z7HQK5.glb",
+  "name": "Amazon Brand \u2013 Rivet Modern Cross Legged Home Office Computer Desk Console, 42\"W, White Gloss and Walnut",
+  "product_type": "desk",
+  "brand": "Rivet",
+  "style": "Modern",
+  "lod1": "lods/B075Z7HQK5/B075Z7HQK5_lod1.glb",
+  "lod2": "lods/B075Z7HQK5/B075Z7HQK5_lod2.glb",
+  "lod1_bytes": 203304,
+  "lod1_triangles": 5210,
+  "size_metres": [
+   1.0658,
+   0.7854,
+   0.4177
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "desks",
+  "role": "hero",
+  "id": "B075Z93NKX",
+  "repo_path": "assets/furniture/desks/B075Z93NKX.glb",
+  "name": "Stone & Beam Fern Hill 5-Drawer Office Desk, 32\"W, White and Natural Pine",
+  "product_type": "desk",
+  "brand": null,
+  "style": "Modern",
+  "lod1": "lods/B075Z93NKX/B075Z93NKX_lod1.glb",
+  "lod2": "lods/B075Z93NKX/B075Z93NKX_lod2.glb",
+  "lod1_bytes": 210640,
+  "lod1_triangles": 4605,
+  "size_metres": [
+   0.8138,
+   0.9808,
+   0.4623
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "desks",
+  "role": "hero",
+  "id": "B075ZBVZST",
+  "repo_path": "assets/furniture/desks/B075ZBVZST.glb",
+  "name": "Amazon Brand \u2013 Rivet Mid-Century Curved Wood Table Home Office Computer Desk, 48.4\"L, Walnut",
+  "product_type": "desk",
+  "brand": "Rivet",
+  "style": "Contemporary",
+  "lod1": "lods/B075ZBVZST/B075ZBVZST_lod1.glb",
+  "lod2": "lods/B075ZBVZST/B075ZBVZST_lod2.glb",
+  "lod1_bytes": 295688,
+  "lod1_triangles": 4213,
+  "size_metres": [
+   1.2562,
+   0.8005,
+   0.4864
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "desks",
+  "role": "hero",
+  "id": "B07JXXR83F",
+  "repo_path": "assets/furniture/desks/B07JXXR83F.glb",
+  "name": "Amazon Brand -\u00a0Movian Stanberg 1-Door 1-Drawer Writing Desk, 140 x 55 x 76cm, Light Brown Oak-Effect/Black",
+  "product_type": "desk",
+  "brand": "Movian",
+  "style": "Modern",
+  "lod1": "lods/B07JXXR83F/B07JXXR83F_lod1.glb",
+  "lod2": "lods/B07JXXR83F/B07JXXR83F_lod2.glb",
+  "lod1_bytes": 263844,
+  "lod1_triangles": 3247,
+  "size_metres": [
+   1.4,
+   0.76,
+   0.55
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "desks",
+  "role": "hero",
+  "id": "B07K6N3XKZ",
+  "repo_path": "assets/furniture/desks/B07K6N3XKZ.glb",
+  "name": "Amazon Brand -\u00a0Movian Ohrid 1-Door 1-Drawer Desk, 120 x 55 x 76cm, Light Brown Oak-Effect",
+  "product_type": "desk",
+  "brand": "Movian",
+  "style": "Modern",
+  "lod1": "lods/B07K6N3XKZ/B07K6N3XKZ_lod1.glb",
+  "lod2": "lods/B07K6N3XKZ/B07K6N3XKZ_lod2.glb",
+  "lod1_bytes": 277352,
+  "lod1_triangles": 2520,
+  "size_metres": [
+   1.1999,
+   0.76,
+   0.5499
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "desks",
+  "role": "hero",
+  "id": "B07DMLG8Y4",
+  "repo_path": "assets/furniture/desks/B07DMLG8Y4.glb",
+  "name": "2L Lifestyle Fairbank L-Shaped Executive Desk White Finish, Large",
+  "product_type": "desk",
+  "brand": "2L Lifestyle",
+  "style": "Contemporary",
+  "lod1": "lods/B07DMLG8Y4/B07DMLG8Y4_lod1.glb",
+  "lod2": "lods/B07DMLG8Y4/B07DMLG8Y4_lod2.glb",
+  "lod1_bytes": 177384,
+  "lod1_triangles": 6834,
+  "size_metres": [
+   1.524,
+   0.7595,
+   1.1989
+  ],
+  "score": 8.3
+ },
+ {
+  "bucket": "cabinets-side",
+  "role": "hero",
+  "id": "B075YQXQ5C",
+  "repo_path": "assets/furniture/cabinets-side/B075YQXQ5C.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Dunbar Modern Wood Buffet, 55\"W, Oak",
+  "product_type": "cabinet",
+  "brand": "Stone & Beam",
+  "style": "Modern",
+  "lod1": "lods/B075YQXQ5C/B075YQXQ5C_lod1.glb",
+  "lod2": "lods/B075YQXQ5C/B075YQXQ5C_lod2.glb",
+  "lod1_bytes": 421700,
+  "lod1_triangles": 2008,
+  "size_metres": [
+   1.3962,
+   0.9137,
+   0.4821
+  ],
+  "score": 8.5
+ },
+ {
+  "bucket": "cabinets-side",
+  "role": "hero",
+  "id": "B0154WJZH2",
+  "repo_path": "assets/furniture/cabinets-side/B0154WJZH2.glb",
+  "name": "Amazon Brand - Movian Loue 2-Door 4-Drawer Sideboard Storage Cabinet, 145 x 90 x 38cm, Light Brown Oak-Effect/White",
+  "product_type": "cabinet",
+  "brand": "Movian",
+  "style": "Sideboard Cabinet",
+  "lod1": "lods/B0154WJZH2/B0154WJZH2_lod1.glb",
+  "lod2": "lods/B0154WJZH2/B0154WJZH2_lod2.glb",
+  "lod1_bytes": 98572,
+  "lod1_triangles": 3162,
+  "size_metres": [
+   1.4498,
+   0.8999,
+   0.38
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "cabinets-side",
+  "role": "hero",
+  "id": "B01557LJIO",
+  "repo_path": "assets/furniture/cabinets-side/B01557LJIO.glb",
+  "name": "Amazon Brand - Movian Minho 2-Door 4-Drawer Sideboard Storage Cabinet, 145 x 90 x 38cm, White/Light Brown Oak-Effect",
+  "product_type": "cabinet",
+  "brand": "Movian",
+  "style": "Sideboard Cabinet (Drawers and Doors)",
+  "lod1": "lods/B01557LJIO/B01557LJIO_lod1.glb",
+  "lod2": "lods/B01557LJIO/B01557LJIO_lod2.glb",
+  "lod1_bytes": 276628,
+  "lod1_triangles": 1818,
+  "size_metres": [
+   1.4498,
+   0.8999,
+   0.38
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "cabinets-side",
+  "role": "hero",
+  "id": "B07G4ZXLC8",
+  "repo_path": "assets/furniture/cabinets-side/B07G4ZXLC8.glb",
+  "name": "Ameriwood Home Franklin 2 Door Storage Cabinet, Gray",
+  "product_type": "cabinet",
+  "brand": "Ameriwood Home",
+  "style": "Storage Cabinet",
+  "lod1": "lods/B07G4ZXLC8/B07G4ZXLC8_lod1.glb",
+  "lod2": "lods/B07G4ZXLC8/B07G4ZXLC8_lod2.glb",
+  "lod1_bytes": 116676,
+  "lod1_triangles": 4839,
+  "size_metres": [
+   0.801,
+   0.7796,
+   0.396
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "cabinets-side",
+  "role": "hero",
+  "id": "B07JFGPVZD",
+  "repo_path": "assets/furniture/cabinets-side/B07JFGPVZD.glb",
+  "name": "Amazon Brand -\u00a0Alkove Malvern Solid Wood 3-Door Sideboard Cabinet, 180 x 90 x 42cm, Antic Oak",
+  "product_type": "cabinet",
+  "brand": "Alkove",
+  "style": "Sideboard Cabinet 180cm",
+  "lod1": "lods/B07JFGPVZD/B07JFGPVZD_lod1.glb",
+  "lod2": "lods/B07JFGPVZD/B07JFGPVZD_lod2.glb",
+  "lod1_bytes": 267132,
+  "lod1_triangles": 2249,
+  "size_metres": [
+   1.7998,
+   0.8999,
+   0.4199
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "cabinets-side",
+  "role": "hero",
+  "id": "B07RMJSGS7",
+  "repo_path": "assets/furniture/cabinets-side/B07RMJSGS7.glb",
+  "name": "AmazonBasics 2-Door Sideboard Storage Cabinet with 8 Shelves, 101 x 40 x 113 cm, Dark Brown/Geometric Pattern, Black Legs",
+  "product_type": "cabinet",
+  "brand": "AmazonBasics",
+  "style": "Sideboard",
+  "lod1": "lods/B07RMJSGS7/B07RMJSGS7_lod1.glb",
+  "lod2": "lods/B07RMJSGS7/B07RMJSGS7_lod2.glb",
+  "lod1_bytes": 180276,
+  "lod1_triangles": 2386,
+  "size_metres": [
+   1.01,
+   1.17,
+   0.4
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "cabinets-side",
+  "role": "hero",
+  "id": "B07RMYWFHY",
+  "repo_path": "assets/furniture/cabinets-side/B07RMYWFHY.glb",
+  "name": "AmazonBasics Sideboard",
+  "product_type": "cabinet",
+  "brand": "AmazonBasics",
+  "style": "Wardrobe",
+  "lod1": "lods/B07RMYWFHY/B07RMYWFHY_lod1.glb",
+  "lod2": "lods/B07RMYWFHY/B07RMYWFHY_lod2.glb",
+  "lod1_bytes": 139108,
+  "lod1_triangles": 3612,
+  "size_metres": [
+   1.0062,
+   1.9993,
+   0.5705
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "cabinets-side",
+  "role": "hero",
+  "id": "B07B813LW1",
+  "repo_path": "assets/furniture/cabinets-side/B07B813LW1.glb",
+  "name": "Amazon Brand \u2013 Rivet Mid-Century Modern Industrial Metal Buffet Credenza, 28 Inch Height, Beige, Wood",
+  "product_type": "cabinet",
+  "brand": "Rivet",
+  "style": "0",
+  "lod1": "lods/B07B813LW1/B07B813LW1_lod1.glb",
+  "lod2": "lods/B07B813LW1/B07B813LW1_lod2.glb",
+  "lod1_bytes": 380288,
+  "lod1_triangles": 2541,
+  "size_metres": [
+   0.9043,
+   0.6943,
+   0.4649
+  ],
+  "score": 7.5
+ },
+ {
+  "bucket": "cabinets-dresser",
+  "role": "hero",
+  "id": "B079X4CP3F",
+  "repo_path": "assets/furniture/cabinets-dresser/B079X4CP3F.glb",
+  "name": "Amazon Brand - Movian Hulio High Gloss 4 Drawer Chest Of Drawers, Black and Walnut, 72 x 75 x 36 cm",
+  "product_type": "dresser",
+  "brand": "Vida Designs",
+  "style": "Modern",
+  "lod1": "lods/B079X4CP3F/B079X4CP3F_lod1.glb",
+  "lod2": "lods/B079X4CP3F/B079X4CP3F_lod2.glb",
+  "lod1_bytes": 156600,
+  "lod1_triangles": 1576,
+  "size_metres": [
+   0.7501,
+   0.7201,
+   0.3599
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "cabinets-dresser",
+  "role": "hero",
+  "id": "B079X4Z6QX",
+  "repo_path": "assets/furniture/cabinets-dresser/B079X4Z6QX.glb",
+  "name": "Amazon Brand - Movian Hulio High Gloss 4 Drawer Chest Of Drawers, Black, 72 x 75 x 36 cm",
+  "product_type": "dresser",
+  "brand": "Vida Designs",
+  "style": "Contemporary",
+  "lod1": "lods/B079X4Z6QX/B079X4Z6QX_lod1.glb",
+  "lod2": "lods/B079X4Z6QX/B079X4Z6QX_lod2.glb",
+  "lod1_bytes": 76804,
+  "lod1_triangles": 1576,
+  "size_metres": [
+   0.7501,
+   0.7201,
+   0.3599
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "cabinets-dresser",
+  "role": "hero",
+  "id": "B07HSDP2CP",
+  "repo_path": "assets/furniture/cabinets-dresser/B07HSDP2CP.glb",
+  "name": "Amazon Brand \u2013 Rivet Modern Chest of Drawers with Diamond Pattern 17.3\"W, Walnut &amp; Gray Wash",
+  "product_type": "dresser",
+  "brand": "Rivet",
+  "style": "Modern",
+  "lod1": "lods/B07HSDP2CP/B07HSDP2CP_lod1.glb",
+  "lod2": "lods/B07HSDP2CP/B07HSDP2CP_lod2.glb",
+  "lod1_bytes": 422212,
+  "lod1_triangles": 2439,
+  "size_metres": [
+   0.9673,
+   0.8471,
+   0.4455
+  ],
+  "score": 8.5
+ },
+ {
+  "bucket": "cabinets-dresser",
+  "role": "hero",
+  "id": "B07HSH4WFB",
+  "repo_path": "assets/furniture/cabinets-dresser/B07HSH4WFB.glb",
+  "name": "Amazon Brand \u2013 Rivet Modern Chest of Drawers with Diamond Pattern, 17.7 Inch Width, Natural",
+  "product_type": "dresser",
+  "brand": "Rivet",
+  "style": "Modern",
+  "lod1": "lods/B07HSH4WFB/B07HSH4WFB_lod1.glb",
+  "lod2": "lods/B07HSH4WFB/B07HSH4WFB_lod2.glb",
+  "lod1_bytes": 439988,
+  "lod1_triangles": 2182,
+  "size_metres": [
+   0.9228,
+   0.8012,
+   0.453
+  ],
+  "score": 8.5
+ },
+ {
+  "bucket": "cabinets-dresser",
+  "role": "hero",
+  "id": "B07HSHYZKN",
+  "repo_path": "assets/furniture/cabinets-dresser/B07HSHYZKN.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Rylee Modern Acacia Wood 5-Drawer Bedroom Chest, 39.4\"W, Gray-Wash Acacia",
+  "product_type": "dresser",
+  "brand": "Stone & Beam",
+  "style": "Modern",
+  "lod1": "lods/B07HSHYZKN/B07HSHYZKN_lod1.glb",
+  "lod2": "lods/B07HSHYZKN/B07HSHYZKN_lod2.glb",
+  "lod1_bytes": 470428,
+  "lod1_triangles": 2332,
+  "size_metres": [
+   0.9978,
+   1.0287,
+   0.4554
+  ],
+  "score": 8.5
+ },
+ {
+  "bucket": "beds",
+  "role": "hero",
+  "id": "B07LC5Y95W",
+  "repo_path": "assets/furniture/beds/B07LC5Y95W.glb",
+  "name": "Amazon Brand - Solimo Vega Engineered Wood Hydraulic Half Lift-on Queen Bed (Espresso Finish)",
+  "product_type": "bed",
+  "brand": "Amazon Brand - Solimo",
+  "style": "Modern",
+  "lod1": "lods/B07LC5Y95W/B07LC5Y95W_lod1.glb",
+  "lod2": "lods/B07LC5Y95W/B07LC5Y95W_lod2.glb",
+  "lod1_bytes": 85232,
+  "lod1_triangles": 6587,
+  "size_metres": [
+   1.634,
+   0.808,
+   2.103
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "beds",
+  "role": "hero",
+  "id": "B07LC84ZYV",
+  "repo_path": "assets/furniture/beds/B07LC84ZYV.glb",
+  "name": "Amazon Brand - Solimo Optima Manual Box Storage Queen Bed (Sienna Cherry)",
+  "product_type": "bed",
+  "brand": "Amazon Brand - Solimo",
+  "style": "Modern",
+  "lod1": "lods/B07LC84ZYV/B07LC84ZYV_lod1.glb",
+  "lod2": "lods/B07LC84ZYV/B07LC84ZYV_lod2.glb",
+  "lod1_bytes": 190252,
+  "lod1_triangles": 10000,
+  "size_metres": [
+   1.683,
+   0.848,
+   2.053
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "beds",
+  "role": "hero",
+  "id": "B0719SNKSY",
+  "repo_path": "assets/furniture/beds/B0719SNKSY.glb",
+  "name": "Amazon Brand \u2013 Rivet West, Mid-Century, Oak Platform Bed With Inlays, Queen (86\"L), Dark Oak Finish",
+  "product_type": "bed",
+  "brand": "Rivet",
+  "style": "Queen Bed",
+  "lod1": "lods/B0719SNKSY/B0719SNKSY_lod1.glb",
+  "lod2": "lods/B0719SNKSY/B0719SNKSY_lod2.glb",
+  "lod1_bytes": 340452,
+  "lod1_triangles": 9568,
+  "size_metres": [
+   1.6129,
+   1.1692,
+   2.2208
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "beds",
+  "role": "hero",
+  "id": "B075QDV22Z",
+  "repo_path": "assets/furniture/beds/B075QDV22Z.glb",
+  "name": "Rivet Payton Mid-Century Modern Tufted Queen Bed with Headboard, 66.3\" W, Natural",
+  "product_type": "bed",
+  "brand": "Rivet",
+  "style": "Standard",
+  "lod1": "lods/B075QDV22Z/B075QDV22Z_lod1.glb",
+  "lod2": "lods/B075QDV22Z/B075QDV22Z_lod2.glb",
+  "lod1_bytes": 295068,
+  "lod1_triangles": 9726,
+  "size_metres": [
+   2.0454,
+   1.7429,
+   2.3696
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "beds",
+  "role": "hero",
+  "id": "B075XZMMG7",
+  "repo_path": "assets/furniture/beds/B075XZMMG7.glb",
+  "name": "AmazonBasics Upholstered Platform Bed, King, Black",
+  "product_type": "bed",
+  "brand": "AmazonBasics",
+  "style": null,
+  "lod1": "lods/B075XZMMG7/B075XZMMG7_lod1.glb",
+  "lod2": "lods/B075XZMMG7/B075XZMMG7_lod2.glb",
+  "lod1_bytes": 307212,
+  "lod1_triangles": 3740,
+  "size_metres": [
+   2.018,
+   1.0465,
+   2.1522
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "beds",
+  "role": "hero",
+  "id": "B075XZN7NV",
+  "repo_path": "assets/furniture/beds/B075XZN7NV.glb",
+  "name": "AmazonBasics Faux Leather Upholstered Platform Bed Frame with Wooden Slats, Full",
+  "product_type": "bed",
+  "brand": "AmazonBasics",
+  "style": null,
+  "lod1": "lods/B075XZN7NV/B075XZN7NV_lod1.glb",
+  "lod2": "lods/B075XZN7NV/B075XZN7NV_lod2.glb",
+  "lod1_bytes": 294832,
+  "lod1_triangles": 3788,
+  "size_metres": [
+   1.4686,
+   1.0465,
+   2.1522
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "beds",
+  "role": "hero",
+  "id": "B075Z8767S",
+  "repo_path": "assets/furniture/beds/B075Z8767S.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Bateman Casual Rustic Wood Platform Bed Frame with Tall Headboard, King, 81\"W, Brown",
+  "product_type": "bed",
+  "brand": "Stone & Beam",
+  "style": "King Bed",
+  "lod1": "lods/B075Z8767S/B075Z8767S_lod1.glb",
+  "lod2": "lods/B075Z8767S/B075Z8767S_lod2.glb",
+  "lod1_bytes": 294064,
+  "lod1_triangles": 8437,
+  "size_metres": [
+   1.6961,
+   1.4173,
+   2.2761
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "beds-frames",
+  "role": "hero",
+  "id": "B07GFS1W12",
+  "repo_path": "assets/furniture/beds-frames/B07GFS1W12.glb",
+  "name": "Movian Havel",
+  "product_type": "bed frame",
+  "brand": "Movian",
+  "style": "Modern",
+  "lod1": "lods/B07GFS1W12/B07GFS1W12_lod1.glb",
+  "lod2": "lods/B07GFS1W12/B07GFS1W12_lod2.glb",
+  "lod1_bytes": 312848,
+  "lod1_triangles": 17613,
+  "size_metres": [
+   1.6218,
+   0.7998,
+   1.9599
+  ],
+  "score": 8.3
+ },
+ {
+  "bucket": "beds-frames",
+  "role": "hero",
+  "id": "B07K7K25ZL",
+  "repo_path": "assets/furniture/beds-frames/B07K7K25ZL.glb",
+  "name": "Marca Amazon -\u00a0Alkove - Hayes - Cama de matrimonio moderna de madera maciza con 4 niveles para el colch\u00f3n (160 x 200 cm)",
+  "product_type": "bed frame",
+  "brand": "Alkove",
+  "style": "Modern",
+  "lod1": "lods/B07K7K25ZL/B07K7K25ZL_lod1.glb",
+  "lod2": "lods/B07K7K25ZL/B07K7K25ZL_lod2.glb",
+  "lod1_bytes": 226404,
+  "lod1_triangles": 17722,
+  "size_metres": [
+   1.6601,
+   0.9398,
+   2.0919
+  ],
+  "score": 8.3
+ },
+ {
+  "bucket": "beds-frames",
+  "role": "hero",
+  "id": "B07K7NSKQ3",
+  "repo_path": "assets/furniture/beds-frames/B07K7NSKQ3.glb",
+  "name": "Marca Amazon -\u00a0Alkove - Hayes - Cama de matrimonio moderna de madera maciza con 4 niveles para el colch\u00f3n (180 x 200 cm)",
+  "product_type": "bed frame",
+  "brand": "Alkove",
+  "style": "Modern",
+  "lod1": "lods/B07K7NSKQ3/B07K7NSKQ3_lod1.glb",
+  "lod2": "lods/B07K7NSKQ3/B07K7NSKQ3_lod2.glb",
+  "lod1_bytes": 290812,
+  "lod1_triangles": 17928,
+  "size_metres": [
+   1.872,
+   0.9398,
+   2.0919
+  ],
+  "score": 8.3
+ },
+ {
+  "bucket": "shelves",
+  "role": "hero",
+  "id": "B07DMHTGJD",
+  "repo_path": "assets/furniture/shelves/B07DMHTGJD.glb",
+  "name": "2L Lifestyle Hyder Wood Shelf Bookcase Tall, Brown",
+  "product_type": "shelf",
+  "brand": "2L Lifestyle",
+  "style": "Scandinavian",
+  "lod1": "lods/B07DMHTGJD/B07DMHTGJD_lod1.glb",
+  "lod2": "lods/B07DMHTGJD/B07DMHTGJD_lod2.glb",
+  "lod1_bytes": 234200,
+  "lod1_triangles": 2221,
+  "size_metres": [
+   0.763,
+   1.6,
+   0.4027
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "shelves",
+  "role": "hero",
+  "id": "B07PPNNCM2",
+  "repo_path": "assets/furniture/shelves/B07PPNNCM2.glb",
+  "name": "AmazonBasics Modern 5-Tier Ladder Bookshelf Organizer with Solid Rubber Wood Frame, White",
+  "product_type": "shelf",
+  "brand": "AmazonBasics",
+  "style": "Modern",
+  "lod1": "lods/B07PPNNCM2/B07PPNNCM2_lod1.glb",
+  "lod2": "lods/B07PPNNCM2/B07PPNNCM2_lod2.glb",
+  "lod1_bytes": 81160,
+  "lod1_triangles": 7874,
+  "size_metres": [
+   0.636,
+   1.7795,
+   0.3413
+  ],
+  "score": 8.3
+ },
+ {
+  "bucket": "shelves",
+  "role": "hero",
+  "id": "B00I0VTOO4",
+  "repo_path": "assets/furniture/shelves/B00I0VTOO4.glb",
+  "name": "Vida Designs Corona Bookcase, 1 Drawer, Blu-ray/CD Rack, Solid Pine Wood",
+  "product_type": "shelf",
+  "brand": "Vida Designs",
+  "style": "1 Drawer Bookcase",
+  "lod1": "lods/B00I0VTOO4/B00I0VTOO4_lod1.glb",
+  "lod2": "lods/B00I0VTOO4/B00I0VTOO4_lod2.glb",
+  "lod1_bytes": 246292,
+  "lod1_triangles": 2960,
+  "size_metres": [
+   0.5199,
+   1.0301,
+   0.1746
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "shelves",
+  "role": "hero",
+  "id": "B01DDQMQO0",
+  "repo_path": "assets/furniture/shelves/B01DDQMQO0.glb",
+  "name": "Vida Designs Corona Low Bookcase, Solid Pine Wood, Small",
+  "product_type": "shelf",
+  "brand": "Vida Designs",
+  "style": "Low Solid Bookcase",
+  "lod1": "lods/B01DDQMQO0/B01DDQMQO0_lod1.glb",
+  "lod2": "lods/B01DDQMQO0/B01DDQMQO0_lod2.glb",
+  "lod1_bytes": 275180,
+  "lod1_triangles": 4312,
+  "size_metres": [
+   0.8401,
+   0.9796,
+   0.2908
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "shelves",
+  "role": "hero",
+  "id": "B0754K96NJ",
+  "repo_path": "assets/furniture/shelves/B0754K96NJ.glb",
+  "name": "Furniture 247 2 Tier (4 Cube) Shelving Unit - Black Oak",
+  "product_type": "shelf",
+  "brand": "Furniture 247",
+  "style": null,
+  "lod1": "lods/B0754K96NJ/B0754K96NJ_lod1.glb",
+  "lod2": "lods/B0754K96NJ/B0754K96NJ_lod2.glb",
+  "lod1_bytes": 219488,
+  "lod1_triangles": 251,
+  "size_metres": [
+   0.7899,
+   0.7859,
+   0.3899
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "shelves",
+  "role": "hero",
+  "id": "B0754K96NT",
+  "repo_path": "assets/furniture/shelves/B0754K96NT.glb",
+  "name": "Furniture 247 2 Tier (4 Cube) Shelving Unit - Natural Oak",
+  "product_type": "shelf",
+  "brand": "Furniture 247",
+  "style": null,
+  "lod1": "lods/B0754K96NT/B0754K96NT_lod1.glb",
+  "lod2": "lods/B0754K96NT/B0754K96NT_lod2.glb",
+  "lod1_bytes": 265128,
+  "lod1_triangles": 251,
+  "size_metres": [
+   0.7899,
+   0.7859,
+   0.3899
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "shelves",
+  "role": "hero",
+  "id": "B075Z6YS1Z",
+  "repo_path": "assets/furniture/shelves/B075Z6YS1Z.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Larson Industrial Wood and Metal 4-Shelf Bookcase, 73\"H, Walnut",
+  "product_type": "shelf",
+  "brand": "Stone & Beam",
+  "style": "73\" Bookcase",
+  "lod1": "lods/B075Z6YS1Z/B075Z6YS1Z_lod1.glb",
+  "lod2": "lods/B075Z6YS1Z/B075Z6YS1Z_lod2.glb",
+  "lod1_bytes": 272196,
+  "lod1_triangles": 3042,
+  "size_metres": [
+   0.8735,
+   1.8605,
+   0.3586
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "shelves",
+  "role": "hero",
+  "id": "B075ZF4S39",
+  "repo_path": "assets/furniture/shelves/B075ZF4S39.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Barrett Reclaimed Wood 4-Shelf Bookcase, 40\"W, White and Sandstone Pine",
+  "product_type": "shelf",
+  "brand": "Stone & Beam",
+  "style": "Estante",
+  "lod1": "lods/B075ZF4S39/B075ZF4S39_lod1.glb",
+  "lod2": "lods/B075ZF4S39/B075ZF4S39_lod2.glb",
+  "lod1_bytes": 262548,
+  "lod1_triangles": 5240,
+  "size_metres": [
+   1.0216,
+   1.8783,
+   0.3812
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "lamps-table",
+  "role": "hero",
+  "id": "B07374P6MR",
+  "repo_path": "assets/furniture/lamps-table/B07374P6MR.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Modern Bedroom Table Desk Lamp With Light Bulb - 8 x 8 x 20.5 Inches, Wood Grain",
+  "product_type": "lamp",
+  "brand": "Stone & Beam",
+  "style": "Contemporary",
+  "lod1": "lods/B07374P6MR/B07374P6MR_lod1.glb",
+  "lod2": "lods/B07374P6MR/B07374P6MR_lod2.glb",
+  "lod1_bytes": 202268,
+  "lod1_triangles": 4505,
+  "size_metres": [
+   0.2439,
+   0.5362,
+   0.2436
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "lamps-table",
+  "role": "hero",
+  "id": "B075X1T52N",
+  "repo_path": "assets/furniture/lamps-table/B075X1T52N.glb",
+  "name": "Amazon Brand \u2013 Rivet Glass Ball and Metal Table Lamp with Bulb Included, 21.5\" H, Brass",
+  "product_type": "lamp",
+  "brand": "Rivet",
+  "style": "Moderno",
+  "lod1": "lods/B075X1T52N/B075X1T52N_lod1.glb",
+  "lod2": "lods/B075X1T52N/B075X1T52N_lod2.glb",
+  "lod1_bytes": 112904,
+  "lod1_triangles": 4533,
+  "size_metres": [
+   0.2095,
+   0.5518,
+   0.2508
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "lamps-table",
+  "role": "hero",
+  "id": "B07B4YVXG8",
+  "repo_path": "assets/furniture/lamps-table/B07B4YVXG8.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Modern Arc Table Desk Lamp with Light Bulb and Linen Shade - 9 x 9 x 20.5 Inches, Black and Brushed Brass",
+  "product_type": "lamp",
+  "brand": "Stone & Beam",
+  "style": "Modern",
+  "lod1": "lods/B07B4YVXG8/B07B4YVXG8_lod1.glb",
+  "lod2": "lods/B07B4YVXG8/B07B4YVXG8_lod2.glb",
+  "lod1_bytes": 178976,
+  "lod1_triangles": 4894,
+  "size_metres": [
+   0.23,
+   0.4734,
+   0.2879
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "lamps-table",
+  "role": "hero",
+  "id": "B075X12QV5",
+  "repo_path": "assets/furniture/lamps-table/B075X12QV5.glb",
+  "name": "Rivet Mid Century Modern Rubberwood Living Room Table Lamp With Light Bulb - 19 Inches, Black with Linen White Shade",
+  "product_type": "lamp",
+  "brand": "Rivet",
+  "style": "Modern",
+  "lod1": "lods/B075X12QV5/B075X12QV5_lod1.glb",
+  "lod2": "lods/B075X12QV5/B075X12QV5_lod2.glb",
+  "lod1_bytes": 137808,
+  "lod1_triangles": 6785,
+  "size_metres": [
+   0.2406,
+   0.4816,
+   0.2403
+  ],
+  "score": 8.3
+ },
+ {
+  "bucket": "lamps-table",
+  "role": "hero",
+  "id": "B07M6PK8LT",
+  "repo_path": "assets/furniture/lamps-table/B07M6PK8LT.glb",
+  "name": "Amazon Brand \u2013 Ravenna Home Table Lamp with Round Ceramic Base and LED Light Bulb, 16.5\"H, Cannoli Cream",
+  "product_type": "lamp",
+  "brand": "Ravenna Home",
+  "style": null,
+  "lod1": "lods/B07M6PK8LT/B07M6PK8LT_lod1.glb",
+  "lod2": "lods/B07M6PK8LT/B07M6PK8LT_lod2.glb",
+  "lod1_bytes": 176476,
+  "lod1_triangles": 4418,
+  "size_metres": [
+   0.2392,
+   0.3994,
+   0.2392
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "lamps-table",
+  "role": "hero",
+  "id": "B07MBFD6F9",
+  "repo_path": "assets/furniture/lamps-table/B07MBFD6F9.glb",
+  "name": "Amazon Brand \u2013 Ravenna Home Metal Table Lamp with LED Light Bulb, 20\"H, Dark Bronze",
+  "product_type": "lamp",
+  "brand": "Ravenna Home",
+  "style": "Farmhouse Table Lamp",
+  "lod1": "lods/B07MBFD6F9/B07MBFD6F9_lod1.glb",
+  "lod2": "lods/B07MBFD6F9/B07MBFD6F9_lod2.glb",
+  "lod1_bytes": 184556,
+  "lod1_triangles": 3617,
+  "size_metres": [
+   0.2506,
+   0.5092,
+   0.2506
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "lamps-table",
+  "role": "hero",
+  "id": "B07HKF59M9",
+  "repo_path": "assets/furniture/lamps-table/B07HKF59M9.glb",
+  "name": "AmazonBasics Rivet Contemporary Ceramic Base with Fabric Drum Shade Table Lamp, 19.25\"H, Black",
+  "product_type": "lamp",
+  "brand": "AmazonBasics",
+  "style": null,
+  "lod1": "lods/B07HKF59M9/B07HKF59M9_lod1.glb",
+  "lod2": "lods/B07HKF59M9/B07HKF59M9_lod2.glb",
+  "lod1_bytes": 241596,
+  "lod1_triangles": 5061,
+  "size_metres": [
+   0.303,
+   0.4882,
+   0.3024
+  ],
+  "score": 7.3
+ },
+ {
+  "bucket": "lamps-floor",
+  "role": "hero",
+  "id": "B073751DMK",
+  "repo_path": "assets/furniture/lamps-floor/B073751DMK.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Modern Metal Cut-Out Living Room Standing Floor Lamp With Light Bulb - 19 x 8 x 59.5 Inches, Earth Tone Shade",
+  "product_type": "lamp",
+  "brand": "Stone & Beam",
+  "style": "Moderno/elegante",
+  "lod1": "lods/B073751DMK/B073751DMK_lod1.glb",
+  "lod2": "lods/B073751DMK/B073751DMK_lod2.glb",
+  "lod1_bytes": 162844,
+  "lod1_triangles": 2076,
+  "size_metres": [
+   0.4749,
+   1.4692,
+   0.2332
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "lamps-floor",
+  "role": "hero",
+  "id": "B0742FPL25",
+  "repo_path": "assets/furniture/lamps-floor/B0742FPL25.glb",
+  "name": "Stone & Beam Lily Modern Arc Living Room Floor Lamp With Light Bulb And Taupe Shade - 83 x 15 x 53 - 60 Inches, Steel",
+  "product_type": "lamp",
+  "brand": "Stone & Beam",
+  "style": "Modern/Sleek",
+  "lod1": "lods/B0742FPL25/B0742FPL25_lod1.glb",
+  "lod2": "lods/B0742FPL25/B0742FPL25_lod2.glb",
+  "lod1_bytes": 227428,
+  "lod1_triangles": 1910,
+  "size_metres": [
+   0.4058,
+   2.0982,
+   1.4454
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "lamps-floor",
+  "role": "hero",
+  "id": "B07DTF76PJ",
+  "repo_path": "assets/furniture/lamps-floor/B07DTF76PJ.glb",
+  "name": "Amazon Brand \u2013 Rivet Mid Century Modern 3 Light Living Room Standing Floor Lamp with Integrated LED Light - 67.5 Inches, Antique Brass Finish",
+  "product_type": "lamp",
+  "brand": "Rivet",
+  "style": "Modern",
+  "lod1": "lods/B07DTF76PJ/B07DTF76PJ_lod1.glb",
+  "lod2": "lods/B07DTF76PJ/B07DTF76PJ_lod2.glb",
+  "lod1_bytes": 278352,
+  "lod1_triangles": 3817,
+  "size_metres": [
+   0.7371,
+   1.7037,
+   0.2089
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "lamps-floor",
+  "role": "hero",
+  "id": "B0742DNY41",
+  "repo_path": "assets/furniture/lamps-floor/B0742DNY41.glb",
+  "name": "Rivet Marble and Brass Floor Lamp, Avery, 63\"H, With Bulb",
+  "product_type": "lamp",
+  "brand": "Rivet",
+  "style": "Floor Lamp",
+  "lod1": "lods/B0742DNY41/B0742DNY41_lod1.glb",
+  "lod2": "lods/B0742DNY41/B0742DNY41_lod2.glb",
+  "lod1_bytes": 130556,
+  "lod1_triangles": 4738,
+  "size_metres": [
+   0.1939,
+   1.5939,
+   0.6526
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "lamps-floor",
+  "role": "hero",
+  "id": "B07DBCMTD3",
+  "repo_path": "assets/furniture/lamps-floor/B07DBCMTD3.glb",
+  "name": "Amazon Brand \u2013 Ravenna Home Metal Living Room Slim Standing Floor Lamp With LED Light Bulb - 59.25 Inches, Dark Bronze With Off-White Shade",
+  "product_type": "lamp",
+  "brand": "Ravenna Home",
+  "style": "Floor Lamp",
+  "lod1": "lods/B07DBCMTD3/B07DBCMTD3_lod1.glb",
+  "lod2": "lods/B07DBCMTD3/B07DBCMTD3_lod2.glb",
+  "lod1_bytes": 104992,
+  "lod1_triangles": 9108,
+  "size_metres": [
+   0.3269,
+   1.506,
+   0.3269
+  ],
+  "score": 7.3
+ },
+ {
+  "bucket": "rugs",
+  "role": "hero",
+  "id": "B0719STDHT",
+  "repo_path": "assets/furniture/rugs/B0719STDHT.glb",
+  "name": "Rivet Modern Zebra Print Rug, 4' x 6', Grey",
+  "product_type": "rug",
+  "brand": "Rivet",
+  "style": "Modern",
+  "lod1": "lods/B0719STDHT/B0719STDHT_lod1.glb",
+  "lod2": "lods/B0719STDHT/B0719STDHT_lod2.glb",
+  "lod1_bytes": 284260,
+  "lod1_triangles": 1536,
+  "size_metres": [
+   1.8275,
+   0.0082,
+   1.225
+  ],
+  "score": 7.5
+ },
+ {
+  "bucket": "rugs",
+  "role": "hero",
+  "id": "B0719STKTS",
+  "repo_path": "assets/furniture/rugs/B0719STKTS.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Contemporary Floral Medallion Area Rug, 7' 6\" x 9' 6\", Grey",
+  "product_type": "rug",
+  "brand": "Stone & Beam",
+  "style": "Contemporary",
+  "lod1": "lods/B0719STKTS/B0719STKTS_lod1.glb",
+  "lod2": "lods/B0719STKTS/B0719STKTS_lod2.glb",
+  "lod1_bytes": 328080,
+  "lod1_triangles": 2656,
+  "size_metres": [
+   2.9246,
+   0.0263,
+   2.343
+  ],
+  "score": 7.5
+ },
+ {
+  "bucket": "rugs",
+  "role": "hero",
+  "id": "B071J4VX5C",
+  "repo_path": "assets/furniture/rugs/B071J4VX5C.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Contemporary Speckle Wool Area Rug, 8' x 10' 6\", Grey",
+  "product_type": "rug",
+  "brand": "Stone & Beam",
+  "style": "Contemporary",
+  "lod1": "lods/B071J4VX5C/B071J4VX5C_lod1.glb",
+  "lod2": "lods/B071J4VX5C/B071J4VX5C_lod2.glb",
+  "lod1_bytes": 291368,
+  "lod1_triangles": 1640,
+  "size_metres": [
+   3.1989,
+   0.036,
+   2.4143
+  ],
+  "score": 7.5
+ },
+ {
+  "bucket": "rugs",
+  "role": "hero",
+  "id": "B071SHHZTC",
+  "repo_path": "assets/furniture/rugs/B071SHHZTC.glb",
+  "name": "Amazon Brand \u2013 Rivet Modern Ombr&eacute; Wool Rug, 5' x 8', Red",
+  "product_type": "rug",
+  "brand": "Rivet",
+  "style": "Modern",
+  "lod1": "lods/B071SHHZTC/B071SHHZTC_lod1.glb",
+  "lod2": "lods/B071SHHZTC/B071SHHZTC_lod2.glb",
+  "lod1_bytes": 304660,
+  "lod1_triangles": 936,
+  "size_metres": [
+   2.4424,
+   0.0102,
+   1.5305
+  ],
+  "score": 7.5
+ },
+ {
+  "bucket": "rugs",
+  "role": "hero",
+  "id": "B0719STLK8",
+  "repo_path": "assets/furniture/rugs/B0719STLK8.glb",
+  "name": "Amazon Brand \u2013 Rivet Modern Ombr&eacute; Wool Rug, 5' x 8', Charcoal",
+  "product_type": "rug",
+  "brand": "nuLOOM",
+  "style": "Modern",
+  "lod1": "lods/B0719STLK8/B0719STLK8_lod1.glb",
+  "lod2": "lods/B0719STLK8/B0719STLK8_lod2.glb",
+  "lod1_bytes": 401148,
+  "lod1_triangles": 538,
+  "size_metres": [
+   2.9021,
+   0.0171,
+   2.3055
+  ],
+  "score": 7.0
+ },
+ {
+  "bucket": "rugs",
+  "role": "hero",
+  "id": "B071SHHZT2",
+  "repo_path": "assets/furniture/rugs/B071SHHZT2.glb",
+  "name": "Amazon Brand \u2013 Rivet Modern Ombr&eacute; Wool Rug, 4' x 6', Charcoal",
+  "product_type": "rug",
+  "brand": "nuLOOM",
+  "style": "Modern",
+  "lod1": "lods/B071SHHZT2/B071SHHZT2_lod1.glb",
+  "lod2": "lods/B071SHHZT2/B071SHHZT2_lod2.glb",
+  "lod1_bytes": 403320,
+  "lod1_triangles": 538,
+  "size_metres": [
+   2.9017,
+   0.0171,
+   2.3055
+  ],
+  "score": 7.0
+ },
+ {
+  "bucket": "rugs",
+  "role": "hero",
+  "id": "B07QB8HKZK",
+  "repo_path": "assets/furniture/rugs/B07QB8HKZK.glb",
+  "name": "Ravenna Home Vintage Damask Patterned Rug, 2' x 4', Pink on White",
+  "product_type": "rug",
+  "brand": "Ravenna Home",
+  "style": null,
+  "lod1": "lods/B07QB8HKZK/B07QB8HKZK_lod1.glb",
+  "lod2": "lods/B07QB8HKZK/B07QB8HKZK_lod2.glb",
+  "lod1_bytes": 319644,
+  "lod1_triangles": 672,
+  "size_metres": [
+   1.2187,
+   0.0073,
+   0.604
+  ],
+  "score": 6.5
+ },
+ {
+  "bucket": "rugs",
+  "role": "hero",
+  "id": "B07QB8HL11",
+  "repo_path": "assets/furniture/rugs/B07QB8HL11.glb",
+  "name": "Ravenna Home Vintage Damask Patterned Rug, 7'10\" x 9'10\", Pink on Ivory",
+  "product_type": "rug",
+  "brand": "Ravenna Home",
+  "style": null,
+  "lod1": "lods/B07QB8HL11/B07QB8HL11_lod1.glb",
+  "lod2": "lods/B07QB8HL11/B07QB8HL11_lod2.glb",
+  "lod1_bytes": 256408,
+  "lod1_triangles": 826,
+  "size_metres": [
+   2.98,
+   0.0116,
+   2.3628
+  ],
+  "score": 6.5
+ },
+ {
+  "bucket": "rugs",
+  "role": "hero",
+  "id": "B0714MJKZW",
+  "repo_path": "assets/furniture/rugs/B0714MJKZW.glb",
+  "name": "Stone & Beam Contemporary Floral Medallion Rug, 5' x 8', Grey",
+  "product_type": "rug",
+  "brand": null,
+  "style": null,
+  "lod1": "lods/B0714MJKZW/B0714MJKZW_lod1.glb",
+  "lod2": "lods/B0714MJKZW/B0714MJKZW_lod2.glb",
+  "lod1_bytes": 376688,
+  "lod1_triangles": 1018,
+  "size_metres": [
+   2.4475,
+   0.0212,
+   1.5268
+  ],
+  "score": 6.0
+ },
+ {
+  "bucket": "rugs",
+  "role": "hero",
+  "id": "B0719FLQP3",
+  "repo_path": "assets/furniture/rugs/B0719FLQP3.glb",
+  "name": "Nourison Passion Modern Abstract Colorful Sunburst Area Rug, 6'7\" x 9'6\"",
+  "product_type": "rug",
+  "brand": "Nourison",
+  "style": "Vintage",
+  "lod1": "lods/B0719FLQP3/B0719FLQP3_lod1.glb",
+  "lod2": "lods/B0719FLQP3/B0719FLQP3_lod2.glb",
+  "lod1_bytes": 368608,
+  "lod1_triangles": 4960,
+  "size_metres": [
+   2.8956,
+   0.0127,
+   2.0066
+  ],
+  "score": 5.3
+ },
+ {
+  "bucket": "ottomans",
+  "role": "hero",
+  "id": "B07D4FS7GY",
+  "repo_path": "assets/furniture/ottomans/B07D4FS7GY.glb",
+  "name": "Red Hook Leda Rectangular Upholstered Ottoman Bench - 27 x 14.5 x 18.5 Inches, Stone Grey",
+  "product_type": "ottoman",
+  "brand": "Red Hook",
+  "style": "Modern",
+  "lod1": "lods/B07D4FS7GY/B07D4FS7GY_lod1.glb",
+  "lod2": "lods/B07D4FS7GY/B07D4FS7GY_lod2.glb",
+  "lod1_bytes": 270956,
+  "lod1_triangles": 2068,
+  "size_metres": [
+   0.6807,
+   0.4674,
+   0.3658
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "ottomans",
+  "role": "hero",
+  "id": "B07C8DHX43",
+  "repo_path": "assets/furniture/ottomans/B07C8DHX43.glb",
+  "name": "Amazon Basics Rectangular Faux Leather Storage Ottoman Bench, Large - Russet Brown",
+  "product_type": "ottoman",
+  "brand": "Amazon Basics",
+  "style": "Contemporary",
+  "lod1": "lods/B07C8DHX43/B07C8DHX43_lod1.glb",
+  "lod2": "lods/B07C8DHX43/B07C8DHX43_lod2.glb",
+  "lod1_bytes": 201040,
+  "lod1_triangles": 9474,
+  "size_metres": [
+   1.2956,
+   0.4445,
+   0.508
+  ],
+  "score": 8.3
+ },
+ {
+  "bucket": "ottomans",
+  "role": "hero",
+  "id": "B07M8F6P67",
+  "repo_path": "assets/furniture/ottomans/B07M8F6P67.glb",
+  "name": "Amazon Basics Faux Leather Rectangular Storage Ottoman, Black",
+  "product_type": "ottoman",
+  "brand": "Amazon Basics",
+  "style": "Modern",
+  "lod1": "lods/B07M8F6P67/B07M8F6P67_lod1.glb",
+  "lod2": "lods/B07M8F6P67/B07M8F6P67_lod2.glb",
+  "lod1_bytes": 223964,
+  "lod1_triangles": 9687,
+  "size_metres": [
+   0.8382,
+   0.4699,
+   0.4318
+  ],
+  "score": 8.3
+ },
+ {
+  "bucket": "ottomans",
+  "role": "hero",
+  "id": "B071J7Q6DW",
+  "repo_path": "assets/furniture/ottomans/B071J7Q6DW.glb",
+  "name": "Amazon Brand \u2013 Rivet Emerly Modern Ottoman, 33\"W, Pewter",
+  "product_type": "ottoman",
+  "brand": "Rivet",
+  "style": null,
+  "lod1": "lods/B071J7Q6DW/B071J7Q6DW_lod1.glb",
+  "lod2": "lods/B071J7Q6DW/B071J7Q6DW_lod2.glb",
+  "lod1_bytes": 297120,
+  "lod1_triangles": 2682,
+  "size_metres": [
+   0.7185,
+   0.456,
+   0.5196
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "ottomans",
+  "role": "hero",
+  "id": "B071PDYXKC",
+  "repo_path": "assets/furniture/ottomans/B071PDYXKC.glb",
+  "name": "Amazon Brand \u2013 Rivet Ava Mid-Century Modern Upholstered Ottoman, 25.6\"W, Light Grey",
+  "product_type": "ottoman",
+  "brand": "Rivet",
+  "style": null,
+  "lod1": "lods/B071PDYXKC/B071PDYXKC_lod1.glb",
+  "lod2": "lods/B071PDYXKC/B071PDYXKC_lod2.glb",
+  "lod1_bytes": 237400,
+  "lod1_triangles": 2630,
+  "size_metres": [
+   0.6555,
+   0.3986,
+   0.6482
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "stools",
+  "role": "hero",
+  "id": "B07CZ6P7QP",
+  "repo_path": "assets/furniture/stools/B07CZ6P7QP.glb",
+  "name": "Wuxing Pioneer Square Alessio 24-Inch Counter-Height Metal Stool with Bronze Finish and Elmwood Seat, Set of 4",
+  "product_type": "stool seating",
+  "brand": "Wuxing",
+  "style": "Moderno",
+  "lod1": "lods/B07CZ6P7QP/B07CZ6P7QP_lod1.glb",
+  "lod2": "lods/B07CZ6P7QP/B07CZ6P7QP_lod2.glb",
+  "lod1_bytes": 313408,
+  "lod1_triangles": 4074,
+  "size_metres": [
+   0.4069,
+   0.6074,
+   0.4069
+  ],
+  "score": 9.0
+ },
+ {
+  "bucket": "stools",
+  "role": "hero",
+  "id": "B075YMN22B",
+  "repo_path": "assets/furniture/stools/B075YMN22B.glb",
+  "name": "Amazon Brand \u2013 Rivet Julian Minimalist Modern Tufted Dining Room Counter Height Bar Stools, Set of 2, 34.3 Inch Height, Synthetic Leather, Autumn Yellow",
+  "product_type": "stool seating",
+  "brand": "Rivet",
+  "style": null,
+  "lod1": "lods/B075YMN22B/B075YMN22B_lod1.glb",
+  "lod2": "lods/B075YMN22B/B075YMN22B_lod2.glb",
+  "lod1_bytes": 217756,
+  "lod1_triangles": 5172,
+  "size_metres": [
+   0.4892,
+   0.8662,
+   0.5237
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "stools",
+  "role": "hero",
+  "id": "B075YP394B",
+  "repo_path": "assets/furniture/stools/B075YP394B.glb",
+  "name": "Amazon Brand \u2013 Rivet Julian Minimalist Modern Tufted Kitchen Bar Height Stools, Set of 2, 37.8 Inch Height, Synthetic Leather, Autumn Yellow",
+  "product_type": "stool seating",
+  "brand": "Rivet",
+  "style": null,
+  "lod1": "lods/B075YP394B/B075YP394B_lod1.glb",
+  "lod2": "lods/B075YP394B/B075YP394B_lod2.glb",
+  "lod1_bytes": 217496,
+  "lod1_triangles": 5171,
+  "size_metres": [
+   0.4892,
+   0.9361,
+   0.5237
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "stools",
+  "role": "hero",
+  "id": "B07B78M4DN",
+  "repo_path": "assets/furniture/stools/B07B78M4DN.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Cottage Wood Bar Stool, 24\"H, Green",
+  "product_type": "stool seating",
+  "brand": "Hillsdale Furniture",
+  "style": null,
+  "lod1": "lods/B07B78M4DN/B07B78M4DN_lod1.glb",
+  "lod2": "lods/B07B78M4DN/B07B78M4DN_lod2.glb",
+  "lod1_bytes": 55816,
+  "lod1_triangles": 4660,
+  "size_metres": [
+   0.4575,
+   0.7374,
+   0.4759
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "stools",
+  "role": "hero",
+  "id": "B07B79GMHH",
+  "repo_path": "assets/furniture/stools/B07B79GMHH.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Cottage Wood Saddle Kitchen Bar Counter Stool, 24 Inch Height, Blue",
+  "product_type": "stool seating",
+  "brand": "Stone & Beam",
+  "style": null,
+  "lod1": "lods/B07B79GMHH/B07B79GMHH_lod1.glb",
+  "lod2": "lods/B07B79GMHH/B07B79GMHH_lod2.glb",
+  "lod1_bytes": 52476,
+  "lod1_triangles": 4660,
+  "size_metres": [
+   0.4575,
+   0.7374,
+   0.4759
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "wall-art",
+  "role": "wall",
+  "id": "B073NZFTH9",
+  "repo_path": "assets/furniture/wall-art/B073NZFTH9.glb",
+  "name": "Amazon Brand \u2013 Rivet Ground View Black and White Photography Matted Skyscrapers Wall Art, Black Frame, 15\" x 13\"",
+  "product_type": "wall art",
+  "brand": "Rivet",
+  "style": "Contemporary",
+  "lod1": "lods/B073NZFTH9/B073NZFTH9_lod1.glb",
+  "lod2": "lods/B073NZFTH9/B073NZFTH9_lod2.glb",
+  "lod1_bytes": 120876,
+  "lod1_triangles": 866,
+  "size_metres": [
+   0.3807,
+   0.3215,
+   0.0282
+  ],
+  "score": 8.5
+ },
+ {
+  "bucket": "wall-art",
+  "role": "wall",
+  "id": "B073NZGLJX",
+  "repo_path": "assets/furniture/wall-art/B073NZGLJX.glb",
+  "name": "Amazon Brand \u2013 Rivet Roaring 20s with Modern Yellow, Blue, and Purple Accent Canvas Print Wall Art, White Frame, 17.75\" x 21.75\"",
+  "product_type": "wall art",
+  "brand": "Rivet",
+  "style": "Contemporary",
+  "lod1": "lods/B073NZGLJX/B073NZGLJX_lod1.glb",
+  "lod2": "lods/B073NZGLJX/B073NZGLJX_lod2.glb",
+  "lod1_bytes": 104236,
+  "lod1_triangles": 360,
+  "size_metres": [
+   0.443,
+   0.5486,
+   0.0304
+  ],
+  "score": 8.5
+ },
+ {
+  "bucket": "wall-art",
+  "role": "wall",
+  "id": "B073NZGLLS",
+  "repo_path": "assets/furniture/wall-art/B073NZGLLS.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Modern Purple Floral Print Wall Art, White Frame, 17.75\" x 21.75\"",
+  "product_type": "wall art",
+  "brand": "Stone & Beam",
+  "style": "Contemporary",
+  "lod1": "lods/B073NZGLLS/B073NZGLLS_lod1.glb",
+  "lod2": "lods/B073NZGLLS/B073NZGLLS_lod2.glb",
+  "lod1_bytes": 88524,
+  "lod1_triangles": 444,
+  "size_metres": [
+   0.4522,
+   0.5494,
+   0.038
+  ],
+  "score": 8.5
+ },
+ {
+  "bucket": "wall-art",
+  "role": "wall",
+  "id": "B073NZTB87",
+  "repo_path": "assets/furniture/wall-art/B073NZTB87.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Modern Red & Pink Floral Print Wall Art on Canvas, 16\" x 20\"",
+  "product_type": "wall art",
+  "brand": "Stone & Beam",
+  "style": "Contemporary",
+  "lod1": "lods/B073NZTB87/B073NZTB87_lod1.glb",
+  "lod2": "lods/B073NZTB87/B073NZTB87_lod2.glb",
+  "lod1_bytes": 167728,
+  "lod1_triangles": 114,
+  "size_metres": [
+   0.4064,
+   0.508,
+   0.0282
+  ],
+  "score": 8.5
+ },
+ {
+  "bucket": "mirrors",
+  "role": "wall",
+  "id": "B073WGGXFT",
+  "repo_path": "assets/furniture/mirrors/B073WGGXFT.glb",
+  "name": "Amazon Brand \u2013 Rivet Modern Wood and Iron Hanging Wall Mirror, 32.25 Inch Height, Brown and Black",
+  "product_type": "home mirror",
+  "brand": "Rivet",
+  "style": "Modern",
+  "lod1": "lods/B073WGGXFT/B073WGGXFT_lod1.glb",
+  "lod2": "lods/B073WGGXFT/B073WGGXFT_lod2.glb",
+  "lod1_bytes": 98924,
+  "lod1_triangles": 330,
+  "size_metres": [
+   0.5249,
+   0.8233,
+   0.0465
+  ],
+  "score": 8.5
+ },
+ {
+  "bucket": "mirrors",
+  "role": "wall",
+  "id": "B073WHB42L",
+  "repo_path": "assets/furniture/mirrors/B073WHB42L.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam Diamond Shape Metal Frame Hanging Decorative Wall Mirror, 34.25 Inch Height, Gold Finish",
+  "product_type": "home mirror",
+  "brand": "Stone & Beam",
+  "style": "Modern",
+  "lod1": "lods/B073WHB42L/B073WHB42L_lod1.glb",
+  "lod2": "lods/B073WHB42L/B073WHB42L_lod2.glb",
+  "lod1_bytes": 92232,
+  "lod1_triangles": 3435,
+  "size_metres": [
+   0.5722,
+   0.8699,
+   0.051
+  ],
+  "score": 8.5
+ },
+ {
+  "bucket": "mirrors",
+  "role": "wall",
+  "id": "B073WHZKBF",
+  "repo_path": "assets/furniture/mirrors/B073WHZKBF.glb",
+  "name": "Amazon Brand \u2013 Rivet Modern Hexagon Wood Frame Hanging Wall Mirror, 30 Inch Height, Natural",
+  "product_type": "home mirror",
+  "brand": "Rivet",
+  "style": "Modern",
+  "lod1": "lods/B073WHZKBF/B073WHZKBF_lod1.glb",
+  "lod2": "lods/B073WHZKBF/B073WHZKBF_lod2.glb",
+  "lod1_bytes": 249108,
+  "lod1_triangles": 354,
+  "size_metres": [
+   0.675,
+   0.7788,
+   0.091
+  ],
+  "score": 8.5
+ },
+ {
+  "bucket": "pillows",
+  "role": "wall",
+  "id": "B07JQMLQ21",
+  "repo_path": "assets/furniture/pillows/B07JQMLQ21.glb",
+  "name": "Amazon Basics Outdoor Patio Bench Cushion - 45 x 18 x 2.5 Inches, Red",
+  "product_type": "pillow",
+  "brand": "Amazon Basics",
+  "style": "Bench Cushion (Poly Batting)",
+  "lod1": "lods/B07JQMLQ21/B07JQMLQ21_lod1.glb",
+  "lod2": "lods/B07JQMLQ21/B07JQMLQ21_lod2.glb",
+  "lod1_bytes": 195796,
+  "lod1_triangles": 3712,
+  "size_metres": [
+   1.1874,
+   0.0805,
+   0.4918
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "pillows",
+  "role": "wall",
+  "id": "B07JQMLQ2C",
+  "repo_path": "assets/furniture/pillows/B07JQMLQ2C.glb",
+  "name": "Amazon Basics Outdoor Patio Bench Cushion - 45 x 18 x 2.5 Inches, Blue",
+  "product_type": "pillow",
+  "brand": "Amazon Basics",
+  "style": "Bench Cushion (Poly Batting)",
+  "lod1": "lods/B07JQMLQ2C/B07JQMLQ2C_lod1.glb",
+  "lod2": "lods/B07JQMLQ2C/B07JQMLQ2C_lod2.glb",
+  "lod1_bytes": 151808,
+  "lod1_triangles": 3712,
+  "size_metres": [
+   1.1874,
+   0.0805,
+   0.4918
+  ],
+  "score": 8.0
+ },
+ {
+  "bucket": "pillows",
+  "role": "wall",
+  "id": "B074VLPC13",
+  "repo_path": "assets/furniture/pillows/B074VLPC13.glb",
+  "name": "Amazon Brand \u2013 Stone & Beam French Laundry Stripe Decorative Throw Pillow, 12\" x 24\", Ivory, Black",
+  "product_type": "pillow",
+  "brand": "Stone & Beam",
+  "style": null,
+  "lod1": "lods/B074VLPC13/B074VLPC13_lod1.glb",
+  "lod2": "lods/B074VLPC13/B074VLPC13_lod2.glb",
+  "lod1_bytes": 209596,
+  "lod1_triangles": 4096,
+  "size_metres": [
+   0.6403,
+   0.3526,
+   0.2105
+  ],
+  "score": 7.5
+ }
+]

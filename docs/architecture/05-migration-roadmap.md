@@ -9,28 +9,25 @@
 - **Proof:** 559/559 vitest (553 legacy + 6 new) · `scripts/probe-roam.mjs` 28/28 in real Chromium (barrier physics, story-stays-live mid-roam, save round-trip, silent boot restore) · 4-day E2E `scripts/e2e.mjs` 0 failures (535 s) · `tsc` clean · console clean.
 - **Risk retired:** "free roam means deleting the sim" — it did not; the E2E still plays all four days.
 
-## M1 — Beats as places, not pressure (small, next)
+## M1 — Beats as places, not pressure ✅ SHIPPED
 
 - **Goal:** the Map's page 1 grows optional story markers (the current beat's spot as a doodle + a "whenever you're ready" Rosa line on defer).
-- **Touch:** `core/content.ts` (marker doodles), `ui/UI.ts` (sketch layer), one `GameState` helper (beat→place id map — data only).
-- **Risk:** the objective line and the map marker must agree, or the HUD lies. Mitigation: both read from the same `GameState` helper.
-- **Accept:** probe — enter roam, open map, marker visible; defer a beat, story completes later in order; 4-day E2E green.
+- **Shipped:** `GameState.beatPlaceId()` (the data-only beat→place table — the objective line and the marker both read it, so the HUD can't lie) · the beat marker in `ui/sketch.ts` (Rosa's dashed ink ring + her handwritten caption, opacity-flip only — the sketch's no-rebuild law) · `UI.setBeatMarker` (id waits if the sketch isn't built yet, the `priyaRevealed` law) · wired at boot, `applyEffect('step')` (both modes — mid-roam the ring shows where the story waits), and every day-begin.
+- **Proof:** `tests/beats.test.ts` (4 pins: every marked id is a real `MAP_PLACES` id; a marked beat always has an objective line; the named beats mark their spots; the unnamed beats — fire escape, teal door, stairs, notice, rail, DONE — park the ring) · `scripts/probe-m1-beats.mjs` 10/10 in real Chromium (boot ring on the terminal, the ring rides the story, roam holds the marker, the teal door parks it, console clean) · 4-day E2E `scripts/e2e.mjs` AUTOTEST OK 0 failures (534 s) · `tsc` clean · vitest 569/569.
 
-## M2 — The district map (the block grows)
+## M2 — The district map (the block grows) ✅ SHIPPED (by the docs/45–47 construction arc)
 
 - **Goal:** docs/45's future plots become walkable strips; the subway ride becomes a real edge between districts.
-- **Touch:** `world/World.ts` construction (new strips behind the same collider law), `dressing.ts` (new diaries), `world/subway/` (ride → district transition), `MAP_PLACES` + `SKETCH_BOUNDS`.
-- **Risk:** draw calls and colliders grow with area. Mitigation: the M0 lesson repeated — visibility-gated groups, the existing district system (`updateDistricts`), and a scene-census probe gate (probe-scene-census.mjs) with hard budgets.
-- **Accept:** census probe within budgets on SwiftShader; new probes per district; all story E2Es green; mobile portrait probe for each new strip.
+- **Shipped:** the four streets, both avenues, the two interior parks and the eight interiors opened as walkable, district-tagged content (W0 culling rings → W1 grid + Marlow row → W2 Gable Row + parks + shortcuts → W3 avenue walls + landmarks → W4 life + traffic + the M121 → W5 interiors, each with its phase exit in docs/45/47); the K ride has been the edge between districts since Times Square shipped — board at Alder Heights (station A), step off at 42 St (station B), `tsSurface` lights its own zone.
+- **Risk retired:** "draw calls and colliders grow with area" — the W0 district ring + the census probe hold the budget; the E2E stayed green through every phase.
 
-## M3 — The city keeps a diary of you
+## M3 — The city keeps a diary of you ✅ SHIPPED
 
-- **Goal:** roam choices resurface as later-day notes (the Save v1 counters `shelf_buys/dog_buys/trims/washes/hoop_makes` already exist and are persisted but under-used in prose).
-- **Touch:** `dressing.ts`-style pure functions (counters→notes), `content.ts` lines, one drain in `Game`.
-- **Risk:** sentimentality spam. Mitigation: the note queue law (2.4 s min-hold, ≤4 queued) and one note per day per counter family.
-- **Accept:** unit tests on the counter→note functions; a probe that buys/hoops/washes and receives exactly one note the next day.
+- **Goal:** roam choices resurface as later-day notes (the Save v1 counters `shelf_buys/dog_buys/trims/washes/hoop_makes` already existed and were persisted but under-used in prose).
+- **Shipped:** `core/diary.ts` (pure machine — a family speaks when it climbs a full threshold past the watermark; biggest overshoot wins; ties in fixed order; the diary stays one step behind the in-person `MEMORY_LINES`) · the day-begin drain in `Game.beginDay` (one note per morning, queued behind the DAY note; skipped on Day 1) · the `diary_noted` watermark in Save v1 (optional-trailing, byte-identical old parses, clamped per family) · `content.ts DIARY_NOTE_TEXT` (five lines, none of which ask for another round — the No-FOMO check is a unit test).
+- **Proof:** `tests/diary.test.ts` (13 pins: thresholds, said-once-ever, overshoot priority, tie order, old-save silence, watermark round-trip, No-FOMO prose) · `scripts/probe-m3-diary.mjs` 9/9 in real Chromium (exactly one diary note on a Day-2 morning, parked behind the DAY note, the other families quiet, the watermark in localStorage, no repeat after reload) · 4-day E2E AUTOTEST OK 0 failures · `tsc` clean · vitest 582/582.
 
-## M4 — Ambient schedules
+## M4 — Ambient schedules (next)
 
 - **Goal:** peds/traffic density keyed to time-of-day (promote `ambientWindowPlan`'s instinct to a schedule table the street reads).
 - **Touch:** `world/peds.ts`, `engine/traffic.ts`, `engine/busRoute.ts` (read a shared `world/dressing.ts` schedule), no gameplay deps.

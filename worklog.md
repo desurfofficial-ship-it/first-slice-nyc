@@ -954,3 +954,172 @@ Stage Summary:
 - origin/main was still at ee815fb; pushed c6a088c (M0) plus this
   correction commit to main. Reminder recorded for the director: rotate
   the PAT after the push (it traveled through chat).
+
+## 2026-11-05 — agent2: the ABO furniture pack, curated and wired in (docs/57)
+
+The decree: the curated ABO furniture is not a standalone scene — "I want it
+wired in the game." Phase 1 read all 7,953 metadata records (chair 1184 /
+sofa 859 / rug 817 / table 584 / …), scored every floor piece against the
+first-slice priorities, and selected 141 models (35.9 MB, the dataset's
+meshopt+KTX2 lod1 GLBs, y-on-floor law, tri/byte caps, brand diversity).
+Phase 2 fetched them with huggingface_hub into assets/furniture/<category>/
+with the CC-BY-4.0 license + per-model ATTRIBUTION.md. Phase 3 wired the
+game: World.configureGltfDecoders(renderer) arms GLTFLoader with
+MeshoptDecoder + KTX2Loader (vendored basis transcoder), and a new
+furniture seam (src/world/furniture.ts manifest + upgradeFurnitureWithGLB)
+dresses 19 authored slots across Cecil's room, the hall, and the diner —
+costume law intact (missing file keeps the procedural room; colliders
+authored in builders; toggles/anchors/day machine untouched). The probe
+caught a shipped W5 quirk — the diner's cook line buried its own stool
+slots — fixed by re-laying the counter line (positions only).
+- Gates: tsc clean · vitest 571/571 (37 files, 6 new furniture-law tests)
+  · build 472 ms · probe-furniture FURNITURE OK (19/19 slots, textured
+  meshes, rooms hidden at rest, 8 shots + review grid in docs/assets/
+  furniture/) · probe-perf zero at-rest regression (119/184/260→256)
+  · probe-w5-interiors PASS · probe-peds OK · probe-shuffle OK ·
+  e2e AUTOTEST OK 0 failures, 558 s, console clean.
+
+---
+Task ID: OPEN-WORLD-ROAM-M1 (beats as places) + repo cleanup
+Agent: Main Agent (continuation)
+Task: "Continue building — and delete any unimportant thing from the repo
+to keep it clean, including anything about godot; quality over quantity."
+Two fronts: (1) the cleanup, (2) M1 from docs/architecture/05.
+
+Work Log (cleanup — cee6527, 98 files, −4,629 lines):
+- Deleted greybox-godot/ (the oracle's job now belongs to the vitest
+  suite + the 4-day E2E — a stronger guard than a second codebase),
+  site/ (superseded by the Actions workflow that publishes
+  web-three/dist), tools/gen3d (thin duplicate of tools3d/ Track C),
+  the massing one-shot tools, the applied one-shot registry fixer, the
+  Godot-era capture frames, three orphaned pitch PNGs.
+- Kept: tools3d/ (the working pipeline), render-world.mjs +
+  validate-registry.mjs (the world-registry's guards), the two composed
+  postcards (moved to assets/postcards/), the dated build-log docs —
+  each banner-statused (2026-11-05) per the docs-hygiene pattern so
+  their greybox paths read as history.
+- Live surfaces updated: README (one build, current counts), AGENTS.md
+  repo map, package.json, and the web-three file headers (dead
+  greybox-godot/ paths → docs/23–24 provenance). Gates: tsc clean ·
+  vitest 565/565 · build OK.
+
+Work Log (M1 — beats as places, not pressure):
+- GameState.beatPlaceId(): the data-only beat→place table (21 named
+  beats; the fire escape, the teal door, the subway stairs, the notice,
+  the rail, and DONE stay null on purpose — a marker never points where
+  the objective doesn't).
+- The marker: a dashed ink ring + "whenever you're ready" caption on the
+  sketch (sketch.ts beatMarkerSvg, opacity-flip only; UI.setBeatMarker
+  with the priyaRevealed wait-for-build law), wired at boot,
+  applyEffect('step') (both modes — mid-roam it shows where the story
+  waits), and all three day-begins.
+- Evidence: tests/beats.test.ts (4 pins incl. the marker⇄objective
+  agreement law) · scripts/probe-m1-beats.mjs 10/10 in real Chromium ·
+  4-day E2E AUTOTEST OK 0 failures (534 s) · tsc clean · vitest 569/569.
+
+Stage Summary:
+- The repo is one build, one pipeline, one site — and the Map now tells
+  the player, in Rosa's hand, that the story waits for them. Next up
+  (docs/architecture/05): M2, the district map.
+
+---
+Task ID: OPEN-WORLD-REFS-M3 (engineering references + the diary)
+Agent: Main Agent (Z.ai)
+Task: Two directives at once — (1) two permanent engineering references
+(Gen City Auto, Slop New York) with a study-before-building rule recorded
+so every future agent inherits it; (2) continue the roadmap
+(docs/architecture/05), keeping the repo clean.
+
+Work Log (references — docs/57):
+- Shallow-cloned both repos to /home/z/my-project/refs/ (gen-city-auto:
+  MIT, TypeScript/WebGPU/workers; slop-newyork: MIT, three.js/TSL with
+  NYC-Open-Data geodata). Read the actual source, proportionally to the
+  roadmap: GCA's world manager (src/world/city.ts — tile streaming,
+  SHELL_PREFETCH/KEEP hysteresis bands, nearestFirst ordering, retry-on-
+  full backoff), GCA's gen split (src/city layout.ts street graph vs
+  gen-tile.ts parcel fill), SNY's nyc-map.js (one geography drives the
+  radar AND the atlas; world-frame documented in-file; shared palette;
+  AREA_LABELS tiers).
+- docs/57-engineering-references.md: the law (study sequence,
+  proportional study, no blind copies), the two-repo table with licenses,
+  the system→file map (peds/traffic/vehicles/culling indexed so the next
+  agent starts at the right door), today's findings, the license ledger
+  (SNY's OSM/NYC geodata = reference-only, per docs/45 §5), and §4: what
+  NEITHER reference has (a story spine, No-FOMO, the block remembers, a
+  paper companion) — build independently and say so.
+- AGENTS.md §1e carries the rule to every agent; docs-hygiene.test.ts
+  pins the manual to both repo names + the ledger doc (the correction
+  lives in the most permanent place that fits).
+- Cleanliness second pass: docs/06 + docs/19 (the two Unity-era docs
+  still presenting a retired engine as current) got the dated
+  status-update banner (2026-11-05), matching the docs-hygiene pattern.
+  The remaining godot/unity mentions in docs/ are all bannered history or
+  HF-Space pipeline ids — no live surface points at a dead engine.
+
+Work Log (M3 — the city keeps a diary of you):
+- Read the frontier first: W0–W5 of docs/45 are all shipped (World.ts
+  carries the district ring, the ±84 grid, Gable/Marlow, the avenues, the
+  M121, buildAlderHeightsW5) — so M2's substance was already built by the
+  construction arc; docs/03 §3 and docs/05 now say so honestly, and M3
+  was the actual next milestone.
+- core/diary.ts (pure, zero imports, the ride-machine seam law): a
+  family speaks when it climbs a full threshold past the watermark
+  (shelf 4 / dog 4 / trim 3 / wash 3 / hoop 6 — each one step ABOVE its
+  MEMORY_LINES in-person threshold, pinned); biggest overshoot wins,
+  ties in table order; the fired family's watermark moves to the current
+  count — a note is said once, ever.
+- Save v1: diary_noted (optional-trailing, byte-identical old parses,
+  clamped, unknown keys dropped); GameState.diaryNoted + diaryCounters()
+  + the snapshot spread; Game.beginDay drain — one note per morning,
+  queued BEHIND the DAY note (noteAge rests at 999 after the beginDay
+  reset; the drain parks the line, it doesn't stomp the morning), skipped
+  on Day 1, re-resume-safe (the watermark restores before the drain and
+  persists with the day-start snapshot).
+- content.ts DIARY_NOTE_TEXT: five morning-after lines; the No-FOMO
+  check ("no line asks for another round") is a unit test, not a promise.
+- Evidence: tests/diary.test.ts 13 pins · scripts/probe-m3-diary.mjs
+  9/9 in real Chromium at 720x1280 (exactly one diary note on a seeded
+  Day-2 morning with two families over due, parked behind the DAY note,
+  watermark visible in localStorage, no repeat on a second boot of the
+  persisted save — probe lesson: Playwright's browser.newPage() makes a
+  FRESH context per page; the shared-context page is the honest reload)
+  · 4-day E2E AUTOTEST OK 0 failures (569 s, console clean).
+
+Stage Summary:
+- The references are load-bearing now: AGENTS.md §1e + docs/57 mean the
+  next agent that touches peds/traffic/world-gen checks Gen City Auto's
+  source first, and the next agent that touches the Map/world frame
+  checks Slop New York's. Findings accumulate in docs/57 §3.
+- The block remembers: yesterday's regular rounds surface as one quiet
+  morning line, said once. M0 (roam contract) → M1 (beats as places) →
+  M2 (district map, by the construction arc) → M3 (the diary) are all
+  shipped; M4 (ambient schedules) is the next milestone on docs/05.
+
+Gates at close: tsc clean · vitest 582/582 (38 files, incl. the new
+docs-hygiene reference pin + 13 diary pins) · build OK ·
+probe-m3-diary 9/9 · 4-day E2E AUTOTEST OK 0 failures (569 s).
+
+## 2026-11-05 — agent2: the furniture pack made discoverable — repo_path in
+the curated manifest + an AGENTS.md repo-map pointer (assets task)
+
+The decree for this pass: "Push the assets (models) to the repo so other
+agents can use them when they are also building." The pack itself was
+already on main (01abc1e — 141 GLBs, 35 MB); what a fresh checkout could
+not do was *find* it: the curated manifest pointed at the HuggingFace
+dataset layout (lods/<ASIN>/…), and the AGENTS.md §3 repo map did not
+name the pack at all. Two quiet fixes, no game code touched:
+- docs/data/abo-curated.json — every one of the 141 entries now carries
+  repo_path (assets/furniture/<bucket>/<ASIN>.glb), verified resolving
+  on disk (141/141); the dataset-relative lod1/lod2 paths stay for
+  re-fetch. Also proven: a clean re-clone carries all 141 GLBs + the
+  manifest + ATTRIBUTION.md + license + tools3d scripts + the 12
+  byte-identical slot copies + the vendored basis transcoder.
+- AGENTS.md §3 — the repo map now lists assets/furniture/ and carries a
+  "furniture pack — reusable by any agent" paragraph: where the files
+  live, the manifest's fields, the loader (src/world/furniture.ts), the
+  costume law (docs/57), the idempotent re-fetch scripts, and the
+  CC-BY-4.0 credit duty. The docs/ range comment caught up while there
+  (01–52 → 01–57).
+- Gates: manifest parses (141 entries) · all repo_paths resolve ·
+  AGENTS.md tree alignment kept · no game source touched, so the
+  standing suite's verdict stands.

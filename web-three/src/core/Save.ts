@@ -16,6 +16,8 @@
  *   is automated in tests/save.test.ts ("old v1 JSON" case).
  */
 
+import type { DiaryNoted } from './diary';
+
 export const SAVE_KEY = 'first_slice_save_v1';
 // Day 4 "Say Hi" is live (docs/29-day4-say-hi.md): a new stranger with a
 // duffel bag, and the lamp next door. Day 5+ is still being written —
@@ -76,6 +78,12 @@ export interface SaveData {
   *  writes anyway (save.gd law), so a fresh player always boots into the
   *  story. */
   roam?: boolean;
+  /** The diary's watermark (docs/architecture/05 M3) — per family, the
+  *  cumulative count already surfaced as a morning note. Present only
+  *  once a note has been said, so a pre-diary save parses
+  *  byte-identically (the roam/starter law: absence reads as "owes no
+  *  notes" at the read site). Clamped per family in parseSave. */
+  diary_noted?: DiaryNoted;
 }
 
 export function defaultSave(): SaveData {
@@ -141,6 +149,9 @@ export function parseSave(raw: string | null): SaveData {
     if (v === 'false') return false;
     return def;
   };
+  // the diary watermark — present only when at least one family has been
+  // noted; unknown/corrupt keys are dropped, never a crash (save.gd law)
+  const diaryNoted = diaryNotedOf(d);
   return {
     day: clamp(Math.trunc(num('day', 1)), 1, MAX_DAY),
     day_complete: bool('day_complete', false),
@@ -176,7 +187,30 @@ export function parseSave(raw: string | null): SaveData {
     // the Roam layer's mode — present only when roam was active at the
     // last write; absence reads as story mode (freeroam.ts's contract)
     ...(d.roam === true ? { roam: true } : {}),
+    ...(diaryNoted ? { diary_noted: diaryNoted } : {}),
   };
+}
+
+const DIARY_PARSE_KEYS = ['shelf', 'dog', 'trim', 'wash', 'hoop'] as const;
+
+/** The saved diary watermark, or undefined when there is none. Only
+ *  positive finite numbers land; a value of 0 means "nothing noted" and
+ *  stays absent so saves stay minimal. Unknown families are ignored —
+ *  the read site names its families (the migration law). */
+function diaryNotedOf(d: Record<string, unknown>): DiaryNoted | undefined {
+  const raw = d['diary_noted'];
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined;
+  const src = raw as Record<string, unknown>;
+  const out: DiaryNoted = {};
+  let any = false;
+  for (const k of DIARY_PARSE_KEYS) {
+    const v = src[k];
+    if (typeof v === 'number' && Number.isFinite(v) && v > 0) {
+      out[k] = clamp(Math.trunc(v), 0, 999);
+      any = true;
+    }
+  }
+  return any ? out : undefined;
 }
 
 /** Load from localStorage. `store` injectable for tests. */

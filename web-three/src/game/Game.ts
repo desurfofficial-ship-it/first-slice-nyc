@@ -15,10 +15,12 @@ import { composeCaption, tsWowCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE
   D4_KID_APRON_NOTE, D4_APRON_CLEAN_NOTE, FAMILIAR_NOD_NOTE, FAMILIAR_WORD_NOTE,
   RUSH_CARDS, SOLO_CARDS, GOLD_WINDOW_NOTE, LIGHTS_OUT_NOTE, WATER_TOWERS_NOTE,
   MAP_PLACES, MAP_PLACE_NOTICE_R, CITY_WILL_WAIT_NOTE, MAP_COPIED_NOTE, RIDE_END_NOTE,
+  DIARY_NOTE_TEXT,
   RUSH_NOTE_5, MOMENT_RUSH_CAPTION, MOMENT_TOWERS_CAPTION, MOMENT_FOLD_CAPTION,
   momentCornerCaption, MOMENT_TAGS, type MomentCardKind,
 } from '../core/content';
 import { loadSave, writeSave, type SaveData } from '../core/Save';
+import { diaryNote } from '../core/diary';
 import { FreeRoam, roamDiscoveryLine, ROAM_OBJECTIVE } from './freeroam';
 import { STARTERS, starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
 import { PAL } from '../core/palette';
@@ -198,6 +200,12 @@ export class Game {
     this.renderer.toneMapping = THREE.NeutralToneMapping; // closest to the reference's filmic
     this.renderer.toneMappingExposure = 1.05;
     container.appendChild(this.renderer.domElement);
+
+    // ABO furniture (docs/57): the KTX2/meshopt decoders need the renderer
+    // for the transcoder's format probe — wired here, once, and the
+    // interior slots fetch their models. Missing files keep the procedural
+    // rooms (the docs/28 seam law — the game never depends on its assets).
+    this.world.configureGltfDecoders(this.renderer);
 
     // ---------------- systems ----------------
     this.player = new Player(this.world.colliders);
@@ -392,6 +400,7 @@ export class Game {
     });
 
     this.ui.setObjective(this.state.objectiveText());
+    this.ui.setBeatMarker(this.state.beatPlaceId());
     this.cam.snapBehind({ x: this.player.capsule.x, y: this.player.capsule.y, z: this.player.capsule.z });
 
     // ---------------- loop ----------------
@@ -1137,6 +1146,9 @@ export class Game {
           this.ui.setObjective(this.state.objectiveText());
           if (e.step === Step.DONE) this.ui.setObjective(DAY_DONE_OBJECTIVE(this.state.day));
         }
+        // M1: the beat marker is map information, not HUD pressure — it
+        // moves in both modes (mid-roam, it shows where the story waits).
+        this.ui.setBeatMarker(this.state.beatPlaceId());
         if (e.step === Step.D2_IDRIS) this.startIdrisWalk();
         break;
       case 'note':
@@ -2415,6 +2427,9 @@ export class Game {
       s.trims = sd.trims ?? 0;
       s.washes = sd.washes ?? 0;
       s.hoopMakes = sd.hoop_makes ?? 0;
+      // the diary watermark rides the same migration law (absence = owes
+      // no notes); a mid-day resume re-reads it before the drain below
+      s.diaryNoted = sd.diary_noted ?? {};
     }
     // sd === null (a rail "Tomorrow"): the live state carries the wallet, the
     // name, the awning — and the STOOL. The stool is bought, the Map is
@@ -2481,10 +2496,12 @@ export class Game {
       }
       s.setStep(Step.D4_WAKE);
       this.ui.setObjective(s.objectiveText());
+      this.ui.setBeatMarker(s.beatPlaceId());
       this.ui.showNote(DAY4_BEGIN_NOTE);
     } else if (n === 3) {
       s.setStep(Step.D3_WAKE);
       this.ui.setObjective(s.objectiveText());
+      this.ui.setBeatMarker(s.beatPlaceId());
       this.ui.showNote(DAY3_BEGIN_NOTE);
       // a kept Day 3, replayed: the kid already lives at the corner now
       if (s.replayDay && s.stoolUp && s.kidKept) {
@@ -2495,7 +2512,24 @@ export class Game {
     } else {
       s.setStep(Step.D2_WAKE);
       this.ui.setObjective(s.objectiveText());
+      this.ui.setBeatMarker(s.beatPlaceId());
       this.ui.showNote(`Day ${n}. The cart is still yours. That part never resets.`);
+    }
+
+    // M3 — the city keeps a diary of you (docs/architecture/05): yesterday's
+    // roam rounds surface as ONE quiet note, the day after they earn it. The
+    // watermark (s.diaryNoted, saved below with the day-start snapshot) keeps
+    // a note said once, ever; a fresh Day 1 has no yesterday to remember.
+    // The morning note above showed directly (noteAge rests at 999 after the
+    // beginDay reset), so the diary line parks BEHIND it — the DAY note gets
+    // its two seconds before the city remembers out loud.
+    if (n >= 2) {
+      const fire = diaryNote(s.diaryCounters(), s.diaryNoted);
+      if (fire) {
+        s.diaryNoted = fire.noted;
+        this.noteAge = 0;
+        this.pushNote(DIARY_NOTE_TEXT[fire.family]);
+      }
     }
 
     // day-start snapshot — this is what a restart (R) or a quit comes back to

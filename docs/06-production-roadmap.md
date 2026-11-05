@@ -1,6 +1,8 @@
 # FIRST SLICE: A New York Story
 ## Document 06 — Production Roadmap & Task Breakdown (v1.0)
 
+> **Status update (2026-11-05):** history — the engine decision below (Unity 6 LTS + URP) was superseded when the browser build became the game (`web-three/`, Vite + TypeScript + Three.js — [docs/23](23-threejs-migration-audit.md), [docs/24](24-web-three-build.md)), and the live roadmap now lives in [docs/architecture/05-migration-roadmap.md](architecture/05-migration-roadmap.md). Read this doc as the record of how the phase gates and budgets were reasoned about, not as the current plan.
+
 *Companion documents: [01 GDD v2.0](01-game-design-document.md) · [07 Vertical Slice Design](07-vertical-slice-design.md). This roadmap assumes the v2.0 design (Map, Three-Layer Landmark, Skyline of Lit Windows, Inverted Loop) is locked at Phase 0 exit.*
 
 ---

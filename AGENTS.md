@@ -146,6 +146,18 @@ You may ship faster with agents only when:
 Automations and scheduled bots are optional later. They do not replace a paved path or headless proof.
 
 
+## 1e. Engineering References — study before building (non-negotiable)
+
+Two permanent reference repos inform this project's engineering:
+
+1. **Gen City Auto** — https://github.com/greggman/gen-city-auto — runtime world management, procedural generation, pedestrians, traffic, vehicles, spatial systems, workers, performance.
+2. **Slop New York** — https://github.com/mrdoob/slop-newyork/ — real-NYC geography, city grid and districts, buildings from open data, map/atlas, scene culling.
+
+**The rule:** whenever a task builds, upgrades, replaces, or improves a system that exists in either reference, inspect that reference's **actual source first** (local clones: `/home/z/my-project/refs/`; re-clone commands in the doc). Decide what to reuse conceptually, adapt, improve, or build independently — then implement inside FIRST SLICE's architecture (TypeScript, Three.js, Vite, the registry, the Laws). Never adopt a reference's WebGPU/TSL renderer as an engine swap. Never ingest OSM/NYC-Open-Data geodata (docs/45 §5: reference-only).
+
+**Proportional study:** read only the system the task touches — the file map and the findings so far live in [docs/57-engineering-references.md](docs/57-engineering-references.md). If a reference has no equivalent, say so and build independently. When delegating a task to another agent, name the reference files it should study. Record new findings in docs/57 §3 so the next agent doesn't re-study the same ground.
+
+
 ## 2. Voice & Terminology
 
 **Writing voice (all docs, dialogue, captions, commit messages):** short sentences. Plain words. Warm, wry, unhurried — like Rosa, not like a wiki. Concrete nouns over abstractions. Humor is dry and kind, never sarcastic. Never "users," "players" where "you" will do.
@@ -171,7 +183,7 @@ Automations and scheduled bots are optional later. They do not replace a paved p
 first-slice-nyc/
 ├── README.md                  # Pitch overview + docs index + previews
 ├── AGENTS.md                  # ← you are here
-├── docs/                      # 01–52: GDD, scripts, art bible, build logs.
+├── docs/                      # 01–57: GDD, scripts, art bible, build logs.
 │   │                          #   The two live coordination files:
 │   ├── 50-agent2-first-session-world.md  # the paved path — current world truth
 │   │                          #   (51-open-bugs-for-agents.md — the live bug ledger, check it first)
@@ -181,11 +193,30 @@ first-slice-nyc/
 │   ├── tests/                 #   vitest suite — permanent guards live here
 │   └── scripts/               #   probe-*.mjs in-engine verification harnesses
 ├── tools3d/, scripts/         # asset generation (GLB pipelines) + registry tooling
-├── assets/                    # styleframes, web evidence frames, postcards
+├── assets/                    # styleframes, web evidence frames, postcards…
+│   └── furniture/             #   …and the ABO pack — 141 CC-BY-4.0 furniture GLBs
 └── worklog.md                 # append-only agent worklog — add yours at the end
 ```
 
 The game lives in `web-three/` — it is the vertical-slice build and the only build. Do not replace GDD systems with a generic city demo.
+
+**The furniture pack — reusable by any agent (docs/57):** 141 curated ABO
+GLBs sit in `assets/furniture/<bucket>/<ASIN>.glb` (meshopt geometry, KTX2
+textures, ~300 KB median, floor pieces sit on Y=0). The manifest is
+`docs/data/abo-curated.json` — per model: id / name / product_type /
+bucket / **repo_path** / triangles / size_metres / score, so you can pick
+by bucket or score and resolve the file without guessing. To dress an
+interior, load through the seam (`web-three/src/world/furniture.ts`) and
+keep docs/57's laws: the GLB is a costume, never a dependency (a missing
+or malformed file keeps the procedural room, one `console.info`, no
+retries); colliders are authored in the builder, never imported. Extend
+the pack idempotently with `python3 tools3d/abo_select.py && python3
+tools3d/abo_fetch.py` (edits the curated manifest + re-fetches by size
+check). The slots the game itself wears are byte-identical copies in
+`web-three/public/models/furniture/`, pinned by test. License and
+per-model credit live beside the pack (`LICENSE-CC-BY-4.0.txt`,
+`ATTRIBUTION.md`) — CC-BY-4.0 means the credit ships with anything you
+make from these.
 
 ## 4. Environment & Commands
 
