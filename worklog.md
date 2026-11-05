@@ -1061,3 +1061,44 @@ Stage Summary:
 - The repo is one build, one pipeline, one site — and the Map now tells
   the player, in Rosa's hand, that the story waits for them. Next up
   (docs/architecture/05): M2, the district map.
+
+Task ID: 10
+Agent: Z.ai (GLM)
+Task: Merge the two arriving waves; land the rolling-pace E2E law (the one-shot-pace residual from Task 9); price the window family for B13.
+
+Work Log:
+- Merged origin/main twice across the session boundary (17 commits: B16
+  Shuffle, the underground shadow economy, B7 touch law, B14 hygiene;
+  then 15 more: the open-block roam contract, the glass-side law, the
+  figure shadow-proxy + vertex fuse, the greybox retire, beats-as-places).
+  worklog conflict once (Task 9 vs agent2/agent5 entries) — both kept.
+- The rolling-pace law (autotest.ts, the Task 9 residual): pace was
+  measured ONCE at startup, so a load spike arriving later starved every
+  budget() rider with stale budgets (Task 9's day-3 climb→postcard
+  cascade). Now rollPace() rides nextFrame and re-derives pace from every
+  60 waited frames (same formula, same ×4 cap); budget() re-reads pace on
+  each loop check, so in-flight waits stretch when the machine degrades
+  and shrink back when it recovers. pressUntil's outer budget rides pace
+  too — its six goodnight/awning sites were the only raw-wall-clock polls
+  left; the inner 600 ms volley stays wall-clock on purpose (a key-HOLD
+  duration, not a poll budget).
+- Evidence, the whole roller life cycle in one green run: ×1.94 → ×2.25
+  (startup spike) → ×1.83 → ×1.00 (recovered) → ×1.30 → ×1.00. The old
+  law would have frozen ×2.25 over the whole run.
+- The B13 window-family census (diag-window-census.mjs, committed): the
+  window/pane/glass/lit family is 28 meshes scene-wide — 16 visible at
+  PLAZA, 5 at CART_CORNER, 0 at SYCAMORE — so windows were never a
+  draw-call frontier; agent2's glass-side law verdict independently
+  confirmed. Row appended to docs/51 B13.
+- Environment note, third occurrence: the sandbox restart recycles the
+  playwright browser cache — first E2E after any restart dies with the
+  silent "Executable doesn't exist" launch error. `npx playwright install
+  chromium` is now a session-start ritual.
+
+Stage Summary:
+- main = merge 8fad16b + this commit; tsc clean · vitest 569/569 (37
+  files) · build clean · E2E AUTOTEST OK 0 failures 386 s, console clean,
+  pointer guard 6/6. Push still blocked on a token (none on disk, per the
+  fresh-token rule) — local main carries the docs/58 decree, both merges,
+  and this task. Gap list: Regulars ledger build (B17, design done),
+  audio outreach, real-device touch pass.

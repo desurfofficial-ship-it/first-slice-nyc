@@ -685,6 +685,22 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   `web-three/shots/b13-composed-plaza.png` (committed:
   `assets/web-three/frames/b13-composed-plaza.png`).
 
+- **Update 2026-11-05 (the window family itself, priced — independent of
+  the glass-side law):** `diag-window-census.mjs` (committed) buckets every
+  visible mesh whose name, owner or material matches the
+  window/pane/glass/lit/glow/emissive family, per rig, by geometry
+  signature. The finding settles the family as a frontier question for
+  good: **28 family meshes exist in the whole scene** (12 tower windows
+  incl. the four diary panes + ambient trio, 8 interior far faces/glass
+  runs, 2 instanced skyline panes, the barber/pizza/hall glass, the
+  bodega window) — of which **16 visible at PLAZA, 5 at CART_CORNER, 0 at
+  SYCAMORE×GABLE**, each 1 draw, most behind frustum or the band laws at
+  any given stance. Even a perfect zero of the family would not move a
+  302-call rig by 10%. Windows were never the 150 line's key; the glass
+  -side law's own verdict (the frontier is the priced composition) stands
+  independently confirmed. The census stays in scripts/ as the first tool
+  to reach for when the next "what does family X cost" question lands.
+
 ### B14. Documentation hygiene — FIXED 2026-11-03
 - **Was:** AGENTS.md read "Pre-Production, docs-complete, code pending — do
   not scaffold game code before Phase 0 exit is signed" weeks after
