@@ -237,3 +237,46 @@ clean** (426 s on the small-viewport harness). vitest 553/553.
 Doc 08's content pack (12 Map notes, 4 slang cards, the story card, all
 six Day-1 postcards) was audited in the same pass and already ships 1:1
 — no changes needed there.
+
+---
+
+## 13. Addendum — A5j: the arrival card recomposed + the portrait ride window (2026-11-05)
+
+The two standing candidate weaknesses from the earlier arrival passes,
+both confirmed by re-reading the a5g frames, both fixed:
+
+1. **The title card collided with its own set.** The card lens pushed in
+   on the NEW YORK roll and stopped 1.65 m from it — the roll landed dead
+   frame-center, exactly where the UI title renders: white "FIRST SLICE"
+   on amber "NEW YORK", both unreadable, and at that range the coach read
+   as abstract cream masses. The lens is recomposed: an establishing
+   three-quarter (doorX + 5.6, 3.0, z − 7.2) pushes to (doorX + 2.6, 2.35,
+   z − 4.5) on a look point at the DOOR (doorX + 0.5, 1.5, z − 0.9) — the
+   roll rides the upper third and reads whole, the title lands on the
+   dark window-band glass, the doorway glows just beneath it: "title card
+   over the doors opening" (Doc 02), literally framed. The film coach
+   grew the parts the close lens demanded: a dark doorway recess + warm
+   aisle glow behind the sliding leaf (it used to reveal the cream body
+   face — a door painted on a door), a threshold light spill, and window
+   pillars separating the north glass band (one black stripe no more).
+2. **Portrait spent a quarter of the phone frame on ceiling.** The ride
+   aperture was tuned for 16:9; at 390×844 the 80° vfov frame is ±0.26 ×
+   ±0.46 at the glass, so the 0.2-tall window filled 43% and the shell
+   ceiling ~24%. The aperture is now a per-boot choice off the camera's
+   aspect (`APERTURE_PORTRAIT_Y` 0.34 below aspect 0.9): the window fills
+   ~74% of the portrait frame, the shell law still holds (header + face
+   well inside INTERIOR.y 0.72), landscape boots unchanged.
+
+**Probe honesty fix:** `probe-a5g`'s wall-clock taps landed before the
+machine's game-time gates on slow GL — the landscape run wedged in
+'reply' and its "tcard" shot showed the reply beat (two sessions of
+landscape card evidence were actually reply frames). The advance is now
+phase-driven (wait 'choice' → tap → wait elapsed 3.4 → tap → wait
+'card' → 1.2 s dwell → shoot), deterministic in both orientations.
+
+**Evidence:** `shots/a5g-{portrait,landscape}-tcard-coach.png` (both
+cards recomposed — roll readable, title on glass, lit doorway below),
+`a5g-portrait-t6-lit-city.png` (the 74% window). Gates: tsc clean ·
+vitest **553/553** · `probe-a5g` PASS both orientations, 0 page errors ·
+`probe-a5i` **18/18** · `probe-a5h` ok · full 4-day E2E **0 failures,
+console clean** (576 s).
