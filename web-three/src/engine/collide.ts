@@ -4,7 +4,7 @@
  * cylinder (radius r, between feet y and head y), which is exact against
  * axis-aligned boxes and simple to test.
  *
- * Move resolution order mirrors Godot's move_and_slide feel:
+ * Move resolution order mirrors the original move-and-slide feel:
  *   X axis, then Z axis, then gravity/ground along Y.
  */
 

@@ -9,9 +9,9 @@
 ## 1. What this is
 
 `web-three/` is the browser implementation of the greybox — same Day 1 path,
-same Day 2, same seams closed, same text, same money. The Godot greybox is
-untouched and stays the behavior oracle. Where the two disagree, the docs and
-the oracle win — except for two recorded fixes (§5).
+same Day 2, same seams closed, same text, same money. *(2026-11-05: the greybox
+retired from the repo — one build now. Where the docs disagree with the code,
+the tests win — except for two recorded fixes (§5).)*
 
 **History note (2026-10-29):** an independent partial M1–M3 port was pushed to
 `main` in parallel with this one (different file layout, no tests). The merge
@@ -165,5 +165,6 @@ real Day 1 + Day 2 play) stays a local pre-push gate because it needs
 headless Chromium. The vite build uses relative asset URLs, so the same
 `dist/` works from any subpath.
 
-*Godot remains the reference implementation. `greybox-godot/` is unmodified
-by this migration.*
+*Retired 2026-11-05: the greybox left the repo with the director's blessing —
+one build, one pipeline, one site. The behavior it pinned lives in the
+vitest suite and the 4-day E2E.*

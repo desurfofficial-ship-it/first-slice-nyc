@@ -1,5 +1,5 @@
 /**
- * Save v1 rules — mirror of greybox-godot/scripts/save.gd semantics.
+ * Save v1 rules — mirror of the original greybox save semantics.
  * Memory-backed Storage doubles keep these tests hermetic.
  */
 

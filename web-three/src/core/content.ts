@@ -1,5 +1,5 @@
 /**
- * All game text — verbatim from the reference implementation (greybox-godot/scripts/main.gd)
+ * All game text — verbatim from the original greybox implementation (docs/23–24)
  * and the design docs (Doc 02 first-session walkthrough, Doc 08 Day 1 content pack,
  * Doc 22 Day 2). Text is content: it does not get paraphrased during a migration.
  *
@@ -1221,3 +1221,9 @@ export const SKETCH_BOUNDS = { xMin: -46, xMax: 48, zMin: -10, zMax: 16 } as con
 
 /** How close you must walk for Map to notice a place (meters). */
 export const MAP_PLACE_NOTICE_R = 5;
+
+/** M1 — beats as places (docs/architecture/05): the beat marker's caption
+ *  on the Map's sketch. Rosa circles the story's spot and writes her one
+ *  patient line beside it. Defer reads as handwriting on the fold, never
+ *  as HUD pressure — the objective line stays the HUD's business. */
+export const BEAT_READY_CAPTION = 'whenever you\u2019re ready';

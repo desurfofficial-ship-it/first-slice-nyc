@@ -1,5 +1,7 @@
 # Day 1 Greybox — Render Notes (first played pass)
 
+> **Status update (2026-11-05):** history — the Godot greybox retired from the repo today (`greybox-godot/` is gone). The spike scripts, frames and JSONL logs cited below are the record of where these findings came from; the behavior they pinned now lives in the web-three vitest suite + the 4-day E2E ([docs/24](24-web-three-build.md)).
+
 **What this is:** the greybox was actually played, on a real framebuffer, start to finish. These are the notes from watching it. Not theory. Every claim below has a frame or a log line behind it.
 
 **How it was played:** the spectator spike (`greybox-godot/spikes/spectator.gd`) drives the real game with real input — walk, interact, type, climb — under Xvfb with Mesa llvmpipe (OpenGL compatibility). Two passes: 720×1280 portrait and 1280×720 landscape. 22 evidence frames per pass, 13 timed nav legs, camera probes at every beat. Raw telemetry: `greybox-godot/spikes/logs/spectator_portrait.jsonl` and `spectator_landscape.jsonl`. Selected frames: `assets/greybox-day1/frames/`.

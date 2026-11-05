@@ -1,5 +1,5 @@
 /**
- * Game orchestrator — the browser port of greybox-godot/scripts/main.gd.
+ * Game orchestrator — the browser port of the original greybox (docs/23–24).
  * Owns the render loop, applies GameState effects to the world/UI, and runs
  * the authored sequences (dusk, gold window, postcard rig, day transitions).
  * Authoritative state lives in GameState; nothing gameplay-bearing is stored
@@ -398,6 +398,7 @@ export class Game {
     });
 
     this.ui.setObjective(this.state.objectiveText());
+    this.ui.setBeatMarker(this.state.beatPlaceId());
     this.cam.snapBehind({ x: this.player.capsule.x, y: this.player.capsule.y, z: this.player.capsule.z });
 
     // ---------------- loop ----------------
@@ -417,7 +418,7 @@ export class Game {
     // debug/E2E handle
     (window as unknown as { __game: Game }).__game = this;
 
-    // E2E driver (mirrors the Godot headless autotest) — ?autotest=1
+    // E2E driver (mirrors the original headless autotest) — ?autotest=1
     if (new URLSearchParams(location.search).has('autotest') && !this.autotestStarted) {
       this.autotestStarted = true;
       void import('./autotest').then(({ runAutotest }) => runAutotest(this));
@@ -1143,6 +1144,9 @@ export class Game {
           this.ui.setObjective(this.state.objectiveText());
           if (e.step === Step.DONE) this.ui.setObjective(DAY_DONE_OBJECTIVE(this.state.day));
         }
+        // M1: the beat marker is map information, not HUD pressure — it
+        // moves in both modes (mid-roam, it shows where the story waits).
+        this.ui.setBeatMarker(this.state.beatPlaceId());
         if (e.step === Step.D2_IDRIS) this.startIdrisWalk();
         break;
       case 'note':
@@ -2487,10 +2491,12 @@ export class Game {
       }
       s.setStep(Step.D4_WAKE);
       this.ui.setObjective(s.objectiveText());
+      this.ui.setBeatMarker(s.beatPlaceId());
       this.ui.showNote(DAY4_BEGIN_NOTE);
     } else if (n === 3) {
       s.setStep(Step.D3_WAKE);
       this.ui.setObjective(s.objectiveText());
+      this.ui.setBeatMarker(s.beatPlaceId());
       this.ui.showNote(DAY3_BEGIN_NOTE);
       // a kept Day 3, replayed: the kid already lives at the corner now
       if (s.replayDay && s.stoolUp && s.kidKept) {
@@ -2501,6 +2507,7 @@ export class Game {
     } else {
       s.setStep(Step.D2_WAKE);
       this.ui.setObjective(s.objectiveText());
+      this.ui.setBeatMarker(s.beatPlaceId());
       this.ui.showNote(`Day ${n}. The cart is still yours. That part never resets.`);
     }
 

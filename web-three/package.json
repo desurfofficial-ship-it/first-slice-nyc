@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "FIRST SLICE: A New York Story \u2014 Three.js implementation of the Day 1 greybox (migration from greybox-godot/, behavior oracle: scripts/main.gd)",
+  "description": "FIRST SLICE: A New York Story \u2014 the browser build (Three.js + Vite); behavior guarded by the vitest suite + the 4-day E2E (docs/24)",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

@@ -6,7 +6,7 @@
 
 | Layer | Files | Law it follows |
 |---|---|---|
-| **Pure state** | `core/GameState.ts` (922 ln), `core/Save.ts`, `core/content.ts` (1223 ln), `core/starters.ts`, `core/palette.ts` | "No rendering, no DOM: the scene graph and the UI only ever *reflect* this state." GameState is the 1:1 port of `greybox-godot/scripts/main.gd` (the behavior oracle). |
+| **Pure state** | `core/GameState.ts` (922 ln), `core/Save.ts`, `core/content.ts` (1223 ln), `core/starters.ts`, `core/palette.ts` | "No rendering, no DOM: the scene graph and the UI only ever *reflect* this state." GameState is the 1:1 port of the original greybox state machine (the migration record lives in docs/23–24; the behavior oracle's job now belongs to the vitest suite + the 4-day E2E). |
 | **Orchestrator** | `game/Game.ts` (2549 ln) | Owns the render loop, applies `Effect` union to world/UI, runs authored sequences (dusk, gold window, postcards). |
 | **Story staging** | `game/arrival.ts` (2036 ln) | The bus-ride opening as a self-contained diorama state machine; `?film=1` explicit opt-in for drivers. |
 | **Interactions** | `game/interactions.ts` (registry) + `game/interactionDefs.ts` (796 ln) | Doc 37 §3B: one declarative record per interaction (`id/pos/enabled/prompt/perform`). Replaced the old four-place wiring. |

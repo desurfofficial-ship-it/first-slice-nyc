@@ -180,13 +180,12 @@ first-slice-nyc/
 │   ├── src/                   #   camera, world, game, court, subway, ui, …
 │   ├── tests/                 #   vitest suite — permanent guards live here
 │   └── scripts/               #   probe-*.mjs in-engine verification harnesses
-├── site/                      # pitch site (static)
-├── tools/, tools3d/, scripts/ # asset generation (Blender / GLB pipelines)
-├── assets/                    # screenshots / styleframes / greybox frames
+├── tools3d/, scripts/         # asset generation (GLB pipelines) + registry tooling
+├── assets/                    # styleframes, web evidence frames, postcards
 └── worklog.md                 # append-only agent worklog — add yours at the end
 ```
 
-The game lives in `web-three/` — no longer a greybox; it is the vertical-slice build. Do not replace GDD systems with a generic city demo.
+The game lives in `web-three/` — it is the vertical-slice build and the only build. Do not replace GDD systems with a generic city demo.
 
 ## 4. Environment & Commands
 

@@ -1,6 +1,6 @@
 /**
- * The Day 1 block — built procedurally from the greybox oracle's exact
- * dimensions (greybox-godot/scripts/main.gd `_build_world`), which implement
+ * The Day 1 block — built procedurally to the original greybox's exact
+ * dimensions (its `_build_world`; the migration record is docs/23–24), which implement
  * Doc 10 (Day 1 greybox layout). Palette per Doc 04. Additions beyond the
  * greybox are limited to Doc 04's object canon (water towers, cart string
  * lights) — no new gameplay-bearing geometry.
@@ -517,7 +517,7 @@ export class World {
 
     // ---------------- lights (main.gd "--SETUP--") ----------------
     // three r155+ physical lights: intensities need the legacy π factor to
-    // match the reference's Godot energies.
+    // match the original greybox's light energies.
     this.hemi = new THREE.HemisphereLight(0xfff3dd, 0x8a7666, phys(1.0));
     scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight(PAL.amber, phys(1.3));
@@ -729,7 +729,7 @@ export class World {
     // + rungs + wall brackets), open guardrails (posts + bars), and diagonal
     // braces holding the landings. Colliders and trigger volumes untouched —
     // this is a pure visual rebuild of the same numbers.
-    // Landings stay x 10..16 (the oracle's numbers): ladder 2's column (x 16.4)
+    // Landings stay x 10..16 (the greybox's numbers): ladder 2's column (x 16.4)
     // sits 0.4 OFF the slab edge — groundHeight's padded reach (r + r*0.6 =
     // 0.56) still finds the slab there, so the descent dismount (player.ts) can
     // set you down on it, while depenetrate's UNpadded test (r = 0.35 < 0.4)
@@ -956,8 +956,8 @@ export class World {
     this.idris = this.spawnActor('Idris', -2, 0.05, -4.6, { jacket: PAL.plum, pants: PAL.ink, skin: 0x8a5a3b, hair: 0x241f1c, style: 'cap', glasses: true });
     this.idris.visible = false;
     // The kid, at the glass — a small shape against the light. The web port
-    // had him at the oracle's z (7.86), but the articulated kid is shallower
-    // than the oracle capsule: his front face sat BEHIND the emissive window
+    // had him at the greybox's z (7.86), but the articulated kid is shallower
+    // than the greybox capsule: his front face sat BEHIND the emissive window
     // box (front at 7.90), so the lit window rendered over him and he was
     // invisible from the street (playtest: "I didnt see any kid in day 2").
     // z=7.78 puts his silhouette in front of the glass, against the light.
@@ -6472,7 +6472,7 @@ export class World {
   }
 }
 
-/** Godot-style light energy → three r155+ physical intensity. */
+/** Greybox-style light energy → three r155+ physical intensity. */
 export function phys(energy: number): number {
   return energy * Math.PI;
 }

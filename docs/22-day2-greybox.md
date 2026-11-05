@@ -1,5 +1,7 @@
 # Day 2 — The Neighborhood Comes Alive
 
+> **Status update (2026-11-05):** history — the Godot greybox retired from the repo today (`greybox-godot/` is gone). Day 2's shipped truth is the browser build's ([web-three/](../web-three/)); the change list below names the original files for the record.
+
 **What this is:** the second playable day of the greybox, built on top of Day 1 without touching what already worked. Day 1 is untouched end to end: same steps, same notes, same postcard. Day 2 begins when Day 1 ends.
 
 **Status:** implemented and verified headless (Godot 4.7.2-stable). No display server in the build environment, so all evidence below is from real input-driven headless runs, not screenshots.

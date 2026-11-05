@@ -1,6 +1,6 @@
 /**
- * Authoritative gameplay state for Day 1 + Day 2 — ported 1:1 from
- * greybox-godot/scripts/main.gd (the behavior oracle). No rendering, no DOM:
+ * Authoritative gameplay state for Day 1 + Day 2 — ported 1:1 from the
+ * original greybox (the migration record: docs/23–24). No rendering, no DOM:
  * the scene graph and the UI only ever *reflect* this state.
  */
 
@@ -253,6 +253,41 @@ export class GameState {
   objectiveText(): string {
     if (this.step === Step.DONE) return `Day ${this.day} is done.`;
     return OBJECTIVES[this.step] ?? '';
+  }
+
+  /** M1 — beats as places, not pressure (docs/architecture/05): the story
+   *  beat's spot on the Map's sketch, as a MAP_PLACES id, or null when the
+   *  beat has no NAMED place (the fire escape, the teal door, the subway
+   *  stairs, the crosswalk notice, the postcard rail). Data only — the
+   *  objective line and the map marker both read this one helper, so they
+   *  can never disagree (doc 05's M1 risk: the HUD may not lie). */
+  private static readonly BEAT_PLACES: Record<number, string> = {
+    [Step.MEET_ROSA]: 'terminal',
+    [Step.ENTER_BODEGA]: 'bodega',
+    [Step.COLLECT]: 'bodega',
+    [Step.RUSH]: 'bodega',
+    [Step.CROSS]: 'cart',
+    [Step.CLAIM_CART]: 'cart',
+    [Step.NAME_CART]: 'cart',
+    [Step.SOLO]: 'cart',
+    [Step.D2_WAKE]: 'cart',
+    [Step.D2_IDRIS]: 'cart',
+    [Step.D2_TASK]: 'bodega',
+    [Step.D2_LUNCH]: 'cart',
+    [Step.D3_WAKE]: 'cart',
+    [Step.D3_RUSH]: 'cart',
+    [Step.D3_KIDDOWN]: 'cart',
+    [Step.D3_STOOL]: 'cart',
+    [Step.D4_WAKE]: 'cart',
+    [Step.D4_STRANGER]: 'terminal',
+    [Step.D4_RUSH]: 'cart',
+    [Step.D4_MAP]: 'cart',
+    [Step.D4_LAUNDRY]: 'laundry',
+  };
+
+  beatPlaceId(): string | null {
+    if (this.step === Step.DONE) return null;
+    return GameState.BEAT_PLACES[this.step] ?? null;
   }
 
   setStep(s: Step): Effect[] {
