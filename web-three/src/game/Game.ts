@@ -15,10 +15,12 @@ import { composeCaption, tsWowCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE
   D4_KID_APRON_NOTE, D4_APRON_CLEAN_NOTE, FAMILIAR_NOD_NOTE, FAMILIAR_WORD_NOTE,
   RUSH_CARDS, SOLO_CARDS, GOLD_WINDOW_NOTE, LIGHTS_OUT_NOTE, WATER_TOWERS_NOTE,
   MAP_PLACES, MAP_PLACE_NOTICE_R, CITY_WILL_WAIT_NOTE, MAP_COPIED_NOTE, RIDE_END_NOTE,
+  DIARY_NOTE_TEXT,
   RUSH_NOTE_5, MOMENT_RUSH_CAPTION, MOMENT_TOWERS_CAPTION, MOMENT_FOLD_CAPTION,
   momentCornerCaption, MOMENT_TAGS, type MomentCardKind,
 } from '../core/content';
 import { loadSave, writeSave, type SaveData } from '../core/Save';
+import { diaryNote } from '../core/diary';
 import { FreeRoam, roamDiscoveryLine, ROAM_OBJECTIVE } from './freeroam';
 import { STARTERS, starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
 import { PAL } from '../core/palette';
@@ -2419,6 +2421,9 @@ export class Game {
       s.trims = sd.trims ?? 0;
       s.washes = sd.washes ?? 0;
       s.hoopMakes = sd.hoop_makes ?? 0;
+      // the diary watermark rides the same migration law (absence = owes
+      // no notes); a mid-day resume re-reads it before the drain below
+      s.diaryNoted = sd.diary_noted ?? {};
     }
     // sd === null (a rail "Tomorrow"): the live state carries the wallet, the
     // name, the awning — and the STOOL. The stool is bought, the Map is
@@ -2503,6 +2508,22 @@ export class Game {
       this.ui.setObjective(s.objectiveText());
       this.ui.setBeatMarker(s.beatPlaceId());
       this.ui.showNote(`Day ${n}. The cart is still yours. That part never resets.`);
+    }
+
+    // M3 — the city keeps a diary of you (docs/architecture/05): yesterday's
+    // roam rounds surface as ONE quiet note, the day after they earn it. The
+    // watermark (s.diaryNoted, saved below with the day-start snapshot) keeps
+    // a note said once, ever; a fresh Day 1 has no yesterday to remember.
+    // The morning note above showed directly (noteAge rests at 999 after the
+    // beginDay reset), so the diary line parks BEHIND it — the DAY note gets
+    // its two seconds before the city remembers out loud.
+    if (n >= 2) {
+      const fire = diaryNote(s.diaryCounters(), s.diaryNoted);
+      if (fire) {
+        s.diaryNoted = fire.noted;
+        this.noteAge = 0;
+        this.pushNote(DIARY_NOTE_TEXT[fire.family]);
+      }
     }
 
     // day-start snapshot — this is what a restart (R) or a quit comes back to

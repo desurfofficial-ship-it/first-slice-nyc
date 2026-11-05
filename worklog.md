@@ -997,3 +997,80 @@ Stage Summary:
 - The repo is one build, one pipeline, one site — and the Map now tells
   the player, in Rosa's hand, that the story waits for them. Next up
   (docs/architecture/05): M2, the district map.
+
+---
+Task ID: OPEN-WORLD-REFS-M3 (engineering references + the diary)
+Agent: Main Agent (Z.ai)
+Task: Two directives at once — (1) two permanent engineering references
+(Gen City Auto, Slop New York) with a study-before-building rule recorded
+so every future agent inherits it; (2) continue the roadmap
+(docs/architecture/05), keeping the repo clean.
+
+Work Log (references — docs/57):
+- Shallow-cloned both repos to /home/z/my-project/refs/ (gen-city-auto:
+  MIT, TypeScript/WebGPU/workers; slop-newyork: MIT, three.js/TSL with
+  NYC-Open-Data geodata). Read the actual source, proportionally to the
+  roadmap: GCA's world manager (src/world/city.ts — tile streaming,
+  SHELL_PREFETCH/KEEP hysteresis bands, nearestFirst ordering, retry-on-
+  full backoff), GCA's gen split (src/city layout.ts street graph vs
+  gen-tile.ts parcel fill), SNY's nyc-map.js (one geography drives the
+  radar AND the atlas; world-frame documented in-file; shared palette;
+  AREA_LABELS tiers).
+- docs/57-engineering-references.md: the law (study sequence,
+  proportional study, no blind copies), the two-repo table with licenses,
+  the system→file map (peds/traffic/vehicles/culling indexed so the next
+  agent starts at the right door), today's findings, the license ledger
+  (SNY's OSM/NYC geodata = reference-only, per docs/45 §5), and §4: what
+  NEITHER reference has (a story spine, No-FOMO, the block remembers, a
+  paper companion) — build independently and say so.
+- AGENTS.md §1e carries the rule to every agent; docs-hygiene.test.ts
+  pins the manual to both repo names + the ledger doc (the correction
+  lives in the most permanent place that fits).
+- Cleanliness second pass: docs/06 + docs/19 (the two Unity-era docs
+  still presenting a retired engine as current) got the dated
+  status-update banner (2026-11-05), matching the docs-hygiene pattern.
+  The remaining godot/unity mentions in docs/ are all bannered history or
+  HF-Space pipeline ids — no live surface points at a dead engine.
+
+Work Log (M3 — the city keeps a diary of you):
+- Read the frontier first: W0–W5 of docs/45 are all shipped (World.ts
+  carries the district ring, the ±84 grid, Gable/Marlow, the avenues, the
+  M121, buildAlderHeightsW5) — so M2's substance was already built by the
+  construction arc; docs/03 §3 and docs/05 now say so honestly, and M3
+  was the actual next milestone.
+- core/diary.ts (pure, zero imports, the ride-machine seam law): a
+  family speaks when it climbs a full threshold past the watermark
+  (shelf 4 / dog 4 / trim 3 / wash 3 / hoop 6 — each one step ABOVE its
+  MEMORY_LINES in-person threshold, pinned); biggest overshoot wins,
+  ties in table order; the fired family's watermark moves to the current
+  count — a note is said once, ever.
+- Save v1: diary_noted (optional-trailing, byte-identical old parses,
+  clamped, unknown keys dropped); GameState.diaryNoted + diaryCounters()
+  + the snapshot spread; Game.beginDay drain — one note per morning,
+  queued BEHIND the DAY note (noteAge rests at 999 after the beginDay
+  reset; the drain parks the line, it doesn't stomp the morning), skipped
+  on Day 1, re-resume-safe (the watermark restores before the drain and
+  persists with the day-start snapshot).
+- content.ts DIARY_NOTE_TEXT: five morning-after lines; the No-FOMO
+  check ("no line asks for another round") is a unit test, not a promise.
+- Evidence: tests/diary.test.ts 13 pins · scripts/probe-m3-diary.mjs
+  9/9 in real Chromium at 720x1280 (exactly one diary note on a seeded
+  Day-2 morning with two families over due, parked behind the DAY note,
+  watermark visible in localStorage, no repeat on a second boot of the
+  persisted save — probe lesson: Playwright's browser.newPage() makes a
+  FRESH context per page; the shared-context page is the honest reload)
+  · 4-day E2E AUTOTEST OK 0 failures (569 s, console clean).
+
+Stage Summary:
+- The references are load-bearing now: AGENTS.md §1e + docs/57 mean the
+  next agent that touches peds/traffic/world-gen checks Gen City Auto's
+  source first, and the next agent that touches the Map/world frame
+  checks Slop New York's. Findings accumulate in docs/57 §3.
+- The block remembers: yesterday's regular rounds surface as one quiet
+  morning line, said once. M0 (roam contract) → M1 (beats as places) →
+  M2 (district map, by the construction arc) → M3 (the diary) are all
+  shipped; M4 (ambient schedules) is the next milestone on docs/05.
+
+Gates at close: tsc clean · vitest 582/582 (38 files, incl. the new
+docs-hygiene reference pin + 13 diary pins) · build OK ·
+probe-m3-diary 9/9 · 4-day E2E AUTOTEST OK 0 failures (569 s).

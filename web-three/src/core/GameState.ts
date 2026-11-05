@@ -5,6 +5,7 @@
  */
 
 import { MAX_DAY, type SaveData } from './Save';
+import type { DiaryCounters, DiaryNoted } from './diary';
 import { DEFAULT_STARTER } from './starters';
 import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, ITEM_STICKERS, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
@@ -175,6 +176,10 @@ export class GameState {
   trims = 0;
   washes = 0;
   hoopMakes = 0;
+  /** The diary's watermark (docs/architecture/05 M3, core/diary.ts): per
+   *  family, the count already surfaced as a morning note. Lives in the
+   *  save as `diary_noted`; absence reads as "owes no notes". */
+  diaryNoted: DiaryNoted = {};
   // ---- the serving conversation (docs/11 + docs/12) ----
   /** The order card currently on the counter — null when nobody's ordering.
    *  TRANSIENT: a conversation is a moment, never a save. */
@@ -875,6 +880,23 @@ export class GameState {
       map_slang: [...this.mapSlang],
       map_places: [...this.visitedPlaces],
       map_priya_lines: this.priyaLinesCopied,
+      // the diary watermark — present only once a note has been said, so
+      // a pre-diary save parses byte-identically (the roam/starter law)
+      ...(Object.keys(this.diaryNoted).length > 0
+        ? { diary_noted: { ...this.diaryNoted } }
+        : {}),
+    };
+  }
+
+  /** The roam counters, keyed for the diary machine (core/diary.ts) — the
+   *  one mapping from the state's named fields to the five families. */
+  diaryCounters(): DiaryCounters {
+    return {
+      shelf: this.shelfBuys,
+      dog: this.dogBuys,
+      trim: this.trims,
+      wash: this.washes,
+      hoop: this.hoopMakes,
     };
   }
 }
