@@ -856,6 +856,50 @@ Doc 02 / Doc 07 / Doc 50 that still need closing so the emotional beats land.
   `tests/crowd.test.ts` 26/26 (band law pins + the anti-stuck law against
   the historical pin reproduced) · vitest 559/559 · tsc clean.
 
+### B18. The step-off camera buries the lens in the player's own hair — FIXED 2026-11-05
+- **Found:** probe-a5c's `t30-handover` frame (0.6 s AFTER the machine goes
+  `off` — live gameplay, the game's first playable frame) showed a giant
+  low-poly head filling the frame. The HANDOVER JSON named the numbers:
+  camera (−35.56, 2.15, 6.67) vs player (−34.2, 0.1, 6.3) — **1.41 m behind,
+  2.05 m up**, pose `follow`, yaw 1.95 — the lens parked just above the
+  player's skull instead of the 8 m follow boom.
+- **Root cause (three laws meeting at one spawn):** the handover snap sits
+  at (−34.2, 6.3) — ON the Shuffle crowd's lanes (z 6.08–6.76, x −41..−20).
+  Every walker carries a real AABB in `World.colliders` (the solidity law),
+  and `GameCamera.shortenBoom` truncates against EVERY box in that array —
+  including bodies — with a pull floor of 0.12 of the boom (no minimum
+  distance). A walker loitering just west of the spawn truncated the
+  handover snap to the floor: 0.12 × 10.5 ≈ 1.3 m, y on the segment ≈ 2.15.
+  The skip path never reproduced it because the film path's longer sim-time
+  lands different seeded walker positions at `off` — the defect is a
+  lottery, not a constant. (The `diag-a5k-handover-boom.mjs` walk-through:
+  the terminal building legally truncates the same boom to 6.2 m — healthy;
+  the walker's 1.4 m is the disease.)
+- **Fix (the chain-link law, person class):** `seeThroughCamera` already
+  existed for chain-link fences ("bodies stop, lenses don't") — every
+  person collider now rides it: the 9 walker boxes (`peds.ts`, template
+  flagged) and the 7 named-cast boxes (`World.ts`, a `person()` helper —
+  Rosa, Idris, kid, customer, stranger, Sal, familiar).
+  `syncPersonCollider` mutates only bounds, so the flag survives forever.
+  A body crossing the boom now reads as a foreground silhouette — the
+  honest follow-cam read — never as a yank into the player's skull.
+  Masonry keeps the old law untouched.
+- **Verified:** `tests/camera.test.ts` +4 (unflagged body still truncates —
+  the mechanism pinned; flagged walker never truncates; mid-walk crossing
+  never yanks; masonry in the same corridor still parks the lens on the
+  player's side) · `tests/crowd.test.ts` +1 (every real walkCollider carries
+  the flag) · vitest **570/570** · tsc clean · build clean ·
+  probe-a5c re-run: handover camera (−40.19, 5.05, 7.92) — **6.2 m behind,
+  5.05 m up**, the terminal's legal truncation, and the t30 frame reads
+  (player behind Rosa on the walk, M121 on the left third, tree + hydrant
+  leading east) · probe-solid ALL CLEAN (bodies still stop bodies) ·
+  probe-shuffle OK · probe-characters OK · full 4-day E2E **AUTOTEST OK 0
+  failures (565 s)**.
+- **Where:** `web-three/src/world/peds.ts`, `web-three/src/world/World.ts`
+  (colliders only — zero gameplay-surface change), `tests/camera.test.ts`,
+  `tests/crowd.test.ts`, `scripts/diag-a5k-handover-boom.mjs` (kept: the
+  boom-slab walk-through the next camera question will want).
+
 ---
 
 ## Verification gates (after any fix)

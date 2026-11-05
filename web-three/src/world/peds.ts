@@ -326,9 +326,16 @@ export class Pedestrians {
     this.manager.add(this.castObstacle);
 
     // one real body per walker — parked at y −999 (the cast-collider trick:
-    // a box under the world can't overlap anything) until the first update
+    // a box under the world can't overlap anything) until the first update.
+    // seeThroughCamera (the chain-link law): bodies stop bodies, lenses
+    // don't stop on bodies — a walker crossing the boom reads as a
+    // foreground silhouette, never as the follow camera yanked to ~1.3 m
+    // and buried in the player's own hair (docs/51 B18: the step-off spawn
+    // sits inside the Shuffle lanes; a walker loitering behind it pulled
+    // the handover snap down to the truncation floor).
     this.walkColliders = looks.map(() => ({
       minX: 0, maxX: 0, minY: -999, maxY: -998, minZ: 0, maxZ: 0,
+      seeThroughCamera: true,
     }));
 
     looks.forEach((look, i) => {

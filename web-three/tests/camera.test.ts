@@ -193,3 +193,50 @@ describe('snapBehind obeys the interiorMode law (docs/50 cutaway)', () => {
     expect(cam.camera.position.z).toBeLessThan(-3.2);
   });
 });
+
+describe('lenses do not stop on bodies — the chain-link law, person class (docs/51 B18)', () => {
+  // A walker-sized body 0.55 m behind the player, exactly the step-off
+  // geometry: the Shuffle lanes (z 6.08–6.76) pass through the handover
+  // spawn, and a walker loitering there pulled the snap to the truncation
+  // floor (~1.3 m) — the lens buried in the player's own hair on the
+  // game's first playable frame. Bodies stop bodies; lenses fly over.
+  // Walker/wall geometry on the due-west boom (camYaw π/2 → the boom runs
+  // toward −x; the street-band z clamp stays out of the way, relZ 0).
+  const WALKER = { minX: -0.85, maxX: -0.55, minY: 0, maxY: 1.7, minZ: -0.3, maxZ: 0.3 };
+  // A wall in the same corridor — masonry keeps the old law (the lens parks
+  // on the player's side, never inside it).
+  const WALL = { minX: -3.2, maxX: -2.6, minY: 0, maxY: 10, minZ: -20, maxZ: 20 };
+
+  it('an UNflagged body still truncates the boom (pins the mechanism)', () => {
+    const cam = new GameCamera(1.6, [{ ...WALKER }]);
+    cam.camYaw = Math.PI / 2;
+    cam.snapBehind({ x: 0, y: 0, z: 0 });
+    const d = Math.hypot(cam.camera.position.x, cam.camera.position.z);
+    expect(d).toBeLessThan(2); // the old burial — why the flag exists
+  });
+
+  it('a walker flagged seeThroughCamera never truncates the boom', () => {
+    const cam = new GameCamera(1.6, [{ ...WALKER, seeThroughCamera: true }]);
+    cam.camYaw = Math.PI / 2;
+    cam.snapBehind({ x: 0, y: 0, z: 0 });
+    const d = Math.hypot(cam.camera.position.x, cam.camera.position.z);
+    expect(d).toBeGreaterThan(6); // the full, healthy follow boom
+  });
+
+  it('a walker crossing the boom mid-walk never yanks the lens either', () => {
+    const cam = new GameCamera(1.6, [{ ...WALKER, seeThroughCamera: true }]);
+    cam.camYaw = Math.PI / 2;
+    cam.snapBehind({ x: 0, y: 0, z: 0 });
+    const snapped = Math.hypot(cam.camera.position.x, cam.camera.position.z);
+    cam.update(DT, { x: 0, y: 0, z: 0 }, 0, { x: 0, y: 0 }, 0);
+    const after = Math.hypot(cam.camera.position.x, cam.camera.position.z);
+    expect(Math.abs(after - snapped)).toBeLessThan(0.5); // ease, not a yank
+  });
+
+  it('masonry in the same corridor still parks the lens on the player\u2019s side', () => {
+    const cam = new GameCamera(1.6, [{ ...WALL }]);
+    cam.camYaw = Math.PI / 2;
+    cam.snapBehind({ x: 0, y: 0, z: 0 });
+    expect(cam.camera.position.x).toBeGreaterThan(-3.2); // never inside the wall
+  });
+});

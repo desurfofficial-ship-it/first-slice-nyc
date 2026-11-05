@@ -1910,3 +1910,42 @@ x-ray's priced remainder. Gates on the merged tree: tsc clean · vitest
 probe-subway ALL PASS · full 4-day E2E **AUTOTEST OK 0 failures
 (527 s)**, console clean. Composed evidence frame:
 `assets/web-three/frames/b13-composed-plaza.png`.
+
+## The Doc 55 feature layer, green on the merged tip — and the step-off camera it caught (2026-11-05)
+
+The Phase 1 exit checklist's repo-runnable half ran end to end on the
+merged tip (greybox-retire + open-block contract + the a5i/a5j/band-law
+line): **every §1 feature-layer probe exit 0, console clean** —
+probe-doc12 (VS-F01/F03, desktop + phone) · probe-w5-interiors (VS-F02,
+the glass law green) · probe-climb · probe-solid ALL CLEAN ·
+**e2e full 4-day AUTOTEST OK, 0 failures, 591 s** · probe-peds PEDS OK ·
+probe-album · diag-wow-card (the card opens/closes honest, step/day
+untouched) · probe-subway ALL PASS (console clean) · probe-skyline ·
+probe-characters (errors none) · probe-perf (119/184/256 draws, zero page
+errors) — and the device stand-ins: probe-subway-mobile ALL PASS (390×844
+touch), probe-a5g-arrival-portrait (both orientations, no page errors),
+probe-arrival-portrait (ERRORS none). **Item 5's soak complement:**
+probe-w4-soak OK — 30.1 sim-min, 43 samples, 9 walkers, 0 stillness
+failures, page clean. **Item 4's prep verified in place:**
+`assets/one-second-law/` — 10 seeded-random paused frames, 10 distinct
+districts, noon/dusk 5–5, day spread 2/3/3/2, manifest + status note
+committed; the never-visitor audit stays the human half.
+
+**And the re-run caught the worst kind of bug — the one on the game's
+first playable frame.** probe-a5c's handover frame (0.6 s after the film
+hands over) had the follow camera at 1.41 m behind the player, 2.05 m up —
+the lens buried in the player's own hair. Root cause: the step-off spawn
+(−34.2, 6.3) sits ON the Shuffle crowd's lanes; every walker carries a
+real AABB in World.colliders, and `shortenBoom` truncates against bodies
+with a 0.12 pull floor — a walker loitering behind the spawn pulled the
+snap to ~1.3 m (a seeded lottery: the skip path never reproduced it).
+**The fix — the chain-link law, person class:** every person collider
+(9 walkers + 7 named-cast boxes) now rides `seeThroughCamera` — bodies
+stop bodies, lenses fly over people; a body crossing the boom sweeps a
+foreground silhouette, masonry keeps the old law. Handover camera after:
+(−40.19, 5.05, 7.92) — 6.2 m behind, 5.05 m up, the terminal's legal
+truncation; the frame reads (player behind Rosa, M121 on the left third,
+the walk leading east). Full ledger entry: docs/51 B18. Gates: vitest
+**570/570** (+5 pins) · tsc clean · build clean · probe-solid ALL CLEAN ·
+probe-shuffle OK · probe-characters OK · full 4-day E2E **AUTOTEST OK,
+0 failures (565 s)**.
