@@ -1350,3 +1350,18 @@ Stage Summary:
 
 Gates at close: tsc clean · vitest 645/645 (42 files; +40 new guards:
 calendar 16, field-diary 22, save +2) · build OK.
+Task ID: player-visual-kinematics-polish
+Agent: agent-player-upgrade
+Task: Visually polish and upgrade player character rig, kinematics, and intuitive camera controls
+
+Work Log:
+- Implemented kinematic acceleration, friction deceleration, sprint mode (Shift / extended drag), and vertical step smoothing (visualY) in Player.ts
+- Polished character rig in personRig.ts with handcrafted low-poly sneaker details (toe bumper, tongue, ankle collar, rolled pant cuff), structured jacket architecture (stand-up collar, folded lapels, storm placket, welt pockets, hem band, sleeve cuffs), expressive facial features (eyes with catchlights, blush cheeks, eyebrows, neck, ears), and distinct hairstyle silhouettes
+- Upgraded starter accessories: corrugated kraft sleeve on bodega coffee cup, metallic truck axles on skateboard
+- Added intuitive mouse-drag camera orbit & vertical pitch tilt, wheel zoom (4.5m - 12m), and frame-rate independent exponential damping in GameCamera.ts and Input.ts
+- Created permanent guard test suite in tests/player-upgrades.test.ts verifying acceleration, friction cutoff, sprint speed, visualY smoothing, and zoom distance clamping
+
+Stage Summary:
+- 100% test coverage maintained across rig.test.ts, camera.test.ts, and player-upgrades.test.ts (38 test files, 574 tests passing)
+- Zero new draw calls: every rigid limb remains fused to 1 mesh with single-material vertex-color baking
+

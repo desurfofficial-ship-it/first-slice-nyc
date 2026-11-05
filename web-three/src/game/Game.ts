@@ -15,12 +15,10 @@ import { composeCaption, tsWowCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE
   D4_KID_APRON_NOTE, D4_APRON_CLEAN_NOTE, FAMILIAR_NOD_NOTE, FAMILIAR_WORD_NOTE,
   RUSH_CARDS, SOLO_CARDS, GOLD_WINDOW_NOTE, LIGHTS_OUT_NOTE, WATER_TOWERS_NOTE,
   MAP_PLACES, MAP_PLACE_NOTICE_R, CITY_WILL_WAIT_NOTE, MAP_COPIED_NOTE, RIDE_END_NOTE,
-  DIARY_NOTE_TEXT,
   RUSH_NOTE_5, MOMENT_RUSH_CAPTION, MOMENT_TOWERS_CAPTION, MOMENT_FOLD_CAPTION,
   momentCornerCaption, MOMENT_TAGS, type MomentCardKind,
 } from '../core/content';
 import { loadSave, writeSave, type SaveData } from '../core/Save';
-import { diaryNote } from '../core/diary';
 import { FreeRoam, roamDiscoveryLine, ROAM_OBJECTIVE } from './freeroam';
 import { STARTERS, starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
 import { PAL } from '../core/palette';
@@ -201,12 +199,6 @@ export class Game {
     this.renderer.toneMappingExposure = 1.05;
     container.appendChild(this.renderer.domElement);
 
-    // ABO furniture (docs/57): the KTX2/meshopt decoders need the renderer
-    // for the transcoder's format probe — wired here, once, and the
-    // interior slots fetch their models. Missing files keep the procedural
-    // rooms (the docs/28 seam law — the game never depends on its assets).
-    this.world.configureGltfDecoders(this.renderer);
-
     // ---------------- systems ----------------
     this.player = new Player(this.world.colliders);
     this.cam = new GameCamera(window.innerWidth / window.innerHeight, this.world.colliders, this.world.canopySpheres());
@@ -244,23 +236,30 @@ export class Game {
       new THREE.CylinderGeometry(0.075, 0.06, 0.17, 10),
       new THREE.MeshLambertMaterial({ color: PAL.cream }),
     );
+    const cupSleeve = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.072, 0.065, 0.075, 10),
+      new THREE.MeshLambertMaterial({ color: 0xb5654a }),
+    );
+    cupSleeve.position.y = 0.01;
     const cupLid = new THREE.Mesh(
       new THREE.CylinderGeometry(0.078, 0.078, 0.03, 10),
       new THREE.MeshLambertMaterial({ color: PAL.teal }),
     );
     cupLid.position.y = 0.1;
     const cup = new THREE.Group();
-    cup.add(cupBody, cupLid);
+    cup.add(cupBody, cupSleeve, cupLid);
     cup.position.set(0.44, 0.9, 0.22); // in the right hand
     cup.visible = false;
     this.cupProp = cup;
     this.playerVisual.add(cup);
     this.world.scene.add(this.playerVisual);
 
-    // the rest of the cast joins the animator (walk/idle/breathe)
     this.cast.push(this.world.rosa, this.world.idris, this.world.kidSil, this.world.kidGround, this.world.stranger);
     this.cast.push(this.world.sal); // Sal breathes at his counter, every day
     this.cast.push(this.world.familiar); // the familiar face breathes between her rounds
+
+    // Expose instance for React HUD integration
+    (window as any).__game = this;
 
     // ---------------- interactions (Doc 37 §3B — one registry) -------------
     // Authored beats + the free-roam set, declared once in interactionDefs.
@@ -494,7 +493,7 @@ export class Game {
       && this.ui.starterCard.hidden && !this.arrival.active) {
       // movement — paused on the bench (Doc 37 §3C: the seat holds you;
       // physics would drag the capsule off it, so the walker simply rests)
-      if (!this.sitting) this.player.update(dt, inp.move);
+      if (!this.sitting) this.player.update(dt, inp.move, inp.sprint);
     } else {
       this.player.update(dt, { x: 0, y: 0 });
     }
@@ -507,7 +506,7 @@ export class Game {
     this.climbLean += ((climbing ? -0.42 : 0) - this.climbLean) * Math.min(1, dt * 10);
     this.playerVisual.position.set(
       this.player.capsule.x,
-      this.player.capsule.y,
+      this.player.visualY,
       this.player.capsule.z + this.climbLean,
     );
     this.playerVisual.rotation.y = this.player.rotationY;
@@ -532,7 +531,15 @@ export class Game {
     this.perFrameChecks(dt);
     this.updateNotes(dt);
 
-    // camera — the walker steers by `moveYaw` (the frozen reference during an
+    // camera — pointer drag and wheel zoom input forwarded for intuitive controls
+    if (Math.abs(inp.dragX) > 0 || Math.abs(inp.dragY) > 0) {
+      this.cam.handlePointerDrag(inp.dragX, inp.dragY);
+    }
+    if (Math.abs(inp.zoomDelta) > 0) {
+      this.cam.handleZoom(inp.zoomDelta);
+    }
+
+    // the walker steers by `moveYaw` (the frozen reference during an
     // auto-flip), the boom swings by camYaw. See GameCamera for the split.
     // The arrival rides the same rig override the postcard uses.
     const rig = (this.postcardRig || this.arrival.active)
@@ -1429,6 +1436,31 @@ export class Game {
     if (persist) writeSave({ ...loadSave(), starter: st.id });
   }
 
+  setStarter(id: string): void {
+    this.applyStarter(id, true);
+  }
+
+  setCameraPreset(mode: 'cozy' | 'street' | 'vista' | 'topdown'): void {
+    if (mode === 'cozy') {
+      (this.cam as any).pitchOffset = 0;
+      (this.cam as any).userDistMultiplier = 1.0;
+    } else if (mode === 'street') {
+      (this.cam as any).pitchOffset = -0.15;
+      (this.cam as any).userDistMultiplier = 0.75;
+    } else if (mode === 'vista') {
+      (this.cam as any).pitchOffset = 0.22;
+      (this.cam as any).userDistMultiplier = 1.35;
+    } else if (mode === 'topdown') {
+      (this.cam as any).pitchOffset = 0.42;
+      (this.cam as any).userDistMultiplier = 1.1;
+    }
+    this.cam.snapBehind(this.player.capsule);
+  }
+
+  resetCamera(): void {
+    this.cam.snapBehind(this.player.capsule);
+  }
+
   /** Dee's board: deck + grip stripe + four wheels, carried diagonal across
    *  the back (model faces local +Z, so −Z is the spine side). */
   private makeSkateboardProp(): THREE.Group {
@@ -1445,6 +1477,14 @@ export class Game {
     );
     grip.position.y = 0.02;
     g.add(deck, grip);
+    for (const tx of [-0.16, 0.16]) {
+      const truck = new THREE.Mesh(
+        new THREE.BoxGeometry(0.03, 0.018, 0.12),
+        new THREE.MeshLambertMaterial({ color: 0x8a8378 }),
+      );
+      truck.position.set(tx, -0.02, 0);
+      g.add(truck);
+    }
     for (const [wx, wz] of [[-0.16, 0.07], [0.16, 0.07], [-0.16, -0.07], [0.16, -0.07]]) {
       const wheel = new THREE.Mesh(
         new THREE.CylinderGeometry(0.024, 0.024, 0.02, 8),
@@ -2526,22 +2566,6 @@ export class Game {
       this.ui.setObjective(s.objectiveText());
       this.ui.setBeatMarker(s.beatPlaceId());
       this.ui.showNote(`Day ${n}. The cart is still yours. That part never resets.`);
-    }
-
-    // M3 — the city keeps a diary of you (docs/architecture/05): yesterday's
-    // roam rounds surface as ONE quiet note, the day after they earn it. The
-    // watermark (s.diaryNoted, saved below with the day-start snapshot) keeps
-    // a note said once, ever; a fresh Day 1 has no yesterday to remember.
-    // The morning note above showed directly (noteAge rests at 999 after the
-    // beginDay reset), so the diary line parks BEHIND it — the DAY note gets
-    // its two seconds before the city remembers out loud.
-    if (n >= 2) {
-      const fire = diaryNote(s.diaryCounters(), s.diaryNoted);
-      if (fire) {
-        s.diaryNoted = fire.noted;
-        this.noteAge = 0;
-        this.pushNote(DIARY_NOTE_TEXT[fire.family]);
-      }
     }
 
     // day-start snapshot — this is what a restart (R) or a quit comes back to

@@ -205,8 +205,16 @@ export function buildArticulatedPerson(o: PersonLook): { group: THREE.Group; rig
   const hipR = new THREE.Group(); hipR.position.set(0.11, 0.72, 0);
   for (const hip of [hipL, hipR]) {
     hip.add(mergedMesh([
+      // Main pant leg
       { geo: new THREE.BoxGeometry(0.13, 0.62, 0.16), color: o.pants, x: 0, y: -0.31, z: 0 },
+      // Rolled pant cuff hem at ankle
+      { geo: new THREE.BoxGeometry(0.145, 0.05, 0.175), color: o.pants, x: 0, y: -0.59, z: 0 },
+      // Sneaker collar / ankle wrap
+      { geo: new THREE.BoxGeometry(0.14, 0.06, 0.14), color: o.shoe ?? PAL.ink, x: 0, y: -0.61, z: 0.02 },
+      // Main sneaker base / sole (touches y = -0.72, preserving foot landing at 0)
       { geo: new THREE.BoxGeometry(0.16, 0.1, 0.28), color: o.shoe ?? PAL.ink, x: 0, y: -0.67, z: 0.03 },
+      // Sneaker front toe cap / bumper
+      { geo: new THREE.BoxGeometry(0.155, 0.07, 0.10), color: o.shoe ?? PAL.ink, x: 0, y: -0.68, z: 0.12 },
     ]));
     root.add(hip);
   }
@@ -217,15 +225,34 @@ export function buildArticulatedPerson(o: PersonLook): { group: THREE.Group; rig
   const body = new THREE.Group();
   body.position.set(0, 0.72, 0);
   const bodyParts: Array<{ geo: THREE.BufferGeometry; color: number; x: number; y: number; z: number; rz?: number }> = [
+    // Main jacket torso
     { geo: new THREE.BoxGeometry(0.5, 0.62, 0.3), color: o.jacket, x: 0, y: 0.31, z: 0 },
+    // Chunky stand-up jacket collar at neckline
+    { geo: new THREE.BoxGeometry(0.36, 0.08, 0.26), color: o.jacket, x: 0, y: 0.62, z: -0.01 },
+    // Left and right folded lapels
+    { geo: new THREE.BoxGeometry(0.11, 0.22, 0.025), color: o.jacket, x: -0.13, y: 0.45, z: 0.152, rz: 0.08 },
+    { geo: new THREE.BoxGeometry(0.11, 0.22, 0.025), color: o.jacket, x: 0.13, y: 0.45, z: 0.152, rz: -0.08 },
+    // Front zipper placket / wind flap
+    { geo: new THREE.BoxGeometry(0.045, 0.44, 0.02), color: o.jacket, x: 0, y: 0.26, z: 0.154 },
+    // Lower jacket ribbed waistband / hem
+    { geo: new THREE.BoxGeometry(0.51, 0.07, 0.31), color: o.jacket, x: 0, y: 0.035, z: 0 },
+    // Front utility welt pockets
+    { geo: new THREE.BoxGeometry(0.10, 0.09, 0.02), color: o.jacket, x: -0.15, y: 0.16, z: 0.153 },
+    { geo: new THREE.BoxGeometry(0.10, 0.09, 0.02), color: o.jacket, x: 0.15, y: 0.16, z: 0.153 },
   ];
 
   const armL = new THREE.Group(); armL.position.set(-0.325, 0.56, 0);
   const armR = new THREE.Group(); armR.position.set(0.325, 0.56, 0);
   for (const [arm, sx, rz] of [[armL, -0.325, 0.09], [armR, 0.325, -0.09]] as const) {
     arm.add(mergedMesh([
+      // Upper & forearm sleeve
       { geo: new THREE.BoxGeometry(0.11, 0.52, 0.13), color: o.jacket, x: 0, y: -0.22, z: 0, rz },
+      // Sleeve cuff band
+      { geo: new THREE.BoxGeometry(0.125, 0.05, 0.145), color: o.jacket, x: 0, y: -0.45, z: 0, rz },
+      // Hand palm
       { geo: new THREE.BoxGeometry(0.09, 0.09, 0.09), color: o.skin, x: sx * 0.06, y: -0.5, z: 0.01 },
+      // Stylized thumb wedge
+      { geo: new THREE.BoxGeometry(0.035, 0.045, 0.04), color: o.skin, x: sx * 0.16, y: -0.49, z: 0.03 },
     ]));
     body.add(arm);
   }
@@ -238,21 +265,60 @@ export function buildArticulatedPerson(o: PersonLook): { group: THREE.Group; rig
   const hairGeos: THREE.BufferGeometry[] = [
     new THREE.BoxGeometry(0.32, 0.13, 0.3).translate(0, 0.2, -0.025),
     new THREE.BoxGeometry(0.32, 0.2, 0.07).translate(0, 0.08, -0.145),
+    // Side hair volume / sideburns
+    new THREE.BoxGeometry(0.035, 0.14, 0.10).translate(-0.155, 0.06, 0.01),
+    new THREE.BoxGeometry(0.035, 0.14, 0.10).translate(0.155, 0.06, 0.01),
   ];
   if (o.style === 'bun') {
-    hairGeos.push(new THREE.SphereGeometry(0.085, 10, 8).translate(0, 0.26, -0.15));
+    // Low-poly faceted top/back bun with scrunchie band
+    hairGeos.push(new THREE.SphereGeometry(0.09, 8, 6).translate(0, 0.26, -0.15));
+    hairGeos.push(new THREE.BoxGeometry(0.13, 0.04, 0.13).translate(0, 0.22, -0.15));
   } else if (o.style === 'cap') {
-    hairGeos.push(new THREE.BoxGeometry(0.3, 0.03, 0.16).translate(0, 0.135, 0.14));
-    hairGeos.push(new THREE.BoxGeometry(0.32, 0.1, 0.31).translate(0, 0.195, -0.02));
+    // Baseball cap with shaped visor, crown, top button & back notch
+    hairGeos.push(new THREE.BoxGeometry(0.3, 0.03, 0.17).translate(0, 0.135, 0.145));
+    hairGeos.push(new THREE.BoxGeometry(0.32, 0.11, 0.31).translate(0, 0.2, -0.02));
+    hairGeos.push(new THREE.BoxGeometry(0.045, 0.02, 0.045).translate(0, 0.26, -0.02));
+    hairGeos.push(new THREE.BoxGeometry(0.12, 0.04, 0.03).translate(0, 0.145, -0.17));
+  } else {
+    // 'flat' style: front parted fringe and side layers
+    hairGeos.push(new THREE.BoxGeometry(0.26, 0.045, 0.05).translate(0.02, 0.145, 0.13));
+    hairGeos.push(new THREE.BoxGeometry(0.09, 0.035, 0.04).rotateZ(0.2).translate(-0.09, 0.14, 0.135));
   }
+
+  // Warm blush tone derived from character skin
+  const skinColor = new THREE.Color(o.skin);
+  const blushColor = skinColor.clone().offsetHSL(0.02, 0.25, -0.08).getHex();
+
   const headParts: Array<{ geo: THREE.BufferGeometry; color: number; x: number; y: number; z: number; rz?: number }> = [
+    // Chunky low-poly neck connecting head to torso
+    { geo: new THREE.BoxGeometry(0.13, 0.10, 0.13), color: o.skin, x: 0, y: -0.18, z: 0 },
+    // Head base
     { geo: new THREE.BoxGeometry(0.3, 0.32, 0.28), color: o.skin, x: 0, y: 0, z: 0 },
+    // Stylized ears
+    { geo: new THREE.BoxGeometry(0.025, 0.065, 0.05), color: o.skin, x: -0.155, y: 0.01, z: -0.01 },
+    { geo: new THREE.BoxGeometry(0.025, 0.065, 0.05), color: o.skin, x: 0.155, y: 0.01, z: -0.01 },
+    // Hair geometry
     { geo: mergeGeometries(hairGeos, false)!, color: o.hair, x: 0, y: 0, z: 0 },
+    // Eye whites
+    { geo: new THREE.BoxGeometry(0.062, 0.055, 0.015), color: 0xffffff, x: -0.072, y: 0.015, z: 0.141 },
+    { geo: new THREE.BoxGeometry(0.062, 0.055, 0.015), color: 0xffffff, x: 0.072, y: 0.015, z: 0.141 },
+    // Rich dark iris / pupils
+    { geo: new THREE.BoxGeometry(0.040, 0.042, 0.015), color: 0x1f1924, x: -0.072, y: 0.015, z: 0.143 },
+    { geo: new THREE.BoxGeometry(0.040, 0.042, 0.015), color: 0x1f1924, x: 0.072, y: 0.015, z: 0.143 },
+    // Catchlight sparkle
+    { geo: new THREE.BoxGeometry(0.015, 0.015, 0.015), color: 0xffffff, x: -0.062, y: 0.025, z: 0.145 },
+    { geo: new THREE.BoxGeometry(0.015, 0.015, 0.015), color: 0xffffff, x: 0.082, y: 0.025, z: 0.145 },
+    // Eyebrows matching hair
+    { geo: new THREE.BoxGeometry(0.060, 0.018, 0.015), color: o.hair, x: -0.072, y: 0.062, z: 0.142 },
+    { geo: new THREE.BoxGeometry(0.060, 0.018, 0.015), color: o.hair, x: 0.072, y: 0.062, z: 0.142 },
+    // Cheerful subtle blush cheeks
+    { geo: new THREE.BoxGeometry(0.050, 0.022, 0.015), color: blushColor, x: -0.095, y: -0.038, z: 0.141 },
+    { geo: new THREE.BoxGeometry(0.050, 0.022, 0.015), color: blushColor, x: 0.095, y: -0.038, z: 0.141 },
   ];
   if (o.glasses) {
     // one dark bar across the eyes — reads as glasses at iso distance,
     // costs one box, and instantly separates Idris and Sal from the crowd
-    headParts.push({ geo: new THREE.BoxGeometry(0.27, 0.05, 0.035), color: 0x1c1a20, x: 0, y: 0.04, z: 0.145 });
+    headParts.push({ geo: new THREE.BoxGeometry(0.27, 0.05, 0.035), color: 0x1c1a20, x: 0, y: 0.04, z: 0.148 });
   }
   head.add(mergedMesh(headParts));
   body.add(head);
@@ -264,12 +330,15 @@ export function buildArticulatedPerson(o: PersonLook): { group: THREE.Group; rig
   if (o.strap !== undefined) {
     // courier look: a strap that wraps the torso (front AND back — the game
     // camera spends most of its life behind the player) and the bag it holds.
-    // All three boxes ride the body group rigidly (their old position+rz
-    // tilt baked into the geometry: T·Rz composition preserved)
+    // All boxes ride the body group rigidly (T·Rz composition preserved)
     const strapGeos = [
-      new THREE.BoxGeometry(0.05, 0.82, 0.06).rotateZ(0.62).translate(0.03, 0.3, 0.165),
-      new THREE.BoxGeometry(0.05, 0.82, 0.06).rotateZ(0.62).translate(0.03, 0.3, -0.165),
-      new THREE.BoxGeometry(0.16, 0.14, 0.13).translate(-0.29, 0.0, 0.0),
+      new THREE.BoxGeometry(0.055, 0.82, 0.06).rotateZ(0.62).translate(0.03, 0.3, 0.165),
+      new THREE.BoxGeometry(0.055, 0.82, 0.06).rotateZ(0.62).translate(0.03, 0.3, -0.165),
+      new THREE.BoxGeometry(0.17, 0.15, 0.13).translate(-0.29, 0.0, 0.0),
+      // Satchel flap with subtle overhang
+      new THREE.BoxGeometry(0.18, 0.05, 0.14).translate(-0.29, 0.055, 0.0),
+      // Front strap clip/buckle accent
+      new THREE.BoxGeometry(0.07, 0.06, 0.03).rotateZ(0.62).translate(0.03, 0.28, 0.18),
     ];
     bodyParts.push({ geo: mergeGeometries(strapGeos, false)!, color: o.strap, x: 0, y: 0, z: 0 });
   }
@@ -412,9 +481,13 @@ export function updatePersonAnim(
   rig.armL.rotation.z = 0.09;
   rig.armR.rotation.z = -0.09;
 
-  // bob at stride frequency, lean into the walk
+  // bob at stride frequency, lean into the walk (deeper athletic lean when sprinting)
   rig.root.position.y = Math.abs(Math.sin(rig.phase)) * 0.045 * s;
-  rig.root.rotation.x = 0.07 * s;
+  const sprintLean = Math.max(0, s - 0.7) * 0.09;
+  rig.root.rotation.x = (0.07 + sprintLean) * s;
+
+  // torso / shoulder counter-rotation in the transverse plane
+  rig.body.rotation.y = -sinP * swing * 0.14;
 
   // bank into turns: measured yaw rate → a small body roll, filtered so a
   // story-tween reface reads as a wheel-around instead of a glitch
@@ -422,7 +495,7 @@ export function updatePersonAnim(
     const d = group.rotation.y - rig.prevYaw;
     const wrapped = Math.atan2(Math.sin(d), Math.cos(d));
     const yawRate = wrapped / Math.max(dt, 1e-4);
-    const target = THREE.MathUtils.clamp(-yawRate * 0.045, -0.12, 0.12) * Math.min(1, s * 2);
+    const target = THREE.MathUtils.clamp(-yawRate * 0.045, -0.14, 0.14) * Math.min(1, s * 2);
     rig.bank += (target - rig.bank) * Math.min(1, dt * 8);
   }
   rig.prevYaw = group.rotation.y;

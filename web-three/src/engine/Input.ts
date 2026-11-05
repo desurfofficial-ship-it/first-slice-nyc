@@ -13,6 +13,10 @@ export interface InputState {
    *  HOLD to charge, release to shoot). Keyboard OR touch button. */
   interactHeld: boolean;
   restartPressed: boolean;           // edge
+  sprint: boolean;
+  dragX: number;
+  dragY: number;
+  zoomDelta: number;
 }
 
 export class InputManager {
@@ -22,6 +26,12 @@ export class InputManager {
   private restartQueued = false;
   private touchInteractQueued = false;
   private touchInteractHeld = false;
+  private dragAccX = 0;
+  private dragAccY = 0;
+  private wheelAcc = 0;
+  private pointerDragId: number | null = null;
+  private pointerLastX = 0;
+  private pointerLastY = 0;
 
   private onKeyDown = (e: KeyboardEvent) => {
     if (this.isTypingTarget(e.target)) return;
@@ -132,7 +142,50 @@ export class InputManager {
     };
     hold(this.turnL, (v) => { this.turnLHeld = v; });
     hold(this.turnR, (v) => { this.turnRHeld = v; });
+
+    // ---- mouse & pointer orbit / zoom ----
+    window.addEventListener('pointerdown', this.onPointerDown);
+    window.addEventListener('pointermove', this.onPointerMove);
+    window.addEventListener('pointerup', this.onPointerUp);
+    window.addEventListener('pointercancel', this.onPointerUp);
+    window.addEventListener('wheel', this.onWheel, { passive: true });
   }
+
+  private onPointerDown = (e: PointerEvent) => {
+    if (this.isTypingTarget(e.target)) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('button, input, select, textarea, #pocket-menu, #map-panel, #order-card, #name-box, #postcard-panel, #starter-card')) {
+      return;
+    }
+    // Mouse drag anywhere on screen, or touch swipe on the right half of the screen
+    if (e.pointerType === 'mouse' || (!this.joyId && e.clientX > window.innerWidth * 0.35)) {
+      this.pointerDragId = e.pointerId;
+      this.pointerLastX = e.clientX;
+      this.pointerLastY = e.clientY;
+    }
+  };
+
+  private onPointerMove = (e: PointerEvent) => {
+    if (this.pointerDragId === e.pointerId) {
+      const dx = e.clientX - this.pointerLastX;
+      const dy = e.clientY - this.pointerLastY;
+      this.dragAccX += dx;
+      this.dragAccY += dy;
+      this.pointerLastX = e.clientX;
+      this.pointerLastY = e.clientY;
+    }
+  };
+
+  private onPointerUp = (e: PointerEvent) => {
+    if (this.pointerDragId === e.pointerId) {
+      this.pointerDragId = null;
+    }
+  };
+
+  private onWheel = (e: WheelEvent) => {
+    if (this.isTypingTarget(e.target)) return;
+    this.wheelAcc += e.deltaY;
+  };
 
   private turnLHeld = false;
   private turnRHeld = false;
@@ -191,7 +244,25 @@ export class InputManager {
     this.touchInteractQueued = false;
     this.restartQueued = false;
 
-    return { move: { x: mx, y: my }, camTurn, interactPressed: interact, interactHeld: held, restartPressed: restart };
+    const isSprint = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') || (Math.hypot(this.joyVec.x, this.joyVec.y) > 0.88);
+    const dragX = this.dragAccX;
+    const dragY = this.dragAccY;
+    const zoomDelta = this.wheelAcc;
+    this.dragAccX = 0;
+    this.dragAccY = 0;
+    this.wheelAcc = 0;
+
+    return {
+      move: { x: mx, y: my },
+      camTurn,
+      interactPressed: interact,
+      interactHeld: held,
+      restartPressed: restart,
+      sprint: isSprint,
+      dragX,
+      dragY,
+      zoomDelta,
+    };
   }
 
   /** Direct key state probe (debug keys). */
@@ -220,5 +291,10 @@ export class InputManager {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('blur', this.onBlur);
+    window.removeEventListener('pointerdown', this.onPointerDown);
+    window.removeEventListener('pointermove', this.onPointerMove);
+    window.removeEventListener('pointerup', this.onPointerUp);
+    window.removeEventListener('pointercancel', this.onPointerUp);
+    window.removeEventListener('wheel', this.onWheel);
   }
 }

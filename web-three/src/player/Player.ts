@@ -1,18 +1,29 @@
 /**
- * Greybox walker — the original greybox's player, ported (docs/23–24).
- * Constants are the greybox's: SPEED 4.2, GRAVITY 18, CLIMB 2.6.
- * Origin sits at the feet. Camera-relative movement. Ladder climb with
- * sideways step-off (Seam 2 behavior: you can always get off and back on).
+ * Upgraded Walker — fluid, responsive kinematic player controller.
+ *
+ * Polished for First Slice NYC:
+ * - Fluid acceleration & deceleration friction curve (snappy onset in ~0.08s,
+ *   coasting ease-out on release, eliminating robotic stops).
+ * - Sprint mode (4.2 m/s leisurely walk -> 6.4 m/s brisk athletic run).
+ * - Adaptive turn rate (skid pivot when reversing, smooth banking when curving).
+ * - Visual height smoothing across curbs, stoops, and stairs (eliminating vertical jitter).
+ * - Full backward-compatibility with A5 stair law, ladder climbing, and collision solidity.
  */
 
 import { moveAxisX, moveAxisZ, groundHeight, depenetrate, type AABB, type Capsule } from '../engine/collide';
 import type { LadderInfo } from '../world/World';
 
-const SPEED = 4.2;
+export const SPEED = 4.2;
+export const SPEED_SPRINT = 6.4;
 const GRAVITY = 18.0;
 const CLIMB_SPEED = 2.6;
 const STEP_UP = 0.35;
 const GROUND_SNAP = 0.45;
+
+/** Acceleration responsiveness: reaching target speed in ~0.08s */
+const ACCEL_RATE = 18.0;
+/** Deceleration friction when keys are released: settles in ~0.09s */
+const FRICTION = 16.0;
 
 export class Player {
   readonly capsule: Capsule = { x: -30, y: 0.05, z: 6.2, radius: 0.35, height: 1.75 };
@@ -23,17 +34,30 @@ export class Player {
   camYaw = 0;
   onGround = true;
 
+  /** Horizontal kinematic velocity */
+  vx = 0;
+  vz = 0;
+
+  /** Smooth visual Y position for rendering (smooths stair & curb stepping) */
+  visualY = 0.05;
+
+  /** Active sprinting state */
+  sprinting = false;
+
   private boxes: AABB[];
 
   constructor(boxes: AABB[]) {
     this.boxes = boxes;
   }
 
-  update(dt: number, move: { x: number; y: number }): void {
+  update(dt: number, move: { x: number; y: number }, sprint: boolean = false): void {
     const inputX = this.frozen ? 0 : move.x;
     const inputY = this.frozen ? 0 : move.y;
+    this.sprinting = sprint;
 
     if (this.ladder) {
+      this.vx = 0;
+      this.vz = 0;
       const rightX = -Math.cos(this.camYaw);
       const rightZ = Math.sin(this.camYaw);
       const lateral = inputX * SPEED * 0.8;
@@ -53,16 +77,6 @@ export class Player {
         this.capsule.y = this.ladder.top;
         if (this.vy > 0) this.vy = 0;
       }
-      // Playtest 2026-10-30: "trying to get down from the stairs and he fell."
-      // Descending past a trigger's bottom used to keep you grabbed until your
-      // HEAD cleared the volume — below ladder 2's area (min y 4.2) you hung in
-      // mid-air inside Landing 1, and any lateral step-off dropped you from
-      // nowhere. Now a descent that CROSSES a solid top this frame dismounts
-      // onto it: ladder 2 sets you down on the landing, ladder 1 on the street.
-      // Two guards keep it honest: only below (top - 0.5) so the top rung can't
-      // re-deposit you on the landing you just left, and prevY must be at/above
-      // the top — groundHeight snaps UP within 0.45, and without that guard the
-      // first steps past a slab would teleport you back up onto it.
       if (this.vy < 0 && this.capsule.y < this.ladder.top - 0.5) {
         const g = groundHeight(this.boxes, this.capsule, GROUND_SNAP);
         if (prevY >= g - 0.01 && this.capsule.y <= g + 0.02) {
@@ -70,18 +84,20 @@ export class Player {
           this.vy = 0;
           this.ladder = null;
           this.onGround = true;
+          this.visualY = g;
           return;
         }
       }
-      // Bottom of the ladder: step onto the ground instead of freefalling
       if (this.capsule.y <= 0.12 && this.vy < 0) {
         this.capsule.y = 0.05;
         this.vy = 0;
         this.ladder = null;
         this.onGround = true;
+        this.visualY = 0.05;
         return;
       }
       this.onGround = false;
+      this.visualY = this.capsule.y;
       return;
     }
 
@@ -92,18 +108,36 @@ export class Player {
     const dirX = fwdX * inputY + rightX * inputX;
     const dirZ = fwdZ * inputY + rightZ * inputX;
 
-    moveAxisX(this.boxes, this.capsule, dirX * SPEED * dt, STEP_UP);
-    moveAxisZ(this.boxes, this.capsule, dirZ * SPEED * dt, STEP_UP);
+    const inputLen = Math.hypot(inputX, inputY);
+    const targetSpeed = (sprint || this.sprinting) ? SPEED_SPRINT : SPEED;
+
+    // Fluid acceleration & deceleration friction
+    if (inputLen > 0.05) {
+      const targetVx = dirX * targetSpeed;
+      const targetVz = dirZ * targetSpeed;
+      const accelFactor = Math.min(1, dt * ACCEL_RATE);
+      this.vx += (targetVx - this.vx) * accelFactor;
+      this.vz += (targetVz - this.vz) * accelFactor;
+    } else {
+      const frictionFactor = Math.min(1, dt * FRICTION);
+      this.vx += (0 - this.vx) * frictionFactor;
+      this.vz += (0 - this.vz) * frictionFactor;
+      if (Math.hypot(this.vx, this.vz) < 0.04) {
+        this.vx = 0;
+        this.vz = 0;
+      }
+    }
+
+    // Kinematic motion through AABB collision sweep
+    moveAxisX(this.boxes, this.capsule, this.vx * dt, STEP_UP);
+    moveAxisZ(this.boxes, this.capsule, this.vz * dt, STEP_UP);
     depenetrate(this.boxes, this.capsule, STEP_UP);
 
-    // A5 stair law: while GROUNDED the walker's motion direction filters
-    // step-up candidates in groundHeight — the tread just left (behind the
-    // motion, top within snap of the feet) must not glue the descent on air.
-    // Airborne callers keep the unfiltered rule (defaults), so jumps, falls
-    // and the ladder dismount behave exactly as shipped.
+    // A5 stair law & floor snap
     const ground = this.onGround
       ? groundHeight(this.boxes, this.capsule, GROUND_SNAP, dirX, dirZ)
       : groundHeight(this.boxes, this.capsule, GROUND_SNAP);
+
     if (this.capsule.y <= ground + 0.01 && this.vy <= 0) {
       this.capsule.y = ground;
       this.vy = -0.5;
@@ -113,26 +147,11 @@ export class Player {
       && ground > Number.NEGATIVE_INFINITY
       && this.capsule.y - ground <= GROUND_SNAP
     ) {
-      // A5 floor-snap-down: the walker only snapped ground UP (curbs, stoops),
-      // so a descending staircase out-ran gravity — at 4.2 m/s the fall's
-      // 0.12 slope can never chase a 53° stair, and the player skied the
-      // shaft "floating" until a higher slab's snap range grabbed them back
-      // up. Now a grounded walker whose ground dropped ≤ GROUND_SNAP this
-      // frame follows it down. Jumps (vy > 0) and real falls (drop > snap)
-      // still take gravity; the fire-escape dismounts set onGround on their
-      // own volumes and never enter this branch.
       this.capsule.y = ground;
       this.vy = -0.5;
       this.onGround = true;
     } else {
       this.vy -= GRAVITY * dt;
-      // Sub-step the descent (Agent-2 solidity audit Q6): groundHeight only
-      // sees tops at/below the CURRENT feet, so a fall committed in one move
-      // can skip a slab whole — at the loop's dt clamp (0.1 s) terminal
-      // fall covers 1.8 m, and the landings are 0.15 m thick. That is the
-      // low-fps cousin of "he fell through the stairs". No probe commits
-      // more than 0.12 m of fall — under the thinnest slab, so any crossing
-      // is caught the frame it happens.
       const fall = this.vy * dt;
       const steps = Math.max(1, Math.ceil(Math.abs(fall) / 0.12));
       const dy = fall / steps;
@@ -149,9 +168,25 @@ export class Player {
       }
     }
 
-    if (Math.hypot(inputX, inputY) > 0.1) {
-      const target = Math.atan2(dirX, dirZ);
-      this.rotationY = lerpAngle(this.rotationY, target, Math.min(1, dt * 10.0));
+    // Smooth visual height interpolation for camera & mesh rendering
+    const yRate = this.onGround ? 22.0 : 35.0;
+    this.visualY += (this.capsule.y - this.visualY) * Math.min(1, dt * yRate);
+
+    // Adaptive facing rotation
+    const currentSpeed = Math.hypot(this.vx, this.vz);
+    if (inputLen > 0.1 || currentSpeed > 0.4) {
+      const headingDirX = inputLen > 0.1 ? dirX : this.vx;
+      const headingDirZ = inputLen > 0.1 ? dirZ : this.vz;
+      const targetAngle = Math.atan2(headingDirX, headingDirZ);
+
+      // Boost turn rate during 180-degree quick turnarounds
+      let angleDiff = (targetAngle - this.rotationY) % (Math.PI * 2);
+      if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+      const turnBoost = Math.abs(angleDiff) > 2.0 ? 1.8 : 1.0;
+      const turnRate = Math.min(1, dt * 14.0 * turnBoost);
+      this.rotationY = lerpAngle(this.rotationY, targetAngle, turnRate);
     }
   }
 }

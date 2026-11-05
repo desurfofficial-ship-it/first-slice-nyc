@@ -118,6 +118,34 @@ export class GameCamera {
   readonly camera: THREE.PerspectiveCamera;
   /** Camera pose. Switching poses re-syncs the movement reference, so a
    *  postcard never leaves a stale basis behind. */
+  /** Interactive pointer drag & zoom enhancements */
+  private pitchOffset = 0;
+  private userDistMultiplier = 1.0;
+  private manualDragTimer = 0;
+  private smoothFocus = new THREE.Vector3(-30, 1.25, 6.2);
+  private initializedFocus = false;
+
+  get currentZoomDist(): number {
+    return this.distFor(this.camera.aspect) * this.userDistMultiplier;
+  }
+
+  handlePointerDrag(dx: number, dy: number): void {
+    const dth = dx * 0.0055;
+    this.camYaw += dth;
+    this.moveYaw += dth;
+    this.flipping = false;
+    this.manualDragTimer = 0.8;
+    this.pitchOffset = THREE.MathUtils.clamp(this.pitchOffset - dy * 0.0035, -0.3, 0.5);
+  }
+
+  handleZoom(deltaY: number): void {
+    this.userDistMultiplier = THREE.MathUtils.clamp(
+      this.userDistMultiplier + deltaY * 0.0008,
+      0.6,
+      1.5,
+    );
+  }
+
   get pose(): CameraPose { return this._pose; }
   set pose(p: CameraPose) {
     if (p !== this._pose) {
@@ -229,8 +257,8 @@ export class GameCamera {
     const fwdX = Math.sin(this.camYaw);
     const fwdZ = Math.cos(this.camYaw);
     this.focusTarget.set(playerPos.x, playerPos.y + FOCUS_UP, playerPos.z);
-    const dist = this.distFor(this.camera.aspect);
-    const camH = this.heightFor(this.camera.aspect);
+    const dist = this.distFor(this.camera.aspect) * this.userDistMultiplier;
+    const camH = this.heightFor(this.camera.aspect) + this.pitchOffset * 4.0;
     this.desired.set(
       this.focusTarget.x - fwdX * dist,
       this.focusTarget.y + camH,
@@ -371,11 +399,18 @@ export class GameCamera {
     const moving = Math.hypot(move.x, move.y) > 0.1;
     const manual = Math.abs(camTurn) > 0.01;
 
+    if (this.manualDragTimer > 0) {
+      this.manualDragTimer -= dt;
+    }
+
     if (manual) {
       // Manual orbit wins while turning — do not fight the player.
       const dth = camTurn * dt * TURN_SPEED;
       this.camYaw += dth;
       this.moveYaw += dth;
+      this.flipping = false;
+    } else if (this.manualDragTimer > 0) {
+      // User recently dragged camera — hold camera heading without auto-settling
       this.flipping = false;
     } else if (!moving) {
       // Settle while standing still — a flip can't veer anything mid-stride.
@@ -410,7 +445,7 @@ export class GameCamera {
     if (Math.abs(rawDx - this.sideStep) < 0.02) this.sideStep = rawDx;
     this.desired.x += this.sideStep;
 
-    const k = Math.min(1, dt * POS_LERP);
+    const k = 1 - Math.exp(-POS_LERP * dt);
     const goal = this.interiorMode ? this.desired : this.shortenBoom(this.focusTarget, this.desired);
     this.camera.position.x += (goal.x - this.camera.position.x) * k;
     this.camera.position.y += (goal.y - this.camera.position.y) * k;
