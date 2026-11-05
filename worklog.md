@@ -955,6 +955,30 @@ Stage Summary:
   correction commit to main. Reminder recorded for the director: rotate
   the PAT after the push (it traveled through chat).
 
+## 2026-11-05 — agent2: the ABO furniture pack, curated and wired in (docs/57)
+
+The decree: the curated ABO furniture is not a standalone scene — "I want it
+wired in the game." Phase 1 read all 7,953 metadata records (chair 1184 /
+sofa 859 / rug 817 / table 584 / …), scored every floor piece against the
+first-slice priorities, and selected 141 models (35.9 MB, the dataset's
+meshopt+KTX2 lod1 GLBs, y-on-floor law, tri/byte caps, brand diversity).
+Phase 2 fetched them with huggingface_hub into assets/furniture/<category>/
+with the CC-BY-4.0 license + per-model ATTRIBUTION.md. Phase 3 wired the
+game: World.configureGltfDecoders(renderer) arms GLTFLoader with
+MeshoptDecoder + KTX2Loader (vendored basis transcoder), and a new
+furniture seam (src/world/furniture.ts manifest + upgradeFurnitureWithGLB)
+dresses 19 authored slots across Cecil's room, the hall, and the diner —
+costume law intact (missing file keeps the procedural room; colliders
+authored in builders; toggles/anchors/day machine untouched). The probe
+caught a shipped W5 quirk — the diner's cook line buried its own stool
+slots — fixed by re-laying the counter line (positions only).
+- Gates: tsc clean · vitest 571/571 (37 files, 6 new furniture-law tests)
+  · build 472 ms · probe-furniture FURNITURE OK (19/19 slots, textured
+  meshes, rooms hidden at rest, 8 shots + review grid in docs/assets/
+  furniture/) · probe-perf zero at-rest regression (119/184/260→256)
+  · probe-w5-interiors PASS · probe-peds OK · probe-shuffle OK ·
+  e2e AUTOTEST OK 0 failures, 558 s, console clean.
+
 ---
 Task ID: OPEN-WORLD-ROAM-M1 (beats as places) + repo cleanup
 Agent: Main Agent (continuation)

@@ -201,6 +201,12 @@ export class Game {
     this.renderer.toneMappingExposure = 1.05;
     container.appendChild(this.renderer.domElement);
 
+    // ABO furniture (docs/57): the KTX2/meshopt decoders need the renderer
+    // for the transcoder's format probe — wired here, once, and the
+    // interior slots fetch their models. Missing files keep the procedural
+    // rooms (the docs/28 seam law — the game never depends on its assets).
+    this.world.configureGltfDecoders(this.renderer);
+
     // ---------------- systems ----------------
     this.player = new Player(this.world.colliders);
     this.cam = new GameCamera(window.innerWidth / window.innerHeight, this.world.colliders, this.world.canopySpheres());

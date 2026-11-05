@@ -1,0 +1,147 @@
+# ABO first-slice furniture pack — attribution
+
+Models from the [Amazon Berkeley Objects (ABO) GLB dataset](https://huggingface.co/datasets/codepawl/abo-glb) by codepawl,
+derived from the Amazon Berkeley Objects dataset (Amazon.com, Inc.), licensed **CC-BY-4.0**.
+Each GLB here is the dataset's `lods/<ASIN>/<ASIN>_lod1.glb` variant (1024px webp textures), unmodified.
+
+- `chairs-dining/B075YQ8Q2K.glb` — Amazon Brand – Rivet Florence Mid-Century Modern Wide Open-Back Accent Kitchen Dining Chairs, 18.8"W, Grey, Set of 2 (Rivet), CC-BY-4.0.
+- `chairs-dining/B0853KZW7Z.glb` — Amazon Brand – Rivet Logan Mid-Century Modern Faux Leather Dining Chair, Set of 2, 20.1"W, Gray (Rivet), CC-BY-4.0.
+- `chairs-dining/B00EUL2B16.glb` — Ashley Furniture Signature Design - Leahlyn Dining Upholstered Side Chair - Pierced Splat Back - Set of 2 - Medium Brown (Signature Design by Ashley), CC-BY-4.0.
+- `chairs-dining/B07FYHGL58.glb` — Phoenix Home Kenitra Contemporary Plastic Dining Chair, Bone White, Set of 4 (Phoenix Home), CC-BY-4.0.
+- `chairs-dining/B07GZY7JFV.glb` — Phoenix Home Dining Chair, Single, Black (Phoenix Home), CC-BY-4.0.
+- `chairs-dining/B075ZZYH4B.glb` — AmazonBasics Padded Dining Chair - Set of 2, Black (AmazonBasics), CC-BY-4.0.
+- `chairs-dining/B076HDDMKM.glb` — AmazonBasics Padded Dining Chair - Set of 2, Brown (AmazonBasics), CC-BY-4.0.
+- `chairs-dining/B07M6PKM8K.glb` — Amazon Brand – Ravenna Home Classic-Style Solid Pine Dining Chair, 40"H, Black Finish, Set of 2 (Ravenna Home), CC-BY-4.0.
+- `chairs-dining/B07MBFDL34.glb` — Amazon Brand – Ravenna Home Solid Pine Dining Chair with Cutout Back, 38"H, Gray Finish, Set of 2 (Ravenna Home), CC-BY-4.0.
+- `chairs-dining/B07QFRSN22.glb` — Amazon Brand – Stone & Beam Mid-Century Foam-Padded Dining Chair, 30.5"H, Beige (Stone & Beam), CC-BY-4.0.
+- `chairs-dining/B084T7K1P4.glb` — Stone & Beam Classic Wishbone Dining Chair, 37.5" H, White (Stone & Beam), CC-BY-4.0.
+- `chairs-dining/B07TD48CNZ.glb` — Set of 2 dining chairs. (Movian), CC-BY-4.0.
+- `chairs-dining/B07DYJ8J4Z.glb` — Pioneer Square Beja Metal Dining Chair with Wood Seat, Set of 2, Woodland Brown (Pioneer Square), CC-BY-4.0.
+- `chairs-dining/B07THSZJ6P.glb` — An Amazon Brand - Movian Arendsee - Set of 2 Dining Chairs, 55 x 55 x 85 cm (L x W x H) (Movian), CC-BY-4.0.
+- `chairs-office/B01D7P5BFS.glb` — AmazonBasics Low-Back, Upholstered Mesh, Adjustable, Swivel Computer Office Desk Chair, Black (AmazonBasics), CC-BY-4.0.
+- `chairs-office/B01D7P5JW8.glb` — AmazonBasics Low-Back, Upholstered Mesh, Adjustable, Swivel Computer Office Desk Chair, Green (AmazonBasics), CC-BY-4.0.
+- `chairs-office/B075X4YDN6.glb` — Amazon Brand – Rivet Zane Mid-Century Modern Swivel Top-Grain Leather Accent Chair, 28.75" W, Saddle (Rivet), CC-BY-4.0.
+- `chairs-office/B075X4PTQV.glb` — Amazon Brand – Rivet Zane Mid-Century Modern Swivel Top-Grain Leather Accent Chair, 28.75" W, Aged Black (Rivet), CC-BY-4.0.
+- `chairs-office/B07DYJ43BZ.glb` — JC Home Pompei Adjustable-Height Round-Back Button-Tufted Swivel Accent Chair, Pure White (JC Home), CC-BY-4.0.
+- `chairs-office/B075X33RZK.glb` — Amazon Brand – Stone & Beam Larkin Living Room Accent Swivel Chair, 30"W, Smokey Teal (Stone & Beam), CC-BY-4.0.
+- `chairs-office/B075X33RZL.glb` — Amazon Brand – Stone & Beam Larkin Living Room Accent Swivel Chair, 30"W, Melrose Blue (Stone & Beam), CC-BY-4.0.
+- `chairs-office/B06W5XBL3D.glb` — Office Hippo Physio Approved Ergonomic 2 Lever Office Chair with Height Adjustable Arms and Adjustable Lumbar Support, Fabric, Charcoal (Office Hippo), CC-BY-4.0.
+- `chairs-accent/B0714QGLSD.glb` — Amazon Brand – Rivet Sloane Mid-Century Modern Armchair with Tapered Legs, 32.7"W, Pebble (Rivet), CC-BY-4.0.
+- `chairs-accent/B071W5VJFK.glb` — Amazon Brand – Rivet Cove Modern Tufted Accent Chair with Tapered Legs, Mid-Century, 32.7"W, Light Grey (Rivet), CC-BY-4.0.
+- `chairs-accent/B072M1W7Z2.glb` — Amazon Brand – Stone & Beam Cheyanne Living Room Accent Chair, 31"W, Marshmallow (Stone & Beam), CC-BY-4.0.
+- `chairs-accent/B073G7BVCT.glb` — Amazon Brand – Stone & Beam Highland Modern Wingback Living Room Accent Chair, 31.9"W, Oatmeal (Stone & Beam), CC-BY-4.0.
+- `chairs-accent/B07HP8Z5YP.glb` — Movian Andre Accent Chair Turquoise (Movian), CC-BY-4.0.
+- `chairs-accent/B07HP93VDJ.glb` — Movian Andre Accent Chair Yellow (Movian), CC-BY-4.0.
+- `sofas/B072FVHS9G.glb` — Amazon Brand – Rivet Sloane Mid-Century Modern Sofa with Tufted Back, 79.9"W, Pebble (Rivet), CC-BY-4.0.
+- `sofas/B072PZC1KS.glb` — Amazon Brand – Rivet Sloane Mid-Century Modern Sofa with Tufted Back, 79.9"W, Shell (Rivet), CC-BY-4.0.
+- `sofas/B075X4QFK2.glb` — Amazon Brand – Stone & Beam St. Cloud Modern Armless Straight Back Settee, 49"W, Brown (Stone & Beam), CC-BY-4.0.
+- `sofas/B07DBDRN8S.glb` — Amazon Brand – Ravenna Home Rai Tufted Arched Armless Loveseat Bench Settee, 52"W, Light Grey (Ravenna Home), CC-BY-4.0.
+- `sofas/B07DBGQD5B.glb` — Amazon Brand – Ravenna Home Rai Tufted Arched Armless Loveseat Bench Settee, 52"W, Cream (Ravenna Home), CC-BY-4.0.
+- `sofas/B07HPNBTHF.glb` — Amazon Brand - Alkove Porto Hand-Crafted Leather Sofa, 3 Seater, 97 x 210 x 90cm, Mineral (Alkove), CC-BY-4.0.
+- `sofas/B07HPT2G8F.glb` — Amazon Brand - Alkove Porto Hand-Crafted Leather Sofa, 3 Seater, 97 x 210 x 90cm, Light Grey (Alkove), CC-BY-4.0.
+- `sofas/B07RF88QZ8.glb` — Amazon Brand - Solimo Dual-Toned Leatherette 1 Seater Sofa (Red & Black) (Amazon Brand - Solimo), CC-BY-4.0.
+- `sofas/B075X4JJNN.glb` — Amazon Brand – Stone & Beam St. Cloud Modern Armless Straight Back Settee, 49"W, Bear (Stone & Beam), CC-BY-4.0.
+- `sofas/B07RG6YHTS.glb` — Amazon Brand - Solimo Bliss Leatherette 3 Seater Sofa (Brown) (Amazon Brand - Solimo), CC-BY-4.0.
+- `sofas/B075NP5K3L.glb` — Amazon Brand Movian Blankan 3 Seater Sofa, 228 x 87 x 78 cm, Light Grey (Movian), CC-BY-4.0.
+- `sofas/B07FJVXVRY.glb` — Artum Hill UP3-572 Olivia Sofa, Espresso (Artum Hill), CC-BY-4.0.
+- `tables-dining/B075YMXWZC.glb` — Amazon Brand – Rivet Mid-Century Modern Oak Dining Table, 63"L, Walnut Finish (Rivet), CC-BY-4.0.
+- `tables-dining/B07K7K25NM.glb` — Amazon Brand - Alkove Hayes Solid Wood Dining Table with Stainless Steel Base, Seats 6, 180 x 90 x 75cm, Wild Oak/Stainless Steel (Alkove), CC-BY-4.0.
+- `tables-dining/B07K7SJWCH.glb` — Amazon Brand - Alkove Hayes Extendable Solid Wood Dining Table, Seats 4-8, 160/205 x 90 x 74cm, Wild Oak (Alkove), CC-BY-4.0.
+- `tables-dining/B075YMW6VR.glb` — Amazon Brand – Stone & Beam Parson Wood Trestle Dining Table, 78"-96"L, Oak Finish (Stone & Beam), CC-BY-4.0.
+- `tables-dining/B075YQXRJM.glb` — Amazon Brand – Rivet Mid-Century Modern Minimalist Dining Kitchen Table, 53.1"L, Walnut Wood (Rivet), CC-BY-4.0.
+- `tables-dining/B07B7B94D8.glb` — Amazon Brand – Stone & Beam Bradhurst Rustic Wood Dining Table, 86.6"L, Brown (Stone & Beam), CC-BY-4.0.
+- `tables-coffee/B01LWVEZ1C.glb` — Amazon Brand - Alkove Waverly Large Coffee Table with Shelf in Light Oak Finish (Alkove), CC-BY-4.0.
+- `tables-coffee/B07B8HYSLD.glb` — Amazon Brand – Stone & Beam Bruckner Casual Wood Coffee Table, 50"W, Brown (Stone & Beam), CC-BY-4.0.
+- `tables-coffee/B07DBB1GQW.glb` — Amazon Brand – Ravenna Home Heights Wood Lift Top Storage Coffee Table, 43.3"W, Espresso (Ravenna Home), CC-BY-4.0.
+- `tables-coffee/B07GDSF3MR.glb` — Amazon Brand - Rivet Round Coffee Table with Solid Wood Legs, 80 x 80 x 36cm, MDF with Walnut Veneer/Solid Beech Wood (Rivet), CC-BY-4.0.
+- `tables-coffee/B07GDYVV9M.glb` — Amazon Brand - Rivet Triangular Coffee Table with Solid Wood Legs, 105 x 60 x 37cm, MDF with Walnut Veneer/Solid Beech Wood (Rivet), CC-BY-4.0.
+- `tables-side/B01D3C7Z4A.glb` — Amazon Brand - Hallowood Waverly 1 Drawer Small Side Table in Light Oak Finish | Solid Wooden End/Lamp Stand/Bedside Cabinet/Nightstand, (WAV-LAM590) (Hallowood), CC-BY-4.0.
+- `tables-side/B072ZKPK7J.glb` — Amazon Brand – Rivet Mid-Century Modern Round Black Wood Nesting Side End Table, 15.7" W, Dark Oak (Rivet), CC-BY-4.0.
+- `tables-side/B072ZLCB32.glb` — Amazon Brand – Rivet Axel Lid Storage Wood and Metal Side End Table Nightstand, Walnut (Rivet), CC-BY-4.0.
+- `tables-side/B07L1DH1PX.glb` — Amazon Brand - Solimo Aquilla Engineered Wood Bedside Table with Drawer (Wenge Finish) (Amazon Brand - Solimo), CC-BY-4.0.
+- `tables-side/B07L1DPX3Q.glb` — Amazon Brand - Solimo Uno Engineered Wood Bedside Table (Wenge Finish) (Amazon Brand - Solimo), CC-BY-4.0.
+- `tables-console/B003PBOMJ6.glb` — kovalenthor Console Table - Black, for Entryway for Living Room (Grey) (kovalenthor), CC-BY-4.0.
+- `tables-console/B01DA8LC0A.glb` — Home Discount 1, 2 &amp; 3 Corona Console Tables (Movian), CC-BY-4.0.
+- `tables-console/B072ZKTSNX.glb` — Amazon Brand – Rivet Hairpin Wood and Metal 15.7" Console Table Bench, Walnut and Dark Metal (Rivet), CC-BY-4.0.
+- `tables-console/B072ZNMKGM.glb` — Amazon Brand – Rivet King Street Industrial Cabinet Media Console Table With Functional Storage, Walnut, Black Metal, Glass (Rivet), CC-BY-4.0.
+- `tables-folding/B07PMK78YH.glb` — Phoenix Home Granite Round Plastic Bar Height Folding Table, 32", White (Phoenix Home), CC-BY-4.0.
+- `tables-folding/B07B82PXCW.glb` — Amazon Brand – Rivet Federal Mid-Century Modern Drop Leaf Dining Kitchen Table, Walnut Wood (Rivet), CC-BY-4.0.
+- `desks/B075Z7HQK5.glb` — Amazon Brand – Rivet Modern Cross Legged Home Office Computer Desk Console, 42"W, White Gloss and Walnut (Rivet), CC-BY-4.0.
+- `desks/B075Z93NKX.glb` — Stone & Beam Fern Hill 5-Drawer Office Desk, 32"W, White and Natural Pine (unknown), CC-BY-4.0.
+- `desks/B075ZBVZST.glb` — Amazon Brand – Rivet Mid-Century Curved Wood Table Home Office Computer Desk, 48.4"L, Walnut (Rivet), CC-BY-4.0.
+- `desks/B07JXXR83F.glb` — Amazon Brand - Movian Stanberg 1-Door 1-Drawer Writing Desk, 140 x 55 x 76cm, Light Brown Oak-Effect/Black (Movian), CC-BY-4.0.
+- `desks/B07K6N3XKZ.glb` — Amazon Brand - Movian Ohrid 1-Door 1-Drawer Desk, 120 x 55 x 76cm, Light Brown Oak-Effect (Movian), CC-BY-4.0.
+- `desks/B07DMLG8Y4.glb` — 2L Lifestyle Fairbank L-Shaped Executive Desk White Finish, Large (2L Lifestyle), CC-BY-4.0.
+- `cabinets-side/B075YQXQ5C.glb` — Amazon Brand – Stone & Beam Dunbar Modern Wood Buffet, 55"W, Oak (Stone & Beam), CC-BY-4.0.
+- `cabinets-side/B0154WJZH2.glb` — Amazon Brand - Movian Loue 2-Door 4-Drawer Sideboard Storage Cabinet, 145 x 90 x 38cm, Light Brown Oak-Effect/White (Movian), CC-BY-4.0.
+- `cabinets-side/B01557LJIO.glb` — Amazon Brand - Movian Minho 2-Door 4-Drawer Sideboard Storage Cabinet, 145 x 90 x 38cm, White/Light Brown Oak-Effect (Movian), CC-BY-4.0.
+- `cabinets-side/B07G4ZXLC8.glb` — Ameriwood Home Franklin 2 Door Storage Cabinet, Gray (Ameriwood Home), CC-BY-4.0.
+- `cabinets-side/B07JFGPVZD.glb` — Amazon Brand - Alkove Malvern Solid Wood 3-Door Sideboard Cabinet, 180 x 90 x 42cm, Antic Oak (Alkove), CC-BY-4.0.
+- `cabinets-side/B07RMJSGS7.glb` — AmazonBasics 2-Door Sideboard Storage Cabinet with 8 Shelves, 101 x 40 x 113 cm, Dark Brown/Geometric Pattern, Black Legs (AmazonBasics), CC-BY-4.0.
+- `cabinets-side/B07RMYWFHY.glb` — AmazonBasics Sideboard (AmazonBasics), CC-BY-4.0.
+- `cabinets-side/B07B813LW1.glb` — Amazon Brand – Rivet Mid-Century Modern Industrial Metal Buffet Credenza, 28 Inch Height, Beige, Wood (Rivet), CC-BY-4.0.
+- `cabinets-dresser/B079X4CP3F.glb` — Amazon Brand - Movian Hulio High Gloss 4 Drawer Chest Of Drawers, Black and Walnut, 72 x 75 x 36 cm (Vida Designs), CC-BY-4.0.
+- `cabinets-dresser/B079X4Z6QX.glb` — Amazon Brand - Movian Hulio High Gloss 4 Drawer Chest Of Drawers, Black, 72 x 75 x 36 cm (Vida Designs), CC-BY-4.0.
+- `cabinets-dresser/B07HSDP2CP.glb` — Amazon Brand – Rivet Modern Chest of Drawers with Diamond Pattern 17.3"W, Walnut &amp; Gray Wash (Rivet), CC-BY-4.0.
+- `cabinets-dresser/B07HSH4WFB.glb` — Amazon Brand – Rivet Modern Chest of Drawers with Diamond Pattern, 17.7 Inch Width, Natural (Rivet), CC-BY-4.0.
+- `cabinets-dresser/B07HSHYZKN.glb` — Amazon Brand – Stone & Beam Rylee Modern Acacia Wood 5-Drawer Bedroom Chest, 39.4"W, Gray-Wash Acacia (Stone & Beam), CC-BY-4.0.
+- `beds/B07LC5Y95W.glb` — Amazon Brand - Solimo Vega Engineered Wood Hydraulic Half Lift-on Queen Bed (Espresso Finish) (Amazon Brand - Solimo), CC-BY-4.0.
+- `beds/B07LC84ZYV.glb` — Amazon Brand - Solimo Optima Manual Box Storage Queen Bed (Sienna Cherry) (Amazon Brand - Solimo), CC-BY-4.0.
+- `beds/B0719SNKSY.glb` — Amazon Brand – Rivet West, Mid-Century, Oak Platform Bed With Inlays, Queen (86"L), Dark Oak Finish (Rivet), CC-BY-4.0.
+- `beds/B075QDV22Z.glb` — Rivet Payton Mid-Century Modern Tufted Queen Bed with Headboard, 66.3" W, Natural (Rivet), CC-BY-4.0.
+- `beds/B075XZMMG7.glb` — AmazonBasics Upholstered Platform Bed, King, Black (AmazonBasics), CC-BY-4.0.
+- `beds/B075XZN7NV.glb` — AmazonBasics Faux Leather Upholstered Platform Bed Frame with Wooden Slats, Full (AmazonBasics), CC-BY-4.0.
+- `beds/B075Z8767S.glb` — Amazon Brand – Stone & Beam Bateman Casual Rustic Wood Platform Bed Frame with Tall Headboard, King, 81"W, Brown (Stone & Beam), CC-BY-4.0.
+- `beds-frames/B07GFS1W12.glb` — Movian Havel (Movian), CC-BY-4.0.
+- `beds-frames/B07K7K25ZL.glb` — Marca Amazon - Alkove - Hayes - Cama de matrimonio moderna de madera maciza con 4 niveles para el colchón (160 x 200 cm) (Alkove), CC-BY-4.0.
+- `beds-frames/B07K7NSKQ3.glb` — Marca Amazon - Alkove - Hayes - Cama de matrimonio moderna de madera maciza con 4 niveles para el colchón (180 x 200 cm) (Alkove), CC-BY-4.0.
+- `shelves/B07DMHTGJD.glb` — 2L Lifestyle Hyder Wood Shelf Bookcase Tall, Brown (2L Lifestyle), CC-BY-4.0.
+- `shelves/B07PPNNCM2.glb` — AmazonBasics Modern 5-Tier Ladder Bookshelf Organizer with Solid Rubber Wood Frame, White (AmazonBasics), CC-BY-4.0.
+- `shelves/B00I0VTOO4.glb` — Vida Designs Corona Bookcase, 1 Drawer, Blu-ray/CD Rack, Solid Pine Wood (Vida Designs), CC-BY-4.0.
+- `shelves/B01DDQMQO0.glb` — Vida Designs Corona Low Bookcase, Solid Pine Wood, Small (Vida Designs), CC-BY-4.0.
+- `shelves/B0754K96NJ.glb` — Furniture 247 2 Tier (4 Cube) Shelving Unit - Black Oak (Furniture 247), CC-BY-4.0.
+- `shelves/B0754K96NT.glb` — Furniture 247 2 Tier (4 Cube) Shelving Unit - Natural Oak (Furniture 247), CC-BY-4.0.
+- `shelves/B075Z6YS1Z.glb` — Amazon Brand – Stone & Beam Larson Industrial Wood and Metal 4-Shelf Bookcase, 73"H, Walnut (Stone & Beam), CC-BY-4.0.
+- `shelves/B075ZF4S39.glb` — Amazon Brand – Stone & Beam Barrett Reclaimed Wood 4-Shelf Bookcase, 40"W, White and Sandstone Pine (Stone & Beam), CC-BY-4.0.
+- `lamps-table/B07374P6MR.glb` — Amazon Brand – Stone & Beam Modern Bedroom Table Desk Lamp With Light Bulb - 8 x 8 x 20.5 Inches, Wood Grain (Stone & Beam), CC-BY-4.0.
+- `lamps-table/B075X1T52N.glb` — Amazon Brand – Rivet Glass Ball and Metal Table Lamp with Bulb Included, 21.5" H, Brass (Rivet), CC-BY-4.0.
+- `lamps-table/B07B4YVXG8.glb` — Amazon Brand – Stone & Beam Modern Arc Table Desk Lamp with Light Bulb and Linen Shade - 9 x 9 x 20.5 Inches, Black and Brushed Brass (Stone & Beam), CC-BY-4.0.
+- `lamps-table/B075X12QV5.glb` — Rivet Mid Century Modern Rubberwood Living Room Table Lamp With Light Bulb - 19 Inches, Black with Linen White Shade (Rivet), CC-BY-4.0.
+- `lamps-table/B07M6PK8LT.glb` — Amazon Brand – Ravenna Home Table Lamp with Round Ceramic Base and LED Light Bulb, 16.5"H, Cannoli Cream (Ravenna Home), CC-BY-4.0.
+- `lamps-table/B07MBFD6F9.glb` — Amazon Brand – Ravenna Home Metal Table Lamp with LED Light Bulb, 20"H, Dark Bronze (Ravenna Home), CC-BY-4.0.
+- `lamps-table/B07HKF59M9.glb` — AmazonBasics Rivet Contemporary Ceramic Base with Fabric Drum Shade Table Lamp, 19.25"H, Black (AmazonBasics), CC-BY-4.0.
+- `lamps-floor/B073751DMK.glb` — Amazon Brand – Stone & Beam Modern Metal Cut-Out Living Room Standing Floor Lamp With Light Bulb - 19 x 8 x 59.5 Inches, Earth Tone Shade (Stone & Beam), CC-BY-4.0.
+- `lamps-floor/B0742FPL25.glb` — Stone & Beam Lily Modern Arc Living Room Floor Lamp With Light Bulb And Taupe Shade - 83 x 15 x 53 - 60 Inches, Steel (Stone & Beam), CC-BY-4.0.
+- `lamps-floor/B07DTF76PJ.glb` — Amazon Brand – Rivet Mid Century Modern 3 Light Living Room Standing Floor Lamp with Integrated LED Light - 67.5 Inches, Antique Brass Finish (Rivet), CC-BY-4.0.
+- `lamps-floor/B0742DNY41.glb` — Rivet Marble and Brass Floor Lamp, Avery, 63"H, With Bulb (Rivet), CC-BY-4.0.
+- `lamps-floor/B07DBCMTD3.glb` — Amazon Brand – Ravenna Home Metal Living Room Slim Standing Floor Lamp With LED Light Bulb - 59.25 Inches, Dark Bronze With Off-White Shade (Ravenna Home), CC-BY-4.0.
+- `rugs/B0719STDHT.glb` — Rivet Modern Zebra Print Rug, 4' x 6', Grey (Rivet), CC-BY-4.0.
+- `rugs/B0719STKTS.glb` — Amazon Brand – Stone & Beam Contemporary Floral Medallion Area Rug, 7' 6" x 9' 6", Grey (Stone & Beam), CC-BY-4.0.
+- `rugs/B071J4VX5C.glb` — Amazon Brand – Stone & Beam Contemporary Speckle Wool Area Rug, 8' x 10' 6", Grey (Stone & Beam), CC-BY-4.0.
+- `rugs/B071SHHZTC.glb` — Amazon Brand – Rivet Modern Ombr&eacute; Wool Rug, 5' x 8', Red (Rivet), CC-BY-4.0.
+- `rugs/B0719STLK8.glb` — Amazon Brand – Rivet Modern Ombr&eacute; Wool Rug, 5' x 8', Charcoal (nuLOOM), CC-BY-4.0.
+- `rugs/B071SHHZT2.glb` — Amazon Brand – Rivet Modern Ombr&eacute; Wool Rug, 4' x 6', Charcoal (nuLOOM), CC-BY-4.0.
+- `rugs/B07QB8HKZK.glb` — Ravenna Home Vintage Damask Patterned Rug, 2' x 4', Pink on White (Ravenna Home), CC-BY-4.0.
+- `rugs/B07QB8HL11.glb` — Ravenna Home Vintage Damask Patterned Rug, 7'10" x 9'10", Pink on Ivory (Ravenna Home), CC-BY-4.0.
+- `rugs/B0714MJKZW.glb` — Stone & Beam Contemporary Floral Medallion Rug, 5' x 8', Grey (unknown), CC-BY-4.0.
+- `rugs/B0719FLQP3.glb` — Nourison Passion Modern Abstract Colorful Sunburst Area Rug, 6'7" x 9'6" (Nourison), CC-BY-4.0.
+- `ottomans/B07D4FS7GY.glb` — Red Hook Leda Rectangular Upholstered Ottoman Bench - 27 x 14.5 x 18.5 Inches, Stone Grey (Red Hook), CC-BY-4.0.
+- `ottomans/B07C8DHX43.glb` — Amazon Basics Rectangular Faux Leather Storage Ottoman Bench, Large - Russet Brown (Amazon Basics), CC-BY-4.0.
+- `ottomans/B07M8F6P67.glb` — Amazon Basics Faux Leather Rectangular Storage Ottoman, Black (Amazon Basics), CC-BY-4.0.
+- `ottomans/B071J7Q6DW.glb` — Amazon Brand – Rivet Emerly Modern Ottoman, 33"W, Pewter (Rivet), CC-BY-4.0.
+- `ottomans/B071PDYXKC.glb` — Amazon Brand – Rivet Ava Mid-Century Modern Upholstered Ottoman, 25.6"W, Light Grey (Rivet), CC-BY-4.0.
+- `stools/B07CZ6P7QP.glb` — Wuxing Pioneer Square Alessio 24-Inch Counter-Height Metal Stool with Bronze Finish and Elmwood Seat, Set of 4 (Wuxing), CC-BY-4.0.
+- `stools/B075YMN22B.glb` — Amazon Brand – Rivet Julian Minimalist Modern Tufted Dining Room Counter Height Bar Stools, Set of 2, 34.3 Inch Height, Synthetic Leather, Autumn Yellow (Rivet), CC-BY-4.0.
+- `stools/B075YP394B.glb` — Amazon Brand – Rivet Julian Minimalist Modern Tufted Kitchen Bar Height Stools, Set of 2, 37.8 Inch Height, Synthetic Leather, Autumn Yellow (Rivet), CC-BY-4.0.
+- `stools/B07B78M4DN.glb` — Amazon Brand – Stone & Beam Cottage Wood Bar Stool, 24"H, Green (Hillsdale Furniture), CC-BY-4.0.
+- `stools/B07B79GMHH.glb` — Amazon Brand – Stone & Beam Cottage Wood Saddle Kitchen Bar Counter Stool, 24 Inch Height, Blue (Stone & Beam), CC-BY-4.0.
+- `wall-art/B073NZFTH9.glb` — Amazon Brand – Rivet Ground View Black and White Photography Matted Skyscrapers Wall Art, Black Frame, 15" x 13" (Rivet), CC-BY-4.0.
+- `wall-art/B073NZGLJX.glb` — Amazon Brand – Rivet Roaring 20s with Modern Yellow, Blue, and Purple Accent Canvas Print Wall Art, White Frame, 17.75" x 21.75" (Rivet), CC-BY-4.0.
+- `wall-art/B073NZGLLS.glb` — Amazon Brand – Stone & Beam Modern Purple Floral Print Wall Art, White Frame, 17.75" x 21.75" (Stone & Beam), CC-BY-4.0.
+- `wall-art/B073NZTB87.glb` — Amazon Brand – Stone & Beam Modern Red & Pink Floral Print Wall Art on Canvas, 16" x 20" (Stone & Beam), CC-BY-4.0.
+- `mirrors/B073WGGXFT.glb` — Amazon Brand – Rivet Modern Wood and Iron Hanging Wall Mirror, 32.25 Inch Height, Brown and Black (Rivet), CC-BY-4.0.
+- `mirrors/B073WHB42L.glb` — Amazon Brand – Stone & Beam Diamond Shape Metal Frame Hanging Decorative Wall Mirror, 34.25 Inch Height, Gold Finish (Stone & Beam), CC-BY-4.0.
+- `mirrors/B073WHZKBF.glb` — Amazon Brand – Rivet Modern Hexagon Wood Frame Hanging Wall Mirror, 30 Inch Height, Natural (Rivet), CC-BY-4.0.
+- `pillows/B07JQMLQ21.glb` — Amazon Basics Outdoor Patio Bench Cushion - 45 x 18 x 2.5 Inches, Red (Amazon Basics), CC-BY-4.0.
+- `pillows/B07JQMLQ2C.glb` — Amazon Basics Outdoor Patio Bench Cushion - 45 x 18 x 2.5 Inches, Blue (Amazon Basics), CC-BY-4.0.
+- `pillows/B074VLPC13.glb` — Amazon Brand – Stone & Beam French Laundry Stripe Decorative Throw Pillow, 12" x 24", Ivory, Black (Stone & Beam), CC-BY-4.0.
