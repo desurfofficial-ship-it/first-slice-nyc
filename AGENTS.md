@@ -146,6 +146,18 @@ You may ship faster with agents only when:
 Automations and scheduled bots are optional later. They do not replace a paved path or headless proof.
 
 
+## 1e. Engineering References — study before building (non-negotiable)
+
+Two permanent reference repos inform this project's engineering:
+
+1. **Gen City Auto** — https://github.com/greggman/gen-city-auto — runtime world management, procedural generation, pedestrians, traffic, vehicles, spatial systems, workers, performance.
+2. **Slop New York** — https://github.com/mrdoob/slop-newyork/ — real-NYC geography, city grid and districts, buildings from open data, map/atlas, scene culling.
+
+**The rule:** whenever a task builds, upgrades, replaces, or improves a system that exists in either reference, inspect that reference's **actual source first** (local clones: `/home/z/my-project/refs/`; re-clone commands in the doc). Decide what to reuse conceptually, adapt, improve, or build independently — then implement inside FIRST SLICE's architecture (TypeScript, Three.js, Vite, the registry, the Laws). Never adopt a reference's WebGPU/TSL renderer as an engine swap. Never ingest OSM/NYC-Open-Data geodata (docs/45 §5: reference-only).
+
+**Proportional study:** read only the system the task touches — the file map and the findings so far live in [docs/57-engineering-references.md](docs/57-engineering-references.md). If a reference has no equivalent, say so and build independently. When delegating a task to another agent, name the reference files it should study. Record new findings in docs/57 §3 so the next agent doesn't re-study the same ground.
+
+
 ## 2. Voice & Terminology
 
 **Writing voice (all docs, dialogue, captions, commit messages):** short sentences. Plain words. Warm, wry, unhurried — like Rosa, not like a wiki. Concrete nouns over abstractions. Humor is dry and kind, never sarcastic. Never "users," "players" where "you" will do.

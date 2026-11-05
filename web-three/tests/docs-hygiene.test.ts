@@ -52,4 +52,14 @@ describe('docs hygiene — the operating manual states the real phase (docs/51 B
       );
     }
   });
+
+  it('the manual carries the engineering-reference law (docs/57, 2026-11-05 directive)', () => {
+    const agents = read('AGENTS.md');
+    // The two permanent references must stay named on the manual: an agent
+    // that never hears of them reinvents systems a reference already solved.
+    expect(agents).toContain('gen-city-auto');
+    expect(agents).toContain('slop-newyork');
+    // …and the ledger must exist where the rule says findings are recorded.
+    expect(read('docs/57-engineering-references.md')).toContain('study before building');
+  });
 });
