@@ -51,6 +51,9 @@ export class UI {
   private mapSlangList = el<HTMLUListElement>('map-slang');
   private mapEmpty = el<HTMLDivElement>('map-empty');
   private mapClose = el<HTMLButtonElement>('map-close');
+  // ---- the Roam chip (freeroam.ts — the open-world contract's switch) ----
+  readonly roamBtn = el<HTMLButtonElement>('btn-roam');
+  private roamPeek = el<HTMLSpanElement>('roam-peek');
   // ---- the album — the shelf where kept postcards live ----
   readonly albumBtn = el<HTMLButtonElement>('btn-album');
   readonly albumPanel = el<HTMLDivElement>('album-panel');
@@ -136,6 +139,11 @@ export class UI {
       this.closePocket();
       this.onMapToggle?.();
     });
+    // the Roam chip: fold the menu, then flip the mode (Game applies it)
+    this.roamBtn.addEventListener('click', () => {
+      this.closePocket();
+      this.onRoamToggle?.();
+    });
     this.mapClose.addEventListener('click', () => this.onMapToggle?.());
     this.albumBtn.addEventListener('click', () => {
       this.closePocket();
@@ -201,6 +209,8 @@ export class UI {
   onOrderChoose: ((reply: number | null) => void) | null = null;
   /** The Map folded / opened — Game owns the state side. */
   onMapToggle: (() => void) | null = null;
+  /** The Roam chip was tapped — Game owns the mode side (freeroam.ts). */
+  onRoamToggle: (() => void) | null = null;
   /** The album folded / opened — Game owns the shelf. */
   onAlbumToggle: (() => void) | null = null;
   /** A card on the album shelf was tapped (its id). */
@@ -229,6 +239,19 @@ export class UI {
 
   get objectiveText(): string {
     return this.objective.textContent ?? '';
+  }
+
+  /** The Roam chip's two faces (freeroam.ts): "Roam" invites the open
+   *  block; "Story" offers the way back. aria-pressed carries the state
+   *  for readers; the pocket chip keeps the top lane free on phones. */
+  setRoamLabel(active: boolean) {
+    this.roamPeek.textContent = active ? 'Story' : 'Roam';
+    this.roamBtn.setAttribute('aria-pressed', String(active));
+    this.roamBtn.setAttribute(
+      'aria-label',
+      active ? 'Back to the story — the day picks up where you left it' : 'Roam the block — the story waits where it is',
+    );
+    this.roamBtn.title = active ? 'Back to the story' : 'Roam the block';
   }
 
   /** Paper panels hold the hands (docs/51 B7). ONE law, ONE wiring —

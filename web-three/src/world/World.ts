@@ -174,6 +174,11 @@ export class World {
   /** The water-main barrier's body — parked underground the day the city
    *  takes it (Day 4's diary); synced in updateDynamics like the cast. */
   readonly barrierCollider: AABB = boxFromCenter(-9.7, 0.45, 7.62, 1.7, 0.9, 0.56);
+  /** Roam law (freeroam.ts): the barrier stands down while Roam is active,
+   *  so the whole built block is walkable from the first minute. dressDay
+   *  respects the override; leaving Roam restores the authored diary (the
+   *  barrier's last day is Day 3). */
+  barrierOpen = false;
   readonly rosa: THREE.Group;
   readonly idris: THREE.Group;
   readonly kidSil: THREE.Group;
@@ -5517,6 +5522,20 @@ export class World {
     return tex;
   }
 
+  /** The Roam layer's one world-side lever (freeroam.ts): the water-main
+   *  barrier stands down so the whole built block is walkable from the
+   *  first minute. Visibility is the collider's source of truth — the
+   *  same sync dressDay/updateDynamics use parks the body underground
+   *  when the prop is hidden, so roaming never argues with a physics box
+   *  the eye can't see. Leaving Roam restores the day's authored diary
+   *  (the barrier's last authored day is Day 3). */
+  setBarrierOpen(open: boolean) {
+    this.barrierOpen = open;
+    const diary = barrierDiary(this.flyerDay);
+    this.barrier.visible = open ? false : diary.barrierVisible;
+    this.syncPersonCollider(this.barrierCollider, this.barrier, 0.85, 0.9);
+  }
+
   /**
    * Dress the block for a day (Doc 33 §2.3 — the diary a player reads at a
    * glance). Called by Game.beginDay before the fade-in. Pure material and
@@ -5533,9 +5552,11 @@ export class World {
     // diary across the avenue wakes with the week (Day 3, then Day 4)
     this.skylineWinMat.emissiveIntensity = SKYLINE_WARMTH.steady;
     this.skylineWinDiaryMat.emissiveIntensity = skylineDiaryWarmth(day);
-    // the barrier's last day is Day 3; the asphalt remembers
+    // the barrier's last day is Day 3; the asphalt remembers. The Roam
+    // override wins (freeroam.ts): while roam is active the barrier is
+    // down regardless of the day's diary — the whole block stays walkable.
     const diary = barrierDiary(day);
-    this.barrier.visible = diary.barrierVisible;
+    this.barrier.visible = this.barrierOpen ? false : diary.barrierVisible;
     this.asphaltPatch.visible = diary.patchVisible;
     // the board's slip rotates with the week
     this.flyerDay = day;

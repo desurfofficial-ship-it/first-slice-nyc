@@ -888,3 +888,38 @@ Gates this session: tsc clean · vitest 551/551 · build clean ·
 probe-shuffle SHUFFLE OK · probe-peds PEDS OK · E2E AUTOTEST OK 0 failures
 (572 s) · probe-one-second ONE-SECOND PREP OK ×3 (final at the evidence
 path; same-seed re-run reproduces the same 10 frames bit-for-bit).
+
+---
+Task ID: OPEN-WORLD-ROAM-M0
+Agent: Main Agent (architecture audit + open-world restructure)
+Task: Restructure the repo to the settled direction — a life sim on an open
+block. The four-day story stays the spine; the player gets free roam on
+their own clock. Blueprint in docs/architecture/01–07, shipped as M0.
+
+Work Log:
+- Audited web-three/src (~24.4k lines): the rails were the 33-step linear
+  GameState machine, the Day 1–3 water-main barrier, the story-owned
+  objective line, and the story-paced idle nudge — not the code, which
+  was already layered correctly (pure state → effects → one orchestrator).
+- Shipped the Roam layer: src/game/freeroam.ts (pure contract — one
+  field, zero imports), Game.toggleRoam + guards (objective law in
+  applyEffect, idle-nudge rest in drainFarWorld, sketch-book discovery
+  line in checkSketchReveals, handover invitation), World.setBarrierOpen
+  (visibility-is-collider law; dressDay respects the override), the
+  pocket Roam chip (index.html + UI.ts + style.css, Roam ↔ Story), and
+  the optional Save.roam field (starter-precedent conditional spread;
+  Day 2+ only — Day 1 never writes).
+- Evidence: tests/freeroam.test.ts (6), scripts/probe-roam.mjs (28
+  checks in real Chromium, 0 failures): barrier physics at its own
+  coordinates, story-stays-live mid-roam (pressing Rosa advances
+  MEET_ROSA with roam held), save round-trip both directions, silent
+  boot restore, console clean.
+- Docs: docs/architecture/01–07 (audit, gen-city-auto comparison, target
+  architecture, module map, M0–M4 roadmap, agent framework, perf/testing);
+  README.md pitch + pillar; AGENTS.md direction block + Roam law pointer.
+
+Stage Summary:
+- Gates at close: tsc clean · vitest 559/559 (553 legacy + 6 new) ·
+  probe-roam 28/28 · 4-day E2E AUTOTEST OK 0 failures (535 s) · build OK.
+- The story path is byte-for-byte the shipped behavior; roam adds a mode,
+  never removes a beat. Next up (docs/architecture/05): M1 beats-as-places.

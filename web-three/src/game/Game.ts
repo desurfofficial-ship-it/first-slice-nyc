@@ -19,6 +19,7 @@ import { composeCaption, tsWowCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE
   momentCornerCaption, MOMENT_TAGS, type MomentCardKind,
 } from '../core/content';
 import { loadSave, writeSave, type SaveData } from '../core/Save';
+import { FreeRoam, roamDiscoveryLine, ROAM_OBJECTIVE } from './freeroam';
 import { STARTERS, starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
 import { PAL } from '../core/palette';
 import { World, phys } from '../world/World';
@@ -125,6 +126,14 @@ export class Game {
   private brewTimer = 0;
   private brewingNoteShown = false;
   private washTimer = 0;
+
+  // ---- the Roam layer (freeroam.ts — the open-world contract) ----
+  // The story is the spine; roam is the promise that the city runs on the
+  // player's clock. The module holds the law, Game holds the levers: the
+  // barrier stands down, the objective line relaxes, the idle nudge rests.
+  // GameState is never touched — a roam session can neither advance nor
+  // rewind the story.
+  readonly roam = new FreeRoam();
 
   // ---- notes don't stampede (docs/12: the city is patient) ----
   // Two notes arriving together queue instead of replacing: Rosa's quiet
@@ -299,7 +308,16 @@ export class Game {
         this.state.starterId = save.starter!;
         this.applyStarter(save.starter!, false);
       }
-      void this.beginDay(save.day, save, save.day_complete || save.replay);
+      void this.beginDay(save.day, save, save.day_complete || save.replay).then(() => {
+        // the mode rides the save (Save.roam): a Day-2+ boot that went to
+        // bed mid-roam wakes up mid-roam — silently, no toast on boot
+        if (save.roam === true) {
+          this.roam.enter();
+          this.world.setBarrierOpen(true);
+          this.ui.setRoamLabel(true);
+          this.ui.setObjective(ROAM_OBJECTIVE);
+        }
+      });
     } else {
       this.state.money = START_MONEY;
       this.state.dayStartMoney = START_MONEY;
@@ -346,6 +364,7 @@ export class Game {
     this.ui.onCineSkip = () => { if (this.arrival.active) this.arrival.skip(); };
     this.ui.onOrderChoose = (reply) => this.advanceOrder(reply);
     this.ui.onMapToggle = () => this.toggleMap();
+    this.ui.onRoamToggle = () => this.toggleRoam();
     this.ui.postcardKeep.addEventListener('click', () => {
       if (!this.lastPostcardUrl) return;
       downloadPostcard(this.lastPostcardUrl, this.postcardFilename());
@@ -924,6 +943,28 @@ export class Game {
     this.ui.refreshSketch(this.state.visitedPlaces, this.player.capsule.x, this.player.capsule.z);
   }
 
+  /** The Roam toggle — the open-world contract's one switch (freeroam.ts).
+   *  Entering stands the barrier down and relaxes the objective line;
+   *  leaving restores the story's own. GameState is untouched: the story
+   *  neither advances nor rewinds because you roamed. From Day 2 on the
+   *  mode rides the save (Day 1 never writes — save.gd law). */
+  toggleRoam(): void {
+    if (this.arrival.active) return; // the film owns the hands first
+    const applied = this.roam.active ? this.roam.exit() : this.roam.enter();
+    this.world.setBarrierOpen(this.roam.active);
+    this.ui.setRoamLabel(this.roam.active);
+    if (applied.objective === null) this.ui.setObjective(this.state.objectiveText());
+    else this.ui.setObjective(applied.objective);
+    this.pushNote(applied.note);
+    const save = loadSave();
+    if (save.day >= 2) {
+      const next = { ...save };
+      if (this.roam.active) next.roam = true;
+      else delete next.roam;
+      writeSave(next);
+    }
+  }
+
   /** Map notices the places you walk to (docs/12: it copies the
    *  neighborhood badly, and only what it has seen). Throttled — a squared
    *  distance pass over nine places, twice a second, costs nothing. A new
@@ -945,6 +986,11 @@ export class Game {
     }
     if (revealed) {
       this.ui.wiggleMap();
+      // roam law: while roaming, the walk IS the content — the objective
+      // line counts the sketchbook instead of the errands
+      if (this.roam.active) {
+        this.ui.setObjective(roamDiscoveryLine(this.state.visitedPlaces.length, MAP_PLACES.length));
+      }
       if (this.mapOpen) this.ui.refreshSketch(this.state.visitedPlaces, px, pz);
     }
   }
@@ -1011,7 +1057,7 @@ export class Game {
         this.stillFor = 0;
         this.waitFired = false;
       }
-      if (!this.waitFired && cityWillWaitFires(this.stillFor)) {
+      if (!this.waitFired && !this.roam.active && cityWillWaitFires(this.stillFor)) {
         this.waitFired = true;
         this.pushNote(CITY_WILL_WAIT_NOTE);
       }
@@ -1084,8 +1130,13 @@ export class Game {
   applyEffect(e: Effect): void {
     switch (e.kind) {
       case 'step':
-        this.ui.setObjective(this.state.objectiveText());
-        if (e.step === Step.DONE) this.ui.setObjective(DAY_DONE_OBJECTIVE(this.state.day));
+        // roam law: the objective line belongs to the mode. Story steps
+        // still apply (the sim continues at the player's pace); only the
+        // HUD pressure rests while roaming.
+        if (!this.roam.active) {
+          this.ui.setObjective(this.state.objectiveText());
+          if (e.step === Step.DONE) this.ui.setObjective(DAY_DONE_OBJECTIVE(this.state.day));
+        }
         if (e.step === Step.D2_IDRIS) this.startIdrisWalk();
         break;
       case 'note':
@@ -1330,6 +1381,9 @@ export class Game {
   private onArrivalHandover(): void {
     this.checkpoint = { x: this.player.capsule.x, y: this.player.capsule.y, z: this.player.capsule.z };
     this.ui.showNote(MAP_NOTE_BOOT);
+    // The open-world contract, said out loud once: the story is the spine,
+    // but the block runs on your clock. The pocket's Roam chip is the switch.
+    this.pushNote('Rosa waves from the bodega — follow her, or tap Pocket → Roam and take the block in first.');
     // Doc 02: "Six starter characters to pick from (30 seconds, all
     // delightful)." An explicit ?pickcard=1 ask wins (same law as ?film=1);
     // otherwise only humans on the film path see it — drivers and film

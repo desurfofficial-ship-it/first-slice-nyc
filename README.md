@@ -5,9 +5,9 @@
 
 **"Fall in love with New York, one slice at a time."**
 
-*A cozy lowpoly life-simulation game for the billions of people who have never set foot in New York City — but have dreamed about it their whole lives.*
+*A cozy lowpoly life-simulation game for the billions of people who have never set foot in New York City — but have dreamed about it their whole lives. A life sim **on an open block**: follow the story beat by beat, or tap **Roam** and let the city run on your clock.*
 
-[Game Design Document](docs/01-game-design-document.md) · [Vertical Slice](docs/07-vertical-slice-design.md) · [Greybox](greybox-godot/) · [AGENTS.md](AGENTS.md)
+[Game Design Document](docs/01-game-design-document.md) · [Vertical Slice](docs/07-vertical-slice-design.md) · [Architecture Blueprints](docs/architecture/) · [Greybox](greybox-godot/) · [AGENTS.md](AGENTS.md)
 
 </div>
 
@@ -20,6 +20,8 @@
 You start with a humble coffee cart on a quiet corner. Through short daily sessions you learn the city’s ways and slowly build your own piece of it:
 
 **Coffee Cart → Bodega → Café → Food Spot → Rooftop**
+
+And when the day's errands can wait, **the whole block is yours** — the pocket's **Roam** chip opens every corner from the first minute (the story simply waits where you left it): ride the subway, shoot half-court, sit on a bench with a slice, read the newsboxes, buy the bodega's mango. The walkers, the traffic, the busker and the street keep living whether you follow Rosa or not.
 
 Every session ends with a **postcard** — a beautiful, auto-composed, captioned snapshot of something you discovered. By the end you’ve never been to Manhattan, but you swear you could navigate it.
 
@@ -36,6 +38,7 @@ Every session ends with a **postcard** — a beautiful, auto-composed, captioned
 | **Wonder first** | Every session has a designed “I wish I could see that” moment. |
 | **Postcard beauty** | Lowpoly, golden-hour, vertical-first. Readable in one second. |
 | **Short & satisfying** | One in-game day ≈ 5–8 minutes. Natural stopping point every session. |
+| **Free roam, no leash** | The story is the spine; the city runs on your clock. One Roam chip — no errand is ever forced, no corner is ever locked. |
 | **Share-native** | Postcards and skyline moments are built to be sent to friends. |
 
 ---
