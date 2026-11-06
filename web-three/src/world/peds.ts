@@ -50,6 +50,10 @@ import {
   resolveCirclesXZ, pushCircleOutOfRectXZ, type AABB, type CirclePush,
 } from '../engine/collide';
 import type { StreetPlan, StreetRole } from './dressing';
+import {
+  type CommuteContext, type CommuteState, newCommuteState,
+  pickDestination, standPoint, dwellFor, RETRY_FRAMES,
+} from './pedCommute';
 
 /** Walkers wear the same look schema as the cast — scale/shoe included. */
 export interface PedLook extends PersonLook {}
@@ -216,6 +220,12 @@ interface Ped {
   role: StreetRole;        // their shift — read by applyStreetPlan only
   home: boolean;           // off stage: hidden, collider parked, not simulated
   duskIdx: number;         // order among the dusk-shift walkers (roster order)
+  // ---- the commute (WP-3v: destination movement over the ONE nav graph) ----
+  // null = the shipped loop walker (pre-WP-3v constructions and tests are
+  // byte-for-byte unchanged); non-null = destination movement is armed.
+  commute: CommuteState | null;
+  commuteRng: (() => number) | null; // this walker's OWN seeded stream
+  animTick: number;        // deterministic LOD parity (anim cadence at distance)
 }
 
 const MAX_DT = 0.1; // matches the game loop's clamp — Yuka integrates with the same dt
@@ -291,6 +301,20 @@ export class Pedestrians {
   /** Real bodies for the player's collision stack (World registers these).
    *  Parked underground until the first update puts each under its walker. */
   readonly walkColliders: AABB[];
+  // ---- the commute (WP-3v) ----
+  private commuteCtx: CommuteContext | null = null;
+  private commuteCursor = 0;   // round-robin build cursor (deterministic order)
+  private commutes = 0;        // routes walked to their destination (diagnostics)
+  // Route-build budget: at most BUILDS_PER_FRAME pathfinding calls per
+  // frame (each is a cached A* — bounded, never a per-frame full rebuild).
+  private static readonly BUILDS_PER_FRAME = 2;
+  // The dwell/arrived detection radii (see stepCommutes).
+  private static readonly ARRIVE_R = 0.75;
+  private static readonly STUCK_ARRIVE = 3; // stuck windows before "close enough"
+  // Reusable pin buffers — the pin pass allocates NOTHING per frame.
+  private readonly pinPeds: Ped[] = [];
+  private readonly pinX: number[] = [];
+  private readonly pinZ: number[] = [];
 
   constructor(
     scene: THREE.Scene,
@@ -430,6 +454,10 @@ export class Pedestrians {
         faceTo: null,
         cooldown: 1.2 + i * 0.7, // don't pause in the first seconds a player sees them
         latched: false,
+        // the commute: armed later by setCommute (null = the shipped loop)
+        commute: null,
+        commuteRng: null,
+        animTick: 0,
       });
     });
 
@@ -460,6 +488,137 @@ export class Pedestrians {
     return out;
   }
   private readonly bodiesOut: Array<{ x: number; z: number }> = [];
+
+  // ==================== the commute (WP-3v) ====================
+
+  /**
+   * Arm destination movement. `ctx` is the game layer's view of the ONE
+   * navigation graph (destinations, routing under the STREET gate, the
+   * availability epoch); `seed` gives every walker their OWN deterministic
+   * stream (seed + i·7919) — stable per-agent seeds, never global
+   * randomness. Idempotent per context (re-arming with the same context
+   * keeps each walker's stream and progress; only a first arm seeds).
+   * Loop walkers whose routes fail keep their shipped authored loop —
+   * the street never freezes, it just keeps its old habits.
+   */
+  setCommute(ctx: CommuteContext, seed: number): void {
+    const firstArm = this.commuteCtx === null;
+    this.commuteCtx = ctx;
+    for (let i = 0; i < this.peds.length; i++) {
+      const p = this.peds[i];
+      if (p.commute) continue; // already armed — keep their stream/progress
+      p.commute = newCommuteState(ctx.epoch());
+      p.commuteRng = seededRng(seed + i * 7919);
+      if (firstArm) {
+        // destination dwells replace the authored loop beats — the beats
+        // were loop-geometry, and a commuter's route is the graph's
+        p.stops = [];
+      }
+    }
+  }
+
+  /** Routes walked to their destination since boot (diagnostics/probe). */
+  commutesWalked(): number { return this.commutes; }
+
+  /** One walker's commute state, for tests and the browser probe. */
+  commuteStateOf(i: number): {
+    armed: boolean; destId: string | null; arrived: boolean; epoch: number; retry: number;
+  } | null {
+    const p = this.peds[i];
+    if (!p) return null;
+    return {
+      armed: p.commute !== null,
+      destId: p.commute?.destId ?? null,
+      arrived: p.commute?.arrived ?? false,
+      epoch: p.commute?.epoch ?? 0,
+      retry: p.commute?.retry ?? 0,
+    };
+  }
+
+  /**
+   * The per-frame commute step — route builds under a strict budget,
+   * arrival detection, dwell arming, epoch re-derivation. Runs BEFORE
+   * the steering step so a swapped path drives this frame's forces.
+   * Allocation-free in steady state (the only allocations are a new
+   * Path at the rare route swap — every ~30–90 s per walker).
+   */
+  private stepCommutes(): void {
+    const ctx = this.commuteCtx;
+    if (!ctx) return;
+    const epoch = ctx.epoch();
+    let builds = Pedestrians.BUILDS_PER_FRAME;
+    const n = this.peds.length;
+    for (let k = 0; k < n; k++) {
+      // round-robin cursor: walkers take their budgeted turn in a stable
+      // order, so a busy frame never starves the same walker twice running
+      const i = (this.commuteCursor + k) % n;
+      const p = this.peds[i];
+      const c = p.commute!;
+      if (p.home) continue; // the schedule froze them — no route work
+      if (c.retry > 0) { c.retry--; continue; }
+
+      // arrival: the path is exhausted (index clamped at the last waypoint)
+      // and the body is within the arrive radius — or pinned against
+      // something for a few windows trying (the anti-stuck fallback: treat
+      // "close enough" as there, dwell, move on; nobody grinds forever)
+      if (!c.arrived && c.destId !== null && p.fpb.path.finished()) {
+        const v = p.vehicle.position;
+        const last = p.fpb.path.current();
+        const d = Math.hypot(v.x - last.x, v.z - last.z);
+        if (d <= Pedestrians.ARRIVE_R || p.stuckTime >= Pedestrians.STUCK_ARRIVE) {
+          c.arrived = true;
+          this.commutes++;
+          // window shopping: stand a seeded beat, face the frontage — the
+          // SHIPPED dwell machinery does the counting, the pinning and the
+          // facing (dwellLeft/faceTo/latched serve both populations)
+          p.dwellLeft = dwellFor(p.commuteRng!);
+          const np = ctx.nodePos(c.destId);
+          p.faceTo = np ? [np.x, np.z] : null;
+          continue;
+        }
+      }
+
+      // dwell over (the shipped block cleared dwellLeft + latched): pick
+      // the next destination and build
+      const needsNext = c.arrived && p.dwellLeft <= 0;
+      const needsFirst = c.destId === null;
+      const needsRedo = !c.arrived && c.epoch !== epoch; // world changed under us
+      if (!needsNext && !needsFirst && !needsRedo) continue;
+      if (builds <= 0) continue; // the budget decides; the cursor keeps order
+      const destId = needsRedo && c.destId !== null
+        ? c.destId
+        : pickDestination(p.commuteRng!, ctx.destinations, c.destId);
+      if (!destId) { c.retry = RETRY_FRAMES; continue; }
+      const v = p.vehicle.position;
+      const pts = ctx.routeTo(v.x, v.z, destId);
+      if (!pts || pts.length < 2) {
+        // no legal route right now: wait politely, keep the current path
+        // (first-build failures keep the shipped loop — never a freeze)
+        c.retry = RETRY_FRAMES;
+        continue;
+      }
+      // swap the path: non-loop, ending at the STAND-OFF (one body-length
+      // short of the door node, facing it — never pressed into a facade).
+      // The stand point lies ON the final leg, so truncating the last
+      // waypoint to it keeps the graph's geometry — the walker simply
+      // stops short of the facade instead of turning back for a waypoint.
+      const stand = standPoint(pts);
+      const path = new Path();
+      path.loop = false;
+      for (let j = 0; j < pts.length - 1; j++) path.add(new Vector3(pts[j].x, 0, pts[j].z));
+      path.add(new Vector3(stand.x, 0, stand.z));
+      p.fpb.path = path;
+      // the band follows the route (push containment, district-legal)
+      p.band = bandOfLoop(pts.map((pt) => [pt.x, pt.z] as [number, number]));
+      c.destId = destId;
+      c.arrived = false;
+      c.epoch = epoch;
+      p.latched = false;
+      builds--;
+    }
+    this.commuteCursor = (this.commuteCursor + 1) % Math.max(1, n);
+  }
+
 
   /**
    * The street schedule's word (M4, world/dressing STREET_PLAN). Idempotent
@@ -538,6 +697,9 @@ export class Pedestrians {
     bus?: { x: number; z: number },
   ): void {
     this.time += dt;
+    // the commute first: route swaps and arrival/dwell arming drive THIS
+    // frame's steering (a swapped path must be the one Yuka integrates)
+    this.stepCommutes();
     if (player) this.playerObstacle.position.set(player.x, 0, player.z);
     if (cart) this.cartObstacle.position.set(cart.x, 0, cart.z);
     if (taxi) this.taxiObstacle.position.set(taxi.x, 0, taxi.z);
@@ -594,16 +756,22 @@ export class Pedestrians {
 
     // pinned walkers hold their exact spot through the integration step —
     // and so do HOME walkers: the schedule suspends them, it does not
-    // unroute them (Yuka integrates every entity; the pin is the off switch)
-    const pinned = this.peds
-      .filter((p) => p.dwellLeft > 0 || p.home)
-      .map((p) => ({ p, x: p.vehicle.position.x, z: p.vehicle.position.z }));
+    // unroute them (Yuka integrates every entity; the pin is the off switch).
+    // Reusable buffers: the pin pass allocates NOTHING per frame.
+    this.pinPeds.length = 0; this.pinX.length = 0; this.pinZ.length = 0;
+    for (const p of this.peds) {
+      if (p.dwellLeft > 0 || p.home) {
+        this.pinPeds.push(p);
+        this.pinX.push(p.vehicle.position.x);
+        this.pinZ.push(p.vehicle.position.z);
+      }
+    }
 
     this.manager.update(Math.min(dt, MAX_DT));
 
-    for (const pin of pinned) {
-      pin.p.vehicle.position.set(pin.x, 0, pin.z);
-      pin.p.vehicle.velocity.set(0, 0, 0);
+    for (let i = 0; i < this.pinPeds.length; i++) {
+      this.pinPeds[i].vehicle.position.set(this.pinX[i], 0, this.pinZ[i]);
+      this.pinPeds[i].vehicle.velocity.set(0, 0, 0);
     }
 
     // ---- hard guarantees (steering asked; physics resolves) --------------
@@ -734,11 +902,22 @@ export class Pedestrians {
       const vx = p.vehicle.velocity.x;
       const vz = p.vehicle.velocity.z;
       if (vx * vx + vz * vz > 0.01) p.group.rotation.y = Math.atan2(vx, vz);
+      // distance-tiered detail (WP-3v, deterministic — no wall clock):
+      //   near  (<45 m): full rate — anim every frame, chat scan live
+      //   mid   (<90 m): anim every OTHER frame per-walker parity (the rig
+      //                  reads its own position delta; a half-rate clock at
+      //                  45 m+ is imperceptible), chat scan live
+      //   far   (≥90 m): steering + body sync only — anim and the chat
+      //                  scan skip (the walkers are sub-pixel believable)
+      const tierDist = player ? Math.hypot(v.x - player.x, v.z - player.z) : 0;
+      const far = player !== undefined && tierDist >= 90;
+      const mid = player !== undefined && tierDist >= 45;
+      p.animTick = (p.animTick + 1) & 1;
       // dwelling: face the beat — or a neighbor who stopped beside you
       // (two dwelling walkers within CHAT_RANGE face each other: the
       // block's occasional two-person conversations, emergent from the
       // schedules, never scripted)
-      if (p.dwellLeft > 0) {
+      if (p.dwellLeft > 0 && !far) {
         let tx: number | null = null;
         let tz: number | null = null;
         let bestD2 = CHAT_RANGE * CHAT_RANGE;
@@ -759,7 +938,7 @@ export class Pedestrians {
       }
       // the rig measures its own position delta → the walk cycle is free
       // (a dwelling walker's delta is zero → it reads as a natural idle)
-      updatePersonAnim(p.group, dt);
+      if (!far && (!mid || p.animTick === 0)) updatePersonAnim(p.group, dt);
       // the brush bubble rides its own mouth: hold ~2 s, fade the last half
       if (p.bubbleT > 0) {
         p.bubbleT -= dt;

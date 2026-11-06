@@ -313,6 +313,21 @@ export class World {
     return this.peds ? this.peds.walkColliders.length : 0;
   }
 
+  /** Arm navigation-aware commuting (WP-3v): the game layer hands the
+   *  walkers its view of the ONE navigation graph (destinations, street
+   *  routing, the availability epoch) and a seed base. The walkers keep
+   *  Yuka's steering stack and every shipped hard guarantee — they gain
+   *  destination movement over the graph. Pure pass-through; safe before
+   *  the roster exists (a no-op), safe to call once at boot. */
+  setPedCommute(ctx: import('./pedCommute').CommuteContext, seed: number): void {
+    if (this.peds) this.peds.setCommute(ctx, seed);
+  }
+
+  /** Ambient commute diagnostics for probes/tests. */
+  pedCommutesWalked(): number {
+    return this.peds ? this.peds.commutesWalked() : 0;
+  }
+
   private steamPoints: THREE.Points;
   private steamSeed: Float32Array;
   private steamLife: Float32Array;

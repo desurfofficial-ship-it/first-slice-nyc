@@ -69,6 +69,7 @@ export interface NavEdge {
 
 export interface NavIssue {
   code: 'DANGLING_EDGE' | 'ZERO_EDGE' | 'ORPHAN_NODE' | 'EDGE_THROUGH_FOOTPRINT'
+    | 'EDGE_THROUGH_ROAD'
     | 'DOOR_WITHOUT_SIDEWALK' | 'LOBBY_WITHOUT_DOOR' | 'OUT_OF_BOUNDS' | 'DUP_EDGE';
   detail: string;
 }
@@ -177,6 +178,11 @@ export class NavGraph {
     footprints: Array<{ id: string; fp: RegistryFootprint }>;
     bounds: { xMin: number; xMax: number; zMin: number; zMax: number };
     exemptFootprintIds?: ReadonlySet<string>;
+    /** The road rectangles (registry streets) — a walk/lane edge may not
+     *  cross one: through-traffic crosses at a zebra only. `cross` edges
+     *  and the zebra corridor (edges touching a `nav:xw:*` landing) are
+     *  the exempt legal road surface. */
+    roads?: Array<{ xMin: number; xMax: number; zMin: number; zMax: number }>;
   }): NavIssue[] {
     const issues: NavIssue[] = [];
     for (const [key, e] of this.edges) {
@@ -217,6 +223,32 @@ export class NavGraph {
             issues.push({ code: 'EDGE_THROUGH_FOOTPRINT', detail: `${edgeKey(e.a, e.b)} → ${bId}` });
             i = steps + 1; // stop sampling this edge
             break;
+          }
+        }
+      }
+    }
+    // edges vs road rectangles (the gap law's runtime half): a walk/lane
+    // edge may not cross a perpendicular roadway — only the zebras (cross
+    // edges) and their landing corridors may touch the asphalt
+    if (opts.roads && opts.roads.length > 0) {
+      for (const e of this.edges.values()) {
+        if (e.kind === 'cross' || e.kind === 'door') continue;
+        if (e.a.startsWith('nav:xw:') || e.b.startsWith('nav:xw:')) continue;
+        const na = this.nodes.get(e.a)!;
+        const nb = this.nodes.get(e.b)!;
+        const len = this.edgeLength(e);
+        const steps = Math.max(2, Math.ceil(len / 0.5));
+        let flagged = false;
+        for (let i = 0; i <= steps && !flagged; i++) {
+          const t = i / steps;
+          const x = na.x + (nb.x - na.x) * t;
+          const z = na.z + (nb.z - na.z) * t;
+          for (const r of opts.roads) {
+            if (x > r.xMin + 0.05 && x < r.xMax - 0.05 && z > r.zMin + 0.05 && z < r.zMax - 0.05) {
+              issues.push({ code: 'EDGE_THROUGH_ROAD', detail: `${edgeKey(e.a, e.b)} in road (${r.xMin},${r.zMin})..(${r.xMax},${r.zMax})` });
+              flagged = true;
+              break;
+            }
           }
         }
       }
@@ -284,6 +316,23 @@ export function footprintsOf(doc: RegistryDoc): Array<{ id: string; fp: Registry
   for (const b of doc.buildings ?? []) {
     if (b.class === 'D') continue; // skyline masses — outside the walk world
     if (b.footprint) out.push({ id: b.id, fp: b.footprint });
+  }
+  return out;
+}
+
+/** The document's road rectangles — the gap law's validation input. */
+export function roadRectsOf(doc: RegistryDoc): Array<{ xMin: number; xMax: number; zMin: number; zMax: number }> {
+  const out: Array<{ xMin: number; xMax: number; zMin: number; zMax: number }> = [];
+  for (const s of doc.streets ?? []) {
+    const r = s.road;
+    if (!r) continue;
+    if (s.axis === 'NS') {
+      if (r.xMin === undefined || r.xMax === undefined) continue;
+      out.push({ xMin: r.xMin, xMax: r.xMax, zMin: -1024, zMax: 1024 });
+    } else {
+      if (r.zMin === undefined || r.zMax === undefined) continue;
+      out.push({ xMin: -1024, xMax: 1024, zMin: r.zMin, zMax: r.zMax });
+    }
   }
   return out;
 }

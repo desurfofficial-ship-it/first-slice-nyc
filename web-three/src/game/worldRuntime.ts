@@ -122,6 +122,36 @@ export class WorldRuntime {
     this.bootedFresh = boot.source === 'fresh';
     this.bootNotes = boot.notes;
     this.bindBodies();
+    this.armAmbientCommute();
+  }
+
+  /**
+   * WP-3v: arm the ambient walkers' commute over the ONE navigation
+   * graph. The context is this runtime's own view of its nav facade —
+   * no second graph, no second clock: destinations are the graph's
+   * street-level nodes, routes run under the STREET gate (door edges
+   * never traversable — an ambient body never claims an interior), and
+   * the epoch is the same availability generation the bound cast reads
+   * (the sim clock's minute drives it; a paused world stops it). The
+   * walkers keep Yuka and every shipped hard guarantee; they gain
+   * destination movement. Seed 20261106: stable per-agent streams —
+   * the same boot meets the same commute choices.
+   */
+  private armAmbientCommute(): void {
+    const world = this.game.world;
+    if (!world?.setPedCommute) return; // headless/stub world — nothing to arm
+    world.setPedCommute({
+      destinations: this.nav.streetDestinations(),
+      nodePos: (id) => {
+        const n = this.nav.graph.node(id);
+        return n ? { x: n.x, z: n.z } : null;
+      },
+      routeTo: (x, z, destId) => {
+        const r = this.nav.routeToStreet({ x, z }, destId);
+        return r ? r.points : null;
+      },
+      epoch: () => this.nav.availabilityGen(this.brain.clock.minuteOfDay),
+    }, 20261106);
   }
 
   // ---- wiring ------------------------------------------------------------

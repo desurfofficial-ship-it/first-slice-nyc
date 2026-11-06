@@ -23,7 +23,7 @@ import { Navigation } from '../src/sim/nav';
 import { NavGraph } from '../src/sim/nav/graph';
 import { NavPathfinder } from '../src/sim/nav/pathfind';
 import { RouteFollower } from '../src/sim/nav/follower';
-import { footprintsOf } from '../src/sim/nav/graph';
+import { footprintsOf, roadRectsOf } from '../src/sim/nav/graph';
 
 /** Deterministic PRNG for the fuzz pins (mulberry32). */
 function mulberry32(seed: number): () => number {
@@ -78,13 +78,33 @@ describe('nav graph build (registry-seeded)', () => {
     expect(s.components).toBe(1); // the block is ONE walkable world
   });
 
-  it('validates clean — no edge through a footprint, no orphans, in bounds', () => {
+  it('validates clean — no edge through a footprint OR a road, no orphans, in bounds', () => {
     const issues = graph.validate({
       footprints: footprintsOf(registry.doc),
       bounds: { xMin: -84, xMax: 84, zMin: -48, zMax: 48 },
       exemptFootprintIds: PASSABLE_FOOTPRINTS,
+      roads: roadRectsOf(registry.doc),
     });
     expect(issues).toEqual([]);
+  });
+
+  it('never bridges a perpendicular road mid-block (the gap law)', () => {
+    // the WP-3v catch: sidewalk spines ran straight through Kestrel at
+    // x ±61.5/±82.5 (and the EW lanes through the avenues) — a jaywalk
+    // the authored loops never had. The chain must break at every road
+    // mouth; the only legal road edges are the zebras + landing corridors.
+    for (const x of [61.5, 82.5, -61.5, -82.5]) {
+      for (const [za, zb] of [[-6, 6], [30, 50], [-50, -30]] as Array<[number, number]>) {
+        const a = [...graph.nodes.values()].find((n) => n.kind === 'sidewalk'
+          && Math.abs(n.x - x) < 0.05 && Math.abs(n.z - za) < 0.05);
+        const b = [...graph.nodes.values()].find((n) => n.kind === 'sidewalk'
+          && Math.abs(n.x - x) < 0.05 && Math.abs(n.z - zb) < 0.05);
+        if (!a || !b) continue;
+        expect(graph.edgeBetween(a.id, b.id), `no through edge at x ${x} across Kestrel`).toBeNull();
+      }
+    }
+    // and the street is still ONE world — the zebras + corners reconnect it
+    expect(graph.stats().components).toBe(1);
   });
 
   it('is byte-identical across builds (the determinism pin)', () => {
