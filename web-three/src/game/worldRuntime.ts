@@ -33,6 +33,7 @@
 import * as THREE from 'three';
 import { bootWorldBrain, buildReferencePlaceResolver, DEFAULT_TIMESCALE,
   type BrainEvent, type SimDirective, type WorldSimBrain } from '../sim/runtime';
+import { simTickOfStoryDay } from '../sim/epochMap';
 import { loadRegistry } from '../sim/registry';
 import { WORLD_SAVE_KEY } from '../sim/state';
 import type { Effect } from '../core/GameState';
@@ -334,9 +335,11 @@ export class WorldRuntime {
 
   /** beginDay: the story's morning may pull the world clock FORWARD to
    *  the story's morning when the story has run ahead (a fresh story on
-   *  an old world). One-way, whole minutes — the world never rewinds. */
+   *  an old world). One-way, whole minutes — the world never rewinds.
+   *  The morning anchor is the mapping's (`sim/epochMap.ts`, WP-2v): one
+   *  statement of the story→sim law, no duplicated arithmetic here. */
   onStoryDayBegin(storyDay: number): void {
-    const target = (storyDay - 1) * 1440 + 7 * 60 + 40;
+    const target = simTickOfStoryDay(storyDay);
     const delta = target - this.brain.clock.tick;
     if (delta > 0) this.brain.advanceMinutes(delta);
     if (this.active) this.flushWorldSave();

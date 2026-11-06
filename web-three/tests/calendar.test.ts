@@ -26,6 +26,7 @@ import {
   crossedSeasonCut, dateOfCalendarDay, formatGameDate, monthLength, seasonOf,
   type GameDate,
 } from '../src/core/calendar';
+import { datelineOfStoryDay, epochAgreement } from '../src/sim/epochMap';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -161,5 +162,20 @@ describe('calendar — the dateline and the no-real-dates law (R4 acceptance)', 
     // the class of mistake — reaching for the real clock — cannot return
     // quietly: any of these in the source fails this test (AGENTS.md §1c.1)
     expect(src).not.toMatch(/new\s+Date|Date\.now|Date\.parse|toLocaleDateString|toISOString|performance\.now/);
+  });
+});
+
+describe('calendar — the epoch mapping layer agrees (sim/epochMap, WP-2v)', () => {
+  it('the story calendar and the sim clock anchor the same ruled epoch (DEC-1)', () => {
+    const report = epochAgreement();
+    expect(report.agreed, report.issues.join('; ')).toBe(true);
+  });
+
+  it('the mapping renders this calendar\u2019s dates — one dateline, no forks', () => {
+    expect(datelineOfStoryDay(1)).toBe(formatGameDate(CAL_EPOCH));
+    expect(datelineOfStoryDay(1)).toBe('September 9 · Year 1');
+    for (let day = 1; day <= 366; day += 5) {
+      expect(datelineOfStoryDay(day)).toBe(formatGameDate(dateOfCalendarDay(day)));
+    }
   });
 });
