@@ -1817,3 +1817,22 @@ Stage Summary:
 - Files changed: `src/game/pauseSet.ts` (new) · `src/game/Game.ts` (the call site + import, ~15 lines) · `tests/sim-runtime.test.ts` (+11 cases) · `scripts/probe-pause-set.mjs` (new) · register/plan/risks rows.
 - Next: integration to main behind the full post-merge battery, then the Part 4 recommendation (WP-4 vs Phase 3 navigation).
 - Gates at close (branch `feat/wp-1v-pause-set`, pre-merge): tsc clean · **vitest 840/840 (57 files)** · build OK · sim-runtime 37/37 · **probe-pause-set 11/11, console clean** · 4-day E2E **0 failures** (532 s, console clean).
+
+---
+
+## 2026-11-06 — Technical Integration Lead: WP-1v INTEGRATED + VERIFIED on main — the pause set closes, both WPs green end to end
+
+Task ID: WP-1V-INTEGRATION
+Agent: Technical Integration Lead / Production Director (Z.ai)
+Task: Part 2 integration + runtime verification — merge `feat/wp-1v-pause-set` to main, never force-push, mark VERIFIED only on post-merge evidence; then the Part 4 recommendation.
+
+Work Log:
+- **Integration:** `git merge --no-ff feat/wp-1v-pause-set` at main `b0277ad` → merge commit **`0e22ff5`** (impl `91687e3`). Zero conflicts; nothing overwritten.
+- **Post-merge battery (all executed on the integrated tree):** tsc clean · vitest **840/840 (57 files, +11)** · build OK · targeted calendar/epoch/runtime/state **105/105** (sim-runtime 37 · epoch-map 26 · calendar 19 · sim-state 13 · sim-clock 10) · `probe-world-sim` **15/15** (1,424 sim-min, 71.5 s real, zero page errors) · `probe-pause-set` **11/11, console clean** (wardrobe/postcard hold the clock at exactly 0 ticks; resume without burst; the map keeps the block breathing; 60 rapid toggles, no phantom time) · 4-day E2E **0 failures (601 s, console clean)** — every postcard beat and day transition replayed under the new pause set; the money wall holds ($87→$112→$123).
+- **Environment note:** Playwright's chromium binary was re-installed after the sandbox recycle (environmental, not a repo change).
+- **Part 4 recommendation (no implementation — separate authorization required):** see the FINAL REPORT accompanying this entry — **A-1 (the navigation graph) first, WP-4 (D-3 money bridge) second**; details below.
+
+Stage Summary:
+- **WP-2v: INTEGRATED + VERIFIED. WP-1v: INTEGRATED + VERIFIED.** The clock now has one mapping, one dateline, an enforced epoch agreement, and a host pause set that holds still for held beats while the block keeps breathing under the map.
+- Open next per the plan: WP-3v (ambient walkers), WP-4 (money bridge), WP-5 (R2+R7), WP-6 (diary/date UI — consumes the mapping), WP-7 (evidence).
+- Gates at close: main `0e22ff5`; tsc clean; vitest 840/840; build OK; targeted 105/105; probe-world-sim 15/15; probe-pause-set 11/11; E2E 0 failures (601 s, console clean).
