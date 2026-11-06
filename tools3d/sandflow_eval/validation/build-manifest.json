@@ -1,0 +1,67 @@
+{
+  "sand3d_version": "1.6.3",
+  "bpy": "5.2.3 LTS",
+  "assets": [
+    {
+      "name": "storefront",
+      "file": "web-three/public/models-experimental/sandflow/storefront.glb",
+      "bytes": 208724,
+      "build_s": 0.42,
+      "sha256": "09eeae5b8ffc7d42",
+      "nodes": 25,
+      "meshes": 20,
+      "mesh_names": [
+        "back_wall",
+        "bulkhead",
+        "bulkhead",
+        "door_glass",
+        "door_slab",
+        "gooseneck",
+        "header",
+        "kick_plate",
+        "lamp_bulb",
+        "lamp_shade",
+        "pier",
+        "pier",
+        "push_bar",
+        "sidelight_frame",
+        "sidelight_frame",
+        "sidelight_glass",
+        "sidelight_glass",
+        "sign_letters",
+        "sign_panel",
+        "threshold"
+      ],
+      "tris": 9460,
+      "materials": [
+        "aluminium roughness=0.35",
+        "aluminium roughness=0.4",
+        "aluminium roughness=0.5",
+        "glass #dfe9ea opacity=0.35",
+        "light #ffb85c",
+        "painted_metal #2a9d8f roughness=0.45",
+        "painted_metal #2a9d8f roughness=0.5",
+        "painted_metal #2b2730 roughness=0.6",
+        "painted_metal #3a3440 roughness=0.5",
+        "painted_metal #f7b32b roughness=0.35",
+        "plastic #8e6f66 roughness=0.85",
+        "plastic #a3857a roughness=0.85"
+      ],
+      "joints": [
+        {
+          "name": "storefront_door_hinge",
+          "kind": "revolute",
+          "range": [
+            0.0,
+            95.0
+          ]
+        }
+      ],
+      "bbox_mm": [
+        4850.0,
+        845.0,
+        3171.1
+      ]
+    }
+  ]
+}
