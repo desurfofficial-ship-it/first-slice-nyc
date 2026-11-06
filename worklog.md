@@ -1563,3 +1563,22 @@ Work Log:
 Stage Summary:
 - The one time authority is now canon: **Day 1 = Tuesday, September 9, Year 1 — the arrival.** Seven canon documents said so; zero said October 1; the calendar now agrees with the story.
 - Gates at this commit: docs-only change (canon register + production records + worklog); no source files modified yet; no dependencies added.
+
+---
+
+## 2026-11-06 — Narrative Director: the epoch correction lands — CAL_EPOCH is September 9, Year 1, and the suite is green on it
+
+Task ID: DEC-1-EPOCH-FIX
+Agent: Lead Narrative Director (Z.ai)
+Task: Apply the owner-approved DEC-1 ruling to the code: `CAL_EPOCH` → Sept 9, re-pin the calendar tests, correct the epoch claims in Save/GameState comments, verify weekday math and every calendar-dependent test (owner sequence steps 3–4).
+
+Work Log:
+- `core/calendar.ts`: `CAL_EPOCH` → `{ y: 1, m: 9, d: 9 }`; header rewritten — the epoch cites doc 12 §1 + the DEC-1 ruling, the mood-lock is restated as presentation-only per doc 12 §5's own scoping, the §6 citation for "the calendar never negotiates" and the spine length is corrected (was §5). No-`Date` law untouched; February stays fixed 28.
+- `tests/calendar.test.ts` re-pinned: Day 1 = Sept 9 (Tue); shipped Day 1–4 = Sept 9–12; Dec 31 Y1 = day 114; **new canon-chronology pin** — C0 closes day 7, C1 opens day 8 (the Sept 16 cut), first post-cut Monday day 14 (Sept 22), nor'easter days 51–54, the terminal day 809 (Nov 26, Y3).
+- `core/Save.ts` + `core/GameState.ts`: epoch comments corrected (no schema change — `calendar_day` remains the additive counter; old saves re-render correctly under the new epoch; no date has ever rendered to a player).
+- Weekday verification: calendar.ts intentionally has no weekday function — weekdays belong to the sim clock (world-contract 06 §2); the branch's `sim-clock.test.ts` pins day 1 = Tue / day 8 = Tue and is re-run green on the branch worktree (next entry). Independent arithmetic check (chronology script): Sept 9 = Tue ✓, Sept 15 = Mon ✓ (doc 06 §C0), Sept 16 = Tue, Oct 1 = Wed.
+- Gates on main: `tsc --noEmit` clean; **vitest 661/661 (44 files, 7.1 s)** — the audit's 660 + the new canon pin; docs-hygiene green (R0 was re-pointed on main by WS-C).
+
+Stage Summary:
+- The playable game's calendar and the story bible now agree end to end: Day 1 = Tuesday, September 9, Year 1; C0 = days 1–7; every doc 12 §2 date maps to a positive story day and renders as authored.
+- Gates at close: tsc clean · vitest 661/661 · no dependencies added · the mood-lock and all shipped beats untouched.

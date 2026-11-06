@@ -2,13 +2,19 @@
  * The in-game calendar (narrative/14 R4 — core/calendar.ts).
  *
  * The load-bearing laws, each pinned:
- *   1. The epoch is the shipped mood-lock: Day 1 = October 1, Year 1 —
- *      and the shipped Day 1–4 land on October 1–4, Year 1 byte-for-byte.
+ *   1. The epoch is the canon arrival: **Day 1 = Tuesday, September 9,
+ *      Year 1** (doc 12 §1; DEC-1, owner-approved 2026-11-06) — and the
+ *      shipped Day 1–4 land on September 9–12, Year 1. The "October,
+ *      golden hour, forever" mood-lock (doc 12 §5) is presentation-only,
+ *      never a date.
  *   2. Pure arithmetic: month rollover, year rollover, round-trips.
  *   3. Seasons by month; the `seasonCut` is a boundary, not a clock.
  *   4. **No real-world dates anywhere** — the R4 acceptance test: the
  *      module's source contains no `Date` object usage, and the rendered
  *      dateline can never carry a real-world year.
+ *   5. The doc 12 §2 chronology maps to story days exactly: C0 closes on
+ *      day 7, C1 opens at the day-8 season cut, the nor'easter is days
+ *      51–54, the terminal is day 809 (Nov 26, Y3).
  */
 
 import { describe, expect, it } from 'vitest';
@@ -23,17 +29,30 @@ import {
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-describe('calendar — the epoch is the shipped mood-lock (narrative/12 §5)', () => {
-  it('Day 1 is October 1, Year 1', () => {
-    expect(dateOfCalendarDay(1)).toEqual({ y: 1, m: 10, d: 1 });
-    expect(CAL_EPOCH).toEqual({ y: 1, m: 10, d: 1 });
+describe('calendar — the epoch is the canon arrival (narrative/12 §1, DEC-1)', () => {
+  it('Day 1 is Tuesday, September 9, Year 1 — the arrival (DEC-1, 2026-11-06)', () => {
+    expect(dateOfCalendarDay(1)).toEqual({ y: 1, m: 9, d: 9 });
+    expect(CAL_EPOCH).toEqual({ y: 1, m: 9, d: 9 });
   });
 
-  it('the shipped Day 1–4 are October 1–4, Year 1 — the mood-lock holds', () => {
-    expect(dateOfCalendarDay(1)).toEqual({ y: 1, m: 10, d: 1 });
-    expect(dateOfCalendarDay(2)).toEqual({ y: 1, m: 10, d: 2 });
-    expect(dateOfCalendarDay(3)).toEqual({ y: 1, m: 10, d: 3 });
-    expect(dateOfCalendarDay(4)).toEqual({ y: 1, m: 10, d: 4 });
+  it('the shipped Day 1–4 are September 9–12, Year 1 — the arrival week begins', () => {
+    expect(dateOfCalendarDay(1)).toEqual({ y: 1, m: 9, d: 9 });
+    expect(dateOfCalendarDay(2)).toEqual({ y: 1, m: 9, d: 10 });
+    expect(dateOfCalendarDay(3)).toEqual({ y: 1, m: 9, d: 11 });
+    expect(dateOfCalendarDay(4)).toEqual({ y: 1, m: 9, d: 12 });
+  });
+
+  it('the doc 12 §2 chronology maps to story days exactly (canon pins)', () => {
+    // C0: "Tuesday, Sept 9 – Monday, Sept 15, Y1" (doc 06 §C0); the C1 cut
+    // is Sept 16 (doc 11 §7) — the first post-cut Monday is day 14 (Sept 22)
+    expect(calendarDayOf({ y: 1, m: 9, d: 15 })).toBe(7);   // C0 closes
+    expect(calendarDayOf({ y: 1, m: 9, d: 16 })).toBe(8);   // C1 opens (season cut)
+    expect(calendarDayOf({ y: 1, m: 9, d: 22 })).toBe(14);  // the first "6 a.m. Monday"
+    // the nor'easter: Oct 29 – Nov 1, Y1 (doc 12 §2 C1)
+    expect(calendarDayOf({ y: 1, m: 10, d: 29 })).toBe(51);
+    expect(calendarDayOf({ y: 1, m: 11, d: 1 })).toBe(54);
+    // the terminal: Nov 26, Y3 — "Thanksgiving eve" (doc 06 §C5)
+    expect(calendarDayOf({ y: 3, m: 11, d: 26 })).toBe(809);
   });
 
   it('calendarDayOf inverts dateOfCalendarDay across a thousand days', () => {
@@ -56,10 +75,10 @@ describe('calendar — pure arithmetic (no clock anywhere)', () => {
   });
 
   it('rolls the year over: December 31, Year 1 → January 1, Year 2', () => {
-    // calendar days count from the EPOCH (Oct 1 = Day 1), so Dec 31 Y1 is
-    // day 92: October's 31 + November's 30 + December's 31
+    // calendar days count from the EPOCH (Sept 9 = Day 1), so Dec 31 Y1 is
+    // day 114: Sept 9 → Dec 31 inclusive is 22 + 31 + 30 + 31 days
     const dec31 = calendarDayOf({ y: 1, m: 12, d: 31 });
-    expect(dec31).toBe(92);
+    expect(dec31).toBe(114);
     expect(dateOfCalendarDay(dec31)).toEqual({ y: 1, m: 12, d: 31 });
     expect(dateOfCalendarDay(dec31 + 1)).toEqual({ y: 2, m: 1, d: 1 });
     // a full common year is 365 days (no leap-year canon) — verified by the

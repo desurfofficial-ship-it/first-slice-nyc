@@ -88,9 +88,10 @@ export interface SaveData {
   *  notes" at the read site). Clamped per family in parseSave. */
   diary_noted?: DiaryNoted;
   /** The in-game calendar day (narrative/14 R4 — core/calendar.ts): 1-based
-   *  from Day 1 = October 1, Year 1 (C0's mood-lock). Optional trailing
-   *  v1-safe field: absent reads as the story day (the shipped Day 1–4
-   *  are October 1–4, Year 1 byte-for-byte). Clamped to [1, 36500]. */
+   *  from Day 1 = Tuesday, September 9, Year 1 — the arrival (doc 12 §1;
+   *  DEC-1, 2026-11-06). Optional trailing v1-safe field: absent reads as
+   *  the story day (the shipped Day 1–4 are September 9–12, Year 1).
+   *  Clamped to [1, 36500]. */
   calendar_day?: number;
   /** The field diary — Leo's own record (narrative/14 R3 + narrative/03 §2
    *  — core/fieldDiary.ts). Optional trailing v1-safe field: absent reads
@@ -215,8 +216,8 @@ export function parseSave(raw: string | null): SaveData {
     ...(d.roam === true ? { roam: true } : {}),
     ...(diaryNoted ? { diary_noted: diaryNoted } : {}),
     // the in-game calendar (narrative/14 R4) — absent in old saves reads
-    // as the story day, so the shipped Day 1–4 land on October 1–4, Year 1
-    // (the C0 mood-lock) without a migration step
+    // as the story day, so the shipped Day 1–4 land on September 9–12,
+    // Year 1 (the arrival epoch, DEC-1) without a migration step
     calendar_day: clampCalendarDay(d['calendar_day'] ?? storyDay),
     // the field diary (narrative/14 R3) — absent in old saves reads as an
     // empty diary; corrupt entries are quarantined, never a crash

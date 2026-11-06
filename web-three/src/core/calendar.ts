@@ -2,19 +2,25 @@
  * The in-game calendar — narrative/14 R4, the time model.
  *
  * One law above all: **no real-world dates exist anywhere in the game**
- * (doc 12 §5: "the calendar never negotiates"). The calendar is pure
- * arithmetic over a 1-based in-game day counter anchored to the shipped
- * mood-lock — Day 1 is October 1, Year 1 ("October, golden hour, forever"
- * is C0's mood-lock, doc 12 §5) — and every month name comes from the
- * fixed table below. There is no `Date` object in this file and must
- * never be one; tests/calendar.test.ts greps this source for clock reads
- * so the class of mistake cannot return quietly (AGENTS.md §1c.1).
+ * (doc 12 §6: "the calendar never negotiates"). The calendar is pure
+ * arithmetic over a 1-based in-game day counter anchored to the canon
+ * epoch — **Day 1 is Tuesday, September 9, Year 1, the arrival** (doc 12
+ * §1; DEC-1, owner-approved 2026-11-06, adjudication of record in
+ * docs/production/DEC-1-CALENDAR-CANON-DECISION.md). The shipped
+ * "October, golden hour, forever" (doc 12 §5) is C0's **mood-lock — a
+ * presentation/art lock on the arrival chapter, never a calendar date**;
+ * from C1 the seasons advance with the calendar exactly as §5 states.
+ * Every month name comes from the fixed table below. There is no `Date`
+ * object in this file and must never be one; tests/calendar.test.ts greps
+ * this source for clock reads so the class of mistake cannot return
+ * quietly (AGENTS.md §1c.1).
  *
  * The story `day` (Save v1, 1..MAX_DAY) stays the story-day counter it
  * always was. `calendar_day` is the additive Save-v1-safe field the
  * chapters (R1/R8) will advance independently; until then it tracks the
- * story day exactly, so the shipped Day 1–4 are October 1–4, Year 1 and
- * the mood-lock holds byte-for-byte.
+ * story day exactly, so the shipped Day 1–4 are September 9–12, Year 1
+ * (Tue–Fri), C0 closes on Monday, Sept 15 (day 7, doc 06 §C0), and C1
+ * opens at the Sept 16 season cut (day 8).
  *
  * Pure state, zero imports — the renderer and the UI only ever *read*
  * (the seam law; same shape as core/diary.ts).
@@ -35,8 +41,10 @@ export const CAL_MONTHS: readonly string[] = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-/** Day 1 of the calendar = October 1, Year 1 (C0's mood-lock). */
-export const CAL_EPOCH: Readonly<GameDate> = { y: 1, m: 10, d: 1 };
+/** Day 1 of the calendar = Tuesday, September 9, Year 1 — the arrival
+ *  (doc 12 §1; DEC-1 ruling, 2026-11-06). The "October, golden hour,
+ *  forever" mood-lock (doc 12 §5) is presentation, not a date. */
+export const CAL_EPOCH: Readonly<GameDate> = { y: 1, m: 9, d: 9 };
 
 /** Month lengths, 1..12. No leap-year canon exists (doc 12 never names
  *  one), so February is a fixed 28 — deterministic forever. */
@@ -63,7 +71,7 @@ export function seasonOf(m: number): Season {
 }
 
 /** Clamp a raw day counter to a sane range. 1-based; the upper bound is
- *  generous (the spine ≈ 27 months + an open endgame year — doc 12 §5)
+ *  generous (the spine ≈ 27 months + an open endgame year — doc 12 §6)
  *  but finite: the calendar is data, not an accumulator. */
 export function clampCalendarDay(n: unknown): number {
   const v = typeof n === 'number' && Number.isFinite(n) ? Math.trunc(n) : 1;

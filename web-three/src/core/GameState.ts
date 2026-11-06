@@ -183,7 +183,8 @@ export class GameState {
   diaryNoted: DiaryNoted = {};
   /** The in-game calendar day (narrative/14 R4 — core/calendar.ts). Rides
    *  the save as `calendar_day`; absence reads as the story day, so the
-   *  shipped Day 1–4 are October 1–4, Year 1 (C0's mood-lock, byte-for-byte). */
+   *  shipped Day 1–4 are September 9–12, Year 1 (the arrival epoch, doc 12
+   *  §1; DEC-1, 2026-11-06 — the mood-lock is presentation, not a date). */
   calendarDay = 1;
   /** The field diary — Leo's own record (narrative/14 R3 + narrative/03 §2
    *  — core/fieldDiary.ts). Rides the save as `field_diary`; an old save
