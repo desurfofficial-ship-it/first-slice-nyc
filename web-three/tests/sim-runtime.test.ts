@@ -124,9 +124,10 @@ describe('B-1: clock-keyed schedules drive arbitration all day', () => {
     expect(at(7 * 60 + 22)).toBe('se-idris-platform');   // walks in at 07:22
     expect(at(7 * 60 + 51)).toBe('se-idris-platform');   // still the platform at 07:51
     expect(at(7 * 60 + 52)).toBe('se-idris-walk-cart');  // 07:52: to the cart
-    expect(at(8 * 60 + 24)).toBe('se-idris-usual');      // 08:24: the usual
-    expect(at(9 * 60 + 6)).toBe('se-idris-walk-home');   // 09:06: homeward
-    expect(at(9 * 60 + 47)).toBe('se-idris-sleep');      // 09:47: away until evening
+    expect(at(8 * 60 + 31)).toBe('se-idris-walk-cart');  // 08:31: still walking (59 routed m ≈ 37 honest min)
+    expect(at(8 * 60 + 32)).toBe('se-idris-usual');      // 08:32: the usual
+    expect(at(9 * 60 + 14)).toBe('se-idris-walk-home');  // 09:14: homeward
+    expect(at(9 * 60 + 55)).toBe('se-idris-sleep');      // 09:55: away until evening
   });
 
   it('the directive maps claims to real shipped coordinates', () => {
@@ -142,14 +143,14 @@ describe('B-1: clock-keyed schedules drive arbitration all day', () => {
     // the cart corner is where the shipped cart stands
     brain.advanceMinutes(55); // past 07:52, into the walk
     expect(brain.directives.get(IDRIS)!.claim?.placeId).toBe('loc:the_cart');
-    brain.advanceMinutes(35); // the 48 m leg done
+    brain.advanceMinutes(45); // the 59 m routed leg, honestly windowed
     const target = brain.directives.get(IDRIS)!.body.target!;
     expect(Math.abs(target.x - THE_CART_ANCHOR.x)).toBeLessThan(2);
     expect(Math.abs(target.z - THE_CART_ANCHOR.z)).toBeLessThan(2);
   });
 
   it('travel to an off-map place walks the body to the station stair, not a wall', () => {
-    const brain = freshBrain({ minute: 9 * 60 + 10 }); // the walk-home window
+    const brain = freshBrain({ minute: 9 * 60 + 20 }); // the walk-home window
     brain.advanceMinutes(2);
     const d = brain.directives.get(IDRIS)!;
     expect(d.claim?.activityId).toBe('se-idris-walk-home');
@@ -207,7 +208,7 @@ describe('B-1: clock-keyed schedules drive arbitration all day', () => {
 
 describe('the R6 door — a hello interrupts, and the day resumes', () => {
   it('a hello (HIGH) suspends the meal (NORMAL) to the stack; release resumes it (R1/R2/R3/R6)', () => {
-    const brain = freshBrain({ minute: 8 * 60 + 30 }); // Idris mid-usual
+    const brain = freshBrain({ minute: 8 * 60 + 40 }); // Idris mid-usual
     brain.advanceTick();
     expect(brain.records.get(IDRIS)?.current?.activityId).toBe('se-idris-usual');
 
