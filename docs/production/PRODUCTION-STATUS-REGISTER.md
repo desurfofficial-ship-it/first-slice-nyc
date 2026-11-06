@@ -7,6 +7,7 @@
 | Update law | Update the register **in the same commit** as the work it describes. An unrecorded change is a change the next agent must rediscover the hard way. |
 | Vocabulary | NOT STARTED / PLANNED / IN PROGRESS / IMPLEMENTED / INTEGRATED / VERIFIED / BLOCKED ([README.md](README.md)) |
 | Baseline | v1.0, 2026-11-06 — full repository audit at git `69f8327` (main), `feat/world-contract-foundation`, `feat/player-upgrade` |
+| Reconciled | **v1.1, 2026-11-06** — reconciliation audit R1 at git `96bc4eb` (main) / `407cc0e` (branch); every correction evidenced in [PRODUCTION-RECONCILIATION-REPORT.md](PRODUCTION-RECONCILIATION-REPORT.md) |
 
 **A completed document is not proof of implementation. Passing unit tests alone is not proof of playable integration.** Statuses here say which one they mean, and the Evidence column is the proof.
 
@@ -16,12 +17,12 @@
 
 | Count | Value |
 |---|---|
-| Phases | 0 (closing) · 1 (implemented, unmerged) · 2 (next, planned) · 3–12 (planned) |
-| Systems tracked | 48 — VERIFIED 16 · IMPLEMENTED 9 · INTEGRATED/partial 10 · PLANNED 9 · NOT STARTED 4 |
+| Phases | 0 (closing) · 1+2 (implemented on branch, verified — unmerged) · 3 (next, planned) · 4–12 (planned) |
+| Systems tracked | 48 — VERIFIED 16 · IMPLEMENTED 5 · INTEGRATED/partial 14 · PLANNED 9 · NOT STARTED 4 |
 | Narrative requirements | R0/R3/R4 done (state only) · R2/R7 next · R1/R5/R6/R8–R15 not started |
 | Open decisions | DEC-1…DEC-11 (see [PRODUCTION-RISKS-AND-DEPENDENCIES.md](PRODUCTION-RISKS-AND-DEPENDENCIES.md)) |
 | Open defects | B13 (draw calls, owner's call) + hygiene item HYG-1 |
-| Gates at baseline | `tsc` clean · vitest 660/660 (44 files) · build OK · 4-day E2E green (latest worklog runs 534–591 s) · probe-perf 119/184/256 |
+| Gates | main `96bc4eb`: `tsc` clean · vitest 660/660 (44 files) · build OK · CI **success** · branch `407cc0e`: `tsc` clean · **vitest 744/744 (52 files)** · build OK · **probe-world-sim 15/15 [executed]** · 4-day E2E green [reported; re-run at WP-0] |
 
 ---
 
@@ -30,8 +31,8 @@
 | ID | Item | Phase | Status | Evidence / notes |
 |---|---|---|---|---|
 | PH-0 | Production control & baseline | 0 | IN PROGRESS | The seven docs + this register (this commit); owner ratification open |
-| PH-1 | Architecture & sim foundation | 1 | IMPLEMENTED | Branch `feat/world-contract-foundation`: 718/718; acceptance = merge |
-| PH-2 | Runtime integration (time valve) | 2 | PLANNED | wc-17 Phase 1; NEXT-PHASE-EXECUTION-PLAN.md |
+| PH-1 | Architecture & sim foundation | 1 | IMPLEMENTED | Branch `feat/world-contract-foundation`: foundations `3d83f0b` (718/718 at its pass); whole-branch suite **744/744 [executed]**; acceptance = merge |
+| PH-2 | Runtime integration (time valve) | 2 | IMPLEMENTED (branch) — VERIFIED | `407cc0e`: D-1 valve in `Game.frame`, bound-cast schedules, world save, `?scenario=schedules` **15/15 [executed]**; D-3 open; acceptance = merge (WP-0) |
 | PH-3 | Navigation & physical world | 3 | PLANNED | wc-17 Phase 2 |
 | PH-4 | Living population | 4 | PLANNED | wc-17 Phase 4 + R5 |
 | PH-5 | Player freedom completion | 5 | PLANNED | R10–R12; much already shipped (see SYS-PLAY-*) |
@@ -43,7 +44,7 @@
 | PH-11 | Beta & RC | 11 | NOT STARTED | — |
 | PH-12 | Launch & post-launch | 12 | NOT STARTED | — |
 | MS-0 | The Shipped Slice | — | VERIFIED (repo evidence) | E2E ~131 checks; probes; 660 tests; Pages deploy. Human/device halves owed at PH-10 |
-| MS-1 | The Clock Street | 2 | PLANNED | wc-17 exit sentence |
+| MS-1 | The Clock Street | 2 | IMPLEMENTED (branch) | wc-17 exit met on branch except the D-3 ledger trace + the human playtest (closeout = WP-4/WP-7) |
 | MS-2 | The World Reads the Registry | 3 | PLANNED | — |
 | MS-3 | The Block Has People | 4 | PLANNED | — |
 | MS-4 | C0 Fires | 7 | PLANNED | — |
@@ -58,17 +59,17 @@
 
 | ID | Item | Status | Evidence / notes |
 |---|---|---|---|
-| BR-1 | `main` | ACTIVE | `69f8327`, 2026-11-06; all gates green |
-| BR-2 | `feat/world-contract-foundation` | READY TO MERGE | 2 commits ahead / 7 behind; sim layer + 113 tests + 17 contract docs; known conflict: `tests/docs-hygiene.test.ts` (both sides re-pointed R0) |
+| BR-1 | `main` | ACTIVE | `96bc4eb`, 2026-11-06; production docs landed; CI **success** (push run 02:54Z) |
+| BR-2 | `feat/world-contract-foundation` | READY TO MERGE | **3 ahead / 9 behind** (base `447b0e1`); sim layer + runtime integration; suite **744/744 [executed]**; probe 15/15 [executed]; conflicts: `AGENTS.md`, `tests/docs-hygiene.test.ts` (DEF-3 union), `worklog.md`; Game.ts auto-merges [merge-tree] |
 | BR-3 | `feat/player-upgrade` | SUPERSEDED — RETIRE | 3 commits ahead; content landed on main via player-repo cherry-pick (`a9718e9`, wardrobe merge `69f8327`); WP-0 = guard-by-guard check, then delete branch |
 | BR-4 | `desurfofficial-ship-it/First-slice-player` (separate repo) | MERGED UPSTREAM | its `feat/player-visual-kinematics-polish` was cherry-picked to main; keep as history |
-| BR-5 | `docs/production-roadmap` | ACTIVE (this work) | the production documentation branch |
+| BR-5 | `docs/production-roadmap` | MERGED — RETIRE | landed on main as `96bc4eb`; local branch deletable |
 
 ## C. Systems (owners are workstream leads; "—" = unassigned pending governance kickoff)
 
 | ID | System | Phase | Owner | Status | Depends on | Priority | Evidence / outstanding |
 |---|---|---|---|---|---|---|---|
-| SYS-WORLD-01 | World topology & spatial registry | 1/3 | WS-A | IMPLEMENTED (sim on branch); registry data VERIFIED | PH-1 merge | P0 | validator OK (129 IDs); sim-registry tests; runtime flip not started |
+| SYS-WORLD-01 | World topology & spatial registry | 1/3 | WS-A | IMPLEMENTED (sim on branch); registry data VERIFIED; **read-side INTEGRATED** | PH-1 merge | P0 | validator OK (129 IDs); registry consumed by the live runtime (place resolver); write-side flip = A-3, Phase 3 |
 | SYS-WORLD-02 | Streets, sidewalks & intersections | — | WS-A | VERIFIED (shipped set) | — | P1 | probes + E2E; 5 streets designed |
 | SYS-WORLD-03 | Buildings & interiors | 8 | WS-A | VERIFIED (shipped set); remainder PLANNED | DEC-8 | P1 | 12 masses shipped / 43 designed; interiors.test |
 | SYS-WORLD-04 | Doors, stairs & elevators | 3 | WS-A | PARTIAL (VERIFIED cases) | PH-2 | P1 | stair law tests; no generic door entity |
@@ -77,8 +78,8 @@
 | SYS-WORLD-07 | Environmental detail & NY identity | — | WS-E | VERIFIED | — | P2 | 1-Second probe frames |
 | SYS-WORLD-08 | Streaming, spatial index & LOD | 4+ | WS-F | PARTIAL (sufficient at scale) | measure first | P2 | district tiles + bakes; no index; B13 open |
 | SYS-POP-01 | NPC identities & records | 4 | WS-B | IMPLEMENTED (branch) | PH-1 | P0 | sim/entities + ids tests |
-| SYS-POP-02 | Schedules & routines | 2 | WS-B | IMPLEMENTED (branch); day-keyed pattern INTEGRATED | PH-1, PH-2 | P0 | sim-schedule tests; dressing.ts |
-| SYS-POP-03 | Behavior arbitration | 2 | WS-B | IMPLEMENTED (branch) | PH-1, PH-2 | P0 | S1–S7 tested |
+| SYS-POP-02 | Schedules & routines | 2 | WS-B | **INTEGRATED (branch, bound cast)** | PH-1 merge | P0 | Rosa/Idris clock-keyed schedules live in-game; probe steps 1–2 [executed]; ambient migration = WP-3v |
+| SYS-POP-03 | Behavior arbitration | 2 | WS-B | **INTEGRATED (branch, bound cast; R6 door live)** | PH-1 merge | P0 | S1–S7 tested; hello = HIGH claim via the real interaction registry; LIFO resume; probe steps 3–4 [executed] |
 | SYS-POP-04 | NPC navigation & movement | — | WS-B | VERIFIED | — | P1 | crowd/solidity tests; soak probe |
 | SYS-POP-05 | Relationships & social | 4/6 | WS-B | PARTIAL | PH-2 | P1 | living-memory tests; edges declared |
 | SYS-POP-06 | Memory & personal stories | 2/7 | WS-C | PARTIAL (state VERIFIED, UI missing) | PH-2 WP-6 | P0 | field-diary tests; no ink UI |
@@ -86,7 +87,7 @@
 | SYS-POP-08 | Pedestrian population | — | WS-B | VERIFIED | — | P1 | probe-w4-soak |
 | SYS-POP-09 | Traffic & vehicles | — | WS-A | VERIFIED (designed scale) | — | P1 | traffic/bus tests |
 | SYS-POP-10 | Dynamic events | 6 | WS-B | PARTIAL | PH-2 | P1 | Shuffle guards; R6 not built |
-| SYS-POP-11 | Persistent sim state | 1/2 | WS-D | IMPLEMENTED (world save, branch); story save VERIFIED | PH-1 | P0 | sim-state tests; fuzz wall |
+| SYS-POP-11 | Persistent sim state | 1/2 | WS-D | **INTEGRATED + VERIFIED (branch)**; story save VERIFIED | PH-1 merge | P0 | `first_slice_world_v1` rides story persist beats + roam autosave; corruption/idempotency probe 6a–6g [executed] |
 | SYS-PLAY-01 | Movement & controls | — | — | VERIFIED | — | P0 | player-upgrades/stairs/descend guards |
 | SYS-PLAY-02 | Interaction framework | — | — | VERIFIED | — | P0 | interactions.test 422 lines |
 | SYS-PLAY-03 | Dialogue & choices | 2/5 | WS-C | PARTIAL | R7 | P0 | content-order tests; R7 not built |
@@ -105,7 +106,7 @@
 | SYS-ECO-06 | Transportation | 2 | WS-B | VERIFIED; clock-keying PLANNED | PH-2 | P1 | subway/bus suites |
 | SYS-ECO-07 | Neighborhood identity | — | WS-C | VERIFIED (canon + dressing) | — | P2 | naming registry |
 | SYS-ECO-08 | Persistent neighborhood change | 2/6 | WS-D | PARTIAL | PH-2/6 | P1 | dressing.ts day-keyed |
-| SYS-ECO-09 | In-game time progression | 2 | WS-D + ND | PARTIAL — **DEC-1 conflict** | DEC-1 | P0 | calendar.ts vs sim/clock.ts epochs |
+| SYS-ECO-09 | In-game time progression | 2 | WS-D + ND | PARTIAL — **DEC-1 unresolved (owner)** | DEC-1 | P0 | valve live on branch; epochs confirmed: `CAL_EPOCH` Oct 1 (mood-lock) vs `EPOCH` Sept 9 Tue (timeline); day counters aligned 1:1 by `onStoryDayBegin`; defect latent (sim dates not yet player-visible) |
 | SYS-NAR-01 | Protagonist & character systems | 5 | WS-C | VERIFIED (identity); R11 PLANNED | PH-2 | P0 | wardrobe/lock law guards |
 | SYS-NAR-02 | Diary-map | 2 | WS-C | PARTIAL | PH-2 WP-6 | P0 | map-notebook guards; ink UI missing |
 | SYS-NAR-03 | Character arcs | 4/7 | WS-C | PLANNED | R5 | P1 | canon complete |
@@ -115,7 +116,7 @@
 | SYS-NAR-07 | Player choices | 2 | WS-C | PLANNED (R7) | PH-2 WP-5 | P0 | doc 10 §3 register |
 | SYS-NAR-08 | Betrayal & aftermath | 7 | WS-C | NOT STARTED (build); canon done | machines | P1 | docs/narrative/08–09 |
 | SYS-NAR-09 | Story continuity | — | ND | VERIFIED (practice) | — | P1 | doc 15 + hygiene test |
-| SYS-NAR-10 | Integration with sim state | 2 | WS-D | IMPLEMENTED (contract layer) | PH-2 | P0 | one-way bridge rule |
+| SYS-NAR-10 | Integration with sim state | 2 | WS-D | **INTEGRATED (branch)** | PH-2 close (D-3) | P0 | one-way bridge live: story persist → world save; `onStoryDayBegin` one-way fast-forward; probe 6c/6g [executed] |
 | SYS-QA-01 | UI & UX | — | — | VERIFIED | — | P0 | touch-law guard |
 | SYS-QA-02 | Audio & music | 10 | WS-F | INTEGRATED; ears-pass owed | human box | P2 | audio.ts; doc 32 note |
 | SYS-QA-03 | Animation | — | — | VERIFIED | — | P1 | rig guards |
@@ -124,7 +125,7 @@
 | SYS-QA-06 | Performance | all | WS-F | GOVERNED (ledger rule) | DEC-2 | P0 | probe fleet; census gate |
 | SYS-QA-07 | Save/load | 1 | WS-D | VERIFIED (story); world save IMPLEMENTED | PH-1 | P0 | fuzz wall; sim-state tests |
 | SYS-QA-08 | Error recovery | — | — | VERIFIED (patterns) | — | P1 | quarantine laws |
-| SYS-QA-09 | Testing | all | WS-F | VERIFIED; CI gap open | — | P0 | 660 tests; 122 harnesses; no PR lane |
+| SYS-QA-09 | Testing | all | WS-F | VERIFIED; CI gap open | — | P0 | main 660/660 · branch 744/744 [executed]; 122+ harnesses (+probe-world-sim); no PR lane |
 | SYS-QA-10 | Compatibility | 10 | WS-F | PARTIAL | hardware access | P1 | SwiftShader proxy; no devices |
 | SYS-QA-11 | Release preparation | 9–12 | WS-F | PARTIAL | DEC-9/11 | P2 | Pages deploy only |
 
@@ -155,6 +156,7 @@
 |---|---|---|---|---|
 | DEF-1 (B13) | Draw calls above the 150 budget on full-street rigs (PLAZA 302 / CART_CORNER 236; SYCAMORE 84→78; TIMES_SQ 52; PLATFORM_A 108) | OPEN — owner's call | Owner | Six priced optimization rounds declined; governing rule: no rig above its previous ledger; study lives in docs/57 §3.6 (in git history) |
 | DEF-2 | Field diary / calendar have no UI | OPEN — scheduled | WS-C | Phase 2 WP-6 (not a defect of the state layer, which is verified) |
+| DEF-3 | Divergent docs-hygiene re-points: branch case 2 pins docs/50+docs/51 pointers that main's reboot removed — a naive merge lands 2 failing assertions | OPEN — resolve at WP-0 | Production Director | Union verified: main's file + branch's README banner assertions (Baseline/Owner/registry — main's README already satisfies all three) |
 | HYG-1 | README.md still links to deleted legacy docs (docs/01, docs/07, docs/architecture/) | OPEN | WS-E/lead | Cosmetic but misleads newcomers; one-line fixes; do NOT restore the files |
 | HYG-2 | Duplicate doc numbers in legacy history (28/29/34/35/38/48/52/56/57) | ACCEPTED (history) | — | File names are the stable keys; the wipe is recorded; no action |
 
@@ -163,5 +165,6 @@
 | Date | Change | By |
 |---|---|---|
 | 2026-11-06 | Register v1.0 created from the full repository audit | Production Director |
+| 2026-11-06 | **v1.1 reconciliation** — branch advanced to `407cc0e` (runtime integration verified: gates + probe executed); PH-2/MS-1 → IMPLEMENTED (branch); 4 system rows → INTEGRATED; BR-1/2/5 updated; DEF-3 filed; DEC-1 brief sharpened — [PRODUCTION-RECONCILIATION-REPORT.md](PRODUCTION-RECONCILIATION-REPORT.md) §5 | Production Director |
 
 *Update rows in the same commit as the work. Add decisions to the risks doc, defects to §E, systems through a PR that touches both this register and SYSTEM-COMPLETION-CHECKLISTS.md.*

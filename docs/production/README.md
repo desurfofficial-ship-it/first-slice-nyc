@@ -1,7 +1,7 @@
 # FIRST SLICE — Production Documentation
 
 **The central production system for FIRST SLICE: A New York Story.**
-Owner: Production Director · Baseline v1.0, 2026-11-06 · Status: adopted pending owner ratification.
+Owner: Production Director · Baseline v1.0, 2026-11-06 · Reconciled **v1.1** (audit R1) · Status: adopted pending owner ratification.
 
 This directory governs the development of the whole game, from the current implementation to a complete, polished, releasable build. It is written for the project owner and for every coding agent that touches the repo.
 
@@ -18,6 +18,7 @@ This directory governs the development of the whole game, from the current imple
 | 5 | [AGENT-DEVELOPMENT-GOVERNANCE.md](AGENT-DEVELOPMENT-GOVERNANCE.md) | Workstreams, assignments, branch ownership, integration and conflict rules | Before claiming or delegating work |
 | 6 | [PRODUCTION-RISKS-AND-DEPENDENCIES.md](PRODUCTION-RISKS-AND-DEPENDENCIES.md) | Risks, blockers, dependencies, unresolved decisions with owners | Planning; when something smells wrong |
 | 7 | [NEXT-PHASE-EXECUTION-PLAN.md](NEXT-PHASE-EXECUTION-PLAN.md) | The precise next approved milestone and its work packages | **Before writing any code today** |
+| 8 | [PRODUCTION-RECONCILIATION-REPORT.md](PRODUCTION-RECONCILIATION-REPORT.md) | The standing-truth audit: what is actually implemented/integrated/verified, the DEC-1 decision brief, and the readiness verdict | When reports conflict with the register |
 
 ## The one-roadmap law
 
@@ -56,3 +57,5 @@ The three distinctions this vocabulary exists to enforce (they are project laws)
 Agents: read `AGENTS.md` first (the operating contract wins over everything), then `NEXT-PHASE-EXECUTION-PLAN.md`, then the workstream deal in `AGENT-DEVELOPMENT-GOVERNANCE.md` for your assignment. Update the register and `worklog.md` in the same commit as your work — an unrecorded change is a change the next agent must rediscover the hard way.
 
 *Baseline v1.0 authored by the Production Director, 2026-11-06, from a full repository audit (git `69f8327`, branches `feat/world-contract-foundation` + `feat/player-upgrade`, main gates: `tsc` clean · vitest 660/660 · build OK).*
+
+*Reconciled v1.1, 2026-11-06 (audit R1): branch tip `407cc0e` verified by executed gates (tsc clean · vitest 744/744 · build OK · probe-world-sim 15/15); register re-statused with evidence; DEC-1 decision brief issued, unresolved pending owner; verdict B — conditionally ready. See [PRODUCTION-RECONCILIATION-REPORT.md](PRODUCTION-RECONCILIATION-REPORT.md).*

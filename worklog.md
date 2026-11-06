@@ -1525,3 +1525,25 @@ Stage Summary:
 - Baseline captured: main gates green (tsc clean · vitest 660/660 · build OK · 4-day E2E green); branches classified (world-contract = ready to merge with a known docs-hygiene conflict; player-upgrade = superseded, retire after guard check).
 - Open decisions surfaced with owners: DEC-1 epochs, DEC-2 B13, DEC-3 Day 5+, DEC-4 registry flip, DEC-5 economics, DEC-6 seasonal pass, DEC-7 rating, DEC-8 expansion gate, DEC-9 telemetry, DEC-10 localization/VO, DEC-11 distribution.
 - Gates at close: docs-only change; tsc/vitest/build re-run on the branch (docs-hygiene green after the AGENTS.md edit); no game source touched.
+
+---
+
+## 2026-11-06 — Production Director: reconciliation audit R1 — the runtime integration is real; the register now says so with executed evidence
+
+Task ID: PROD-RECONCILE-R1
+Agent: Production Director (Z.ai)
+Task: Reconcile conflicting production reports after the Architecture Agent's runtime-integration commit (407cc0e on feat/world-contract-foundation): verify the repository baseline, the twelve sim systems, the DEC-1 calendar conflict, and every production doc; correct the register only where evidence demanded; recommend the next phase. Audit only — no gameplay code touched, nothing merged, nothing pushed.
+
+Work Log:
+- Baseline verified live: main = 96bc4eb (CI **success**, deploy-pages push run 02:54Z); feat/world-contract-foundation = 407cc0e, **3 ahead / 9 behind** base 447b0e1 (diverged); feat/player-upgrade still superseded (guard on main, unique commits unmerged).
+- Numbering reconciled (one-roadmap law): wc-Phase-0/1 = production-Phase-1/2. 407cc0e IS production-Phase-2 (the runtime integration); wc-17's own ledger marks its exit sentence met except **D-3** (money bridge).
+- Gates **executed** on a clean worktree at 407cc0e: tsc clean · **vitest 744/744** (52 files, 8.41 s) · build OK · **probe-world-sim 15/15 PASS** (1,424 simulated minutes in 64.5 s real, exit 0, zero page errors) — scheduled activities, clock transitions, the R6 HIGH interruption with LIFO resume, corruption-degrading world saves, idempotent loads, clock-keyed dusk, multi-day continuity, all in the real built game.
+- The older audit's "no tick valve / no schedule integration" finding was a **snapshot mismatch**, not an error: it captured the branch at 627e87d ("2 ahead/7 behind" matches), before 407cc0e existed. Nothing to rebuild; the register needed the correction.
+- DEC-1 decision brief issued (report §4): `CAL_EPOCH` Oct 1 (mood-lock, doc 12 §5) vs `EPOCH` Sept 9 Tue (timeline, doc 12 §1) — the same canon cited both ways; day counters already aligned 1:1 by `onStoryDayBegin`; the defect is latent (sim dates not yet player-visible). **UNRESOLVED — owner gate; Option A default documented, NOT applied.**
+- Read-only merge scan: exactly **3 conflicts** (AGENTS.md, docs-hygiene.test.ts, worklog.md); Game.ts auto-merges. New **DEF-3**: the branch carries a second, divergent R0 re-point of the hygiene test — a naive merge lands 2 failing assertions (docs/50+51 pointers main removed); union resolution verified (main's file + branch's README banner assertions; main's README already satisfies all three).
+- Production docs updated, structure preserved: **PRODUCTION-RECONCILIATION-REPORT.md** (new: baseline, 12-system verdict table, executed-evidence log, DEC-1 brief, corrections audit trail, risks, next phase, work packages, assignment plan, verdict); register **v1.1** (PH-2/MS-1 → IMPLEMENTED-branch; SYS-POP-02/03, SYS-POP-11, SYS-NAR-10 → INTEGRATED; SYS-WORLD-01 read-side note; SYS-ECO-09 sharpened; SYS-QA-09 both test counts; BR-1/2/5; DEF-3; change log); **NEXT-PHASE-EXECUTION-PLAN re-scoped** (WP-0 conflict list + E2E re-run; WP-1v pause-set gap; WP-2v = DEC-1 ruling + epoch mapping; WP-3v = ambient walker migration; parallelism map); README index row + v1.1 note.
+- 4-day E2E **not** re-executed here (≈10 min beat-driven, no pace knob) — recorded as reported-only; its re-run is a WP-0 gate. **Nothing pushed to main** (owner approval required by the mission rules).
+
+Stage Summary:
+- Verdict: **B — CONDITIONALLY READY.** Both production Phases 1–2 exist on the branch with executed proof and the story is untouched; three conditions gate the next assignment wave: the owner rules DEC-1; WP-0 lands (DEF-3 union, E2E re-run, post-merge perf re-baseline); Phase-2 remainders close (D-3, WP-1v, MS-1 closeout). Then production-Phase-3 (A-1 registry-seeded nav graph — the seed schema already exists in the registry — A-2 doors/stairs, A-3 registry flip) builds ON TOP of the verified runtime.
+- Gates at close: docs-only change; zero source files modified; no dependencies added; main 660/660 and branch 744/744 both recorded in the register.

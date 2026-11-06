@@ -5,13 +5,14 @@
 | Status | **The approved next development milestone** — work packages WP-0…WP-7 for Phases 1-close → 2-open |
 | Owner | Production Director (issuer) · one accountable owner per work package (to be claimed) |
 | Baseline | 2026-11-06, git `69f8327` · gates: `tsc` clean · vitest 660/660 (44 files) · build OK · 4-day E2E green |
+| Reconciled | **R1, 2026-11-06**: the valve (WP-1), the bound-cast half of WP-3 and the world save are **already implemented on `feat/world-contract-foundation` @ `407cc0e` and verified** (tsc · vitest 744/744 · build · probe 15/15 — all executed by audit R1). This plan is re-scoped to the true remainder; do **not** rebuild what exists. See [PRODUCTION-RECONCILIATION-REPORT.md](PRODUCTION-RECONCILIATION-REPORT.md). |
 | Law | Do not start implementation against an unratified baseline: WP-0a (owner ratification) gates everything. Every WP follows the assignment template (AGENT-DEVELOPMENT-GOVERNANCE.md §3) and the floor gates (PHASE-ACCEPTANCE-CHECKLISTS.md). |
 
 ---
 
 ## 0. What this milestone accomplishes
 
-**Close Phase 1, open Phase 2.** Concretely: merge the world-contract foundation to main (WP-0), then make the running game answer to in-game time — the tick valve (WP-1), the day-boundary machine with the epoch ruling (WP-2), clock-keyed lives (WP-3), the money→ledger bridge (WP-4) — while WS-C builds the next narrative machines in parallel (WP-5: R2 + R7), the diary and calendar become visible (WP-6), and the whole thing is proven in a browser against the contract's exit sentence (WP-7).
+**Close Phases 1–2, open Phase 3.** Audit R1 found the tick valve (WP-1), the bound-cast half of clock-keyed lives (WP-3) and the world-save layer already **implemented on the branch and verified** — they are inherited, not rebuilt. What remains: merge the verified branch to main (WP-0), close the pause-set gap (WP-1v), rule DEC-1 and pin the epoch mapping (WP-2v), migrate the ambient walkers (WP-3v), land the money→ledger bridge (WP-4) — while WS-C builds the next narrative machines in parallel (WP-5: R2 + R7), the diary and calendar become visible (WP-6), and the whole thing is proven in a browser against the contract's exit sentence (WP-7).
 
 **The player-facing bar (MS-1, "The Clock Street"):** a roam afternoon where Idris appears at the platform at 07:40 and the deli closes at 22:00 — in-game time, zero story rewiring; the date and the field diary readable on screen; every dollar traceable to the ledger; the E2E's money assertions ($87→$112→$123) passing unchanged.
 
@@ -21,40 +22,39 @@
 
 ### WP-0 — Baseline ratification, merge & hygiene *(Phase 1 acceptance)*
 - **Workstream / owner:** WS-D + Production Director · *owner: Production Director until claimed otherwise*
-- **Task scope:** (a) owner ratifies the Phase-0 baseline (the one human gate); (b) merge `feat/world-contract-foundation` into main: resolve the `tests/docs-hygiene.test.ts` collision (both sides re-pointed R0 — keep one re-point that satisfies both intents: canon existence + phase line + engineering law); land the 17 contract docs; update wc-17's status table ("Phase 0 — shipped" gains its merge record); (c) guard-check and retire `feat/player-upgrade` (BR-3): diff its 3 commits against the cherry-picked main content row by row — every permanent guard in `player-upgrades.test.ts` must exist on main (it does per audit: player-upgrades.test.ts, 5 cases) — then delete the branch with a register note; (d) record baseline gate evidence in the register.
+- **Task scope:** (a) owner ratifies the Phase-0 baseline (the one human gate); (b) merge `feat/world-contract-foundation` into main: resolve the **three** conflicted files per audit R1 — `AGENTS.md` (keep main's reboot text + append the branch's WORLD-CONTRACT block and repo-map lines), `tests/docs-hygiene.test.ts` (**DEF-3 union:** main's file + the branch's README banner assertions — main's README already satisfies them), `worklog.md` (append both ledgers' rows; `Game.ts` auto-merges per the merge-tree scan) — land the 17 contract docs; update wc-17's status table ("Phase 0 — shipped" gains its merge record); **re-run the 4-day E2E at this gate** (audit R1 marks it reported-only); (c) guard-check and retire `feat/player-upgrade` (BR-3): diff its 3 commits against the cherry-picked main content row by row — every permanent guard in `player-upgrades.test.ts` must exist on main (it does per audit: player-upgrades.test.ts, 5 cases) — then delete the branch with a register note; (d) record baseline gate evidence in the register.
 - **Files owned:** git branch operations; `web-three/tests/docs-hygiene.test.ts` (conflict resolution); `docs/architecture/world-contract/17-implementation-roadmap.md` (status row); register/worklog.
 - **Must NOT modify:** any `src/` file other than the named test; any narrative doc.
-- **Acceptance:** merged tree green — `tsc` · vitest (660 + 113 sim, dedup noted) · build · 4-day E2E · docs-hygiene; `web-three/src/sim/` on main; contract docs reachable; BR-2/BR-3 closed in the register.
+- **Acceptance:** merged tree green — `tsc` · vitest (**expect 744/744**) · build · **4-day E2E re-run** · docs-hygiene (union) · probe-world-sim re-run green; `web-three/src/sim/` on main; contract docs reachable; BR-2/BR-3/BR-5 closed in the register.
 - **Integration requirements:** probe-perf rows byte-identical (the branch touches no game code — verify, don't assume); `first_slice_world_v1` key present in sim-state tests.
-- **Reporting:** worklog entry naming every inheriting workstream; register rows PH-1 → VERIFIED, BR-2/BR-3 closed.
+- **Reporting:** worklog entry naming every inheriting workstream; register rows PH-1 → VERIFIED, PH-2 → INTEGRATED (merged), BR-2/BR-3/BR-5 closed.
 - **Parallelism:** none (everything waits for this).
 
-### WP-1 — The tick valve (D-1) *(WS-D)*
-- **Task scope:** `dt→tick` valve in `Game.frame` — one tick = one in-game minute; pause rules (menus, paper surfaces, the arrival cinematic, wardrobe, postcard); the listening beat respected (a beat in progress must not be truncated by a day boundary); the valve writes through `sim/clock`'s API only.
-- **Files owned:** `web-three/src/game/Game.ts` (frame wiring only), `web-three/src/sim/valve.ts` (new), `web-three/tests/valve.test.ts` (new).
-- **Must NOT modify:** `core/GameState.ts`, `world/*`, `sim/clock.ts` internals, `sim/economy.ts`, `core/content.ts`.
-- **Required references:** wc-06 (determinism), wc-17 Phase-1 item 1, AGENTS.md §1c.3 (hot path), `sim/clock.ts` header (the five clock laws), `Game.frame` order comments.
-- **Acceptance:** deterministic tick counts from identical input traces; pause rules tested; zero allocations in the steady loop; frame order law respected (colliders sync before the player moves — the cab-stale-frame fix survives).
-- **Required tests:** valve.test.ts (tick math, pause, determinism); full suite + E2E green.
-- **Integration:** boot with `?probe` runs a 60-second tick trace, console clean; no visible behavior change yet.
+### WP-1 — The tick valve (D-1) *(WS-D)* — **IMPLEMENTED on branch (`407cc0e`, `sim/runtime.ts`); verified by audit R1 — do NOT rebuild**
+- **Task scope (remainder = WP-1v):** the valve, its fractional carry and the host pause set (arrival film, day fade, held conversations) are live in `Game.frame`. The one verified gap vs this package's original list: the **wardrobe and postcard surfaces are not in the pause set**. Close the gap or justify its absence with a test.
+- **Files owned (WP-1v):** the pause expression in `Game.frame`; `web-three/tests/sim-runtime.test.ts` additions.
+- **Must NOT modify:** valve internals (`sim/runtime.ts`), `core/GameState.ts`, `world/*`, `sim/clock.ts` internals, `sim/economy.ts`, `core/content.ts`.
+- **Acceptance (WP-1v):** a held wardrobe/postcard beat is never truncated by a tick boundary in test; the deterministic tick counts and zero-allocation loop remain as landed.
+- **Required tests:** valve pause cases; full suite + E2E green.
+- **Integration:** none visible; the frame-order law (colliders sync before the player moves) is untouched.
 - **Reporting:** worklog + register (SYS-ECO-09) + PR with gate output.
 
-### WP-2 — The day-boundary machine & the epoch ruling (D-2 + DEC-1) *(WS-D + Narrative Director)*
-- **Task scope:** rule DEC-1 first (PRODUCTION-RISKS-AND-DEPENDENCIES.md §1: default = sim clock is world truth at the Sept-9 epoch; the story calendar becomes a derived view; C0's October mood-lock survives as presentation; ruling recorded in docs/narrative/15 §2). Then: the day-boundary machine runs the shipped morning rituals from the clock — diary note, restock, street shifts — re-keying the M3/M4 patterns from story phase to clock day, with one mapping function + pinned test reconciling story-day counter and world clock.
-- **Files owned:** `web-three/src/sim/dayBoundary.ts` (new), `web-three/src/sim/epochMap.ts` (new, the one mapping), `web-three/tests/sim-day-boundary.test.ts` (new); `docs/narrative/15-continuity-and-canon-register.md` (the ruling §2 entry); `web-three/src/game/Game.ts` (wiring only).
-- **Must NOT modify:** `core/calendar.ts` (derive from it; do not change its epoch), `core/Save.ts` schema, `world/dressing.ts` (consume its tables).
+### WP-2 — DEC-1 ruling & the epoch mapping (D-2 remainder) *(WS-D + Narrative Director + OWNER)* — **re-scoped by R1: the roam half of D-2 (dusk law + M4 street plan on the clock) ships on the branch; story-day mornings stay story-keyed by design (wc-17)**
+- **Task scope:** rule DEC-1 first — **the owner's gate; the default (sim clock = world truth at the Sept-9 epoch; the story calendar becomes a derived view; C0's October mood-lock survives as presentation) is briefed in PRODUCTION-RECONCILIATION-REPORT.md §4 and is NOT applied**. Then: one mapping function + pinned test reconciling story day ↔ sim day ↔ displayed date (the 1:1 day-counter alignment already lives in `WorldRuntime.onStoryDayBegin`); make the displayed date consistent across the field diary/HUD under the ruled epoch; document the pre-merge saves' date re-rendering (no silent data loss).
+- **Files owned:** `web-three/src/sim/epochMap.ts` (new, the one mapping), `web-three/tests/sim-epoch-map.test.ts` (new); `docs/narrative/15-continuity-and-canon-register.md` (the ruling §2 entry, by the Narrative Director); `web-three/src/core/calendar.ts` epoch **only per the ruling**.
+- **Must NOT modify:** `core/Save.ts` schema, `world/dressing.ts` (consume its tables), narrative content beyond the ruling entry in doc 15.
 - **Required references:** docs/narrative/12 §1/§5 (both epochs' canon sources), wc-06, `core/calendar.ts` + tests (the mood-lock byte-for-byte law), `core/diary.ts` (the morning-note pattern).
-- **Acceptance:** DEC-1 ruled and recorded; one mapping function with a pinned test; morning rituals fire from the clock; the shipped Day 1–4 calendar dates render unchanged for existing saves (back-compat proof); no real-world dates anywhere (calendar tests extend across the new layer).
-- **Required tests:** sim-day-boundary.test.ts (boundary math, ritual order, listening-beat interaction with WP-1); mapping test; suite + E2E green.
+- **Acceptance:** DEC-1 ruled and recorded by the owner; one mapping function with a pinned test; every displayed date (diary, HUD, debug) consistent under the ruled epoch; the change in rendered dates for pre-merge saves documented in the worklog (no silent data loss); no real-world dates anywhere (calendar tests extend across the new layer).
+- **Required tests:** sim-epoch-map.test.ts (the one mapping, pinned days); calendar test extensions; suite + E2E green.
 - **Integration:** beginDay resume lands on the saved calendar as today; a replayed day never double-advances (the existing max() law).
 - **Reporting:** worklog (canon ruling quoted) + register (DEC-1 closed, SYS-ECO-09 progress) + PR.
 
-### WP-3 — Clock-keyed lives (B-1) *(WS-B)*
-- **Task scope:** walkers + cast read clock-keyed schedules via arbitration claims; arbitration owns activity ownership; Yuka steers to the claim's destination. Start with the contract's proof cast: Idris (platform 07:40) and the deli (closes 22:00); migrate the familiar-face and street shifts off story-phase keys onto clock keys.
+### WP-3 — Clock-keyed lives (B-1) *(WS-B)* — **bound cast DONE on branch (`407cc0e`; probe steps 1–4 executed); re-scoped to the ambient migration**
+- **Task scope:** migrate the ambient Yuka pedestrians and the street shifts off story-phase keys onto clock-keyed schedules through arbitration (wc-17's declared "next B milestone"), with `world/peds.ts` destination plumbing; the bound cast (Rosa, Idris) and the R6 hello door stay as landed. Scale-out is recommended **after A-1** (the nav graph): sim bodies currently goal-lerp in straight lines with no obstacle avoidance — safe at two bodies, a defect at ten.
 - **Files owned:** `web-three/src/sim/lifeBindings.ts` (new), `web-three/src/world/peds.ts` (destination plumbing only), cast binding sections of `game/Game.ts` (coordinated — single-writer window booked with the Production Director), `web-three/tests/sim-clockday.test.ts` (new).
 - **Must NOT modify:** `sim/arbitration.ts` internals, `sim/schedule.ts` internals, story steps in `core/GameState.ts`, `world/dressing.ts` table contents.
 - **Required references:** wc-08 §5 (fidelity tiers), wc-09 (arbitration contract + S1–S7), wc-17 Phase-1 items 3, `world/peds.ts` solidity header (the guarantees that must survive).
-- **Acceptance:** Idris at the platform at 07:40 and the deli closed at 22:00 in a browser run; zero `step ===` dependencies added to ambient life (the Roam law); crowd/solidity/shuffle guards green; schedules resumable from a world save.
+- **Acceptance:** ambient walkers occupy clock-pinned places at pinned times in a browser run (the bound cast's 07:40-platform/22:00-deli proof is already banked); zero `step ===` dependencies added to ambient life (the Roam law); crowd/solidity/shuffle guards green; schedules resumable from a world save.
 - **Required tests:** sim-clockday.test.ts (occupancy at pinned times); all crowd/solidity/shuffle/traffic guards; soak probe green.
 - **Integration:** a new clock-day probe in `web-three/scripts/probe-clock-day.mjs` (new) asserting occupancy; E2E green.
 - **Reporting:** worklog + register (SYS-POP-02/03 → INTEGRATED) + PR + probe screenshot evidence.
@@ -97,20 +97,20 @@
 ## 2. Parallelism map for this milestone
 
 ```
-WP-0 (merge & ratify)          ── everything waits
-WP-1 (valve, Game.frame)       ──┐
+WP-0 (merge & ratify)          ── everything waits (3 mechanical conflicts; DEF-3 union; E2E re-run)
+WP-1v (pause-set gap)          ──┐
 WP-4 (money bridge, Game.ts*)  ──┤  WS-D sequential inside Game.ts
-WP-2 (day boundary + DEC-1)    ──┘  (single-writer windows, booked)
-WP-3 (clock-keyed lives)       ── after WP-1's valve exists; booking needed for cast sections
-WP-5 (R2+R7, core seam)        ── fully parallel with WP-1…4 (disjoint files)
-WP-6 (diary UI)                ── parallel after WP-2 (needs the mapping for dates)
-WP-7 (evidence assembly)       ── last; consumes all
+WP-2v (DEC-1 + epoch mapping)  ──┘  (needs the OWNER's ruling first)
+WP-3v (ambient walkers, peds)  ── after WP-0; single-writer booking on peds.ts
+WP-5 (R2+R7, core seam)        ── fully parallel (disjoint files)
+WP-6 (diary UI)                ── after WP-2v (consumes the mapping)
+WP-7 (evidence assembly)       ── last; consumes all + the post-merge perf re-baseline
 ```
-*Game.ts is single-writer: WP-1, WP-2, WP-4 book successive windows with the Production Director; WP-3's cast sections book separately. No two WPs hold Game.ts simultaneously — the governance law, not a preference.*
+*Game.ts is single-writer: WP-1v, WP-2v (wiring only) and WP-4 book successive windows with the Production Director; WP-3v books `peds.ts` separately. No two WPs hold the same file simultaneously — the governance law, not a preference.*
 
 ## 3. What must NOT begin during this milestone
 
-- Nav-graph migration, registry geometry flip (Phase 3) — the valve first.
+- Nav-graph migration, registry geometry flip (Phase 3) — the merge (WP-0) first; A-1 drafts now (see the reconciliation report §8 preview), executes after Phase-2 close.
 - Needs/mood dials, population growth (Phase 4).
 - Any C0+ content, rails, or chapters (Phase 7 waves) — machines first, §7 order.
 - Business P&L, seasons, missable windows (Phase 6).
