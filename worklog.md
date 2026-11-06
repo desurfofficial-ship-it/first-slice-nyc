@@ -1262,3 +1262,91 @@ diag-rig-xray + diag-unnamed-parents + diag-unnamed-xray clean runs ·
 zero page errors. Push deferred: the PAT from the previous session was
 rejected (Invalid username or token — likely rotated); commits are on
 local main awaiting a fresh token.
+
+---
+Task ID: NARR-REBOOT-R0-R4-R3
+Agent: First Slice Agent (Z.ai)
+Task: "Continue working" — reconcile the incoming narrative reboot, finish
+the repo clean-up sweep (nothing unimportant left, nothing Godot/Unity),
+then build the narrative spec's spine of state (narrative/14 §7 step 1)
+under the study-before-build rule (AGENTS.md §1e).
+
+Work Log:
+- Synced with origin/main: two new commits had landed remotely — the
+  legacy docs wipe (a6e0541, docs/01–56 + docs/architecture/) and the
+  narrative bible (447b0e1, docs/narrative/00–15, canon v1.0). Local main
+  carried two unpushed commits from the prior session (the worklog
+  conflict-marker fix + the B13 post-M4 ledger row / culling study) whose
+  docs/51, docs/55, docs/57, docs/architecture/07 edits collided with the
+  wipe. Merged; resolved delete/modify conflicts:
+  * Accepted the reboot's deletions (docs/51, docs/55, docs/architecture/07)
+    — the B13 verdict and post-M4 ledger row are already recorded verbatim
+    in this worklog's previous entry.
+  * KEPT docs/57-engineering-references.md — it IS the study-before-build
+    ledger the 2026-11-05 directive mandates (AGENTS.md §1e); added a dated
+    reboot note (pre-reboot doc numbers read as history; files live in git).
+- R0 (narrative/14, PRIORITY-0): re-pointed tests/docs-hygiene.test.ts at
+  the new canon — the narrative bible exists + is canon; AGENTS.md points
+  building agents at narrative/14 + worklog.md; the engineering-law case
+  (gen-city-auto / slop-newyork / docs/57) kept verbatim.
+- AGENTS.md coherence pass: phase line (still "Vertical Slice production"),
+  DIRECTION (C0–C6 spine; Day 1–4 is its first movement), ACTIVE WORK
+  (narrative/14 §7 build order), §0 (the story is law; the pillars carry
+  over), §1d memory list, §1e pointer, §3 repo map, §5/§6 skills, §8/§9 —
+  every pointer now lands on a file that exists. No law changed; only the
+  addresses did.
+- Clean-up sweep verdict (the "delete godot/unity and shit" directive,
+  carried from 2026-11-05): word-boundary grep `\bgodot\b|\bunity\b` over
+  the tree — ZERO engine leftovers. greybox-godot/ was already deleted
+  (recorded 2026-11-05); the two Unity-era docs died in the remote wipe.
+  The only remaining mentions are the 6 append-only history lines in this
+  worklog (kept: this file's law is append-only; editing history would be
+  the one violation we can't undo) and substring false positives
+  ("comm-UNITY" in tools3d dressing, registry identity text, narrative
+  prose). Repo root inventories 10 entries, all owned; gitignored artifacts
+  (dist/, shots/, node_modules/) untracked; no *.log/*.tmp/*.bak anywhere.
+- R4+R3 (narrative/14 §7 step 1's remainder) — reference check first, per
+  AGENTS.md §1e: docs/57 §3.5 already records that neither reference has
+  an in-game clock (GCA's update() time param is animation; SNY's
+  TIME_PRESETS drive lighting only), and §4 records that neither has any
+  journal/diary/epistemic system (their worlds are purpose-free). Verdict:
+  no equivalent exists in either reference → stated, and built
+  independently — the schemas are narrative/03's own.
+  * core/calendar.ts (R4): GameDate; the fixed month table; the epoch
+    (Day 1 = October 1, Year 1 — the shipped Day 1–4 land on October 1–4,
+    Year 1 byte-for-byte, so C0's mood-lock survives the spine); pure
+    month/year rollover; seasonOf; the named seasonCut detector (a cut
+    detected is a cut owed — the montage is later machinery);
+    formatGameDate ("October 14 · Year 1"). No Date object; a source-grep
+    test pins the no-clock law forever (§1c.1).
+  * core/fieldDiary.ts (R3): narrative/03 §2's schema — 10 kinds, 3
+    epistemics (FACT/RECALL/GUESS), 3 visibilities, corrections
+    (strike + margin, doc 03 §5.1). Append-only by construction: the
+    module exports no update/remove; correctEntry freezes body bytes;
+    input arrays never mutate; parseFieldDiary quarantines corrupt
+    entries (the map-notebook precedent), caps 512/600/16/8.
+  * Save v1 stays v1: calendar_day + field_diary are optional trailing
+    fields; an old save parses with the calendar on the story day and an
+    empty diary; the roundtrip test gained the two new defaults (the
+    map_notes precedent).
+  * GameState: calendarDay + fieldDiary fields, the two write seams
+    (logDiaryEntry / correctDiaryEntry — the one door content will write
+    through at §7 step 6), snapshotForSave carries both; Game.beginDay:
+    resume lands on the saved calendar, the rail's Tomorrow advances with
+    the story day, a replayed day never double-advances (max()).
+  * No UI yet by design — the Map's ink layer is a later milestone
+    (narrative/14 §4); this slice is the spine of state, pinned by tests.
+
+Stage Summary:
+- main is now: merge 1e54a58 (reboot + coherence) → feat 5c488e1 (R4+R3).
+  The narrative bible is the canon; the operating manual points at it; the
+  engineering ledger survived the wipe and keeps its findings; the tree
+  carries zero Godot/Unity and zero unowned files.
+- The narrative spine of state is in: calendar + field diary, append-only,
+  quarantine-safe, deterministic, Save-v1-safe — 40 new permanent guards.
+- Next per narrative/14 §7: R2 + R7 (the consequence ledger + choice
+  nodes), then R1 + R8 (chapters/rails), then the C0 content pack against
+  the shipped opening.
+
+Gates at close: tsc clean · vitest 645/645 (42 files; +40 new guards:
+calendar 16, field-diary 22, save +2) · build OK.
