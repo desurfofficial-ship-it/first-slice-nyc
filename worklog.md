@@ -1991,3 +1991,13 @@ and disjoint for a parallel window.
   of the same class also pre-exists). No product source was touched for this.
 - **Not pushed** — awaiting owner authorization. Next per §2b: WP-6 (diary/date visible,
   disjoint files); A-3 (DEC-4) remains owner-gated.
+
+## 2026-11-06 — WP-4 INTEGRATED to main (register v1.8.1)
+
+`git merge --no-ff feat/wp-4-money-bridge` → main **`3a9984d`** (zero conflicts, full
+history preserved). Post-merge battery re-executed on the integrated tree: tsc clean ·
+vitest **912/912** (62 files) · build OK · **probe-money-trace ALL PASSED** — and the
+Day-1 trace came back **byte-identical across two independent boots**
+(txn:story_494_0…497_0): determinism proven in the live game, not just the unit suite.
+The four-day story's $87 → $112 → $123 math passes unchanged — it is now traceable from
+genesis on every save. NOT PUSHED — awaiting owner authorization.
