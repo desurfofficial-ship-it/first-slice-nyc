@@ -21,6 +21,7 @@ import { composeCaption, tsWowCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE
 import { loadSave, writeSave, wipeSave, newGameSave, type SaveData } from '../core/Save';
 import { FreeRoam, roamDiscoveryLine, ROAM_OBJECTIVE } from './freeroam';
 import { WorldRuntime } from './worldRuntime';
+import { MoneyBridge } from '../sim/moneyBridge';
 import { STARTERS, starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
 import { PAL } from '../core/palette';
 import { World, phys } from '../world/World';
@@ -148,6 +149,11 @@ export class Game {
   // authored choreography keeps every body it ever had — the sim runs
   // beside, never instead.
   readonly worldSim: WorldRuntime;
+
+  // ---- the money→ledger bridge (WP-4, wc-12 §4) ----
+  // Observes the story's honest math and posts it to the world's ledger —
+  // one instance, event-driven, never per-frame.
+  readonly moneyBridge: MoneyBridge;
 
   // ---- notes don't stampede (docs/12: the city is patient) ----
   // Two notes arriving together queue instead of replacing: Rosa's quiet
@@ -351,6 +357,38 @@ export class Game {
       return { timeScale: Number.isFinite(q) && q > 0 && q <= 1440 ? q : undefined };
     })());
 
+    // ---------------- the money→ledger bridge (WP-4, wc-12 §4) ----------------
+    // Every Effect('money') the shipped story emits becomes a ledger
+    // transaction — the game's honest math, now traceable, NOT replaced
+    // (GameState keeps owning story math; wc-05 §2's one-way bridge). The
+    // wrappers observe the ACTUAL delta — post-clamp, post-replay — and
+    // post behind the same confirm-gates. The sanctioned mirror
+    // (world.player.moneyCents) follows the story's head; auditWorld fails
+    // the world the moment they disagree.
+    {
+      const brainWorld = this.worldSim.brain.world;
+      const bridge = new MoneyBridge(
+        brainWorld.ledger,
+        brainWorld,
+        () => ({ tick: brainWorld.clock.tick, day: this.state.day, step: this.state.step }),
+      );
+      this.moneyBridge = bridge;
+      const rawEarn = this.state.earn.bind(this.state);
+      const rawSpend = this.state.spend.bind(this.state);
+      this.state.earn = (n: number) => {
+        const before = this.state.money * 100;
+        const out = rawEarn(n);
+        bridge.observe(before, this.state.money * 100);
+        return out;
+      };
+      this.state.spend = (n: number) => {
+        const before = this.state.money * 100;
+        const out = rawSpend(n);
+        bridge.observe(before, this.state.money * 100);
+        return out;
+      };
+    }
+
     // ---------------- boot (main.gd `_ready`) ----------------
     const save = loadSave();
     this.bootedFromDay = save.day;
@@ -374,6 +412,9 @@ export class Game {
     } else {
       this.state.money = START_MONEY;
       this.state.dayStartMoney = START_MONEY;
+      // WP-4: the fresh world's genesis is the shipped start on BOTH sides
+      // of the sanctioned mirror (ledger 8700¢ from createWorldState).
+      this.moneyBridge.syncMirror(START_MONEY * 100);
       this.state.setStep(Step.MEET_ROSA);
       this.world.dressDay(1); // Day 1 is dressed by construction defaults; this makes it honest
       this.ui.setMoneyQuiet(this.state.money);
@@ -1005,7 +1046,11 @@ export class Game {
     if (this.state.buyConfirm !== null && this.state.buyConfirm !== it.id) {
       this.state.buyConfirm = null;
     }
+    // The interaction's id rides the bridge's trace column (WP-4): money
+    // posted while it is set cites the intent that moved it.
+    this.moneyBridge.intent = it.id;
     for (const e of it.perform(this.ictx)) this.applyEffect(e);
+    this.moneyBridge.intent = null;
   }
 
   // ------------------------------------------------ the order conversation ----
@@ -2529,6 +2574,11 @@ export class Game {
       s.cartName = sd.cart_name;
       if (isStarterId(sd.starter)) s.starterId = sd.starter!;
       s.money = sd.money;
+      // WP-4: the ledger catches up to the story's truth here — the story
+      // save owns the player's money; a world write that failed (storage
+      // full) leaves a lag the bridge repairs as a traceable transaction
+      // (no drift → no post, no noise).
+      this.moneyBridge.reconcile(s.money * 100);
       s.awningUp = sd.awning;
       s.kidKept = sd.kid_kept;
       s.stoolUp = sd.stool ?? false;

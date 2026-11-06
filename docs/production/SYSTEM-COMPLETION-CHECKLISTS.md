@@ -220,12 +220,12 @@ Evidence sources used for baseline statuses: source audit of `web-three/src/` (2
 **Done when:** whatever the spine requires is present, saved, and test-pinned — no CRUD inventory built "for later".
 
 ### SYS-PLAY-08 — Money & transactions
-**Today:** VERIFIED for shipped math ($87 start; Day-1 rush $112; Day-4 $123 — E2E-asserted); confirm-gate purchases; sim/economy ledger ready on branch (integer cents, append-only, flow accounting, audit). Status: VERIFIED (story math) / IMPLEMENTED (ledger).
+**Today:** VERIFIED for shipped math ($87 start; Day-1 rush $112; Day-4 $123 — E2E-asserted) AND the ledger bridge is INTEGRATED (WP-4, `feat/wp-4-money-bridge` @ `2203f05`): every `Effect('money')` posts to the world's ledger behind the same confirm-gates — the math unchanged, now traceable. Status: VERIFIED (story math) / INTEGRATED (ledger bridge).
 **Checklist:**
-- [ ] D-3 bridge: `Effect('money')` posts transactions behind confirm-gates (Phase 2)
-- [ ] The sanctioned mirror + `auditWorld` enforce `player.moneyCents ↔ ledger.balance('acct:player')`
-- [ ] No price invented anywhere outside shipped prices (contract law — tests use shipped prices only)
-**Done when:** every dollar the HUD shows reconciles to the ledger, from genesis, on every save.
+- [x] D-3 bridge: `Effect('money')` posts transactions behind confirm-gates — **DONE (WP-4):** `sim/moneyBridge.ts`; the shipped-moments table carries wc-12 §4's worked examples as rows; the ACTUAL delta posts (post-clamp, post-replay); the E2E's $87→$112→$123 math passes unchanged (4-day E2E 0 failures, 610 s, day-4 save holds $123)
+- [x] The sanctioned mirror + `auditWorld` enforce `player.moneyCents ↔ ledger.balance('acct:player')` — **DONE:** the bridge syncs the mirror after every movement; `auditWorld` fails the world on disagreement (tested — the failure mode pinned); boot reconciliation repairs a lagging world save as a traceable transaction
+- [x] No price invented anywhere outside shipped prices (contract law — tests use shipped prices only) — **DONE:** categories come from the closed sets; amounts come from the story's own calls; unmapped movements route via `acct:world` with loud reasons (`external_transfer`/`external_loss`)
+**Done when:** every dollar the HUD shows reconciles to the ledger, from genesis, on every save. **Evidence: probe-money-trace ALL PASSED** (genesis $87.00 on both mirror sides / 0 txns → five +$5.00 business_revenue faucets → $112.00; audit clean; ids `txn:story_<tick>_<n>` deterministic across save/load — 23 money-bridge tests).
 
 ### SYS-PLAY-09 — Player progression
 **Today:** roam counters + discovery lines, Map notebook progression, awning/stool/permit beats, Skyline of Lit Windows as ambience (no numeric progress UI — a design choice per doc 01/AGENTS.md). Chapter progression (R8) not built. Status: PARTIAL.
