@@ -35,6 +35,8 @@ import { bootWorldBrain, buildReferencePlaceResolver, DEFAULT_TIMESCALE,
   type BrainEvent, type SimDirective, type WorldSimBrain } from '../sim/runtime';
 import { simTickOfStoryDay } from '../sim/epochMap';
 import { loadRegistry } from '../sim/registry';
+import { Navigation } from '../sim/nav';
+import { RouteFollower } from '../sim/nav/follower';
 import { WORLD_SAVE_KEY } from '../sim/state';
 import type { Effect } from '../core/GameState';
 import type { Game } from './Game';
@@ -58,6 +60,25 @@ interface ExecutorBody {
   lastMode: string;
   lastTarget: { x: number; z: number } | null;
   wasVisible: boolean;
+  // ---- the route (Phase 3: destination movement walks the block) ----
+  /** The active polyline route, or null (off-map legs keep the shipped
+   *  snap/vanish choreography and never route). */
+  follower: RouteFollower | null;
+  /** The destination key the route was built for ("x,z") — a new key
+   *  triggers exactly one recalculation, never a per-frame re-query. */
+  routeKey: string | null;
+  /** The access epoch the route was validated under (door flips bump it
+   *  once, and only then do live routes re-check their remaining doors). */
+  routeEpoch: number;
+  /** Diagnostics: how many routes this body has walked, and the routed
+   *  length of the current one (the probe asserts on these). */
+  routesWalked: number;
+  /** The door edges of the active route, in walk order (at = the
+   *  cumulative walked distance where the door edge is fully crossed),
+   *  and how many have been recorded (the A-2 transition bookkeeping —
+   *  enter/exit recorded exactly when the body passes). */
+  doorSegs: Array<{ seg: number; doorId: string; direction: 'enter' | 'exit'; at: number }>;
+  doorCrossed: number;
 }
 
 export interface WorldRuntimeOpts {
@@ -78,10 +99,14 @@ export class WorldRuntime {
   private saveTimer = 0;
   private helloNpc: string | null = null;
   private registry: ReturnType<typeof loadRegistry>;
+  /** The one navigation authority (A-1/A-2): graph, routes, doors. Built
+   *  once from the same registry the brain resolves places against. */
+  readonly nav: Navigation;
 
   constructor(game: Game, opts: WorldRuntimeOpts = {}) {
     this.game = game;
     this.registry = loadRegistry();
+    this.nav = new Navigation(this.registry);
     let raw: string | null = null;
     try { raw = localStorage.getItem(WORLD_SAVE_KEY); } catch { raw = null; }
     const boot = bootWorldBrain({
@@ -114,6 +139,8 @@ export class WorldRuntime {
       this.bodies.push({
         group, npcId, key: key as 'rosa' | 'idris',
         lastMode: 'away', lastTarget: null, wasVisible: group.visible,
+        follower: null, routeKey: null, routeEpoch: 0, routesWalked: 0,
+        doorSegs: [], doorCrossed: 0,
       });
     }
   }
@@ -200,6 +227,8 @@ export class WorldRuntime {
       if (g.visible) g.visible = false;
       b.lastMode = 'away';
       b.lastTarget = null;
+      b.follower = null;
+      b.routeKey = null;
       return;
     }
     const target = d.body.target!;
@@ -211,6 +240,8 @@ export class WorldRuntime {
       if (far > SPAWN_SNAP_R) g.position.set(target.x, 0.05, target.z);
       b.lastMode = d.body.mode;
       b.lastTarget = { ...target };
+      b.follower = null;
+      b.routeKey = null;
       return;
     }
     // --- dialogue freezes the body and faces the player
@@ -220,22 +251,122 @@ export class WorldRuntime {
       b.lastMode = 'dialogue';
       return;
     }
-    // --- the walk (one lerp-step; rig animation reads the delta)
-    const dx = target.x - g.position.x;
-    const dz = target.z - g.position.z;
-    const dist = Math.hypot(dx, dz);
+    // --- the walk (Phase 3: routed) — a destination walk follows the
+    // navigation graph (sidewalk spines, the crosswalks, door corridors);
+    // the follower is rebuilt ONLY when the destination changes, so the
+    // per-frame cost is one polyline step, exactly like the shipped lerp.
+    const dist = Math.hypot(target.x - g.position.x, target.z - g.position.z);
     if (dist > ARRIVE_R) {
-      const step = this.brain.executorStep(dist, dt);
-      if (step > 0) {
-        g.position.x += (dx / dist) * step;
-        g.position.z += (dz / dist) * step;
-        g.rotation.y = Math.atan2(dx, dz);
+      const key = `${target.x.toFixed(1)},${target.z.toFixed(1)}`;
+      if (b.routeKey !== key || b.routeEpoch !== this.navEpoch()) {
+        b.routeKey = key;
+        b.routeEpoch = this.navEpoch();
+        b.follower = this.buildRoute(b, target);
+        if (b.follower) b.routesWalked++;
       }
-      b.lastMode = 'enroute';
+      const follower = b.follower;
+      if (follower && !follower.done()) {
+        const step = this.brain.executorStep(follower.remaining(), dt);
+        const { pos } = follower.step(step);
+        // the rendered heading eases along the corridor (the follower's
+        // law); the rig's walk animation reads the position delta
+        g.position.x = pos.x;
+        g.position.z = pos.z;
+        g.rotation.y = follower.state.heading;
+        this.recordDoorCrossings(b);
+        b.lastMode = 'enroute';
+      } else {
+        // short approach (inside the route snap) or a finished route:
+        // the shipped straight-line close, unchanged
+        this.stepStraight(b, target, dist, dt);
+        b.lastMode = 'enroute';
+      }
     } else {
       b.lastMode = 'at';
+      b.follower = null;
+      b.routeKey = null;
     }
     b.lastTarget = { ...target };
+  }
+
+  /** The door/access epoch — a bumped epoch forces live routes to
+   *  re-derive exactly once (a door that closed mid-walk is respected).
+   *  Folds in the minute-driven availability generation: an hour-gated
+   *  door closes when the CLOCK crosses the window — no setDoorState
+   *  call fires — and a walk in flight must re-derive exactly once too. */
+  private navEpoch(): number {
+    return this.nav.availabilityGen(this.brain.clock.minuteOfDay);
+  }
+
+  /** The route for a destination walk. The claim's place decides the
+   *  destination NODE (an interior routes in through its door when the
+   *  access law allows; a street point routes to its nearest node);
+   *  the directive's exact jittered target ends the polyline when the
+   *  final leg is clear. Null = the shipped straight-line fallback.
+   *  Door edges in the route are remembered with their segment index, so
+   *  walking through a door RECORDS the enter/exit transition (A-2's
+   *  bookkeeping) exactly when the body passes it. */
+  private buildRoute(b: ExecutorBody, target: { x: number; z: number }): RouteFollower | null {
+    const g = b.group;
+    const minute = this.brain.clock.minuteOfDay;
+    const from = { x: g.position.x, z: g.position.z };
+    const claimPlace = this.brain.directives.get(b.npcId)?.resolved.placeId ?? null;
+    let route = null;
+    if (claimPlace && this.nav.nodeForPlace(claimPlace)) {
+      const res = this.nav.routeToPlace(from, claimPlace, minute);
+      route = res.route;
+      if (route) {
+        // append the exact stand point when the final leg is a short,
+        // clear approach (the lobby's own floor, the door threshold)
+        const last = route.points[route.points.length - 1];
+        const tail = Math.hypot(target.x - last.x, target.z - last.z);
+        if (tail > 0.05 && tail < 4) route.points.push({ x: target.x, z: target.z });
+      }
+    } else {
+      route = this.nav.routeTo(from, target, minute);
+    }
+    if (!route || route.points.length < 2) return null;
+    // remember the door crossings in walk order with the walked distance
+    // at which the transition lands: ENTER fires as the body steps into
+    // the corridor (the door edge's start — the facade plane), EXIT when
+    // it completes the passage (the door edge's end — back outside)
+    const probe = new RouteFollower(route.points);
+    const lastSeg = route.points.length - 2;
+    b.doorSegs = this.nav.routeDoors(route).map((d) => ({
+      ...d,
+      at: d.direction === 'enter'
+        ? probe.distanceAt(d.seg)
+        : (d.seg + 1 > lastSeg ? probe.totalLength : probe.distanceAt(d.seg + 1)),
+    }));
+    b.doorCrossed = 0;
+    const heading = g.rotation.y || undefined;
+    return new RouteFollower(route.points, heading ?? null);
+  }
+
+  /** Records any door transitions the body has walked through since the
+   *  last frame (one integer-ish compare per open crossing per frame). */
+  private recordDoorCrossings(b: ExecutorBody): void {
+    const f = b.follower;
+    if (!f) return;
+    while (b.doorCrossed < b.doorSegs.length && b.doorSegs[b.doorCrossed].at <= f.state.traveled + 1e-9) {
+      const d = b.doorSegs[b.doorCrossed];
+      this.nav.recordTransition(d.doorId, b.npcId, d.direction, this.brain.clock.tick);
+      b.doorCrossed++;
+    }
+  }
+
+  /** The shipped straight-line close (unchanged math, one purpose:
+   *  finishing a walk whose route is done, or whose snap was shorter
+   *  than the route's first leg). */
+  private stepStraight(b: ExecutorBody, target: { x: number; z: number }, dist: number, dt: number): void {
+    const g = b.group;
+    const step = this.brain.executorStep(dist, dt);
+    if (step > 0 && dist > 0) {
+      g.position.x += ((target.x - g.position.x) / dist) * step;
+      g.position.z += ((target.z - g.position.z) / dist) * step;
+      g.rotation.y = Math.atan2(target.x - g.position.x, target.z - g.position.z);
+    }
+    void b;
   }
 
   // ---- the R6 door (input side) ---------------------------------------------
@@ -360,15 +491,18 @@ export class WorldRuntime {
       npcId: string; claim: string | null; kind: string; priority: number;
       placeId: string | null; bodyMode: string; pos: { x: number; z: number } | null;
       visible: boolean; inDialogue: boolean; stackDepth: number;
+      routed: boolean; routeLeft: number; routesWalked: number;
     }>;
     flags: string[];
     events: number;
     warmth: Record<string, number>;
     saveKey: string;
     clock: { day: number; minuteOfDay: number };
+    nav: { nodes: number; edges: number; issues: number; components: number };
   } {
     const w = this.brain.world;
     const npcIds = [...this.brain.records.keys()];
+    const navStats = this.nav.stats();
     return {
       day: w.clock.day,
       time: w.clock.time,
@@ -377,6 +511,10 @@ export class WorldRuntime {
       active: this.active,
       phase: w.clock.phase,
       clock: { day: w.clock.day, minuteOfDay: w.clock.minuteOfDay },
+      nav: {
+        nodes: navStats.nodes, edges: navStats.edges,
+        issues: this.nav.validationIssues().length, components: navStats.components,
+      },
       npcs: npcIds.map((id) => {
         const rec = this.brain.records.get(id)!;
         const d = this.brain.directives.get(id);
@@ -393,6 +531,9 @@ export class WorldRuntime {
           visible: body ? body.group.visible : false,
           inDialogue: this.brain.inDialogueWith(id),
           stackDepth: rec.stack.length,
+          routed: !!body?.follower,
+          routeLeft: body?.follower ? body.follower.remaining() : 0,
+          routesWalked: body?.routesWalked ?? 0,
         };
       }),
       flags: [...w.flags.map.keys()],

@@ -170,9 +170,17 @@ const H = {
   apartmentMorning: h(6) + 30,
   walkIn: h(7) + 22,
   platformEnd: h(7) + 52,     // 07:30 arrival is the canon beat; the stand ends 07:52
-  walkToCart: h(8) + 24,      // 48 m ≈ 30 honest minutes
-  usualEnd: h(9) + 6,         // the usual — a long, unhurried breakfast
-  walkHome: h(9) + 47,        // 65 m to the west edge
+  // Phase 3: the walks are ROUTED now (sidewalk → the canon crosswalk →
+  // sidewalk), and the routed block is honest distance: the platform→cart
+  // leg measures 59 m through the XW-CANON zebra = 36.9 honest minutes at
+  // the authored 1.6 m/s sim pace. The walk windows carry that distance
+  // plus a small honesty margin — the same law the 48 m ≈ 30 comment used,
+  // recomputed for the way a person actually walks the block. The canon
+  // beats keep their minutes (07:22 walk-in, the 07:40 platform, the
+  // 06:00 deli open); only the off-beat travel window edges move.
+  walkToCart: h(8) + 32,      // 59 routed m ≈ 37 honest minutes + margin
+  usualEnd: h(9) + 14,        // the usual — still a long, unhurried breakfast
+  walkHome: h(9) + 55,        // the routed leg home, same 59 m
   eveningRoutine: h(17) + 30,
   walkToShift: h(21),
   shiftStart: h(21) + 45,

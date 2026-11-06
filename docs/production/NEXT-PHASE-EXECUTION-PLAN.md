@@ -118,6 +118,10 @@ WP-7 (evidence assembly)       ── last; consumes all + the post-merge perf r
 4. **File-overlap check:** A-1 lives in the nav/registry layer (`sim/`, world-contract docs); WP-4 in `sim/moneyBridge.ts` + Game.ts's money-effect section; WP-6 in `ui/` — no shared files, so A-1 drafting and WP-4 may proceed in parallel windows with the usual single-writer bookings.
 5. **Order to propose for the next milestone:** WP-6 (start now) → A-1 draft → A-1 land → WP-4 → WP-3v scale-out on the nav graph. **Nothing here begins without the owner's separate authorization** (the plan's own law, §3).
 
+### 2c. A-1/A-2 status note (2026-11-06, Technical Architecture agent)
+
+**A-1 (the navigation graph) and A-2 (building access) are LANDED on `feat/phase-3-navigation-building-access`** under the owner's Phase-3 assignment — see register v1.5.0 for the full gate evidence. What this changes in the order above: WP-3v's blocker ("the nav graph") is GONE — the ambient-walker migration can now route over `sim/nav` — and its single-writer booking on `peds.ts` stands. WP-4 (the money bridge) is untouched and still next-in-line for its WS-D window. **Not started here (unchanged scope): A-3 registry geometry flip (DEC-4, owner's call), E-1 content catalogue, chokepoint capacity claims.**
+
 ## 3. What must NOT begin during this milestone
 
 - Nav-graph migration, registry geometry flip (Phase 3) — the merge (WP-0) first; A-1 drafts now (see the reconciliation report §8 preview), executes after Phase-2 close.

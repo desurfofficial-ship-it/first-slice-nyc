@@ -257,6 +257,58 @@ which docs/architecture/03 §4 rules out as an engine swap.
   was inverted (enter 1.6 / exit 0.8 flickered the 0.8–1.6 m sidewalk
   annulus every frame; exit now holds to 2.4).
 
+### 3.7 Gen City Auto — navigation & spatial services (studied for Phase 3 A-1/A-2, 2026-11-06)
+
+Full source study of the systems A-1 needs (repo @ `f049f54`). Headline:
+**gen-city-auto has no pathfinding at all** — no A*, no Dijkstra, no route
+storage (verified by exhaustive grep). Cars pick greedy seeded exits at each
+junction (`src/game/traffic.ts` `LaneFollower.pickExit`); pedestrians
+ping-pong along one road chain (`src/game/pedestrians.ts`) and never cross a
+street; buildings have no doors or interiors. It is NOT a
+pedestrian-navigation reference. What IS worth taking:
+
+- **The planar-graph toolkit** (`src/city/graph.ts`, 581 lines, MIT): plain
+  object nodes/edges, adjacency-by-index, `dead` flags + `compact()`,
+  stable-index-under-mutation discipline (`stableOrder` keeps street-furniture
+  hashes invariant across edits). Our nav graph keeps the shape (id-keyed
+  nodes, adjacency lists, validation) but adds what they never needed:
+  per-edge cost/kind/surface and stable string ids.
+- **The query-layer pattern** (`src/game/roadnet.ts`): all spatial indices
+  built ONCE in the constructor — a flat uniform grid of `Map<number,
+  number[]>` buckets keyed by packed integer cell coords (32 m cells),
+  expanding-ring nearest queries with early exit, no quadtrees anywhere.
+  Pattern adopted for `sim/nav/spatial.ts`; the key packing is resized for
+  our ±84 m neighborhood (theirs assumes 6 km² — `+1000…4096` offsets
+  would collide at our scale).
+- **The arc-length follower + Bézier portal transition** (`traffic.ts`
+  232–540): entities parameterized by distance-along (`LaneRef` + scalar
+  `s`), region-to-region transitions as cubic Béziers sampled into
+  arc-length tables with curvature-derived speed caps, overshoot carried
+  across seams, heading rate-limited (5 rad/s). Template for
+  sidewalk→crosswalk→sidewalk movement — adapted into `sim/nav/follower.ts`
+  as a polyline + rate-limited-heading follower (an authored, finite
+  neighborhood does not need per-crossing Bézier sampling; memoizing it
+  would be allocation churn at zero visual gain for two bodies).
+- **Determinism toolkit** (`src/math/random.ts`): sfc32 `Rng`, standalone
+  integer hashes, per-consumer seeds, position-hashed seeding
+  (`hash2(round(x·10), round(z·10)) ^ seed`) — same discipline as our
+  `sim/rng.ts`; nothing to import, everything to imitate.
+- **Allocation discipline**: preallocated typed-array scratch + quickselect
+  top-N (`src/world/nearest.ts`, 57 lines), lazy per-chain caches
+  (`Map<id, Float64Array>`), buffer detach on release.
+- **Traps flagged**: frame-loop `dt` integration everywhere (our sim is
+  fixed-tick; their motion code must never set our timing); world-size
+  constants baked into grid keys; per-crossing allocations in `planTurn`;
+  ~70% of the repo is WebGPU/WGSL/workers, irrelevant to us. License:
+  `package.json` declares MIT but **no LICENSE file exists** — patterns and
+  small adaptations are fine; carry an attribution note if any code is ever
+  lifted verbatim (none was: the graph, A*, access and follower are our own).
+
+Verdict for A-1's design: graph + A* + access are OURS (the reference has
+none); grid-index construction, one-time index building, arc-length
+following, and the determinism/allocation discipline are adapted. No new
+dependencies (they have zero runtime deps; we add none).
+
 ## 5. Working rule for every agent
 
 Before you build, check §2's table. If your system has a ✅, read the finding;
