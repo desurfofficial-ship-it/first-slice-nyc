@@ -57,17 +57,44 @@ const cart = await page.evaluate(() => {
 });
 
 console.log('cart at', JSON.stringify(cart));
+
+// ---- district legality (WP-3v): the walkers COMMUTE now — they range the
+// whole walked district, so the old home-street band (|z| 4..8) no longer
+// describes the legal world. The law they answer to is the ONE nav graph's:
+// never inside a footprint, and on the road only inside a zebra corridor.
+const law = await page.evaluate(() => {
+  const g = window.__game;
+  const nav = g.worldSim.nav;
+  const doc = g.worldSim.registry.doc;
+  return {
+    bands: nav.crosswalkBands(),
+    fps: (doc.buildings ?? []).filter((b) => b.class !== 'D' && b.footprint).map((b) => b.footprint),
+    roads: (doc.streets ?? []).map((s) => s.road).filter(Boolean),
+  };
+});
+const legalSpot = (p) => {
+  const { bands, fps, roads } = law;
+  for (const fp of fps) {
+    if (p.x > fp.x - fp.w / 2 + 0.05 && p.x < fp.x + fp.w / 2 - 0.05
+      && p.z > fp.z - fp.d / 2 + 0.05 && p.z < fp.z + fp.d / 2 - 0.05) return 'footprint';
+  }
+  const onRoad = roads.some((r) => p.x > r.xMin + 0.05 && p.x < r.xMax - 0.05
+    && p.z > r.zMin + 0.05 && p.z < r.zMax - 0.05);
+  if (!onRoad) return 'ok';
+  const inZebra = bands.some((b) => (Math.abs(p.x - b.x) <= b.half + 0.5 && Math.abs(p.z - b.z) <= 7.0)
+    || (Math.abs(p.z - b.z) <= b.half + 0.5 && Math.abs(p.x - b.x) <= 7.0));
+  return inZebra ? 'ok' : 'jaywalk';
+};
+
 let failures = 0;
 for (let i = 0; i < 3; i++) {
   const a = t0?.[i]; const b = t1?.[i]; const c = t2?.[i];
   if (!a || !b || !c) { console.log(`ped ${i}: MISSING`); failures++; continue; }
   const moved = Math.hypot(b.x - a.x, b.z - a.z) + Math.hypot(c.x - b.x, c.z - b.z);
-  // sidewalk discipline: on a sidewalk (|z| in 4..8) or crossing at the crosswalk band
-  const onWalk = (p) => (Math.abs(p.z) >= 3.9 && Math.abs(p.z) <= 8.2)
-    || (p.z > -4.6 && p.z < 4.6 && p.x > -8.6 && p.x < -1.4);
-  const ok = onWalk(b) && onWalk(c);
+  const verdict = [b, c].map(legalSpot);
+  const ok = verdict.every((v) => v === 'ok');
   const inCart = Math.hypot(c.x - cart.x, c.z - cart.z) < 1.2;
-  console.log(`ped ${i}: t0(${a.x},${a.z}) t1(${b.x},${b.z}) t2(${c.x},${c.z}) moved=${moved.toFixed(1)}m sidewalk=${ok ? 'ok' : 'VIOLATION'} cartClear=${inCart ? 'INSIDE CART' : 'ok'}`);
+  console.log(`ped ${i}: t0(${a.x},${a.z}) t1(${b.x},${b.z}) t2(${c.x},${c.z}) moved=${moved.toFixed(1)}m district=${ok ? 'ok' : verdict.join('/')} cartClear=${inCart ? 'INSIDE CART' : 'ok'}`);
   if (moved < 1 || !ok || inCart) failures++;
 }
 

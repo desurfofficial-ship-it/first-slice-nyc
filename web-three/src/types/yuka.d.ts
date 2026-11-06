@@ -47,6 +47,8 @@ declare module 'yuka' {
     add(point: Vector3): this;
     current(): Vector3;
     advance(): this;
+    /** True when the index sits on the final waypoint (yuka Path#finished). */
+    finished(): boolean;
   }
 
   export class FollowPathBehavior extends SteeringBehavior {

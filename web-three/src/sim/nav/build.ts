@@ -83,6 +83,12 @@ interface LaneWork {
   axis: 'EW' | 'NS';
   lane: number;                 // the fixed coordinate (z for EW, x for NS)
   bandLo: number; bandHi: number; // the walk band (skirt search bounds)
+  /** Perpendicular road bands along this lane's axis (the gaps): a lane
+   *  chain may NOT bridge one — through-traffic crosses a road only at a
+   *  registered zebra. (WP-3v integration review: the shipped builder
+   *  walked sidewalk spines straight through Kestrel mid-block — a
+   *  jaywalk the authored loops never had. The gap law closes it.) */
+  gaps: Array<{ a0: number; a1: number }>;
 }
 
 type Pt = { along: number; across: number; id?: string; kind: NavNodeKind; surface: NavSurface; places?: string[] };
@@ -125,7 +131,27 @@ export function buildNavGraph(registry: WorldRegistry): NavBuildResult {
           throw new Error(`nav lane ${street.id}/${def.side} x ${def.off} inside the road band`);
         }
       }
-      lanes.push({ streetId: street.id, side: def.side, axis, lane: def.off, bandLo, bandHi });
+      lanes.push({ streetId: street.id, side: def.side, axis, lane: def.off, bandLo, bandHi, gaps: [] });
+    }
+  }
+  // the gap law: each lane inherits the OTHER streets' road bands as
+  // no-bridge spans along its axis (a sidewalk may not run through a
+  // perpendicular roadway — the zebras and the intersection corners are
+  // the legal crossings, and the builder assembles them below)
+  for (const lane of lanes) {
+    for (const other of doc.streets ?? []) {
+      if (other.id === lane.streetId) continue; // own road is ACROSS, already validated
+      const r = other.road;
+      if (!r) continue;
+      if (lane.axis === 'EW') {
+        if (other.axis !== 'NS' || r.xMin === undefined || r.xMax === undefined) continue;
+        if (r.xMax <= X_SPAN[0] || r.xMin >= X_SPAN[1]) continue;
+        lane.gaps.push({ a0: r.xMin, a1: r.xMax });
+      } else {
+        if (other.axis === 'NS' || r.zMin === undefined || r.zMax === undefined) continue;
+        if (r.zMax <= Z_SPAN[0] || r.zMin >= Z_SPAN[1]) continue;
+        lane.gaps.push({ a0: r.zMin, a1: r.zMax });
+      }
     }
   }
 
@@ -407,14 +433,24 @@ function assembleLane(
   const [lo, hi] = work.axis === 'EW' ? X_SPAN : Z_SPAN;
   for (let c = lo; c <= hi + 1e-9; c += GRID_STEP) {
     const cc = round2(c);
-    if (!blocked.some((b) => cc > b.a0 - WALKER_CLEAR && cc < b.a1 + WALKER_CLEAR)) {
-      runs.push({ at: cc, pts: [{ along: cc, across: work.lane, kind: 'sidewalk', surface: 'sidewalk' }] });
-    }
+    if (blocked.some((b) => cc > b.a0 - WALKER_CLEAR && cc < b.a1 + WALKER_CLEAR)) continue;
+    // the gap law: no base point stands in a perpendicular roadway — the
+    // through chain breaks at every road mouth (the zebras + corners are
+    // the assembled crossings)
+    if (work.gaps.some((g) => cc > g.a0 && cc < g.a1)) continue;
+    runs.push({ at: cc, pts: [{ along: cc, across: work.lane, kind: 'sidewalk', surface: 'sidewalk' }] });
   }
   for (const b of blocked) {
     const skirt = skirtFor(work, b, footprints);
     if (skirt === null) {
       notes.push(`lane ${work.streetId}/${work.side}: blocked span ${round2(b.a0)}..${round2(b.a1)} has no passable skirt`);
+      continue;
+    }
+    // a skirt must not carry the chain through a road gap either (the
+    // shipped registry has no such conflict — pinned by the validation
+    // gate; a future curb-adjacent building must revisit the skirt law)
+    if (work.gaps.some((g) => b.a0 - WALKER_CLEAR < g.a1 && b.a1 + WALKER_CLEAR > g.a0)) {
+      notes.push(`lane ${work.streetId}/${work.side}: blocked span ${round2(b.a0)}..${round2(b.a1)} at a road mouth — no skirt`);
       continue;
     }
     runs.push({
@@ -440,6 +476,7 @@ function assembleLane(
   }
 
   let prevId: string | null = null;
+  let prevAlong = 0;
   for (const p of chain) {
     const x = work.axis === 'EW' ? p.along : p.across;
     const z = work.axis === 'EW' ? p.across : p.along;
@@ -447,9 +484,38 @@ function assembleLane(
     if (!graph.hasNode(id)) {
       graph.addNode({ id, x, z, kind: p.kind, surface: p.surface, places: p.places ?? [] });
     }
-    if (prevId !== null && prevId !== id) graph.addEdge(prevId, id, edgeKindFor(work), WALK_WIDTH);
+    if (prevId !== null && prevId !== id && !gapBridges(work, prevAlong, p.along, prevId, id)) {
+      graph.addEdge(prevId, id, edgeKindFor(work), WALK_WIDTH);
+    }
     prevId = id;
+    prevAlong = p.along;
   }
+}
+
+/** The gap law's edge rule: a chain edge that would bridge a perpendicular
+ *  roadway is refused — EXCEPT the zebra landing's curb apron (one endpoint
+ *  is a crosswalk landing `nav:xw:*`, strictly inside the gap, and the hop
+ *  to the clear sidewalk is short). Two landings inside the same gap are
+ *  still refused (that hop IS the roadway — the zebra edges are the legal
+ *  crossing, assembled separately as `cross`). */
+function gapBridges(
+  work: LaneWork,
+  a0: number, a1: number,
+  idA: string, idB: string,
+): boolean {
+  const lo = Math.min(a0, a1);
+  const hi = Math.max(a0, a1);
+  for (const g of work.gaps) {
+    if (lo < g.a1 && hi > g.a0) {
+      const inA = a0 > g.a0 && a0 < g.a1;
+      const inB = a1 > g.a0 && a1 < g.a1;
+      if (inA === inB) return true; // both inside (a jaywalk between landings)
+      const insideId = inA ? idA : idB; // or a full span (both outside)
+      if (!insideId.startsWith('nav:xw:') || hi - lo > 4.5) return true;
+      // the curb apron — a legal landing approach
+    }
+  }
+  return false;
 }
 
 /** Stable node id for a chain point (base grid / bend points). */

@@ -20,7 +20,7 @@
  */
 
 import type { WorldRegistry } from '../registry';
-import { NavGraph, footprintsOf, type NavIssue, type NavGraphStats } from './graph';
+import { NavGraph, footprintsOf, roadRectsOf, type NavIssue, type NavGraphStats } from './graph';
 import { NavSpatialIndex } from './spatial';
 import { NavPathfinder, type NavRoute, type RouteFailReason } from './pathfind';
 import { buildNavGraph, PASSABLE_FOOTPRINTS, type NavBuildResult } from './build';
@@ -88,6 +88,7 @@ export class Navigation {
       footprints: footprintsOf(registry.doc),
       bounds: NAV_BOUNDS,
       exemptFootprintIds: PASSABLE_FOOTPRINTS,
+      roads: roadRectsOf(registry.doc), // the gap law: no jaywalk edges
     });
   }
 
@@ -203,6 +204,65 @@ export class Navigation {
     if (this.segClear(from, pts[0])) pts[0] = { ...from };
     return { route: { nodeIds: route.nodeIds, points: pts, cost: route.cost }, reason: null };
   }
+
+  /** Street-level route for the ambient walkers (WP-3v): node-to-node
+   *  under the STREET gate — door edges are NEVER traversable, whatever
+   *  their hours (an ambient body never claims an interior; destinations
+   *  end AT the door node, on the sidewalk). The walker's exact position
+   *  is spliced onto the head only when the approach leg is clear.
+   *  Cached under the 'street' gateKey — the gate is time-invariant, so
+   *  no availability key rides it. */
+  routeToStreet(from: { x: number; z: number }, destNodeId: string): NavRoute | null {
+    // street-level snap ONLY (no lobby/landing): a street route runs
+    // street node to street node — a point whose nearest node is a lobby
+    // has no legal street route (the door edge is not an ambient's)
+    const a = this.spatial.nearest(from.x, from.z, { kinds: ['sidewalk', 'crossing', 'path'], maxRadius: 12 })?.id ?? null;
+    if (!a || !this.graph.hasNode(destNodeId)) return null;
+    const { route } = this.pathfinder.findPath(a, destNodeId, {
+      canTraverse: (e) => e.kind !== 'door',
+      gateKey: 'street',
+    });
+    if (!route) return null;
+    const pts = route.points.map((p) => ({ x: p.x, z: p.z }));
+    if (this.segClear(from, pts[0])) pts[0] = { x: from.x, z: from.z };
+    return { nodeIds: route.nodeIds, points: pts, cost: route.cost };
+  }
+
+  /** The street-level destination set for ambient commutes (WP-3v):
+   *  door-frontage nodes (sidewalk nodes with a place), the park/alley/
+   *  garden path nodes, and a deterministic spine sample — registry-
+   *  derived, sorted, identical across builds. No lobby/landing nodes:
+   *  ambient bodies stay street-level. */
+  streetDestinations(): string[] {
+    if (this.streetDests) return this.streetDests;
+    const out: string[] = [];
+    let spine = 0;
+    for (const id of [...this.graph.nodes.keys()].sort()) {
+      const n = this.graph.nodes.get(id)!;
+      if (n.kind === 'lobby' || n.kind === 'landing') continue;
+      if (n.kind === 'path' || (n.kind === 'sidewalk' && n.places.length > 0)) out.push(id);
+      else if (n.kind === 'sidewalk' && spine++ % 6 === 0) out.push(id);
+    }
+    this.streetDests = out;
+    return out;
+  }
+  private streetDests: string[] | null = null;
+
+  /** The crosswalk bands — one { x, z, half } per crossing node: a road
+   *  crossing is legal when it happens within `half` of a band center
+   *  (the runtime tests use the same 2.2 m zebra half-width). Probes and
+   *  tests read this; the graph remains the single geometry authority. */
+  crosswalkBands(): Array<{ x: number; z: number; half: number }> {
+    if (this.xwBands) return this.xwBands;
+    const out: Array<{ x: number; z: number; half: number }> = [];
+    for (const n of this.graph.nodes.values()) {
+      if (n.kind === 'crossing') out.push({ x: n.x, z: n.z, half: 2.2 });
+    }
+    out.sort((a, b) => (a.x - b.x) || (a.z - b.z));
+    this.xwBands = out;
+    return out;
+  }
+  private xwBands: Array<{ x: number; z: number; half: number }> | null = null;
 
   /** Footprint-clear segment check for endpoint splices (the shipped
    *  geometry, minus the passable slots/stair). */
