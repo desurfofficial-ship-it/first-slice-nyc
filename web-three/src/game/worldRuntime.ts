@@ -290,9 +290,12 @@ export class WorldRuntime {
   }
 
   /** The door/access epoch — a bumped epoch forces live routes to
-   *  re-derive exactly once (a door that closed mid-walk is respected). */
+   *  re-derive exactly once (a door that closed mid-walk is respected).
+   *  Folds in the minute-driven availability generation: an hour-gated
+   *  door closes when the CLOCK crosses the window — no setDoorState
+   *  call fires — and a walk in flight must re-derive exactly once too. */
   private navEpoch(): number {
-    return this.nav.accessEpoch;
+    return this.nav.availabilityGen(this.brain.clock.minuteOfDay);
   }
 
   /** The route for a destination walk. The claim's place decides the

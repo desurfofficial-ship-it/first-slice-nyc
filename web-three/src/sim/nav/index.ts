@@ -45,6 +45,14 @@ export class Navigation {
   /** Bumped when door availability changes — live route holders read
    *  this to re-derive exactly once (no polling, no per-frame work). */
   accessEpoch = 0;
+  /** The minute-driven availability generation: bumps when the set of
+   *  traversable doors CHANGES under the advancing clock (an hour-gated
+   *  door closing at 14:00 without any setDoorState call), and on
+   *  door-state flips (the listener folds the access epoch in). Memoized
+   *  per minute — one O(doors) scan per new minute, zero per frame. */
+  private availMinute = -1;
+  private availSig = '';
+  private availGen = 0;
 
   constructor(registry: WorldRegistry) {
     this.buildResult = buildNavGraph(registry);
@@ -100,6 +108,34 @@ export class Navigation {
     return this.buildResult.placeNode.get(placeId) ?? null;
   }
 
+  /** Which doors are traversable at a minute — the availability
+   *  SIGNATURE (deterministic door order, one bit per door). The cache
+   *  law: a route is valid for a (world, availability) pair. Hour-gated
+   *  doors change availability as the clock advances — no setDoorState
+   *  call fires — so route caches key on this signature, never on
+   *  coordinates alone. Pure function of door state + minute. */
+  availabilityKey(minuteOfDay: number): string {
+    let sig = '';
+    for (const d of this.access.allDoors()) {
+      sig += this.access.canTraverseEdge({ resourceRef: d.id, kind: 'door' }, minuteOfDay) ? '1' : '0';
+    }
+    return sig;
+  }
+
+  /** Liveness epoch for live route holders (worldRuntime): combine the
+   *  event-driven access epoch with the minute-driven availability
+   *  generation so a walk that crosses an hour boundary re-derives once
+   *  — exactly the law the flip-driven epoch already kept. (2^32 fold;
+   *  exact while accessEpoch < 2^21 — flips are rare, slow events.) */
+  availabilityGen(minuteOfDay: number): number {
+    if (minuteOfDay !== this.availMinute) {
+      this.availMinute = minuteOfDay;
+      const sig = this.availabilityKey(minuteOfDay);
+      if (sig !== this.availSig) { this.availSig = sig; this.availGen++; }
+    }
+    return this.accessEpoch * 4294967296 + this.availGen;
+  }
+
   /** Route between two exact points. Null when either end has no walkable
    *  snap within reach, or no route exists (fail safe, never partial).
    *  The exact endpoints are spliced onto the snapped polyline ONLY when
@@ -107,7 +143,8 @@ export class Navigation {
    *  inside a building ends at its snapped node (the door), never at a
    *  straight line through the wall. */
   routeTo(from: { x: number; z: number }, to: { x: number; z: number }, minuteOfDay: number): NavRoute | null {
-    const key = `${from.x.toFixed(1)},${from.z.toFixed(1)}>${to.x.toFixed(1)},${to.z.toFixed(1)}`;
+    const gate = this.availabilityKey(minuteOfDay);
+    const key = `${gate}|${from.x.toFixed(1)},${from.z.toFixed(1)}>${to.x.toFixed(1)},${to.z.toFixed(1)}`;
     const hit = this.pointCache.get(key);
     if (hit !== undefined) return hit;
     let result: NavRoute | null = null;
@@ -116,6 +153,7 @@ export class Navigation {
     if (a && b) {
       const { route } = this.pathfinder.findPath(a, b, {
         canTraverse: (e) => this.access.canTraverseEdge(e, minuteOfDay),
+        gateKey: gate,
       });
       if (route) {
         const pts = route.points.map((p) => ({ ...p }));
@@ -158,6 +196,7 @@ export class Navigation {
     if (!a) return { route: null, reason: 'UNKNOWN_START' };
     const { route, reason } = this.pathfinder.findPath(a, nodeId, {
       canTraverse: (e) => this.access.canTraverseEdge(e, minuteOfDay),
+      gateKey: this.availabilityKey(minuteOfDay),
     });
     if (!route) return { route: null, reason: reason ?? 'NO_ROUTE' };
     const pts = route.points.map((p) => ({ ...p }));

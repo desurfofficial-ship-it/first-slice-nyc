@@ -20,8 +20,46 @@ import { describe, expect, it } from 'vitest';
 import { loadRegistry } from '../src/sim/registry';
 import { buildNavGraph, PASSABLE_FOOTPRINTS } from '../src/sim/nav/build';
 import { Navigation } from '../src/sim/nav';
+import { NavGraph } from '../src/sim/nav/graph';
+import { NavPathfinder } from '../src/sim/nav/pathfind';
 import { RouteFollower } from '../src/sim/nav/follower';
 import { footprintsOf } from '../src/sim/nav/graph';
+
+/** Deterministic PRNG for the fuzz pins (mulberry32). */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Dijkstra reference (no heuristic) — the optimality oracle for the
+ *  A* fuzz pin. Same cost law as the graph (length × kind multiplier). */
+function dijkstraRef(g: NavGraph, start: string, goal: string): number | null {
+  const dist = new Map<string, number>();
+  const done = new Set<string>();
+  dist.set(start, 0);
+  for (;;) {
+    let best: string | null = null;
+    let bestD = Infinity;
+    for (const [id, d] of dist) {
+      if (!done.has(id) && d < bestD) { bestD = d; best = id; }
+    }
+    if (best === null) return null;
+    if (best === goal) return bestD;
+    done.add(best);
+    for (const nb of g.neighbors(best)) {
+      if (done.has(nb)) continue;
+      const e = g.edgeBetween(best, nb)!;
+      const nd = bestD + g.edgeCost(e);
+      const cur = dist.get(nb);
+      if (cur === undefined || nd < cur) dist.set(nb, nd);
+    }
+  }
+}
 
 const registry = loadRegistry();
 
@@ -310,6 +348,84 @@ describe('building access (A-2)', () => {
     expect(log.length).toBe(2);
     expect(log[0].direction).toBe('enter');
     expect(log[1].direction).toBe('exit');
+  });
+
+  it('is optimal against a Dijkstra reference on length-consistent random graphs (the lazy-improvement pin)', () => {
+    // The A* keeps DUPLICATE open entries (every strict improvement
+    // pushes; stale siblings skip on the closed check). The earlier
+    // no-repush variant was fuzz-proven SUBOPTIMAL on exactly this graph
+    // class (cost = length × multiplier ≥ length) — 65/4800 queries up
+    // to 5.4% long. This pin keeps that class of mistake out.
+    const rng = mulberry32(0xa5f00d);
+    let solved = 0;
+    for (let gi = 0; gi < 150; gi++) {
+      const n = 12 + Math.floor(rng() * 30);
+      const k = 2 + Math.floor(rng() * 4);
+      const g = new NavGraph();
+      for (let i = 0; i < n; i++) {
+        g.addNode({ id: `n${i}`, x: rng() * 100, z: rng() * 100, kind: 'sidewalk', surface: 'sidewalk', places: [] });
+      }
+      for (let i = 0; i < n; i++) {
+        const order = [...g.nodes.values()]
+          .map((m, j) => ({ j, id: `n${j}`, d: Math.hypot(m.x - g.node(`n${i}`)!.x, m.z - g.node(`n${i}`)!.z) }))
+          .sort((a, b) => a.d - b.d || a.j - b.j);
+        for (let t = 1; t <= k && t < order.length; t++) {
+          // a mix of multipliers — the shipped law (cost ≥ length) holds
+          g.addEdge(`n${i}`, order[t].id, t % 3 === 0 ? 'cross' : 'walk', 2);
+        }
+      }
+      const pf = new NavPathfinder(g);
+      for (let q = 0; q < 10; q++) {
+        const a = `n${Math.floor(rng() * n)}`;
+        const b = `n${Math.floor(rng() * n)}`;
+        const { route } = pf.findPath(a, b, { maxExpansions: 100000 });
+        const ref = dijkstraRef(g, a, b);
+        if (route && ref !== null) {
+          solved++;
+          expect(route.cost, `graph ${gi} ${a}>${b}: astar ${route.cost} vs dijkstra ${ref}`)
+            .toBeLessThan(ref + 1e-6 * Math.max(1, ref));
+        } else {
+          expect(route, `graph ${gi} ${a}>${b}: astar says ${route ? 'route' : route} but dijkstra found ${ref}`).toBeNull();
+        }
+      }
+    }
+    expect(solved).toBeGreaterThan(300); // the fuzz actually exercised routes
+  });
+
+  it('route caches obey the hour law — the clock alone invalidates, both directions', () => {
+    const nav = new Navigation(registry);
+    // 13:59 — open: a street point routes INTO the deli lobby
+    const before = nav.routeTo({ x: -16, z: 8 }, { x: -16, z: 14 }, 13 * 60 + 59);
+    expect(before).not.toBeNull();
+    // 14:01 — the SAME endpoints, the door closed by the CLOCK alone
+    // (no setDoorState call): the stale open-door route must not replay
+    const lull = nav.routeTo({ x: -16, z: 8 }, { x: -16, z: 14 }, 14 * 60 + 1);
+    expect(lull).toBeNull();
+    // 17:01 — reopened: the stale null (or stale lull route) must not survive
+    const evening = nav.routeTo({ x: -16, z: 8 }, { x: -16, z: 14 }, 17 * 60 + 1);
+    expect(evening).not.toBeNull();
+    // the exit direction: from INSIDE during the lull there is no legal
+    // way out (the door is the only passage), and that null must not
+    // poison the evening query either
+    const outLull = nav.routeTo({ x: -16, z: 14 }, { x: -16, z: 8 }, 14 * 60 + 2);
+    expect(outLull).toBeNull();
+    const outEvening = nav.routeTo({ x: -16, z: 14 }, { x: -16, z: 8 }, 17 * 60 + 2);
+    expect(outEvening).not.toBeNull();
+    expect(nav.routeDoors(outEvening!).some((d) => d.direction === 'exit' && d.doorId === 'door:ROS-01')).toBe(true);
+  });
+
+  it('availabilityGen tracks the clock and folds door flips (the live-route re-derivation law)', () => {
+    const nav = new Navigation(registry);
+    const g0 = nav.availabilityGen(9 * 60);
+    expect(nav.availabilityGen(9 * 60)).toBe(g0);        // same minute — memoized
+    expect(nav.availabilityKey(9 * 60)).toBe(nav.availabilityKey(9 * 60));
+    const g1 = nav.availabilityGen(14 * 60 + 1);         // the deli closed by the clock
+    expect(g1).toBeGreaterThan(g0);
+    expect(nav.availabilityKey(14 * 60 + 1)).not.toBe(nav.availabilityKey(9 * 60));
+    // a door FLIP folds the access epoch in (a fresh gen even mid-minute)
+    const flipBase = nav.availabilityGen(14 * 60 + 1);
+    nav.access.setDoorState('door:KTN-01', 'locked');
+    expect(nav.availabilityGen(14 * 60 + 1)).toBeGreaterThan(flipBase);
   });
 
   it('flipping a door invalidates cached routes through it', () => {

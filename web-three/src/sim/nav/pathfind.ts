@@ -15,6 +15,15 @@
  *     order or Map iteration — the same query always yields the same
  *     route, on any engine, on any day.
  *
+ * The open list keeps DUPLICATES (the lazy-deletion law): every strict
+ * improvement pushes a fresh entry, the sorted list guarantees the
+ * freshest (lowest-f) entry pops first, and stale siblings are skipped
+ * by the closed check. The earlier no-repush variant — update g/cameFrom
+ * but never reorder an already-open node — was fuzz-proven SUBOPTIMAL
+ * (65 of 4800 queries up to 5.4% long vs a Dijkstra reference on random
+ * length-consistent graphs; a stale parent chain can out-rank a better
+ * path). Pinned by test (sim-nav: 'optimal against a Dijkstra reference').
+ *
  * Unreachable destinations fail safely: null + a reason, never a
  * partial route, never an unbounded loop (the expansion budget caps a
  * pathological graph at a fixed visit count).
@@ -43,6 +52,12 @@ export interface RouteQuery {
   /** Door/traversal gate: return false to exclude an edge (a locked
    *  door, a closed crossing). Null = everything walks. */
   canTraverse?: (edge: { resourceRef: string | null; kind: string }) => boolean;
+  /** The gate's identity — REQUIRED whenever `canTraverse` is passed:
+   *  cache entries are keyed per gate, so two different gates never
+   *  share a route. The Navigation facade passes its availability
+   *  signature (which doors are traversable at the queried minute —
+   *  hour-gated doors change it as the clock advances, no flip needed). */
+  gateKey?: string;
   /** Deterministic expansion budget (default 4000 — ~10× the graph). */
   maxExpansions?: number;
 }
@@ -80,7 +95,7 @@ export class NavPathfinder {
       return { route: { nodeIds: [startId], points: [{ x: n.x, z: n.z }], cost: 0 }, reason: null };
     }
 
-    const cacheKey = `${startId}>${goalId}`;
+    const cacheKey = query.gateKey ? `${query.gateKey}|${startId}>${goalId}` : `${startId}>${goalId}`;
     const hit = this.cache.get(cacheKey);
     if (hit && hit.epoch === this.epoch) {
       // refresh LRU position
@@ -104,18 +119,15 @@ export class NavPathfinder {
     const gScore = new Map<string, number>();
     const cameFrom = new Map<string, string>();
     const closed = new Set<string>();
-    // open list: [fScore, nodeId] kept sorted ascending; ties by id
+    // open list: [fScore, nodeId] kept sorted ascending; ties by id.
+    // DUPLICATES ALLOWED — each improvement pushes a fresh entry; the
+    // closed check skips the stale siblings when they surface.
     const open: Array<{ f: number; id: string }> = [];
-    const inOpen = new Set<string>();
 
     const h = (id: string): number => {
       const n = this.g.node(id)!;
       return Math.hypot(n.x - goal.x, n.z - goal.z);
     };
-
-    gScore.set(startId, 0);
-    open.push({ f: h(startId), id: startId });
-    inOpen.add(startId);
 
     const pushOpen = (f: number, id: string): void => {
       let lo = 0;
@@ -127,15 +139,18 @@ export class NavPathfinder {
         else hi = mid;
       }
       open.splice(lo, 0, { f, id });
-      inOpen.add(id);
     };
+
+    gScore.set(startId, 0);
+    pushOpen(h(startId), startId);
 
     let expansions = 0;
     const budget = query.maxExpansions ?? EXPANSION_BUDGET;
 
     while (open.length > 0) {
       const cur = open.shift()!;
-      inOpen.delete(cur.id);
+      if (closed.has(cur.id)) continue; // a fresher entry expanded this node
+      closed.add(cur.id);
       if (cur.id === goalId) {
         const nodeIds = reconstruct(cameFrom, cur.id);
         const points = nodeIds.map((id) => {
@@ -149,8 +164,6 @@ export class NavPathfinder {
         }
         return { route: { nodeIds, points, cost }, reason: null };
       }
-      if (closed.has(cur.id)) continue;
-      closed.add(cur.id);
       if (++expansions > budget) return { route: null, reason: 'BUDGET' };
 
       const curG = gScore.get(cur.id)!;
@@ -163,7 +176,7 @@ export class NavPathfinder {
         if (known === undefined || tentative < known - 1e-9) {
           gScore.set(nId, tentative);
           cameFrom.set(nId, cur.id);
-          if (!inOpen.has(nId)) pushOpen(tentative + h(nId), nId);
+          pushOpen(tentative + h(nId), nId); // ALWAYS — the lazy-deletion law
         }
       }
     }
