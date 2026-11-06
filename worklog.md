@@ -1430,6 +1430,7 @@ Stage Summary:
   probe green (wardrobe flow + interior renders).
 
 Gates at close: tsc clean · vitest 660/660 (44 files) · build OK.
+
 ## 2026-11-06 — agent2: every interior wears its own furniture — the shops pass, and the probe that caught two dead regressions
 
 Task ID: SHOPS-FURNITURE-PASS
@@ -1502,3 +1503,25 @@ Stage Summary:
   (the original 23-slot guard still green).
 
 Gates at close: tsc clean · vitest 660/660 (44 files) · build OK.
+
+---
+Task ID: PROD-DIRECTOR-ROADMAP-V1
+Agent: Production Director (Z.ai)
+Task: Establish the complete, professional, production-ready development roadmap for FIRST SLICE — audit the repository, create the central production documentation system (master roadmap, phase acceptance, system checklists, status register, agent governance, risks, next-phase plan), reconcile it with the existing docs, modify no gameplay source code.
+
+Work Log:
+- Audited the full repository at main 69f8327 + branches feat/world-contract-foundation (2 ahead / 7 behind; sim layer, 113 tests, 718/718 on branch, 17 contract docs) and feat/player-upgrade (3 commits; content already cherry-picked to main via a9718e9/69f8327 — superseded).
+- Source audit: web-three/src = 27,858 lines TS across 10 dirs (World.ts 6,556; Game.ts 2,697; autotest.ts 1,107; interactionDefs 796…); boot sequence and frame order traced; system-by-system wiring verified (every shipped system confirmed wired — no assumptions from roadmaps).
+- Test/tooling audit: 45 test files / 660 vitest tests / 597 static it(); 122 Playwright harnesses (78 probe, 37 diag, 5 visual, e2e.mjs 4-day with ~131 checks); ?autotest=1 mechanism traced; CI = typecheck + unit + build + Pages deploy on main only (no PR lane, probes local-only by policy); perf = probe-perf 119/184/256 + census gate (Kestrel ≤150 / intersection ≤250) + ledger rows (PLAZA 302 / CART_CORNER 236 / SYCAMORE 84→78 / TIMES_SQ 52 / PLATFORM_A 108); B13 open (owner's call).
+- Docs audit: narrative bible 00–15 (canon v1.0; R0–R15 build order §7; R0/R3/R4 landed on main as state only); world-contract docs 01–17 (phase ladder: foundations shipped → time valve next); legacy docs 01–56 read from git history (old roadmap 06 = history; vertical-slice design 07 budgets inherited and marked for re-ratification; phase-1 exit checklist 55 = 0/5 human/device boxes ever run).
+- Found and registered a real contract conflict: core/calendar.ts (main, R4) epoch Day 1 = October 1, Y1 vs sim/clock.ts (branch) epoch Day 1 = Tuesday, September 9, Y1 — both citing narrative/12. Registered as DEC-1 with a default ruling proposal (sim clock = world truth; story calendar becomes a derived view; mood-lock survives as presentation), owner: Narrative Director + lead engineering.
+- Created docs/production/ (8 files): README.md (authority order + status vocabulary), MASTER-GAME-ROADMAP.md (13 phases × 14 required fields + workstream overlay + 11 playable milestones + integration narrative), PHASE-ACCEPTANCE-CHECKLISTS.md (floor gates + per-phase entry/exit with evidence law), SYSTEM-COMPLETION-CHECKLISTS.md (48 systems across 6 families, every row measurable with evidence), PRODUCTION-STATUS-REGISTER.md (phases, milestones, branches, 48 system rows, R0–R15, defects, change log), AGENT-DEVELOPMENT-GOVERNANCE.md (WS-A…F deals, 12-field assignment template, parallel/branch/integration/conflict/handoff/acceptance rules, worked example), PRODUCTION-RISKS-AND-DEPENDENCIES.md (DEC-1…DEC-11 with owners and defaults, 14 risks with mitigations, dependency map), NEXT-PHASE-EXECUTION-PLAN.md (WP-0…WP-7 for the time-valve milestone, parallelism map, single-writer booking, rollback posture).
+- Reconciled roadmaps: one-roadmap law established (MASTER wins; legacy docs/06 = history; wc-17 = contract-level sequencing); no existing doc deleted, renamed, or reorganized.
+- AGENTS.md: two additive pointer edits (§1d memory list + §3 repo map → docs/production/). No law changed; the pinned phase line untouched (hygiene test must stay green — verified below).
+- No gameplay source code modified. Shipped systems preserved. No new dependencies.
+
+Stage Summary:
+- The repo now has one authoritative production roadmap grounded in the audited state, a register where every status carries evidence, governance compatible with AGENTS.md and the world-contract workstreams, and a concrete next milestone (Phase 1-close → Phase 2 time valve, WP-0…WP-7).
+- Baseline captured: main gates green (tsc clean · vitest 660/660 · build OK · 4-day E2E green); branches classified (world-contract = ready to merge with a known docs-hygiene conflict; player-upgrade = superseded, retire after guard check).
+- Open decisions surfaced with owners: DEC-1 epochs, DEC-2 B13, DEC-3 Day 5+, DEC-4 registry flip, DEC-5 economics, DEC-6 seasonal pass, DEC-7 rating, DEC-8 expansion gate, DEC-9 telemetry, DEC-10 localization/VO, DEC-11 distribution.
+- Gates at close: docs-only change; tsc/vitest/build re-run on the branch (docs-hygiene green after the AGENTS.md edit); no game source touched.

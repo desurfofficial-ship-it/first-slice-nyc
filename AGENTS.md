@@ -124,6 +124,7 @@ A correction that lives **only in chat** is lost to the next agent. Chat is ephe
 Agents see a small context window. Durable truth must live in the tree:
 
 - this file, the narrative bible ([docs/narrative/](docs/narrative/)), the engineering ledger ([docs/57](docs/57-engineering-references.md)), and the registry data
+- the production system ([docs/production/](docs/production/README.md)) — the master roadmap, phase acceptance, system checklists, the status register, governance, risks, and the next-phase plan; check it before claiming work
 - unit tests, probes, and `?autotest=1`
 - clear module boundaries (registry vs story steps vs save vs world)
 
@@ -185,6 +186,7 @@ first-slice-nyc/
 ├── AGENTS.md                  # ← you are here
 ├── docs/                      # the canon + the ledgers:
 │   ├── narrative/             #   the story bible, 00–15 (canon, v1.0, 2026-11-06)
+│   ├── production/            #   the master roadmap + checklists + status register (v1.0, 2026-11-06)
 │   ├── 57-engineering-references.md  # the study-before-build ledger — check it first
 │   └── data/                  #   world-registry.json + curated manifests
 ├── web-three/                 # THE GAME — Vite + TypeScript + Three.js
