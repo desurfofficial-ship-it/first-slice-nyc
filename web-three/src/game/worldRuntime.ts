@@ -33,6 +33,7 @@
 import * as THREE from 'three';
 import { bootWorldBrain, buildReferencePlaceResolver, DEFAULT_TIMESCALE,
   type BrainEvent, type SimDirective, type WorldSimBrain } from '../sim/runtime';
+import { datelineOfDay, epochAgreement } from '../sim/epochMap';
 import { loadRegistry } from '../sim/registry';
 import { WORLD_SAVE_KEY } from '../sim/state';
 import type { Effect } from '../core/GameState';
@@ -353,6 +354,12 @@ export class WorldRuntime {
   debug(): {
     day: number; time: string; tick: number; timeScale: number; active: boolean;
     phase: string;
+    /** The ruled dateline (WP-2v) — every debug read of the date goes
+     *  through the one mapping, never a raw authority. */
+    date: string;
+    /** The one-authority check (sim/clock vs core/calendar) — false
+     *  would mean the two epoch constants disagree. */
+    epochOk: boolean;
     npcs: Array<{
       npcId: string; claim: string | null; kind: string; priority: number;
       placeId: string | null; bodyMode: string; pos: { x: number; z: number } | null;
@@ -373,6 +380,8 @@ export class WorldRuntime {
       timeScale: this.brain.timeScale,
       active: this.active,
       phase: w.clock.phase,
+      date: datelineOfDay(w.clock.day),
+      epochOk: epochAgreement(),
       clock: { day: w.clock.day, minuteOfDay: w.clock.minuteOfDay },
       npcs: npcIds.map((id) => {
         const rec = this.brain.records.get(id)!;

@@ -18,11 +18,11 @@
 | Count | Value |
 |---|---|
 | Phases | 0 (closing) · 1+2 (**MERGED to main, WP-0, 2026-11-06** — gates executed) · 3 (next, planned) · 4–12 (planned) |
-| Systems tracked | 48 — VERIFIED 16 · IMPLEMENTED 5 · INTEGRATED/partial 14 · PLANNED 9 · NOT STARTED 4 |
+| Systems tracked | 48 — VERIFIED 17 · IMPLEMENTED 5 · INTEGRATED/partial 13 · PLANNED 9 · NOT STARTED 4 |
 | Narrative requirements | R0/R3/R4 done (state only) · R2/R7 next · R1/R5/R6/R8–R15 not started |
 | Open decisions | DEC-2…DEC-11 (**DEC-1 RULED 2026-11-06** — see [PRODUCTION-RISKS-AND-DEPENDENCIES.md](PRODUCTION-RISKS-AND-DEPENDENCIES.md)) |
 | Open defects | B13 (draw calls, owner's call) + hygiene item HYG-1 |
-| Gates | main `1bb3152` (WP-0): `tsc` clean · **vitest 801/801 (56 files)** · **probe-world-sim 15/15 [executed]** · **4-day E2E 0 failures [executed, 592 s]** · perf re-baseline recorded (drawCalls 119/184/256) · branch `407cc0e`: 744/744 [re-executed 2026-11-06] |
+| Gates | main `1bb3152` (WP-0): `tsc` clean · **vitest 801/801 (56 files)** · **probe-world-sim 15/15 [executed]** · **4-day E2E 0 failures [executed, 592 s]** · perf re-baseline recorded (drawCalls 119/184/256) · branch `407cc0e`: 744/744 [re-executed 2026-11-06] · branch `feat/wp-2v-epoch-map` (WP-2v): `tsc` clean · **vitest 830/830 (57 files)** · probe-world-sim **15/15 [executed]** · **4-day E2E 0 failures [executed, 531 s]** |
 
 ---
 
@@ -106,7 +106,7 @@
 | SYS-ECO-06 | Transportation | 2 | WS-B | VERIFIED; clock-keying PLANNED | PH-2 | P1 | subway/bus suites |
 | SYS-ECO-07 | Neighborhood identity | — | WS-C | VERIFIED (canon + dressing) | — | P2 | naming registry |
 | SYS-ECO-08 | Persistent neighborhood change | 2/6 | WS-D | PARTIAL | PH-2/6 | P1 | dressing.ts day-keyed |
-| SYS-ECO-09 | In-game time progression | 2 | WS-D + ND | **DEC-1 RULED (2026-11-06, owner): Day 1 = Tuesday, Sept 9, Y1** — `CAL_EPOCH` corrected on main; branch `EPOCH` canon-true; mood-lock = presentation. Remaining: the one epoch mapping + pinned test (WP-2v) | DEC-1 (closed) | P0 | valve live on branch; epochs reconciled per `docs/production/DEC-1-CALENDAR-CANON-DECISION.md`; day counters aligned 1:1 by `onStoryDayBegin`; defect was latent (sim dates not yet player-visible) |
+| SYS-ECO-09 | In-game time progression | 2 | WS-D + ND | **VERIFIED — WP-2v closed (2026-11-06).** DEC-1 ruled (Day 1 = Tuesday, Sept 9, Y1); `CAL_EPOCH` corrected on main; the one epoch mapping landed: `sim/epochMap.ts` (story day ↔ sim day ↔ displayed date ↔ weekday through ONE door; `datelineOfDay` format convergence; midnight-exact `dateOfTick`; `epochAgreement()` tripwire) + `tests/sim-epoch-map.test.ts` (29 pinned tests incl. the 900-day two-authority sweep); `worldRuntime.debug()` reads dates through the mapping. Mood-lock = presentation, untouched | DEC-1 (closed) | P0 | valve live (D-1); epochs reconciled per `docs/production/DEC-1-CALENDAR-CANON-DECISION.md`; day counters aligned 1:1 by `onStoryDayBegin` + pinned forward-only reconcile; story/world save round-trips date-true; WP-6 renders through the same door |
 | SYS-NAR-01 | Protagonist & character systems | 5 | WS-C | VERIFIED (identity); R11 PLANNED | PH-2 | P0 | wardrobe/lock law guards |
 | SYS-NAR-02 | Diary-map | 2 | WS-C | PARTIAL | PH-2 WP-6 | P0 | map-notebook guards; ink UI missing |
 | SYS-NAR-03 | Character arcs | 4/7 | WS-C | PLANNED | R5 | P1 | canon complete |
