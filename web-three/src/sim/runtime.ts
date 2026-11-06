@@ -64,7 +64,7 @@ import {
 import { activityAt, type NpcSchedule, type ResolvedActivity, type ScheduleActivityKind } from './schedule';
 import { REFERENCE_NPCS, REFERENCE_SCHEDULES, REFERENCE_ALIASES, referenceRelationships } from './reference';
 import { simId } from './ids';
-import { parseWorldSave, snapshotWorld, WORLD_SAVE_KEY, type WorldSaveDocument, type WorldState } from './state';
+import { parseWorldSave, snapshotWorld, activeWorldSaveKey, type WorldSaveDocument, type WorldState } from './state';
 import type { WorldRegistry } from './registry';
 
 // ------------------------------------------------------------- constants ----
@@ -679,5 +679,5 @@ export function bootWorldBrain(opts: {
     bound: BOUND_NPCS,
     timeScale: opts.timeScale,
   });
-  return { brain, source, notes, saveKey: WORLD_SAVE_KEY };
+  return { brain, source, notes, saveKey: activeWorldSaveKey() };
 }

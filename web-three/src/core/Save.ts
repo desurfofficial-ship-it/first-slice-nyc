@@ -22,10 +22,33 @@ import { parseFieldDiary } from './fieldDiary';
 import { clampCalendarDay } from './calendar';
 
 export const SAVE_KEY = 'first_slice_save_v1';
+/** Driver-sandbox key (security remediation R1, FS-AUDIT-001): an
+ *  AUTHORIZED driver session re-keys story persistence here for the whole
+ *  session (game/driverGate.ts). The driver fleet wipes, truncates and
+ *  overwrites its own key freely — a real player save is unreachable by
+ *  construction, not by discipline. Never set outside an authorized run. */
+export const DRIVER_SAVE_KEY = 'first_slice_save_v1_driver';
 // Day 4 "Say Hi" is live (docs/29-day4-say-hi.md): a new stranger with a
 // duffel bag, and the lamp next door. Day 5+ is still being written —
 // the rail's goodnight holds the light instead.
 export const MAX_DAY = 4;
+
+/** Active story-save key override (R1 driver sandbox). Null outside a
+ *  driver session; set ONLY by game/driverGate.ts. */
+let saveKeyOverride: string | null = null;
+
+/** Re-key story persistence for this session (driver sandbox). Pass null
+ *  to restore the player's key. Not schema-affecting: the DOCUMENT is
+ *  identical, only the storage slot moves. */
+export function setStorySaveKeyOverride(key: string | null): void {
+  saveKeyOverride = key;
+}
+
+/** The key story persistence rides RIGHT NOW (player key, or the driver
+ *  key inside an authorized driver session). */
+export function activeSaveKey(): string {
+  return saveKeyOverride ?? SAVE_KEY;
+}
 
 export interface SaveData {
   day: number;
@@ -247,11 +270,13 @@ function diaryNotedOf(d: Record<string, unknown>): DiaryNoted | undefined {
   return any ? out : undefined;
 }
 
-/** Load from localStorage. `store` injectable for tests. */
+/** Load from localStorage. `store` injectable for tests. Rides the active
+ *  key (the player's, or the driver sandbox key inside an authorized
+ *  driver session — R1). */
 export function loadSave(store: Pick<Storage, 'getItem'> = localStorage): SaveData {
   let raw: string | null = null;
   try {
-    raw = store.getItem(SAVE_KEY);
+    raw = store.getItem(activeSaveKey());
   } catch {
     return defaultSave(); // storage unavailable (private mode etc.) — fresh start
   }
@@ -261,16 +286,19 @@ export function loadSave(store: Pick<Storage, 'getItem'> = localStorage): SaveDa
 /** Write. Mirrors save.gd `write()`. Returns false if storage refused. */
 export function writeSave(data: SaveData, store: Pick<Storage, 'setItem'> = localStorage): boolean {
   try {
-    store.setItem(SAVE_KEY, JSON.stringify(data));
+    store.setItem(activeSaveKey(), JSON.stringify(data));
     return true;
   } catch {
     return false;
   }
 }
 
+/** Wipe the ACTIVE story-save key. Inside an authorized driver session
+ *  this can only ever reach the driver sandbox key — a real player save
+ *  is out of reach by construction (R1). */
 export function wipeSave(store: Pick<Storage, 'removeItem'> = localStorage): void {
   try {
-    store.removeItem(SAVE_KEY);
+    store.removeItem(activeSaveKey());
   } catch {
     /* nothing to wipe */
   }

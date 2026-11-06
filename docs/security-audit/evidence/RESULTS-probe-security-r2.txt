@@ -1,0 +1,169 @@
+PASS  N0: valid world document captured from the real game
+PASS  C1 missing ledger: refuses to a FRESH world (never a crash)
+PASS  C1 missing ledger: the diagnostic note names what happened — world save rejected: ledger: missing or not an object → fresh world
+PASS  C1 missing ledger: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C1 missing ledger: the refused document left the active key (quarantined)
+PASS  C1 missing ledger: the refused document is preserved in quarantine, not destroyed
+PASS  C1 missing ledger: no page errors
+PASS  C1 missing ledger: the recovered world is playable (clock advanced)
+PASS  C2 missing clock: refuses to a FRESH world (never a crash)
+PASS  C2 missing clock: the diagnostic note names what happened — world save rejected: clock: missing or not an object → fresh world
+PASS  C2 missing clock: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C2 missing clock: the refused document left the active key (quarantined)
+PASS  C2 missing clock: the refused document is preserved in quarantine, not destroyed
+PASS  C2 missing clock: no page errors
+PASS  C2 missing clock: the recovered world is playable (clock advanced)
+PASS  C3 missing relationships: refuses to a FRESH world (never a crash)
+PASS  C3 missing relationships: the diagnostic note names what happened — world save rejected: relationships: missing or not an array → fresh world
+PASS  C3 missing relationships: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C3 missing relationships: the refused document left the active key (quarantined)
+PASS  C3 missing relationships: the refused document is preserved in quarantine, not destroyed
+PASS  C3 missing relationships: no page errors
+PASS  C3 missing relationships: the recovered world is playable (clock advanced)
+PASS  C4 null sections (clock, npcs, flags): refuses to a FRESH world (never a crash)
+PASS  C4 null sections (clock, npcs, flags): the diagnostic note names what happened — world save rejected: clock: missing or not an object → fresh world
+PASS  C4 null sections (clock, npcs, flags): the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C4 null sections (clock, npcs, flags): the refused document left the active key (quarantined)
+PASS  C4 null sections (clock, npcs, flags): the refused document is preserved in quarantine, not destroyed
+PASS  C4 null sections (clock, npcs, flags): no page errors
+PASS  C4 null sections (clock, npcs, flags): the recovered world is playable (clock advanced)
+PASS  C4b null ledger + null player: refuses to a FRESH world (never a crash)
+PASS  C4b null ledger + null player: the diagnostic note names what happened — world save rejected: player: missing or not an object → fresh world
+PASS  C4b null ledger + null player: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C4b null ledger + null player: the refused document left the active key (quarantined)
+PASS  C4b null ledger + null player: the refused document is preserved in quarantine, not destroyed
+PASS  C4b null ledger + null player: no page errors
+PASS  C4b null ledger + null player: the recovered world is playable (clock advanced)
+PASS  C5 wrong primitive types: refuses to a FRESH world (never a crash)
+PASS  C5 wrong primitive types: the diagnostic note names what happened — world save rejected: seed: expected uint32, got object → fresh world
+PASS  C5 wrong primitive types: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C5 wrong primitive types: the refused document left the active key (quarantined)
+PASS  C5 wrong primitive types: the refused document is preserved in quarantine, not destroyed
+PASS  C5 wrong primitive types: no page errors
+PASS  C5 wrong primitive types: the recovered world is playable (clock advanced)
+PASS  C6 invalid transaction array: refuses to a FRESH world (never a crash)
+PASS  C6 invalid transaction array: the diagnostic note names what happened — world save rejected: ledger.txns: missing or not an array → fresh world
+PASS  C6 invalid transaction array: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C6 invalid transaction array: the refused document left the active key (quarantined)
+PASS  C6 invalid transaction array: the refused document is preserved in quarantine, not destroyed
+PASS  C6 invalid transaction array: no page errors
+PASS  C6 invalid transaction array: the recovered world is playable (clock advanced)
+PASS  C6b junk transaction entry: refuses to a FRESH world (never a crash)
+PASS  C6b junk transaction entry: the diagnostic note names what happened — world save rejected: ledger.txns[0].id: expected a 1..80 char string → fresh world
+PASS  C6b junk transaction entry: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C6b junk transaction entry: the refused document left the active key (quarantined)
+PASS  C6b junk transaction entry: the refused document is preserved in quarantine, not destroyed
+PASS  C6b junk transaction entry: no page errors
+PASS  C6b junk transaction entry: the recovered world is playable (clock advanced)
+PASS  C6c self-transfer transaction: refuses to a FRESH world (never a crash)
+PASS  C6c self-transfer transaction: the diagnostic note names what happened — world save rejected: ledger.txns[0].flow: self-transfer → fresh world
+PASS  C6c self-transfer transaction: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C6c self-transfer transaction: the refused document left the active key (quarantined)
+PASS  C6c self-transfer transaction: the refused document is preserved in quarantine, not destroyed
+PASS  C6c self-transfer transaction: no page errors
+PASS  C6c self-transfer transaction: the recovered world is playable (clock advanced)
+PASS  C7 invalid day values: refuses to a FRESH world (never a crash)
+PASS  C7 invalid day values: the diagnostic note names what happened — world save rejected: clock.day: expected integer 1..36500 → fresh world
+PASS  C7 invalid day values: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C7 invalid day values: the refused document left the active key (quarantined)
+PASS  C7 invalid day values: the refused document is preserved in quarantine, not destroyed
+PASS  C7 invalid day values: no page errors
+PASS  C7 invalid day values: the recovered world is playable (clock advanced)
+PASS  C7b transaction day out of range: refuses to a FRESH world (never a crash)
+PASS  C7b transaction day out of range: the diagnostic note names what happened — world save rejected: ledger.txns[0].day: expected integer 1..36500 → fresh world
+PASS  C7b transaction day out of range: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C7b transaction day out of range: the refused document left the active key (quarantined)
+PASS  C7b transaction day out of range: the refused document is preserved in quarantine, not destroyed
+PASS  C7b transaction day out of range: no page errors
+PASS  C7b transaction day out of range: the recovered world is playable (clock advanced)
+PASS  C8 invalid relationship entry: refuses to a FRESH world (never a crash)
+PASS  C8 invalid relationship entry: the diagnostic note names what happened — world save rejected: relationships[0].warmth: expected integer -100..100 → fresh world
+PASS  C8 invalid relationship entry: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C8 invalid relationship entry: the refused document left the active key (quarantined)
+PASS  C8 invalid relationship entry: the refused document is preserved in quarantine, not destroyed
+PASS  C8 invalid relationship entry: no page errors
+PASS  C8 invalid relationship entry: the recovered world is playable (clock advanced)
+PASS  C8b dangling relationship npc: refuses to a FRESH world (never a crash)
+PASS  C8b dangling relationship npc: the diagnostic note names what happened — world save rejected: relationships[0].a: expected an npc id present in this document → fre
+PASS  C8b dangling relationship npc: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C8b dangling relationship npc: the refused document left the active key (quarantined)
+PASS  C8b dangling relationship npc: the refused document is preserved in quarantine, not destroyed
+PASS  C8b dangling relationship npc: no page errors
+PASS  C8b dangling relationship npc: the recovered world is playable (clock advanced)
+PASS  C9 unexpected nested structure: refuses to a FRESH world (never a crash)
+PASS  C9 unexpected nested structure: the diagnostic note names what happened — world save rejected: environment.weather: expected a boolean, short string, or bounded fin
+PASS  C9 unexpected nested structure: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C9 unexpected nested structure: the refused document left the active key (quarantined)
+PASS  C9 unexpected nested structure: the refused document is preserved in quarantine, not destroyed
+PASS  C9 unexpected nested structure: no page errors
+PASS  C9 unexpected nested structure: the recovered world is playable (clock advanced)
+PASS  C9b junk flag tuple: refuses to a FRESH world (never a crash)
+PASS  C9b junk flag tuple: the diagnostic note names what happened — world save rejected: flags[0].key: expected a flag:/evt: sim id → fresh world
+PASS  C9b junk flag tuple: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C9b junk flag tuple: the refused document left the active key (quarantined)
+PASS  C9b junk flag tuple: the refused document is preserved in quarantine, not destroyed
+PASS  C9b junk flag tuple: no page errors
+PASS  C9b junk flag tuple: the recovered world is playable (clock advanced)
+PASS  C10 excessively large numeric: refuses to a FRESH world (never a crash)
+PASS  C10 excessively large numeric: the diagnostic note names what happened — world save rejected: player.moneyCents: expected integer 0..100000000 → fresh world
+PASS  C10 excessively large numeric: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C10 excessively large numeric: the refused document left the active key (quarantined)
+PASS  C10 excessively large numeric: the refused document is preserved in quarantine, not destroyed
+PASS  C10 excessively large numeric: no page errors
+PASS  C10 excessively large numeric: the recovered world is playable (clock advanced)
+PASS  C10b huge business balance: refuses to a FRESH world (never a crash)
+PASS  C10b huge business balance: the diagnostic note names what happened — world save rejected: businesses[0].balanceCents: expected integer -100000000..100000000 → 
+PASS  C10b huge business balance: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C10b huge business balance: the refused document left the active key (quarantined)
+PASS  C10b huge business balance: the refused document is preserved in quarantine, not destroyed
+PASS  C10b huge business balance: no page errors
+PASS  C10b huge business balance: the recovered world is playable (clock advanced)
+PASS  C10c huge transaction amount: refuses to a FRESH world (never a crash)
+PASS  C10c huge transaction amount: the diagnostic note names what happened — world save rejected: ledger.txns[0].amountCents: expected integer 1..100000000 → fresh wor
+PASS  C10c huge transaction amount: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C10c huge transaction amount: the refused document left the active key (quarantined)
+PASS  C10c huge transaction amount: the refused document is preserved in quarantine, not destroyed
+PASS  C10c huge transaction amount: no page errors
+PASS  C10c huge transaction amount: the recovered world is playable (clock advanced)
+PASS  C11 prototype-pollution payload (rails): refuses to a FRESH world (never a crash)
+PASS  C11 prototype-pollution payload (rails): the diagnostic note names what happened — world save rejected: chapter.rails: missing or not an object → fresh world
+PASS  C11 prototype-pollution payload (rails): the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C11 prototype-pollution payload (rails): the refused document left the active key (quarantined)
+PASS  C11 prototype-pollution payload (rails): the refused document is preserved in quarantine, not destroyed
+PASS  C11 prototype-pollution payload (rails): no page errors
+PASS  C11 prototype-pollution payload (rails): the recovered world is playable (clock advanced)
+PASS  C12 integrity violation (events out of order): refuses to a FRESH world (never a crash)
+PASS  C12 integrity violation (events out of order): the diagnostic note names what happened — world save rejected: integrity audit failed → fresh world
+PASS  C12 integrity violation (events out of order): the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C12 integrity violation (events out of order): the refused document left the active key (quarantined)
+PASS  C12 integrity violation (events out of order): the refused document is preserved in quarantine, not destroyed
+PASS  C12 integrity violation (events out of order): no page errors
+PASS  C12 integrity violation (events out of order): the recovered world is playable (clock advanced)
+PASS  C13 truncated (interrupted) document: refuses to a FRESH world (never a crash)
+PASS  C13 truncated (interrupted) document: the diagnostic note names what happened — corrupt JSON → fresh world
+PASS  C13 truncated (interrupted) document: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
+PASS  C13 truncated (interrupted) document: the refused document left the active key (quarantined)
+PASS  C13 truncated (interrupted) document: the refused document is preserved in quarantine, not destroyed
+PASS  C13 truncated (interrupted) document: no page errors
+PASS  C13 truncated (interrupted) document: the recovered world is playable (clock advanced)
+PASS  C14: a valid world save RESTORES (no false refusal)
+PASS  C14: no rejection notes on a valid document
+PASS  C14: the story save survives (day 3, $150, cart intact)
+PASS  C14: the valid document stays on the active key (never quarantined)
+PASS  C14: quarantine stays empty for valid documents
+PASS  C15: no document → clean fresh world
+PASS  C15: no refusal notes (the recovery loop ended) — no stored world
+PASS  Phase 1: no page errors across the whole battery
+PASS  B1: a cold boot with a corrupt world save opens a FRESH world (constructor seam)
+PASS  B1: the boot note names the refused section — world save rejected: ledger: missing or not an object → fresh world
+PASS  B1: the story save survives a cold corrupt boot (day 3, $150, cart intact)
+PASS  B1: the corrupt document was quarantined out of the active key
+PASS  B1: the corrupt document is preserved in quarantine
+PASS  B1: no page errors
+PASS  B2: the boot after quarantine opens a clean fresh world
+PASS  B2: no refusal notes (the loop ended) — no stored world
+PASS  B2: quarantine stays empty on the clean boot
+PASS  B2: no page errors
+
+R2 PROBE: 166/166 checks passed
+R2 PROBE OK — malformed world saves degrade safely before hydration; recovery never touches the story save

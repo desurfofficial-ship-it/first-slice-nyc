@@ -32,6 +32,13 @@ await new Promise((r) => server.listen(PORT, r));
 
 const browser = await chromium.launch({ args: ['use-gl=swiftshader', 'enable-unsafe-swiftshader'].map((a) => '--' + a) });
 const page = await browser.newPage({ viewport: { width: Number(process.env.E2E_W ?? 1280), height: Number(process.env.E2E_H ?? 800) } });
+
+// R1 (FS-AUDIT-001): authorize the scenario driver through the documented
+// session-storage handshake (a URL can never carry it), before any page
+// script runs. The scenario's world-save operations ride the driver
+// sandbox key, so the real player world save stays unreachable.
+await page.addInitScript(() => sessionStorage.setItem('fs_driver_authorized', '1'));
+
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 

@@ -30,7 +30,27 @@ export interface AlbumEntry {
 }
 
 export const ALBUM_KEY = 'first_slice_album';
+/** Driver-sandbox album key (security remediation R1 follow-up, verifier
+ *  finding N-2): an AUTHORIZED driver session re-keys the album here for
+ *  the whole session, so driver-earned postcards can never crowd a real
+ *  player's shelf. Never set outside an authorized run. */
+export const DRIVER_ALBUM_KEY = 'first_slice_album_driver';
 export const ALBUM_MAX = 24;
+
+/** Active album key override (R1 driver sandbox). Null outside a driver
+ *  session; set ONLY by game/driverGate.ts. */
+let albumKeyOverride: string | null = null;
+
+/** Re-key the album for this session (driver sandbox). */
+export function setAlbumKeyOverride(key: string | null): void {
+  albumKeyOverride = key;
+}
+
+/** The key the album rides RIGHT NOW (player shelf, or the driver shelf
+ *  inside an authorized driver session). */
+export function activeAlbumKey(): string {
+  return albumKeyOverride ?? ALBUM_KEY;
+}
 
 /** The album print's size — exactly the card's 4:7 paper, quarter scale. */
 export const THUMB_W = 192;
@@ -99,7 +119,7 @@ export function addToAlbum(entries: AlbumEntry[], entry: AlbumEntry): AlbumEntry
 
 export function loadAlbum(store: AlbumStore = defaultStore()): AlbumEntry[] {
   try {
-    const raw = store.getItem(ALBUM_KEY);
+    const raw = store.getItem(activeAlbumKey());
     if (!raw) return [];
     return parseAlbum(JSON.parse(raw));
   } catch {
@@ -115,13 +135,13 @@ export function storeAlbum(entries: AlbumEntry[], store: AlbumStore = defaultSto
   let keep = [...entries].sort((a, b) => b.keptAt - a.keptAt).slice(0, ALBUM_MAX);
   while (keep.length > 0) {
     try {
-      store.setItem(ALBUM_KEY, JSON.stringify(keep));
+      store.setItem(activeAlbumKey(), JSON.stringify(keep));
       return keep;
     } catch {
       keep = keep.slice(0, Math.floor(keep.length / 2));
     }
   }
-  try { store.removeItem(ALBUM_KEY); } catch { /* nothing to clear */ }
+  try { store.removeItem(activeAlbumKey()); } catch { /* nothing to clear */ }
   return [];
 }
 

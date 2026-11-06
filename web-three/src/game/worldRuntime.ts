@@ -35,7 +35,7 @@ import { bootWorldBrain, buildReferencePlaceResolver, DEFAULT_TIMESCALE,
   type BrainEvent, type SimDirective, type WorldSimBrain } from '../sim/runtime';
 import { simTickOfStoryDay } from '../sim/epochMap';
 import { loadRegistry } from '../sim/registry';
-import { WORLD_SAVE_KEY } from '../sim/state';
+import { activeWorldQuarantineKey, activeWorldSaveKey } from '../sim/state';
 import type { Effect } from '../core/GameState';
 import type { Game } from './Game';
 
@@ -82,8 +82,12 @@ export class WorldRuntime {
   constructor(game: Game, opts: WorldRuntimeOpts = {}) {
     this.game = game;
     this.registry = loadRegistry();
+    // R1: the key read here is the ACTIVE world key — inside an authorized
+    // driver session that is the driver sandbox key, so the sandbox is
+    // seamless from the very first read.
+    const saveKey = activeWorldSaveKey();
     let raw: string | null = null;
-    try { raw = localStorage.getItem(WORLD_SAVE_KEY); } catch { raw = null; }
+    try { raw = localStorage.getItem(saveKey); } catch { raw = null; }
     const boot = bootWorldBrain({
       raw,
       resolve: buildReferencePlaceResolver(this.registry),
@@ -96,7 +100,30 @@ export class WorldRuntime {
     this.brain = boot.brain;
     this.bootedFresh = boot.source === 'fresh';
     this.bootNotes = boot.notes;
+    this.quarantineRejectedSave(raw, this.bootedFresh);
     this.bindBodies();
+  }
+
+  /**
+   * R2 recovery (FS-AUDIT-002): when a stored document was REFUSED (a
+   * rejected/corrupt/foreign document, not an absent one), move it out of
+   * the active key into quarantine. The world degrades to fresh REGARDLESS
+   * — this only stops the damage from repeating: without it, the corrupt
+   * document stayed on the active key and every boot re-refused it until a
+   * story persist or roam autosave happened to overwrite it. Quarantine
+   * does not destroy anything (the bytes stay under
+   * `first_slice_world_v1_quarantine` for forensics/support), and it never
+   * touches the story save — the two layers ride different keys.
+   */
+  private quarantineRejectedSave(raw: string | null, refused: boolean): void {
+    if (!refused || raw === null || raw === '') return;
+    try {
+      localStorage.setItem(activeWorldQuarantineKey(), raw);
+      localStorage.removeItem(activeWorldSaveKey());
+    } catch {
+      // storage refused — the refusal already degraded safely; the corrupt
+      // document may simply re-fire its one polite note on the next boot
+    }
   }
 
   // ---- wiring ------------------------------------------------------------
@@ -272,7 +299,7 @@ export class WorldRuntime {
 
   flushWorldSave(): void {
     try {
-      localStorage.setItem(WORLD_SAVE_KEY, this.brain.toDataJson());
+      localStorage.setItem(activeWorldSaveKey(), this.brain.toDataJson());
     } catch {
       // storage full/absent — the world keeps playing; the next beat retries
     }
@@ -285,7 +312,7 @@ export class WorldRuntime {
    */
   reloadFromSave(): { source: 'fresh' | 'restored'; notes: string[] } {
     let raw: string | null = null;
-    try { raw = localStorage.getItem(WORLD_SAVE_KEY); } catch { raw = null; }
+    try { raw = localStorage.getItem(activeWorldSaveKey()); } catch { raw = null; }
     const boot = bootWorldBrain({
       raw,
       resolve: buildReferencePlaceResolver(this.registry),
@@ -301,6 +328,7 @@ export class WorldRuntime {
     const notes = boot.notes;
     this.bootNotes.length = 0;
     this.bootNotes.push(...notes);
+    this.quarantineRejectedSave(raw, this.bootedFresh);
     this.rebindAfterReload();
     return { source: boot.source, notes };
   }
@@ -398,7 +426,7 @@ export class WorldRuntime {
       flags: [...w.flags.map.keys()],
       events: w.events.length,
       warmth: Object.fromEntries([...w.relationships.values()].map((r) => [r.id, r.warmth])),
-      saveKey: WORLD_SAVE_KEY,
+      saveKey: activeWorldSaveKey(),
     };
   }
 }

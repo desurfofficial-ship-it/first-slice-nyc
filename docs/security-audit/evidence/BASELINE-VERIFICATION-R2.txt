@@ -1,0 +1,59 @@
+BASELINE VERIFICATION — R2 RECONCILIATION (2026-11-06, UTC)
+Repository: https://github.com/desurfofficial-ship-it/first-slice-nyc
+Access: anonymous HTTPS (git ls-remote / git fetch). NO token used.
+
+== 1. git ls-remote (authoritative server refs) ==
+62a6244cee258a243fdb308bd78daf7793c62cc5	HEAD
+0530ebc83ad1abaf2f79c38a8c4f541a2fbce25a	refs/heads/feat/player-upgrade
+407cc0ecb86b7885eb94ffaaadc071b5ad3fe49b	refs/heads/feat/world-contract-foundation
+d7529d7960ae270555cb0330ebe8eece75ed7eaf	refs/heads/feat/wp-2v-epoch-map
+62a6244cee258a243fdb308bd78daf7793c62cc5	refs/heads/main
+f9388eb1bbd1dd2d38ac0ef02ba23cd41021b0af	refs/pull/1/head
+7869fbfc7d40a42a634fe52d05ce923ea4b51433	refs/pull/2/head
+a9caa0fb55854242dc7ab8c782a36a6bcf5b38b2	refs/pull/3/head
+6829c87efe89b7cc4cd7eae012b742491318f701	refs/pull/4/head
+c0360dacfa7fa6045583e967b1d51ac107c68ee0	refs/pull/5/head
+a5d4e908e26d240b005aa9cf98ef6495b36420ce	refs/pull/6/head
+b2ffedfad6866bdd3d9695a68c92766f1e47214a	refs/pull/7/head
+4a690945d4ebb59d6789e4192777e0e61aa74498	refs/pull/8/head
+
+== 2. Local checkout state (PRESERVED — untouched) ==
+local branch: main @ 7995e6ea2e371644a5347f93acc8bed948bf0e54
+status vs HEAD: content-identical; 572 mode-bit-only entries (0 insertions, 0 deletions)
+status vs origin/main: behind 7 commits (the upstream delta below)
+
+== 3. Upstream delta 7995e6e..origin/main (full inventory) ==
+ docs/production/NEXT-PHASE-EXECUTION-PLAN.md       |  28 ++-
+ .../PRODUCTION-RISKS-AND-DEPENDENCIES.md           |   6 +-
+ docs/production/PRODUCTION-STATUS-REGISTER.md      |   8 +-
+ web-three/scripts/probe-pause-set.mjs              | 116 +++++++++
+ web-three/src/game/Game.ts                         |  19 +-
+ web-three/src/game/pauseSet.ts                     |  66 +++++
+ web-three/src/game/worldRuntime.ts                 |   7 +-
+ web-three/src/sim/epochMap.ts                      | 232 +++++++++++++++++
+ web-three/tests/calendar.test.ts                   |  16 ++
+ web-three/tests/sim-epoch-map.test.ts              | 278 +++++++++++++++++++++
+ web-three/tests/sim-runtime.test.ts                | 200 +++++++++++++++
+ worklog.md                                         |  85 +++++++
+ 12 files changed, 1040 insertions(+), 21 deletions(-)
+
+== 4. Unmerged branch survey (commits not in main) ==
+origin/feat/player-upgrade: 3 commit(s); tip: 0530ebc feat(player): Input sprint, pointer drag, wheel zoom
+origin/feat/world-contract-foundation: 0 commit(s); tip: 407cc0e feat(ws-d): the world runs beside the story — the Phase-1 runtime integration
+origin/feat/wp-2v-epoch-map: 1 commit(s); tip: d7529d7 feat(wp-2v): the one epoch mapping — story day, sim day and the displayed date through one door
+pull/1: 0 commit(s); tip: f9388eb feat(web-three): finite bodega shelf stock — Phase 1 completion
+pull/2: 0 commit(s); tip: 7869fbf feat(world): the first-session world — the K line, Times Square, the M121
+pull/3: 1 commit(s); tip: a9caa0f fix(web-three): B6 — occlusion buffer grows with post-boot canopies; restore GameCamera from d105cbe truncation (docs/51)
+pull/4: 1 commit(s); tip: 6829c87 fix(camera): occlusion buffer grows with the live canopy list (B6)
+pull/5: 0 commit(s); tip: c0360da merge origin/main into agent2/session-polish (resolve conflicts)
+pull/6: 1 commit(s); tip: a5d4e90 fix(ui): the paper owns the screen — touch controls step aside for panels (B7)
+pull/7: 1 commit(s); tip: b2ffedf fix(ui): one law for the paper — the two parallel B7 wirings become one (B7a)
+pull/8: 1 commit(s); tip: 4a69094 docs(agents): B14 — the manual states the real phase (docs/51)
+
+== 5. Phase-3 branch existence check ==
+requested branch: feat/phase-3-navigation-building-access
+in ls-remote output: NO (branches are: main, feat/player-upgrade, feat/world-contract-foundation, feat/wp-2v-epoch-map)
+commits matching /navigat|building.?access|phase.?3/ in ALL refs (incl. 8 PR heads): 3
+files named *nav* in ANY ref: 0 (git log --all --name-only | grep -i nav = empty)
+src/sim/nav/ in any ref: does not exist
+docs @62a6244 say: Phase 3 'not started (queued next)' (PRODUCTION-RECONCILIATION-REPORT.md:44); A-1 requires owner authorization (NEXT-PHASE-EXECUTION-PLAN.md:113-123, commit 62a6244 message)
