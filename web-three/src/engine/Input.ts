@@ -154,7 +154,7 @@ export class InputManager {
   private onPointerDown = (e: PointerEvent) => {
     if (this.isTypingTarget(e.target)) return;
     const target = e.target as HTMLElement | null;
-    if (target?.closest('button, input, select, textarea, #pocket-menu, #map-panel, #order-card, #name-box, #postcard-panel, #starter-card')) {
+    if (target?.closest('button, input, select, textarea, #pocket-menu, #map-panel, #order-card, #name-box, #postcard-panel, #starter-card, #wardrobe-panel')) {
       return;
     }
     // Mouse drag anywhere on screen, or touch swipe on the right half of the screen

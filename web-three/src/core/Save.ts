@@ -128,6 +128,15 @@ export function defaultSave(): SaveData {
   };
 }
 
+/** newGameSave — the wardrobe lock law's one honest reset (ui/Wardrobe.ts):
+ *  a chosen face is bound to the save, and the ONLY way to wear another is
+ *  to start over. This is what "start over" writes: a factory-fresh schema
+ *  with the new starter pinned, so the reboot dresses the new face and the
+ *  pick card never re-asks (the save.starter boot law). */
+export function newGameSave(starterId: string): SaveData {
+  return { ...defaultSave(), starter: starterId };
+}
+
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 /** An optional string-list field, normalized to pages: present arrays pass

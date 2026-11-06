@@ -18,7 +18,7 @@ import { composeCaption, tsWowCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE
   RUSH_NOTE_5, MOMENT_RUSH_CAPTION, MOMENT_TOWERS_CAPTION, MOMENT_FOLD_CAPTION,
   momentCornerCaption, MOMENT_TAGS, type MomentCardKind,
 } from '../core/content';
-import { loadSave, writeSave, type SaveData } from '../core/Save';
+import { loadSave, writeSave, wipeSave, newGameSave, type SaveData } from '../core/Save';
 import { FreeRoam, roamDiscoveryLine, ROAM_OBJECTIVE } from './freeroam';
 import { STARTERS, starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
 import { PAL } from '../core/palette';
@@ -29,9 +29,10 @@ import { InputManager } from '../engine/Input';
 import { Tweens, type Tween } from '../engine/tweens';
 import { capsuleInBox, moveAxisX, moveAxisZ, type Capsule } from '../engine/collide';
 import { UI } from '../ui/UI';
+import { Wardrobe, wardrobeDecision } from '../ui/Wardrobe';
 import { capturePostcard, downloadPostcard, canShareFiles, sharePostcard } from '../postcard/PostcardCapture';
 import { addToAlbum, entryId, loadAlbum, makeThumb, storeAlbum, type AlbumEntry } from '../postcard/Album';
-import { updatePersonAnim, type PersonRig } from '../world/personRig';
+import { updatePersonAnim, buildStarterSkateboard, type PersonRig } from '../world/personRig';
 import { FAMILIAR_SPEED, familiarBeatForDay } from '../world/dressing';
 import { InteractionRegistry, NEVER_NEAR, type InteractionCtx } from './interactions';
 import { buildInteractions, byDay, BUS_BENCH_SEAT, PARK_BENCH_SEAT } from './interactionDefs';
@@ -60,6 +61,8 @@ export class Game {
   readonly cam: GameCamera;
   readonly input: InputManager;
   readonly ui: UI;
+  /** The 3D fitting room (ui/Wardrobe.ts) — the pick-is-for-keeps law's UI. */
+  readonly wardrobe: Wardrobe;
   readonly tweens = new Tweens();
 
   private renderer: THREE.WebGLRenderer;
@@ -144,6 +147,7 @@ export class Game {
   private static readonly NOTE_MIN_SHOW = 2.4;
   private mapOpen = false;
   private mapKeyWasDown = false;
+  private wardrobeKeyWasDown = false;
 
   // ---- the street performer's listen (Doc 02 §10:00–15:00) ----
   // Once per session: after the square has synced, stepping back to the B
@@ -215,6 +219,16 @@ export class Game {
       turnL: document.getElementById('turn-left')!,
       turnR: document.getElementById('turn-right')!,
     });
+
+    // ---------------- the wardrobe (the fitting room) ----------------------
+    // The lock law renders here: looking is free, wearing a different face
+    // is a new game. Game owns the verdict; the wardrobe is the paper.
+    this.wardrobe = new Wardrobe({
+      onSwitchRequest: (id) => this.wardrobeSwitchRequest(id),
+      onNewGame: (id) => this.beginNewGameAs(id),
+      onClose: () => this.toggleWardrobe(),
+    });
+    this.ui.onWardrobeToggle = () => this.toggleWardrobe();
 
     // ---------------- player visual (a person who WALKS) -------------------
     // Playtest 2026-10-29, round two: "the characters doesn't walk, they
@@ -454,9 +468,11 @@ export class Game {
       return;
     } else if (inp.interactPressed && !this.dayFading && this.ui.nameBox.hidden
       && this.ui.starterCard.hidden) {
-      if (!this.ui.postcardPanel.hidden) this.dismissPostcard();
-      else if (this.state.pendingCard) this.advanceOrder(null); // the card owns the counter
-      else if (!this.mapOpen) this.tryInteract();
+      if (!this.wardrobe.isOpen) {
+        if (!this.ui.postcardPanel.hidden) this.dismissPostcard();
+        else if (this.state.pendingCard) this.advanceOrder(null); // the card owns the counter
+        else if (!this.mapOpen) this.tryInteract();
+      }
     }
     // M folds / opens the Map — the notebook is always available, never forced
     const mapDown = this.input.isDown('KeyM');
@@ -465,6 +481,14 @@ export class Game {
       this.toggleMap();
     }
     this.mapKeyWasDown = mapDown;
+    // O folds / opens the Wardrobe — the fitting room, not a switchboard
+    const wardrobeDown = this.input.isDown('KeyO');
+    if (wardrobeDown && !this.wardrobeKeyWasDown && !this.dayFading
+      && this.ui.nameBox.hidden && this.ui.orderCard.hidden
+      && this.ui.starterCard.hidden) {
+      this.toggleWardrobe();
+    }
+    this.wardrobeKeyWasDown = wardrobeDown;
 
     // debug (greybox README): G forces dusk + the gold window
     if (this.input.isDown('KeyG') && !this.goldDebugFired && !this.dayFading) {
@@ -490,7 +514,7 @@ export class Game {
     this.cam.interiorMode = this.world.subway.underground;
     this.drainFarWorld(wdt);
     if (!this.dayFading && this.ui.nameBox.hidden && this.ui.orderCard.hidden && !this.mapOpen
-      && this.ui.starterCard.hidden && !this.arrival.active) {
+      && this.ui.starterCard.hidden && !this.arrival.active && !this.wardrobe.isOpen) {
       // movement — paused on the bench (Doc 37 §3C: the seat holds you;
       // physics would drag the capsule off it, so the walker simply rests)
       if (!this.sitting) this.player.update(dt, inp.move, inp.sprint);
@@ -1440,6 +1464,38 @@ export class Game {
     this.applyStarter(id, true);
   }
 
+  // ---------------- the wardrobe (the pick is for keeps) ----------------
+
+  /** O (or the pocket chip) folds the fitting room over the street. */
+  toggleWardrobe(): void {
+    if (this.wardrobe.isOpen) {
+      this.wardrobe.close();
+      return;
+    }
+    // the room opens on who the save is wearing — the lock law's anchor
+    this.wardrobe.open(this.state.starterId);
+  }
+
+  /** A tile was tapped. The pure verdict (wardrobeDecision) decides: the
+   *  same look closes the question; a different one can only be worn by
+   *  starting over — the confirm strip asks before anything moves. */
+  private wardrobeSwitchRequest(id: string): void {
+    const decision = wardrobeDecision(this.state.starterId, id);
+    if (decision.action === 'close') this.wardrobe.showAlreadyWearing();
+    else this.wardrobe.showConfirm(decision.starterId);
+  }
+
+  /** "Start over" confirmed: the save is wiped and rewritten factory-fresh
+   *  with the new face pinned (newGameSave), then the page reboots — the
+   *  boot law dresses the new starter and the story begins at the bus. */
+  private beginNewGameAs(id: string): void {
+    const st = starterById(id);
+    wipeSave();
+    writeSave(newGameSave(st.id));
+    this.wardrobe.close();
+    location.reload();
+  }
+
   setCameraPreset(mode: 'cozy' | 'street' | 'vista' | 'topdown'): void {
     if (mode === 'cozy') {
       (this.cam as any).pitchOffset = 0;
@@ -1464,39 +1520,8 @@ export class Game {
   /** Dee's board: deck + grip stripe + four wheels, carried diagonal across
    *  the back (model faces local +Z, so −Z is the spine side). */
   private makeSkateboardProp(): THREE.Group {
-    const g = new THREE.Group();
-    g.name = 'Starter_Board';
-    const deck = new THREE.Mesh(
-      new THREE.BoxGeometry(0.46, 0.035, 0.11),
-      new THREE.MeshLambertMaterial({ color: 0x2b2730 }),
-    );
-    deck.castShadow = true;
-    const grip = new THREE.Mesh(
-      new THREE.BoxGeometry(0.44, 0.012, 0.1),
-      new THREE.MeshLambertMaterial({ color: 0x2a9d8f }),
-    );
-    grip.position.y = 0.02;
-    g.add(deck, grip);
-    for (const tx of [-0.16, 0.16]) {
-      const truck = new THREE.Mesh(
-        new THREE.BoxGeometry(0.03, 0.018, 0.12),
-        new THREE.MeshLambertMaterial({ color: 0x8a8378 }),
-      );
-      truck.position.set(tx, -0.02, 0);
-      g.add(truck);
-    }
-    for (const [wx, wz] of [[-0.16, 0.07], [0.16, 0.07], [-0.16, -0.07], [0.16, -0.07]]) {
-      const wheel = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.024, 0.024, 0.02, 8),
-        new THREE.MeshLambertMaterial({ color: 0xece5d8 }),
-      );
-      wheel.rotation.x = Math.PI / 2;
-      wheel.position.set(wx, -0.03, wz);
-      g.add(wheel);
-    }
-    g.position.set(0.03, 1.12, -0.26); // between the shoulders, on the back
-    g.rotation.z = 0.3; // the diagonal carry
-    return g;
+    // one builder shared with the wardrobe turntable (personRig.ts)
+    return buildStarterSkateboard();
   }
 
   /** Day 4: the stranger appears at the terminal — the spot where the whole

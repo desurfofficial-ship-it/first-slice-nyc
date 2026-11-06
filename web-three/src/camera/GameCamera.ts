@@ -122,8 +122,6 @@ export class GameCamera {
   private pitchOffset = 0;
   private userDistMultiplier = 1.0;
   private manualDragTimer = 0;
-  private smoothFocus = new THREE.Vector3(-30, 1.25, 6.2);
-  private initializedFocus = false;
 
   get currentZoomDist(): number {
     return this.distFor(this.camera.aspect) * this.userDistMultiplier;

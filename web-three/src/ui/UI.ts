@@ -64,6 +64,9 @@ export class UI {
   // ---- who got off the bus (Doc 02: six starters) ----
   readonly starterCard = el<HTMLDivElement>('starter-card');
   private starterChoices = el<HTMLDivElement>('starter-choices');
+  // ---- the wardrobe — the 3D fitting room (ui/Wardrobe.ts) ----
+  readonly wardrobeBtn = el<HTMLButtonElement>('btn-wardrobe');
+  readonly wardrobePanel = el<HTMLDivElement>('wardrobe-panel');
   // ---- the pocket — one button that opens Map / Album / Sound ----
   // (declared here: the pocket wave wired the behavior but left the
   // properties undeclared — main did not typecheck without these)
@@ -96,6 +99,8 @@ export class UI {
   onCineSkip: (() => void) | null = null;
   /** Doc 02's starter pick — fired with the tapped starter's id. */
   onStarterPick: ((id: string) => void) | null = null;
+  /** The wardrobe chip — fired when the pocket's Wardrobe tile is tapped. */
+  onWardrobeToggle: (() => void) | null = null;
 
   constructor() {
     this.nameOk.addEventListener('click', () => this.onNameSubmit?.());
@@ -143,6 +148,11 @@ export class UI {
     this.roamBtn.addEventListener('click', () => {
       this.closePocket();
       this.onRoamToggle?.();
+    });
+    // the wardrobe chip: fold the menu, then open the fitting room
+    this.wardrobeBtn.addEventListener('click', () => {
+      this.closePocket();
+      this.onWardrobeToggle?.();
     });
     this.mapClose.addEventListener('click', () => this.onMapToggle?.());
     this.albumBtn.addEventListener('click', () => {
@@ -266,6 +276,7 @@ export class UI {
       postcardPanel: !this.postcardPanel.hidden,
       albumPanel: !this.albumPanel.hidden,
       starterCard: !this.starterCard.hidden,
+      wardrobePanel: !this.wardrobePanel.hidden,
     }));
   }
 

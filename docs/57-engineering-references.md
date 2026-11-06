@@ -232,6 +232,15 @@ which docs/architecture/03 §4 rules out as an engine swap.
   atlas is a survey instrument. Different jobs.
 - **Save-schema migration discipline.** Optional-trailing v1-safe fields,
   byte-identical old parses — no reference carries a save forward like ours.
+- **The player identity round (2026-11-06, checked before building).** The
+  wardrobe (3D fitting room), the pick-is-for-keeps lock law, ladder-climb
+  feel and interior furniture dressing are player/UI/interior systems —
+  neither reference covers them (GCA drives a vehicle rig with no on-foot
+  character or pick flow; SNY is geography and view optimization, no
+  interiors, no furniture). Stated per §0 and built independently: the
+  wardrobe ports the First-slice-player update's React modal into the
+  vanilla UI law; the climb cadence reads the rig's own measured velocity;
+  the furniture wears the already-attributed ABO pack (docs/57's own seam).
 
 ## 5. Working rule for every agent
 

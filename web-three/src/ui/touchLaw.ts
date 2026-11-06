@@ -11,8 +11,9 @@ export function touchPanelUp(surfaces: {
   postcardPanel: boolean;
   albumPanel: boolean;
   starterCard?: boolean;
+  wardrobePanel?: boolean;
 }): boolean {
   return surfaces.nameBox || surfaces.orderCard || surfaces.mapPanel
     || surfaces.postcardPanel || surfaces.albumPanel
-    || !!surfaces.starterCard;
+    || !!surfaces.starterCard || !!surfaces.wardrobePanel;
 }

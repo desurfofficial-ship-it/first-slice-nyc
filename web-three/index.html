@@ -21,7 +21,7 @@
     <div id="hud-top-right">
       <!-- One pocket button opens Map / Album / Sound — saves the top lane on phones -->
       <div id="pocket">
-        <button id="btn-pocket" type="button" aria-label="Open your pocket — Map, Roam, Album, Sound" aria-expanded="false" aria-controls="pocket-menu" title="Pocket">
+        <button id="btn-pocket" type="button" aria-label="Open your pocket — Map, Roam, Wardrobe, Album, Sound" aria-expanded="false" aria-controls="pocket-menu" title="Pocket">
           <span id="pocket-peek">Pocket</span>
         </button>
         <div id="pocket-menu" hidden role="menu" aria-label="Your pocket">
@@ -29,6 +29,9 @@
           <!-- The Roam chip (freeroam.ts): the open-block contract's switch —
                the story waits, the block runs on your clock -->
           <button id="btn-roam" type="button" role="menuitem" aria-label="Roam the block — the story waits where it is" aria-pressed="false" title="Roam the block"><span id="roam-peek">Roam</span></button>
+          <!-- The Wardrobe chip (ui/Wardrobe.ts): the 3D fitting room —
+               look all you like; the pick is for keeps (the lock law) -->
+          <button id="btn-wardrobe" type="button" role="menuitem" aria-label="Open the wardrobe — the fitting room" title="Wardrobe (O)"><span id="wardrobe-peek">Wardrobe</span></button>
           <button id="btn-album" type="button" role="menuitem" aria-label="Open your album — empty so far" title="Your album"><span id="album-peek">Album (<span id="album-count">0</span>)</span></button>
           <button id="btn-audio" type="button" role="menuitem" aria-label="Turn sound on or off" aria-pressed="false" title="Sound">Sound <span id="audio-peek">&#9835;</span></button>
         </div>
@@ -87,6 +90,42 @@
     <label>Who got off the bus?</label>
     <div id="starter-sub">Tap one. Every pick is safe — the city doesn't mind which.</div>
     <div id="starter-choices"></div>
+  </div>
+
+  <!-- Wardrobe — the 3D fitting room (ui/Wardrobe.ts). Looking is free;
+       wearing a different face asks for a new game first (the lock law). -->
+  <div id="wardrobe-panel" hidden role="dialog" aria-modal="true" aria-label="Wardrobe — the fitting room">
+    <div id="wardrobe-card">
+      <div id="wardrobe-stage">
+        <canvas id="wardrobe-canvas" aria-label="3D preview of the selected look"></canvas>
+        <div id="wardrobe-hint">Drag to spin</div>
+      </div>
+      <div id="wardrobe-side">
+        <label>Wardrobe — the fitting room</label>
+        <div id="wardrobe-sub">Six ways onto the block. The pick is for keeps.</div>
+        <div id="wardrobe-lineup"></div>
+        <div id="wardrobe-meta" hidden>
+          <div id="wardrobe-meta-name"></div>
+          <div id="wardrobe-meta-role"></div>
+          <div id="wardrobe-meta-vibe"></div>
+        </div>
+        <div id="wardrobe-controls">
+          <button id="wardrobe-front" type="button">Front</button>
+          <button id="wardrobe-quarter" type="button">3/4</button>
+          <button id="wardrobe-back" type="button">Back</button>
+          <button id="wardrobe-spin" type="button" aria-pressed="true">Spin</button>
+          <button id="wardrobe-close" type="button">Back to the street</button>
+        </div>
+        <div id="wardrobe-confirm" hidden>
+          <div id="wardrobe-confirm-text"></div>
+          <div id="wardrobe-confirm-actions">
+            <button id="wardrobe-newgame" type="button">Start over</button>
+            <button id="wardrobe-keep" type="button">Keep wearing this</button>
+          </div>
+        </div>
+        <div id="wardrobe-locknote">Your face rides the save — the only way to change it is a new game.</div>
+      </div>
+    </div>
   </div>
 
   <!-- Postcard -->

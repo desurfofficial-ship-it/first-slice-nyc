@@ -133,6 +133,9 @@ export interface PersonRig {
   smoothSpeed: number;
   prevX: number;
   prevZ: number;
+  /** measured vertical speed → hands-over-hand cadence (climb mode) */
+  prevY: number;
+  smoothClimb: number;
   hasPrev: boolean;
   time: number;
   /** measured yaw rate → body roll (bank into turns, auto mode only) */
@@ -162,6 +165,8 @@ export function attachRig(
     smoothSpeed: 0,
     prevX: group.position.x,
     prevZ: group.position.z,
+    prevY: group.position.y,
+    smoothClimb: 0,
     hasPrev: false,
     time: Math.random() * 10, // desync idle breathes across the cast
     bank: 0,
@@ -377,17 +382,29 @@ export function updatePersonAnim(
   }
   rig.prevX = group.position.x;
   rig.prevZ = group.position.z;
+  // measured vertical speed, same law as the ground speed: the climb reads
+  // the body's own motion, not a flag. Normalized to CLIMB_SPEED (2.6 m/s)
+  // and smoothed so the grab frame doesn't kick the hands.
+  let climbSpeed = 0;
+  if (rig.hasPrev) {
+    climbSpeed = (group.position.y - rig.prevY) / Math.max(dt, 1e-4);
+  }
+  rig.prevY = group.position.y;
   rig.hasPrev = true;
 
   // smooth so one teleport frame doesn't snap the pose
   rig.smoothSpeed += (Math.min(speed, 6) - rig.smoothSpeed) * Math.min(1, dt * 10);
+  rig.smoothClimb += (Math.min(Math.abs(climbSpeed) / 2.6, 1) - rig.smoothClimb) * Math.min(1, dt * 8);
   const s = Math.min(1, rig.smoothSpeed / 3.6); // normalized effort 0..1
   const t = rig.time;
 
   if (rig.mode === 'climb') {
-    // arms reach up the rails, legs pedal slowly, body hugs the ladder
-    rig.phase += dt * 3.4;
-    const swing = Math.sin(rig.phase);
+    // arms reach up the rails, legs pedal slowly, body hugs the ladder.
+    // The cadence is the climb's own speed now (the climb-feel polish): a
+    // fixed 3.4 rad/s pedaled in mid-air whenever you paused on the rails —
+    // hands-over-hand while you move, a held reach when you hang.
+    rig.phase += dt * (0.35 + 3.1 * rig.smoothClimb);
+    const swing = Math.sin(rig.phase) * (0.55 + 0.45 * rig.smoothClimb);
     rig.armL.rotation.x = -2.75 + swing * 0.18;
     rig.armR.rotation.x = -2.75 - swing * 0.18;
     rig.armL.rotation.z = 0.12;
@@ -507,4 +524,47 @@ export function updatePersonAnim(
   rig.body.rotation.x = (1 - s) * Math.sin(t * 2.1) * 0.02;
   rig.body.rotation.z = (1 - s) * Math.sin(t * 0.4) * 0.016;
   rig.head.rotation.y = (1 - s) * (Math.sin(t * 0.6) * 0.26 + Math.sin(t * 1.57) * 0.07);
+}
+
+/**
+ * buildStarterSkateboard — the one non-box starter accessory (Doc 02: Dee
+ * carries her deck across the back "the way the stranger carries her
+ * duffel"). Lives here so the walker AND the wardrobe turntable wear the
+ * exact same prop — one builder, no duelling copies (the costume law:
+ * dress, don't rebuild).
+ */
+export function buildStarterSkateboard(): THREE.Group {
+  const g = new THREE.Group();
+  g.name = 'Starter_Board';
+  const deck = new THREE.Mesh(
+    new THREE.BoxGeometry(0.46, 0.035, 0.11),
+    new THREE.MeshLambertMaterial({ color: 0x2b2730 }),
+  );
+  deck.castShadow = true;
+  const grip = new THREE.Mesh(
+    new THREE.BoxGeometry(0.44, 0.012, 0.1),
+    new THREE.MeshLambertMaterial({ color: 0x2a9d8f }),
+  );
+  grip.position.y = 0.02;
+  g.add(deck, grip);
+  for (const tx of [-0.16, 0.16]) {
+    const truck = new THREE.Mesh(
+      new THREE.BoxGeometry(0.03, 0.018, 0.12),
+      new THREE.MeshLambertMaterial({ color: 0x8a8378 }),
+    );
+    truck.position.set(tx, -0.02, 0);
+    g.add(truck);
+  }
+  for (const [wx, wz] of [[-0.16, 0.07], [0.16, 0.07], [-0.16, -0.07], [0.16, -0.07]]) {
+    const wheel = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.024, 0.024, 0.02, 8),
+      new THREE.MeshLambertMaterial({ color: 0xece5d8 }),
+    );
+    wheel.rotation.x = Math.PI / 2;
+    wheel.position.set(wx, -0.03, wz);
+    g.add(wheel);
+  }
+  g.position.set(0.03, 1.12, -0.26); // between the shoulders, on the back
+  g.rotation.z = 0.3; // the diagonal carry
+  return g;
 }

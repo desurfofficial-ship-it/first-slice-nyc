@@ -173,6 +173,30 @@ describe('modes', () => {
     expect(rig.hipL.rotation.x).not.toBe(p1); // pedaling
   });
 
+  it('climb cadence is the body\'s own speed: hands-over-hand while moving, a held reach when hanging', () => {
+    const mover = make();
+    const hanger = make();
+    // both grab the rails the same frame
+    updatePersonAnim(mover.group, 1 / 60, { mode: 'climb' });
+    updatePersonAnim(hanger.group, 1 / 60, { mode: 'climb' });
+    // the mover rises at CLIMB_SPEED; the hanger holds still on the rails
+    mover.group.position.y += 2.6 / 60;
+    updatePersonAnim(mover.group, 1 / 60);
+    updatePersonAnim(hanger.group, 1 / 60);
+    // let the smoothing settle, then compare the cadence over a window
+    for (let i = 0; i < 30; i++) {
+      mover.group.position.y += 2.6 / 60;
+      updatePersonAnim(mover.group, 1 / 60);
+      updatePersonAnim(hanger.group, 1 / 60);
+    }
+    const movePhase = mover.rig.phase;
+    const hangPhase = hanger.rig.phase;
+    // the mover's hands travel ~4x the hanger's idle sway over the window
+    expect(movePhase).toBeGreaterThan(hangPhase * 3);
+    // the hanger isn't frozen dead — a slow held reach keeps it alive
+    expect(hangPhase).toBeGreaterThan(0);
+  });
+
   it('sweep: broom arm swings while feet stay planted', () => {
     const { group, rig } = make();
     updatePersonAnim(group, 1 / 60, { mode: 'sweep' });

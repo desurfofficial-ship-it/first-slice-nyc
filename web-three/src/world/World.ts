@@ -2806,6 +2806,13 @@ export class World {
     // the sideboard against the S wall, east of the notice wall
     this.fixture(g, 'Hall_Sideboard', -51.2, 0.51, 20.75, 1.4, 1.02, 0.5, 0x8e6f66);
     this.colliders.push(boxFromCenter(-51.2, 0.51, 20.75, 1.4, 1.02, 0.5));
+    // more ABO slots (docs/57 home pass): a floor lamp at the sofa's north
+    // shoulder and an ottoman off the coffee table's south face. The lamp
+    // carries no collider (a thin pole decor; the sofa owns that corner);
+    // the ottoman is solid — a seat-height box you can brush against.
+    this.fixture(g, 'Hall_FloorLamp', -48.75, 0.735, 24.75, 0.35, 1.47, 0.35, 0x8e6f66);
+    this.fixture(g, 'Hall_Ottoman', -50.2, 0.23, 27.1, 0.7, 0.46, 0.5, PAL.teal);
+    this.colliders.push(boxFromCenter(-50.2, 0.23, 27.1, 0.7, 0.46, 0.5));
 
     // the hall's tall windows: single warm translucent panes, always on —
     // lit from the street, see-through up close (the swap-free pane)
@@ -2986,6 +2993,9 @@ export class World {
     this.colliders.push(boxFromCenter(15.55, 8.675, -10.6, 0.4, 0.55, 0.45));
     // the lamp rides the dresser's top — its placeholder stands on it
     this.fixture(g, 'Cecil_Lamp', 10.62, 9.46, -13.35, 0.16, 0.22, 0.16, 0x2b2730);
+    // the mirror hangs on the S wall above the dresser (ABO slot — no
+    // collider: it is wall decor, the dresser below owns the footprint)
+    this.fixture(g, 'Cecil_Mirror', 10.55, 9.72, -14.0, 0.55, 0.75, 0.05, 0x8e6f66);
     // rug
     const rug = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.02, 1.4), this.bank.get(PAL.teal));
     rug.name = 'Cecil_Rug';

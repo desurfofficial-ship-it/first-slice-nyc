@@ -48,6 +48,8 @@ export const FURNITURE_SLOTS: readonly FurnitureSlot[] = [
   { id: 'dresser', room: 'CECIL', fixture: 'Cecil_Dresser', height: 0.95, rotateY: Math.PI / 2 },
   { id: 'side_table', room: 'CECIL', fixture: 'Cecil_Nightstand', height: 0.55 },
   { id: 'table_lamp', room: 'CECIL', fixture: 'Cecil_Lamp', height: 0.42 },
+  // the mirror hangs above the dresser (S wall; wall decor, no collider)
+  { id: 'mirror', room: 'CECIL', fixture: 'Cecil_Mirror', height: 0.75 },
   { id: 'rug', room: 'CECIL', fixture: 'Cecil_Rug', height: 0.04, fitBy: 'footprint' },
   // ---- HALL — the living-room / communal archetype ----
   { id: 'dining_table', room: 'HALL', fixture: 'Hall_WorkTable',
@@ -58,6 +60,10 @@ export const FURNITURE_SLOTS: readonly FurnitureSlot[] = [
   { id: 'dining_chair', room: 'HALL', fixture: 'Hall_Chair_A', height: 0.88 },
   { id: 'dining_chair', room: 'HALL', fixture: 'Hall_Chair_B', height: 0.88 },
   { id: 'sideboard', room: 'HALL', fixture: 'Hall_Sideboard', height: 1.02 },
+  // the home pass (2026-11): a floor lamp at the sofa's north shoulder and
+  // an ottoman off the coffee table — the living room reads furnished now
+  { id: 'floor_lamp', room: 'HALL', fixture: 'Hall_FloorLamp', height: 1.47 },
+  { id: 'ottoman', room: 'HALL', fixture: 'Hall_Ottoman', height: 0.46 },
   // ---- DINER — the dining-shop archetype (the counter stools) ----
   ...Array.from({ length: 8 }, (_, i): FurnitureSlot =>
     ({ id: 'counter_stool', room: 'DINER', fixture: `Diner_Stool_${i}`, height: 0.55 })),
@@ -73,6 +79,9 @@ export const FURNITURE_FILES: readonly string[] =
 export const FURNITURE_PROVENANCE: Readonly<Record<string, string>> = {
   bed: 'B07LC5Y95W',
   bookcase: 'B07DMHTGJD',
+  floor_lamp: 'B073751DMK',
+  mirror: 'B073WGGXFT',
+  ottoman: 'B07D4FS7GY',
   coffee_table: 'B01LWVEZ1C',
   counter_stool: 'B07CZ6P7QP',
   dining_chair: 'B075YQ8Q2K',

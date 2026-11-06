@@ -77,6 +77,12 @@ export class Player {
         this.capsule.y = this.ladder.top;
         if (this.vy > 0) this.vy = 0;
       }
+      // Descend-dismount (playtest 2026-10-30: "he fell" — descending past a
+      // trigger's bottom used to keep you grabbed until your HEAD cleared the
+      // volume). A descent that crosses a solid top this frame dismounts onto
+      // it; two guards keep it honest: only below (top - 0.5) so the top rung
+      // can't re-deposit you, and prevY at/above the top so groundHeight's
+      // 0.45 snap-up can't teleport you back onto a slab you just left.
       if (this.vy < 0 && this.capsule.y < this.ladder.top - 0.5) {
         const g = groundHeight(this.boxes, this.capsule, GROUND_SNAP);
         if (prevY >= g - 0.01 && this.capsule.y <= g + 0.02) {
@@ -88,6 +94,7 @@ export class Player {
           return;
         }
       }
+      // Bottom of the ladder: step onto the ground instead of freefalling
       if (this.capsule.y <= 0.12 && this.vy < 0) {
         this.capsule.y = 0.05;
         this.vy = 0;
@@ -133,7 +140,9 @@ export class Player {
     moveAxisZ(this.boxes, this.capsule, this.vz * dt, STEP_UP);
     depenetrate(this.boxes, this.capsule, STEP_UP);
 
-    // A5 stair law & floor snap
+    // A5 stair law: while GROUNDED the motion direction filters step-up
+    // candidates — the tread just left must not glue the descent on air.
+    // Airborne callers keep the unfiltered rule (jumps, falls, dismounts).
     const ground = this.onGround
       ? groundHeight(this.boxes, this.capsule, GROUND_SNAP, dirX, dirZ)
       : groundHeight(this.boxes, this.capsule, GROUND_SNAP);
@@ -147,11 +156,19 @@ export class Player {
       && ground > Number.NEGATIVE_INFINITY
       && this.capsule.y - ground <= GROUND_SNAP
     ) {
+      // A5 floor-snap-down: a grounded walker whose ground dropped ≤ snap
+      // follows it down (descending staircases out-run gravity otherwise).
+      // Jumps (vy > 0) and real falls (drop > snap) still take gravity.
       this.capsule.y = ground;
       this.vy = -0.5;
       this.onGround = true;
     } else {
       this.vy -= GRAVITY * dt;
+      // Sub-step the descent (Agent-2 solidity audit Q6): groundHeight only
+      // sees tops at/below the current feet, so a fall committed in one move
+      // can skip a slab whole (landings are 0.15 m thick). No probe commits
+      // more than 0.12 m of fall, so any crossing is caught the frame it
+      // happens.
       const fall = this.vy * dt;
       const steps = Math.max(1, Math.ceil(Math.abs(fall) / 0.12));
       const dy = fall / steps;

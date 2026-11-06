@@ -1365,3 +1365,68 @@ Stage Summary:
 - 100% test coverage maintained across rig.test.ts, camera.test.ts, and player-upgrades.test.ts (38 test files, 574 tests passing)
 - Zero new draw calls: every rigid limb remains fused to 1 mesh with single-material vertex-color baking
 
+Task ID: PLAYER-MERGE-WARDROBE-LOCK
+Agent: main (Claude)
+Task: Add the First-slice-player update to the main repo (merge the
+  kinematics/camera polish commit), port the React wardrobe into the
+  vanilla UI law with the pick-is-for-keeps lock law, polish the ladder
+  climb feel, and dress the player home with more of the ABO furniture
+  pack.
+
+Work Log:
+- Fetched the player repo's git bundle (feat/player-visual-kinematics-polish
+  — its prerequisite 14be680 is in our history) and cherry-picked 087b114
+  "feat(player): visual polish, fluid kinematics, intuitive camera controls"
+  onto main: fluid accel/decel friction (ACCEL 18 / FRICTION 16), sprint
+  (Shift or joystick >0.88 → 6.4 m/s), adaptive turn rate with 180° boost,
+  visualY smoothing, pointer-drag camera orbit + pitch tilt + wheel zoom,
+  frame-rate-independent exponential damping. Resolved Game.ts + worklog
+  conflicts against the narrative reboot; restored the condensed descend/
+  stair/floor-snap decision comments the patch had stripped; dropped the
+  patch's dead smoothFocus/initializedFocus fields (tsc TS6133).
+- Ladder climb feel: the rig's climb pose is now driven by the body's own
+  measured vertical velocity (PersonRig.prevY/smoothClimb, normalized to
+  CLIMB_SPEED 2.6) — hands-over-hand cadence while you climb, a held reach
+  when you hang; the old fixed 3.4 rad/s pedaled in mid-air. Pinned in
+  rig.test.ts (mover vs hanger cadence).
+- The wardrobe: ported the player update's React App.tsx + WardrobeModal
+  (826 lines, React 19/Tailwind/lucide) into web-three's vanilla UI law —
+  src/ui/Wardrobe.ts (no React): 3D turntable (buildArticulatedPerson +
+  updatePersonAnim idle, pedestal + warm rig, drag-to-spin, Front/¾/Back,
+  spin toggle), six-starter lineup with jacket swatches + roles, lazy
+  renderer created once and rAF only while open (at-rest-perf law), poster
+  mode when WebGL is absent (the seam law). Pocket chip btn-wardrobe + O
+  key (edge-detected like M); touch law knows the panel; Input ignores
+  pointer-downs on it; movement/interact pause while it is open.
+- THE LOCK LAW: the pick is for keeps. wardrobeDecision() (pure, pinned):
+  the same look closes the question; a different look is only wearable
+  through a confirmed new game — Save.newGameSave() writes a factory-fresh
+  schema with the chosen starter pinned and the page reboots on the new
+  face (the pick card never re-asks). The save still rides starter (the
+  boot law unchanged); ?starter= and driver boots keep their harness
+  exceptions. Tests: wardrobe.test.ts (decision law, lineup law, new-game
+  law, touch union) — 9 new guards.
+- The player home wears more of the ABO pack (docs/57's seam, 19 → 22
+  slots): mirror above Cecil's dresser (B073WGGXFT), floor lamp at the
+  hall sofa's shoulder (B073751DMK), ottoman off the hall coffee table
+  (B07D4FS7GY, solid). Manifest + provenance + byte-identical lod1 files;
+  ATTRIBUTION already carries all three ASINs.
+- Reference check recorded (docs/57 §4): wardrobe/lock/ladder/interiors
+  are player/UI/interior systems — neither Gen City Auto nor Slop New
+  York has any of them; built independently, as the law requires.
+- Live proof (headless chromium against the dev server, throwaway probe,
+  not committed): pocket → wardrobe opens with the 3D turntable (6 tiles,
+  "You" on the save's face), a different tile raises the confirm strip
+  ("Start over as The Regular? …"), Keep folds it, the same tile says
+  "That's already you.", close works, the save still carries the face;
+  screenshots confirm the mirror/lamp/ottoman sit on their fixtures.
+
+Stage Summary:
+- main is now: 3d3b71a (reboot spine) → a9718e9 (player kinematics merge)
+  → PLAYER-MERGE-WARDROBE-LOCK. The player update is IN — without React,
+  with the lock law, and the home is furnished.
+- Gates: tsc clean · vitest 660/660 (44 files; +15: wardrobe 9, rig climb
+  cadence 1, player-upgrades 5 riding the merge) · build OK · headless
+  probe green (wardrobe flow + interior renders).
+
+Gates at close: tsc clean · vitest 660/660 (44 files) · build OK.
