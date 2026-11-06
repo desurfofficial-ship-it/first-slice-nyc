@@ -1199,3 +1199,77 @@ name the pack at all. Two quiet fixes, no game code touched:
 - Gates: manifest parses (141 entries) · all repo_paths resolve ·
   AGENTS.md tree alignment kept · no game source touched, so the
   standing suite's verdict stands.
+
+## 2026-11-06 — agent (Technical Architecture): the world contract — sim foundations, 17 docs, 113 new tests (R0 rides along)
+
+The decree: establish the technical foundations that let FIRST SLICE become a
+coherent, persistent, expandable open-world life simulation — audit first,
+contracts second, implementation third, proof always. No rewrites, no new
+dependencies, Yuka untouched, the narrative bible untouched, the 4-day story
+untouched.
+
+Work Log:
+- Audited the actual codebase (25.4k lines TS): entry/init, World.ts monolith
+  (6.5k lines, district culling, shadow economy), Game.ts orchestrator,
+  GameState step machine, Save v1 laws, InteractionRegistry, Yuka peds +
+  ROUTINE_STOP + M4 street schedule, traffic pure math, registry JSON + mjs
+  gate, furniture costume law. Studied both reference repos under §1e
+  (gen-city-auto: per-entity seeds + fork(salt) streams, ring lifecycle,
+  stateless time-functions; slop-newyork: 1u=1m grid frame, blocks-first
+  world model, derive-networks-from-built-ground). Findings in
+  docs/architecture/world-contract/01.
+- Implemented `web-three/src/sim/` (11 modules, all headless, zero new deps):
+  ids.ts (two id spaces: registry UPPERCASE permanence + namespaced sim
+  ids; rel pairs sorted `__`), rng.ts (mulberry32 family the world already
+  uses + WorldRandom named streams + stable fork(salt)), clock.ts (tick =
+  in-game minute; day 1 = Tue Sept 9 Y1 canon; no wall clocks anywhere),
+  registry.ts (typed load of the REAL world-registry.json, cross-ref
+  validation incl. the below-grade exemption, derived semantic tags,
+  findPlaces/nearest-first, placePoint prefers doors), entities.ts
+  (NpcState/RelationshipState/BusinessState/ItemState/WorldEventRecord +
+  validators + businessIsOpen), schedule.ts (pure activityAt: weekday,
+  overnight wrap, late-flags, fallback), arbitration.ts (priority matrix
+  0-4, one-claim-per-NPC, resume stacks, capacity resources, R1-R8, the
+  directive's S1-S7 contracted in-code), narrative.ts (flag store,
+  availability registry with tick expiry, StoryEvent validation —
+  NPC_MISSING/DOUBLE_BOOKED/UNAVAILABLE/PLACE_MISSING/BUSINESS_CLOSED/
+  PREREQ/WINDOW — and the deliberate fallback planner:
+  defer/reschedule/relocate/cancel, never silent), economy.ts (integer
+  cents, append-only ledger, faucet/sink/transfer flow classes, overdraft
+  policy, audit = genesis+Σ, flow reports), content.ts (manifest schema,
+  license duty, ABO pack bridge), state.ts (WorldState + the OWNERSHIP
+  table — a test walks every field — versioned save document, polite
+  refusal for corrupt/foreign/unknown-version, ledger rehydration),
+  reference.ts (the PART-6 world: canon places + bible characters with
+  example schedules/hours/warmth + validation-exercise events + the
+  shipped-prices ledger script).
+- Tests: 11 new files, 113 tests (suite 605 → 718, all green). Fixed R0
+  (the narrative spec's PRIORITY-0): docs-hygiene now guards
+  docs/narrative/00-README.md's existence + dated canon banner instead of
+  reading the rebooted-away docs — suite went from 2 known failures to 0.
+- Docs: docs/architecture/world-contract/01–17 (audit → target → topology
+  → identity → state → determinism → registry → sim/npc → arbitration →
+  narrative → content → economy → reference world → workstreams →
+  validation → perf/testing → roadmap). Status ledgers in every doc
+  distinguish Implemented / Partial / Declared / Deferred / Unresolved.
+- AGENTS.md §3 repo map + a WORLD CONTRACT pointer (the next agent reads
+  14-agent-development-framework before starting a workstream).
+
+Stage Summary:
+- The four real gaps for an open world (no clock, no persistent people,
+  no arbitration, no world-scale save) are now contracts + code + tests,
+  beside (never instead of) the shipped systems. The reference world
+  proves the stack end-to-end on the real registry: schedule resolution,
+  a worked arbitration scenario, narrative validation pass AND fail
+  paths, $87→$74 in audited ledger math, and a populated-world save
+  round-trip.
+- Gates at close: tsc --noEmit clean · vitest 718/718 (51 files) ·
+  npm run build OK (bundle unchanged — sim is contract+tests until WS-D
+  wires the valve) · registry mjs gate OK (129 ids, 12/12 masses, 18/18
+  anchors) · game code untouched (Game/World/GameState/Save/peds/
+  interactions all byte-identical).
+- Known leftovers, named honestly in doc 01 §17 + 17: AGENTS.md prose
+  still cites rebooted-away docs (06/50/51) — lead's call; below-grade
+  interiors keep their compound SUB-01/SUB-02 reference (the shipped
+  gate's own exemption, now documented in the contract); sim↔Game wiring
+  (the time valve) is Phase 1 / Workstream D by design.

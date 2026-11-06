@@ -7,6 +7,8 @@
 > **DIRECTION (2026-11, corrected):** FIRST SLICE is **not an open-world game — it is a life sim on an open block**. The four-day story is the spine; free roam is a player capability laid over the sim (the city runs on your clock), never a genre swap. The contract, the module fences and the roadmap live in [docs/architecture/](docs/architecture/) (audit → comparison → target → module map → roadmap → agent framework → perf/testing). The Roam law in [docs/architecture/06](docs/architecture/06-agent-development-framework.md) binds every agent: new HUD pressure is mode-aware, new world gates are roam-aware, ambient life carries no `step ===` dependencies.
 
 > **ACTIVE WORK:** the open-bugs ledger [docs/51-open-bugs-for-agents.md](docs/51-open-bugs-for-agents.md). Claim an unowned bug (skip ones with an owner hint — agents work in parallel), fix it with its permanent guard (§1c.1), and update the ledger **and** [worklog.md](worklog.md) in the same commit. The Living Neighborhood milestone (Doc 37) was implemented through docs/34 + docs/38 and is no longer the active front; future construction plans live in docs/45.
+>
+> **THE WORLD CONTRACT (2026-11-06):** the open-world life-sim foundations are established — global simulation state, in-game clock, spatial-semantic registry, entity identity, NPC behavior arbitration, narrative validation, economy guardrails, and a validated reference world. The contracts live in [docs/architecture/world-contract/](docs/architecture/world-contract/); the implementation lives in `web-three/src/sim/` (headless, tested in `web-three/tests/sim-*.test.ts`). Six workstreams (A spatial · B npc · C narrative · D world-sim · E content · F integration) build on these contracts — read [14-agent-development-framework.md](docs/architecture/world-contract/14-agent-development-framework.md) before starting one. The four-day story and every shipped system are untouched by construction.
 
 ---
 
@@ -187,6 +189,12 @@ first-slice-nyc/
 │   │                          #   The two live coordination files:
 │   ├── 50-agent2-first-session-world.md  # the paved path — current world truth
 │   │                          #   (51-open-bugs-for-agents.md — the live bug ledger, check it first)
+│   ├── narrative/             #   the narrative bible (canon story, docs/narrative/00–15)
+│   ├── data/                  #   world-registry.json (master geometry) + abo-curated.json
+│   └── architecture/world-contract/  # THE WORLD CONTRACT — 17 docs: global sim state,
+│                              #   spatial/semantic registry, entity identity, arbitration,
+│                              #   narrative validation, economy guardrails, the six
+│                              #   workstreams' deal (implemented in web-three/src/sim/)
 │   └── …                      #   full index in README
 ├── web-three/                 # THE GAME — Vite + TypeScript + Three.js
 │   ├── src/                   #   camera, world, game, court, subway, ui, …
