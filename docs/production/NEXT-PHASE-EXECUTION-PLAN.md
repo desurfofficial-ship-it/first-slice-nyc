@@ -97,16 +97,26 @@
 ## 2. Parallelism map for this milestone
 
 ```
-WP-0 (merge & ratify)          ── everything waits (3 mechanical conflicts; DEF-3 union; E2E re-run)
-WP-1v (pause-set gap)          ──┐
-WP-4 (money bridge, Game.ts*)  ──┤  WS-D sequential inside Game.ts
-WP-2v (DEC-1 + epoch mapping)  ──┘  (needs the OWNER's ruling first)
-WP-3v (ambient walkers, peds)  ── after WP-0; single-writer booking on peds.ts
+WP-0 (merge & ratify)          ── DONE 2026-11-06 (1bb3152)
+WP-1v (pause-set gap)          ── DONE 2026-11-06 (0e22ff5) — pauseSet.ts + 11 cases + probe
+WP-2v (DEC-1 + epoch mapping)  ── DONE 2026-11-06 (eab767c) — epochMap.ts + epochAgreement + probe
+WP-4 (money bridge, Game.ts*)  ── next WS-D window (see §2b)
+WP-3v (ambient walkers, peds)  ── after WP-0 (done); single-writer booking on peds.ts
 WP-5 (R2+R7, core seam)        ── fully parallel (disjoint files)
-WP-6 (diary UI)                ── after WP-2v (consumes the mapping)
+WP-6 (diary UI)                ── unblocked: consumes epochMap's dateline (eab767c)
 WP-7 (evidence assembly)       ── last; consumes all + the post-merge perf re-baseline
 ```
 *Game.ts is single-writer: WP-1v, WP-2v (wiring only) and WP-4 book successive windows with the Production Director; WP-3v books `peds.ts` separately. No two WPs hold the same file simultaneously — the governance law, not a preference.*
+
+### 2b. Interim integration note — the next order (2026-11-06, Technical Integration Lead)
+
+**Recommendation: A-1 (the navigation graph) first, WP-4 (D-3 money→ledger bridge) second; WP-6 may start immediately in parallel.** Reasoning, dependency-aware:
+
+1. **WP-6 is unblocked NOW** and touches disjoint files (`ui/`, `style.css`) — it consumes the mapping this milestone just landed and delivers the player-facing date/diary. No conflict with either item below.
+2. **A-1 before WP-4 for the critical path.** The ledger bridge is a bookkeeping integrity upgrade over money that already reconciles ($87→$112→$123, E2E-asserted) — nothing downstream is blocked on it today. The navigation graph, by contrast, gates THREE load-bearing successors: A-2 (doors/entrances consume the nav graph), WP-3v scale-out (ambient walkers are safe at two bodies, a defect at ten — the plan already says "recommended after A-1"), and physically believable NPC movement (straight-line goal-lerp is the known Phase-3 defect). The longer the block waits, the more walk-code lands against the wrong foundation.
+3. **WP-4 remains small, bounded, and independent** (its own `moneyBridge.ts` + a booked Game.ts window) — it can slot into any WS-D gap or run in a parallel window; it does NOT need to preempt A-1. If a short, low-risk win is needed while A-1 is drafted (per the reconciliation report's §8 preview), WP-4 is that win.
+4. **File-overlap check:** A-1 lives in the nav/registry layer (`sim/`, world-contract docs); WP-4 in `sim/moneyBridge.ts` + Game.ts's money-effect section; WP-6 in `ui/` — no shared files, so A-1 drafting and WP-4 may proceed in parallel windows with the usual single-writer bookings.
+5. **Order to propose for the next milestone:** WP-6 (start now) → A-1 draft → A-1 land → WP-4 → WP-3v scale-out on the nav graph. **Nothing here begins without the owner's separate authorization** (the plan's own law, §3).
 
 ## 3. What must NOT begin during this milestone
 
