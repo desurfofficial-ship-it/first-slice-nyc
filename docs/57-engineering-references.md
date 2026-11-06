@@ -320,3 +320,24 @@ append what you learned under §3 (dated, sourced, short). The clone lives at
 git clone --depth 1 https://github.com/greggman/gen-city-auto /home/z/my-project/refs/gen-city-auto
 git clone --depth 1 https://github.com/mrdoob/slop-newyork      /home/z/my-project/refs/slop-newyork
 ```
+
+### 3.7.1 WP-3v addendum — what the ambient commute took from the reference (2026-11-06)
+
+Re-read with the WP-3v design in hand; nothing new was adopted beyond the
+patterns already credited above. What the living pedestrian runtime uses:
+
+- **Deterministic per-agent generation** (the reference's seeded-junction
+  discipline, `traffic.ts` `pickExit`): each walker's destination stream is
+  its own `seededRng(seed + i·7919)` — stable per-agent seeds, no global
+  randomness, re-derived identically per boot. (MIT, © the gen-city-auto
+  authors — pattern attribution per this file's header.)
+- **Allocation discipline** (their stable-index/`compact()` habit): the pin
+  pass and the commute step allocate nothing per frame; the only per-route
+  allocation is the swapped Yuka `Path` (rare, budgeted 2/frame).
+- **Parameterize-by-position, not waypoint-teleport** (their car spacing):
+  walkers keep Yuka's continuous steering on graph-derived polylines — the
+  graph provides the geometry, Yuka provides the motion. **The reference's
+  decorative pedestrian ping-pong remains explicitly NOT a navigation
+  solution** — destination movement here is our Phase 3 A* over the one
+  registry-seeded graph, under the STREET gate (door edges never
+  traversable) and the gap law (no mid-block road bridges).

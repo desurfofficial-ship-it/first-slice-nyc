@@ -1891,3 +1891,57 @@ Stage Summary:
   the 16 ms budget) · drawCalls 119/184/256 — zero drift.
 - **Environment note:** the sandbox Playwright Chromium was missing; `npx playwright install chromium`
   repaired it. The probe failures before that were environment failures, not product failures.
+
+## 2026-11-06 — WP-3v: the living pedestrian runtime (register v1.7.0)
+
+- **Design:** ambient walkers keep Yuka (steering/avoidance/separation) and
+  every shipped hard guarantee; they gain destination movement over the ONE
+  Phase 3 graph. `pedCommute.ts` owns the pure laws; `peds.stepCommutes`
+  builds routes under a 2/frame budget (round-robin), detects arrival
+  (path finished + arrive radius, or 3 stuck windows — nobody grinds),
+  arms dwells via the SHIPPED machinery (dwellLeft/faceTo/pin — one code
+  path for loop beats AND destination dwells), re-derives routes once per
+  availability epoch, and tier detail deterministically (near full / mid
+  anim-every-other-frame / far steering+body only). The pin pass now
+  allocates nothing per frame. Game.ts untouched; the sim runtime never
+  sees the ambients (no schedules, no arbitration — the populations stay
+  separate by law). No second clock: the epoch reads the sim minute;
+  dwell runs on the ambient dt (the shipped "map keeps the block
+  breathing" law, unchanged).
+- **The gap law — a genuine Phase 3 builder defect, caught by the new
+  tests:** sidewalk spines ran straight through Kestrel mid-block (x
+  ±61.5/±82.5) and the EW lanes through the avenues — jaywalk edges the
+  authored loops never had. Closed: perpendicular roads are no-bridge
+  spans; through-traffic crosses only at zebras + intersection corners
+  (landing curb aprons excepted); `EDGE_THROUGH_ROAD` pinned in
+  graph.validate on the shipped world. Graph now 377 nodes / 396 edges /
+  still ONE component (zebras + corners reconnect it).
+- **Files:** `src/world/pedCommute.ts` (new, pure) · `src/world/peds.ts`
+  (setCommute/stepCommutes/LOD/pin-buffers) · `src/sim/nav/index.ts`
+  (routeToStreet, streetDestinations, crosswalkBands) ·
+  `src/sim/nav/build.ts` + `graph.ts` (the gap law + EDGE_THROUGH_ROAD) ·
+  `src/game/worldRuntime.ts` (armAmbientCommute, seed 20261106) ·
+  `src/world/World.ts` (pass-throughs) · tests `ped-commute.test.ts`
+  (+13) · scripts `probe-ped-nav.mjs` (new) + `perf-peds.mjs` (new) ·
+  probe-peds discipline generalized to the district law.
+- **Gates at close (all executed):** tsc clean · vitest 889/889 (61
+  files) · build OK · probe-ped-nav 7/7 (75 s live street: 116 samples,
+  zero footprint/jaywalk hits, 5 routes completed, no persistent overlap,
+  console clean, 2 screenshots) · probe-peds green · probe-nav 9/9 ·
+  probe-world-sim 15/15 · probe-pause-set 11/11 · 4-day E2E 0 failures
+  (606 s, console clean).
+- **Performance (measured, perf-peds.mjs, node v24):** peds.update 26.4
+  µs/frame armed vs 18.1 µs loop walkers — the commute adds 8.3 µs
+  (0.16% of the 16.6 ms budget); 38 routes walked in 300 s of street
+  time; steady-state heap flat; drawCalls unchanged (zero new materials).
+- **Merge:** `git merge --no-ff feat/wp-3v-living-pedestrians` → main
+  `e3f1b02`; post-merge gates re-executed (tsc clean, 889/889, build OK,
+  probe-ped-nav 7/7, probe-nav 9/9). NOT PUSHED — awaiting owner
+  authorization.
+- **Honest scope notes:** ambient walkers never claim interiors (the
+  STREET gate is the law — customer interiors ride WP-4); chokepoint
+  capacity claims (A-2 remainder) still open; the far LOD tier (>90 m)
+  is unexercised at the shipped 12-walker roster (all within tiers);
+  gen-city-auto re-read recorded in docs/57 §3.7.1 with MIT attribution
+  — its decorative pedestrian movement is NOT a navigation solution and
+  none of it is used.
