@@ -2909,3 +2909,54 @@ Work Log:
 
 Stage Summary:
 - The game now plays its first full YEAR. The arrival week opens it, the season proves it, and the Compact prices it — eleven signatures, four ways to break them, and the ledger's first strikes teaching the player that the notebook remembers. Eddie's question ("Who did you promise, and what did it cost them?") is now the save's own hinge, K2 is in the book tagged FACT and wrongly, and the chapter machine walked through its own door twice this wave (in at Jan 6, out at Jul 1) while the epoch law never noticed. Next per §7: C3's content (The Bridge), then R13–R14.
+---
+Task ID: SEC-REMEDIATION-R1-R2
+Agent: Security remediation agent (R1+R2 assignment)
+Task: Implement the first two confirmed security remediations from the
+FIRST SLICE security audit — R1 (FS-AUDIT-001: production-accessible
+destructive debug drivers) and R2 (FS-AUDIT-002: world-save parsing and
+hydration) — with proof, compatibility, and independent review prep.
+
+Work Log:
+- Verified the actual remote state (git ls-remote): origin/main =
+  62a6244cee258a243fdb308bd78daf7793c62cc5; created branch
+  fix/security-r1-r2; baseline gates recorded BEFORE any edit (tsc clean,
+  vitest 840/840 across 57 files, build OK).
+- R1: new src/game/driverGate.ts — the explicit dev/prod boundary
+  (import.meta.env.DEV or a session-storage handshake a URL cannot carry;
+  the pure decision is unit-tested) plus a driver storage sandbox
+  (first_slice_save_v1_driver / first_slice_world_v1_driver) wired through
+  Save.ts, state.ts, Game.ts (authorization decided before any storage
+  read), worldRuntime.ts, autotest.ts and scenario.ts (defense-in-depth
+  entry checks). Harnesses (e2e.mjs, probe-world-sim.mjs) authorize via
+  addInitScript. No hidden query parameter; the boundary is documented in
+  the module header and denial is logged honestly.
+- R2: sim/state.ts gained a full pre-hydration validation battery — every
+  section type/range/id/reference/bound-checked and rebuilt through a
+  strict whitelist (unknown fields dropped per the forward-compat law;
+  __proto__/constructor/prototype keys cannot survive); hydrate is guarded
+  (second net); a post-hydration integrity failure now REFUSES the
+  document; worldRuntime.ts quarantines refused documents
+  (first_slice_world_v1_quarantine — preserved, not destroyed) so the
+  repeat-reset loop ends. No schema change; valid saves restore exactly.
+- Tests: tests/driver-gate.test.ts (14), tests/world-save-validation.test.ts
+  (33 — the audit B-battery re-ported plus pollution/integrity/bounds/
+  recovery/storage-isolation cases); scripts/probe-security-r1.mjs (31
+  checks on real dist/) and scripts/probe-security-r2.mjs (166 checks on
+  real dist/ through the production reloadFromSave seam + cold-boot
+  constructor-path proofs).
+- Gates executed: tsc clean; vitest 887/887 (59 files; baseline 840
+  unchanged); build OK; probe-security-r1 31/31; probe-security-r2 166/166;
+  probe-world-sim 15/15; 4-day E2E 0 failures (small-viewport SwiftShader
+  setting, documented). Environment limits (renderer fragility) stated in
+  the audit's verification report — no test reported passed that was not
+  executed.
+- Independent refutation review performed by a separate agent; verdicts
+  recorded in docs/security-audit/04 (FS-AUDIT-001/002 remediation records).
+- Docs: audit package updated to v1.2 (04/06/07, findings.json,
+  REVISION-HISTORY) and the production register (v1.5 row).
+
+Stage Summary:
+- Branch fix/security-r1-r2 is clean and ready for owner review; R3–R7
+  untouched; no gameplay, narrative-canon, save-schema, calendar-epoch, or
+  architecture changes; merge and publish await owner authorization.

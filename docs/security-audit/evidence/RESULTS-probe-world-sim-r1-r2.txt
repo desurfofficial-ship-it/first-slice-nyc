@@ -1,0 +1,18 @@
+PASS  setup: fresh controlled world
+PASS  setup: scenario mode active
+PASS  setup: the story is untouched
+PASS  1: NPC follows a scheduled activity
+PASS  2: schedule transition on the clock
+PASS  3: higher-priority interruption (hello = HIGH, R1/R6)
+PASS  4: correct behavior after the interruption
+PASS  5: persistent relationship/world-state change
+PASS  6a: save document rides its own key
+PASS  6b: interrupted (truncated) save → fresh world + notes
+PASS  6c: correct restoration after save/load
+PASS  6d: invalid data → fresh world each time, never a crash
+PASS  6e: repeated loading is idempotent
+PASS  7: clock-keyed dusk (D-2: visuals + street plan re-keyed)
+PASS  6g: multi-day continuity after load
+
+sim-minutes run: 1424 in 68.1s real — steps 15/15
+WORLD-SIM PROBE OK

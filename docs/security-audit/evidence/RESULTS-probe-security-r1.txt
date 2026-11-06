@@ -1,0 +1,34 @@
+PASS  N0: a valid world save document captured from the game itself
+PASS  P1: ?autotest=1 (production, no handshake) leaves the player story save intact (day 4, $240) — day=4 money=240
+PASS  P1: the autotest driver never starts
+PASS  P1: no driver sandbox key was created
+PASS  P1: the boundary says so honestly in the console — [driver] ?autotest ignored — debug drivers are gated in production builds (game/driverGate
+PASS  P1: no page errors
+PASS  P2: ?scenario=x (arbitrary value): the world save is byte-identical
+PASS  P2: ?scenario=x (arbitrary value): neither driver starts
+PASS  P2: ?scenario=x (arbitrary value): no page errors
+PASS  P2b: ?scenario=schedules (the real driver value): the world save is byte-identical
+PASS  P2b: ?scenario=schedules (the real driver value): neither driver starts
+PASS  P2b: ?scenario=schedules (the real driver value): no page errors
+PASS  P3: ?autotest=1&scenario=schedules (both at once): the world save is byte-identical
+PASS  P3: ?autotest=1&scenario=schedules (both at once): neither driver starts
+PASS  P3: ?autotest=1&scenario=schedules (both at once): no page errors
+PASS  P4: ?scenario=%3Cscript%3Ealert(1)%3C%2Fscript%3E (hostile value): the world save is byte-identical
+PASS  P4: ?scenario=%3Cscript%3Ealert(1)%3C%2Fscript%3E (hostile value): neither driver starts
+PASS  P4: ?scenario=%3Cscript%3Ealert(1)%3C%2Fscript%3E (hostile value): no page errors
+PASS  N1: a plain load keeps the player save intact (day 4, $240) — day=4 money=240
+PASS  N1: ordinary gameplay resumed the day-4 save (unchanged boot law)
+PASS  N1: no page errors
+PASS  D1: authorized ?autotest=1 starts the driver (dev workflow preserved)
+PASS  D1: the session booted from the DRIVER key, not the player save (sandbox active) — bootedFromDay=1
+PASS  D1: the REAL player story save survives the running driver (day 4, $240 intact) — day=4 money=240
+PASS  D1: the authorization is announced honestly
+PASS  D1: no page errors
+PASS  D2: the session is authorized (handshake accepted)
+PASS  D2: authorized ?scenario=schedules runs the scenario — [scenario] lines streaming
+PASS  D2: the REAL player world save is byte-identical while the scenario runs
+PASS  D2: the scenario rides the driver sandbox key — (fresh world booted on the driver key)
+PASS  D2: no page errors
+
+R1 PROBE: 31/31 checks passed
+R1 PROBE OK — production URLs cannot trigger destructive debug operations; authorized drivers run sandboxed
