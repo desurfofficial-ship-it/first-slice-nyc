@@ -15,8 +15,10 @@
  *     it through masonry);
  *   - the inside case is World's short-circuit (the law is never asked);
  *   - rooms with no registered glass stay band-driven (the fallback);
- *   - the hysteresis margin breathes with the band (enter 1.6 / exit 0.8),
- *     so window-edge loitering never flickers;
+ *   - the hysteresis margin breathes with the band (enter 1.6 / hold to
+ *     2.4 — the exit rides 0.8 past the enter line; the old 0.8 exit
+ *     inverted the hysteresis and the 0.8–1.6 m annulus flickered the
+ *     room every frame — World.updateInteriors, fixed 2026-11-06);
  *   - the through-floor case: the ground under the Cecil room is not a
  *     glass side — the y-band is World's business, the glass law holds
  *     its half.

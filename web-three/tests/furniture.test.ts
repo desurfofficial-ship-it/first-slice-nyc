@@ -35,7 +35,7 @@ const curated = JSON.parse(readFileSync(join(ROOT, 'docs', 'data', 'abo-curated.
 describe('ABO furniture manifest (docs/57)', () => {
   it('every slot is well-formed', () => {
     for (const s of FURNITURE_SLOTS) {
-      expect(['CECIL', 'HALL', 'DINER'], s.fixture).toContain(s.room);
+      expect(['CECIL', 'HALL', 'DINER', 'LAUNDRY', 'BARBER', 'PIZZA', 'BAKERY', 'RECORDS'], s.fixture).toContain(s.room);
       expect(s.height, `${s.fixture} height`).toBeGreaterThan(0);
       expect(Number.isFinite(s.height), `${s.fixture} finite height`).toBe(true);
       for (const h of s.hide ?? []) expect(h, s.fixture).not.toBe(s.fixture);

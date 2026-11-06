@@ -25,7 +25,8 @@ export interface FurnitureSlot {
   /** File stem under public/models/furniture/ — the slot the model wears. */
   readonly id: string;
   /** The interior whose INT_<room> group holds the placeholder. */
-  readonly room: 'CECIL' | 'HALL' | 'DINER';
+  readonly room: 'CECIL' | 'HALL' | 'DINER'
+    | 'LAUNDRY' | 'BARBER' | 'PIZZA' | 'BAKERY' | 'RECORDS';
   /** The placeholder mesh's name inside that room group. */
   readonly fixture: string;
   /** Sibling fixtures hidden once the model lands (e.g. the mattress and
@@ -67,6 +68,40 @@ export const FURNITURE_SLOTS: readonly FurnitureSlot[] = [
   // ---- DINER — the dining-shop archetype (the counter stools) ----
   ...Array.from({ length: 8 }, (_, i): FurnitureSlot =>
     ({ id: 'counter_stool', room: 'DINER', fixture: `Diner_Stool_${i}`, height: 0.55 })),
+  // ---- THE SHOPS (2026-11 interior pass) — every room wears its own
+  //  corresponding furniture, per the docs/57 seam: waiting chairs + a
+  //  framed print in the laundromat, the waiting bench + two mirrors in
+  //  the barbershop, drop-leaf tables in the pizza booths, cafe two-tops
+  //  in the bakery, the booth tables in the diner, and the listening
+  //  corner (armchair, counter, rug) in the record store. The machines
+  //  (washers, ovens, fridges) and the shipped identities (the coral
+  //  booth benches, the record crates) stay procedural — they are
+  //  equipment, not furniture.
+  // ---- LAUNDRY — the wait: two real chairs by the cart, a framed print
+  //  over the washers
+  { id: 'waiting_chair', room: 'LAUNDRY', fixture: 'LC_9.3', height: 0.9, rotateY: -Math.PI / 2 },
+  { id: 'waiting_chair', room: 'LAUNDRY', fixture: 'LC_9.9', height: 0.9, rotateY: -Math.PI / 2 },
+  { id: 'laundry_print', room: 'LAUNDRY', fixture: 'LWall_Art', height: 0.55, rotateY: Math.PI / 2 },
+  // ---- BARBER — the waiting bench (E-facing, W wall) + two mirrors
+  //  above the counter, one per chair
+  { id: 'waiting_bench', room: 'BARBER', fixture: 'Barber_Bench', height: 0.44, rotateY: Math.PI / 2 },
+  { id: 'shop_mirror', room: 'BARBER', fixture: 'Barber_Mirror_A', height: 0.78, rotateY: -Math.PI / 2 },
+  { id: 'shop_mirror', room: 'BARBER', fixture: 'Barber_Mirror_B', height: 0.78, rotateY: -Math.PI / 2 },
+  // ---- PIZZA — the two booth tables (drop-leaf, fits the 0.8 m gap
+  //  between the benches); the coral benches stay the room's identity
+  { id: 'booth_table', room: 'PIZZA', fixture: 'Pizza_BoothT_12.5', height: 0.72 },
+  { id: 'booth_table', room: 'PIZZA', fixture: 'Pizza_BoothT_15.5', height: 0.72 },
+  // ---- BAKERY — the two cafe two-tops
+  { id: 'cafe_table', room: 'BAKERY', fixture: 'Bakery_Table_-36.2', height: 0.72 },
+  { id: 'cafe_table', room: 'BAKERY', fixture: 'Bakery_Table_-31.8', height: 0.72 },
+  // ---- DINER — the four booth tables wear the same drop-leaf as pizza
+  ...[-11.5, -14, -16.5, -18.5].map((bz): FurnitureSlot =>
+    ({ id: 'booth_table', room: 'DINER', fixture: `Diner_BoothT_${bz}`, height: 0.72 })),
+  // ---- RECORDS — the listening corner: the armchair, the counter
+  //  cabinet, the corner rug
+  { id: 'listening_chair', room: 'RECORDS', fixture: 'Records_Chair', height: 0.97, rotateY: Math.PI },
+  { id: 'shop_counter', room: 'RECORDS', fixture: 'Records_Counter', height: 1.1 },
+  { id: 'corner_rug', room: 'RECORDS', fixture: 'Records_Rug', height: 0.02, fitBy: 'footprint' },
 ];
 
 /** The unique model files the manifest wears (probe + test convenience). */
@@ -92,4 +127,14 @@ export const FURNITURE_PROVENANCE: Readonly<Record<string, string>> = {
   sideboard: 'B075YQXQ5C',
   sofa: 'B072FVHS9G',
   table_lamp: 'B07374P6MR',
+  // the shops pass (2026-11)
+  booth_table: 'B07B82PXCW',
+  cafe_table: 'B075YQXRJM',
+  corner_rug: 'B0719FLQP3',
+  laundry_print: 'B073NZGLLS',
+  listening_chair: 'B0714QGLSD',
+  shop_counter: 'B0154WJZH2',
+  shop_mirror: 'B073WHZKBF',
+  waiting_bench: 'B07C8DHX43',
+  waiting_chair: 'B075ZZYH4B',
 };

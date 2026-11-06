@@ -2292,15 +2292,17 @@ export class World {
    *  glass-side law (docs/51 B13, interiors' window visibility): the near
    *  band shows the fit-out only THROUGH the room's own glass — the player
    *  stands on the outward side of a window run — or inside the room.
-   *  Hysteresis on both (enter 1.6 m, exit 0.8 m past the shell/glass) so a
-   *  player loitering on the sill or the window edge never flickers the
-   *  room. Behind a blind wall the fit-out stays hidden — no window, no
-   *  room; the facade keeps its far look. */
+   *  Hysteresis on both (enter 1.6 m, hold to 2.4 m — the exit rides 0.8 m
+   *  past the enter line; the old 0.8 exit INVERTED the hysteresis and the
+   *  0.8–1.6 m annulus flickered the room every frame — caught by the
+   *  shops furniture probe's sidewalk shots, 2026-11-06). Behind a blind
+   *  wall the fit-out stays hidden — no window, no room; the facade keeps
+   *  its far look. */
   private updateInteriors(px: number, py: number, pz: number): void {
     const inRect = (x0: number, x1: number, z0: number, z1: number): boolean =>
       px >= x0 && px <= x1 && pz >= z0 && pz <= z1;
     for (const h of this.interiorHandles) {
-      const m = h.near ? 0.8 : 1.6;
+      const m = h.near ? 2.4 : 1.6;
       const z1e = h.z1 + m + (h.padZ1 ?? 0);
       const [y0, y1] = h.yBand ?? [-1, 5];
       const inside = inRect(h.x0, h.x1, h.z0, h.z1) && py >= y0 && py <= y1;
@@ -2395,10 +2397,13 @@ export class World {
       this.fixture(g, `LTleg_${tz}`, -5, 0.42, tz, 0.12, 0.85, 0.7, 0x8e6f66);
       this.colliders.push(boxFromCenter(-5, 0.5, tz, 2.4, 1.0, 0.9));
     }
+    // the waiting chairs (ABO slot — full-height body, the Hall_Chair_A
+    // pattern; the old seat+back pair read floating under a real model)
     for (const cz of [9.3, 9.9]) {
-      this.fixture(g, `LC_${cz}`, -2.9, 0.42, cz, 0.5, 0.06, 0.5, 0x2b2730);
-      this.fixture(g, `LCb_${cz}`, -2.9, 0.71, cz + 0.2, 0.5, 0.55, 0.06, 0x2b2730);
+      this.fixture(g, `LC_${cz}`, -2.9, 0.44, cz, 0.5, 0.88, 0.5, 0x2b2730);
     }
+    // a framed print over the washers (ABO slot — wall decor, no collider)
+    this.fixture(g, 'LWall_Art', -10.81, 2.2, 13.75, 0.05, 0.55, 0.45, 0x8e6f66);
     this.fixture(g, 'LCart', -2.1, 0.45, 9.6, 0.6, 0.9, 0.45, PAL.teal);
     this.colliders.push(boxFromCenter(-2.6, 0.5, 9.6, 1.6, 1.0, 1.0));
     this.fixture(g, 'LShelf', -5, 1.0, 18.5, 4, 1.8, 0.45, PAL.bldg2);
@@ -2459,6 +2464,10 @@ export class World {
       this.fixture(g, `Barber_ChairBack_${cz}`, 35.65, 0.75, cz, 0.16, 0.9, 0.7, 0x2b2730);
       this.colliders.push(boxFromCenter(35.9, 0.45, cz, 0.75, 0.9, 0.75));
     }
+    // framed mirrors over the counter, one per chair (ABO slot — wall
+    // decor on the mirror wall's west face, no collider)
+    this.fixture(g, 'Barber_Mirror_A', 38.66, 1.35, 11.0, 0.06, 0.78, 0.68, 0x8e6f66);
+    this.fixture(g, 'Barber_Mirror_B', 38.66, 1.35, 13.6, 0.06, 0.78, 0.68, 0x8e6f66);
     // waiting bench (W wall)
     this.fixture(g, 'Barber_Bench', 34.75, 0.25, 12.3, 0.45, 0.5, 2.0, PAL.teal);
     this.colliders.push(boxFromCenter(34.75, 0.3, 12.3, 0.5, 0.6, 2.0));
@@ -2526,10 +2535,11 @@ export class World {
     mouth.position.set(28.8, 1.1, 16.68);
     g.add(mouth);
     this.colliders.push(boxFromCenter(28.8, 0.9, 17.8, 1.8, 1.8, 2.2));
-    // booths (2, W wall): table + two benches each
+    // booths (2, W wall): table + two benches each. The table placeholder
+    // is a full-height body (the ABO swap stands on its own feet; the old
+    // thin top floated a real model 0.7 m over the floor)
     for (const bz of [12.5, 15.5]) {
-      this.fixture(g, `Pizza_BoothT_${bz}`, 25.2, 0.72, bz, 0.8, 0.06, 1.1, PAL.cream);
-      this.fixture(g, `Pizza_BoothLeg_${bz}`, 25.2, 0.36, bz, 0.12, 0.72, 0.12, 0x8e6f66);
+      this.fixture(g, `Pizza_BoothT_${bz}`, 25.2, 0.36, bz, 0.8, 0.72, 1.1, PAL.cream);
       this.fixture(g, `Pizza_BoothB1_${bz}`, 24.55, 0.3, bz, 0.5, 0.6, 2.0, PAL.coral);
       this.fixture(g, `Pizza_BoothB2_${bz}`, 25.85, 0.3, bz, 0.5, 0.6, 2.0, PAL.coral);
       this.colliders.push(boxFromCenter(25.2, 0.5, bz, 1.7, 1.0, 2.0));
@@ -2603,10 +2613,10 @@ export class World {
     this.fixture(g, 'Bakery_Rack_E', -31.1, 0.9, -22.2, 0.7, 1.8, 1.4, 0x8e6f66);
     this.colliders.push(boxFromCenter(-36.9, 0.9, -22.2, 0.7, 1.8, 1.4));
     this.colliders.push(boxFromCenter(-31.1, 0.9, -22.2, 0.7, 1.8, 1.4));
-    // two two-top tables
+    // two two-top tables (the ABO swap stands on its own feet — the old
+    // thin top + leg pair floated a real model)
     for (const tx of [-36.2, -31.8]) {
-      this.fixture(g, `Bakery_Table_${tx}`, tx, 0.72, -27.4, 1.1, 0.06, 1.1, PAL.cream);
-      this.fixture(g, `Bakery_TableLeg_${tx}`, tx, 0.36, -27.4, 0.14, 0.72, 0.14, 0x8e6f66);
+      this.fixture(g, `Bakery_Table_${tx}`, tx, 0.36, -27.4, 1.1, 0.72, 1.1, PAL.cream);
       this.colliders.push(boxFromCenter(tx, 0.4, -27.4, 1.1, 0.8, 1.1));
     }
 
@@ -2699,7 +2709,9 @@ export class World {
       this.fixture(g, `Records_CrateTop_${rz}`, -25, 1.12, rz, 4.4, 0.06, 0.62, 0x2b2730);
       this.colliders.push(boxFromCenter(-25, 0.55, rz, 4.4, 1.1, 0.6));
     }
-    // the listening corner: chair, speaker stacks, the player's spot
+    // the listening corner: chair, speaker stacks, the player's spot. The
+    // corner rug (ABO slot — flat, no collider) warms the spot
+    this.fixture(g, 'Records_Rug', -26.4, 0.17, -30.1, 2.2, 0.02, 1.6, PAL.teal);
     this.fixture(g, 'Records_Chair', -26.4, 0.42, -30.2, 0.7, 0.85, 0.7, 0x2b2730);
     this.fixture(g, 'Records_Spk_W', -27.4, 0.6, -30.9, 0.5, 1.2, 0.5, 0x2b2730);
     this.fixture(g, 'Records_Spk_E', -25.4, 0.6, -30.9, 0.5, 1.2, 0.5, 0x2b2730);
@@ -2885,9 +2897,10 @@ export class World {
     griddle.position.set(58.9, 1.04, -13.2);
     g.add(griddle);
     this.colliders.push(boxFromCenter(58.9, 0.5, -14.5, 1.6, 1.0, 8));
-    // booths (4, W wall)
+    // booths (4, W wall) — the table placeholder is a full-height body
+    // (the ABO swap stands on its own feet)
     for (const bz of [-11.5, -14, -16.5, -18.5]) {
-      this.fixture(g, `Diner_BoothT_${bz}`, 51.6, 0.72, bz, 0.8, 0.06, 1.1, PAL.cream);
+      this.fixture(g, `Diner_BoothT_${bz}`, 51.6, 0.36, bz, 0.8, 0.72, 1.1, PAL.cream);
       this.fixture(g, `Diner_BoothB1_${bz}`, 50.95, 0.3, bz, 0.5, 0.6, 1.8, PAL.coral);
       this.fixture(g, `Diner_BoothB2_${bz}`, 52.25, 0.3, bz, 0.5, 0.6, 1.8, PAL.coral);
       this.colliders.push(boxFromCenter(51.6, 0.5, bz, 2.0, 1.0, 1.8));

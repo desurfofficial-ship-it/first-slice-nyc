@@ -241,6 +241,21 @@ which docs/architecture/03 §4 rules out as an engine swap.
   wardrobe ports the First-slice-player update's React modal into the
   vanilla UI law; the climb cadence reads the rig's own measured velocity;
   the furniture wears the already-attributed ABO pack (docs/57's own seam).
+- **The shops interior pass (2026-11-06, same system, same check).** Every
+  building interior — not only the player home — now wears its own
+  corresponding ABO furniture: waiting chairs + a framed print in the
+  laundromat, the waiting bench + two mirrors in the barbershop, drop-leaf
+  tables in the pizza and diner booths, cafe two-tops in the bakery, and
+  the listening corner (armchair, counter cabinet, rug) in the record
+  store. Still a player/interior system — no reference coverage (SNY has
+  no interiors at all; GCA's city lots are shells) — built on docs/57's
+  own seam, 23 → 40 slots, all nine new ASINs already credited in the
+  pack's ATTRIBUTION.md. The pass's headless probe also caught two real
+  regressions: the player-merge cherry-pick had silently dropped the
+  Game's `configureGltfDecoders` call (every furniture swap was dead —
+  the unit gates never boot a renderer), and updateInteriors' hysteresis
+  was inverted (enter 1.6 / exit 0.8 flickered the 0.8–1.6 m sidewalk
+  annulus every frame; exit now holds to 2.4).
 
 ## 5. Working rule for every agent
 

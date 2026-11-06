@@ -1430,3 +1430,75 @@ Stage Summary:
   probe green (wardrobe flow + interior renders).
 
 Gates at close: tsc clean · vitest 660/660 (44 files) · build OK.
+## 2026-11-06 — agent2: every interior wears its own furniture — the shops pass, and the probe that caught two dead regressions
+
+Task ID: SHOPS-FURNITURE-PASS
+Agent: main (Claude)
+Task: The user's scope raise — "not only the player's home interior,
+  other building interiors, only be using its corresponding furniture."
+  Every one of the eight interiors dresses from the ABO pack, each room
+  with the furniture that corresponds to what the room is.
+
+Work Log:
+- Reference check recorded (docs/57 §4, dated): interior furnishing is a
+  player/interior system — neither Gen City Auto nor Slop New York covers
+  it (SNY has no interiors; GCA's lots are shells) — built independently
+  on docs/57's own seam, as the law asks.
+- THE SHOPS PASS (manifest 23 → 40 slots, 15 → 24 files, all
+  byte-identical lod1 GLBs, provenance pinned, ATTRIBUTION already
+  carried every ASIN):
+  - LAUNDRY: two waiting chairs by the cart (B075ZZYH4B) + a framed
+    print over the washers (B073NZGLLS). The washers, dryers and the
+    2.4 m folding tables stay procedural — equipment, not furniture.
+  - BARBER: the waiting bench wears a storage bench (B07C8DHX43) + two
+    framed mirrors over the counter, one per chair (B073WHZKBF). The
+    cutting chairs stay procedural (barber equipment).
+  - PIZZA: the two booth tables wear the drop-leaf table (B07B82PXCW) —
+    0.80 m wide, fits the 0.8 m gap between the coral benches exactly.
+    The benches, slice counter, deck oven, fridge stay procedural.
+  - BAKERY: the two cafe two-tops wear the mid-century table
+    (B075YQXRJM). Oven, racks, counter stay procedural.
+  - DINER: all four booth tables wear the same drop-leaf (one file, four
+    slots) — the wooden tops read between the coral benches from the
+    counter. Stools were already ABO.
+  - RECORDS: the listening corner gets the Sloane armchair (B0714QGLSD,
+    facing the speaker stacks), the shop counter wears the Loue sideboard
+    (B0154WJZH2), and a sunburst rug (B0719FLQP3) warms the spot. The
+    record crates stay procedural — they are the bins.
+  - Fixture law: the booth/bakery tables and the laundry chairs were
+    thin tops + separate legs (a real model stood on its tabletop, feet
+    floating 0.7 m up) — re-authored as full-height bodies, the
+    Hall_Chair_A pattern; colliders unchanged everywhere.
+- REGRESSION 1 (caught by the new probe, fixed): the player-merge
+  cherry-pick (a9718e9) silently dropped Game's
+  `world.configureGltfDecoders(renderer)` call — furnitureUpgrades was
+  EMPTY at boot, every ABO swap in the shipped game was dead, including
+  the 23 slots from the previous round. The unit gates could not see it
+  (they never boot a renderer). Call restored + comment.
+- REGRESSION 2 (caught by the same probe's sidewalk shots, fixed):
+  updateInteriors' hysteresis was inverted — enter 1.6 m / exit 0.8 m
+  meant the shown state hid at >0.8 while the hidden state showed at
+  ≤1.6, so the 0.8–1.6 m sidewalk annulus toggled the room EVERY FRAME
+  (30 Hz flicker for anyone window-shopping). Exit now holds to 2.4 m
+  (0.8 past the enter line); comment + test header updated.
+- New permanent guard: scripts/probe-furniture-shops.mjs — boots the
+  built game, pins all 17 new slots landed (40 total), the six new
+  wrappers carry textured (KTX2-decoded) meshes, a numeric placement
+  audit (feet/top/size per wrapper: chairs 0→0.9, print hangs 1.925→2.475,
+  mirrors 0.959→1.739 over the 0.9 counter, tables 0→0.72, rug flat at
+  0.16), and seven walk-in screenshots (inside for laundry/diner/records,
+  through-the-storefront for barber/pizza/bakery) + the review grid.
+
+Stage Summary:
+- Every interior now dresses its own furniture: 40 ABO slots across the
+  eight rooms, the machines and shipped identities (coral booth benches,
+  record crates, folding tables) deliberately procedural — equipment is
+  not furniture.
+- Two shipped regressions found and fixed by the pass's own probe; the
+  furniture seam is verified end to end for the first time since the
+  player merge.
+- Gates: tsc clean · vitest 660/660 (44 files) · build OK · probe
+  SHOPS OK (40/40 slots, textured, audit clean) · probe FURNITURE OK
+  (the original 23-slot guard still green).
+
+Gates at close: tsc clean · vitest 660/660 (44 files) · build OK.
