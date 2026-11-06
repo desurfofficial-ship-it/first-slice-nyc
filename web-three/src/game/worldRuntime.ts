@@ -529,6 +529,10 @@ export class WorldRuntime {
     saveKey: string;
     clock: { day: number; minuteOfDay: number };
     nav: { nodes: number; edges: number; issues: number; components: number };
+    ledger: {
+      playerCents: number; ledgerCents: number; auditClean: boolean; txnCount: number;
+      recent: Array<{ id: string; kind: string; category: string; cents: number; reason: string }>;
+    };
   } {
     const w = this.brain.world;
     const npcIds = [...this.brain.records.keys()];
@@ -544,6 +548,17 @@ export class WorldRuntime {
       nav: {
         nodes: navStats.nodes, edges: navStats.edges,
         issues: this.nav.validationIssues().length, components: navStats.components,
+      },
+      // WP-4: the money→ledger trace, read-only — the sanctioned mirror,
+      // the audit law, and the tail of the transaction story.
+      ledger: {
+        playerCents: w.player.moneyCents,
+        ledgerCents: w.ledger.balance('acct:player'),
+        auditClean: w.ledger.audit().length === 0,
+        txnCount: w.ledger.all().length,
+        recent: w.ledger.all().slice(-10).map((t) => ({
+          id: t.id, kind: t.kind, category: t.category, cents: t.amountCents, reason: t.reason,
+        })),
       },
       npcs: npcIds.map((id) => {
         const rec = this.brain.records.get(id)!;
