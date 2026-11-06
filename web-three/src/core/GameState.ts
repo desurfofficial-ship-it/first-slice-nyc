@@ -6,6 +6,7 @@
 
 import { MAX_DAY, type SaveData } from './Save';
 import type { DiaryCounters, DiaryNoted } from './diary';
+import { appendEntry, correctEntry, serializeFieldDiary, type FieldDiaryEntry } from './fieldDiary';
 import { DEFAULT_STARTER } from './starters';
 import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, ITEM_STICKERS, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
@@ -180,6 +181,15 @@ export class GameState {
    *  family, the count already surfaced as a morning note. Lives in the
    *  save as `diary_noted`; absence reads as "owes no notes". */
   diaryNoted: DiaryNoted = {};
+  /** The in-game calendar day (narrative/14 R4 — core/calendar.ts). Rides
+   *  the save as `calendar_day`; absence reads as the story day, so the
+   *  shipped Day 1–4 are October 1–4, Year 1 (C0's mood-lock, byte-for-byte). */
+  calendarDay = 1;
+  /** The field diary — Leo's own record (narrative/14 R3 + narrative/03 §2
+   *  — core/fieldDiary.ts). Rides the save as `field_diary`; an old save
+   *  reads as []. Append-only by construction: logDiaryEntry appends,
+   *  correctDiaryEntry strikes a line, nothing removes. */
+  fieldDiary: FieldDiaryEntry[] = [];
   // ---- the serving conversation (docs/11 + docs/12) ----
   /** The order card currently on the counter — null when nobody's ordering.
    *  TRANSIENT: a conversation is a moment, never a save. */
@@ -885,6 +895,11 @@ export class GameState {
       ...(Object.keys(this.diaryNoted).length > 0
         ? { diary_noted: { ...this.diaryNoted } }
         : {}),
+      // the in-game calendar + the field diary (narrative/14 R3+R4) —
+      // optional v1-safe fields: an old save parses unchanged (see the
+      // migration note in Save.ts), a new save writes both
+      calendar_day: this.calendarDay,
+      field_diary: serializeFieldDiary(this.fieldDiary),
     };
   }
 
@@ -898,6 +913,24 @@ export class GameState {
       wash: this.washes,
       hoop: this.hoopMakes,
     };
+  }
+
+  /** The field diary's append seam (narrative/14 R3): the one door content
+   *  will write through (the C0 pack, narrative/14 §7 step 6). Returns true
+   *  when the entry landed; a rejected draft leaves the diary untouched. */
+  logDiaryEntry(draft: FieldDiaryEntry): boolean {
+    const res = appendEntry(this.fieldDiary, draft);
+    this.fieldDiary = res.entries;
+    return res.ok;
+  }
+
+  /** Strike a line in an entry (doc 03 §5.1): appends the correction —
+   *  margin note in current-tense Leo — and the body bytes stay frozen.
+   *  Returns true when the strike landed. */
+  correctDiaryEntry(id: string, day: number, strike: string, margin: string): boolean {
+    const res = correctEntry(this.fieldDiary, id, { day, strike, margin });
+    this.fieldDiary = res.entries;
+    return res.ok;
   }
 }
 

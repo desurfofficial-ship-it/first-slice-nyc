@@ -69,6 +69,10 @@ describe('save v1 — write/read roundtrip', () => {
       ...data, day_start_money: 111,
       shelf_buys: 0, dog_buys: 0, trims: 0, washes: 0, hoop_makes: 0,
       map_notes: [], map_slang: [], map_places: [], map_priya_lines: false,
+      // the in-game calendar + the field diary (narrative/14 R3+R4) — the
+      // same optional-trailing law one row later: calendar absent reads as
+      // the story day (the C0 mood-lock), the diary absent reads as empty
+      calendar_day: 2, field_diary: [],
     });
   });
 
@@ -135,6 +139,24 @@ describe('the block remembers — optional counters, Save v1 stays v1 (Doc 37 §
     expect(s.stool).toBe(false);
     expect(s.permit).toBe(false);
     expect(s.shelf_buys).toBe(0);
+  });
+
+  it('an ancient save parses with the calendar + the field diary as defaults (narrative/14 R3+R4)', () => {
+    // the reboot-era compat proof: the exact JSON shape the game wrote
+    // BEFORE the narrative spine — the calendar reads as the story day
+    // (Day 3 = October 3, Year 1 — the mood-lock), the diary reads as empty
+    const ancient = JSON.stringify({ day: 3, day_complete: true, money: 120 });
+    const s = parseSave(ancient);
+    expect(s.calendar_day).toBe(3);
+    expect(s.field_diary).toEqual([]);
+  });
+
+  it('field_diary round-trips through the save (a corrupt page is an empty one, never a crash)', () => {
+    const store = memoryStore();
+    writeSave({ ...defaultSave(), day: 2, field_diary: [{ id: 'E1', kind: 'PLACE' }] as never }, store);
+    expect(loadSave(store).field_diary).toEqual([]); // the malformed entry quarantined
+    const corrupt = memoryStore({ [SAVE_KEY]: '{"day":2,"field_diary":42}' });
+    expect(loadSave(corrupt).field_diary).toEqual([]);
   });
 
   it('counters round-trip', () => {

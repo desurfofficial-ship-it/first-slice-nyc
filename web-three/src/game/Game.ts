@@ -2430,6 +2430,13 @@ export class Game {
       // the diary watermark rides the same migration law (absence = owes
       // no notes); a mid-day resume re-reads it before the drain below
       s.diaryNoted = sd.diary_noted ?? {};
+      // the in-game calendar + the field diary ride the same law
+      // (narrative/14 R3+R4): post-parse both fields are always
+      // materialized, so a resume is exact — the calendar lands on the
+      // saved day, the diary on its saved entries (already
+      // quarantine-cleaned in parseSave); absence in a hand-built snapshot
+      // reads as an empty diary (the migration law)
+      s.fieldDiary = sd.field_diary ?? [];
     }
     // sd === null (a rail "Tomorrow"): the live state carries the wallet, the
     // name, the awning — and the STOOL. The stool is bought, the Map is
@@ -2439,6 +2446,11 @@ export class Game {
     // day-start money snapshot (Doc 22's "$112 → $111" math; the reference
     // never updates day_start_money on Day 2 — fixed here as intended behavior).
     s.dayStartMoney = (sd !== null && sd.day_start_money !== undefined) ? sd.day_start_money : s.money;
+    // the calendar advances with the story day (narrative/14 R4). A save
+    // resume lands on the saved day; the rail's "Tomorrow" (sd === null)
+    // walks one day forward, and a replayed day never double-advances
+    // (max() — the same morning twice is one morning to the calendar).
+    s.calendarDay = sd !== null ? (sd.calendar_day ?? n) : Math.max(s.calendarDay, n);
     // day-3/4 morning state resets fresh each begin (mid-day saves resume at the morning)
     s.rushIndex = 0;
     s.brewing = false;

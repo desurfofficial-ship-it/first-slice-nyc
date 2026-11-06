@@ -17,6 +17,9 @@
  */
 
 import type { DiaryNoted } from './diary';
+import type { FieldDiaryEntry } from './fieldDiary';
+import { parseFieldDiary } from './fieldDiary';
+import { clampCalendarDay } from './calendar';
 
 export const SAVE_KEY = 'first_slice_save_v1';
 // Day 4 "Say Hi" is live (docs/29-day4-say-hi.md): a new stranger with a
@@ -84,6 +87,17 @@ export interface SaveData {
   *  byte-identically (the roam/starter law: absence reads as "owes no
   *  notes" at the read site). Clamped per family in parseSave. */
   diary_noted?: DiaryNoted;
+  /** The in-game calendar day (narrative/14 R4 — core/calendar.ts): 1-based
+   *  from Day 1 = October 1, Year 1 (C0's mood-lock). Optional trailing
+   *  v1-safe field: absent reads as the story day (the shipped Day 1–4
+   *  are October 1–4, Year 1 byte-for-byte). Clamped to [1, 36500]. */
+  calendar_day?: number;
+  /** The field diary — Leo's own record (narrative/14 R3 + narrative/03 §2
+   *  — core/fieldDiary.ts). Optional trailing v1-safe field: absent reads
+   *  as [] (an old save is an empty diary, the map-notebook migration law).
+   *  Parsed entries are quarantine-cleaned; corrupt entries are dropped and
+   *  counted, never a crash. */
+  field_diary?: FieldDiaryEntry[];
 }
 
 export function defaultSave(): SaveData {
@@ -109,6 +123,8 @@ export function defaultSave(): SaveData {
     map_priya_lines: false,
     map_slang: [],
     map_places: [],
+    calendar_day: 1,
+    field_diary: [],
   };
 }
 
@@ -152,8 +168,9 @@ export function parseSave(raw: string | null): SaveData {
   // the diary watermark — present only when at least one family has been
   // noted; unknown/corrupt keys are dropped, never a crash (save.gd law)
   const diaryNoted = diaryNotedOf(d);
+  const storyDay = clamp(Math.trunc(num('day', 1)), 1, MAX_DAY);
   return {
-    day: clamp(Math.trunc(num('day', 1)), 1, MAX_DAY),
+    day: storyDay,
     day_complete: bool('day_complete', false),
     replay: bool('replay', false),
     cart_name: typeof d.cart_name === 'string' ? d.cart_name : '',
@@ -188,6 +205,13 @@ export function parseSave(raw: string | null): SaveData {
     // last write; absence reads as story mode (freeroam.ts's contract)
     ...(d.roam === true ? { roam: true } : {}),
     ...(diaryNoted ? { diary_noted: diaryNoted } : {}),
+    // the in-game calendar (narrative/14 R4) — absent in old saves reads
+    // as the story day, so the shipped Day 1–4 land on October 1–4, Year 1
+    // (the C0 mood-lock) without a migration step
+    calendar_day: clampCalendarDay(d['calendar_day'] ?? storyDay),
+    // the field diary (narrative/14 R3) — absent in old saves reads as an
+    // empty diary; corrupt entries are quarantined, never a crash
+    field_diary: parseFieldDiary(d['field_diary']).entries,
   };
 }
 
