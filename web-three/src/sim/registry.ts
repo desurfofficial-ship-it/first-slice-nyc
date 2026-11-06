@@ -97,7 +97,7 @@ export interface RegistryNpcZone { id: string; place?: string; who?: string; whe
 export interface RegistryPedRoute { id: string; way?: string }
 export interface RegistryVehRoute { id: string; way?: string }
 
-export interface RegistryCrosswalk { id: string; x?: number; z?: number; dir?: string }
+export interface RegistryCrosswalk { id: string; x?: number; z?: number; dir?: string; axis?: string }
 
 export interface RegistryDoc {
   meta?: RegistryMeta;
