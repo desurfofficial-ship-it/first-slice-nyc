@@ -7,6 +7,8 @@
 > **DIRECTION (2026-11, corrected):** FIRST SLICE is **not an open-world game — it is a life sim on an open block**. The story spine (C0–C6) is the spine; the shipped Day 1–4 opening is its first movement; free roam is a player capability laid over the sim (the city runs on your clock), never a genre swap. The module fences and the Roam law are stated in [docs/narrative/14](docs/narrative/14-narrative-implementation-spec.md) (binding context) and enforced by the tests. The Roam law binds every agent: new HUD pressure is mode-aware, new world gates are roam-aware, ambient life carries no `step ===` dependencies.
 
 > **ACTIVE WORK:** the narrative implementation — [docs/narrative/14](docs/narrative/14-narrative-implementation-spec.md) §7 build order (R0 hygiene re-point → R4 + R3 time model & field diary → R2 + R7 …). Claim the next unbuilt requirement, implement it **with its permanent guards** (§1c.1), and update [worklog.md](worklog.md) in the same commit. Canon rulings go to [docs/narrative/15](docs/narrative/15-continuity-and-canon-register.md).
+>
+> **THE WORLD CONTRACT (2026-11-06):** the open-world life-sim foundations are established — global simulation state, in-game clock, spatial-semantic registry, entity identity, NPC behavior arbitration, narrative validation, economy guardrails, and a validated reference world. The contracts live in [docs/architecture/world-contract/](docs/architecture/world-contract/); the implementation lives in `web-three/src/sim/` (headless, tested in `web-three/tests/sim-*.test.ts`). Six workstreams (A spatial · B npc · C narrative · D world-sim · E content · F integration) build on these contracts — read [14-agent-development-framework.md](docs/architecture/world-contract/14-agent-development-framework.md) before starting one. The four-day story and every shipped system are untouched by construction. **The runtime integration has landed (2026-11-06, roadmap Phase 1):** the D-1 tick valve runs in `Game.frame` beside the story; in roam/scenario the bound cast (Rosa, Idris) lives their clock-keyed schedules through arbitration, and the world save rides its own key (`first_slice_world_v1`). The brain is `web-three/src/sim/runtime.ts` (pure), the body is `web-three/src/game/worldRuntime.ts`, and `?scenario=schedules` replays the playable proof; doc 17's ledger names what is still open (the D-3 money bridge, ambient-walker schedule migration). The calendar epoch is ruled (DEC-1, 2026-11-06): Day 1 = Tuesday, September 9, Y1.
 
 ---
 
@@ -187,6 +189,10 @@ first-slice-nyc/
 ├── docs/                      # the canon + the ledgers:
 │   ├── narrative/             #   the story bible, 00–15 (canon, v1.0, 2026-11-06)
 │   ├── production/            #   the master roadmap + checklists + status register (v1.0, 2026-11-06)
+│   ├── architecture/world-contract/  # THE WORLD CONTRACT — 17 docs: global sim state,
+│   │                          #   spatial/semantic registry, entity identity, arbitration,
+│   │                          #   narrative validation, economy guardrails, the six
+│   │                          #   workstreams' deal (implemented in web-three/src/sim/)
 │   ├── 57-engineering-references.md  # the study-before-build ledger — check it first
 │   └── data/                  #   world-registry.json + curated manifests
 ├── web-three/                 # THE GAME — Vite + TypeScript + Three.js

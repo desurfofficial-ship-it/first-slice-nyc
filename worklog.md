@@ -1296,7 +1296,7 @@ Work Log:
   every pointer now lands on a file that exists. No law changed; only the
   addresses did.
 - Clean-up sweep verdict (the "delete godot/unity and shit" directive,
-  carried from 2026-11-05): word-boundary grep `\bgodot\b|\bunity\b` over
+  carried from 2026-11-05): word-boundary grep `godot|unity` over
   the tree — ZERO engine leftovers. greybox-godot/ was already deleted
   (recorded 2026-11-05); the two Unity-era docs died in the remote wipe.
   The only remaining mentions are the 6 append-only history lines in this
@@ -1582,3 +1582,154 @@ Work Log:
 Stage Summary:
 - The playable game's calendar and the story bible now agree end to end: Day 1 = Tuesday, September 9, Year 1; C0 = days 1–7; every doc 12 §2 date maps to a positive story day and renders as authored.
 - Gates at close: tsc clean · vitest 661/661 · no dependencies added · the mood-lock and all shipped beats untouched.
+
+## 2026-11-06 — agent (Technical Architecture): the world contract — sim foundations, 17 docs, 113 new tests (R0 rides along)
+
+The decree: establish the technical foundations that let FIRST SLICE become a
+coherent, persistent, expandable open-world life simulation — audit first,
+contracts second, implementation third, proof always. No rewrites, no new
+dependencies, Yuka untouched, the narrative bible untouched, the 4-day story
+untouched.
+
+Work Log:
+- Audited the actual codebase (25.4k lines TS): entry/init, World.ts monolith
+  (6.5k lines, district culling, shadow economy), Game.ts orchestrator,
+  GameState step machine, Save v1 laws, InteractionRegistry, Yuka peds +
+  ROUTINE_STOP + M4 street schedule, traffic pure math, registry JSON + mjs
+  gate, furniture costume law. Studied both reference repos under §1e
+  (gen-city-auto: per-entity seeds + fork(salt) streams, ring lifecycle,
+  stateless time-functions; slop-newyork: 1u=1m grid frame, blocks-first
+  world model, derive-networks-from-built-ground). Findings in
+  docs/architecture/world-contract/01.
+- Implemented `web-three/src/sim/` (11 modules, all headless, zero new deps):
+  ids.ts (two id spaces: registry UPPERCASE permanence + namespaced sim
+  ids; rel pairs sorted `__`), rng.ts (mulberry32 family the world already
+  uses + WorldRandom named streams + stable fork(salt)), clock.ts (tick =
+  in-game minute; day 1 = Tue Sept 9 Y1 canon; no wall clocks anywhere),
+  registry.ts (typed load of the REAL world-registry.json, cross-ref
+  validation incl. the below-grade exemption, derived semantic tags,
+  findPlaces/nearest-first, placePoint prefers doors), entities.ts
+  (NpcState/RelationshipState/BusinessState/ItemState/WorldEventRecord +
+  validators + businessIsOpen), schedule.ts (pure activityAt: weekday,
+  overnight wrap, late-flags, fallback), arbitration.ts (priority matrix
+  0-4, one-claim-per-NPC, resume stacks, capacity resources, R1-R8, the
+  directive's S1-S7 contracted in-code), narrative.ts (flag store,
+  availability registry with tick expiry, StoryEvent validation —
+  NPC_MISSING/DOUBLE_BOOKED/UNAVAILABLE/PLACE_MISSING/BUSINESS_CLOSED/
+  PREREQ/WINDOW — and the deliberate fallback planner:
+  defer/reschedule/relocate/cancel, never silent), economy.ts (integer
+  cents, append-only ledger, faucet/sink/transfer flow classes, overdraft
+  policy, audit = genesis+Σ, flow reports), content.ts (manifest schema,
+  license duty, ABO pack bridge), state.ts (WorldState + the OWNERSHIP
+  table — a test walks every field — versioned save document, polite
+  refusal for corrupt/foreign/unknown-version, ledger rehydration),
+  reference.ts (the PART-6 world: canon places + bible characters with
+  example schedules/hours/warmth + validation-exercise events + the
+  shipped-prices ledger script).
+- Tests: 11 new files, 113 tests (suite 605 → 718, all green). Fixed R0
+  (the narrative spec's PRIORITY-0): docs-hygiene now guards
+  docs/narrative/00-README.md's existence + dated canon banner instead of
+  reading the rebooted-away docs — suite went from 2 known failures to 0.
+- Docs: docs/architecture/world-contract/01–17 (audit → target → topology
+  → identity → state → determinism → registry → sim/npc → arbitration →
+  narrative → content → economy → reference world → workstreams →
+  validation → perf/testing → roadmap). Status ledgers in every doc
+  distinguish Implemented / Partial / Declared / Deferred / Unresolved.
+- AGENTS.md §3 repo map + a WORLD CONTRACT pointer (the next agent reads
+  14-agent-development-framework before starting a workstream).
+
+Stage Summary:
+- The four real gaps for an open world (no clock, no persistent people,
+  no arbitration, no world-scale save) are now contracts + code + tests,
+  beside (never instead of) the shipped systems. The reference world
+  proves the stack end-to-end on the real registry: schedule resolution,
+  a worked arbitration scenario, narrative validation pass AND fail
+  paths, $87→$74 in audited ledger math, and a populated-world save
+  round-trip.
+- Gates at close: tsc --noEmit clean · vitest 718/718 (51 files) ·
+  npm run build OK (bundle unchanged — sim is contract+tests until WS-D
+  wires the valve) · registry mjs gate OK (129 ids, 12/12 masses, 18/18
+  anchors) · game code untouched (Game/World/GameState/Save/peds/
+  interactions all byte-identical).
+- Known leftovers, named honestly in doc 01 §17 + 17: AGENTS.md prose
+  still cites rebooted-away docs (06/50/51) — lead's call; below-grade
+  interiors keep their compound SUB-01/SUB-02 reference (the shipped
+  gate's own exemption, now documented in the contract); sim↔Game wiring
+  (the time valve) is Phase 1 / Workstream D by design.
+
+---
+Task ID: WS-D-PHASE1-RUNTIME-INTEGRATION
+Agent: World Architect (Phase 2 — runtime integration)
+Task: The first functioning connection between the sim layer and the
+shipped game, on feat/world-contract-foundation — in-game clock
+integration, NPC schedule execution, behavior arbitration, persistent
+simulation state, save/load (roadmap doc 17 Phase 1: D-1/D-2/B-1).
+
+Work Log:
+- Inspected before touching: Game.frame's order (dt clamped 0.1 s, the
+  0.45× listen beat, dynamics-before-player), peds.ts (Yuka ambient only,
+  band law, applyStreetPlan), the named-cast choreography, Save.ts
+  (`first_slice_save_v1`, day-1-never-writes), beginDay's morning set.
+- New `web-three/src/sim/runtime.ts` (PURE, keeps sim/'s no-THREE/no-DOM
+  law): the D-1 valve (dt→whole in-game minutes through one accumulator;
+  fractional carry; one-day burst cap — late time, never wrong time);
+  geography-honest schedule bindings (canon anchors kept, windows re-timed
+  to the shipped block: SUB-01→cart is a ~30-minute walk at 1.6 m/s);
+  the schedule→arbitration policy (propose on plan change, R7 lateness
+  escalation, fallback claims that never expire — no expire/introduce
+  flap); the R6 hello door; NpcState.location sync per tick (Workstream
+  B's first occupant); recordGreeting (warmth +4 once, one flag, one
+  event — no invented prices); bootWorldBrain (restore-or-fresh, the
+  polite-refusal law, reference cast + seeded edges on fresh worlds).
+- New `web-three/src/game/worldRuntime.ts` (the BODY): per-frame hook
+  before updateDynamics (same-frame collider syncs); directive executor
+  (arrivals-from-off-map appear at their place, enroute-to-off-map walks
+  to the station stair and vanishes — never against the invisible walls);
+  clock-keyed dusk + M4 street plan flips in roam/scenario ONLY (story
+  days keep their authored triggers — zero story rewiring); the world
+  save rides `first_slice_world_v1` beside the story save (roam autosave
+  30 s, day boundaries, roam exit, story persist beats); reloadFromSave
+  for the in-browser save/load torture; a debug() surface.
+- Game.ts surgical (~30 lines): construct, one frame hook, toggleRoam/
+  persist/beginDay taps, applySimPhase + worldSimHello + worldDuskStarted
+  (all additive; authored beats byte-identical). interactionDefs: the two
+  hello interactions (pos parks at NEVER_NEAR when the person is away —
+  the registry's own pattern; optional `worldSimBody` src keeps the
+  harnesses stub-clean). ?scenario=schedules → new scenario.ts: the
+  playable proof, auto-driven on the real street at accelerated time.
+- loc:rosa_rooms joins REFERENCE_ALIASES (her rooms over the store are
+  honestly off-map); doc 06/17 status ledgers flipped to what is now
+  true (D-1 implemented; D-2 partial by design; B-1 bound-cast scope;
+  D-3 open); AGENTS.md WORLD CONTRACT pointer updated.
+- Tests: tests/sim-runtime.test.ts, 26 tests (valve math, Idris's and
+  Rosa's full days, off-map despawn law, resolve-only + weekday windows,
+  R1/R2/R3/R6/R7 through the brain, greeting weight, save round-trip,
+  interrupted/wrong-magic/version/world/garbage → fresh each time,
+  repeated-load idempotence, story-reconcile forward-only, 48 h audit
+  green, 3 sim-days < 1 s). Suite 718 → 744.
+- New probe scripts/probe-world-sim.mjs: the scenario in the real dist/
+  build under Playwright — 15/15 PASS (1,424 sim-minutes in 66 s real):
+  platform stand, walked transition to the cart, registry-fired hello
+  interrupt, LIFO resume, persistent warmth/flag, save doc shape,
+  truncated save → fresh + notes, exact restore, 3 invalid-data cases,
+  repeated loads, clock-keyed dusk, multi-day continuity after load.
+
+Stage Summary:
+- The world now runs beside the story: one world, one clock, one ledger,
+  one arbitration, ticked by the frame itself. Rosa works the deli
+  06:00–22:00; Idris stands the 7:40 platform, walks to the cart for the
+  usual, and goes home under the block; a hello stops them (HIGH) and
+  the day resumes where they left it; the street plan and the dusk law
+  read the clock in roam. Everything persists under its own key and
+  refuses corrupt input politely.
+- Gates at close: tsc --noEmit clean · vitest 744/744 (52 files) ·
+  build OK · registry gate OK (129 IDs) · 4-day E2E 0 failures,
+  no console errors · probe-perf zero page errors (draw calls in the
+  shipped at-rest band) · world-sim probe 15/15.
+- Known limitations, honestly: bodies walk straight lines (no nav graph
+  yet — Phase 2 A-1); schedule-driven body control is roam/scenario-gated
+  (story days keep authored choreography by contract); Eddie/Kev/Priya
+  resolve in state but have no shipped bodies; ambient Yuka walkers keep
+  the M4 shift system; D-3 (money → ledger behind confirm-gates) is
+  deliberately open; the hello lines are mechanics prose for the
+  Narrative Director to replace.

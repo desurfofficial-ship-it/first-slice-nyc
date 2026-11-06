@@ -17,6 +17,10 @@ import { fileURLToPath } from 'node:url';
 // the study-before-build law says findings are recorded. The legacy docs
 // tree was cleared 2026-11-06 for the narrative reboot; the guard pins the
 // new canon, not the old file names.
+//
+// R0 (docs/narrative/14, PRIORITY-0): re-pointed at the surviving truth
+// the day of the reboot — the narrative bible's README (existence + dated
+// status). WP-0 union (DEF-3, 2026-11-06): both sides' guards are kept.
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -54,13 +58,25 @@ describe('docs hygiene — the operating manual states the real phase (narrative
     expect(agents).toContain('worklog.md');
   });
 
-  it('the manual carries the engineering-reference law (docs/57, 2026-11-05 directive)', () => {
+  it('the narrative bible exists and carries its dated canon banner (R0 re-point)', () => {
+    const readme = read('docs/narrative/00-README.md');
+    // the bible is the live story canon — it must say so, with a date
+    expect(readme).toMatch(/Narrative Bible/);
+    expect(readme, 'the bible must carry its baseline date').toMatch(/Baseline v\d+\.\d+, 2026-\d\d-\d\d/);
+    expect(readme, 'the bible must name its owner').toMatch(/Lead Narrative Director/);
+    // …and point builders at the world registry (the geometry truth)
+    expect(readme).toContain('docs/data/world-registry.json');
+  });
+
+  it('the manual carries the engineering-reference law (AGENTS.md §1e, study before building)', () => {
     const agents = read('AGENTS.md');
     // The two permanent references must stay named on the manual: an agent
     // that never hears of them reinvents systems a reference already solved.
     expect(agents).toContain('gen-city-auto');
     expect(agents).toContain('slop-newyork');
-    // …and the ledger must exist where the rule says findings are recorded.
-    expect(read('docs/57-engineering-references.md')).toContain('study before building');
+    // …and the law itself stays stated where the deleted ledger doc used
+    // to repeat it: the manual's own §1e is now the single home (one
+    // paved path — the reboot cleared the duplicate).
+    expect(agents).toMatch(/study before building/);
   });
 });
