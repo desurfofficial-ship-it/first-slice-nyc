@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Adopted — data implemented (`sim/registry.ts`); nav graph contracted, built by Workstream A |
+| Status | Adopted — data implemented (`sim/registry.ts`); **nav graph IMPLEMENTED + INTEGRATED (`sim/nav/`, 2026-11-06 — Phase 3 A-1/A-2)** |
 | Source of truth | `docs/data/world-registry.json` (construction geometry, canon) |
 
 ## 1. The topology stack
@@ -35,15 +35,16 @@ The world is FOUR layers, each with its own shape and owner. Nothing may skip a 
 ## 3. Movement graph (Workstream A's build, contracted here)
 
 ```
-NavNode   { id: registry or synthetic id; x; z; kind: 'sidewalk'|'crossing'|'lobby'|'landing' }
-NavEdge   { a; b; kind: 'walk'|'cross'|'lane'; widthM; oneWay?; resourceRef? }
+NavNode   { id: registry or synthetic id; x; z; kind: 'sidewalk'|'crossing'|'lobby'|'landing'|'path' }
+NavEdge   { a; b; kind: 'walk'|'cross'|'door'|'lane'; widthM; oneWay?; resourceRef? }
 ```
+The two deliberate contract extensions (2026-11-06, recorded here by A-1's implementation): the **`path` node kind** (park lawns, alley slots, plaza aprons — outdoor walkable surfaces that are neither a street sidewalk nor a crossing) and the **`door` edge kind** (the facade passage, carrying `resourceRef: 'door:<buildingId>'` — §2's arbitration resource made navigable; doors are EDGES, never nodes, never teleports).
 Laws:
 1. Edges respect the shipped sidewalk law (Kestrel walk lanes z 4–7.2 / −7.2…−4.3 stay clear of solids).
 2. Every interior entrance connects to a sidewalk node (the registry's entrances are the seed set — the mjs gate already proves 18 anchors sit on/near masses).
 3. Crossings map to the registry's 11 crosswalks; a crossing edge carries its `resourceRef` for signal/capacity arbitration.
 4. The Yuka walkers' authored loops remain valid until Workstream A migrates them onto edges — one paved path, migrated deliberately, `tests/crowd.test.ts` green throughout.
-**Status: Missing (data), contract fixed.**
+**Status: Implemented (2026-11-06, Phase 3 A-1) — `sim/nav/`: 401 nodes / 444 edges / 1 component over the real registry; byte-identical determinism pin; validation clean (no edge through a footprint — the SUB-01 headhouse passable by the shipped no-blocker law, the ALY slots by the R-ALLEY/R-GARDEN shortcut law); all 26 crosswalk legs incl. the four pattern intersections; curb-cut bypass around the SUB-02 control house; A* with deterministic tie-breaks and a bounded cache; one uniform-grid spatial index; the bound cast walks routes in the live runtime (`worldRuntime.applyOne` → `RouteFollower`); access gating per §2 (a locked door is not an edge).**
 
 ## 4. Semantic resolution (implemented)
 
@@ -82,6 +83,6 @@ The registry loads with **zero issues today** (`tests/sim-registry.test.ts` pins
 | Semantic tags + location requests | **Implemented** |
 | Place/entrance/interior resolution | **Implemented** |
 | District records (explicit type) | **Partial** (one district; record type in [07]) |
-| Movement graph (nodes/edges/chokepoints) | **Missing** — Workstream A, contract above |
+| Movement graph (nodes/edges/chokepoints) | **Implemented + INTEGRATED** (2026-11-06, A-1: `sim/nav/` + the routed bound cast; ambient-walker migration = WP-3v) |
 | Geometry loaded from registry at runtime | **Deferred** — Workstream A's deliberate flip; fidelity gate keeps both honest until then |
 | Multi-district / borough topology | **Deferred** — Passport-scale, not this pass |

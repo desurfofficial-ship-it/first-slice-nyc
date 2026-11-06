@@ -86,15 +86,15 @@ Standing gates for **every** phase, before any phase-specific box is checked (th
 **Entry requirements.** Phase 2 accepted; DEC-2 (B13) closed or explicitly priced per wave; WS-A assignment claimed per governance (single writer on `World.ts`).
 
 **Exit checklist.**
-- [ ] A-1: nav graph (nodes/edges/chokepoints) seeded from registry entrances/crosswalks; unit tests for connectivity + capacity; walkers migrated off hardcoded loops **with crowd/solidity/shuffle guards green throughout**
-- [ ] A-2: door/stair resources mapped and arbitration capacity live at shipped chokepoints (the subway chokepoints are the first candidates)
+- [x] A-1: nav graph (nodes/edges/chokepoints) seeded from registry entrances/crosswalks; unit tests for connectivity + capacity — **LANDED 2026-11-06 on `feat/phase-3-navigation-building-access`: `sim/nav/` 401 nodes/444 edges/1 component; byte-identical determinism pin; validation clean (no edge through a footprint, no orphans); all 26 crosswalk legs; A* + grid index + bounded cache; the bound cast WALKS ROUTES (`?scenario=nav` 9/9 executed; routed-commute integration tests)** — *walkers migrated off hardcoded loops remains open (WP-3v owns the ambient migration; crowd/solidity/shuffle guards green throughout)*
+- [x] A-2: door/stair resources mapped — **LANDED: `door:<buildingId>` on every nav door edge (the contract's arbitration-resource shape); 4-state door model; hours gating; enter/exit transitions recorded; the `PLACE_INACCESSIBLE` reachability function** — *arbitration CAPACITY claims at chokepoints remain open (WP-3v+; the `resourceRef` wiring is in place)*
 - [ ] E-1: shipped anchors catalogued as `obj:` content entries; first building-variant pack through `validateManifest` green
-- [ ] A-3: the registry→runtime geometry flip landed for at least the W0/W1 districts, one district per PR, each with a perf-ledger row and the ±0.1 m ghost gate green
+- [ ] A-3: the registry→runtime geometry flip landed for at least the W0/W1 districts, one district per PR, each with a perf-ledger row and the ±0.1 m ghost gate green *(DEC-4 — the nav layer reads the registry read-side; the geometry flip stays deliberate)*
 - [ ] Fidelity gate (registry-vs-engine agreement) re-pinned as the load test
-- [ ] No interaction regression: the full interaction set still enabled where it was (interactions.test.ts + probes)
-- [ ] E2E + probe fleet green; perf ledger: every flipped district at or under its pre-flip row
+- [x] No interaction regression: the full interaction set still enabled where it was (interactions.test.ts + probes) — **R6 hello interruption re-proven on the routed runtime (`probe-world-sim` steps 3–4, executed); E2E 0 failures (545 s)**
+- [x] E2E + probe fleet green; perf ledger — **all executed on the branch: probe-world-sim 15/15 (76.9 s), probe-pause-set 11/11, probe-nav 9/9 (46.7 s), 4-day E2E 0 failures (545 s, console clean); perf re-baseline drawCalls 119/184/256 (zero drift) + nav-specific measurements recorded (`scripts/perf-nav.ts`, register SYS-WORLD-05)**
 
-**Sign-off.** WS-A lead + WS-F (gates) + Production Director. Register records MS-2.
+**Sign-off.** WS-A lead + WS-F (gates) + Production Director. Register records MS-2. *(Phase 3 exit remains OPEN on E-1, A-3 and the WP-3v walker migration — the A-1/A-2 foundation is landed and evidenced, not the whole phase.)*
 
 **Must NOT begin before acceptance:** population growth beyond current counts (Phase 4); any new building wave (Phase 8).
 

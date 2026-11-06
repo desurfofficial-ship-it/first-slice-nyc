@@ -56,4 +56,4 @@ Authors never write coordinates, never invent ids: an unknown id is `PLACE_MISSI
 
 ## 7. Deferred to Workstream A (contracted in [03] §3)
 
-Movement graph (nodes/edges/chokepoints), runtime geometry loading from the registry, multi-district topology, access control (locked rooms — the `PLACE_INACCESSIBLE` code is wired and waiting for a real reachability function).
+Movement graph — **IMPLEMENTED 2026-11-06 (Phase 3 A-1: `sim/nav/`, status ledger in [03] §6)**. Runtime geometry loading from the registry (the A-3 flip, DEC-4) and multi-district topology remain deferred. Access control — **IMPLEMENTED 2026-11-06 (Phase 3 A-2: `sim/nav/access.ts`)**: the `PLACE_INACCESSIBLE` code has its real reachability function (`REACHABLE / PLACE_MISSING / PLACE_INACCESSIBLE / NO_ROUTE`), doors are the `door:<id>` arbitration resources with a four-state model, and a locked door is not an edge in the movement graph.

@@ -41,21 +41,21 @@ Evidence sources used for baseline statuses: source audit of `web-three/src/` (2
 **Done when:** every place the spine names is enterable and furnished; every new interior passes the glass-side + near/far laws; probes exit 0.
 
 ### SYS-WORLD-04 — Doors, stairs & elevators
-**Today:** subway door leaves + colliders (`subway/trainKit.ts`); stair law A5 (step-up 0.35 / snap 0.45) in `collide.ts` + `Player.ts`; fire-escape ladders with climb/descend-dismount guards; step-height law ≤0.33 in `stationKit.ts`. No generic door entity; shop doors are authored openings. Status: PARTIAL (IMPLEMENTED for shipped cases, INTEGRATED, VERIFIED).
+**Today:** subway door leaves + colliders (`subway/trainKit.ts`); stair law A5 (step-up 0.35 / snap 0.45) in `collide.ts` + `Player.ts`; fire-escape ladders with climb/descend-dismount guards; step-height law ≤0.33 in `stationKit.ts`. No generic door entity; shop doors are authored openings. **Phase 3 A-2 (2026-11-06): the reusable door/access model EXISTS (`sim/nav/access.ts`) — stable `door:<buildingId>` identities seeded from the registry's entrances, four-state machine (open/closed/locked/unavailable), public/restricted access, published-hours gating (the deli reads Rosa's own windows), enter/exit transitions recorded when a body walks a door edge, and the reachability function (`REACHABLE / PLACE_MISSING / PLACE_INACCESSIBLE / NO_ROUTE`) the world contract promised. Routes treat a locked door as NOT AN EDGE.** Status: PARTIAL (VERIFIED cases; door model IMPLEMENTED; capacity arbitration open).
 **Checklist:**
-- [ ] Doors/stairs mapped as arbitration resources (`door:KTN-05`… Phase 3 A-2)
-- [ ] Capacity live at shipped chokepoints (arbitration)
+- [x] Doors/stairs mapped as arbitration resources (`door:<buildingId>` on every nav door edge; capacity ref = the contract's resource shape) — Phase 3 A-2
+- [ ] Capacity live at shipped chokepoints (arbitration) — the `resourceRef` field is wired; the capacity claims land with the crowd work (WP-3v+)
 - [ ] Any future elevator follows the ride-machine pattern (pure state machine, zone visibility) — not ad-hoc tweens
 **Done when:** door/stair use is schedulable by the sim (a schedule can claim a door), guards stay green, and no new door type ships without its test.
 
 ### SYS-WORLD-05 — Navigation & pathfinding
-**Today:** Yuka steering (FollowPath / ObstacleAvoidance / Separation) on authored loops for ambient walkers (`world/peds.ts`); cast movement is authored choreography (`Game.ts` tween walks); no nav graph. Status: INTEGRATED (current scale) / PLANNED (nav graph — Phase 3 A-1).
+**Today:** Yuka steering (FollowPath / ObstacleAvoidance / Separation) on authored loops for ambient walkers (`world/peds.ts`); cast movement is authored choreography (`Game.ts` tween walks). **Phase 3 A-1 (2026-11-06): the registry-seeded movement graph EXISTS and is LIVE — `sim/nav/` (401 nodes / 444 edges / 1 component, byte-identical determinism-pinned), built from the registry's streets, crosswalks (all 26 legs incl. the four pattern intersections), entrances, interiors, parks and alley shortcuts; curb-cut bypasses around the SUB-02 control house (the SUB-01 headhouse stays walkable per the shipped no-blocker law); A* with deterministic tie-breaks, cost multipliers (cross 1.35 / door 1.5), unreachable-safe failure, and a bounded LRU route cache; one uniform-grid spatial index (nearest snap 1.8 µs). The world runtime's bound cast now walks ROUTES (`worldRuntime.applyOne` → `RouteFollower`): Idris's commute crosses at XW-CANON, never jaywalks, and lands inside the honestly re-timed windows (59 routed m ≈ 37 honest min; canon minutes 07:22/07:40/07:52 untouched). Ambient walkers keep their authored loops BY DESIGN until WP-3v migrates them (the contract's own sequencing — crowd tests green throughout).** Status: INTEGRATED (nav graph + routed bound cast, VERIFIED by the gate battery); PLANNED (ambient-walker migration = WP-3v).
 **Checklist:**
-- [ ] Nav graph (nodes/edges/chokepoints) seeded from registry entrances/crosswalks
-- [ ] Walkers migrate off hardcoded loops; crowd tests stay green during migration
-- [ ] Path queries allocation-free (hot-path law)
-- [ ] Chokepoint capacity respected (arbitration resources)
-**Done when:** the reference world's people physically occupy their manifest places via graph routes, and the crowd/solidity/shuffle guards never regressed during the migration.
+- [x] Nav graph (nodes/edges/chokepoints) seeded from registry entrances/crosswalks — `sim/nav/build.ts`, validation clean, zero invented geometry
+- [ ] Walkers migrate off hardcoded loops; crowd tests stay green during migration — WP-3v owns the ambient migration (the loops remain valid per wc-03 §3 law 4; crowd/solidity/shuffle guards green on this branch)
+- [x] Path queries allocation-free (hot-path law) — follower step 0.18 µs; queries only on destination change; source-guarded purity (no THREE/DOM/clock/dice)
+- [x] Chokepoint capacity respected (arbitration resources) — crossing edges carry `xw:<id>`, door edges carry `door:<id>` (the contract's resource refs); capacity CLAIMS land with WP-3v+
+**Done when:** the reference world's people physically occupy their manifest places via graph routes, and the crowd/solidity/shuffle guards never regressed during the migration. *(Bound cast: DONE this pass — routed walks pinned by `tests/sim-nav-runtime.test.ts` and `?scenario=nav` 9/9. Ambient walkers: WP-3v.)*
 
 ### SYS-WORLD-06 — Landmarks & points of interest
 **Today:** 7 designed landmarks; shipped: K-globes, Rosa's billboard, Three Towers, diner sign, mural, ghost sign, hall marquee + Times Square set; Map places with sketch reveals (`ui/sketch.ts`, `content.ts` MAP_PLACES). Status: VERIFIED (shipped set).

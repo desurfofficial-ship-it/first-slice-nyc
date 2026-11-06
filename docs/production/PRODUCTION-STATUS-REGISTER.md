@@ -18,11 +18,11 @@
 | Count | Value |
 |---|---|
 | Phases | 0 (closing) · 1+2 (**MERGED to main, WP-0, 2026-11-06** — gates executed) · 3 (next, planned) · 4–12 (planned) |
-| Systems tracked | 48 — VERIFIED 16 · IMPLEMENTED 5 · INTEGRATED/partial 14 · PLANNED 9 · NOT STARTED 4 |
+| Systems tracked | 48 — VERIFIED 16 · IMPLEMENTED 6 · INTEGRATED/partial 15 · PLANNED 8 · NOT STARTED 4 |
 | Narrative requirements | R0/R3/R4 done (state only) · R2/R7 next · R1/R5/R6/R8–R15 not started |
 | Open decisions | DEC-2…DEC-11 (**DEC-1 RULED 2026-11-06** — see [PRODUCTION-RISKS-AND-DEPENDENCIES.md](PRODUCTION-RISKS-AND-DEPENDENCIES.md)) |
 | Open defects | B13 (draw calls, owner's call) + hygiene item HYG-1 |
-| Gates | main `0e22ff5` (WP-2v + WP-1v integrated): `tsc` clean · **vitest 840/840 (57 files)** · build OK · targeted calendar/epoch/runtime/state **105/105** · **probe-world-sim 15/15 [executed]** (1,424 sim-min, 71.5 s) · **probe-pause-set 11/11 [executed, console clean]** · **4-day E2E 0 failures [executed, 601 s, console clean]** |
+| Gates | main `62a6244` (Phase-3 baseline): `tsc` clean · **vitest 840/840 (57 files)** · build OK · probe-world-sim 15/15 · probe-pause-set 11/11 · 4-day E2E 0 failures. **Phase-3 branch `feat/phase-3-navigation-building-access` at close: tsc clean · vitest 873/873 (60 files, +33 nav) · build OK · probe-world-sim 15/15 [executed, 76.9 s] · probe-nav 9/9 [executed, 46.7 s, console clean] · probe-pause-set 11/11 [executed] · 4-day E2E 0 failures [executed, 545 s, console clean] · registry mjs OK (129 IDs) · perf re-baseline drawCalls 119/184/256 — zero drift** |
 
 ---
 
@@ -33,7 +33,7 @@
 | PH-0 | Production control & baseline | 0 | IN PROGRESS | The seven docs + this register (this commit); owner ratification open |
 | PH-1 | Architecture & sim foundation | 1 | IMPLEMENTED | Branch `feat/world-contract-foundation`: foundations `3d83f0b` (718/718 at its pass); whole-branch suite **744/744 [executed]**; acceptance = merge |
 | PH-2 | Runtime integration (time valve) | 2 | IMPLEMENTED (branch) — VERIFIED | `407cc0e`: D-1 valve in `Game.frame`, bound-cast schedules, world save, `?scenario=schedules` **15/15 [executed]**; D-3 open; acceptance = merge (WP-0 done, `1bb3152`). **WP-1v closed (2026-11-06, branch): wardrobe/postcard join the host pause set (`game/pauseSet.ts`), 11 pinned cases + browser probe 11/11** |
-| PH-3 | Navigation & physical world | 3 | PLANNED | wc-17 Phase 2 |
+| PH-3 | Navigation & physical world | 3 | **IN PROGRESS — A-1 + A-2 LANDED on `feat/phase-3-navigation-building-access`** | A-1 nav graph (registry-seeded, 401 nodes/444 edges, A*, spatial index) + A-2 door/access model + routed bound cast; full battery executed (see Gates); open: A-3 registry geometry flip (DEC-4), ambient-walker migration (WP-3v), chokepoint capacity claims |
 | PH-4 | Living population | 4 | PLANNED | wc-17 Phase 4 + R5 |
 | PH-5 | Player freedom completion | 5 | PLANNED | R10–R12; much already shipped (see SYS-PLAY-*) |
 | PH-6 | Living neighborhood | 6 | PLANNED | wc-17 Phase 4 (business/season) + R6 |
@@ -45,7 +45,7 @@
 | PH-12 | Launch & post-launch | 12 | NOT STARTED | — |
 | MS-0 | The Shipped Slice | — | VERIFIED (repo evidence) | E2E ~131 checks; probes; 660 tests; Pages deploy. Human/device halves owed at PH-10 |
 | MS-1 | The Clock Street | 2 | IMPLEMENTED (branch) | wc-17 exit met on branch except the D-3 ledger trace + the human playtest (closeout = WP-4/WP-7) |
-| MS-2 | The World Reads the Registry | 3 | PLANNED | — |
+| MS-2 | The World Reads the Registry | 3 | IN PROGRESS | the nav half reads the registry LIVE (A-1: graph seeded from streets/crosswalks/entrances/interiors/parks); the geometry flip (A-3, DEC-4) and content-catalogue halves open |
 | MS-3 | The Block Has People | 4 | PLANNED | — |
 | MS-4 | C0 Fires | 7 | PLANNED | — |
 | MS-5 | The Spine Playable | 7 | PLANNED | — |
@@ -72,8 +72,8 @@
 | SYS-WORLD-01 | World topology & spatial registry | 1/3 | WS-A | IMPLEMENTED (sim on branch); registry data VERIFIED; **read-side INTEGRATED** | PH-1 merge | P0 | validator OK (129 IDs); registry consumed by the live runtime (place resolver); write-side flip = A-3, Phase 3 |
 | SYS-WORLD-02 | Streets, sidewalks & intersections | — | WS-A | VERIFIED (shipped set) | — | P1 | probes + E2E; 5 streets designed |
 | SYS-WORLD-03 | Buildings & interiors | 8 | WS-A | VERIFIED (shipped set); remainder PLANNED | DEC-8 | P1 | 12 masses shipped / 43 designed; interiors.test |
-| SYS-WORLD-04 | Doors, stairs & elevators | 3 | WS-A | PARTIAL (VERIFIED cases) | PH-2 | P1 | stair law tests; no generic door entity |
-| SYS-WORLD-05 | Navigation & pathfinding | 3 | WS-A | PLANNED (nav graph) | PH-2 | P0 | Yuka loops today; wc-17 A-1 |
+| SYS-WORLD-04 | Doors, stairs & elevators | 3 | WS-A | **PARTIAL (door/access model IMPLEMENTED — A-2)** | PH-2 | P1 | `sim/nav/access.ts`: `door:<id>` identities from registry entrances, 4-state machine, hours gating (deli = Rosa's windows), transitions recorded on walk-through, reachability fn; locked door = not an edge; capacity claims open (WP-3v+) |
+| SYS-WORLD-05 | Navigation & pathfinding | 3 | WS-A | **INTEGRATED (A-1 nav graph + routed bound cast); ambient migration PLANNED (WP-3v)** | PH-2 | P0 | `sim/nav/` 401 nodes/444 edges/1 component, determinism-pinned byte-identical; A* (deterministic tie-breaks, cross 1.35/door 1.5 costs, unreachable-safe, LRU cache); grid index (snap 1.8 µs); `worldRuntime.applyOne` walks ROUTES via `RouteFollower`; probe-nav 9/9 [executed]; routed-commute integration tests; perf: build 16.6 ms once, uncached A* 0.87 ms, follower 0.18 µs, 50 followers = 5.1 µs/frame; **measured 2026-11-06, node v24, dev machine** |
 | SYS-WORLD-06 | Landmarks & POIs | — | WS-E | VERIFIED (shipped set) | — | P2 | Map places + sketches |
 | SYS-WORLD-07 | Environmental detail & NY identity | — | WS-E | VERIFIED | — | P2 | 1-Second probe frames |
 | SYS-WORLD-08 | Streaming, spatial index & LOD | 4+ | WS-F | PARTIAL (sufficient at scale) | measure first | P2 | district tiles + bakes; no index; B13 open |
@@ -170,5 +170,6 @@
 | 2026-11-06 | **v1.2.1 — WP-0 landed** (owner sequence, behind the green gate): `feat/world-contract-foundation` merged to main at `1bb3152`; the audit's 3 conflicts resolved per DEF-3's verified union; gates executed post-merge — tsc clean · vitest **801/801** (56 files) · probe-world-sim **15/15** · 4-day E2E **0 failures** (592 s, console clean) · perf re-baseline (drawCalls 119/184/256, zero page errors). Branch suite re-run first: 744/744. DEF-3 → RESOLVED; R-NEW-2 (branch drift) → closed by the merge | Narrative Director + owner |
 | 2026-11-06 | **v1.3.1 — WP-2v INTEGRATED + VERIFIED**: `feat/wp-2v-epoch-map` (impl `991a236`) merged to main at **`eab767c`** (no-ff, zero conflicts). Post-merge battery executed on the integrated tree: tsc clean · vitest **829/829** (57 files; +28 = epoch-map 26 + calendar extensions 2) · build OK · targeted calendar/epoch/runtime/state 94/94 · probe-world-sim **15/15** (1,424 sim-min, 69.1 s, zero page errors) · 4-day E2E **0 failures** (543 s, console clean; save holds day 4 complete: $123, map, permit, stool) | Technical Integration Lead |
 | 2026-11-06 | **v1.4.1 — WP-1v INTEGRATED + VERIFIED**: `feat/wp-1v-pause-set` (impl `91687e3`) merged to main at **`0e22ff5`** (no-ff, zero conflicts). Post-merge battery executed on the integrated tree: tsc clean · vitest **840/840** (57 files; +11 pause-set cases) · build OK · targeted 105/105 · probe-world-sim **15/15** (71.5 s) · **probe-pause-set 11/11** (wardrobe/postcard hold the clock at exactly 0 ticks; resume without burst; the map keeps the block breathing) · 4-day E2E **0 failures** (601 s, console clean). WP-1v and WP-2v both CLOSED | Technical Integration Lead |
+| 2026-11-06 | **v1.5.0 — Phase 3 A-1 + A-2 LANDED on `feat/phase-3-navigation-building-access`** (from main `62a6244`, not yet merged): the registry-seeded movement graph (`sim/nav/`: graph/spatial/pathfind/build — 401 nodes, 444 edges, 1 component, byte-identical builds, zero invented geometry, all 26 crosswalk legs incl. the four pattern intersections), the door/access model (A-2: `door:<id>` 4-state machine, hours gating from the cast's own windows, enter/exit transitions recorded on walk-through, the promised reachability function — a locked door is not an edge), the routed bound cast (`worldRuntime.applyOne` → `RouteFollower`; Idris's commute crosses at XW-CANON; travel windows honestly re-timed to the routed 59 m ≈ 37 min — canon minutes 07:22/07:40/07:52 untouched), `?scenario=nav` + `probe-nav.mjs` (9/9 executed) + `perf-nav.ts` (measured: build 16.6 ms; A* 0.87 ms uncached / 10 µs cached; follower 0.18 µs; 50 followers 5.1 µs/frame; steady-state heap +697 KB over 100k queries, LRU-capped). **Gates at close (all executed on the branch): tsc clean · vitest 873/873 (60 files, +33) · build OK · probe-world-sim 15/15 (76.9 s) · probe-pause-set 11/11 · 4-day E2E 0 failures (545 s, console clean) · registry mjs OK · perf re-baseline drawCalls 119/184/256 (zero drift). Open: A-3 flip (DEC-4), WP-3v ambient migration, chokepoint capacity claims** | Technical Architecture / World Systems Agent |
 
 *Update rows in the same commit as the work. Add decisions to the risks doc, defects to §E, systems through a PR that touches both this register and SYSTEM-COMPLETION-CHECKLISTS.md.*
