@@ -1945,3 +1945,49 @@ Stage Summary:
   gen-city-auto re-read recorded in docs/57 §3.7.1 with MIT attribution
   — its decorative pedestrian movement is NOT a navigation solution and
   none of it is used.
+
+## 2026-11-06 — Technical Architecture / World Systems Agent: WP-4, the money→ledger bridge (register v1.8.0)
+
+**Directed by the owner's "Continue working"** after the Phase 3 + WP-3v work was pushed
+(`main` `dcff32c` verified on origin). The plan's §2b order put A-3 first, but A-3 is the
+registry geometry flip — DEC-4, explicitly the owner's call — so the next sequenced,
+non-owner-gated item was **WP-4 (the money→ledger bridge, D-3)**. WP-6 remains unblocked
+and disjoint for a parallel window.
+
+- **What landed (branch `feat/wp-4-money-bridge` @ `2203f05`, from main `dcff32c`, not yet
+  merged):** `src/sim/moneyBridge.ts` (new) + the Game.ts wiring (boot wrapper install, the
+  interaction id as the trace's intent column, reconcile at the load seam, syncMirror at
+  fresh genesis) + `worldRuntime.debug()`'s read-only ledger trace +
+  `tests/sim-money-bridge.test.ts` (23 cases) + `scripts/probe-money-trace.mjs` (the browser
+  proof). **Zero GameState edits; zero economy.ts/state.ts edits** — the bridge observes.
+- **The design laws:** GameState keeps owning story math (wc-05 §2's one-way bridge); the
+  bridge posts the ACTUAL delta (post-clamp, post-replay — a replay day posts nothing, a
+  clamped spend posts what actually left); categories come ONLY from wc-12 §3's closed sets
+  via the shipped-moments table (the wc-12 §4 worked examples are rows: the $5 rush cup is a
+  business_revenue FAUCET — the customer is not a simulated account, Rosa's deli is not
+  debited; the $10 permit is a service sink; Rosa's rule $2 is a reward faucet; shelf buys
+  transfer to `biz:rosas_deli`, pizza/barber to theirs); unmapped movements route via
+  `acct:world` with loud reasons — honest, never a silent guess; ids are
+  `txn:story_<tick>_<n>` (tick + the ledger's own contents — deterministic, unique forever,
+  no Date.now, no random); boot reconciliation repairs a lagging world save as a traceable
+  transaction (the storage-full drift case self-heals with the audit holding from genesis);
+  the declared business mirror (`BusinessState.balanceCents`) follows transfers.
+- **Gates on the branch tree (all executed):** tsc clean · vitest **912/912** (62 files,
+  +23 money-bridge) · build OK · **probe-money-trace ALL PASSED** (genesis $87.00 on BOTH
+  mirror sides / 0 txns → five +$5.00 business_revenue faucets → $112.00; the sanctioned
+  mirror holds; audit clean; ids deterministic) · probe-world-sim 15/15 · probe-pause-set
+  11/11 · probe-nav 9/9 (46.9 s) · probe-peds green · **4-day E2E 0 failures** (610 s,
+  console clean — the day-4 save holds **$123**: the E2E's money math is UNCHANGED, now
+  transactional) · perf-peds **25.0 µs/frame armed** (0.15% of the 16.6 ms budget), heap
+  flat, 38 routes in 300 s — no per-frame cost added (the bridge is event-driven).
+- **DEF-14 filed (R-NEW-17):** probe-ped-nav step 4 ("walkers keep separation") flaked —
+  walkers 5|7 at 0.59 m for 3 consecutive samples. Reproduced 1-of-3 on CLEAN main
+  `dcff32c` BEFORE any bridge code ran, and again on the branch tree — a pre-existing
+  WP-3v verification flake, not a WP-4 regression. WS-B owns the fix (corner-case
+  separation term or a principled probe hysteresis); not tuned blind here.
+- **Tooling note:** `perf-peds.mjs` (and any node-side script importing `src/sim/*`) must
+  run via `npx vite-node` — plain node ESM cannot resolve the src tree's extensionless
+  imports (an ERR_MODULE_NOT_FOUND pre-existing on main; the JSON-import-attribute variant
+  of the same class also pre-exists). No product source was touched for this.
+- **Not pushed** — awaiting owner authorization. Next per §2b: WP-6 (diary/date visible,
+  disjoint files); A-3 (DEC-4) remains owner-gated.
