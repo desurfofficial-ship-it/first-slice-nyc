@@ -1273,3 +1273,80 @@ Stage Summary:
   interiors keep their compound SUB-01/SUB-02 reference (the shipped
   gate's own exemption, now documented in the contract); sim↔Game wiring
   (the time valve) is Phase 1 / Workstream D by design.
+
+---
+Task ID: WS-D-PHASE1-RUNTIME-INTEGRATION
+Agent: World Architect (Phase 2 — runtime integration)
+Task: The first functioning connection between the sim layer and the
+shipped game, on feat/world-contract-foundation — in-game clock
+integration, NPC schedule execution, behavior arbitration, persistent
+simulation state, save/load (roadmap doc 17 Phase 1: D-1/D-2/B-1).
+
+Work Log:
+- Inspected before touching: Game.frame's order (dt clamped 0.1 s, the
+  0.45× listen beat, dynamics-before-player), peds.ts (Yuka ambient only,
+  band law, applyStreetPlan), the named-cast choreography, Save.ts
+  (`first_slice_save_v1`, day-1-never-writes), beginDay's morning set.
+- New `web-three/src/sim/runtime.ts` (PURE, keeps sim/'s no-THREE/no-DOM
+  law): the D-1 valve (dt→whole in-game minutes through one accumulator;
+  fractional carry; one-day burst cap — late time, never wrong time);
+  geography-honest schedule bindings (canon anchors kept, windows re-timed
+  to the shipped block: SUB-01→cart is a ~30-minute walk at 1.6 m/s);
+  the schedule→arbitration policy (propose on plan change, R7 lateness
+  escalation, fallback claims that never expire — no expire/introduce
+  flap); the R6 hello door; NpcState.location sync per tick (Workstream
+  B's first occupant); recordGreeting (warmth +4 once, one flag, one
+  event — no invented prices); bootWorldBrain (restore-or-fresh, the
+  polite-refusal law, reference cast + seeded edges on fresh worlds).
+- New `web-three/src/game/worldRuntime.ts` (the BODY): per-frame hook
+  before updateDynamics (same-frame collider syncs); directive executor
+  (arrivals-from-off-map appear at their place, enroute-to-off-map walks
+  to the station stair and vanishes — never against the invisible walls);
+  clock-keyed dusk + M4 street plan flips in roam/scenario ONLY (story
+  days keep their authored triggers — zero story rewiring); the world
+  save rides `first_slice_world_v1` beside the story save (roam autosave
+  30 s, day boundaries, roam exit, story persist beats); reloadFromSave
+  for the in-browser save/load torture; a debug() surface.
+- Game.ts surgical (~30 lines): construct, one frame hook, toggleRoam/
+  persist/beginDay taps, applySimPhase + worldSimHello + worldDuskStarted
+  (all additive; authored beats byte-identical). interactionDefs: the two
+  hello interactions (pos parks at NEVER_NEAR when the person is away —
+  the registry's own pattern; optional `worldSimBody` src keeps the
+  harnesses stub-clean). ?scenario=schedules → new scenario.ts: the
+  playable proof, auto-driven on the real street at accelerated time.
+- loc:rosa_rooms joins REFERENCE_ALIASES (her rooms over the store are
+  honestly off-map); doc 06/17 status ledgers flipped to what is now
+  true (D-1 implemented; D-2 partial by design; B-1 bound-cast scope;
+  D-3 open); AGENTS.md WORLD CONTRACT pointer updated.
+- Tests: tests/sim-runtime.test.ts, 26 tests (valve math, Idris's and
+  Rosa's full days, off-map despawn law, resolve-only + weekday windows,
+  R1/R2/R3/R6/R7 through the brain, greeting weight, save round-trip,
+  interrupted/wrong-magic/version/world/garbage → fresh each time,
+  repeated-load idempotence, story-reconcile forward-only, 48 h audit
+  green, 3 sim-days < 1 s). Suite 718 → 744.
+- New probe scripts/probe-world-sim.mjs: the scenario in the real dist/
+  build under Playwright — 15/15 PASS (1,424 sim-minutes in 66 s real):
+  platform stand, walked transition to the cart, registry-fired hello
+  interrupt, LIFO resume, persistent warmth/flag, save doc shape,
+  truncated save → fresh + notes, exact restore, 3 invalid-data cases,
+  repeated loads, clock-keyed dusk, multi-day continuity after load.
+
+Stage Summary:
+- The world now runs beside the story: one world, one clock, one ledger,
+  one arbitration, ticked by the frame itself. Rosa works the deli
+  06:00–22:00; Idris stands the 7:40 platform, walks to the cart for the
+  usual, and goes home under the block; a hello stops them (HIGH) and
+  the day resumes where they left it; the street plan and the dusk law
+  read the clock in roam. Everything persists under its own key and
+  refuses corrupt input politely.
+- Gates at close: tsc --noEmit clean · vitest 744/744 (52 files) ·
+  build OK · registry gate OK (129 IDs) · 4-day E2E 0 failures,
+  no console errors · probe-perf zero page errors (draw calls in the
+  shipped at-rest band) · world-sim probe 15/15.
+- Known limitations, honestly: bodies walk straight lines (no nav graph
+  yet — Phase 2 A-1); schedule-driven body control is roam/scenario-gated
+  (story days keep authored choreography by contract); Eddie/Kev/Priya
+  resolve in state but have no shipped bodies; ambient Yuka walkers keep
+  the M4 shift system; D-3 (money → ledger behind confirm-gates) is
+  deliberately open; the hello lines are mechanics prose for the
+  Narrative Director to replace.

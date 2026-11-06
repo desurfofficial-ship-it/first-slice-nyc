@@ -91,6 +91,9 @@ export interface InteractionSources {
   shelfItem: (id: string) => Vec3Like;
   /** Live position of ambient walker i (Phase 4 — moving NPCs stay live). */
   walker?: (i: number) => Vec3Like;
+  /** A world-runtime body's live position, or NEVER_NEAR when the person
+   *  is away / the sim is story-gated (Phase-1 runtime integration). */
+  worldSimBody?: (npcId: string) => Vec3Like;
 }
 
 // ---------------------------------------------------------------- free-roam ----
@@ -601,7 +604,32 @@ export function freeRoamInteractions(src: InteractionSources): Interaction[] {
     trainA, trainB, priya, busker, buskerCoin, usher, driver, duffel,
     // W5 — the rooms (docs/41): every loop anchored inside its registry shell
     dryer, pizza, dinerCoffee, dinerBooth, pieCase, hallNotice, hallWorkshop, bakery, recordBin, recordListen, cecilGaze, cecilCorkboard,
-    ...walkerChats(src), ...shelfInteractions(src)];
+    ...simHellos(src), ...walkerChats(src), ...shelfInteractions(src)];
+}
+
+// ------------------------------------------- the world runtime's hellos ----
+// Phase-1 runtime integration (world-contract doc 17): the R6 door's
+// input side. When the sim owns the street (roam/scenario), Rosa and
+// Idris stand where their schedules put them — and a press says hello.
+// The hello is a HIGH claim through the arbitrator: the interrupted
+// activity suspends and resumes when you walk away (R1/R2/R3). The
+// prompt is the presence itself — the pos getter parks the interaction
+// out of reach whenever the person is away, the registry's own pattern.
+
+const SIM_HELLO_NPCS = ['npc:rosa_delgado', 'npc:idris_warsame'] as const;
+
+function simHellos(src: InteractionSources): Interaction[] {
+  if (!src.worldSimBody) return []; // stub harnesses bind nothing
+  return SIM_HELLO_NPCS.map((npcId): Interaction => ({
+    id: `hello_${npcId.split(':')[1]}`,
+    pos: () => src.worldSimBody!(npcId),
+    radius: 2.2,
+    enabled: (_s, ctx) => !(ctx.game as { worldSim?: { inDialogueWith(id: string): boolean } })
+      .worldSim?.inDialogueWith(npcId),
+    prompt: () => 'Say hello',
+    perform: ({ game }) => (game as { worldSimHello(id: string): Effect[] })
+      .worldSimHello(npcId),
+  }));
 }
 
 // ------------------------------------------------------------------ authored ----

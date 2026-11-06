@@ -58,5 +58,5 @@ The honest split (directive PART 4 Foundation A):
 | GameClock (tick, calendar, phases, serialization) | **Implemented + tested** |
 | WorldRandom streams/forks | **Implemented + tested** |
 | No-wall-clock discipline | **Implemented** (pure node tests; code review: zero timer imports in `sim/`) |
-| dt → tick scaling at the Game loop | **Deferred** — Workstream D wires it; the shipped day-paced story keeps its own rhythm until then |
+| dt → tick scaling at the Game loop | **Implemented 2026-11-06** (`sim/runtime.ts` valve + `Game.frame` hook: dt→whole minutes, one accumulator, pauses host-owned; the shipped day-paced story keeps its authored rhythm — the clock runs beside it, presentation flips key to the clock only in roam/scenario) |
 | Season-cut transitions | **Declared** (types in [10]) — Workstream C builds per docs/narrative/14 |

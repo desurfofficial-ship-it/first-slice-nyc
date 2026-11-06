@@ -22,6 +22,7 @@ import { composeCaption, tsWowCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE
 import { loadSave, writeSave, type SaveData } from '../core/Save';
 import { diaryNote } from '../core/diary';
 import { FreeRoam, roamDiscoveryLine, ROAM_OBJECTIVE } from './freeroam';
+import { WorldRuntime } from './worldRuntime';
 import { STARTERS, starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
 import { PAL } from '../core/palette';
 import { World, phys } from '../world/World';
@@ -137,6 +138,15 @@ export class Game {
   // rewind the story.
   readonly roam = new FreeRoam();
 
+  // ---- the world runtime (sim/runtime.ts + game/worldRuntime.ts) ----
+  // Phase-1 runtime integration (world-contract doc 17): ONE world, ONE
+  // clock, ONE arbitration. The brain ticks every frame (the D-1 valve);
+  // in roam/scenario it also owns the bound bodies (Rosa, Idris) and keys
+  // the dusk visuals + M4 street plan to the clock. In story mode the
+  // authored choreography keeps every body it ever had — the sim runs
+  // beside, never instead.
+  readonly worldSim: WorldRuntime;
+
   // ---- notes don't stampede (docs/12: the city is patient) ----
   // Two notes arriving together queue instead of replacing: Rosa's quiet
   // line gets its two seconds before the rush-end note lands.
@@ -179,6 +189,7 @@ export class Game {
   private lastTime = performance.now();
   private running = true;
   private autotestStarted = false;
+  private scenarioStarted = false;
 
   constructor(container: HTMLElement) {
     // the places the first session guarantees: the terminal you woke up on,
@@ -288,6 +299,7 @@ export class Game {
       cart: () => this.world.cartRoot.position,
       shelfItem: (id) => this.world.itemMeshes.get(id)?.position ?? NEVER_NEAR,
       walker: (i) => this.world.walkerPos(i), // Phase 4 — live walker positions
+      worldSimBody: (id) => this.worldSim.bodyPos(id) ?? NEVER_NEAR, // sim-driven bodies
     }));
     this.world.addItem('mango', -18, 2.25, 19.2, PAL.amber);
     this.world.addItem('coffee', -16, 2.25, 19.2, PAL.teal);
@@ -305,6 +317,17 @@ export class Game {
       camera: this.cam.camera,
       weaves: this.world.courtWeaves,
     });
+
+    // ---------------- the world runtime (Phase-1 integration) ----------------
+    // One world beside the story (doc 02 D1). The valve reads
+    // ?worldclock=<sim-min per real-sec> (default 60 — one in-game minute
+    // per real second); the world save rides its own storage key. The
+    // hello interactions registered above read live body positions
+    // through the lazy src closure.
+    this.worldSim = new WorldRuntime(this, (() => {
+      const q = Number(new URLSearchParams(location.search).get('worldclock'));
+      return { timeScale: Number.isFinite(q) && q > 0 && q <= 1440 ? q : undefined };
+    })());
 
     // ---------------- boot (main.gd `_ready`) ----------------
     const save = loadSave();
@@ -425,6 +448,15 @@ export class Game {
       this.autotestStarted = true;
       void import('./autotest').then(({ runAutotest }) => runAutotest(this));
     }
+
+    // the runtime-integration scenario (?scenario=schedules) — the Phase-1
+    // playable proof: six demonstrations on the real street, accelerated
+    // time, results streamed to window.__SCENARIO_REPORT__
+    const scenarioParams = new URLSearchParams(location.search);
+    if (scenarioParams.has('scenario') && !this.scenarioStarted) {
+      this.scenarioStarted = true;
+      void import('./scenario').then(({ runScenario }) => runScenario(this, scenarioParams));
+    }
   }
 
   // ------------------------------------------------------------------ frame
@@ -443,6 +475,12 @@ export class Game {
     this.tweens.update(dt);
     // the arrival rides its own clock while active (machine, strip, phases)
     if (this.arrival.active) this.arrival.frame(dt);
+    // the D-1 valve — the sim hears FULL dt (the listen beat's 0.45× is
+    // presentation only; doc 06 §1: the sim hears only ticks). Pauses are
+    // the host's set: the film, a day fade, and held conversations stop
+    // the world's clock politely.
+    this.worldSim.update(dt, this.arrival.active || this.dayFading
+      || !this.ui.nameBox.hidden || !this.ui.orderCard.hidden || !this.ui.starterCard.hidden);
     const inp = this.input.sample();
 
     if (this.arrival.active) {
@@ -965,6 +1003,7 @@ export class Game {
     if (applied.objective === null) this.ui.setObjective(this.state.objectiveText());
     else this.ui.setObjective(applied.objective);
     this.pushNote(applied.note);
+    this.worldSim.onRoamToggle(this.roam.active); // the sim's bodies + clock flips ride roam
     const save = loadSave();
     if (save.day >= 2) {
       const next = { ...save };
@@ -2473,6 +2512,7 @@ export class Game {
     this.resetFamiliar(n);
     this.world.setFlyerText(s.cartName || 'YOUR CORNER'); // the flyer learns your name
     this.toMorningLight();
+    this.worldSim.onStoryDayBegin(n); // the world clock may fast-forward to the story's morning (one-way)
     if (n >= 4) this.placeDay4Cast();
     else if (n === 3) this.placeDay3Cast();
     else this.placeDay2Cast();
@@ -2601,6 +2641,37 @@ export class Game {
   persist(): void {
     const snap = this.state.snapshotForSave();
     if (snap !== null) writeSave(snap);
+    this.worldSim.onStoryPersist(); // the world save rides the same beats
+  }
+
+  /** The world runtime's clock-keyed presentation flips (roam/scenario
+   *  only — story days keep their authored dusk triggers). Both shipped
+   *  paths are idempotent, and the M4 street plan follows the flag. */
+  applySimPhase(dusk: boolean): void {
+    if (dusk) this.startDusk();
+    else if (this.duskStarted) this.toMorningLight();
+  }
+
+  /** The dusk flag, for the scenario/probe harnesses (the sim's D-2 flip
+   *  is proven by the SAME flag the story's dusk law drives). */
+  get worldDuskStarted(): boolean {
+    return this.duskStarted;
+  }
+
+  /** A sim hello (the R6 door's input side, doc 09 §4.3). The lines are
+   *  mechanics prose — one beat of acknowledgement — and belong to the
+   *  Narrative Director to replace with real ones. */
+  worldSimHello(npcId: string): Effect[] {
+    const names: Record<string, string> = {
+      'npc:idris_warsame': 'Mr. Idris',
+      'npc:rosa_delgado': 'Rosa',
+    };
+    const name = names[npcId] ?? 'They';
+    const lines = [
+      `${name} stops to say hello.`,
+      `${name} nods — whatever it was, it can wait a minute.`,
+    ];
+    return this.worldSim.hello(npcId, lines[(Math.max(1, this.state.day) - 1) % lines.length]);
   }
 
   // ------------------------------------------------------------------ misc

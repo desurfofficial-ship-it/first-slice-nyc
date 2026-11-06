@@ -28,11 +28,11 @@
 
 ## Phase 1 — The time valve & the living street (WS-D + WS-B)
 
-1. **D-1:** tick valve in `Game.frame` (dt→ticks, pause rules, the listening beat respected).
-2. **D-2:** day-boundary machine runs the shipped morning rituals from the clock (diary, restock, street schedule) — the M3/M4 patterns re-keyed from story phase to clock day, tests re-pinned.
-3. **B-1:** walkers + cast read clock-keyed schedules; arbitration owns activity ownership (Yuka steers to the claim's destination).
-4. **D-3:** `Effect('money')` posts to the ledger behind the shipped confirm-gates; the E2E's $87→$112 math becomes traceable transactions.
-**Exit:** a roam afternoon where Idris appears at the platform at 07:40 and the deli closes at 22:00 — in-game time, zero story rewiring.
+1. **D-1:** tick valve in `Game.frame` (dt→ticks, pause rules, the listening beat respected). — **Implemented 2026-11-06** (`sim/runtime.ts` `advanceReal` + the `Game.frame` hook; fractional minutes carry, pauses are the host's set, the 0.45× listen beat stays presentation).
+2. **D-2:** day-boundary machine runs the shipped morning rituals from the clock (diary, restock, street schedule) — the M3/M4 patterns re-keyed from story phase to clock day, tests re-pinned. — **Partial 2026-11-06**: the dusk law + M4 street plan key off the clock in roam/scenario mode (`Game.applySimPhase`); story-day mornings (diary, restock) stay story-keyed by design — zero story rewiring, so the roam half is clock-keyed and the story half remains authored.
+3. **B-1:** walkers + cast read clock-keyed schedules; arbitration owns activity ownership (Yuka steers to the claim's destination). — **Implemented 2026-11-06** for the bound cast (`sim/runtime.ts` bindings: Rosa + Idris bodies; Eddie/Kev/Priya resolve-only in state; Deon abstract), arbitration through the one door (R1–R8), player hello = the R6 HIGH claim via the interaction registry. Ambient Yuka walkers keep the M4 shift system (their schedule migration is the next B milestone).
+4. **D-3:** `Effect('money')` posts to the ledger behind the shipped confirm-gates; the E2E's $87→$112 math becomes traceable transactions. — **Open** (deliberately not in the 2026-11-06 pass; the ledger relationship greeting carries no invented prices).
+**Exit (met 2026-11-06):** a roam/scenario day where Idris stands the 07:30 platform and walks to the cart for the usual, the deli opens at 06:00 and closes at 22:00, dusk flips by clock — in-game time, zero story rewiring (E2E 0 failures; `?scenario=schedules` 15/15; suite 744/744).
 
 ## Phase 2 — Places that mean things (WS-A + WS-E)
 

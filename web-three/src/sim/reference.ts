@@ -332,6 +332,7 @@ export const REFERENCE_ALIASES: ReadonlyArray<{ id: string; label: string; tags:
   { id: 'loc:harlem_hospital', label: 'Harlem Hospital (off-map)', tags: ['employment'] },
   { id: 'loc:masjid_an_nur', label: 'Masjid an-Nur (Juniper Ave)', tags: ['institutional', 'civic'] },
   { id: 'loc:the_cart', label: 'The player cart corner (Kestrel)', tags: ['food_service', 'social_gathering'] },
+  { id: 'loc:rosa_rooms', label: "Rosa's rooms over the store (off-map)", tags: ['residential'] },
 ];
 
 export function aliasExists(id: string): boolean {
