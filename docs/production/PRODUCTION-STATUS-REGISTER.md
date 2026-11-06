@@ -17,12 +17,12 @@
 
 | Count | Value |
 |---|---|
-| Phases | 0 (closing) · 1+2 (implemented on branch, verified — unmerged) · 3 (next, planned) · 4–12 (planned) |
+| Phases | 0 (closing) · 1+2 (**MERGED to main, WP-0, 2026-11-06** — gates executed) · 3 (next, planned) · 4–12 (planned) |
 | Systems tracked | 48 — VERIFIED 16 · IMPLEMENTED 5 · INTEGRATED/partial 14 · PLANNED 9 · NOT STARTED 4 |
 | Narrative requirements | R0/R3/R4 done (state only) · R2/R7 next · R1/R5/R6/R8–R15 not started |
 | Open decisions | DEC-2…DEC-11 (**DEC-1 RULED 2026-11-06** — see [PRODUCTION-RISKS-AND-DEPENDENCIES.md](PRODUCTION-RISKS-AND-DEPENDENCIES.md)) |
 | Open defects | B13 (draw calls, owner's call) + hygiene item HYG-1 |
-| Gates | main `96bc4eb`: `tsc` clean · vitest 660/660 (44 files) · build OK · CI **success** · branch `407cc0e`: `tsc` clean · **vitest 744/744 (52 files)** · build OK · **probe-world-sim 15/15 [executed]** · 4-day E2E green [reported; re-run at WP-0] |
+| Gates | main `1bb3152` (WP-0): `tsc` clean · **vitest 801/801 (56 files)** · **probe-world-sim 15/15 [executed]** · **4-day E2E 0 failures [executed, 592 s]** · perf re-baseline recorded (drawCalls 119/184/256) · branch `407cc0e`: 744/744 [re-executed 2026-11-06] |
 
 ---
 
@@ -166,6 +166,7 @@
 |---|---|---|
 | 2026-11-06 | Register v1.0 created from the full repository audit | Production Director |
 | 2026-11-06 | **v1.1 reconciliation** — branch advanced to `407cc0e` (runtime integration verified: gates + probe executed); PH-2/MS-1 → IMPLEMENTED (branch); 4 system rows → INTEGRATED; BR-1/2/5 updated; DEF-3 filed; DEC-1 brief sharpened — [PRODUCTION-RECONCILIATION-REPORT.md](PRODUCTION-RECONCILIATION-REPORT.md) §5 | Production Director |
-| 2026-11-06 | **v1.2 — DEC-1 ruled** (owner-approved Option A): Day 1 = Tuesday, September 9, Y1; the October mood-lock is presentation-only; `CAL_EPOCH` corrected on main; calendar tests re-pinned; branch sim tests re-run green; ruling recorded in docs/narrative/15 §2/§7 — adjudication of record: [DEC-1-CALENDAR-CANON-DECISION.md](DEC-1-CALENDAR-CANON-DECISION.md). WP-0 merged behind the green gate (see change-log sequel row if present) | Narrative Director + owner |
+| 2026-11-06 | **v1.2 — DEC-1 ruled** (owner-approved Option A): Day 1 = Tuesday, September 9, Y1; the October mood-lock is presentation-only; `CAL_EPOCH` corrected on main; calendar tests re-pinned (661/661); ruling recorded in docs/narrative/15 §2/§7 — adjudication of record: [DEC-1-CALENDAR-CANON-DECISION.md](DEC-1-CALENDAR-CANON-DECISION.md) | Narrative Director + owner |
+| 2026-11-06 | **v1.2.1 — WP-0 landed** (owner sequence, behind the green gate): `feat/world-contract-foundation` merged to main at `1bb3152`; the audit's 3 conflicts resolved per DEF-3's verified union; gates executed post-merge — tsc clean · vitest **801/801** (56 files) · probe-world-sim **15/15** · 4-day E2E **0 failures** (592 s, console clean) · perf re-baseline (drawCalls 119/184/256, zero page errors). Branch suite re-run first: 744/744. DEF-3 → RESOLVED; R-NEW-2 (branch drift) → closed by the merge | Narrative Director + owner |
 
 *Update rows in the same commit as the work. Add decisions to the risks doc, defects to §E, systems through a PR that touches both this register and SYSTEM-COMPLETION-CHECKLISTS.md.*

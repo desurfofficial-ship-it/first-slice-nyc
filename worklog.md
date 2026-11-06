@@ -1733,3 +1733,21 @@ Stage Summary:
   the M4 shift system; D-3 (money → ledger behind confirm-gates) is
   deliberately open; the hello lines are mechanics prose for the
   Narrative Director to replace.
+
+---
+
+## 2026-11-06 — Narrative Director: WP-0 landed — the world contract is on main, green end to end at the ruled epoch
+
+Task ID: DEC-1-WP0
+Agent: Lead Narrative Director (Z.ai)
+Task: Owner sequence step 6 — proceed to WP-0 integration only after the calendar correction passed. It passed (see DEC-1-EPOCH-FIX); the merge was executed behind the green gate, with the branch's simulation suite re-run first (owner step 5).
+
+Work Log:
+- **Branch suite re-run (step 5):** worktree at `407cc0e`, clean install — `tsc` clean · **vitest 744/744 (52 files, 7.8 s)**; `sim-clock` verbose re-run 10/10 (the Sept 9 Tuesday canon pins, the 365-day no-leap year walk, the save/load tick law). The architecture branch's simulation tests are green against the ruled epoch's canon.
+- **The merge:** `git merge --no-ff origin/feat/world-contract-foundation` — exactly the audit's three predicted conflicts, resolved per the DEF-3 union: `AGENTS.md` (main's current-truth pointers kept; the branch's World Contract paragraph adopted, now ending with the DEC-1 sentence; the repo tree gains `docs/architecture/`), `worklog.md` (both sides' entries kept), `docs-hygiene.test.ts` (both sides' guards kept: main's AGENTS-pointers case + the branch's dated-banner case — main's README satisfies all three, as DEF-3 verified). `Game.ts` auto-merged; zero calendar-file conflicts (the correction and the branch never touched the same file).
+- **Post-merge gates (all executed):** `tsc --noEmit` clean · **vitest 801/801 (56 files, 8.3 s)** · `probe-world-sim` **15/15 PASS** (1,424 simulated minutes, 67.7 s real, zero page errors) · **4-day E2E: 0 failures, 592 s, console clean** ("the wall holds, honestly"; save holds day 4 complete: $123, map, permit, stool) · perf re-baseline: drawCalls 119 (boot) / 184 (mid-street) / 256 (plaza-life), zero page errors — consistent with the B13 ledger, no regression signature.
+
+Stage Summary:
+- Main now carries the complete Phase 1+2 runtime (the sim kernel, the clock at the canon epoch, schedules, arbitration, the world save) **beside** the untouched shipped story and the narrative bible. The one time authority is real in code: Day 1 = Tuesday, September 9, Year 1, pinned by both `core/calendar.ts` and `sim/clock.ts` tests.
+- Next: WP-2v's remainder (the one epoch-mapping function + pinned test), WP-1v, then Phase 3 per the plan.
+- Gates at close: merge commit 1bb3152; tsc clean; vitest 801/801; probe 15/15; E2E 0 failures; perf re-baseline recorded; no dependencies added beyond the branch's own (playwright browser binary installed locally for the E2E/probes).
