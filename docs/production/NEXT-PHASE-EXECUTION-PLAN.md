@@ -30,9 +30,9 @@
 - **Reporting:** worklog entry naming every inheriting workstream; register rows PH-1 → VERIFIED, PH-2 → INTEGRATED (merged), BR-2/BR-3/BR-5 closed.
 - **Parallelism:** none (everything waits for this).
 
-### WP-1 — The tick valve (D-1) *(WS-D)* — **IMPLEMENTED on branch (`407cc0e`, `sim/runtime.ts`); verified by audit R1 — do NOT rebuild**
-- **Task scope (remainder = WP-1v):** the valve, its fractional carry and the host pause set (arrival film, day fade, held conversations) are live in `Game.frame`. The one verified gap vs this package's original list: the **wardrobe and postcard surfaces are not in the pause set**. Close the gap or justify its absence with a test.
-- **Files owned (WP-1v):** the pause expression in `Game.frame`; `web-three/tests/sim-runtime.test.ts` additions.
+### WP-1 — The tick valve (D-1) *(WS-D)* — **IMPLEMENTED on branch (`407cc0e`, `sim/runtime.ts`); verified by audit R1 — do NOT rebuild. WP-1v CLOSED 2026-11-06 (main `eab767c`+): the pause-set gap is closed**
+- **Task scope (remainder = WP-1v — CLOSED):** the valve, its fractional carry and the host pause set (arrival film, day fade, held conversations) are live in `Game.frame`. The one verified gap vs this package's original list: the **wardrobe and postcard surfaces are not in the pause set** — **closed**: the pause set now lives in `game/pauseSet.ts` (pure, one statement), `Game.frame` feeds it, and wardrobe/postcard are members; the Map is deliberately NOT (pinned by test — the notebook never stops the block).
+- **Files owned (WP-1v):** the pause expression in `Game.frame`; `web-three/tests/sim-runtime.test.ts` additions. *(Landed as: `game/pauseSet.ts` new — the expression itself, one pure statement Game.frame delegates to; `Game.frame` call site; 11 pinned cases in sim-runtime.test.ts incl. the permanent source guard; `scripts/probe-pause-set.mjs` — the browser verification probe.)*
 - **Must NOT modify:** valve internals (`sim/runtime.ts`), `core/GameState.ts`, `world/*`, `sim/clock.ts` internals, `sim/economy.ts`, `core/content.ts`.
 - **Acceptance (WP-1v):** a held wardrobe/postcard beat is never truncated by a tick boundary in test; the deterministic tick counts and zero-allocation loop remain as landed.
 - **Required tests:** valve pause cases; full suite + E2E green.

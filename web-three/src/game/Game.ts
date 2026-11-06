@@ -37,6 +37,7 @@ import { updatePersonAnim, buildStarterSkateboard, type PersonRig } from '../wor
 import { FAMILIAR_SPEED, familiarBeatForDay } from '../world/dressing';
 import { InteractionRegistry, NEVER_NEAR, type InteractionCtx } from './interactions';
 import { buildInteractions, byDay, BUS_BENCH_SEAT, PARK_BENCH_SEAT } from './interactionDefs';
+import { worldPaused } from './pauseSet';
 import { BENCH_SIT_NOTES, PARK_SIT_NOTES, FREE_WASH_NOTES } from '../core/content';
 import { gameAudio } from './audio';
 import { ArrivalCinematic } from './arrival';
@@ -498,10 +499,20 @@ export class Game {
     if (this.arrival.active) this.arrival.frame(dt);
     // the D-1 valve — the sim hears FULL dt (the listen beat's 0.45× is
     // presentation only; doc 06 §1: the sim hears only ticks). Pauses are
-    // the host's set: the film, a day fade, and held conversations stop
-    // the world's clock politely.
-    this.worldSim.update(dt, this.arrival.active || this.dayFading
-      || !this.ui.nameBox.hidden || !this.ui.orderCard.hidden || !this.ui.starterCard.hidden);
+    // the host's set, written once in game/pauseSet.ts (WP-1v): the film,
+    // a day fade, held UI (name/order/starter), and — closed by WP-1v —
+    // the wardrobe fitting room and a held postcard stop the clock
+    // politely. The Map deliberately does NOT pause the world (the
+    // notebook is always available; the city keeps breathing).
+    this.worldSim.update(dt, worldPaused({
+      arrivalActive: this.arrival.active,
+      dayFading: this.dayFading,
+      nameBoxOpen: !this.ui.nameBox.hidden,
+      orderCardOpen: !this.ui.orderCard.hidden,
+      starterCardOpen: !this.ui.starterCard.hidden,
+      wardrobeOpen: this.wardrobe.isOpen,
+      postcardOpen: !this.ui.postcardPanel.hidden,
+    }));
     const inp = this.input.sample();
 
     if (this.arrival.active) {

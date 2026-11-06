@@ -12,6 +12,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { loadRegistry } from '../src/sim/registry';
 import { WorldSimBrain, bootWorldBrain, buildReferencePlaceResolver, runtimeSchedules,
   BOUND_NPCS, DEFAULT_TIMESCALE, RUNTIME_START_MINUTE,
@@ -19,6 +22,9 @@ import { WorldSimBrain, bootWorldBrain, buildReferencePlaceResolver, runtimeSche
   type WorldSimBrain as TBrain,
 } from '../src/sim/runtime';
 import { WORLD_SAVE_KEY, snapshotWorld, parseWorldSave, auditWorld } from '../src/sim/state';
+import { worldPaused } from '../src/game/pauseSet';
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const registry = loadRegistry();
 const resolve = buildReferencePlaceResolver(registry);
@@ -414,5 +420,199 @@ describe('integrity — the world stays audit-clean through a full run', () => {
     brain.advanceMinutes(3 * 1440);
     const ms = performance.now() - t0;
     expect(ms).toBeLessThan(1000);
+  });
+});
+
+// ------------------------------------------- WP-1v: the host pause set ----
+
+/**
+ * WP-1v — the wardrobe/postcard pause-set correction (the plan's WP-1
+ * remainder). The host's pause set lives in game/pauseSet.ts; Game.frame
+ * feeds its verdict to the valve. These tests drive the valve EXACTLY the
+ * way the host does — `if (!worldPaused(host)) brain.advanceReal(dt)` —
+ * and assert exact tick counts and in-game minutes, never just a flag.
+ *
+ * Frame math: dt = 1/64 s at the default pace (60 sim-sec per real-sec)
+ * is 1/64 sim-minute — exact in binary floating point, so 64 paused...
+ * rather, 64 PLAYED frames are exactly one in-game minute. Determinism
+ * is the point; no float drift is tolerated in an exact-count test.
+ */
+describe('WP-1v — the host pause set (wardrobe and postcard stop the clock)', () => {
+  const DT = 1 / 64;                    // exact in binary; 64 frames = 1 sim-minute
+  const MIN = 64;                       // frames per in-game minute
+
+  /** The host loop, exactly as Game.frame runs it. */
+  function hostFrame(brain: TBrain, host: Parameters<typeof worldPaused>[0]): void {
+    if (!worldPaused(host)) brain.advanceReal(DT);
+  }
+  const openHost = (over: Partial<Parameters<typeof worldPaused>[0]> = {}) => ({
+    arrivalActive: false, dayFading: false, nameBoxOpen: false, orderCardOpen: false,
+    starterCardOpen: false, wardrobeOpen: false, postcardOpen: false, ...over,
+  });
+
+  it('1. gameplay advances the clock normally — 2 exact minutes over 128 frames', () => {
+    const brain = freshBrain();
+    const before = brain.clock.tick;
+    for (let f = 0; f < 2 * MIN; f++) hostFrame(brain, openHost());
+    expect(brain.clock.tick).toBe(before + 2);
+    expect(brain.clock.minuteOfDay).toBe(RUNTIME_START_MINUTE + 2);
+  });
+
+  it('2. the wardrobe open, held, and interacted-with freezes the clock — zero ticks across a minute boundary', () => {
+    const brain = freshBrain();
+    // earn 63/64 minutes (one frame short of a tick), then open the fitting room
+    for (let f = 0; f < MIN - 1; f++) hostFrame(brain, openHost());
+    const held = brain.clock.tick;
+    expect(brain.clock.tick).toBe(held); // sanity: no tick yet
+    // the fitting is held — opening, trying tiles, reading the mirror: the
+    // host state is `wardrobeOpen` for every frame of it
+    for (let f = 0; f < 4 * MIN; f++) hostFrame(brain, openHost({ wardrobeOpen: true }));
+    expect(brain.clock.tick).toBe(held); // the whole-minute line crossed NOTHING
+    expect(brain.clock.minuteOfDay).toBe(RUNTIME_START_MINUTE);
+  });
+
+  it('3. a held postcard (day-end, D2–D4, or the Wow moment) freezes the clock', () => {
+    const brain = freshBrain();
+    for (let f = 0; f < MIN - 1; f++) hostFrame(brain, openHost());
+    const held = brain.clock.tick;
+    for (let f = 0; f < 4 * MIN; f++) hostFrame(brain, openHost({ postcardOpen: true }));
+    expect(brain.clock.tick).toBe(held);
+    // dusk falling MID-VIEW was the defect; it cannot now
+    expect(brain.clock.phase).toBe('morning');
+  });
+
+  it('4. closing an overlay resumes time from exactly where it stopped', () => {
+    const brain = freshBrain();
+    for (let f = 0; f < MIN - 1; f++) hostFrame(brain, openHost());
+    const held = brain.clock.tick;
+    for (let f = 0; f < MIN; f++) hostFrame(brain, openHost({ wardrobeOpen: true }));
+    for (let f = 0; f < MIN; f++) hostFrame(brain, openHost({ postcardOpen: true }));
+    expect(brain.clock.tick).toBe(held); // two held beats, nothing moved
+    for (let f = 0; f < MIN; f++) hostFrame(brain, openHost()); // closed
+    expect(brain.clock.tick).toBe(held + 1); // the earned minute completes — exactly one tick
+  });
+
+  it('5. no time is accidentally accumulated and released after unpausing', () => {
+    const brain = freshBrain();
+    for (let f = 0; f < MIN / 2; f++) hostFrame(brain, openHost()); // earn exactly 0.5 min
+    const afterEarn = brain.clock.tick;
+    for (let f = 0; f < 32 * MIN; f++) hostFrame(brain, openHost({ wardrobeOpen: true })); // hold 32 min
+    for (let f = 0; f < MIN / 2; f++) hostFrame(brain, openHost()); // earn the other 0.5
+    // the held frames contributed ZERO; the two earned halves complete ONE tick
+    expect(brain.clock.tick).toBe(afterEarn + 1);
+    for (let f = 0; f < 8 * MIN; f++) hostFrame(brain, openHost()); // keep playing
+    expect(brain.clock.tick).toBe(afterEarn + 1 + 8); // no delayed burst, ever
+  });
+
+  it('6. rapid open/close sequences create no extra ticks — earned frames alone decide', () => {
+    const interrupted = freshBrain();
+    const clean = freshBrain();
+    const straight = freshBrain();
+    // the interrupted run plays TWO earning frames per cycle and squeezes
+    // a wardrobe-open and a postcard-open frame around them; `clean` plays
+    // all four; `straight` plays 80 consecutive frames — exactly what the
+    // interrupted run actually earned
+    for (let cycle = 0; cycle < 40; cycle++) {
+      hostFrame(interrupted, openHost({ wardrobeOpen: true }));
+      hostFrame(interrupted, openHost()); // earns
+      hostFrame(interrupted, openHost()); // earns
+      hostFrame(interrupted, openHost({ postcardOpen: true }));
+      hostFrame(clean, openHost());
+      hostFrame(clean, openHost());
+      hostFrame(clean, openHost());
+      hostFrame(clean, openHost());
+    }
+    for (let f = 0; f < 80; f++) hostFrame(straight, openHost());
+    // the LAW: toggles never manufacture a tick — the interrupted run
+    // reads exactly like 80 honest frames (80/64 min = 1 tick), and never
+    // more than the uninterrupted play of the same wall time
+    expect(interrupted.clock.tick).toBe(straight.clock.tick);
+    expect(interrupted.clock.tick).toBeLessThanOrEqual(clean.clock.tick);
+    for (let f = 0; f < 8 * MIN; f++) {
+      hostFrame(interrupted, openHost());
+      hostFrame(clean, openHost());
+      hostFrame(straight, openHost());
+    }
+    expect(interrupted.clock.tick).toBe(straight.clock.tick);
+    expect(interrupted.clock.minuteOfDay).toBe(straight.clock.minuteOfDay);
+  });
+
+  it('7. the existing story pauses all remain members — each alone stops the clock', () => {
+    const states: Array<[string, Partial<Parameters<typeof worldPaused>[0]>]> = [
+      ['arrival film', { arrivalActive: true }],
+      ['day fade', { dayFading: true }],
+      ['name box', { nameBoxOpen: true }],
+      ['order card', { orderCardOpen: true }],
+      ['starter card', { starterCardOpen: true }],
+    ];
+    for (const [name, over] of states) {
+      const brain = freshBrain();
+      const before = brain.clock.tick;
+      for (let f = 0; f < 2 * MIN; f++) hostFrame(brain, openHost(over));
+      expect(brain.clock.tick, name).toBe(before);
+    }
+  });
+
+  it('7b. the Map is NOT in the pause set — the notebook never stops the block', () => {
+    // the host shape has no map field, BY DESIGN (pauseSet.ts): an
+    // all-clear host advances even while (in the real Game) the map is
+    // open — the world keeps breathing while you read the notebook.
+    expect(worldPaused(openHost())).toBe(false);
+    const brain = freshBrain();
+    const before = brain.clock.tick;
+    for (let f = 0; f < MIN; f++) hostFrame(brain, openHost());
+    expect(brain.clock.tick).toBe(before + 1);
+  });
+
+  it('8. paused frames never move NPC schedules or arbitration; life resumes honestly', () => {
+    const brain = freshBrain({ minute: 7 * 60 + 30 }); // Idris on the platform
+    brain.advanceTick();
+    const claimBefore = brain.records.get(IDRIS)?.current?.activityId;
+    expect(claimBefore).toBe('se-idris-platform');
+    for (let f = 0; f < 4 * MIN; f++) hostFrame(brain, openHost({ wardrobeOpen: true }));
+    expect(brain.records.get(IDRIS)?.current?.activityId).toBe(claimBefore); // frozen with the clock
+    expect(brain.clock.tick).toBe(7 * 60 + 31); // boot 07:30 + the settling tick — held there exactly
+    // a held hello survives a pause untouched, and release still works
+    // (08:30 — mid-usual, where the R6 hello genuinely interrupts: the
+    // 07:31 platform claim is authored HIGH, and a HIGH hello queues
+    // behind it by R1 — correct arbitration, exercised in its own tests)
+    const brain2 = freshBrain({ minute: 8 * 60 + 30 });
+    brain2.advanceTick();
+    brain2.playerDialogue(IDRIS);
+    expect(brain2.inDialogueWith(IDRIS)).toBe(true);
+    for (let f = 0; f < 2 * MIN; f++) hostFrame(brain2, openHost({ postcardOpen: true }));
+    expect(brain2.inDialogueWith(IDRIS)).toBe(true); // frozen with the clock
+    expect(brain2.clock.tick).toBe(8 * 60 + 31); // and held there
+    brain2.releasePlayerDialogue(IDRIS);
+    expect(brain2.inDialogueWith(IDRIS)).toBe(false);
+    // resumed time moves the schedule answer exactly as unpaused time would
+    for (let f = 0; f < 4 * MIN; f++) hostFrame(brain, openHost());
+    expect(brain.records.get(IDRIS)?.current?.activityId).toBe('se-idris-platform'); // window runs to 07:51
+  });
+
+  it('9. save/load is stable with a held overlay — the world resumes at the saved tick', () => {
+    const brain = freshBrain({ minute: 8 * 60 });
+    for (let f = 0; f < 2 * MIN; f++) hostFrame(brain, openHost()); // 2 honest minutes
+    for (let f = 0; f < MIN; f++) hostFrame(brain, openHost({ wardrobeOpen: true })); // a held fitting
+    const doc = JSON.stringify(snapshotWorld(brain.world));
+    const restored = parseWorldSave(doc);
+    expect(restored.source).toBe('restored');
+    expect(restored.world.clock.equals(brain.clock)).toBe(true);
+    const brain2 = new WorldSimBrain({
+      world: restored.world, schedules: runtimeSchedules(), resolve, bound: BOUND_NPCS,
+    });
+    for (let f = 0; f < MIN; f++) hostFrame(brain2, openHost()); // play on
+    expect(brain2.clock.tick).toBe(brain.clock.tick + 1); // continuity, no invented minute
+  });
+
+  it('the wiring is permanent: Game.frame feeds worldPaused and names wardrobe + postcard (source guard)', () => {
+    const game = readFileSync(join(repoRoot, 'web-three', 'src', 'game', 'Game.ts'), 'utf8');
+    expect(game).toContain('worldPaused({');
+    expect(game).toContain('wardrobeOpen: this.wardrobe.isOpen');
+    expect(game).toContain('postcardOpen: !this.ui.postcardPanel.hidden');
+    // the map must stay OUT of the set — the pause host has no map field
+    const pause = readFileSync(join(repoRoot, 'web-three', 'src', 'game', 'pauseSet.ts'), 'utf8');
+    expect(pause).not.toMatch(/mapOpen/);
+    expect(pause).not.toMatch(/new\s+Date|Date\.now|performance\.now/);
   });
 });
