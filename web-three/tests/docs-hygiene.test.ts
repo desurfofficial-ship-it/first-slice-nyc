@@ -13,8 +13,15 @@ import { fileURLToPath } from 'node:url';
 // budget re-doing finished work or "scaffolding" over shipped systems.
 // Prose can't be fully tested, but the load-bearing lines can: the phase
 // line must name the real phase, the manual must point at the live bug
-// ledger, and the Phase-0 history docs must carry their dated banners so
-// their stale bodies are read as history, not as current truth.
+// ledger, and the narrative bible — the live canon since the 2026-11
+// narrative reboot cleared the legacy docs — must exist where every
+// reader is told it lives.
+//
+// R0 (docs/narrative/14, PRIORITY-0): cases 3 and 4 read docs that the
+// reboot removed (09/18/57). Re-pointed at the surviving truth: the
+// narrative bible's README (existence + dated status) and the manual's
+// own engineering-reference law (the study-before-build rule now lives
+// in AGENTS.md §1e; the findings ledger is being rebuilt by the workstreams).
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -41,25 +48,25 @@ describe('docs hygiene — the operating manual states the real phase (docs/51 B
     expect(agents).toContain('50-agent2-first-session-world.md');
   });
 
-  it('the Phase-0 history docs carry their dated status-update banner', () => {
-    for (const doc of ['docs/09-phase0-checklist.md', 'docs/18-phase0-exit-summary.md']) {
-      const text = read(doc);
-      expect(text, `${doc} must be bannered as history`).toMatch(
-        /Status update \(2026-11-03\)/,
-      );
-      expect(text, `${doc} must point at the live ledger`).toContain(
-        '51-open-bugs-for-agents.md',
-      );
-    }
+  it('the narrative bible exists and carries its dated canon banner (R0 re-point)', () => {
+    const readme = read('docs/narrative/00-README.md');
+    // the bible is the live story canon — it must say so, with a date
+    expect(readme).toMatch(/Narrative Bible/);
+    expect(readme, 'the bible must carry its baseline date').toMatch(/Baseline v\d+\.\d+, 2026-\d\d-\d\d/);
+    expect(readme, 'the bible must name its owner').toMatch(/Lead Narrative Director/);
+    // …and point builders at the world registry (the geometry truth)
+    expect(readme).toContain('docs/data/world-registry.json');
   });
 
-  it('the manual carries the engineering-reference law (docs/57, 2026-11-05 directive)', () => {
+  it('the manual carries the engineering-reference law (AGENTS.md §1e, study before building)', () => {
     const agents = read('AGENTS.md');
     // The two permanent references must stay named on the manual: an agent
     // that never hears of them reinvents systems a reference already solved.
     expect(agents).toContain('gen-city-auto');
     expect(agents).toContain('slop-newyork');
-    // …and the ledger must exist where the rule says findings are recorded.
-    expect(read('docs/57-engineering-references.md')).toContain('study before building');
+    // …and the law itself stays stated where the deleted ledger doc used
+    // to repeat it: the manual's own §1e is now the single home (one
+    // paved path — the reboot cleared the duplicate).
+    expect(agents).toMatch(/study before building/);
   });
 });
