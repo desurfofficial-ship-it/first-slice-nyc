@@ -1862,3 +1862,32 @@ Stage Summary:
 - Gates at close (ALL executed on this branch): tsc clean · **vitest 873/873 (60 files, +33)** · build OK · **probe-world-sim 15/15** (76.9 s — the shipped proof green on the routed runtime, R6 hello interruption included) · **probe-nav 9/9** (46.7 s, console clean) · **probe-pause-set 11/11** · **4-day E2E 0 failures** (545 s, console clean; save holds day 4 complete: $123, map, permit, stool) · registry mjs OK (129 IDs, fidelity 12/12 + 18/18) · perf re-baseline **119/184/256 drawCalls, zero drift**.
 - Honest scope notes: A-3 (registry geometry flip, DEC-4) NOT started — the nav layer reads the registry READ-side only; E-1 content catalogue not started; chokepoint capacity claims not started (the resourceRef wiring is in); ambient-walker migration is WP-3v's booked file (peds.ts untouched here); the door/access model supports player-facing doors but no new player door UI was invented (none ships today).
 - Branch `feat/phase-3-navigation-building-access` — commits kept clear (foundation / access / integration+tests+perf / docs). Not pushed, not merged: awaiting the owner's workflow authorization per governance.
+
+## 2026-11-06 — Phase 3 INTEGRATED to main + the integration review (register v1.6.0)
+
+- **Recon:** origin/main had moved to `62a6244` (WP-2v + WP-1v merged, docs); the Phase 3 branch
+  `feat/phase-3-navigation-building-access` @ `12eed7a` is a clean fast-forward on it (merge-base =
+  `62a6244`), `follower.ts` present in the tree, all six reported commits verified one by one.
+- **Source review (every nav module + the runtime seam, not the report):** graph laws, builder
+  determinism, door/access model, follower seam math, save/load, perf discipline — sound. Two genuine
+  defects found and fixed (`ad81c3b`):
+  1. **A* suboptimal** — the no-repush improvement (update g/cameFrom, never reorder an open node)
+     was fuzz-proven suboptimal on the shipped graph's own cost class (length × multiplier ≥ length):
+     65/4800 queries up to 5.4% long vs a Dijkstra reference. Fixed with the lazy-deletion law
+     (every strict improvement pushes; the sorted open list pops the freshest first; stale siblings
+     skip on the closed check). Same fuzz after the fix: 0 mismatches, 0 nondeterminism. Pinned by a
+     seeded Dijkstra-oracle test.
+  2. **Clock-blind caches** — route caches keyed on coordinates only, but hour-gated doors (ROS-01:
+     06–14, 17–22) change traversability as the clock advances with NO setDoorState call. Routes now
+     key on `availabilityKey(minute)` (which doors are traversable right now); `worldRuntime.navEpoch`
+     folds the minute-driven `availabilityGen`, so a walk crossing an hour boundary re-derives exactly
+     once. Latent today; exactly the trap WP-3v/WP-4 customers would spring.
+- **Merge:** local main fast-forwarded `7995e6e`→`62a6244`, then `git merge --no-ff` → `b1df252`.
+  Zero conflicts. No force-push, no history rewrite. **NOT PUSHED — awaiting owner authorization.**
+- **Post-merge gates on the integrated tree (all executed):** tsc clean · vitest 876/876 (60 files,
+  +3 pins) · build OK · probe-nav 9/9 (47.9 s) · probe-world-sim 15/15 (78.6 s) · probe-pause-set
+  11/11 · 4-day E2E 0 failures (555 s, console clean) · perf-nav: build 18.9 ms once, A* 866 µs
+  uncached / 7.8 µs cached, nearest 2.3 µs, follower 0.155 µs, 50 followers 4.0 µs/frame (0.03% of
+  the 16 ms budget) · drawCalls 119/184/256 — zero drift.
+- **Environment note:** the sandbox Playwright Chromium was missing; `npx playwright install chromium`
+  repaired it. The probe failures before that were environment failures, not product failures.
