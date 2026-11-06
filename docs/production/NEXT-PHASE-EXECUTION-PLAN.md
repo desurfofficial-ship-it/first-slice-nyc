@@ -40,7 +40,7 @@
 - **Reporting:** worklog + register (SYS-ECO-09) + PR with gate output.
 
 ### WP-2 — DEC-1 ruling & the epoch mapping (D-2 remainder) *(WS-D + Narrative Director + OWNER)* — **re-scoped by R1: the roam half of D-2 (dusk law + M4 street plan on the clock) ships on the branch; story-day mornings stay story-keyed by design (wc-17)**
-- **Task scope:** rule DEC-1 first — **the owner's gate; the default (sim clock = world truth at the Sept-9 epoch; the story calendar becomes a derived view; C0's October mood-lock survives as presentation) is briefed in PRODUCTION-RECONCILIATION-REPORT.md §4 and is NOT applied**. Then: one mapping function + pinned test reconciling story day ↔ sim day ↔ displayed date (the 1:1 day-counter alignment already lives in `WorldRuntime.onStoryDayBegin`); make the displayed date consistent across the field diary/HUD under the ruled epoch; document the pre-merge saves' date re-rendering (no silent data loss).
+- **Task scope:** ~~rule DEC-1 first — **the owner's gate**~~ **RULED 2026-11-06 (owner-approved Option A: Day 1 = Tuesday, Sept 9, Y1; ruling in docs/narrative/15 §2/§7; adjudication in DEC-1-CALENDAR-CANON-DECISION.md; `CAL_EPOCH` corrected on main).** Remaining: one mapping function + pinned test reconciling story day ↔ sim day ↔ displayed date (the 1:1 day-counter alignment already lives in `WorldRuntime.onStoryDayBegin`); make the displayed date consistent across the field diary/HUD under the ruled epoch; document the pre-merge saves' date re-rendering (no silent data loss).
 - **Files owned:** `web-three/src/sim/epochMap.ts` (new, the one mapping), `web-three/tests/sim-epoch-map.test.ts` (new); `docs/narrative/15-continuity-and-canon-register.md` (the ruling §2 entry, by the Narrative Director); `web-three/src/core/calendar.ts` epoch **only per the ruling**.
 - **Must NOT modify:** `core/Save.ts` schema, `world/dressing.ts` (consume its tables), narrative content beyond the ruling entry in doc 15.
 - **Required references:** docs/narrative/12 §1/§5 (both epochs' canon sources), wc-06, `core/calendar.ts` + tests (the mood-lock byte-for-byte law), `core/diary.ts` (the morning-note pattern).
@@ -80,7 +80,7 @@
 - **Reporting:** worklog + register (R2/R7 rows) + PR.
 
 ### WP-6 — The diary and the date become visible *(WS-C + WS-E)*
-- **Task scope:** the field-diary ink layer on the Map (font atlas + wobble RECALL style — two draw calls of UI per narrative/14 §4) and the calendar date on the HUD/Map ("October 14 · Year 1" via `formatGameDate`). Touch law and paper-surface law respected; dyslexia-friendly toggle may follow in Phase 5 but entries must be readable at this milestone.
+- **Task scope:** the field-diary ink layer on the Map (font atlas + wobble RECALL style — two draw calls of UI per narrative/14 §4) and the calendar date on the HUD/Map ("September 14 · Year 1" via `formatGameDate` — the ruled Sept 9 epoch, DEC-1 2026-11-06). Touch law and paper-surface law respected; dyslexia-friendly toggle may follow in Phase 5 but entries must be readable at this milestone.
 - **Files owned:** `web-three/src/ui/diary.ts` (new), `web-three/src/ui/sketch.ts` (extensions), `web-three/src/style.css` (additions), tests (new).
 - **Must NOT modify:** `core/fieldDiary.ts` (consume only), `ui/UI.ts` structure beyond wired entry points, any sim layer.
 - **Required references:** docs/narrative/03 (schema + strike styles), docs/narrative/14 §4, AGENTS.md §2 (voice), `ui/touchLaw.ts` + test.

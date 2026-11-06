@@ -20,7 +20,7 @@
 | Phases | 0 (closing) · 1+2 (implemented on branch, verified — unmerged) · 3 (next, planned) · 4–12 (planned) |
 | Systems tracked | 48 — VERIFIED 16 · IMPLEMENTED 5 · INTEGRATED/partial 14 · PLANNED 9 · NOT STARTED 4 |
 | Narrative requirements | R0/R3/R4 done (state only) · R2/R7 next · R1/R5/R6/R8–R15 not started |
-| Open decisions | DEC-1…DEC-11 (see [PRODUCTION-RISKS-AND-DEPENDENCIES.md](PRODUCTION-RISKS-AND-DEPENDENCIES.md)) |
+| Open decisions | DEC-2…DEC-11 (**DEC-1 RULED 2026-11-06** — see [PRODUCTION-RISKS-AND-DEPENDENCIES.md](PRODUCTION-RISKS-AND-DEPENDENCIES.md)) |
 | Open defects | B13 (draw calls, owner's call) + hygiene item HYG-1 |
 | Gates | main `96bc4eb`: `tsc` clean · vitest 660/660 (44 files) · build OK · CI **success** · branch `407cc0e`: `tsc` clean · **vitest 744/744 (52 files)** · build OK · **probe-world-sim 15/15 [executed]** · 4-day E2E green [reported; re-run at WP-0] |
 
@@ -106,7 +106,7 @@
 | SYS-ECO-06 | Transportation | 2 | WS-B | VERIFIED; clock-keying PLANNED | PH-2 | P1 | subway/bus suites |
 | SYS-ECO-07 | Neighborhood identity | — | WS-C | VERIFIED (canon + dressing) | — | P2 | naming registry |
 | SYS-ECO-08 | Persistent neighborhood change | 2/6 | WS-D | PARTIAL | PH-2/6 | P1 | dressing.ts day-keyed |
-| SYS-ECO-09 | In-game time progression | 2 | WS-D + ND | PARTIAL — **DEC-1 unresolved (owner)** | DEC-1 | P0 | valve live on branch; epochs confirmed: `CAL_EPOCH` Oct 1 (mood-lock) vs `EPOCH` Sept 9 Tue (timeline); day counters aligned 1:1 by `onStoryDayBegin`; defect latent (sim dates not yet player-visible) |
+| SYS-ECO-09 | In-game time progression | 2 | WS-D + ND | **DEC-1 RULED (2026-11-06, owner): Day 1 = Tuesday, Sept 9, Y1** — `CAL_EPOCH` corrected on main; branch `EPOCH` canon-true; mood-lock = presentation. Remaining: the one epoch mapping + pinned test (WP-2v) | DEC-1 (closed) | P0 | valve live on branch; epochs reconciled per `docs/production/DEC-1-CALENDAR-CANON-DECISION.md`; day counters aligned 1:1 by `onStoryDayBegin`; defect was latent (sim dates not yet player-visible) |
 | SYS-NAR-01 | Protagonist & character systems | 5 | WS-C | VERIFIED (identity); R11 PLANNED | PH-2 | P0 | wardrobe/lock law guards |
 | SYS-NAR-02 | Diary-map | 2 | WS-C | PARTIAL | PH-2 WP-6 | P0 | map-notebook guards; ink UI missing |
 | SYS-NAR-03 | Character arcs | 4/7 | WS-C | PLANNED | R5 | P1 | canon complete |
@@ -137,7 +137,7 @@
 | R1 | Rails engine | NOT STARTED | WS-C | after R2/R7 (§7 step 3) |
 | R2 | Consequence ledger | PLANNED (next) | WS-C | Phase 2 WP-5, parallel with the valve |
 | R3 | Field diary | VERIFIED (state only) | WS-C | `core/fieldDiary.ts` + 22 tests; UI = WP-6 |
-| R4 | Time model (calendar) | VERIFIED (state only) | WS-D/ND | `core/calendar.ts` + 16 tests; **epoch conflict = DEC-1** |
+| R4 | Time model (calendar) | VERIFIED (state only) | WS-D/ND | `core/calendar.ts` + tests re-pinned to the ruled epoch (Sept 9, Y1 — DEC-1, 2026-11-06) |
 | R5 | Independence simulation | NOT STARTED | WS-B/C | Phase 4 |
 | R6 | Missable-event scheduler | NOT STARTED | WS-C | Phase 6 |
 | R7 | Choice nodes | PLANNED (next) | WS-C | Phase 2 WP-5 with R2 |
@@ -166,5 +166,6 @@
 |---|---|---|
 | 2026-11-06 | Register v1.0 created from the full repository audit | Production Director |
 | 2026-11-06 | **v1.1 reconciliation** — branch advanced to `407cc0e` (runtime integration verified: gates + probe executed); PH-2/MS-1 → IMPLEMENTED (branch); 4 system rows → INTEGRATED; BR-1/2/5 updated; DEF-3 filed; DEC-1 brief sharpened — [PRODUCTION-RECONCILIATION-REPORT.md](PRODUCTION-RECONCILIATION-REPORT.md) §5 | Production Director |
+| 2026-11-06 | **v1.2 — DEC-1 ruled** (owner-approved Option A): Day 1 = Tuesday, September 9, Y1; the October mood-lock is presentation-only; `CAL_EPOCH` corrected on main; calendar tests re-pinned; branch sim tests re-run green; ruling recorded in docs/narrative/15 §2/§7 — adjudication of record: [DEC-1-CALENDAR-CANON-DECISION.md](DEC-1-CALENDAR-CANON-DECISION.md). WP-0 merged behind the green gate (see change-log sequel row if present) | Narrative Director + owner |
 
 *Update rows in the same commit as the work. Add decisions to the risks doc, defects to §E, systems through a PR that touches both this register and SYSTEM-COMPLETION-CHECKLISTS.md.*

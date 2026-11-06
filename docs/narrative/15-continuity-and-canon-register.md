@@ -35,6 +35,7 @@
 | Doris's death | On-screen as aftermath (the chair, the ledger, the funeral), never as a death scene | Restraint; the City-Moves Law's heaviest demonstration |
 | docs/data/*.json | **Kept** during the docs clear | Live build data consumed by tests and the construction law; not narrative documents |
 | The railing (F7) | Never explained, never depicted as intent, one therapy line only | Clinical credibility; duty of care; the ambiguity is the honesty |
+| **DEC-1 — the in-game calendar epoch** (owner-approved, 2026-11-06) | **Day 1 = Tuesday, September 9, Y1 — the arrival (doc 12 §1).** "October, golden hour, forever" (doc 12 §5) is **presentation-only**: an art lock on the shipped arrival chapter, never a calendar date. Weekdays and weekend gating derive from the Tuesday anchor; the first post-cut Monday is **Sept 22, Y1 (story day 14)**, inside the compressed C1 interstitial (doc 06 §C1). Years are 365 days, February fixed 28 (doc 12 is silent on leap time; the deterministic rule stands). `core/calendar.ts` `CAL_EPOCH` corrected to Sept 9; `sim/clock.ts` was already canon-true. | Seven canon documents state the Sept 9 arrival (docs 06, 11, 12 §1/§2, 02, 04, 05 §4, 15 §1); zero canon passages state Oct 1 as a date; an Oct 1 epoch renders the arrival at day −21 and breaks the Tuesday anchor. Full adjudication of record: `docs/production/DEC-1-CALENDAR-CANON-DECISION.md` |
 
 ## 3. Unresolved questions (honest flags — none block implementation)
 
@@ -78,6 +79,8 @@
 3. The Lead Narrative Director rules in the register (dated entry below); urgent gameplay-blocking questions get a provisional ruling marked `provisional` and are confirmed or reversed within one milestone.
 4. Nothing in this protocol lets any agent silently invent fundamental story decisions (the brief's standing rule).
 
-**Dated rulings appended here:** *(none yet — v1.0 baseline)*
+**Dated rulings appended here:**
+
+- **2026-11-06 — DEC-1 (the calendar epoch).** Owner-approved, Option A: **Day 1 = Tuesday, September 9, Y1** (doc 12 §1). The October mood-lock (doc 12 §5) is presentation-only — an art lock on the shipped arrival chapter, never a calendar date; from C1 seasons advance with the calendar exactly as §5 states. Weekdays/weekends derive from the Tuesday arrival; the first post-cut Monday is Sept 22, Y1 (story day 14), inside the compressed interstitial (doc 06 §C1) — pinning doc 11 §7's "Then Monday, 6 a.m." without rewriting any story document. Adjudication: `docs/production/DEC-1-CALENDAR-CANON-DECISION.md`. Implementation: `CAL_EPOCH` correction + re-pinned tests + the one epoch mapping (WP-2v).
 
 — Lead Narrative Director, 2026-11-06

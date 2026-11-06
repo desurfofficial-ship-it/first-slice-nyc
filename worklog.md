@@ -1547,3 +1547,19 @@ Work Log:
 Stage Summary:
 - Verdict: **B — CONDITIONALLY READY.** Both production Phases 1–2 exist on the branch with executed proof and the story is untouched; three conditions gate the next assignment wave: the owner rules DEC-1; WP-0 lands (DEF-3 union, E2E re-run, post-merge perf re-baseline); Phase-2 remainders close (D-3, WP-1v, MS-1 closeout). Then production-Phase-3 (A-1 registry-seeded nav graph — the seed schema already exists in the registry — A-2 doors/stairs, A-3 registry flip) builds ON TOP of the verified runtime.
 - Gates at close: docs-only change; zero source files modified; no dependencies added; main 660/660 and branch 744/744 both recorded in the register.
+
+---
+
+## 2026-11-06 — Narrative Director: DEC-1 ruled (owner-approved Option A) — the calendar epoch is September 9, Year 1, and the records now say so
+
+Task ID: DEC-1-RULE
+Agent: Lead Narrative Director (Z.ai)
+Task: Execute the owner's approved sequence for DEC-1: record the ruling in the canon register and the production decision records, correct `core/calendar.ts` to the September 9 epoch, re-pin the calendar tests, re-run the architecture branch's simulation tests, then proceed to WP-0 only behind the green gate. The adjudication itself is `docs/production/DEC-1-CALENDAR-CANON-DECISION.md` (pushed as fe07719).
+
+Work Log:
+- **Ruling recorded (this commit):** docs/narrative/15 §2 (DEC-1 row in Resolved decisions) + §7 (dated ruling entry) — **Day 1 = Tuesday, September 9, Y1**; the October mood-lock is presentation-only (doc 12 §5's own scoping); weekdays/weekends derive from the Tuesday anchor; the first post-cut Monday is Sept 22, Y1 (story day 14, inside the compressed C1 interstitial); years are 365 days, February fixed 28 (canon-silent on leap; deterministic rule stands). Production records updated: register v1.2 (SYS-ECO-09, R4, open-decisions header, change log — v1.1 row preserved), risks doc (DEC-1 → RULED; R-NEW-1 residual narrowed to the untested mapping), execution plan (WP-2v scope marked ruled; WP-6 example dateline corrected to "September 14 · Year 1").
+- Correction, verification, branch-test re-run, and WP-0 integration follow in the sequenced commits of this same assignment; results logged in the entries below.
+
+Stage Summary:
+- The one time authority is now canon: **Day 1 = Tuesday, September 9, Year 1 — the arrival.** Seven canon documents said so; zero said October 1; the calendar now agrees with the story.
+- Gates at this commit: docs-only change (canon register + production records + worklog); no source files modified yet; no dependencies added.
