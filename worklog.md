@@ -1771,3 +1771,27 @@ Stage Summary:
 - The calendar architecture is now closed under DEC-1: one epoch, one mapping, one dateline format, agreement enforced by name, garbage refused loudly. WP-6 (diary/HUD visibility) has its sanctioned render path.
 - Next: integration into main behind the full post-merge gate battery (tsc · vitest · build · probe-world-sim · 4-day E2E), register evidence, then WP-1v (the pause-set gap).
 - Gates at close (branch `feat/wp-2v-epoch-map`, pre-merge): tsc clean · **vitest 829/829 (57 files, 8.6 s)** · build OK (chunk-size warning pre-existing) · targeted calendar/epoch/runtime/state battery **94/94**. Probe + E2E are owed POST-merge per the assignment's evidence law — not claimed from the branch.
+
+---
+
+## 2026-11-06 — Technical Integration Lead: WP-2v INTEGRATED + VERIFIED on main — the calendar closes under one law
+
+Task ID: WP-2V-INTEGRATION
+Agent: Technical Integration Lead / Production Director (Z.ai)
+Task: Part 1 of the assignment — integrate `feat/wp-2v-epoch-map` into the latest main, never force-push, never overwrite unrelated changes, and mark VERIFIED only on post-merge evidence.
+
+Work Log:
+- **Integration:** `git merge --no-ff feat/wp-2v-epoch-map` at main `7995e6e` → merge commit **`eab767c`** (impl `991a236`; 6 files, +553/−3). Zero conflicts — main had not moved since the branch (remote fetched and re-verified immediately before branching; no other agent's work in scope, nothing overwritten).
+- **Post-integration gates (all executed on the integrated tree — no pre-merge result is claimed as evidence):**
+  - `npx tsc --noEmit` — clean.
+  - `npx vitest run` — **829/829, 57 files, 8.5 s** (WP-0's 801 + 28: epoch-map 26 + calendar extensions 2).
+  - `npm run build` — OK (pre-existing chunk-size warning only).
+  - Calendar + epoch-map + clock + runtime + save/load targeted battery — **94/94** (epoch-map 26 · calendar 19 · sim-runtime 26 · sim-state 13 · sim-clock 10).
+  - `probe-world-sim` (built dist, `?scenario=schedules&worldclock=120`) — **15/15 PASS**, 1,424 simulated minutes in 69.1 s real, zero page errors. (Playwright's chromium binary was re-installed in the recycled sandbox first — an environment step, not a repo change.)
+  - Four-day story E2E (`scripts/e2e.mjs`, `?autotest=1`) — **0 failures, 543 s, console clean**; the wall holds ("day 5 does not begin"); save holds day 4 complete: $123, map, permit, stool.
+- **Review findings recorded for the report:** mapping is 1:1 by law and by test; Sept 9 epoch consistent across both layers (`epochAgreement()` — constants, echoes, weekday anchor, four-year derivation walk); midnight transitions pinned (dayBoundary); date formatting converged on "September 9 · Year 1"; agreement detection catches tampering BY NAME (the October misread test); save/load compatible (counters only; dateline-stable round trips pinned); no runtime side effects (pure module; the one wiring change is behavior-identical); no duplicated calendar logic (the bridge now consumes `simTickOfStoryDay`).
+
+Stage Summary:
+- **WP-2v status: INTEGRATED + VERIFIED.** The calendar is closed: one epoch (DEC-1), one mapping (`sim/epochMap.ts`), one dateline format, agreement enforced by name, garbage refused loudly, saves untouched.
+- Next per the assignment's sequencing: **WP-1v** (the wardrobe/postcard pause-set gap) — implementation may now begin.
+- Gates at close: merge `eab767c` on main; tsc clean; vitest 829/829; build OK; targeted 94/94; probe 15/15; E2E 0 failures (543 s, console clean).
