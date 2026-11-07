@@ -35,6 +35,8 @@ import { bootWorldBrain, buildReferencePlaceResolver, DEFAULT_TIMESCALE,
   type BrainEvent, type SimDirective, type WorldSimBrain } from '../sim/runtime';
 import { simTickOfStoryDay } from '../sim/epochMap';
 import { loadRegistry } from '../sim/registry';
+import { MAJOR_IDS, tickLife } from '../sim/life';
+import { CHAPTER_ORDER, chapterAtDay } from '../core/chapters';
 import { Navigation } from '../sim/nav';
 import { RouteFollower } from '../sim/nav/follower';
 import { WORLD_SAVE_KEY } from '../sim/state';
@@ -130,6 +132,30 @@ export class WorldRuntime {
     this.bootNotes = boot.notes;
     this.bindBodies();
     this.armAmbientCommute();
+    // narrative/14 R5: the majors' lives catch up to the clock at boot
+    // (a restored old save's absent life layer heals forward HERE — one
+    // deterministic catch-up from the canon epoch, not a lag day).
+    this.syncLifeToDay(this.brain.world.clock.day);
+  }
+
+  /** R5 — the majors' off-screen lives (sim/life.ts): tick to the given
+   *  day with the world's OWN signals — the greeted flags' stored ticks
+   *  (durable, save-carried) and the world's chapter container (mapped
+   *  through core/chapters' `chapterAtDay`; the machine itself stays
+   *  core-free). Deterministic from save; the result replaces the world's
+   *  life section wholesale (the tick is pure). */
+  private syncLifeToDay(day: number): void {
+    const w = this.brain.world;
+    const greetedTicks: Record<string, number | undefined> = {};
+    for (const id of MAJOR_IDS) {
+      greetedTicks[id] = w.flags.map.get(`flag:${id}_greeted`);
+    }
+    const result = tickLife(w.life, {
+      toDay: day,
+      chapterForDay: (d) => CHAPTER_ORDER.indexOf(chapterAtDay(d)),
+      greetedTicks,
+    });
+    w.life = result.life;
   }
 
   /**
@@ -235,6 +261,9 @@ export class WorldRuntime {
         // D-2: the street keeps clock time while roam/scenario owns the day
         if (this.active) this.applySimPhase(e.phase);
       } else if (e.kind === 'dayBoundary') {
+        // R5: the majors' lives advance at the day boundary, BEFORE the
+        // flush — the save carries the day's decisions with the day.
+        this.syncLifeToDay(this.brain.world.clock.day);
         if (this.active) this.flushWorldSave();
       }
     }
@@ -620,6 +649,12 @@ export class WorldRuntime {
       playerCents: number; ledgerCents: number; auditClean: boolean; txnCount: number;
       recent: Array<{ id: string; kind: string; category: string; cents: number; reason: string }>;
     };
+    /** R5 — the majors' off-screen lives (sim/life.ts): mood/availability/
+     *  decisions per major, the City-Moves Law made inspectable. */
+    life: {
+      lastTickDay: number;
+      majors: Array<{ id: string; mood: string; availability: string; decisions: number; lastDay: number }>;
+    };
   } {
     const w = this.brain.world;
     const npcIds = [...this.brain.records.keys()];
@@ -649,6 +684,19 @@ export class WorldRuntime {
         recent: w.ledger.all().slice(-10).map((t) => ({
           id: t.id, kind: t.kind, category: t.category, cents: t.amountCents, reason: t.reason,
         })),
+      },
+      life: {
+        lastTickDay: w.life.lastTickDay,
+        majors: MAJOR_IDS.map((id) => {
+          const m = w.life.majors[id];
+          return {
+            id,
+            mood: m.mood,
+            availability: m.availability,
+            decisions: m.decisions.length,
+            lastDay: m.lastDay,
+          };
+        }),
       },
       npcs: npcIds.map((id) => {
         const rec = this.brain.records.get(id)!;
