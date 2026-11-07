@@ -357,6 +357,21 @@ export function makeBarrier(bank: MatBank): THREE.Group {
   board.castShadow = true;
   g.add(board);
   for (const sx of [-0.62, 0.62]) g.add(unitBox(orange, 0.1, 0.85, 0.5, sx, 0.42, 0));
+  // the audit pass: diagonal hazard stripes — the NYC barricade signature.
+  // Nine cream bands at 45°, proud of the board face; the notice plate stays
+  // stapled over the middle (a real barricade wears its flyer over stripes).
+  // ONE merged mesh — the barrier is bake-excluded, so the stripes would
+  // otherwise cost nine draws for the life of the object.
+  const stripeGeos: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < 9; i++) {
+    stripeGeos.push(new THREE.BoxGeometry(0.09, 0.52, 0.012)
+      .rotateZ(Math.PI / 4)
+      .translate(-0.59 + i * 0.1475, 0.62, 0.042));
+  }
+  const stripes = new THREE.Mesh(mergeGeometries(stripeGeos, false)!, bank.get(PAL_CREAM));
+  stripes.name = 'BarrierStripes';
+  stripes.castShadow = true;
+  g.add(stripes);
   g.add(unitBox(bank.get(PAL_CREAM), 1.0, 0.14, 0.02, 0, 0.62, 0.05));
   return g;
 }

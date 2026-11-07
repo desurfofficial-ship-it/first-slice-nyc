@@ -1,3 +1,6 @@
 web-three/bun.lock
 web-three/probe-shots/
 web-three/shots/
+
+# sand3d/blender virtualenv (rebuilt by tools3d setup; never ships)
+venv-sand3d/

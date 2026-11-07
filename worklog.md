@@ -2385,6 +2385,69 @@ interior was covered.
 - **Gates on the INTEGRATED tree (`607610d`), all green:** tsc clean · vitest **1020/1020** (69 files — main's 68 + `interior-assets.test.ts`) · build OK · **probe-w5-interiors PASS** (rooms toggle, hollows walk, towers duck, glass law intact, 0 page errors) · **probe-interior-dressing PASS** (69 GLB props + 40 ABO furniture slots landed, 0 page errors) · **probe-integration PASS** (0 errors, 8/8 street walks incl. stoop-door/bodega-interior/laundry-room, 71 GLB upgrades registered, 146 calls / 255,648 tris parked portrait). The two known honest GLB log lines (mailbox/newsrack keep their procedural look) unchanged.
 - **Pushed** under the same directive (one invocation, URL-embedded Basic auth, non-force); refs verified by ls-remote. Remaining sequenced work: **A-3 (DEC-4, the owner's call)** — everything else on the machine-executable frontier is landed or owner-gated.
 
+## 2026-11-07 — FULL-GAME 3D ASSET AUDIT, REBUILD & MAIN INTEGRATION (v1.17.0 — the register row; the branch predates the parallel drive's v1.14.0/v1.15.0/v1.16.0 and integrates ON TOP of all three)
+
+Branch `feat/asset-audit-rebuild` (main `aedc27d` + interior-production
+`8cc6d88` fast-forward-merged first — it sat one commit directly on main).
+The owner's full-game directive: audit the whole world's 3D assets, rebuild
+what is below standard, integrate, verify, merge to main.
+
+- **Audit** (`docs/production/asset-audit/00-FULL-GAME-ASSET-AUDIT.md`):
+  in-engine census (341 draw-visible meshes / 202k tris) + a 19-stop parked
+  camera tour + close-ups. Every family classed. Streets/interiors/court/
+  playground/transit shell: KEEP. The offenders: zone figures rendering
+  WHITE (a bake bug, not an asset gap), the arrival bus's flat slab rear,
+  the primitive car GLBs, the bare orange barrier.
+- **The world-scale defect**: `bakeStatics()` deleted each source's per-vertex
+  `color` attribute and refilled it from the shared WHITE person material —
+  every baked zone figure (kid, caregiver, gossip pairs, readers, stoop
+  sitters, busker) was a blank. The same bake also swallowed the figures'
+  layer-1-only shadow proxies into visible batches (a white silhouette
+  standing inside each figure). Fixed both: the bake now preserves source
+  palettes and skips meshes the eye layer cannot see. Playground figure
+  band: 1836 white vertices → 192 (cream trim).
+- **Cars rebuilt** via the repo's own CPU pipeline (`tools3d/rebuild_cars.py`,
+  trimesh — bpy/sand3d unreachable in this sandbox; documented): 3-box
+  silhouette, glass band + pillars, wheel arches, bumpers, grille, plates,
+  lights, mirrors; taxi checker belt + roof light. 904/1228 tris, ONE fused
+  draw each, same seam + footprint guards pass. Probe evidence per shot.
+- **Arrival bus exterior**: the audit found the original window insets buried
+  INSIDE the wall slabs (never rendered — the flat-slab root cause). Windows
+  proud both faces now, stripe split around the door gap, cylinder wheels +
+  hubs, bumpers, grille, lights, mirrors, roof AC. Visual-only; colliders +
+  the one-bay law untouched. M121 route bus gained its light pair.
+- **Small polish**: barrier hazard stripes (one merged mesh), laundromat
+  towels (3 laid towels replace the cube).
+- **Verify**: tsc clean; vitest 980/980; build OK; probe-interior-dressing
+  PASS; probe-w5-interiors PASS; probe-ped-nav PASS; probe-nav 9/9;
+  probe-court ALL PASS; probe-doorway PASS; probe-world-sim 15/15. Perf A/B
+  vs a pristine `8cc6d88` worktree: +1…+22 draws per room (the intentional
+  additions; cars net-negative), triangles < 0.5%. Evidence: 18 screenshots
+  in `docs/production/asset-audit/evidence/`.
+- **Honest**: E2E story driver stalls at the same early beat on pristine
+  main AND this branch here (software-GL pace; pre-existing, not a delta);
+  bpy wheels unreachable from this environment's pip index (the cars used
+  the repo's trimesh pipeline instead); the gold taxi's in-motion close-up
+  eluded the parked probes (family evidenced via the same-builder sedan).
+---
+
+## 2026-11-07 — Production Director: audit R2 — the baseline re-certified, DEC-4 briefed, the branch ledger closed
+
+Task ID: PROD-R2
+Agent: Production Director (Z.ai)
+Task: "Continue building (use the road map)" — with the machine-executable frontier at A-3 (DEC-4, owner-gated), execute the Production Director's remaining roadmap work: re-certify the baseline on the fleet's integrated tree, file the DEC-4 decision brief, and execute the register's mandated branch retirements (BR-3/BR-5). Audit + docs + branch ops only — no source file touched, nothing flipped, DEC-4 not applied.
+
+Work Log:
+- Local sandbox re-synced: origin/main had advanced 31ea3e0 → ec4dc6f (59 commits — WP-0, the DEC-1 ruling, WP-1v/2v/3v/4/5/6/7, Phase-3 A-1/A-2 + chokepoint capacity, E-1, R1/R8, Sandflow, interiors; register v1.16.0); the ~450-file "dirty tree" was diagnosed as file-mode noise from the sandbox restore (`core.filemode false` → clean, nothing lost), then fast-forwarded.
+- Baseline re-certified on `ec4dc6f` [executed]: tsc clean · vitest **1020/1020** (69 files) · build OK (625 ms) — the register's v1.16.0 gates reproduce on this box.
+- **DEC-4 decision brief filed**: `docs/production/DEC-4-REGISTRY-GEOMETRY-FLIP-DECISION.md` (the DEC-1 brief's law: it recommends, it does not decide). 50 registry buildings re-read; `World.ts` re-measured (**6,754 lines** — risks doc refreshed); the district builders mapped (W1–W5 + W0's district system); the flip's blockers confirmed cleared (A-1/A-2, the perf re-baseline 119/184/256, E-1's pack); three options adjudicated (A the district-order default / **B class-ordered backdrop-first — recommended** / C defer); the fidelity gate re-specified per unit (validate + skyline + screenshot pairs + draw-call ledger + probe battery); **UNRESOLVED, owner gate**.
+- **BR-3 executed per its own row**: guard-by-guard check on `feat/player-upgrade` — all 5 `player-upgrades.test.ts` guard names byte-identical branch↔main (test-file diff 0 lines; guards green in the 1020/1020 suite; source content landed via `a9718e9`/`69f8327`) — then the remote branch deleted. BR-5's deletable local copy deleted. BR-2 re-statused MERGED (`1bb3152`); BR-1 tip refreshed to `ec4dc6f`.
+- Register v1.18.0 (dashboard DEC-4 pointer, BR rows, change log — renumbered past the asset-audit's parallel v1.17.0, the monotonic-ledger law); risks doc DEC-4/R-NEW-3 refreshed; plan §2b item 4 points at the brief.
+- Not done, by law: the A-3 flip itself (DEC-4 is the owner's call — the v1.9.0 precedent stands: a generic "continue" does not rule a DEC); the owner-side variances (V-PH2-1 sign-off, V-PH2-2 playtest); B13; the content waves until their plan is ratified.
+
+Stage Summary:
+- The machine-executable frontier is now exactly one item: **A-3, fully briefed for a one-word owner ruling** ("Option B approved" turns the wave on per the brief's §6). Everything else on the roadmap is owner-side or content-wave work. Gates at close: docs-only commit; zero source files modified; no dependencies added; the branch deletions are register-mandated hygiene with the guard evidence recorded above.
+
 ## 2026-11-07 — Technical Architecture / World Systems Agent: "Continue building (use the roadmap)" — R5, the majors' off-screen lives
 
 **Directed by the owner's "Continue building (Use the road map)."** The audit first: §2b's queued order is exhausted (E-1 ✓, chokepoint capacity ✓, R1/R8 ✓; A-3 = DEC-4, THE OWNER'S CALL — untouched, a general "continue" is not a DEC-4 ruling). The roadmap header adopts docs/narrative/14 §7 as THE build order; steps 1–3 are landed, so **step 4 — R5, the independence simulation — was the next machine**, non-owner-gated (Phase 3's "must NOT begin" clause blocks needs/mood dials and population growth; R5 is neither — it is per-major state over the existing cast, zero new bodies, zero new path queries). Dependencies live: schedules (WP-3/B-1), nav (A-1), canon (docs 05/07).
