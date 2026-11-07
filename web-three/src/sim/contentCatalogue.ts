@@ -1,0 +1,187 @@
+/**
+ * The shipped content catalogue — Workstream E's first product (E-1,
+ * wc-17 Phase-2 item 3; wc-14 workstream E).
+ *
+ * The law (wc-11 §7): this is CATALOGUING, not an asset library — every
+ * entry describes what already ships; nothing new is added. Two packs:
+ *
+ *   1. THE ANCHOR SET — the contract's named interactive anchors
+ *      (newsbox, hoop, board, shelves — wc-08 §47, wc-13) under the
+ *      RESERVED `obj:` sim ids (wc-04's grammar; `obj:newsbox_01` is the
+ *      contract's own worked example). Kind `interactive_object`;
+ *      procedural sources (code-built — always exist, no license duty).
+ *      The shelf goods are NOT hardcoded here: the caller passes the
+ *      shipped SHELF_GOODS (core/content.ts owns them; sim never imports
+ *      core). Each entry tags its interaction id, and the test greps
+ *      game/interactionDefs.ts so the mapping cannot rot away from what
+ *      actually ships.
+ *
+ *   2. THE FIRST BUILDING-VARIANT PACK — every registry building the
+ *      world actually ships (status `existing` or `built (W2)`), carried
+ *      under its REGISTRY id (wc-11 §1: "a registry-style id for
+ *      built-in canon props"). Kind `building_variant`; tags carry the
+ *      block + classification; the builder names the authored
+ *      construction honestly — code-ref masses name their
+ *      `World.solid('…')` token (the registry's own style notes), the
+ *      rest name the module that builds them. BUILDING_EVIDENCE pins
+ *      the non-code-ref cases to greppable tokens (the test enforces
+ *      it). Planned buildings join later packs as they are built —
+ *      new entries append (the id law); nothing is renamed.
+ *
+ * The whole catalogue passes `validateManifest` (wc-11 §3, wc-15 row 17)
+ * — the test proves it, so a future content agent inherits a VALID,
+ * queryable manifest, not a promise.
+ */
+
+import { type ContentEntry } from './content';
+import registryJson from '../../../docs/data/world-registry.json';
+
+// ------------------------------------------------------- the anchor set ----
+
+/** A shipped shelf good, as far as this module needs to know it
+ *  (structural — the real type lives in core/content.ts). */
+export interface ShelfGoodRef {
+  id: string;
+  label: string;
+}
+
+/**
+ * The contract's named anchor set as `obj:` content entries. The id
+ * grammar is wc-04's (`obj:newsbox_01` — the contract's own example);
+ * the `interaction:` tag names the interaction-registry id that
+ * realizes the anchor (game/interactionDefs.ts), which the test
+ * cross-checks against the source so the mapping stays true.
+ */
+export function shippedAnchorEntries(shelfGoods: readonly ShelfGoodRef[]): ContentEntry[] {
+  return [
+    {
+      id: 'obj:newsbox_01',
+      kind: 'interactive_object',
+      label: 'The newsbox — the free paper, day-keyed',
+      tags: ['anchor', 'interaction:newsbox', 'street'],
+      source: { type: 'procedural', builder: "game/interactionDefs 'newsbox'" },
+    },
+    {
+      id: 'obj:court_hoop_01',
+      kind: 'interactive_object',
+      label: 'The half-court hoop — free, repeatable, deterministic',
+      tags: ['anchor', 'interaction:court', 'court'],
+      source: { type: 'procedural', builder: "game/interactionDefs 'court' (CourtGame)" },
+    },
+    {
+      id: 'obj:board_01',
+      kind: 'interactive_object',
+      label: 'The bulletin board by the subway stairs — the slip rotates by day',
+      tags: ['anchor', 'interaction:board', 'street'],
+      source: { type: 'procedural', builder: "game/interactionDefs 'board'" },
+    },
+    ...shelfGoods.map((g) => ({
+      id: `obj:shelf_${g.id}_01`,
+      kind: 'interactive_object' as const,
+      label: `Bodega shelf: ${g.label}`,
+      tags: ['anchor', `interaction:shelf_${g.id}`, 'bodega'],
+      source: {
+        type: 'procedural' as const,
+        builder: `game/interactionDefs shelfInteractions (shelf_${g.id})`,
+      },
+    })),
+  ];
+}
+
+// --------------------------------------------- the building-variant pack ----
+
+/** The registry building fields this catalogue reads. */
+export interface RegistryBuildingJson {
+  id: string;
+  name?: string;
+  class?: string;
+  block?: string;
+  status?: string;
+  style?: string;
+}
+
+/** The statuses that mean the building SHIPS (the world builds it). */
+export const SHIPPED_BUILDING_STATUSES: readonly string[] = ['existing', 'built (W2)'];
+
+const REGISTRY = registryJson as unknown as { buildings?: RegistryBuildingJson[] };
+
+/**
+ * The honest builder line for a shipped building: the registry's own
+ * `code ref` token where the style note carries one, the building
+ * module for the authored districts, the construction token for the
+ * block cuts and the cart. Every claim here is grepped by the test.
+ */
+function builderOf(b: RegistryBuildingJson): string {
+  const ref = (b.style ?? '').match(/code refs? ([A-Za-z0-9_]+)/);
+  if (ref) {
+    const token = ref[1];
+    return `World.solid('${token}${token.endsWith('_') ? '*' : ''}')`;
+  }
+  switch (b.id) {
+    case 'SUB-01':
+      return 'world/subway/stationKit (the SUB-01 headhouse)';
+    case 'SUB-TS':
+      return 'world/timesSquare (the Orpheum block + station gap)';
+    case 'ALY-01':
+      return 'World.ts (the slot cut between the split halves of Bldg_N_East_B)';
+    case 'ALY-02':
+      return 'World.ts (the party-wall slot between Bldg_N_East_A and the ginkgo Bldg_N_GoldWindow)';
+    case 'VND-01':
+      return 'World.ts (the DIRTY WATER DOGS cart)';
+    default:
+      if (b.id?.startsWith('TSS')) return 'world/timesSquare (authored block)';
+      return 'World.ts (authored mass)';
+  }
+}
+
+/**
+ * The non-code-ref buildings' evidence: the tokens the TEST greps in the
+ * named source to prove the builder line is not a polite fiction. A
+ * building without an entry here must carry a `code ref` in its registry
+ * style note (the builderOf path) — anything else fails the test.
+ */
+export const BUILDING_EVIDENCE: Record<string, { file: 'World.ts' | 'timesSquare.ts' | 'subway/stationKit.ts'; tokens: string[] }> = {
+  'ALY-01': { file: 'World.ts', tokens: ['Bldg_N_East_B'] },
+  'ALY-02': { file: 'World.ts', tokens: ['Bldg_N_East_A', 'Bldg_N_GoldWindow'] },
+  'VND-01': { file: 'World.ts', tokens: ['DIRTY WATER DOGS'] },
+  'SUB-01': { file: 'subway/stationKit.ts', tokens: ['SUB-01'] },
+  'SUB-TS': { file: 'timesSquare.ts', tokens: ['station gap'] },
+  'TSS-01': { file: 'timesSquare.ts', tokens: ['Orpheum'] },
+  'TSS-02': { file: 'timesSquare.ts', tokens: ['south row'] },
+  'TSS-03': { file: 'timesSquare.ts', tokens: ['east tower'] },
+  'TSS-04': { file: 'timesSquare.ts', tokens: ['south row'] },
+  'TSS-05': { file: 'timesSquare.ts', tokens: ['south row'] },
+};
+
+/**
+ * The first building-variant pack: every registry building whose status
+ * says the world ships it. Ids are the registry's own (canon props ride
+ * registry-style ids per wc-11 §1); new buildings append as they are
+ * built, never renumbered.
+ */
+export function shippedBuildingVariantEntries(): ContentEntry[] {
+  const out: ContentEntry[] = [];
+  for (const b of REGISTRY.buildings ?? []) {
+    if (!SHIPPED_BUILDING_STATUSES.includes(b.status ?? '')) continue;
+    out.push({
+      id: b.id,
+      kind: 'building_variant',
+      label: b.name ?? b.id,
+      tags: [`class-${b.class ?? '?'}`, b.block ?? 'unassigned', 'shipped'],
+      source: { type: 'procedural', builder: builderOf(b) },
+    });
+  }
+  return out;
+}
+
+// ------------------------------------------------------- the catalogue ----
+
+/**
+ * The whole shipped catalogue: the anchor set + the building pack —
+ * one valid manifest for Workstream E's successors. The two id spaces
+ * cannot collide by grammar (`obj:*` sim ids vs registry ids), and the
+ * test asserts uniqueness anyway.
+ */
+export function shippedContentCatalogue(shelfGoods: readonly ShelfGoodRef[]): ContentEntry[] {
+  return [...shippedAnchorEntries(shelfGoods), ...shippedBuildingVariantEntries()];
+}
