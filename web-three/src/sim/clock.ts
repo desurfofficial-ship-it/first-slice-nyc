@@ -89,6 +89,31 @@ export function calendarOf(day: number): {
   return { year, month: month + 1, dayOfMonth: dom, monthName: MONTH_NAMES[month] };
 }
 
+/** Canon date → day number: the ONE inverse of `calendarOf` (narrative/14
+ *  R5's authored calendars key by canon dates — doc 07's "dies Sept 14",
+ *  "the heart attack (Jul 6)" — and the machine may not keep a second
+ *  month table; the round-trip against `calendarOf` is pinned by test).
+ *  Pure integer math, no Date anywhere. */
+export function dayOfCanonDate(date: { y: number; m: number; d: number }): number {
+  // count days from the epoch (Sept 9 Y1) forward, walking the same
+  // month table `calendarOf` walks — one law, two directions.
+  let year = 1;
+  let month = 8; // September, 0-based
+  let dom = 9;
+  let day = 1;
+  const targetY = Math.max(1, Math.floor(date.y));
+  const targetM = Math.min(12, Math.max(1, Math.floor(date.m)));
+  const targetD = Math.min(31, Math.max(1, Math.floor(date.d)));
+  while (year < targetY || month + 1 < targetM || dom < targetD) {
+    day += 1;
+    dom += 1;
+    if (dom > MONTH_DAYS[month]) { dom = 1; month += 1; }
+    if (month > 11) { month = 0; year += 1; }
+    if (day > 365 * 120) break; // paranoia: the canon never lives this long
+  }
+  return day;
+}
+
 /** Day number → weekday. Sept 9 Y1 is a Tuesday (canon). */
 export function weekdayOf(day: number): Weekday {
   // 2026-09-09 style check is irrelevant; canon says Tuesday. Sept 9 is
