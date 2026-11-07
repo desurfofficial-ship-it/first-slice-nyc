@@ -1,0 +1,291 @@
+{
+  "tag": "after-fixed",
+  "seams": {
+    "upgrades": {
+      "bodega_shelf_0": "models/bodega_shelf.glb",
+      "bodega_shelf_1": "models/bodega_shelf.glb",
+      "bodega_shelf_2": "models/bodega_shelf.glb",
+      "fridge_bodega": "models/refrigerator.glb",
+      "hydrant": "models/hydrant.glb",
+      "hydrant_east": "models/hydrant.glb",
+      "trashcan": "models/trashcan.glb",
+      "trashcan_north": "models/trashcan.glb",
+      "trashcan_east": "models/trashcan.glb",
+      "streetlamp": "models/streetlamp.glb",
+      "car_taxi": "models/car_taxi.glb",
+      "car_sedan": "models/car_sedan.glb",
+      "stoop_door": "models/apartment_door.glb",
+      "bench_plaza": "models/park_bench.glb",
+      "bench_bus": "models/park_bench.glb",
+      "recycle_bin_east": "models/recycling_bin.glb",
+      "washer_9.5": "models/washing_machine.glb",
+      "washer_11.2": "models/washing_machine.glb",
+      "washer_12.9": "models/washing_machine.glb",
+      "washer_14.6": "models/washing_machine.glb",
+      "washer_16.3": "models/washing_machine.glb",
+      "washer_18": "models/washing_machine.glb"
+    },
+    "registered": [
+      "bench_bus",
+      "bench_plaza",
+      "bodega_shelf_0",
+      "bodega_shelf_1",
+      "bodega_shelf_2",
+      "car_sedan",
+      "car_taxi",
+      "fridge_bodega",
+      "hydrant",
+      "hydrant_east",
+      "mailbox",
+      "newsrack",
+      "recycle_bin_east",
+      "stoop_door",
+      "streetlamp",
+      "trashcan",
+      "trashcan_east",
+      "trashcan_north",
+      "washer_11.2",
+      "washer_12.9",
+      "washer_14.6",
+      "washer_16.3",
+      "washer_18",
+      "washer_9.5"
+    ]
+  },
+  "glbLogs": [
+    "[glb] mailbox keeps its procedural look (Unexpected token '<', \"<!doctype \"... is not valid JSON)",
+    "[glb] newsrack keeps its procedural look (placeholder is non-uniformly scaled)"
+  ],
+  "errors": [],
+  "shots": {
+    "hydrant": {
+      "walked": true,
+      "file": "shots/after-fixed-hydrant.png"
+    },
+    "recycle-station": {
+      "walked": true,
+      "file": "shots/after-fixed-recycle-station.png"
+    },
+    "streetlamp": {
+      "walked": true,
+      "file": "shots/after-fixed-streetlamp.png"
+    },
+    "stoop-door": {
+      "walked": true,
+      "file": "shots/after-fixed-stoop-door.png"
+    },
+    "bodega-interior": {
+      "walked": true,
+      "file": "shots/after-fixed-bodega-interior.png"
+    },
+    "laundry-room": {
+      "walked": true,
+      "file": "shots/after-fixed-laundry-room.png"
+    },
+    "papers": {
+      "walked": true,
+      "file": "shots/after-fixed-papers.png"
+    },
+    "plaza-bench": {
+      "walked": true,
+      "file": "shots/after-fixed-plaza-bench.png"
+    }
+  },
+  "scene": {
+    "LW_slot_9.5_glb": {
+      "meshes": 0
+    },
+    "LW_slot_11.2_glb": {
+      "meshes": 0
+    },
+    "LW_slot_12.9_glb": {
+      "meshes": 0
+    },
+    "LW_slot_14.6_glb": {
+      "meshes": 0
+    },
+    "LW_slot_16.3_glb": {
+      "meshes": 0
+    },
+    "LW_slot_18_glb": {
+      "meshes": 0
+    },
+    "LC_9.3_glb": {
+      "meshes": 0
+    },
+    "LC_9.9_glb": {
+      "meshes": 0
+    },
+    "LWall_Art_glb": {
+      "meshes": 0
+    },
+    "Barber_Mirror_A_glb": {
+      "meshes": 0
+    },
+    "Barber_Bench_glb": {
+      "meshes": 0
+    },
+    "Barber_Mirror_B_glb": {
+      "meshes": 0
+    },
+    "Pizza_Fridge": {
+      "meshes": 0
+    },
+    "Pizza_BoothT_12.5_glb": {
+      "meshes": 0
+    },
+    "Pizza_BoothT_15.5_glb": {
+      "meshes": 0
+    },
+    "Bakery_Table_-36.2_glb": {
+      "meshes": 0
+    },
+    "Bakery_Table_-31.8_glb": {
+      "meshes": 0
+    },
+    "Records_Rug_glb": {
+      "meshes": 0
+    },
+    "Records_Chair_glb": {
+      "meshes": 0
+    },
+    "Records_Counter_glb": {
+      "meshes": 0
+    },
+    "Hall_WorkTable_glb": {
+      "meshes": 0
+    },
+    "Hall_Bookcase_glb": {
+      "meshes": 0
+    },
+    "Hall_Sofa_glb": {
+      "meshes": 0
+    },
+    "Hall_Chair_A_glb": {
+      "meshes": 0
+    },
+    "Hall_Chair_B_glb": {
+      "meshes": 0
+    },
+    "Hall_Sideboard_glb": {
+      "meshes": 0
+    },
+    "Hall_FloorLamp_glb": {
+      "meshes": 0
+    },
+    "Hall_CoffeeTable_glb": {
+      "meshes": 0
+    },
+    "Hall_Ottoman_glb": {
+      "meshes": 0
+    },
+    "Diner_Stool_0_glb": {
+      "meshes": 0
+    },
+    "Diner_Stool_1_glb": {
+      "meshes": 0
+    },
+    "Diner_Stool_2_glb": {
+      "meshes": 0
+    },
+    "Diner_Stool_3_glb": {
+      "meshes": 0
+    },
+    "Diner_Stool_4_glb": {
+      "meshes": 0
+    },
+    "Diner_Stool_5_glb": {
+      "meshes": 0
+    },
+    "Diner_Stool_6_glb": {
+      "meshes": 0
+    },
+    "Diner_Stool_7_glb": {
+      "meshes": 0
+    },
+    "Diner_BoothT_-11.5_glb": {
+      "meshes": 0
+    },
+    "Diner_BoothT_-14_glb": {
+      "meshes": 0
+    },
+    "Diner_BoothT_-16.5_glb": {
+      "meshes": 0
+    },
+    "Diner_BoothT_-18.5_glb": {
+      "meshes": 0
+    },
+    "Cecil_BedFrame_glb": {
+      "meshes": 0
+    },
+    "Cecil_Dresser_glb": {
+      "meshes": 0
+    },
+    "Cecil_Nightstand_glb": {
+      "meshes": 0
+    },
+    "Cecil_Lamp_glb": {
+      "meshes": 0
+    },
+    "Cecil_Mirror_glb": {
+      "meshes": 0
+    },
+    "Cecil_Rug_glb": {
+      "meshes": 0
+    },
+    "Bodega_BackShelf_0_glb": {
+      "meshes": 0
+    },
+    "Bodega_BackShelf_1_glb": {
+      "meshes": 0
+    },
+    "Bodega_BackShelf_2_glb": {
+      "meshes": 0
+    },
+    "Fridge_Bodega_glb": {
+      "meshes": 0
+    },
+    "hydrant_glb": {
+      "meshes": 0
+    },
+    "hydrant_east_glb": {
+      "meshes": 0
+    },
+    "Trashcan_glb": {
+      "meshes": 0
+    },
+    "trashcan_north_glb": {
+      "meshes": 0
+    },
+    "trashcan_east_glb": {
+      "meshes": 0
+    },
+    "Streetlamp_glb": {
+      "meshes": 0
+    },
+    "car_taxi_glb": {
+      "meshes": 0
+    },
+    "car_sedan_glb": {
+      "meshes": 0
+    },
+    "Stoop_Door_glb": {
+      "meshes": 0
+    },
+    "bench_plaza_glb": {
+      "meshes": 0
+    },
+    "bench_bus_glb": {
+      "meshes": 0
+    },
+    "recycle_bin_east_glb": {
+      "meshes": 0
+    }
+  },
+  "fps": 4,
+  "perf": {
+    "calls": 142,
+    "tris": 248860,
+    "programs": 31
+  }
+}

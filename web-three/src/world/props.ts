@@ -256,7 +256,7 @@ export function makeHydrant(bank: MatBank): THREE.Group {
   body.castShadow = true;
   g.add(body);
   g.add(unitCyl(bank.get(PAL_CORAL), 0.12, 0.12, 0, 0.8, 0));
-  g.add(unitBox(bank.get(PAL_CORAL), 0.5, 0.11, 0.14, 0, 0.48, 0));
+  g.add(unitBox(bank.get(PAL_CORAL), 0.5, 0.11, 0.3, 0, 0.48, 0));
   return g;
 }
 

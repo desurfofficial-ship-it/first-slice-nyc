@@ -1,0 +1,198 @@
+{
+  "tag": "before",
+  "seams": {
+    "upgrades": {
+      "hydrant": "models/hydrant.glb",
+      "car_taxi": "models/car_taxi.glb",
+      "car_sedan": "models/car_sedan.glb"
+    },
+    "registered": [
+      "car_sedan",
+      "car_taxi",
+      "hydrant",
+      "mailbox",
+      "streetlamp",
+      "trashcan"
+    ]
+  },
+  "glbLogs": [
+    "[glb] mailbox keeps its procedural look (Unexpected token '<', \"<!doctype \"... is not valid JSON)",
+    "[glb] trashcan keeps its procedural look (Unexpected token '<', \"<!doctype \"... is not valid JSON)",
+    "[glb] streetlamp keeps its procedural look (Unexpected token '<', \"<!doctype \"... is not valid JSON)"
+  ],
+  "errors": [],
+  "shots": {
+    "hydrant": {
+      "walked": true,
+      "file": "shots/before-hydrant.png"
+    },
+    "recycle-station": {
+      "walked": true,
+      "file": "shots/before-recycle-station.png"
+    },
+    "streetlamp": {
+      "walked": true,
+      "file": "shots/before-streetlamp.png"
+    },
+    "stoop-door": {
+      "walked": true,
+      "file": "shots/before-stoop-door.png"
+    },
+    "bodega-interior": {
+      "walked": true,
+      "file": "shots/before-bodega-interior.png"
+    },
+    "laundry-room": {
+      "walked": true,
+      "file": "shots/before-laundry-room.png"
+    },
+    "papers": {
+      "walked": true,
+      "file": "shots/before-papers.png"
+    },
+    "plaza-bench": {
+      "walked": true,
+      "file": "shots/before-plaza-bench.png"
+    }
+  },
+  "scene": {
+    "LC_9.9_glb": {
+      "meshes": 0
+    },
+    "LC_9.3_glb": {
+      "meshes": 0
+    },
+    "LWall_Art_glb": {
+      "meshes": 0
+    },
+    "Barber_Bench_glb": {
+      "meshes": 0
+    },
+    "Barber_Mirror_A_glb": {
+      "meshes": 0
+    },
+    "Barber_Mirror_B_glb": {
+      "meshes": 0
+    },
+    "Pizza_Fridge": {
+      "meshes": 0
+    },
+    "Pizza_BoothT_12.5_glb": {
+      "meshes": 0
+    },
+    "Pizza_BoothT_15.5_glb": {
+      "meshes": 0
+    },
+    "Bakery_Table_-36.2_glb": {
+      "meshes": 0
+    },
+    "Bakery_Table_-31.8_glb": {
+      "meshes": 0
+    },
+    "Records_Chair_glb": {
+      "meshes": 0
+    },
+    "Records_Counter_glb": {
+      "meshes": 0
+    },
+    "Records_Rug_glb": {
+      "meshes": 0
+    },
+    "Hall_Bookcase_glb": {
+      "meshes": 0
+    },
+    "Hall_WorkTable_glb": {
+      "meshes": 0
+    },
+    "Hall_Sofa_glb": {
+      "meshes": 0
+    },
+    "Hall_CoffeeTable_glb": {
+      "meshes": 0
+    },
+    "Hall_Chair_B_glb": {
+      "meshes": 0
+    },
+    "Hall_Chair_A_glb": {
+      "meshes": 0
+    },
+    "Hall_Ottoman_glb": {
+      "meshes": 0
+    },
+    "Hall_Sideboard_glb": {
+      "meshes": 0
+    },
+    "Hall_FloorLamp_glb": {
+      "meshes": 0
+    },
+    "Diner_Stool_0_glb": {
+      "meshes": 0
+    },
+    "Diner_Stool_1_glb": {
+      "meshes": 0
+    },
+    "Diner_Stool_2_glb": {
+      "meshes": 0
+    },
+    "Diner_Stool_3_glb": {
+      "meshes": 0
+    },
+    "Diner_Stool_4_glb": {
+      "meshes": 0
+    },
+    "Diner_Stool_5_glb": {
+      "meshes": 0
+    },
+    "Diner_Stool_6_glb": {
+      "meshes": 0
+    },
+    "Diner_Stool_7_glb": {
+      "meshes": 0
+    },
+    "Diner_BoothT_-11.5_glb": {
+      "meshes": 0
+    },
+    "Diner_BoothT_-14_glb": {
+      "meshes": 0
+    },
+    "Diner_BoothT_-16.5_glb": {
+      "meshes": 0
+    },
+    "Diner_BoothT_-18.5_glb": {
+      "meshes": 0
+    },
+    "Cecil_BedFrame_glb": {
+      "meshes": 0
+    },
+    "Cecil_Dresser_glb": {
+      "meshes": 0
+    },
+    "Cecil_Nightstand_glb": {
+      "meshes": 0
+    },
+    "Cecil_Lamp_glb": {
+      "meshes": 0
+    },
+    "Cecil_Rug_glb": {
+      "meshes": 0
+    },
+    "Cecil_Mirror_glb": {
+      "meshes": 0
+    },
+    "hydrant_glb": {
+      "meshes": 0
+    },
+    "car_taxi_glb": {
+      "meshes": 0
+    },
+    "car_sedan_glb": {
+      "meshes": 0
+    }
+  },
+  "fps": 4,
+  "perf": {
+    "calls": 122,
+    "tris": 117036,
+    "programs": 21
+  }
+}

@@ -1945,3 +1945,66 @@ Stage Summary:
   gen-city-auto re-read recorded in docs/57 §3.7.1 with MIT attribution
   — its decorative pedestrian movement is NOT a navigation solution and
   none of it is used.
+
+## 2026-11-07 — Sandflow Evaluation Agent: PRODUCTION INTEGRATION on `feat/sandflow-evaluation` — 9 of 12 sand3d asset categories wear their Alder Heights counterparts, all gates green, branch pushed
+
+The owner authorized the push and the world integration (the earlier
+"evaluation only, nothing shipped" fence is lifted by that authorization —
+`main` still untouched). The approved GLBs moved out of
+`public/models-experimental/` and onto their real counterparts through the
+existing `upgradePropWithGLB` seam, plus one new material pass that makes
+the pack fuse like the world's own statics.
+
+- **Landed (13 swaps + 1 add):** hydrant west+east (the shipped baseline
+  `hydrant.glb` replaced — it was failing the seam's footprint band at
+  0.76 m wide; the sand3d hydrant fits) · 3 DSNY baskets on the three cans ·
+  recycle bin · streetlamp (8.5 m cobra scaled to the 4.4 m slot) · plaza +
+  bus benches · the Day-2 teal door (canon `#2a9d8f` baked linear into the
+  leaf, π-yawed to the street, brass knob hides when the model lands) ·
+  6 registry washers in the LAUNDRY-INT room on yawed slots (door east;
+  the porthole disc is a slot child, so it leaves with the box; the shipped
+  bay stays byte-identical) · 3 bodega gondolas on the old blank box's span
+  (same collider, goods facing south) · the commercial fridge as an add on
+  the bodega's east wall with a matching collider.
+- **Deliberately not adopted (documented, not forced):** newsrack (the seam
+  refuses the factory's unit-scaled placeholder; a real-geometry slot is
+  follow-up work) · storefront (canon signage + probe-asserted glass names
+  would be deleted to win a swap) · security gate (every host surface is
+  canon — the warm window, the pizza glass). All three stay in the
+  dev-only showcase with their articulation proven.
+- **The material pass** (`tools3d/sandflow_eval/postprocess_glb.py`, stdlib
+  only): metallicFactor → 0, `KHR_materials_clearcoat` stripped,
+  `doubleSided` false, geometry/hierarchy/`s3d_joint` extras untouched —
+  which is exactly the fuse law's admission ticket, so every landed prop is
+  ONE vertex-colored draw. Defect found and fixed on the way: the first
+  version kept the BIN chunk's 8-byte header and shifted every bufferView;
+  the probe caught it as inflated bounds, and processed ≡ original is now
+  byte-verified. Second lesson: GLB fronts face +Z — the door's first
+  screenshot was its brown wall_band back; door and shelves carry an
+  authored π yaw now.
+- **Measured (probe-integration.mjs, before/after JSONs in
+  docs/production/sandflow/evidence/):** draw calls 122 → 142 at the plaza
+  vantage (+20 for 22 landed instances), rendered tris 117 k → 249 k (the
+  models' real detail), fps 4 → 4 on the swiftshader rasterizer, console
+  errors 0 before and after.
+- **Files:** `web-three/src/world/World.ts` (seam registrations, yawed
+  slots, shelf run + fridge, stoop-door hook) · `web-three/src/world/props.ts`
+  (hydrant fallback arm 0.14→0.30) · `web-three/public/models/` (+9 GLBs,
+  hydrant.glb replaced) · `tools3d/sandflow_eval/postprocess_glb.py` (new) ·
+  `web-three/scripts/probe-integration.mjs` + `shot-vantages.mjs` (new) ·
+  `docs/production/sandflow/07-production-integration.md` (the replacement
+  table) + `evidence/` (before/after JSONs, 6 screenshots) · doc 06 status
+  update.
+- **Gates at close (all executed):** tsc clean · vitest 889/889 (61 files) ·
+  build OK · probe-integration 22 seams landed / 0 errors / 8 walks ·
+  4-day E2E 0 failures (457 s at the 480×320 slow-rig profile, console
+  clean, Day 4 save holds: $123, map, permit, stool).
+- **Git:** one branch, two commits, pushed to `origin/feat/sandflow-evaluation`
+  with the owner-supplied token used inline only (never printed, never
+  committed); remote SHA verified against local; no force-push; no merge.
+- **Honest scope notes:** the E2E ran at the small-viewport profile the
+  harness ships for software-GL boxes (the default viewport times out the
+  tool window here, not the game) · the two hydrant slots share one file
+  but are two parsed copies — instancing beyond the URL cache is future
+  work · the washers' visual pokes ≤0.1 m past their colliders (machine
+  depth vs authored box), inside the seam's own ±90 % law.

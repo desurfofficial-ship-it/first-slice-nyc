@@ -671,7 +671,33 @@ export class World {
     bb.position.set(0, 0.15, -4.6); // roof-local: near the front edge, over the sidewalk
     this.roof.add(bb);
     this.solid('Bodega_Counter', -19.6, 0.55, 13.5, 1.2, 1.1, 6, PAL.teal);
-    this.solid('Bodega_BackShelf', -16, 1.0, 19.3, 6, 2.0, 0.6, PAL.bldg2);
+    // Back-bar shelving: three sand3d gondola units wear the old blank box's
+    // span (x -19..-13, one collider — unchanged below, the shelf is visual
+    // only). Fallback boxes keep the bldg2 look if the files ever go missing.
+    for (let si = 0; si < 3; si++) {
+      const shelfPh = this.decoMesh(`Bodega_BackShelf_${si}`, new THREE.BoxGeometry(1.3, 1.64, 0.55), this.mat(PAL.bldg2), -17.5 + si * 1.5, 0.82, 19.3);
+      shelfPh.rotation.y = Math.PI; // goods face south, into the store
+      shelfPh.castShadow = true;
+      shelfPh.receiveShadow = true;
+      this.registerGlbProp(`bodega_shelf_${si}`, shelfPh);
+      void this.upgradePropWithGLB(`bodega_shelf_${si}`, 'models/bodega_shelf.glb');
+    }
+    this.colliders.push(boxFromCenter(-16, 1.0, 19.3, 6, 2.0, 0.6));
+    // Commercial reach-in fridge on the bodega's east wall — a sand3d ADD,
+    // not a swap: no counterpart existed, and an empty wall read as missing
+    // stock once the shelves landed. Collider matches its rotated box.
+    const fridgePh = new THREE.Group();
+    fridgePh.name = 'Fridge_Bodega';
+    fridgePh.position.set(-11.7, 0.92, 16.5);
+    fridgePh.rotation.y = -Math.PI / 2; // door west, into the room
+    const fridgeBox = new THREE.Mesh(new THREE.BoxGeometry(0.76, 1.84, 1.22), this.mat(PAL.bldg2));
+    fridgeBox.castShadow = true;
+    fridgeBox.receiveShadow = true;
+    fridgePh.add(fridgeBox);
+    this.scene.add(fridgePh);
+    this.registerGlbProp('fridge_bodega', fridgePh);
+    void this.upgradePropWithGLB('fridge_bodega', 'models/refrigerator.glb');
+    this.colliders.push(boxFromCenter(-11.7, 0.92, 16.5, 1.22, 1.84, 0.76));
 
     // ---------------- props (Rule of Steam: something is always moving) ----
     this.deco('Manhole', -10, 0.025, 0.5, 0.95, 0.02, 0.95, PAL.manhole); // 0.95 m — a real manhole, not a patio
@@ -745,8 +771,17 @@ export class World {
 
     // The teal door (Day 2's delivery target — the objective says "the teal
     // door across the street"; now there is one, under the gold window).
-    this.decoMesh('Stoop_Door', new THREE.BoxGeometry(1.4, 2.6, 0.12), this.mat(PAL.teal), 15, 1.3, 7.92);
-    this.decoMesh('Stoop_Knob', new THREE.SphereGeometry(0.05, 8, 8), this.mat(PAL.gold), 15.45, 1.3, 7.84);
+    const stoopDoor = this.decoMesh('Stoop_Door', new THREE.BoxGeometry(1.4, 2.6, 0.15), this.mat(PAL.teal), 15, 1.3, 7.92);
+    stoopDoor.rotation.y = Math.PI; // GLB fronts face +Z — the leaf must face the street (south)
+    const stoopKnob = this.decoMesh('Stoop_Knob', new THREE.SphereGeometry(0.05, 8, 8), this.mat(PAL.gold), 15.45, 1.3, 7.84);
+    // Sandflow prewar door wears the Day-2 target — its leaf slab is baked
+    // in the canon teal (PAL.teal, tools3d/sandflow_eval/postprocess_glb.py),
+    // so "the teal door across the street" reads on the model, not just the
+    // fallback box. The brass knob is a fallback-only sibling: it hides when
+    // the model lands (the GLB carries its own knob, hinges and peephole).
+    this.registerGlbProp('stoop_door', stoopDoor);
+    void this.upgradePropWithGLB('stoop_door', 'models/apartment_door.glb')
+      .then((ok) => { if (ok) stoopKnob.visible = false; });
     // The stoop itself — "stoup = outdoor living room" deserves actual steps.
     // Two low risers (tops 0.19 / 0.28, both inside the 0.35 STEP_UP curb
     // tolerance, so the walker rolls up them without a hop).
@@ -1095,9 +1130,18 @@ export class World {
     plazaBench.rotation.y = Math.PI;
     this.scene.add(plazaBench);
     this.colliders.push(boxFromCenter(-40.5, 0.35, 4.55, 1.85, 0.7, 0.62)); // bench blocks
+    this.registerGlbProp('bench_plaza', plazaBench);
+    void this.upgradePropWithGLB('bench_plaza', 'models/park_bench.glb');
     const papers = makeNewspaperBoxes(this.bank);
     papers.position.set(-44.6, 0.05, 6.6);
     this.scene.add(papers);
+    // one real sand3d newsrack wears the red box; its cream label chip is a
+    // fallback-only sibling and hides when the model lands
+    const newsrackPh = papers.children[0];
+    const newsrackChip = papers.children[2];
+    this.registerGlbProp('newsrack', newsrackPh);
+    void this.upgradePropWithGLB('newsrack', 'models/newsrack.glb')
+      .then((ok) => { if (ok) newsrackChip.visible = false; });
     this.colliders.push(boxFromCenter(-44.29, 0.425, 6.62, 1.3, 0.85, 0.6)); // newsboxes block
 
     // ---- bus stop (north, west of the bodega) + bench ----
@@ -1118,6 +1162,8 @@ export class World {
     busBench.rotation.y = Math.PI;
     this.scene.add(busBench);
     this.colliders.push(boxFromCenter(-23.3, 0.35, 7.62, 1.85, 0.7, 0.62)); // bench blocks
+    this.registerGlbProp('bench_bus', busBench);
+    void this.upgradePropWithGLB('bench_bus', 'models/park_bench.glb');
 
     // ---- street furniture: lights, cans, hydrant, one honest barrier ----
     // The lamp faces are lit: the sun never leaves golden hour here, and
@@ -1151,6 +1197,17 @@ export class World {
     const can2 = makeTrashCan(this.bank); can2.position.set(2, 0.05, -7.45); this.scene.add(can2);
     const recy = makeRecycleBin(this.bank); recy.position.set(2.85, 0.05, -7.45); this.scene.add(recy);
     const hyd2 = makeHydrant(this.bank); hyd2.position.set(34, 0.05, -4.75); this.scene.add(hyd2);
+    // DSNY baskets wear all three cans (one street, one look); the corner
+    // can + recycle bin stay one recycling station (shared collider below,
+    // unchanged). The east hydrant wears the same model as the west one.
+    this.registerGlbProp('trashcan_north', can1);
+    this.registerGlbProp('trashcan_east', can2);
+    this.registerGlbProp('recycle_bin_east', recy);
+    this.registerGlbProp('hydrant_east', hyd2);
+    void this.upgradePropWithGLB('trashcan_north', 'models/trashcan.glb');
+    void this.upgradePropWithGLB('trashcan_east', 'models/trashcan.glb');
+    void this.upgradePropWithGLB('recycle_bin_east', 'models/recycling_bin.glb');
+    void this.upgradePropWithGLB('hydrant_east', 'models/hydrant.glb');
     // the barrier is a diary entry now (Doc 33 §2.3): Days 1–3 it guards a
     // (theatrically) open water main; Day 4 it's gone and the patch it left
     // reads as fresh asphalt. Kept OUT of the static bake — a merged mesh
@@ -2393,13 +2450,27 @@ export class World {
     g.add(warm);
     // the registry's machines: 6 washers west wall, 4 dryers east
     for (const wz of [9.5, 11.2, 12.9, 14.6, 16.3, 18]) {
-      const b = this.fixture(g, `LW_${wz}`, -10.35, 0.9, wz, 0.95, 1.5, 0.75, 0x9a938c);
-      const door = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.04, 14), this.bank.get(0x2b2730));
-      door.rotation.z = Math.PI / 2;
-      door.position.set(-9.86, 0.85, wz);
-      g.add(door);
+      // yawed slot: the fallback box keeps today's footprint (0.95 along the
+      // wall, 0.75 deep) while the sand3d front-loader rides the slot's yaw
+      // (door east, into the room). The porthole disc is a slot CHILD, so a
+      // landed model takes it away with the box instead of floating in
+      // front of the GLB's own glass.
+      const slot = new THREE.Group();
+      slot.name = `LW_slot_${wz}`;
+      slot.position.set(-10.35, 0.9, wz);
+      slot.rotation.y = Math.PI / 2;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.75, 1.5, 0.95), this.bank.get(0x9a938c));
+      body.castShadow = true;
+      body.receiveShadow = true;
+      slot.add(body);
+      const porthole = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.04, 14), this.bank.get(0x2b2730));
+      porthole.rotation.x = Math.PI / 2;
+      porthole.position.set(0, -0.05, 0.49);
+      slot.add(porthole);
+      g.add(slot);
+      this.registerGlbProp(`washer_${wz}`, slot);
+      void this.upgradePropWithGLB(`washer_${wz}`, 'models/washing_machine.glb');
       this.colliders.push(boxFromCenter(-10.35, 0.9, wz, 0.95, 1.5, 0.75));
-      void b;
     }
     for (const dz of [10.5, 12.2, 13.9, 15.6]) {
       this.fixture(g, `LD_${dz}`, 0.35, 0.8, dz, 0.95, 1.35, 0.75, 0x9a938c);
