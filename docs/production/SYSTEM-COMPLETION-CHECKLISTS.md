@@ -348,18 +348,18 @@ Evidence sources used for baseline statuses: source audit of `web-three/src/` (2
 **Done when:** dialogue selection is deterministic, tiered, named, and voice-checked.
 
 ### SYS-NAR-06 — Relationships & consequences
-**Today:** consequence machinery not built (R2). Shipped consequences are story-step-local (VERIFIED for scope). Status: PLANNED (R2 — Phase 2 WP-5).
+**Today:** the R2 state machine INTEGRATED (WP-5, main `b99c01f`): `core/consequenceLedger.ts` — the append-only ledger with promise→omission maturation, deterministic derived omission ids, idempotent walks, determinism-from-save pinned (23 tests); the save carries the ledger as an optional trailing v1-safe field. The C5 cascade still consumes at R1/R8 (state ahead of content, doc 14 §7). Status: INTEGRATED (state machines); consumption PLANNED (R1/R8).
 **Checklist:**
-- [ ] R2 append-only ledger with promise→omission maturation
-- [ ] C5 cascade reads only ledger + relationships, deterministic from save
+- [x] R2 append-only ledger with promise→omission maturation (WP-5 — mutation fails, maturation idempotent, weights/visibility inherited)
+- [ ] C5 cascade reads only ledger + relationships, deterministic from save (the ledger's determinism half is pinned; the cascade reads at R1/R8)
 **Done when:** the cascade can replay from a save and produce the doc 09 cascade beat-for-beat.
 
 ### SYS-NAR-07 — Player choices
-**Today:** choice-card conversations shipped; R7 register not built. Status: PLANNED (Phase 2 WP-5).
+**Today:** choice-card conversations shipped; the R7 register INTEGRATED (WP-5, main `b99c01f`): doc 10 §3's 17 structural nodes transcribed as frozen data (`core/choiceNodes.ts`), per-option flag/ledger writes with traceable act-refs, N3b's nineteen slots, N2's Form C lock (doc 10 §4), the no-fake-choices validator green (24 tests). Scene wiring lands with R1/R8. Status: INTEGRATED (state machines); scene consumption PLANNED (R1/R8).
 **Checklist:**
-- [ ] R7 ChoiceNodes with locks, ledgerWrites, flagWrites
-- [ ] The no-fake-choices test (unique downstream flag signatures per structural option)
-**Done when:** every structural choice diverges in state, provably.
+- [x] R7 ChoiceNodes with locks, ledgerWrites, flagWrites (WP-5 — doc 10 §3 transcribed, register frozen, resolution pure)
+- [x] The no-fake-choices test (unique downstream flag signatures per structural option — validator green on the shipped register; converging registers fail)
+**Done when:** every structural choice diverges in state, provably — proven for the register; scene-level divergence rides R1/R8 content.
 
 ### SYS-NAR-08 — Betrayal & aftermath
 **Today:** canon complete (docs/narrative/08, 09); no build work (correctly — content waits for machines). Status: NOT STARTED (build) / CANON (design).

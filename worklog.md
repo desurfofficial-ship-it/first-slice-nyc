@@ -2049,3 +2049,56 @@ owner-gated, DEC-4).
 - **Not pushed** — awaiting owner authorization. Unpushed on main: WP-4's four commits
   (`2203f05`…`96490d2`) + WP-6's two (`16c3e73`, `5ba16a3`). Next per §2b: A-3
   (DEC-4, owner call) → WP-7 (evidence assembly, last); WP-5 (R2+R7) fully parallel.
+
+## 2026-11-07 — WP-5 LANDED + INTEGRATED to main (register v1.10.0)
+
+`git merge --no-ff feat/wp-5-consequence-choice` → main **`b99c01f`** (impl `94088ca`,
+zero conflicts, full history preserved). The consequence ledger and the choice nodes
+(R2+R7, doc 14 §7 step 2) — the parallel WS-C track, landed under the owner's
+"Continue working" BEFORE WP-7 so the milestone evidence consumes the whole milestone.
+State ahead of its content per §7 order: the scenes consume at R1/R8; nothing in
+Game.ts, world/, or the sim ownership table was touched (the WP's own law).
+
+- **The ledger (`core/consequenceLedger.ts`, new — 329 lines):** the world's memory of
+  significant acts, append-only like the field diary (the input array is never mutated;
+  the API surface has no update/remove — pinned by a function-list test). Promises carry
+  in-game due dates (doc 10 §1: "every promise is a flag with a due date" — a promise
+  without one is schema-invalid: append rejects, parse quarantines). Maturation is the
+  omission tracker made mechanical: an unmet promise past its due date gains exactly one
+  omission with a DERIVED id (`omit-<promiseId>` — never rolled), inheriting weight and
+  visibility ("smaller coin, same currency"); a met promise (a later choice/amends
+  referencing it) never matures; walks are idempotent; `openPromises` reads clean for
+  the C5 cascade. Determinism-from-save pinned (same save + same in-game day →
+  byte-identical matured ledger, through the serialize→parse round-trip). Quarantine
+  parsing per the map-notebook precedent; LEDGER_CAP 256; dates year-bounded so a
+  crafted save cannot hang `calendarDayOf`.
+- **The register (`core/choiceNodes.ts`, new — 537 lines):** doc 10 §3's table
+  transcribed as frozen canon data — 17 structural nodes N0…N7, authored options,
+  per-option flag/ledger writes (mechanical `<dimension>=<option>` keys, act-refs
+  `<nodeId>:<optionId>` so the cascade traces a consequence to its node), N3b's
+  nineteen slots (doc 09 §4's face-by-face fall), N2's Form C locked behind
+  `yoli-strategy-session` (doc 10 §4's expiry law — pinned). **The no-fake-choices
+  rule is a test**: `validateRegister` demands pairwise-unique flag signatures AND
+  pairwise-unique ledger signatures per node — a converging register fails the suite
+  (the doc's own canon-bug law). `resolveChoice` is pure; the pivot flag
+  `node:<id>=<option>` rides first (how the save remembers the pick, doc 15 §5.3).
+- **The save seam:** `ledger` as an optional trailing v1-safe field (absent reads as
+  [] — the field_diary law; the old-save roundtrip case extended). VARIANCE vs doc 14
+  §3's field list, documented: the `promises` layer is realized INSIDE the ledger (a
+  promise IS a LedgerEntry — R2's own schema carries the due date); a second duplicated
+  array would create a mirror to keep honest, the WP-4 lesson.
+- **Tests (+47):** consequence-ledger (23: append-only, maturation idempotence, the
+  met-promise law, validation reasons, caps, quarantine incl. the no-due promise,
+  save round-trip, determinism-from-save, the no-clock source law) and choice-nodes
+  (24: doc-10-§3 coverage, chapters, register frozen, converging registers fail,
+  locks, resolution purity, act-ref traceability, public acts post shared, source
+  laws — no clock, no runtime imports beyond the type seam).
+- **Gates:** tsc clean · vitest **974/974** (65 files) · build OK · 4-day E2E **0
+  failures** (595 s, console clean, day-4 save holds $123 — the money math unchanged;
+  run on the branch tree, content-identical to the merged tree). Post-merge battery on
+  the INTEGRATED TREE: tsc clean · vitest 974/974 · build OK · **probe-money-trace ALL
+  PASSED** ($112.00, mirror holds, audit clean).
+- **Not pushed** — awaiting owner authorization. Unpushed on main: WP-4's four
+  (`2203f05`…`96490d2`) + WP-6's two (`16c3e73`, `5ba16a3`) + WP-5's two (`94088ca`,
+  `b99c01f`) + this docs commit. Next per §2b: **WP-7 (evidence assembly — the
+  milestone's last item)**; A-3 (DEC-4) remains the owner's call.

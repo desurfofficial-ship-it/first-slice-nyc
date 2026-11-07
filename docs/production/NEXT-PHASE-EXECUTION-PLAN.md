@@ -69,7 +69,7 @@
 - **Integration:** probe-money-trace prints a Day-1 transaction trace ending at $112; console clean.
 - **Reporting:** worklog + register (SYS-PLAY-08 → INTEGRATED) + PR.
 
-### WP-5 — R2 consequence ledger + R7 choice nodes *(WS-C — parallel with WP-1…4)*
+### WP-5 — R2 consequence ledger + R7 choice nodes *(WS-C — parallel with WP-1…4)* — **CLOSED 2026-11-07 (main `b99c01f`): landed under the owner's "Continue working" as the parallel WS-C track, before WP-7 so the milestone evidence consumes the whole milestone**
 - **Task scope:** docs/narrative/14 §7 step 2, on the declared sim types: the append-only consequence ledger (`LedgerEntry`, promises with due dates, unmet promises maturing into omissions) and the ChoiceNode register (doc 10 §3; structural options' downstream flag signatures unique — the no-fake-choices rule as a test). Pure state behind the `core/content.ts` seam; Save-v1-safe.
 - **Files owned:** `web-three/src/core/consequenceLedger.ts` (new), `web-three/src/core/choiceNodes.ts` (new), their test files (new), save-seam additions (optional trailing fields only).
 - **Must NOT modify:** `game/Game.ts`, `world/*`, `sim/state.ts` ownership table (coordinate via governance if a flag-bridge shape is needed).
@@ -100,10 +100,10 @@
 WP-0 (merge & ratify)          ── DONE 2026-11-06 (1bb3152)
 WP-1v (pause-set gap)          ── DONE 2026-11-06 (0e22ff5) — pauseSet.ts + 11 cases + probe
 WP-2v (DEC-1 + epoch mapping)  ── DONE 2026-11-06 (eab767c) — epochMap.ts + epochAgreement + probe
-WP-4 (money bridge, Game.ts*)  ── next WS-D window (see §2b)
-WP-3v (ambient walkers, peds)  ── after WP-0 (done); single-writer booking on peds.ts
-WP-5 (R2+R7, core seam)        ── fully parallel (disjoint files)
-WP-6 (diary UI)                ── unblocked: consumes epochMap's dateline (eab767c)
+WP-4 (money bridge, Game.ts*)  ── DONE 2026-11-07 (3a9984d) — probe-money-trace byte-identical boots
+WP-3v (ambient walkers, peds)  ── DONE 2026-11-06 (e3f1b02) — single-writer booking held
+WP-5 (R2+R7, core seam)        ── DONE 2026-11-07 (b99c01f) — landed before WP-7 so the evidence consumes all
+WP-6 (diary UI)                ── DONE 2026-11-07 (5ba16a3) — ink live, dateline through the one mapping
 WP-7 (evidence assembly)       ── last; consumes all + the post-merge perf re-baseline
 ```
 *Game.ts is single-writer: WP-1v, WP-2v (wiring only) and WP-4 book successive windows with the Production Director; WP-3v books `peds.ts` separately. No two WPs hold the same file simultaneously — the governance law, not a preference.*
@@ -123,6 +123,7 @@ WP-7 (evidence assembly)       ── last; consumes all + the post-merge perf r
    *UPDATE 2026-11-06 (register v1.8.0): **WP-4 LANDED** on `feat/wp-4-money-bridge` @ `2203f05` (from main `dcff32c`, not yet merged) under the owner's "Continue working" — the next sequenced item; A-3 was skipped as owner-gated (DEC-4). The bridge is additive: zero GameState edits, the E2E's $87→$112→$123 math unchanged and green (probe-money-trace ALL PASSED — genesis → five faucets → $112, audit clean). Remaining order: **WP-6 (diary/date visible — unblocked, disjoint files) → A-3 (DEC-4, owner call)**. WP-3v scale-out beyond the 12-walker roster stays parked behind customer interiors + the owner's population call.*
 
    *UPDATE 2026-11-07 (register v1.9.0): **WP-6 LANDED + INTEGRATED** — `feat/wp-6-diary-date-visible` @ `16c3e73`, merged `5ba16a3` (same "Continue working" authorization class; A-3 still owner-gated). The Map renders the field diary as ink (folded leaf + tab, no new paper door — touch law untouched); the dateline renders through `datelineOfStoryDay` only ("September 9 · Year 1"); gates: tsc · vitest 927/927 (63 files) · build · probe-diary-ink 28/28 at 390×844 (console clean, shots) · 4-day E2E 0 failures (569 s). **Remaining order: A-3 (DEC-4, owner call) → WP-7 (evidence assembly — last, consumes the milestone); WP-5 (R2+R7) stays fully parallel (disjoint files).** Sketch.ts required no extension — the ink layer proved self-contained in `ui/diary.ts` + `style.css` (fewer touched files than the plan guessed; no structural change to the shipped two-page sheet).*
+   *UPDATE 2026-11-07 (register v1.10.0): **WP-5 LANDED + INTEGRATED** — `feat/wp-5-consequence-choice` @ `94088ca`, merged `b99c01f` (same "Continue working" authorization class; the parallel WS-C track — disjoint files, landed BEFORE WP-7 so the milestone evidence consumes the whole milestone). `core/consequenceLedger.ts` (R2: append-only, promises with in-game due dates, omission maturation automatic + idempotent, determinism-from-save pinned) and `core/choiceNodes.ts` (R7: doc 10 §3's 17 nodes transcribed as frozen data, the no-fake-choices rule a validator, N2-FormC lock pinned); the save carries `ledger` as an optional trailing v1-safe field (doc 14 §3's `promises` layer realized INSIDE the ledger — a promise IS a LedgerEntry; variance documented). Gates: tsc · vitest **974/974** (65 files, +47) · build · 4-day E2E 0 failures (595 s) · probe-money-trace ALL PASSED post-merge. **Remaining order: A-3 (DEC-4, owner call) → WP-7 (evidence assembly — the milestone's last item); nothing else in the milestone remains.***
 
 ### 2c. A-1/A-2 status note (2026-11-06, Technical Architecture agent)
 
