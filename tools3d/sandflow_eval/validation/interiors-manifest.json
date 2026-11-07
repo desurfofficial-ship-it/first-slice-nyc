@@ -1,0 +1,769 @@
+{
+  "sand3d_version": "1.6.3",
+  "bpy": "5.2.3 LTS",
+  "assets": [
+    {
+      "name": "laundry_dryer",
+      "file": "web-three/public/models-experimental/interiors/laundry_dryer.glb",
+      "bytes": 41080,
+      "build_s": 0.3,
+      "sha256": "744ace3e09a502d6",
+      "meshes": 9,
+      "tris": 1060,
+      "materials": [
+        "brushed_steel roughness=0.3",
+        "glossy_plastic #2a9d8f roughness=0.35",
+        "glossy_plastic #3a3440 roughness=0.3",
+        "glossy_plastic #3a3440 roughness=0.4",
+        "glossy_plastic #f7b32b roughness=0.3",
+        "painted_metal #3a3440 roughness=0.5",
+        "painted_metal #eceae6 roughness=0.4",
+        "plastic #3b3346 roughness=0.25"
+      ],
+      "bbox_mm": [
+        750.0,
+        875.0,
+        1350.0
+      ]
+    },
+    {
+      "name": "laundry_cart",
+      "file": "web-three/public/models-experimental/interiors/laundry_cart.glb",
+      "bytes": 53324,
+      "build_s": 0.11,
+      "sha256": "ff9e46cb3d8aee9a",
+      "meshes": 18,
+      "tris": 1512,
+      "materials": [
+        "brushed_steel roughness=0.3",
+        "fabric #e8e4dc roughness=0.85",
+        "fabric #fff8f0 roughness=0.8",
+        "plastic #3a3440 roughness=0.5"
+      ],
+      "bbox_mm": [
+        837.5,
+        380.0,
+        864.0
+      ]
+    },
+    {
+      "name": "laundry_table",
+      "file": "web-three/public/models-experimental/interiors/laundry_table.glb",
+      "bytes": 13212,
+      "build_s": 0.07,
+      "sha256": "75f7288986a11018",
+      "meshes": 11,
+      "tris": 132,
+      "materials": [
+        "brushed_steel roughness=0.35",
+        "painted_metal #8e6f66 roughness=0.55",
+        "painted_metal #fff8f0 roughness=0.5",
+        "plastic #2a9d8f roughness=0.5"
+      ],
+      "bbox_mm": [
+        2400.0,
+        900.0,
+        1030.0
+      ]
+    },
+    {
+      "name": "detergent_shelf",
+      "file": "web-three/public/models-experimental/interiors/detergent_shelf.glb",
+      "bytes": 43628,
+      "build_s": 0.15,
+      "sha256": "c69fe8df2a3eb063",
+      "meshes": 37,
+      "tris": 444,
+      "materials": [
+        "glossy_plastic #2a9d8f roughness=0.5",
+        "glossy_plastic #6d4c7d roughness=0.5",
+        "glossy_plastic #f2c230 roughness=0.5",
+        "glossy_plastic #f7b32b roughness=0.4",
+        "glossy_plastic #f7b32b roughness=0.5",
+        "glossy_plastic #ff6b6b roughness=0.5",
+        "glossy_plastic #fff8f0 roughness=0.5",
+        "painted_metal #a3857a roughness=0.5",
+        "painted_metal #e8e4dc roughness=0.55",
+        "plastic #2a9d8f roughness=0.5",
+        "plastic #6d4c7d roughness=0.5",
+        "plastic #f2c230 roughness=0.5",
+        "plastic #f7b32b roughness=0.5",
+        "plastic #ff6b6b roughness=0.5",
+        "plastic #fff8f0 roughness=0.5"
+      ],
+      "bbox_mm": [
+        3950.0,
+        627.5,
+        1800.0
+      ]
+    },
+    {
+      "name": "linen_bin",
+      "file": "web-three/public/models-experimental/interiors/linen_bin.glb",
+      "bytes": 43024,
+      "build_s": 0.1,
+      "sha256": "77ca17ac10ab850e",
+      "meshes": 13,
+      "tris": 1276,
+      "materials": [
+        "brushed_steel roughness=0.3",
+        "fabric #e8e4dc roughness=0.85",
+        "fabric #fff8f0 roughness=0.8",
+        "fabric #fff8f0 roughness=0.85",
+        "plastic #3a3440 roughness=0.5"
+      ],
+      "bbox_mm": [
+        645.0,
+        425.0,
+        830.0
+      ]
+    },
+    {
+      "name": "vending_machine",
+      "file": "web-three/public/models-experimental/interiors/vending_machine.glb",
+      "bytes": 97640,
+      "build_s": 0.15,
+      "sha256": "49c4a2b56fcc532f",
+      "meshes": 25,
+      "tris": 3120,
+      "materials": [
+        "brushed_steel roughness=0.35",
+        "glossy_plastic #2a9d8f roughness=0.3",
+        "glossy_plastic #2a9d8f roughness=0.4",
+        "glossy_plastic #6d4c7d roughness=0.3",
+        "glossy_plastic #f2c230 roughness=0.3",
+        "glossy_plastic #f7b32b roughness=0.3",
+        "glossy_plastic #f7b32b roughness=0.35",
+        "glossy_plastic #ff6b6b roughness=0.3",
+        "glossy_plastic #ff6b6b roughness=0.35",
+        "glossy_plastic #fff8f0 roughness=0.3",
+        "painted_metal #3a3440 roughness=0.45",
+        "painted_metal #3b3346 roughness=0.5",
+        "plastic #3b3346 roughness=0.25",
+        "plastic #fff8f0 roughness=0.5"
+      ],
+      "bbox_mm": [
+        710.0,
+        1000.0,
+        1800.0
+      ]
+    },
+    {
+      "name": "barber_chair",
+      "file": "web-three/public/models-experimental/interiors/barber_chair.glb",
+      "bytes": 61528,
+      "build_s": 0.12,
+      "sha256": "ae3a136d70572222",
+      "meshes": 22,
+      "tris": 1652,
+      "materials": [
+        "brushed_steel roughness=0.3",
+        "chrome roughness=0.15",
+        "leather #5a3f68 roughness=0.45",
+        "leather #6d4c7d roughness=0.45",
+        "plastic #3a3440 roughness=0.5",
+        "plastic #fff8f0 roughness=0.5"
+      ],
+      "bbox_mm": [
+        659.8,
+        782.6,
+        1190.0
+      ]
+    },
+    {
+      "name": "barber_counter_unit",
+      "file": "web-three/public/models-experimental/interiors/barber_counter_unit.glb",
+      "bytes": 67640,
+      "build_s": 0.13,
+      "sha256": "3d651bc86edd5461",
+      "meshes": 23,
+      "tris": 1864,
+      "materials": [
+        "brass roughness=0.25",
+        "brushed_steel roughness=0.3",
+        "fabric #e8e4dc roughness=0.85",
+        "fabric #fff8f0 roughness=0.85",
+        "glossy_plastic #2a9d8f roughness=0.3",
+        "glossy_plastic #6d4c7d roughness=0.3",
+        "glossy_plastic #f2c230 roughness=0.3",
+        "glossy_plastic #f7b32b roughness=0.3",
+        "glossy_plastic #ff6b6b roughness=0.3",
+        "glossy_plastic #fff8f0 roughness=0.3",
+        "marble #fff8f0 roughness=0.3",
+        "painted_metal #23877b roughness=0.45",
+        "painted_metal #2a9d8f roughness=0.5",
+        "plastic #3a3440 roughness=0.4"
+      ],
+      "bbox_mm": [
+        541.0,
+        5100.0,
+        999.0
+      ]
+    },
+    {
+      "name": "cash_register",
+      "file": "web-three/public/models-experimental/interiors/cash_register.glb",
+      "bytes": 25500,
+      "build_s": 0.09,
+      "sha256": "55f67c9972ad0238",
+      "meshes": 17,
+      "tris": 380,
+      "materials": [
+        "fabric #fff8f0 roughness=0.8",
+        "glossy_plastic #3b3346 roughness=0.3",
+        "glossy_plastic #e8e4dc roughness=0.3",
+        "glossy_plastic #f7b32b roughness=0.3",
+        "plastic #2b2730 roughness=0.4",
+        "plastic #3a3440 roughness=0.45",
+        "plastic #fff8f0 roughness=0.5"
+      ],
+      "bbox_mm": [
+        400.0,
+        350.0,
+        280.0
+      ]
+    },
+    {
+      "name": "drink_cooler",
+      "file": "web-three/public/models-experimental/interiors/drink_cooler.glb",
+      "bytes": 312740,
+      "build_s": 0.43,
+      "sha256": "30794510e37d8478",
+      "meshes": 78,
+      "tris": 10656,
+      "materials": [
+        "brushed_steel roughness=0.3",
+        "brushed_steel roughness=0.35",
+        "glossy_plastic #2a9d8f roughness=0.3",
+        "glossy_plastic #f7b32b roughness=0.3",
+        "glossy_plastic #ff6b6b roughness=0.3",
+        "glossy_plastic #ff6b6b roughness=0.35",
+        "painted_metal #3a3440 roughness=0.45",
+        "painted_metal #3b3346 roughness=0.5",
+        "painted_metal #fff8f0 roughness=0.4",
+        "plastic #3b3346 roughness=0.25"
+      ],
+      "bbox_mm": [
+        555.0,
+        3000.0,
+        1740.0
+      ]
+    },
+    {
+      "name": "pizza_oven",
+      "file": "web-three/public/models-experimental/interiors/pizza_oven.glb",
+      "bytes": 36516,
+      "build_s": 0.1,
+      "sha256": "6366db50f9ffc295",
+      "meshes": 13,
+      "tris": 972,
+      "materials": [
+        "brushed_steel roughness=0.35",
+        "concrete #b23a48 roughness=0.75",
+        "glossy_plastic #f7b32b roughness=0.3",
+        "marble #e8e4dc roughness=0.4",
+        "painted_metal #9a938c roughness=0.5",
+        "plastic #3b3346 roughness=0.3"
+      ],
+      "bbox_mm": [
+        1840.0,
+        2250.0,
+        1980.0
+      ]
+    },
+    {
+      "name": "pizza_prep_counter",
+      "file": "web-three/public/models-experimental/interiors/pizza_prep_counter.glb",
+      "bytes": 34264,
+      "build_s": 0.09,
+      "sha256": "a6317661261c4e64",
+      "meshes": 13,
+      "tris": 876,
+      "materials": [
+        "brushed_steel roughness=0.35",
+        "fabric #e8e4dc roughness=0.75",
+        "fabric #fff8f0 roughness=0.75",
+        "painted_metal #fff8f0 roughness=0.5",
+        "plastic #b23a48 roughness=0.45",
+        "plastic #e8e4dc roughness=0.6",
+        "plastic #fff8f0 roughness=0.45"
+      ],
+      "bbox_mm": [
+        2040.0,
+        740.0,
+        1100.0
+      ]
+    },
+    {
+      "name": "menu_board",
+      "file": "web-three/public/models-experimental/interiors/menu_board.glb",
+      "bytes": 16700,
+      "build_s": 0.08,
+      "sha256": "926d3e383ab8656f",
+      "meshes": 14,
+      "tris": 168,
+      "materials": [
+        "brushed_steel roughness=0.35",
+        "glossy_plastic #f7b32b roughness=0.35",
+        "glossy_plastic #ff6b6b roughness=0.35",
+        "painted_metal #3a3440 roughness=0.5",
+        "plastic #e8e4dc roughness=0.6",
+        "plastic #fff8f0 roughness=0.6"
+      ],
+      "bbox_mm": [
+        2240.0,
+        76.0,
+        1100.0
+      ]
+    },
+    {
+      "name": "bakery_oven",
+      "file": "web-three/public/models-experimental/interiors/bakery_oven.glb",
+      "bytes": 35568,
+      "build_s": 0.09,
+      "sha256": "1334c21bc4cba4ad",
+      "meshes": 13,
+      "tris": 940,
+      "materials": [
+        "brushed_steel roughness=0.35",
+        "concrete #b23a48 roughness=0.75",
+        "glossy_plastic #f7b32b roughness=0.3",
+        "marble #e8e4dc roughness=0.4",
+        "painted_metal #9a938c roughness=0.5",
+        "plastic #3b3346 roughness=0.3"
+      ],
+      "bbox_mm": [
+        4440.0,
+        2440.0,
+        2000.0
+      ]
+    },
+    {
+      "name": "bread_rack",
+      "file": "web-three/public/models-experimental/interiors/bread_rack.glb",
+      "bytes": 106400,
+      "build_s": 0.14,
+      "sha256": "d6ff8f7f2b77accf",
+      "meshes": 25,
+      "tris": 3516,
+      "materials": [
+        "brushed_steel roughness=0.35",
+        "painted_metal #a3857a roughness=0.5",
+        "plastic #b5713a roughness=0.55",
+        "plastic #c98a4b roughness=0.55",
+        "plastic #d9a05b roughness=0.55"
+      ],
+      "bbox_mm": [
+        680.0,
+        1660.0,
+        1800.0
+      ]
+    },
+    {
+      "name": "bakery_display_case",
+      "file": "web-three/public/models-experimental/interiors/bakery_display_case.glb",
+      "bytes": 111096,
+      "build_s": 0.16,
+      "sha256": "465a8df12c6f1537",
+      "meshes": 28,
+      "tris": 3664,
+      "materials": [
+        "brushed_steel roughness=0.35",
+        "glossy_plastic #b5713a roughness=0.5",
+        "glossy_plastic #c96a4b roughness=0.5",
+        "glossy_plastic #d9a05b roughness=0.5",
+        "glossy_plastic #e8c48a roughness=0.5",
+        "painted_metal #fff8f0 roughness=0.4",
+        "painted_metal #fff8f0 roughness=0.5",
+        "plastic #3b3346 roughness=0.25",
+        "plastic #b5713a roughness=0.5",
+        "plastic #c96a4b roughness=0.5",
+        "plastic #d9a05b roughness=0.5",
+        "plastic #e8c48a roughness=0.5"
+      ],
+      "bbox_mm": [
+        5555.0,
+        705.0,
+        354.0
+      ]
+    },
+    {
+      "name": "bakery_back_shelf",
+      "file": "web-three/public/models-experimental/interiors/bakery_back_shelf.glb",
+      "bytes": 33648,
+      "build_s": 0.15,
+      "sha256": "d56e78b7b3e19688",
+      "meshes": 29,
+      "tris": 348,
+      "materials": [
+        "fabric #e8e4dc roughness=0.85",
+        "fabric #fff8f0 roughness=0.85",
+        "painted_metal #a3857a roughness=0.5",
+        "painted_metal #e8e4dc roughness=0.55",
+        "plastic #2a9d8f roughness=0.55",
+        "plastic #a3857a roughness=0.55",
+        "plastic #e8e4dc roughness=0.55",
+        "plastic #e8e4dc roughness=0.6",
+        "plastic #f7b32b roughness=0.55",
+        "plastic #fff8f0 roughness=0.55"
+      ],
+      "bbox_mm": [
+        6900.0,
+        470.0,
+        2000.0
+      ]
+    },
+    {
+      "name": "record_bin",
+      "file": "web-three/public/models-experimental/interiors/record_bin.glb",
+      "bytes": 53468,
+      "build_s": 0.17,
+      "sha256": "8de7fac51d75f2bb",
+      "meshes": 49,
+      "tris": 588,
+      "materials": [
+        "brushed_steel roughness=0.35",
+        "painted_metal #8e6f66 roughness=0.55",
+        "plastic #2a9d8f roughness=0.5",
+        "plastic #6d4c7d roughness=0.5",
+        "plastic #b23a48 roughness=0.5",
+        "plastic #e8e4dc roughness=0.5",
+        "plastic #f2c230 roughness=0.5",
+        "plastic #f7b32b roughness=0.5",
+        "plastic #ff6b6b roughness=0.5",
+        "plastic #fff8f0 roughness=0.5"
+      ],
+      "bbox_mm": [
+        4400.0,
+        620.0,
+        840.0
+      ]
+    },
+    {
+      "name": "record_speaker",
+      "file": "web-three/public/models-experimental/interiors/record_speaker.glb",
+      "bytes": 48124,
+      "build_s": 0.09,
+      "sha256": "8b7ce220acd4dca4",
+      "meshes": 7,
+      "tris": 1352,
+      "materials": [
+        "fabric #e8e4dc roughness=0.85",
+        "glossy_plastic #f7b32b roughness=0.3",
+        "painted_metal #3a3440 roughness=0.5",
+        "painted_metal #3b3346 roughness=0.5",
+        "plastic #2b2730 roughness=0.6",
+        "plastic #3b3346 roughness=0.5",
+        "plastic #fff8f0 roughness=0.5"
+      ],
+      "bbox_mm": [
+        500.0,
+        580.0,
+        1200.0
+      ]
+    },
+    {
+      "name": "record_wall_shelf",
+      "file": "web-three/public/models-experimental/interiors/record_wall_shelf.glb",
+      "bytes": 113704,
+      "build_s": 0.34,
+      "sha256": "af6ff7e65ffb1579",
+      "meshes": 104,
+      "tris": 1248,
+      "materials": [
+        "brushed_steel roughness=0.35",
+        "glossy_plastic #3a3440 roughness=0.4",
+        "glossy_plastic #ff6b6b roughness=0.35",
+        "painted_metal #8e6f66 roughness=0.55",
+        "painted_metal #e8e4dc roughness=0.55",
+        "plastic #2a9d8f roughness=0.5",
+        "plastic #6d4c7d roughness=0.5",
+        "plastic #b23a48 roughness=0.5",
+        "plastic #e8e4dc roughness=0.5",
+        "plastic #f2c230 roughness=0.5",
+        "plastic #f7b32b roughness=0.5",
+        "plastic #ff6b6b roughness=0.5",
+        "plastic #fff8f0 roughness=0.5"
+      ],
+      "bbox_mm": [
+        440.0,
+        3995.0,
+        2200.0
+      ]
+    },
+    {
+      "name": "folding_chairs_stack",
+      "file": "web-three/public/models-experimental/interiors/folding_chairs_stack.glb",
+      "bytes": 11676,
+      "build_s": 0.09,
+      "sha256": "a82d2398a807c97f",
+      "meshes": 10,
+      "tris": 120,
+      "materials": [
+        "brushed_steel roughness=0.35",
+        "plastic #e8e4dc roughness=0.55",
+        "plastic #fff8f0 roughness=0.55"
+      ],
+      "bbox_mm": [
+        504.0,
+        460.0,
+        810.0
+      ]
+    },
+    {
+      "name": "hall_kitchenette",
+      "file": "web-three/public/models-experimental/interiors/hall_kitchenette.glb",
+      "bytes": 68880,
+      "build_s": 0.15,
+      "sha256": "09c3cf12ae14076e",
+      "meshes": 18,
+      "tris": 1968,
+      "materials": [
+        "brushed_steel roughness=0.3",
+        "brushed_steel roughness=0.35",
+        "ceramic #ff6b6b roughness=0.3",
+        "ceramic #fff8f0 roughness=0.3",
+        "marble #fff8f0 roughness=0.3",
+        "painted_metal #23877b roughness=0.45",
+        "painted_metal #2a9d8f roughness=0.5",
+        "plastic #3a3440 roughness=0.4",
+        "plastic #3b3346 roughness=0.4"
+      ],
+      "bbox_mm": [
+        2440.0,
+        1640.0,
+        1160.0
+      ]
+    },
+    {
+      "name": "hall_storage_shelf",
+      "file": "web-three/public/models-experimental/interiors/hall_storage_shelf.glb",
+      "bytes": 108868,
+      "build_s": 0.19,
+      "sha256": "3fe8acc844ed8b5c",
+      "meshes": 33,
+      "tris": 3252,
+      "materials": [
+        "brushed_steel roughness=0.35",
+        "fabric #e8e4dc roughness=0.75",
+        "fabric #fff8f0 roughness=0.75",
+        "glossy_plastic #2a9d8f roughness=0.4",
+        "glossy_plastic #6d4c7d roughness=0.4",
+        "glossy_plastic #f2c230 roughness=0.4",
+        "glossy_plastic #f7b32b roughness=0.4",
+        "glossy_plastic #ff6b6b roughness=0.4",
+        "glossy_plastic #fff8f0 roughness=0.4",
+        "painted_metal #a3857a roughness=0.5",
+        "painted_metal #e8e4dc roughness=0.55",
+        "plastic #3a3440 roughness=0.5",
+        "plastic #8e6f66 roughness=0.55"
+      ],
+      "bbox_mm": [
+        4950.0,
+        420.0,
+        1800.0
+      ]
+    },
+    {
+      "name": "diner_kitchen_line",
+      "file": "web-three/public/models-experimental/interiors/diner_kitchen_line.glb",
+      "bytes": 75372,
+      "build_s": 0.13,
+      "sha256": "6e30925468bedd07",
+      "meshes": 22,
+      "tris": 2196,
+      "materials": [
+        "brushed_steel roughness=0.35",
+        "brushed_steel roughness=0.4",
+        "ceramic #fff8f0 roughness=0.3",
+        "glossy_plastic #ffb85c roughness=0.35",
+        "painted_metal #9a938c roughness=0.5",
+        "plastic #2b2730 roughness=0.55",
+        "plastic #3b3346 roughness=0.45",
+        "plastic #6b4433 roughness=0.6",
+        "plastic #e8e4dc roughness=0.6",
+        "plastic #fff8f0 roughness=0.6"
+      ],
+      "bbox_mm": [
+        1660.0,
+        9480.0,
+        1410.0
+      ]
+    },
+    {
+      "name": "diner_register",
+      "file": "web-three/public/models-experimental/interiors/diner_register.glb",
+      "bytes": 38428,
+      "build_s": 0.1,
+      "sha256": "7b99a4e6b2cdceb0",
+      "meshes": 18,
+      "tris": 824,
+      "materials": [
+        "glossy_plastic #2a9d8f roughness=0.35",
+        "glossy_plastic #f7b32b roughness=0.3",
+        "glossy_plastic #fff8f0 roughness=0.3",
+        "glossy_plastic #fff8f0 roughness=0.4",
+        "marble #e8e4dc roughness=0.3",
+        "painted_metal #3b3346 roughness=0.5",
+        "painted_metal #fff8f0 roughness=0.5",
+        "plastic #3a3440 roughness=0.45",
+        "plastic #ff6b6b roughness=0.4"
+      ],
+      "bbox_mm": [
+        1840.0,
+        640.0,
+        1264.0
+      ]
+    },
+    {
+      "name": "coffee_machine",
+      "file": "web-three/public/models-experimental/interiors/coffee_machine.glb",
+      "bytes": 59636,
+      "build_s": 0.11,
+      "sha256": "5cc2a299dc665c6e",
+      "meshes": 15,
+      "tris": 1772,
+      "materials": [
+        "brushed_steel roughness=0.4",
+        "ceramic #fff8f0 roughness=0.3",
+        "glossy_plastic #3b3346 roughness=0.3",
+        "glossy_plastic #f7b32b roughness=0.35",
+        "glossy_plastic #ff6b6b roughness=0.35",
+        "plastic #3a3440 roughness=0.45",
+        "plastic #3b3346 roughness=0.4",
+        "plastic #4a3020 roughness=0.55"
+      ],
+      "bbox_mm": [
+        456.0,
+        409.0,
+        510.0
+      ]
+    },
+    {
+      "name": "produce_crate",
+      "file": "web-three/public/models-experimental/interiors/produce_crate.glb",
+      "bytes": 119104,
+      "build_s": 0.15,
+      "sha256": "eebccc7a6a1cd850",
+      "meshes": 28,
+      "tris": 4080,
+      "materials": [
+        "glossy_plastic #7aa23c roughness=0.4",
+        "glossy_plastic #d97a2b roughness=0.4",
+        "plastic #7a5c52 roughness=0.6",
+        "plastic #7a5c52 roughness=0.65",
+        "plastic #8e6f66 roughness=0.6"
+      ],
+      "bbox_mm": [
+        600.0,
+        400.0,
+        315.0
+      ]
+    },
+    {
+      "name": "apartment_toilet",
+      "file": "web-three/public/models-experimental/interiors/apartment_toilet.glb",
+      "bytes": 23300,
+      "build_s": 0.07,
+      "sha256": "0c56795f54349465",
+      "meshes": 6,
+      "tris": 584,
+      "materials": [
+        "brushed_steel roughness=0.25",
+        "brushed_steel roughness=0.3",
+        "ceramic #fff8f0 roughness=0.2",
+        "plastic #e8e4dc roughness=0.35"
+      ],
+      "bbox_mm": [
+        400.0,
+        662.0,
+        880.0
+      ]
+    },
+    {
+      "name": "apartment_sink",
+      "file": "web-three/public/models-experimental/interiors/apartment_sink.glb",
+      "bytes": 34520,
+      "build_s": 0.07,
+      "sha256": "077fc3fc148c1544",
+      "meshes": 7,
+      "tris": 924,
+      "materials": [
+        "brushed_steel roughness=0.3",
+        "ceramic #fff8f0 roughness=0.2",
+        "ceramic #fff8f0 roughness=0.25",
+        "chrome roughness=0.15",
+        "plastic #e8e4dc roughness=0.3"
+      ],
+      "bbox_mm": [
+        450.0,
+        400.0,
+        1010.0
+      ]
+    },
+    {
+      "name": "apartment_radiator",
+      "file": "web-three/public/models-experimental/interiors/apartment_radiator.glb",
+      "bytes": 68256,
+      "build_s": 0.12,
+      "sha256": "aa9e6a124c18f664",
+      "meshes": 23,
+      "tris": 1992,
+      "materials": [
+        "brass roughness=0.25",
+        "brushed_steel roughness=0.35",
+        "painted_metal #3a3a40 roughness=0.55"
+      ],
+      "bbox_mm": [
+        892.5,
+        150.0,
+        600.0
+      ]
+    },
+    {
+      "name": "microwave_oven",
+      "file": "web-three/public/models-experimental/interiors/microwave_oven.glb",
+      "bytes": 21992,
+      "build_s": 0.27,
+      "sha256": "7c3044b60ebb84e3",
+      "meshes": 9,
+      "tris": 556,
+      "materials": [
+        "brushed_steel roughness=0.3",
+        "glossy_plastic #f7b32b roughness=0.35",
+        "plastic #3b3346 roughness=0.3",
+        "plastic #fff8f0 roughness=0.5",
+        "rubber #3a3440 roughness=0.7"
+      ],
+      "bbox_mm": [
+        385.0,
+        470.0,
+        340.0
+      ]
+    },
+    {
+      "name": "cecil_kitchenette",
+      "file": "web-three/public/models-experimental/interiors/cecil_kitchenette.glb",
+      "bytes": 30884,
+      "build_s": 0.08,
+      "sha256": "7b07f1235d4be14e",
+      "meshes": 12,
+      "tris": 712,
+      "materials": [
+        "brass roughness=0.25",
+        "brushed_steel roughness=0.3",
+        "brushed_steel roughness=0.35",
+        "fabric #fff8f0 roughness=0.85",
+        "marble #fff8f0 roughness=0.3",
+        "painted_metal #23877b roughness=0.45",
+        "painted_metal #2a9d8f roughness=0.5",
+        "plastic #3b3346 roughness=0.4"
+      ],
+      "bbox_mm": [
+        655.0,
+        2040.0,
+        1030.0
+      ]
+    }
+  ]
+}

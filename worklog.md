@@ -2340,3 +2340,38 @@ Stage Summary:
 - **Gates, both branch trees and the integrated tree (main `40d925e`):** tsc clean · vitest **1014/1014** (68 files, +31) · build OK · probe-nav 9/9 · probe-world-sim 15/15 · probe-ped-nav 7/7 · probe-chokepoints 5/5 · probe-integration PASS (8/8 walks) · probe-ms1-clock-street ALL CHECKS PASSED · 4-day E2E 0 failures (662 s branch / 679 s integrated, console clean, day-4 save holds $123 — the money math untouched). Register v1.14.0 + v1.15.0; SYS-WORLD-04/05, SYS-PLAY-09, SYS-NAR-06/07 checklist rows updated; PH-3's open list shortened to A-3 alone.
 - **Honest scope notes:** the capacity gate binds DOORS in the executor (the contract's named capacity-1 case); crosswalks carry derived capacity as MODEL + measurement (gating ambient walkers mid-crossing would touch the WP-3v steering for no measured need — the peak observed occupancy is 3 of 5 lanes); the rails' city-diary lines are quoted canon, and the city-diary SURFACE that will render them is a content-wave build; the shipped game does not yet CALL `evaluateRails` (the caller is the C0 content pack's persist-path wiring — the machine is content-ready, not content-complete, exactly as R2/R7 shipped before their scenes).
 - **Not pushed** — the directive carried NO push authorization; the tree now stands at main `40d925e` + this docs commit, ahead of origin by eight commits (3 E-1 + 2 work + 2 merges + 1 docs). The remaining sequenced work is A-3 (DEC-4, the owner's call); everything beyond it is owner-gated or content-wave.
+
+## 2026-11-07 — interiors batch: the nine rooms get dressed (feat/interior-production)
+
+The owner's interiors directive landed as a production batch, not a proposal:
+audit → build → integrate → verify, room by room, until every existing
+interior was covered.
+
+- **Audit** (`docs/production/interiors/00-INVENTORY.md`): the codebase holds
+  nine enterable furnished interiors — the bodega (always-open storefront) and
+  the eight W5 rooms (LAUNDRY/BARBER/PIZZA/BAKERY/RECORDS/HALL/DINER/CECIL).
+  Their shared deficiency: equipment was colored boxes — dryers, oven, cook
+  line, cooler, toilet, kitchenettes, shelves, chair stacks.
+- **Build**: 32 sand3d programs in `tools3d/sandflow_eval/programs/`
+  (`run_interiors.py` batch-builds + QA-manifests them; postprocess strips
+  metallic for the fuse law; files land in `public/models/`). Two studio
+  passes were needed: the first taught me `s3d.at(z=…)` anchors a part's
+  BASE (everything I had stacked as centers floated — the renders showed it),
+  and `rz` does not lay a cylinder down. All programs rewritten base-anchored.
+- **Integrate**: `web-three/src/world/interiorAssets.ts` (INTERIOR_SLOTS +
+  INTERIOR_PROVENANCE) + `World.upgradeInteriorPropsWithGLB()` fired after
+  `buildAlderHeightsW5()`. Composite placeholders collapsed to full-height
+  bodies (tables, barber chairs — the shipped booth pattern); long wall units
+  authored in final world orientation so the ±90 % footprint guard passes 1:1;
+  machines wear the washer-slot pattern. New colliders wall-hugging only.
+- **Verify**: tsc clean; vitest 980/980; build OK; probe-interior-dressing
+  PASS (69 props + 40 ABO furniture, 0 page errors); probe-w5-interiors PASS;
+  9 parked-camera screenshots per interior (the visual-d4b park law — the
+  chase boom collapses on a stationary player). Two mirror-axis bugs found by
+  the screenshots themselves (microwave door, Cecil kitchenette fronts faced
+  their walls) — mirrored, rebuilt, re-probed. Evidence in
+  `docs/production/interiors/evidence/`.
+- **Honest**: the 4-day E2E stalls at the same early beat on pristine main
+  and on this branch in this sandbox (software GL; the register's green 606 s
+  run had faster iron) — rerun before the next release cut. SUB-01 platform
+  and the terminal keep their kit identity for a later pass.
