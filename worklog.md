@@ -2001,3 +2001,51 @@ Day-1 trace came back **byte-identical across two independent boots**
 (txn:story_494_0…497_0): determinism proven in the live game, not just the unit suite.
 The four-day story's $87 → $112 → $123 math passes unchanged — it is now traceable from
 genesis on every save. NOT PUSHED — awaiting owner authorization.
+
+## 2026-11-07 — WP-6 LANDED + INTEGRATED to main (register v1.9.0)
+
+`git merge --no-ff feat/wp-6-diary-date-visible` → main **`5ba16a3`** (impl `16c3e73`,
+zero conflicts, full history preserved). The diary and the date become visible — the
+next sequenced item per §2b, under the owner's "Continue working" (A-3 skipped as
+owner-gated, DEC-4).
+
+- **The ink (`ui/diary.ts`, new — 202 lines):** the Map renders the field diary as
+  ink (narrative/14 R3). A folded leaf of the same paper behind a `my diary` tab on
+  the Map sheet — build-once DOM, then text/class flips only (the sketch's law).
+  Entries render with the mechanical epistemic tag + the per-entry calendar dateline
+  (through `formatGameDate` — the ONE date door; no `Date` anywhere in the module,
+  pinned by test). The contradiction strike is a TEXT style: the offending words stay
+  readable under the line, the margin note renders in current-tense Leo, and stripping
+  the spans returns the body byte for byte (append-only survives rendering). The
+  RECALL wobble is deterministic: fixed tilt + soft ink, no animation (a notebook that
+  redraws itself between reads would feel haunted).
+- **The dateline:** the calendar date the block is living joins the HUD (under the
+  clock) and the leaf, rendered through `datelineOfStoryDay` ONLY (the one mapping,
+  sim/epochMap — day 1 = "September 9 · Year 1"). `beginDay` re-renders it each
+  morning. The UI never derives a date; Game passes the mapped text.
+- **The touch law held:** the diary rides the Map's own paper surface (`mapPanel`) —
+  it adds no door, so `touchPanelUp` is untouched and the pinned wiring counts stand
+  (one toggle, 16 `syncTouchUI` calls — touch-law.test.ts green untouched).
+- **Wiring footprint:** Game.ts = 1 import + 3 call sites (boot, toggleMap, beginDay);
+  UI.ts = two display seams (`refreshDiary`/`setDateline`) — wired entry points only,
+  no structure moved; `core/fieldDiary.ts` consumed, never modified. VARIANCE vs the
+  plan's file list: `ui/sketch.ts` needed NO extension — the ink layer proved
+  self-contained in diary.ts + style.css (the two shipped pages keep their exact
+  layout; the leaf overlays the sheet, clipped by its own fold).
+- **Tests (+15, `tests/ui-diary-ink.test.ts`):** strike mechanics (one strike per
+  correction, first plain occurrence; missing quote → margin still renders), the
+  bytes-survive law, escaping (the diary cannot be injected), determinism (same entry
+  → byte-identical ink), the dateline pins (day 1 = Sept 9 · Year 1; day 6 = Sept 14 ·
+  Year 1 — the plan's own example), and the source laws (no clock reads in diary.ts,
+  no image in the strike, no animation in the wobble, no ad-hoc date formatting in
+  Game.ts, no second touch toggle).
+- **Gates:** tsc clean · vitest **927/927** (63 files) · build OK · **probe-diary-ink
+  28/28 at 390×844** (post-merge, console clean — empty page in voice, three seeded
+  entries as ink, the strike + margin from doc 03 §5.1's own example, RECALL wobble
+  rendered, fold-back; screenshots `shots/diary-ink-390.png`, `diary-ink-empty-390.png`,
+  `diary-dateline-390.png`) · 4-day E2E **0 failures** (569 s, console clean, day-4
+  save holds $123 — the money math unchanged). Playwright chromium reinstalled in the
+  sandbox first (environment, not product).
+- **Not pushed** — awaiting owner authorization. Unpushed on main: WP-4's four commits
+  (`2203f05`…`96490d2`) + WP-6's two (`16c3e73`, `5ba16a3`). Next per §2b: A-3
+  (DEC-4, owner call) → WP-7 (evidence assembly, last); WP-5 (R2+R7) fully parallel.

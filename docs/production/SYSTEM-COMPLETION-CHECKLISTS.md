@@ -123,12 +123,12 @@ Evidence sources used for baseline statuses: source audit of `web-three/src/` (2
 **Done when:** ignoring the protagonist for a chapter changes ≥3 majors in documented directions (R5's test), and every relationship mutation is auditable in the event log.
 
 ### SYS-POP-06 — Memory & personal stories
-**Today:** player's field diary engine complete (`core/fieldDiary.ts` — 10 kinds, epistemics, corrections, quarantine — VERIFIED state); city diary (`core/diary.ts` morning-after notes); walker memory lines; no UI for the field diary. Status: PARTIAL (state VERIFIED, UI PLANNED — Phase 2 WP-6).
+**Today:** player's field diary engine complete (`core/fieldDiary.ts` — 10 kinds, epistemics, corrections, quarantine — VERIFIED state); city diary (`core/diary.ts` morning-after notes); walker memory lines; **the ink UI landed (WP-6, main `5ba16a3`): the Map renders entries as ink — the folded leaf behind the `my diary` tab, epistemic-tagged, datelined through `formatGameDate`, the contradiction strike a text style with the margin note, the RECALL wobble deterministic — probe-diary-ink 28/28 at 390×844, console clean.** Status: INTEGRATED (state VERIFIED, ink UI landed; authored content pack is still future — the machine is ahead of its content by design, narrative/14 §7).
 **Checklist:**
-- [ ] Diary ink UI (font atlas + wobble style — two draw calls of UI)
+- [x] Diary ink UI (font atlas + wobble style — two draw calls of UI) — WP-6 `16c3e73`, 2026-11-07; probe-diary-ink 28/28
 - [ ] Contradiction ledger K1–K8 as authored data (doc 03 §2)
-- [ ] Append-only invariant test guards every code path (exists — keep green)
-**Done when:** a player can read Leo's diary in-game, corrections strike through, and no code path can edit a persisted entry's body.
+- [x] Append-only invariant test guards every code path (exists — keep green; the ink survives rendering: `tests/ui-diary-ink.test.ts` strips the strike span and asserts the body byte for byte)
+**Done when:** a player can read Leo's diary in-game, corrections strike through, and no code path can edit a persisted entry's body. — the read path is live and proven; the authored contradictions (K1–K8) remain the open half.
 
 ### SYS-POP-07 — Needs, activities & reactions
 **Today:** NOT STARTED (deliberate deferral — wc-17: "shapes first, dials after loops exist"). Reaction patterns shipped in narrow forms (Shuffle reactions, pigeon flush, crowd yields). Status: PLANNED (Phase 4).
@@ -320,11 +320,11 @@ Evidence sources used for baseline statuses: source audit of `web-three/src/` (2
 **Done when:** the protagonist's identity systems are complete per canon and propagation is test-pinned.
 
 ### SYS-NAR-02 — Diary-map
-**Today:** Map notebook VERIFIED (pages, notes, slang, sketch reveals, beat marker); field diary state VERIFIED (see SYS-POP-06); Map-as-diary doctrine (doc 03) partially live (Map yes, diary ink no).
+**Today:** Map notebook VERIFIED (pages, notes, slang, sketch reveals, beat marker); field diary state VERIFIED (see SYS-POP-06); Map-as-diary doctrine (doc 03) **live for the ink (WP-6, main `5ba16a3`): entries render on the Map's folded leaf, the calendar dateline on the HUD and the leaf through `datelineOfStoryDay` only.**
 **Checklist:**
-- [ ] Diary ink UI (Phase 2 WP-6)
-- [ ] Diary/map merge behaviors per doc 03 §4 (entries as ink on the Map's pages)
-**Done when:** the Map reads as the diary it is — append-only, biased, hand-kept — with the contradiction strikes visible.
+- [x] Diary ink UI (Phase 2 WP-6) — landed 2026-11-07; touch law untouched (the diary rides the Map's paper surface, no new door)
+- [x] Diary/map merge behaviors per doc 03 §4 (entries as ink on the Map's pages) — the leaf IS a page of the notebook; strikes visible
+**Done when:** the Map reads as the diary it is — append-only, biased, hand-kept — with the contradiction strikes visible. — met for the machine; authored prose arrives with the C0 pack.
 
 ### SYS-NAR-03 — Character arcs
 **Today:** canon complete (docs/narrative/06, 07); "without the protagonist" defaults binding. Machines not built. Status: PLANNED (R5 + waves, Phases 4/7).

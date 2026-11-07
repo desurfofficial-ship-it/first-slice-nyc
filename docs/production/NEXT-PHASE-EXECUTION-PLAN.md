@@ -79,7 +79,7 @@
 - **Integration:** none yet (state machines ahead of their content, per §7 order) — integration lands with R1/R8.
 - **Reporting:** worklog + register (R2/R7 rows) + PR.
 
-### WP-6 — The diary and the date become visible *(WS-C + WS-E)*
+### WP-6 — The diary and the date become visible *(WS-C + WS-E)* — **CLOSED 2026-11-07 (main `5ba16a3`): landed under the owner's "Continue working" as the next sequenced item**
 - **Task scope:** the field-diary ink layer on the Map (font atlas + wobble RECALL style — two draw calls of UI per narrative/14 §4) and the calendar date on the HUD/Map ("September 14 · Year 1" via `formatGameDate` — the ruled Sept 9 epoch, DEC-1 2026-11-06). Touch law and paper-surface law respected; dyslexia-friendly toggle may follow in Phase 5 but entries must be readable at this milestone.
 - **Files owned:** `web-three/src/ui/diary.ts` (new), `web-three/src/ui/sketch.ts` (extensions), `web-three/src/style.css` (additions), tests (new).
 - **Must NOT modify:** `core/fieldDiary.ts` (consume only), `ui/UI.ts` structure beyond wired entry points, any sim layer.
@@ -121,6 +121,8 @@ WP-7 (evidence assembly)       ── last; consumes all + the post-merge perf r
    *UPDATE 2026-11-06 (register v1.7.0): the nav critical path closed ahead of schedule — A-1 + A-2 landed and INTEGRATED (`b1df252`), and WP-3v's ambient migration landed the same day (`e3f1b02`), so the proposed order collapses to: **A-3 (registry geometry flip, DEC-4 — owner call) → WP-4 (money→ledger bridge) → WP-6** as the remaining sequenced work; WP-3v scale-out beyond the 12-walker roster (population growth, chokepoint capacity claims) rides WP-4's customer interiors. Nothing began without the owner's authorization: the integration + WP-3v were directed assignments (Phase 3 + WP-3v briefs).*
 
    *UPDATE 2026-11-06 (register v1.8.0): **WP-4 LANDED** on `feat/wp-4-money-bridge` @ `2203f05` (from main `dcff32c`, not yet merged) under the owner's "Continue working" — the next sequenced item; A-3 was skipped as owner-gated (DEC-4). The bridge is additive: zero GameState edits, the E2E's $87→$112→$123 math unchanged and green (probe-money-trace ALL PASSED — genesis → five faucets → $112, audit clean). Remaining order: **WP-6 (diary/date visible — unblocked, disjoint files) → A-3 (DEC-4, owner call)**. WP-3v scale-out beyond the 12-walker roster stays parked behind customer interiors + the owner's population call.*
+
+   *UPDATE 2026-11-07 (register v1.9.0): **WP-6 LANDED + INTEGRATED** — `feat/wp-6-diary-date-visible` @ `16c3e73`, merged `5ba16a3` (same "Continue working" authorization class; A-3 still owner-gated). The Map renders the field diary as ink (folded leaf + tab, no new paper door — touch law untouched); the dateline renders through `datelineOfStoryDay` only ("September 9 · Year 1"); gates: tsc · vitest 927/927 (63 files) · build · probe-diary-ink 28/28 at 390×844 (console clean, shots) · 4-day E2E 0 failures (569 s). **Remaining order: A-3 (DEC-4, owner call) → WP-7 (evidence assembly — last, consumes the milestone); WP-5 (R2+R7) stays fully parallel (disjoint files).** Sketch.ts required no extension — the ink layer proved self-contained in `ui/diary.ts` + `style.css` (fewer touched files than the plan guessed; no structural change to the shipped two-page sheet).*
 
 ### 2c. A-1/A-2 status note (2026-11-06, Technical Architecture agent)
 
