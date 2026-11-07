@@ -18,7 +18,7 @@ Evidence sources used for baseline statuses: source audit of `web-three/src/` (2
 **Checklist:**
 - [ ] Registry typed load + validation on main (lands with the Phase-1 merge)
 - [ ] Semantic queries find canon places (`sim-registry.test.ts` pattern) on main
-- [ ] Anchors catalogued as `obj:` content entries (Phase 3 E-1)
+- [x] Anchors catalogued as `obj:` content entries — **DONE 2026-11-07 (E-1, register v1.13.0, main `3d72d9b`)**: the contract-named set (newsbox, hoop/court, board, shelves) under reserved `obj:` sim ids in `sim/contentCatalogue.ts`, `validateManifest` clean, the interaction mapping grepped against `game/interactionDefs.ts`
 - [ ] The deliberate flip: geometry loads from the registry at runtime, one district per PR (Phase 3 A-3)
 - [ ] Fidelity gate re-pinned as the load test after the flip
 **Done when:** the running world's geometry and semantics are read from the registry, ghost gates (±0.1 m) and validator green, and no hand-transcribed coordinate remains unguarded.
@@ -36,7 +36,7 @@ Evidence sources used for baseline statuses: source audit of `web-three/src/` (2
 **Checklist:**
 - [ ] Interior set complete for the shipped narrative (C0 needs: Corner Slice, Cecil room, diner — narrative/00 §5)
 - [ ] Remaining interiors to fixture level per `docs/41-interior-design-catalogue` (history — re-derive from registry)
-- [ ] Building-variant packs through `validateManifest` (Phase 3 E-1)
+- [x] Building-variant packs through `validateManifest` — **DONE 2026-11-07 (E-1, the FIRST pack)**: the 19 shipped registry buildings (status existing / built (W2)) as `building_variant` entries under their registry ids; builder lines honest (code-ref tokens + BUILDING_EVIDENCE grepped in the world sources); later packs append as buildings are built
 - [ ] Furniture pack extension is idempotent (`tools3d/abo_select.py` + `abo_fetch.py`) and license files ship with any derived use
 **Done when:** every place the spine names is enterable and furnished; every new interior passes the glass-side + near/far laws; probes exit 0.
 

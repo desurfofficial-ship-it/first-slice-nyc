@@ -2288,3 +2288,43 @@ Stage Summary:
 - Honest note: the flat ≤1 cm ride is real street behavior (brushing
   commuters at low fps); if the owner ever wants it tighter, the lever
   is the shipped MAX_PUSH authority at low fps, not the probe.
+
+## 2026-11-07 — Technical Architecture / World Systems Agent: "Push and continue working" — the second divergence integrated, E-1 landed
+
+**Directed by the owner's "Push and continue working."** Two halves, both closed.
+
+- **The push, second wave:** origin/main had advanced AGAIN between the waves —
+  `fix/def14-ped-nav-hysteresis` (register v1.12.0, the WS-B/WS-F continuation's
+  capture-derived fix for the ped-nav separation flake, R-NEW-17) landed at
+  `bf1d767`. Integration merge `aedc27d` (no-ff; register + worklog conflicts
+  resolved with BOTH sides verbatim). The DEF-14 fix re-proven on THIS box — the
+  one where the flake was first evidenced 1-of-3: **probe-ped-nav 3/3 green**
+  (after repairing the environment: the sandbox recycle had dropped the
+  Playwright headless-shell binary — an environment failure, not a product one).
+  Suite 974/974 on the integrated tree pre-E-1. **Pushed `bf1d767..aedc27d`
+  (fast-forward), ls-remote MATCH, tracking synced.**
+- **E-1 — the shipped content catalogue** (the first item of the queued order
+  the owner's message ratified; branch `feat/e1-anchor-catalogue` @ `4502ebb`,
+  merged `3d72d9b`, no-ff): `sim/contentCatalogue.ts` (new) — (1) the anchor
+  set: the contract-named anchors (newsbox, hoop/court, board, shelves —
+  wc-08 §47) under the reserved `obj:` sim ids, interaction ids carried as
+  tags, shelf goods flowing through from `SHELF_GOODS` (no second copy); (2)
+  the first building-variant pack: all 19 shipped registry buildings under
+  their registry ids, every builder line honest — code-ref tokens from the
+  registry's own style notes, `BUILDING_EVIDENCE` for the rest. The test
+  (9 cases) greps the world + interaction sources so the catalogue cannot
+  rot: `validateManifest` zero-issues, pack = the shipped set exactly,
+  mapping vs `interactionDefs.ts` literal. **Zero new assets, zero runtime
+  code touched** (wc-11 §7) — no E2E re-run per the v1.12.0 precedent.
+  Gates: tsc · vitest **983/983** (66 files, +9) · build, branch AND
+  integrated tree; docs-hygiene 5/5. SYS-WORLD-01 + SYS-WORLD-03 rows ticked.
+- **Honest scope notes:** the building pack is the SHIPPED 19, not the full
+  50-building registry — planned buildings append as they are built (the id
+  law), a pack is a promise about what exists; the anchor set is the
+  contract's NAMED four families, not every interaction (41+ exist —
+  widening the catalogue is future Workstream E scope, new entries append);
+  the catalogue is not yet wired into any runtime consumer (E-1 is
+  cataloguing; consumers arrive with the content waves and A-3's flip).
+- **Not pushed** — the E-1 commits (branch tip + merge + this docs commit)
+  await the owner's next push wave. Remaining order (§2b): chokepoint
+  capacity claims → R1/R8 rails engine (parallel WS-C); A-3 (DEC-4) unblocked.
