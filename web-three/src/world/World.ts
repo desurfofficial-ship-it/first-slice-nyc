@@ -4496,26 +4496,34 @@ export class World {
     this.solid('Yard_S', 0, 0.0, -20, 120, 0.2, 24, 0x3a7355, { receive: true, cast: false });
 
     // ---- G. SUB-02 — the south control house (props.makeControlHouse) ----
+    // A-3 flipped (2026-11-08): the placement and the collider box READ the
+    // registry (SUB-02 — fp + height); the authored pavilion geometry (the
+    // style builder) stays.
+    const sub2reg = this.regShell('SUB-02');
     const sub2 = makeControlHouse(this.bank, this.signMaterials.bind(this));
-    sub2.position.set(-57, 0.05, -6.25);
+    sub2.position.set(sub2reg.x, 0.05, sub2reg.z);
     this.scene.add(sub2);
-    this.colliders.push(boxFromCenter(-57, 1.7, -6.25, 6, 3.4, 3.5));
+    this.colliders.push(boxFromCenter(sub2reg.x, sub2reg.h / 2, sub2reg.z, sub2reg.w, sub2reg.h, sub2reg.d));
 
     // ---- H. the shells: corner infills + the Marlow row ------------------
     // KTN-00W — the Corner House (chamfer pier toward the KJ intersection)
-    this.solid('KTN_00W', -55, 8, 14, 10, 16, 12, PAL.bldg2);
+    // A-3 flipped (2026-11-08): the mass, storefront anchor, window grid,
+    // crown, chamfer pier and water tower READ the registry (KTN-00W);
+    // the style constants (window rhythm, insets, the 45° cut) stay code.
+    const ktw = this.regShell('KTN-00W');
+    this.solid('KTN_00W', ktw.x, ktw.h / 2, ktw.z, ktw.w, ktw.h, ktw.d, PAL.bldg2);
     const ch = makeStorefront(this.bank, this.signMaterials.bind(this), 'CORNER HOUSE', PAL.brick, 8);
-    ch.position.set(-55, 0.05, 8.02);
+    ch.position.set(ktw.x, 0.05, ktw.z - ktw.d / 2 + 0.02);
     ch.rotation.y = Math.PI;
     this.scene.add(ch);
     for (let f = 0; f < 3; f++) for (let c = 0; c < 3; c++) {
-      this.decoMesh(`KTN00W_Win_${f}_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), -58.4 + c * 3.4, 7.2 + f * 2.9, 7.92);
+      this.decoMesh(`KTN00W_Win_${f}_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), ktw.x - ktw.w / 2 + 1.6 + c * 3.4, 7.2 + f * 2.9, ktw.z - ktw.d / 2 - 0.08);
     }
-    this.deco('KTN00W_Crown', -55, 15.4, 14, 10.2, 0.8, 12.2, PAL.stone, {});
+    this.deco('KTN00W_Crown', ktw.x, ktw.h - 0.6, ktw.z, ktw.w + 0.2, 0.8, ktw.d + 0.2, PAL.stone, {});
     // the corner-store cut: a 45° pier flush with the SW corner faces
-    const chamfer = this.deco('KTN00W_Chamfer', -59.68, 1.9, 8.32, 0.55, 3.8, 0.55, PAL.brick, {});
+    const chamfer = this.deco('KTN00W_Chamfer', ktw.x - ktw.w / 2 + 0.32, 1.9, ktw.z - ktw.d / 2 + 0.32, 0.55, 3.8, 0.55, PAL.brick, {});
     chamfer.rotation.y = Math.PI / 4;
-    this.waterTower(-55, 16, 12.5, 1.4); // LMK-03: the corners carry tanks too
+    this.waterTower(ktw.x, ktw.h, ktw.z - 1.5, 1.4); // LMK-03: the corners carry tanks too (the tank anchors 1.5 m south of the footprint center)
 
     // KTN-06 — 6 Kestrel St East, the café shell (papered, FOR RENT)
     this.solid('KTN_06', 55, 8, 14, 10, 16, 12, PAL.brick);
@@ -4531,27 +4539,33 @@ export class World {
     this.deco('KTN06_Door', 55, 1.4, 7.95, 1.4, 2.8, 0.12, 0x6e554e, {});
     this.waterTower(55, 16, 12.5, 1.4);
 
-    // the Marlow row: three shopfronts + three walk-ups (doors and windows
-    // face Marlow — the registry's entrance rows are corrected to z −32)
-    const marlowShops: Array<[string, string, number, number, number, string]> = [
-      ['SMB_01', 'MARLOW BAKERY', -34, 8, PAL.bldg2, 'Bakery_Glass'],
-      ['SMB_02', 'B-SIDE RECORDS', -25, 6, PAL.brick, 'Records_Glass'],
-      ['SMB_03', 'KESTREL HARDWARE', -17, 6, PAL.bldg, ''],
+    // the Marlow row: three shopfronts (doors and windows face Marlow —
+    // the registry's entrance rows are corrected to z −32)
+    // A-3 flipped (2026-11-08): the three shop masses, storefront anchors,
+    // window rows and the bakery's bagel READ the registry (SMB-01/02/03);
+    // the style constants (sign widths, window rhythm) stay code.
+    const marlowShops: Array<[string, string, number, string]> = [
+      ['SMB_01', 'MARLOW BAKERY', PAL.bldg2, 'Bakery_Glass'],
+      ['SMB_02', 'B-SIDE RECORDS', PAL.brick, 'Records_Glass'],
+      ['SMB_03', 'KESTREL HARDWARE', PAL.bldg, ''],
     ];
-    for (const [id, label, x, w, col, glassName] of marlowShops) {
-      this.solid(id, x, 6, -26, w, 12, 12, col);
-      const shop = makeStorefront(this.bank, this.signMaterials.bind(this), label, PAL.teal, w - 1, glassName || undefined);
-      shop.position.set(x, 0.05, -32.02);
+    for (const [id, label, col, glassName] of marlowShops) {
+      const reg = this.regShell(id.replace('_', '-'));
+      this.solid(id, reg.x, reg.h / 2, reg.z, reg.w, reg.h, reg.d, col);
+      const shop = makeStorefront(this.bank, this.signMaterials.bind(this), label, PAL.teal, reg.w - 1, glassName || undefined);
+      shop.position.set(reg.x, 0.05, reg.z - reg.d / 2 - 0.02);
       shop.rotation.y = Math.PI; // the street is SOUTH of the row
       this.scene.add(shop);
       for (let c = 0; c < 2; c++) {
-        this.decoMesh(`${id}_Win_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), x - w / 2 + 1.6 + c * (w - 3.2), 8.6, -31.94);
+        this.decoMesh(`${id}_Win_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), reg.x - reg.w / 2 + 1.6 + c * (reg.w - 3.2), 8.6, reg.z - reg.d / 2 + 0.06);
       }
     }
     // the bakery's bagel silhouette in the window (Doc 04 object canon #8)
+    const smb1 = this.regShell('SMB-01');
     const bagel = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.13, 8, 18), this.bank.get(0xd9a05b));
-    bagel.position.set(-34, 1.7, -32.3);
+    bagel.position.set(smb1.x, 1.7, smb1.z - smb1.d / 2 - 0.3);
     this.scene.add(bagel);
+
     // the Marlow walk-ups — A-3 flipped (2026-11-07): placement and
     // dimensions READ the registry (PWK-01/02/03); the hand constants
     // retired. The window rows and the stoops derive from the same

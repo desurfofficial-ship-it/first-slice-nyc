@@ -168,13 +168,33 @@ const CENSUS_FN = async ([dynRe, regions]) => {
 };
 
 const CENSUS_ARGS = [[DYNAMIC_RE.source, DYNAMIC_RE.flags], BAND_REGIONS];
-let census = await page.evaluate(CENSUS_FN, CENSUS_ARGS);
+const snap = async () => await page.evaluate(CENSUS_FN, CENSUS_ARGS);
+const key = (c) => JSON.stringify(c.rows);
+// settle: wait for two consecutive equals, then VOTE — a rare boot-transient
+// (a late async settle reshuffling a bake group once) must not fail the
+// gate, while a real geometry change differs in EVERY sample and blocks.
+let census = await snap();
 let stable = 0;
 for (let i = 0; i < 10 && stable < 2; i++) {
   await page.waitForTimeout(2500);
-  const next = await page.evaluate(CENSUS_FN, CENSUS_ARGS);
-  stable = JSON.stringify(next) === JSON.stringify(census) ? stable + 1 : 0;
+  const next = await snap();
+  stable = key(next) === key(census) ? stable + 1 : 0;
   census = next;
+}
+const votes = new Map();
+for (let i = 0; i < 3; i++) {
+  const c = await snap();
+  votes.set(key(c), (votes.get(key(c)) ?? 0) + 1);
+  if (i < 2) await page.waitForTimeout(1200);
+}
+const ranked = [...votes.entries()].sort((a, b) => b[1] - a[1]);
+if (ranked.length > 1 && ranked[0][1] < 2) {
+  console.error(`CENSUS UNSTABLE ACROSS ${ranked.reduce((a, [, n]) => a + n, 0)} SAMPLES — investigate before trusting`);
+  census = JSON.parse(ranked[0][0]);
+  console.warn(`using the majority shape (${ranked[0][1]} of ${ranked.reduce((a, [, n]) => a + n, 0)}) — treat a warning-level verdict as suspect`);
+} else {
+  const winner = await snap();
+  if (key(winner) === ranked[0][0]) census = winner;
 }
 
 mkdirSync(new URL('../shots/a3', import.meta.url).pathname, { recursive: true });

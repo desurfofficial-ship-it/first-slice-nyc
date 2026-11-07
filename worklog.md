@@ -2466,3 +2466,20 @@ Work Log:
 Stage Summary:
 - The A-3 wave is ON under a recorded owner ruling, and its first unit is in with the strongest fidelity evidence yet mustered in this repo (byte-identical geometry + byte-equal draw calls + the full probe battery). Gates at close: one source file (`World.ts`), one new probe script, register + worklog rows in the same commit — revertible per unit exactly as §6.1 requires.
 ---
+
+## 2026-11-08 — Production Director: WP-A3 unit 2/6 — W1-B flipped (register v1.20.0) — with one caught defect and one voided battery, both recorded
+
+Task ID: PROD-A3-U2 (supersedes the voided first attempt)
+Agent: Production Director (Z.ai)
+Task: WP-A3 unit 2 under the DEC-4 Option B ruling (owner, 2026-11-08): W1's class-B band, per the brief's §6.
+
+Work Log:
+- **Flipped** (`World.ts`, buildAlderHeightsW1): KTN-00W — the Corner House (the mass, the storefront anchor, the 3×3 window grid, the crown, the 45° chamfer pier, the water tower now derive from `regShell('KTN-00W')`; the style constants — window rhythm 2.9, insets 0.2/0.32, the tank's center-anchored 1.5 m south offset — stay code); SMB-01/02/03 — the three Marlow shops (masses at h/2, storefront anchors at fp.z−d/2−0.02, window rows, the bakery's bagel at fp.z−d/2−0.3); SUB-02 — the south control house (placement + the collider box from fp+height: boxFromCenter(x, h/2, z, w, h, d)).
+- **DEFECT CAUGHT BY THE GATE (the census's first catch of the wave):** the first derivation anchored the corner house's water tower at `fp.z + d/2 − 1.5` — 18.5, six metres south of the authored 12.5 (`fp.z − 1.5`, the shipped convention on every north-side roof: the terminal's, the pizza corner's). The arithmetic seam-check MISSED it (14+6−1.5 was mis-summed to 12.5 on paper); the census did not: two bake tiles regrouped (the 19.26 m tower profile surfaced at the wrong z in `StaticBake_c1r2_51`), and the byte-identity gate REFUSED the tree. Every other gate — tsc, 1020 tests, three probes, the draw-call ledger, the E2E — was blind to a 6 m rooftop move. Fixed to `fp.z − 1.5`; the skyline is byte-identical again. **The lesson is recorded in the seam's comment now: the census is the load-bearing fidelity gate of this wave.**
+- **PROCESS VARIANCE, voided wholesale:** an intermediate battery ran on a wrongly-stashed working tree (a `git stash push` before a baseline re-measure was never popped — the tree under test was unit 1's, not unit 2's) and one commit was cut from that state with claims its code did not carry. The mistake was caught in a content audit of the branch, the commit replaced at `git reset --soft` (nothing was ever pushed), the tree state verified against the stash diff before re-running, and **no measurement from the voided battery is cited anywhere**. The stash-diff verification step is now part of the unit loop.
+- **The fidelity gate — ALL GREEN on the verified true tree:** tsc clean · vitest **1020/1020** (69 files) · build OK (560 ms) · registry mjs OK (129 IDs, fidelity 12/12 masses) · **geometry census byte-identical** (173 band meshes, `shots/a3/pre-census.json` ≡ `u2-census.json`, best-of-3 voting) · **draw-call ledger zero drift** (146/216/282, byte-equal) · probe-world-sim **15/15** · probe-nav **9/9** · probe-integration **0 errors, 8/8 street walks** · 4-day E2E **0 failures** (559 s at the script's own slow-box viewport law; two 900×700 runs on the voided tree aside, this is the true-tree run) · parked-camera pairs filed (`shots/a3/{pre,u2}-*.png`, 7 vantages).
+- Register v1.20.0 (PH-3 + MS-2 rows, change log — the variance recorded there too). Not done, by law: units 3–6 (W1-A next); nothing beyond the brief's §6.
+
+Stage Summary:
+- Two of six units in. The wave's evidence standard held under its first real test: the census refused a defective skyline the whole rest of the fleet called green, and the process variance was caught, voided and re-run rather than papered over. This is what the gate is for.
+---
