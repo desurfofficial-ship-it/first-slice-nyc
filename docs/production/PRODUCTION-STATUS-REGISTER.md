@@ -19,7 +19,7 @@
 |---|---|
 | Phases | 0 (closing) · 1+2 (**MERGED to main, WP-0, 2026-11-06** — gates executed) · 3 (next, planned) · 4–12 (planned) |
 | Systems tracked | 48 — VERIFIED 16 · IMPLEMENTED 6 · INTEGRATED/partial 15 · PLANNED 8 · NOT STARTED 4 |
-| Narrative requirements | R0/R2/R3/R4/R7 done (R2+R7 state machines INTEGRATED — WP-5; R3's ink LIVE — WP-6) · R1/R5/R6/R8–R15 not started |
+| Narrative requirements | R0/R2/R3/R4/R7 done (R2+R7 state machines INTEGRATED — WP-5; R3's ink LIVE — WP-6) · **R1/R8 INTEGRATED (machines — the completion drive, main `40d925e`; scene-level rides the content waves)** · R5 (Phase 4), R6 (Phase 6), R9–R14 (§7 order, after C0) not started |
 | Open decisions | DEC-2…DEC-11 (**DEC-1 RULED 2026-11-06** — see [PRODUCTION-RISKS-AND-DEPENDENCIES.md](PRODUCTION-RISKS-AND-DEPENDENCIES.md)) |
 | Open defects | B13 (draw calls, owner's call) + hygiene item HYG-1 |
 | Gates | **main `40d925e`+ (the production-completion drive tree — register v1.15.0): `tsc` clean · vitest **1014/1014** (68 files, +21 rails +10 capacity) · build OK · **probe-chokepoints 5/5** (the NEW capacity probe: 230 samples full day, gate law-abiding, street measured) · 4-day E2E 0 failures (679 s, console clean, day-4 save holds $123) · probe-ms1-clock-street ALL CHECKS PASSED · probe-integration PASS (8/8 street walks incl. stoop-door/bodega-interior, 0 errors) · probe-money-trace ALL PASSED ($112.00, mirror holds, ids byte-identical) · probe-world-sim 15/15 · probe-pause-set 11/11 · probe-nav 9/9 · probe-ped-nav 7/7 · perf-peds 27.1 µs/frame heap FLAT (2026-11-07) |
