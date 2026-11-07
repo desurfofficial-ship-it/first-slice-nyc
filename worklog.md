@@ -2483,3 +2483,20 @@ Work Log:
 Stage Summary:
 - Two of six units in. The wave's evidence standard held under its first real test: the census refused a defective skyline the whole rest of the fleet called green, and the process variance was caught, voided and re-run rather than papered over. This is what the gate is for.
 ---
+
+## 2026-11-08 — Production Director: WP-A3 unit 3/6 — W1-A flipped; W1 COMPLETE, the Phase-3 DoD geometry line met (register v1.21.0; DEC-4 status → RULED)
+
+Task ID: PROD-A3-U3
+Agent: Production Director (Z.ai)
+Task: WP-A3 unit 3 under the DEC-4 Option B ruling: W1's class-A band — the café shell KTN-06, the street's last hand-anchored W1 mass.
+
+Work Log:
+- **Flipped** (`World.ts`, buildAlderHeightsW1): KTN-06 — the mass (fp + h), the 3×3 window grid, the two cream papers (fp.x ∓ w/2 ± 2.2 insets), the FOR RENT sign (fp.z − d/2 − 0.14), the door, the water tower at `fp.z − 1.5` — the unit-2 lesson's corrected convention applied from the first write, and the census confirmed byte-identity on the FIRST build (no defect cycle this time — the seam's constants are now written from the tower convention, not re-derived per unit).
+- **The fidelity gate — ALL GREEN on the first pass:** tsc clean · vitest **1020/1020** (69 files) · build OK (555 ms) · registry mjs OK · **geometry census byte-identical** (173 band meshes, `pre` ≡ `u3`) · **draw-call ledger zero drift** (146/216/282) · probe-world-sim **15/15** · probe-nav **9/9** · probe-integration **0 errors, 8/8 street walks** · 4-day E2E **0 failures** (537 s, console clean) · parked-camera pairs filed.
+- **W1 IS FLIPPED** — all three class bands (C the walk-ups, B the corner house + shops + control house, A the café shell), each its own revertible commit behind the full gate: `9eaacfa` (U1) → `be99b11` (U2) → this commit. The Phase-3 DoD's geometry line — "geometry flip landed for at least the W0/W1 districts with the fidelity gate green" — is MET with the census's byte-identity as the evidence standard.
+- DEC-4's brief status → RULED (Option B, owner 2026-11-08); the register's PH-3/MS-2 rows updated; units 4–6 (W2-C the gable row, W3-D the backdrops, W3-C the avenue faces) continue under the standing ruling — nothing about them is re-gated, the same per-unit loop applies.
+- Not done, by law: units 4–6; the DEC-8/B13 owner calls; nothing beyond the brief's §6/§7.
+
+Stage Summary:
+- The registry is now the single render truth for the whole Day-1 street: 13 buildings' worth of masses, storefronts, windows, crowns, stoops, towers and one bagel all read `world-registry.json` at runtime, and the skyline is byte-identical to the hand-built one it replaced — with the census standing guard (it caught the one 6 m defect the rest of the fleet missed).
+---

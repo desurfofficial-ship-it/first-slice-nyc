@@ -4526,18 +4526,23 @@ export class World {
     this.waterTower(ktw.x, ktw.h, ktw.z - 1.5, 1.4); // LMK-03: the corners carry tanks too (the tank anchors 1.5 m south of the footprint center)
 
     // KTN-06 — 6 Kestrel St East, the café shell (papered, FOR RENT)
-    this.solid('KTN_06', 55, 8, 14, 10, 16, 12, PAL.brick);
+    // A-3 flipped (2026-11-08): the mass, window grid, papers, sign, door
+    // and water tower READ the registry (KTN-06); the style constants
+    // (paper insets, sign/door offsets, the tower's center-anchored 1.5 m
+    // south offset) stay code.
+    const kt6 = this.regShell('KTN-06');
+    this.solid('KTN_06', kt6.x, kt6.h / 2, kt6.z, kt6.w, kt6.h, kt6.d, PAL.brick);
     for (let f = 0; f < 3; f++) for (let c = 0; c < 3; c++) {
-      this.decoMesh(`KTN06_Win_${f}_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), 51.6 + c * 3.4, 7.2 + f * 2.9, 7.92);
+      this.decoMesh(`KTN06_Win_${f}_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), kt6.x - kt6.w / 2 + 1.6 + c * 3.4, 7.2 + f * 2.9, kt6.z - kt6.d / 2 - 0.08);
     }
     // the vacant ground floor: cream paper over the glass, day-keyed to lit
     // when the café opens (dressing hooks ride the registry, W5)
-    this.deco('KTN06_Paper_L', 52.2, 1.6, 7.9, 2.6, 3.2, 0.06, PAL.cream, {});
-    this.deco('KTN06_Paper_R', 57.8, 1.6, 7.9, 2.6, 3.2, 0.06, PAL.cream, {});
+    this.deco('KTN06_Paper_L', kt6.x - kt6.w / 2 + 2.2, 1.6, kt6.z - kt6.d / 2 - 0.1, 2.6, 3.2, 0.06, PAL.cream, {});
+    this.deco('KTN06_Paper_R', kt6.x + kt6.w / 2 - 2.2, 1.6, kt6.z - kt6.d / 2 - 0.1, 2.6, 3.2, 0.06, PAL.cream, {});
     this.signBoard('KTN06_ForRent', 'FOR RENT', 1.5, 1.0, 0.06, 256, 160, PAL.cream, PAL.ink, 42)
-      .position.set(55, 1.9, 7.86);
-    this.deco('KTN06_Door', 55, 1.4, 7.95, 1.4, 2.8, 0.12, 0x6e554e, {});
-    this.waterTower(55, 16, 12.5, 1.4);
+      .position.set(kt6.x, 1.9, kt6.z - kt6.d / 2 - 0.14);
+    this.deco('KTN06_Door', kt6.x, 1.4, kt6.z - kt6.d / 2 - 0.05, 1.4, 2.8, 0.12, 0x6e554e, {});
+    this.waterTower(kt6.x, kt6.h, kt6.z - 1.5, 1.4);
 
     // the Marlow row: three shopfronts (doors and windows face Marlow —
     // the registry's entrance rows are corrected to z −32)
