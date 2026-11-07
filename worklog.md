@@ -2495,3 +2495,12 @@ consumed at the end. A-3/DEC-4 stayed owner-gated (a "continue" is not a ruling)
   R9–R12 → C1–C2 content → R13–R14; A-3 still THE OWNER'S CALL.
 - **PUSHED** under the owner's explicit "after that push" (one invocation, URL-embedded Basic auth,
   output redacted, non-force); refs verified consistent after the push.
+
+- **Addendum — the push raced a concurrent wave:** origin/main had advanced (`ec4dc6f..0eb3cca`,
+  the FULL-GAME 3D ASSET AUDIT from a parallel agent — art rebuilds + their register rows, which
+  took v1.17.0/v1.18.0 in parallel to mine). Merged `origin/main` into main as `c09ed48`: code
+  disjoint (their art/assets vs my sim machines), the three docs resolved BOTH-SIDES-VERBATIM and
+  the version ledger renumbered monotonic (their v1.17.0/v1.18.0 keep their numbers — they were
+  already on the shared remote; my R5/R6 rows ride as v1.19.0/v1.20.0, the v1.16.0 precedent).
+  **Merged-tree re-certification, all green:** tsc clean · vitest **1059/1059** (71 files) ·
+  build OK (552 ms) · probe-world-sim 15/15 · 4-day E2E 0 failures (678 s, console clean).
