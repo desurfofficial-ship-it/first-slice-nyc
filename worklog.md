@@ -2208,3 +2208,44 @@ the pack fuse like the world's own statics.
   but are two parsed copies — instancing beyond the URL cache is future
   work · the washers' visual pokes ≤0.1 m past their colliders (machine
   depth vs authored box), inside the seam's own ±90 % law.
+
+---
+Task ID: DEF14-PED-NAV-HYSTERESIS
+Agent: Production continuation (WS-B/WS-F window)
+Task: DEF-14 / R-NEW-17 — the probe-ped-nav separation flake, the only
+open non-owner-gated item after v1.11.0's milestone-complete verdict;
+plus the stale defect rows the register carried and HYG-1.
+
+Work Log:
+- Reproduced the flake verbatim on main b2eb53b: FAIL 4 … {"t":63,
+  "key":"5|7","run":3,"d":0.59} — the exact R-NEW-17 signature, 1-of-3.
+- Built the capture the risk row demanded (diag-ped-overlap.mjs, the
+  diag- pattern): 300 ms dense sampling of every <1.0 m pair with both
+  walkers' dwell/arrive state and finite-difference speeds. Three runs
+  + the register's own flake capture agree: every under-0.6 m event is
+  a MOVING shallow crossing (v 0.55–0.69 m/s both, nobody dwelling,
+  CHAT_RANGE pairs never involved) at ≤ ~1 cm penetration, exiting
+  within one dense sample. The pairwise half-push (∝ penetration,
+  capped 0.125 m/frame) CONTAINS the crossing; at probe fps the
+  contained ride can hold ~1.8 s of flat ≤1 cm contact.
+- Verdict per the risk row's two options: the steering needs nothing —
+  the guarantee's never-deepens property held in every capture — and
+  the probe's persistence law needed the principled hysteresis:
+  SINKING (run ≥3 AND deepening >4 cm) fast-fails a broken guarantee;
+  STUCK (run ≥7 ≈ 4.2 s, 2× the longest captured honest ride)
+  patient-fails any grind. No product code touched.
+- Probe fix verified 3/3 green on the same seeded street (the
+  deterministic 5|7 crossing still grazes — now correctly contained).
+- Closed the register's stale rows with citations (DEF-2 → WP-6's
+  v1.9.0 evidence; DEF-3 → WP-0's v1.2.1 evidence) and fixed HYG-1
+  (README header + Documentation table re-pointed to the live canon:
+  narrative bible / world contract / production system / doc 57).
+
+Stage Summary:
+- Gates: tsc clean · vitest 974/974 (65 files) · build OK (docs +
+  scripts only; the suite re-run anyway) · probe-ped-nav 3/3.
+- Evidence: scripts/diag-ped-overlap.mjs (committed), the ×3 dumps
+  summarized in the register (shots/ is gitignored — numbers cited).
+- Honest note: the flat ≤1 cm ride is real street behavior (brushing
+  commuters at low fps); if the owner ever wants it tighter, the lever
+  is the shipped MAX_PUSH authority at low fps, not the probe.

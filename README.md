@@ -7,7 +7,7 @@
 
 *A cozy lowpoly life-simulation game for the billions of people who have never set foot in New York City — but have dreamed about it their whole lives. A life sim **on an open block**: follow the story beat by beat, or tap **Roam** and let the city run on your clock.*
 
-[Game Design Document](docs/01-game-design-document.md) · [Vertical Slice](docs/07-vertical-slice-design.md) · [Architecture Blueprints](docs/architecture/) · [AGENTS.md](AGENTS.md)
+[Narrative Bible](docs/narrative/00-README.md) · [World Contract](docs/architecture/world-contract/) · [Production System](docs/production/README.md) · [AGENTS.md](AGENTS.md)
 
 </div>
 
@@ -149,31 +149,15 @@ Details and numbers live in [Doc 15](docs/15-tech-spikes.md).
 
 ## Documentation
 
+The legacy numbered design docs were cleared in the narrative reboot
+(git `a6e0541`) — the canon lives here now:
+
 | Doc | What it is |
 |-----|------------|
-| [01 – Game Design Document](docs/01-game-design-document.md) | Full vision & systems (source of truth) |
-| [02 – First Session Walkthrough](docs/02-first-session-walkthrough.md) | Minute-by-minute Day 1 script |
-| [07 – Vertical Slice Design](docs/07-vertical-slice-design.md) | What must ship in the first 30 minutes |
-| [08 – Day 1 Content Pack](docs/08-day1-content-pack.md) | Final Map notes + postcards |
-| [10 – Greybox Layout](docs/10-day1-greybox-layout.md) | Spatial design of the block |
-| [14 – Styleframe Lock](docs/14-styleframe-lock.md) | Official visual targets |
-| [15 – Tech Spikes](docs/15-tech-spikes.md) | Camera + Postcard results |
-| [16 – Risk Register](docs/16-risk-register.md) | What can still break the feeling |
-| [17 – Greybox Tasks](docs/17-greybox-tasks.md) | Concrete build checklist |
-| [19 – First-Build Guide](docs/19-greybox-first-build.md) | How to open the project and start |
-| [20 – Day 1 Render Notes](docs/20-day1-greybox-render-notes.md) | First played pass — six camera findings, with evidence frames |
-| [21 – Synthetic Playtest 01](docs/21-synthetic-playtest-01.md) | Five scripted walkers, one day — three real seams, now closed |
-| [22 – Day 2 Greybox](docs/22-day2-greybox.md) | The neighborhood comes alive — seams fixed, save v1, the second window |
-| [24 – Three.js Build](docs/24-web-three-build.md) | The browser migration — stack, evidence, deployment, honest limits |
-| [25 – Day 2 Render Notes](docs/25-day2-render-notes.md) | Day 2, finally seen — frames, findings, fixes, and the second postcard |
-| [26 – Walk-Cycle & Fire-Escape Notes](docs/26-walk-cycle-fire-escape.md) | The cast finally walks — the rig, the rebuilt fire escape, the GLB verdict |
-| [27 – Field Bugs, Round Two](docs/27-field-bugs-round-two.md) | The six phone complaints — kid at the glass, the raised hand, the ladder, the ghost cab, the camera, the touch controls — all closed |
-| [28 – Day 3: A Place at the Corner](docs/28-day3-a-place-at-the-corner.md) | Day 3 — the living street (brownstones, trees, pigeons), the brewed morning rush, the kid's walk down, the stool, the flyer, the third window |
-| [29 – Day 4: Say Hi](docs/29-day4-say-hi.md) | Day 4 morning — the Hospitality Law chapter: the stranger at the terminal, the free regular, Rosa's rule, the Map handoff, her walk, the lamp next door |
-| [30 – Day 4 Afternoon: The Block Opens Up](docs/30-day4-the-block-opens-up.md) | Sunrise Laundry opens: Sal, the washers, the apron run, the vending-permit application, the receipt on the cart, and the ambient sound layer |
-| [31 – Visual Audit](docs/31-visual-audit.md) | The second agent's frame-by-frame review — evidence integrity, defects, fixes |
-| [32 – Audio Notes](docs/32-audio-notes.md) | The synthesized ambient layer — voices, house rules, integration, honest limits |
-| [34 – The Living Block](docs/34-living-block-implemented.md) | Doc 33 reviewed and integrated: the block's diary (flyer slips, window lights, the barrier), the remembered favor, the familiar face, the postcard's season stamp — and what stays a proposal |
+| [Narrative Bible](docs/narrative/00-README.md) | The story canon (00–15): vision, characters, the spine, the implementation spec |
+| [World Contract](docs/architecture/world-contract/) | The 17 contract documents — the world sim's laws |
+| [Production System](docs/production/README.md) | Roadmap, status register, governance, acceptance checklists, risks |
+| [57 – Engineering References](docs/57-engineering-references.md) | Study-before-build verdicts and reference-repo notes |
 | [AGENTS.md](AGENTS.md) | Operating manual for AI agents |
 
 ---

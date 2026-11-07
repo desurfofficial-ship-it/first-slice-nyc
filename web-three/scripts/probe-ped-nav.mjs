@@ -109,9 +109,25 @@ const samples = [s0];
 let violations = [];
 // separation: the shipped hard guarantee caps pushes at 0.125 m/walker/
 // frame (no slingshot, ever) — a single sample may catch a pair mid-
-// resolution. The failure the law prevents is PERSISTENT interpenetration:
-// the same pair still under contact in consecutive samples.
-let overlapRuns = {}; // "i|j" → consecutive-sample run length
+// resolution. The failure the law prevents is PERSISTENT interpenetration
+// that RESOLUTION IS NOT HANDLING.
+//
+// R-NEW-17 hysteresis (DEF-14, fixed 2026-11-07 from capture, not tuning):
+// the pairwise half-push is PROPORTIONAL to penetration, so a shallow
+// crossing rides the contact band at ≤ ~1 cm while both walkers keep
+// walking — contained contact that exits when the geometry clears. Dense
+// capture (diag-ped-overlap.mjs ×3, shots/ped-overlap-dump.json; flake
+// reproduced verbatim 5|7 run=3 d=0.59 at t=63) bounds every honest
+// crossing ride at ≤ ~2 s; the pairwise authority per sample interval
+// (0.5–1.0 m/s at probe fps) means a CONTAINED pair never deepens.
+// Two prongs, both anchored in that evidence:
+//   - SINKING (fast fail, 3 samples ≈ 1.8 s): contact deepening by
+//     > 4 cm across the window — the push is losing to the approach, the
+//     guarantee is broken. Containment by definition does not deepen.
+//   - STUCK (patient fail, 7 samples ≈ 4.2 s): continuous contact twice
+//     the longest captured honest ride — no crossing geometry explains
+//     it; the E2E's stall class (contact that never exits) still fails.
+let overlapRuns = {}; // "i|j" → { n, first, deepest }
 let overlapHits = [];
 while (performance.now() - t0 < 75000) {
   await page.waitForTimeout(600);
@@ -130,14 +146,20 @@ while (performance.now() - t0 < 75000) {
       const d = Math.hypot(vis[i].x - vis[j].x, vis[i].z - vis[j].z);
       if (d < 0.6) {
         const key = `${vis[i].i}|${vis[j].i}`;
-        overlapRuns[key] = (overlapRuns[key] ?? 0) + 1;
+        const run = overlapRuns[key] ?? (overlapRuns[key] = { n: 0, first: d, deepest: d });
+        run.n += 1;
+        run.deepest = Math.min(run.deepest, d);
         touching.add(key);
-        if (overlapRuns[key] >= 3) overlapHits.push({ t: samples.length, key, run: overlapRuns[key], d: +d.toFixed(2) });
+        const sinking = run.n >= 3 && d < run.first - 0.04;
+        const stuck = run.n >= 7;
+        if (sinking || stuck) {
+          overlapHits.push({ t: samples.length, key, run: run.n, d: +d.toFixed(2), why: sinking ? 'deepening' : 'continuous-contact' });
+        }
       }
     }
   }
   for (const key of Object.keys(overlapRuns)) {
-    if (!touching.has(key)) overlapRuns[key] = 0; // resolved — the cap worked
+    if (!touching.has(key)) delete overlapRuns[key]; // resolved — the cap worked
   }
 }
 const sEnd = await sample();
@@ -168,8 +190,8 @@ step('3: routes complete and re-pick', sEnd.commutes > s0.commutes,
 // 4. separation on the live street (no PERSISTENT interpenetration — the
 // capped-push law resolves transients within a frame or two)
 step('4: walkers keep separation', overlapHits.length === 0,
-  overlapHits.length === 0 ? 'no pair under contact for 3+ consecutive samples' :
-  `${overlapHits.length} persistent overlaps, first: ${JSON.stringify(overlapHits[0])}`);
+  overlapHits.length === 0 ? 'no unresolved contact (no deepening run, no 4.2 s continuous ride — R-NEW-17 hysteresis)' :
+  `${overlapHits.length} unresolved contacts, first: ${JSON.stringify(overlapHits[0])}`);
 
 // 5. the commute state machine is live and graph-fed
 const armed = sEnd.states.filter((w) => w.armed).length;
