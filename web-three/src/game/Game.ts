@@ -22,6 +22,7 @@ import { loadSave, writeSave, wipeSave, newGameSave, type SaveData } from '../co
 import { FreeRoam, roamDiscoveryLine, ROAM_OBJECTIVE } from './freeroam';
 import { WorldRuntime } from './worldRuntime';
 import { MoneyBridge } from '../sim/moneyBridge';
+import { datelineOfStoryDay } from '../sim/epochMap';
 import { STARTERS, starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
 import { PAL } from '../core/palette';
 import { World, phys } from '../world/World';
@@ -487,6 +488,10 @@ export class Game {
 
     this.ui.setObjective(this.state.objectiveText());
     this.ui.setBeatMarker(this.state.beatPlaceId());
+    // WP-6: the dateline — the calendar date the block is living, through
+    // the one mapping (sim/epochMap); the date renders from the calendar,
+    // never real time (R4).
+    this.ui.setDateline(datelineOfStoryDay(this.state.day));
     this.cam.snapBehind({ x: this.player.capsule.x, y: this.player.capsule.y, z: this.player.capsule.z });
 
     // ---------------- loop ----------------
@@ -1083,6 +1088,10 @@ export class Game {
     this.mapOpen = true;
     this.ui.openMap(this.state.mapNotes, this.state.mapSlang);
     this.ui.refreshSketch(this.state.visitedPlaces, this.player.capsule.x, this.player.capsule.z);
+    // WP-6: the diary's ink rides the Map when it opens — the entries as
+    // they stand, and the day's dateline (the leaf shares the HUD's).
+    this.ui.refreshDiary(this.state.fieldDiary);
+    this.ui.setDateline(datelineOfStoryDay(this.state.day));
   }
 
   /** The Roam toggle — the open-block contract's one switch (freeroam.ts).
@@ -2525,6 +2534,9 @@ export class Game {
 
     s.day = n;
     this.world.setWorldDay(n); // the sync beat is day-keyed (docs/50)
+    // WP-6: the dateline follows the calendar day through the one mapping
+    // (sim/epochMap) — a new morning is a new date, rendered, never guessed
+    this.ui.setDateline(datelineOfStoryDay(n));
     s.onDay2 = n >= 2;
     s.dayComplete = false;
     s.elapsed = 0;
