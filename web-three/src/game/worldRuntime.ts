@@ -74,11 +74,18 @@ interface ExecutorBody {
    *  length of the current one (the probe asserts on these). */
   routesWalked: number;
   /** The door edges of the active route, in walk order (at = the
-   *  cumulative walked distance where the door edge is fully crossed),
-   *  and how many have been recorded (the A-2 transition bookkeeping —
-   *  enter/exit recorded exactly when the body passes). */
-  doorSegs: Array<{ seg: number; doorId: string; direction: 'enter' | 'exit'; at: number }>;
+   *  cumulative walked distance where the door edge is fully crossed;
+   *  enterAt/exitAt bracket the physical passage), and how many have
+   *  been recorded (the A-2 transition bookkeeping — enter/exit
+   *  recorded exactly when the body passes). */
+  doorSegs: Array<{ seg: number; doorId: string; direction: 'enter' | 'exit'; at: number; enterAt: number; exitAt: number }>;
   doorCrossed: number;
+  /** The chokepoint capacity gate (A-2 remainder): the index of the door
+   *  seg whose slot this body currently holds (−1 = none), and the next
+   *  seg index the gate has not yet passed. A body holds at most one
+   *  slot — deadlock is impossible by construction (the gate's law). */
+  doorHeldIdx: number;
+  doorCapIdx: number;
 }
 
 export interface WorldRuntimeOpts {
@@ -170,7 +177,7 @@ export class WorldRuntime {
         group, npcId, key: key as 'rosa' | 'idris',
         lastMode: 'away', lastTarget: null, wasVisible: group.visible,
         follower: null, routeKey: null, routeEpoch: 0, routesWalked: 0,
-        doorSegs: [], doorCrossed: 0,
+        doorSegs: [], doorCrossed: 0, doorHeldIdx: -1, doorCapIdx: 0,
       });
     }
   }
@@ -182,6 +189,7 @@ export class WorldRuntime {
     if (this.active === active) return;
     this.active = active;
     if (!active) {
+      for (const b of this.bodies) this.releaseGate(b);
       this.flushWorldSave();
       // bodies hand back where the story last placed them — the cast's
       // own beginDay/place*Cast code is the authority in story mode
@@ -257,7 +265,7 @@ export class WorldRuntime {
       if (g.visible) g.visible = false;
       b.lastMode = 'away';
       b.lastTarget = null;
-      b.follower = null;
+      this.teardownRoute(b);
       b.routeKey = null;
       return;
     }
@@ -270,7 +278,7 @@ export class WorldRuntime {
       if (far > SPAWN_SNAP_R) g.position.set(target.x, 0.05, target.z);
       b.lastMode = d.body.mode;
       b.lastTarget = { ...target };
-      b.follower = null;
+      this.teardownRoute(b);
       b.routeKey = null;
       return;
     }
@@ -279,6 +287,11 @@ export class WorldRuntime {
       const p = this.game.player.capsule;
       g.rotation.y = Math.atan2(p.x - g.position.x, p.z - g.position.z);
       b.lastMode = 'dialogue';
+      // a frozen body keeps no doorway slot: it stands off where it is,
+      // and the walk re-acquires if the route still crosses one (the
+      // door must never deadlock against a conversation). The route
+      // itself survives — the follower resumes when the hello ends.
+      this.releaseGate(b);
       return;
     }
     // --- the walk (Phase 3: routed) — a destination walk follows the
@@ -291,12 +304,21 @@ export class WorldRuntime {
       if (b.routeKey !== key || b.routeEpoch !== this.navEpoch()) {
         b.routeKey = key;
         b.routeEpoch = this.navEpoch();
+        this.teardownRoute(b);
         b.follower = this.buildRoute(b, target);
         if (b.follower) b.routesWalked++;
       }
       const follower = b.follower;
       if (follower && !follower.done()) {
         const step = this.brain.executorStep(follower.remaining(), dt);
+        // chokepoint capacity (A-2 remainder): the slot for the next door
+        // edge is acquired before the body enters the passage; a full
+        // doorway means the body STANDS OFF this frame — the queue, not
+        // a shoving match (the gate's FIFO law orders the waiters)
+        if (!this.acquireDoorFor(b, follower, step)) {
+          b.lastMode = 'waiting-door';
+          return;
+        }
         const { pos } = follower.step(step);
         // the rendered heading eases along the corridor (the follower's
         // law); the rig's walk animation reads the position delta
@@ -304,6 +326,7 @@ export class WorldRuntime {
         g.position.z = pos.z;
         g.rotation.y = follower.state.heading;
         this.recordDoorCrossings(b);
+        this.releaseDoorsPast(b, follower);
         b.lastMode = 'enroute';
       } else {
         // short approach (inside the route snap) or a finished route:
@@ -313,7 +336,7 @@ export class WorldRuntime {
       }
     } else {
       b.lastMode = 'at';
-      b.follower = null;
+      this.teardownRoute(b);
       b.routeKey = null;
     }
     b.lastTarget = { ...target };
@@ -335,7 +358,8 @@ export class WorldRuntime {
    *  final leg is clear. Null = the shipped straight-line fallback.
    *  Door edges in the route are remembered with their segment index, so
    *  walking through a door RECORDS the enter/exit transition (A-2's
-   *  bookkeeping) exactly when the body passes it. */
+   *  bookkeeping) exactly when the body passes it, and the capacity
+   *  gate knows the passage's [enterAt, exitAt) bracket. */
   private buildRoute(b: ExecutorBody, target: { x: number; z: number }): RouteFollower | null {
     const g = b.group;
     const minute = this.brain.clock.minuteOfDay;
@@ -359,16 +383,23 @@ export class WorldRuntime {
     // remember the door crossings in walk order with the walked distance
     // at which the transition lands: ENTER fires as the body steps into
     // the corridor (the door edge's start — the facade plane), EXIT when
-    // it completes the passage (the door edge's end — back outside)
+    // it completes the passage (the door edge's end — back outside).
+    // enterAt/exitAt bracket the PHYSICAL passage for the capacity gate.
     const probe = new RouteFollower(route.points);
     const lastSeg = route.points.length - 2;
-    b.doorSegs = this.nav.routeDoors(route).map((d) => ({
-      ...d,
-      at: d.direction === 'enter'
-        ? probe.distanceAt(d.seg)
-        : (d.seg + 1 > lastSeg ? probe.totalLength : probe.distanceAt(d.seg + 1)),
-    }));
+    b.doorSegs = this.nav.routeDoors(route).map((d) => {
+      const startAt = probe.distanceAt(d.seg);
+      const endAt = d.seg + 1 > lastSeg ? probe.totalLength : probe.distanceAt(d.seg + 1);
+      return {
+        ...d,
+        at: d.direction === 'enter' ? startAt : endAt,
+        enterAt: startAt,
+        exitAt: endAt,
+      };
+    });
     b.doorCrossed = 0;
+    b.doorCapIdx = 0;
+    b.doorHeldIdx = -1;
     const heading = g.rotation.y || undefined;
     return new RouteFollower(route.points, heading ?? null);
   }
@@ -383,6 +414,57 @@ export class WorldRuntime {
       this.nav.recordTransition(d.doorId, b.npcId, d.direction, this.brain.clock.tick);
       b.doorCrossed++;
     }
+  }
+
+  // ---- the chokepoint capacity gate (A-2 remainder) ------------------------
+
+  /** Acquire the slot for the next door passage if this frame's step
+   *  would begin one. True = the body may walk; false = the doorway is
+   *  at capacity and the body stands off (the gate queues it FIFO).
+   *  Allocation-free on the fast path (two compares when no door is
+   *  near). */
+  private acquireDoorFor(b: ExecutorBody, f: RouteFollower, step: number): boolean {
+    if (b.doorHeldIdx >= 0) return true; // mid-passage — the slot is ours
+    while (b.doorCapIdx < b.doorSegs.length && b.doorSegs[b.doorCapIdx].exitAt <= f.state.traveled + 1e-9) {
+      b.doorCapIdx++; // fully passed without a gate visit (route start inside)
+    }
+    const next = b.doorSegs[b.doorCapIdx];
+    if (!next || next.enterAt > f.state.traveled + step + 1e-9) return true;
+    if (this.nav.gate.tryAcquire(next.doorId, b.npcId, this.brain.clock.tick)) {
+      b.doorHeldIdx = b.doorCapIdx;
+      return true;
+    }
+    return false;
+  }
+
+  /** Release a door slot whose passage completed this frame — the slot
+   *  frees exactly when the body clears the corridor (the queue head's
+   *  reservation begins paying off immediately). */
+  private releaseDoorsPast(b: ExecutorBody, f: RouteFollower): void {
+    if (b.doorHeldIdx < 0) return;
+    const held = b.doorSegs[b.doorHeldIdx];
+    if (f.state.traveled >= held.exitAt - 1e-9) {
+      this.nav.gate.release(held.doorId, b.npcId);
+      b.doorHeldIdx = -1;
+    }
+  }
+
+  /** Gate-only release: the body keeps its route but holds no slot and
+   *  no queue place (dialogue freeze). */
+  private releaseGate(b: ExecutorBody): void {
+    b.doorHeldIdx = -1;
+    this.nav.gate.releaseAll(b.npcId, this.brain.clock.tick);
+  }
+
+  /** Full route teardown: the route dies (away, arrival, re-derive,
+   *  arrival at target) — every gate obligation dies with it. A body
+   *  that stops walking never leaves a ghost in a queue. */
+  private teardownRoute(b: ExecutorBody): void {
+    this.releaseGate(b);
+    b.follower = null;
+    b.doorCrossed = 0;
+    b.doorCapIdx = 0;
+    b.doorSegs = [];
   }
 
   /** The shipped straight-line close (unchanged math, one purpose:
@@ -529,6 +611,11 @@ export class WorldRuntime {
     saveKey: string;
     clock: { day: number; minuteOfDay: number };
     nav: { nodes: number; edges: number; issues: number; components: number };
+    capacity: {
+      occupied: Array<{ id: string; capacity: number; holders: string[]; waiting: string[] }>;
+      counters: { acquired: number; queued: number; released: number; waitedTicks: number; maxWaitTicks: number };
+      resources: number;
+    };
     ledger: {
       playerCents: number; ledgerCents: number; auditClean: boolean; txnCount: number;
       recent: Array<{ id: string; kind: string; category: string; cents: number; reason: string }>;
@@ -549,6 +636,9 @@ export class WorldRuntime {
         nodes: navStats.nodes, edges: navStats.edges,
         issues: this.nav.validationIssues().length, components: navStats.components,
       },
+      // A-2 remainder: the chokepoint capacity gate's live read — the
+      // probe's evidence surface (holders ≤ capacity pinned by tests)
+      capacity: this.nav.capacityStats(),
       // WP-4: the money→ledger trace, read-only — the sanctioned mirror,
       // the audit law, and the tail of the transaction story.
       ledger: {
