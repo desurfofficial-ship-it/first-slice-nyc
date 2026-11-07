@@ -53,6 +53,12 @@ import { makeNet, makePolePad, makeCourtLight, makeTallyBoard, buildBackstop,
   type CourtNet, type TallyBoard } from '../court/courtDressing';
 import { makeBasketball } from '../court/Basketball';
 import { COURT_BALL_REST } from '../game/interactionDefs';
+// A-3 (DEC-4, 2026-11-07): the registry geometry flip — a flipped building's
+// placement and dimensions read the construction truth (world-registry.json)
+// at runtime; the per-style builder code stays. The registry already drives
+// the nav graph, the doors and the capacity gates; this extends the same
+// single truth to the render coordinates.
+import { loadRegistry } from '../sim/registry';
 
 export interface LadderInfo { area: AABB; top: number; }
 
@@ -4380,6 +4386,31 @@ export class World {
     this.canopySpheresCache.push({ x, y: top - 0.9, z, r: 2.15 });
   }
 
+  // ---- A-3: the registry geometry flip (DEC-4 Option B, ruled 2026-11-07)
+  // A flipped building's PLACEMENT and DIMENSIONS come from its registry
+  // row at runtime (footprint x/z/w/d + height); the look stays the
+  // authored builder code (the style builders are code, not the thing
+  // being flipped). Fallback law: a registry row without footprint+height
+  // throws LOUDLY — the flip never invents geometry to fill a gap
+  // (wc-07's no-coordinates law, extended to rendering).
+  private regShells: Map<string, { x: number; z: number; w: number; d: number; h: number }> | null = null;
+  /** The registry shell of a flipped building — throws when the row is
+   *  missing or lacks footprint/height, so a data gap can never render. */
+  private regShell(registryId: string): { x: number; z: number; w: number; d: number; h: number } {
+    if (!this.regShells) {
+      this.regShells = new Map();
+      for (const b of loadRegistry().allBuildings()) {
+        const fp = b.footprint;
+        if (fp && b.height !== undefined && b.height > 0) {
+          this.regShells.set(b.id, { x: fp.x, z: fp.z, w: fp.w, d: fp.d, h: b.height });
+        }
+      }
+    }
+    const s = this.regShells.get(registryId);
+    if (!s) throw new Error(`[A-3] registry building "${registryId}" has no footprint+height — the flip never invents geometry`);
+    return s;
+  }
+
   private buildAlderHeightsW1(): void {
     const CURB = 0x8f8a82;
     const rng = seededRng(20261101);
@@ -4521,18 +4552,23 @@ export class World {
     const bagel = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.13, 8, 18), this.bank.get(0xd9a05b));
     bagel.position.set(-34, 1.7, -32.3);
     this.scene.add(bagel);
-    const marlowWalkups: Array<[string, number, number, number]> = [
-      ['PWK_01', -44, 8, PAL.bldg], ['PWK_02', 5, 10, PAL.bldg2], ['PWK_03', 17, 10, PAL.bldg],
+    // the Marlow walk-ups — A-3 flipped (2026-11-07): placement and
+    // dimensions READ the registry (PWK-01/02/03); the hand constants
+    // retired. The window rows and the stoops derive from the same
+    // registry numbers (the look stays the authored builder code).
+    const marlowWalkups: Array<[string, string, number]> = [
+      ['PWK_01', 'PWK-01', PAL.bldg], ['PWK_02', 'PWK-02', PAL.bldg2], ['PWK_03', 'PWK-03', PAL.bldg],
     ];
     const pwkDoors = [PAL.teal, PAL.coral, 0x6d4c7d];
     let pwkDoorIdx = 0;
-    for (const [id, x, w, col] of marlowWalkups) {
-      this.solid(id, x, 7.5, -26, w, 15, 12, col);
+    for (const [id, regId, col] of marlowWalkups) {
+      const reg = this.regShell(regId);
+      this.solid(id, reg.x, reg.h / 2, reg.z, reg.w, reg.h, reg.d, col);
       for (let f = 0; f < 4; f++) for (let c = 0; c < 3; c++) {
-        this.decoMesh(`${id}_Win_${f}_${c}`, new THREE.BoxGeometry(1.1, 1.7, 0.08), this.bank.get(PAL.windowDim), x - w / 2 + 1.5 + c * ((w - 3) / 2), 3.4 + f * 2.9, -31.94);
+        this.decoMesh(`${id}_Win_${f}_${c}`, new THREE.BoxGeometry(1.1, 1.7, 0.08), this.bank.get(PAL.windowDim), reg.x - reg.w / 2 + 1.5 + c * ((reg.w - 3) / 2), 3.4 + f * 2.9, reg.z - reg.d / 2 + 0.06);
       }
       const stoop = makeBrownstoneStoop(this.bank, pwkDoors[pwkDoorIdx++ % 3]);
-      stoop.position.set(x, 0, -32.6);
+      stoop.position.set(reg.x, 0, reg.z - reg.d / 2 - 0.6);
       this.scene.add(stoop);
     }
 

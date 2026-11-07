@@ -2447,3 +2447,22 @@ Work Log:
 
 Stage Summary:
 - The machine-executable frontier is now exactly one item: **A-3, fully briefed for a one-word owner ruling** ("Option B approved" turns the wave on per the brief's §6). Everything else on the roadmap is owner-side or content-wave work. Gates at close: docs-only commit; zero source files modified; no dependencies added; the branch deletions are register-mandated hygiene with the guard evidence recorded above.
+
+## 2026-11-08 — Production Director: WP-A3 unit 1/6 — W1-C flipped under the DEC-4 Option B ruling (register v1.19.0)
+
+Task ID: PROD-A3-U1
+Agent: Production Director (Z.ai)
+Task: "Option b approved" — the owner's explicit ruling on DEC-4 (the brief's §5 recommendation): the A-3 registry geometry flip is approved, executed class-first inside the district order (C/D backdrops before A/B heroes), district-by-district behind the fidelity gate, starting W1's backdrops. WP-A3's unit 1 executes per the brief's §6 (the pre-recorded required changes), nothing beyond it.
+
+Work Log:
+- DEC-4 recorded as RULED (owner, 2026-11-08, Option B). The brief's §7 exclusions respected: no new dependency, no district expansion, no registry data invention, no B13 resolution, no nav/access/schedule behavior change, no save schema change, no narrative doc edits.
+- **The flip seam built** (`World.ts`): `regShell(registryId)` — the runtime read of `world-registry.json`'s footprint x/z/w/d + height per building, cached once per boot, throwing LOUDLY on a row without footprint+height (the fallback law: the flip never invents geometry to fill a gap — wc-07 extended to rendering). `loadRegistry()` imports the same validated document the nav graph, the doors and the capacity gates already read.
+- **Unit 1 = W1's class C band** — the three Marlow walk-ups PWK-01/02/03: the hand tuple `[id, x, w, color]` retired; the mass, the 4×3 window rows and the brownstone stoop all derive from the registry numbers now. Arithmetic check at the seam: solid y = h/2, window z = fp.z − fp.d/2 + 0.06, stoop z = fp.z − fp.d/2 − 0.6 — the same values the hand constants carried (the transcription was already registry-faithful; the flip makes it STRUCTURALLY faithful).
+- **The fidelity evidence harness** (`scripts/probe-a3-flip.mjs`, new, WP-A3's own probe — zero product code): (1) the geometry census — every mesh whose world AABB intersects a band region (regions from the registry footprints; baked district tiles read via matrixWorld centers) dumped with name/pos/dims/verts/idx/flags, sorted, JSON — run-to-run deterministic (stability loop: two consecutive byte-equal censuses before the run commits its answer; InstancedMesh + the named dynamic systems + the M121's live AABB excluded — the bake's own skip laws mirrored); (2) parked-camera pairs at 7 fixed vantages. Runs against dist/.
+- **Unit 1 fidelity gate — ALL GREEN on the flipped tree:** tsc clean · vitest **1020/1020** (69 files) · build OK (538 ms) · registry mjs OK (129 IDs, 50 buildings, shipped-world fidelity 12/12 masses, 18/18 anchors) · **geometry census byte-identical** (173 band meshes, `shots/a3/pre-census.json` ≡ `u1-census.json` — the moved numbers moved no vertex) · **draw-call ledger zero drift** (probe-perf 146/216/282 + triangles byte-equal to the pre-flip baseline re-run on this box) · probe-world-sim **15/15** · probe-nav **9/9** · probe-integration **0 errors, 8/8 street walks** · 4-day E2E **0 failures** (687 s, console clean) · parked-camera pairs filed (`shots/a3/{pre,u1}-*.png`, 7 vantages — the owner-side visual bar).
+- Register v1.19.0 (PH-3 + MS-2 rows, change log); the DEC-4 doc's status line flips to RULED at the wave's close-out commit, per the audit-trail law.
+- Not done, by law: units 2–6 (W1-B → W1-A → W2-C → W3-D → W3-C and on — each its own revertible commit behind the same gate); the DEC-8/B13 owner calls; nothing outside the brief's §6.
+
+Stage Summary:
+- The A-3 wave is ON under a recorded owner ruling, and its first unit is in with the strongest fidelity evidence yet mustered in this repo (byte-identical geometry + byte-equal draw calls + the full probe battery). Gates at close: one source file (`World.ts`), one new probe script, register + worklog rows in the same commit — revertible per unit exactly as §6.1 requires.
+---
