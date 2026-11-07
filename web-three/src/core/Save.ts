@@ -19,6 +19,8 @@
 import type { DiaryNoted } from './diary';
 import type { FieldDiaryEntry } from './fieldDiary';
 import { parseFieldDiary } from './fieldDiary';
+import type { LedgerEntry } from './consequenceLedger';
+import { parseLedger } from './consequenceLedger';
 import { clampCalendarDay } from './calendar';
 
 export const SAVE_KEY = 'first_slice_save_v1';
@@ -99,6 +101,18 @@ export interface SaveData {
    *  Parsed entries are quarantine-cleaned; corrupt entries are dropped and
    *  counted, never a crash. */
   field_diary?: FieldDiaryEntry[];
+  /** The consequence ledger (narrative/14 R2 + narrative/10 §1 —
+   *  core/consequenceLedger.ts): choices, promises (with due dates),
+   *  omissions, amends. Optional trailing v1-safe field: absent reads as
+   *  [] (an old save is an empty ledger — the world remembers nothing
+   *  yet, and nothing retroactively becomes a debt). Parsed entries are
+   *  quarantine-cleaned like the diary; a promise whose due date is
+   *  corrupt quarantines whole (a promise that could mature on an
+   *  invented day would lie to the C5 cascade). Doc 14 §3's `promises`
+   *  layer is realized INSIDE this array — a promise is a LedgerEntry
+   *  (R2's own schema carries the due date); a second duplicated array
+   *  would create a mirror to keep honest (the WP-4 mirror lesson). */
+  ledger?: LedgerEntry[];
 }
 
 export function defaultSave(): SaveData {
@@ -126,6 +140,7 @@ export function defaultSave(): SaveData {
     map_places: [],
     calendar_day: 1,
     field_diary: [],
+    ledger: [],
   };
 }
 
@@ -222,6 +237,9 @@ export function parseSave(raw: string | null): SaveData {
     // the field diary (narrative/14 R3) — absent in old saves reads as an
     // empty diary; corrupt entries are quarantined, never a crash
     field_diary: parseFieldDiary(d['field_diary']).entries,
+    // the consequence ledger (narrative/14 R2) — absent in old saves reads
+    // as an empty ledger; corrupt entries are quarantined, never a crash
+    ledger: parseLedger(d['ledger']).entries,
   };
 }
 
