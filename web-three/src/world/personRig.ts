@@ -142,6 +142,15 @@ export interface PersonRig {
   bank: number;
   prevYaw: number;
   hasPrevYaw: boolean;
+  /** measured yaw rate → the head LEADS the body into a turn (auto only):
+   *  a real walker's eyes arrive at the corner before the shoulders do. */
+  headLead: number;
+  /** fall bookkeeping for the landing recovery: the distance of the fall
+   *  being accumulated (Σ|vy|·dt while airborne), and the knee-bend dip
+   *  currently decaying. Both live here so any mover — the player's jumps,
+   *  an NPC's dismount, a tween's re-stage — gets the same absorb. */
+  fallEnergy: number;
+  landDip: number;
   mode: 'auto' | 'climb' | 'sweep' | 'wave' | 'sit';
 }
 
@@ -172,6 +181,9 @@ export function attachRig(
     bank: 0,
     prevYaw: group.rotation.y,
     hasPrevYaw: false,
+    headLead: 0,
+    fallEnergy: 0,
+    landDip: 0,
     mode: 'auto',
   };
   group.userData.rig = rig;
@@ -395,6 +407,23 @@ export function updatePersonAnim(
   // smooth so one teleport frame doesn't snap the pose
   rig.smoothSpeed += (Math.min(speed, 6) - rig.smoothSpeed) * Math.min(1, dt * 10);
   rig.smoothClimb += (Math.min(Math.abs(climbSpeed) / 2.6, 1) - rig.smoothClimb) * Math.min(1, dt * 8);
+
+  // landing recovery — the whole cast's knees (auto mode consumes it):
+  // accumulate the fall while airborne (a real fall adds real distance;
+  // a teleport's one-frame jump is capped out below), and on touching
+  // back down convert it into a knee-bend dip that decays. Stair steps
+  // (~0.2 m descents) never reach the 0.8 m threshold; a stoop hop, a
+  // ladder dismount or a missed curb do.
+  if (climbSpeed < -1.5 && climbSpeed > -14) {
+    rig.fallEnergy += -climbSpeed * dt;
+  } else if (climbSpeed > 14 || climbSpeed < -14) {
+    rig.fallEnergy = 0; // a teleport re-stage, not a fall
+  } else if (Math.abs(climbSpeed) < 0.4 && rig.fallEnergy > 0.8) {
+    rig.landDip = Math.min(0.03 + rig.fallEnergy * 0.02, 0.085);
+    rig.fallEnergy = 0;
+  }
+  rig.landDip += (0 - rig.landDip) * Math.min(1, dt * 6.5);
+
   const s = Math.min(1, rig.smoothSpeed / 3.6); // normalized effort 0..1
   const t = rig.time;
 
@@ -491,15 +520,20 @@ export function updatePersonAnim(
   rig.hipL.rotation.x = sinP * swing;
   rig.hipR.rotation.x = -sinP * swing;
 
-  // arms counter the legs at ~3/4 of the hip swing; hands breathe when parked
-  const armSwing = swing * 0.78;
+  // arms counter the legs at ~3/4 of the hip swing; hands breathe when
+  // parked. At sprint pace the swing deepens and the arms tuck slightly
+  // (a runner's elbows) — driven by the MEASURED speed, so only true
+  // sprint paces (above the 4.2 walk ceiling) ever see it.
+  const pump = Math.max(0, Math.min(1, (rig.smoothSpeed - 4.4) / 2.0));
+  const armSwing = swing * (0.78 + pump * 0.5);
   rig.armL.rotation.x = -sinP * armSwing + (1 - s) * Math.sin(t * 1.7) * 0.045;
   rig.armR.rotation.x = sinP * armSwing + (1 - s) * Math.sin(t * 1.7 + 1.3) * 0.045;
-  rig.armL.rotation.z = 0.09;
-  rig.armR.rotation.z = -0.09;
+  rig.armL.rotation.z = 0.09 + pump * 0.055;
+  rig.armR.rotation.z = -0.09 - pump * 0.055;
 
-  // bob at stride frequency, lean into the walk (deeper athletic lean when sprinting)
-  rig.root.position.y = Math.abs(Math.sin(rig.phase)) * 0.045 * s;
+  // bob at stride frequency, lean into the walk (deeper athletic lean when sprinting);
+  // the landing dip rides on top — the knee-bend absorb, decaying
+  rig.root.position.y = Math.abs(Math.sin(rig.phase)) * 0.045 * s - rig.landDip;
   const sprintLean = Math.max(0, s - 0.7) * 0.09;
   rig.root.rotation.x = (0.07 + sprintLean) * s;
 
@@ -507,23 +541,31 @@ export function updatePersonAnim(
   rig.body.rotation.y = -sinP * swing * 0.14;
 
   // bank into turns: measured yaw rate → a small body roll, filtered so a
-  // story-tween reface reads as a wheel-around instead of a glitch
+  // story-tween reface reads as a wheel-around instead of a glitch.
+  // The same measurement drives the HEAD LEAD: the eyes arrive at the
+  // corner before the shoulders do (look-where-you-go), smoothed so a
+  // reface teleports nothing.
   if (rig.hasPrevYaw) {
     const d = group.rotation.y - rig.prevYaw;
     const wrapped = Math.atan2(Math.sin(d), Math.cos(d));
     const yawRate = wrapped / Math.max(dt, 1e-4);
     const target = THREE.MathUtils.clamp(-yawRate * 0.045, -0.14, 0.14) * Math.min(1, s * 2);
     rig.bank += (target - rig.bank) * Math.min(1, dt * 8);
+    const lead = THREE.MathUtils.clamp(yawRate * 0.10, -0.38, 0.38) * Math.min(1, s * 3);
+    rig.headLead += (lead - rig.headLead) * Math.min(1, dt * 9);
   }
   rig.prevYaw = group.rotation.y;
   rig.hasPrevYaw = true;
   rig.root.rotation.z = rig.bank;
 
   // idle life: breathe, a slow weight shift, and a layered head scan
-  // (two incommensurate sines — it never loops audibly at any cadence)
-  rig.body.rotation.x = (1 - s) * Math.sin(t * 2.1) * 0.02;
+  // (two incommensurate sines — it never loops audibly at any cadence).
+  // Moving, the head replaces the scan with the turn lead; sprinting adds
+  // a forward focus pitch — eyes on the block, not the shoes.
+  rig.body.rotation.x = (1 - s) * Math.sin(t * 2.1) * 0.02 + rig.landDip * 1.6;
   rig.body.rotation.z = (1 - s) * Math.sin(t * 0.4) * 0.016;
-  rig.head.rotation.y = (1 - s) * (Math.sin(t * 0.6) * 0.26 + Math.sin(t * 1.57) * 0.07);
+  rig.head.rotation.y = (1 - s) * (Math.sin(t * 0.6) * 0.26 + Math.sin(t * 1.57) * 0.07) + rig.headLead;
+  rig.head.rotation.x = -Math.min(0.12, Math.max(0, (rig.smoothSpeed - 4.5) * 0.055));
 }
 
 /**
