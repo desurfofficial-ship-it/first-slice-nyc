@@ -2062,6 +2062,16 @@ export class World {
     hubGeos.push(new THREE.BoxGeometry(0.12, 0.2, 2.2).translate(-4.78, 0.55, 0));
     merged(wheelGeos, PAL.manhole);
     merged(hubGeos, PAL.stone);
+    // the audit pass: a running bus carries its lights (nose +X; the westbound
+    // leg yaws π, so the pair reads right both ways)
+    merged([
+      new THREE.BoxGeometry(0.08, 0.18, 0.30).translate(4.83, 0.85, -0.7),
+      new THREE.BoxGeometry(0.08, 0.18, 0.30).translate(4.83, 0.85, 0.7),
+    ], PAL.cream);
+    merged([
+      new THREE.BoxGeometry(0.08, 0.16, 0.26).translate(-4.83, 0.85, -0.7),
+      new THREE.BoxGeometry(0.08, 0.16, 0.26).translate(-4.83, 0.85, 0.7),
+    ], PAL.coral);
     // the rollsign — the one canvas face, above the windshield
     const sign = new THREE.Mesh(
       new THREE.PlaneGeometry(1.1, 0.36),
@@ -3251,9 +3261,15 @@ export class World {
     interface BatchSrc { geo: THREE.BufferGeometry; mesh: THREE.Mesh; tile: string }
     interface Batch { srcs: BatchSrc[]; cast: boolean; receive: boolean; mat: THREE.MeshLambertMaterial }
     const batches = new Map<string, Batch>();
+    const EYE_LAYER = new THREE.Layers(); // layer 0 — the main camera's layer
 
     this.scene.traverse((o) => {
       if (!(o instanceof THREE.Mesh) || excluded(o)) return;
+      // Shadow proxies (personRig docs/51 B13) live ONLY on the shadow layer:
+      // a batch mesh is an ordinary layer-0 mesh, so baking a proxy would
+      // print its white silhouette standing inside every zone figure. The
+      // proxies stay individual casters — that IS the shipped shadow law.
+      if (!o.layers.test(EYE_LAYER)) return;
       // An InstancedMesh IS a Mesh, but its geometry is one instance's —
       // baking it merges a single phantom quad at the origin and STRIPS the
       // real instanced draw from the scene (the canopy dodged this by being
@@ -3310,13 +3326,21 @@ export class World {
         // was color × 1, now white × color: bit-for-bit the same shade, and
         // dropping uv lets uv-less and uv-ful sources fuse into one batch
         g.deleteAttribute('uv');
-        const pos = g.attributes.position;
-        const arr = new Float32Array(pos.count * 3);
-        const c = mat.color;
-        for (let i = 0; i < pos.count; i++) {
-          arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b;
+        // per-vertex palettes (person rigs) ARE the product — captured from
+        // the SOURCE geo, because the clone loop above already stripped the
+        // clone's non-pos/normal/uv attributes
+        const srcColor = geo.attributes.color;
+        if (srcColor) {
+          g.setAttribute('color', srcColor.clone());
+        } else {
+          const pos = g.attributes.position;
+          const arr = new Float32Array(pos.count * 3);
+          const c = mat.color;
+          for (let i = 0; i < pos.count; i++) {
+            arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b;
+          }
+          g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
         }
-        g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
       }
       // Region-split (W0: now 2D district tiles): a whole-world batch would
       // defeat frustum culling (the batch's bounding sphere spans the world,
@@ -4034,11 +4058,23 @@ export class World {
       if (i === 0) this.washerLoad = drum;
       this.colliders.push(boxFromCenter(wx, 0.9, 7.75, 0.95, 1.5, 0.5));
     }
-    // a folded stack rides the far washer — the laundromat is working, even now
-    const stack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 0.4), this.mat(PAL.cream));
-    stack.position.set(CX + 0.3, 1.8, 7.75);
-    stack.castShadow = true;
-    this.scene.add(stack);
+    // a folded stack rides the far washer — the laundromat is working, even
+    // now. The audit pass: three laid towels (corners askew, the top one the
+    // teal of the service counter) instead of one cream cube.
+    const towelLayers: Array<[number, number, number, number, number]> = [
+      [0.52, 0.10, 0.42, 0.0, PAL.cream],
+      [0.47, 0.09, 0.38, 0.14, 0xb9b1a6],
+      [0.42, 0.09, 0.34, -0.08, PAL.teal],
+    ];
+    let towelY = 1.70;
+    for (const [tw, th, td, rot, tcol] of towelLayers) {
+      const t = new THREE.Mesh(new THREE.BoxGeometry(tw, th, td), this.mat(tcol));
+      t.position.set(CX + 0.3, towelY, 7.75);
+      t.rotation.y = rot;
+      t.castShadow = true;
+      this.scene.add(t);
+      towelY += th;
+    }
     // Sal's service counter — waist-high (a real service counter), at the
     // bay's mouth; Sal reads chest-up behind it. The first counter was
     // chest-high and from the street it swallowed him whole — a head on a
