@@ -103,7 +103,7 @@
 | SYS-ECO-03 | Business operations | 6 | WS-D | PLANNED | PH-2/4 | P1 | wc-17 Phase 4 |
 | SYS-ECO-04 | Goods & resource flows | 6 | WS-D | PLANNED | PH-1 | P2 | flow classes declared |
 | SYS-ECO-05 | Public services | — | — | NOT STARTED (by design) | spine need | P3 | — |
-| SYS-ECO-06 | Transportation | 2 | WS-B | VERIFIED; clock-keying PLANNED | PH-2 | P1 | subway/bus suites |
+| SYS-ECO-06 | Transportation | 2 | WS-B | VERIFIED; loop-driven (audited 2026-11-07: the subway/bus cycles run on the game loop — NO real-time key anywhere, the R4 law holds); sim-schedule keying (trains arriving at canon sim times) is UNQUEUED polish — an owner-ratified work package would be needed before the shipped rhythm changes | PH-2 (closed) | P2 | subway/bus suites; the register's own "clock-keying PLANNED" was a stale legacy aspiration with no queued WP — audited and re-scoped rather than built unrequested |
 | SYS-ECO-07 | Neighborhood identity | — | WS-C | VERIFIED (canon + dressing) | — | P2 | naming registry |
 | SYS-ECO-08 | Persistent neighborhood change | 2/6 | WS-D | PARTIAL | PH-2/6 | P1 | dressing.ts day-keyed |
 | SYS-ECO-09 | In-game time progression | 2 | WS-D + ND | **DEC-1 RULED (2026-11-06, owner): Day 1 = Tuesday, Sept 9, Y1** — `CAL_EPOCH` corrected on main; mood-lock = presentation. **WP-2v INTEGRATED + VERIFIED (2026-11-06):** merge `eab767c` (impl `991a236`) — `sim/epochMap.ts` + 26 pinned cases; `epochAgreement()` green; full battery executed post-merge | DEC-1 (closed) | P0 | one mapping, one dateline ("September 9 · Year 1" — WP-6's render path); bridge consumes `simTickOfStoryDay`; input law: garbage throws, never renders; pre-merge saves: counters only, zero player-visible date change (documented, worklog WP-2V) |
