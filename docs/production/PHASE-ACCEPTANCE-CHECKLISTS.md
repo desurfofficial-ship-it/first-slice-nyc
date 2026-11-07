@@ -59,27 +59,31 @@ Standing gates for **every** phase, before any phase-specific box is checked (th
 
 **Must NOT open Phase 2 until:** the merge commit's full gates are green and DEC-1 (epoch reconciliation) is *scheduled* (ruling may land inside Phase 2's WP-2, but the decision meeting must exist).
 
-## Phase 2 — Runtime integration (the time valve) — THE NEXT PHASE
+## Phase 2 — Runtime integration (the time valve) — **EXIT CHECKLIST EXECUTED 2026-11-07 (register v1.11.0, main `b99c01f`+) — sign-off + the human evaluation session are the two owner-side variances (V-PH2-1/2 below)**
 
-**Entry requirements.** Phase 1 accepted; DEC-1 ruling available for WP-2; work packages claimed per the governance doc (one owner each, disjoint file scopes).
+**Entry requirements.** Phase 1 accepted; DEC-1 ruling available for WP-2; work packages claimed per the governance doc (one owner each, disjoint file scopes). — **met 2026-11-06** (WP-0 merge `1bb3152`; DEC-1 ruled inside WP-2v as scheduled).
 
 **Exit checklist.**
-- [ ] **WP-0** branch hygiene: `feat/player-upgrade` guard-checked and retired (or explicitly kept with a reason in the register); `feat/world-contract-foundation` deleted after merge
-- [ ] **WP-1 (D-1)** the tick valve lives in `Game.frame`: dt→ticks (1 tick = 1 in-game minute), pause rules (menus/paper surfaces/arrival cinematic), the listening beat respected — with tick-determinism and pause tests
-- [ ] **WP-2 (D-2)** the day-boundary machine runs the shipped morning rituals from the clock (diary note, restock, street shifts) — M3/M4 patterns re-keyed from story phase to clock day, tests re-pinned, **DEC-1's epoch mapping implemented behind one mapping function + a pinned test**
-- [ ] **WP-3 (B-1)** walkers + cast read clock-keyed schedules via arbitration claims; Yuka steers to the claim's destination — with a clock-day probe asserting occupancy at pinned times (07:40 platform, 22:00 deli close)
-- [ ] **WP-4 (D-3)** `Effect('money')` posts to the ledger behind the shipped confirm-gates; the sanctioned mirror holds (`player.moneyCents` ↔ `ledger.balance`); the E2E's $87→$112→$123 assertions pass **unchanged** — now traceable as transactions
-- [ ] **WP-5 (WS-C, parallel)** R2 consequence ledger + R7 choice nodes implemented per doc 14 §7 step 2 with their guards (append-only; promises mature into omissions; structural options' flag signatures unique)
-- [ ] **WP-6** UI: the calendar date and field-diary entries visible (the diary ink layer — two draw calls of UI per narrative/14 §4); dyslexia-friendly toggle may follow in Phase 5 but the diary must be *readable* by a player
-- [ ] New bridge guards landed: no second clock, no second ledger, no second save (wc-14 §2 prohibition — asserted by test)
-- [ ] Hot-path law: the valve and per-frame sim reads allocate nothing in the steady loop (§1c.3) — a code-review checkbox + a soak probe pass
-- [ ] E2E green on the integrated tree; probe-perf delta 0/0/0; ledger rows unchanged
-- [ ] The wc-17 Phase-1 exit sentence demonstrated in a browser: a roam afternoon where Idris appears at the platform at 07:40 and the deli closes at 22:00 — in-game time, zero story rewiring
-- [ ] Save round-trip: a world save from any tick resumes at that exact tick (determinism law) and the story save still parses old saves unchanged
+- [x] **WP-0** branch hygiene — DONE 2026-11-06 (`1bb3152`): `feat/player-upgrade` guard-checked and retired (no branch remains); `feat/world-contract-foundation` merged. *Hygiene variance V-PH2-3: the local `feat/world-contract-foundation` branch copy still exists post-merge — deletion pending the push wave (history preserved on main; nothing unmerged).*
+- [x] **WP-1 (D-1)** the tick valve lives in `Game.frame` — DONE (WP-1v CLOSED `0e22ff5`): `game/pauseSet.ts` (one pure statement), wardrobe/postcard in the pause set, the Map deliberately not (pinned); 11 pinned cases + probe-pause-set **11/11 re-executed on the integrated tree 2026-11-07**
+- [x] **WP-2 (D-2)** day-boundary machine on the clock + **DEC-1's epoch mapping behind one mapping function + a pinned test** — DONE (WP-2v `eab767c`): `sim/epochMap.ts`, `epochAgreement()`, DEC-1 RULED (owner-approved Option A, Sept 9 Y1); calendar tests re-pinned
+- [x] **WP-3 (B-1)** clock-keyed schedules via arbitration claims — DONE (bound cast on the branch tree, probe steps 1–4; ambient migration WP-3v `e3f1b02` — navigation-aware commutes, `EDGE_THROUGH_ROAD` closed); the pinned-times probe is **probe-ms1-clock-street.mjs (WP-7, 2026-11-07): 07:40 platform occupancy + 22:00 deli close demonstrated with screenshots** (probe-world-sim 15/15 and probe-ped-nav 7/7 bank the rest)
+- [x] **WP-4 (D-3)** the money→ledger bridge — DONE (`3a9984d`): every `Effect('money')` posts behind the same confirm-gates; the sanctioned mirror audited by `auditWorld`; probe-money-trace ALL PASSED, **ids byte-identical across two independent boots**; the E2E's $87→$112→$123 pass **unchanged** (day-4 save holds $123, re-proven 2026-11-07)
+- [x] **WP-5 (WS-C, parallel)** R2 consequence ledger + R7 choice nodes — DONE (`b99c01f`): `core/consequenceLedger.ts` (append-only; promises with due dates mature into omissions, idempotent, deterministic derived ids) + `core/choiceNodes.ts` (doc 10 §3's 17 nodes; the no-fake-choices validator green — flag AND ledger signatures pairwise unique); 47 tests; the save carries `ledger` v1-safe
+- [x] **WP-6** the date and the diary visible — DONE (`5ba16a3`): the ink layer live (`ui/diary.ts`), probe-diary-ink **28/28 at 390×844**, the HUD dateline through `datelineOfStoryDay` only; *dyslexia-friendly toggle rides Phase 5 per the plan's own allowance*
+- [x] New bridge guards: no second clock, no second ledger, no second save — asserted by test: sim-runtime pins (the ONE valve), sim-money-bridge failure-mode tests (the mirror disagrees → the world fails fast), save.test.ts (the ONE story key + the world's own key, old saves parse unchanged, the ledger round-trips)
+- [x] Hot-path law — code review (WP-3v's allocation-free pin pass; WP-1v's zero-allocation loop) + the soak evidence: perf-peds on the integrated tree **27.1 µs/frame (0.16% of budget), heap FLAT (−17 MB GC reclaim, no growth), 38 routes in 300 s** (2026-11-07)
+- [x] E2E green on the integrated tree — 4-day E2E **0 failures (595 s, console clean)**; ledger rows unchanged (probe-money-trace re-executed post-merge: $112.00, audit clean); probe-perf standing rows zero drift
+- [x] **The wc-17 Phase-1 exit sentence demonstrated in a browser** — **probe-ms1-clock-street.mjs ALL 16 CHECKS PASSED (2026-11-07)**: a roam afternoon 07:40→22:05 at accelerated in-game time — Idris stands the platform at 07:40, the deli is a routed corridor at 21:58 and refuses routes at 22:00 (`PLACE_INACCESSIBLE`), the dateline reads "September 9 · Year 1" on screen with the diary leaf folded open, the ledger genesis-audits clean before AND after, the story never moved (day 1, $87); screenshots `web-three/shots/ms1-*.png`
+- [x] Save round-trip — probe-world-sim 6c (exact tick restore) + 6e (idempotent loads) re-executed **15/15 on the integrated tree 2026-11-07**; the story save parses old saves unchanged (save.test.ts's old-v1 cases + the ledger's empty-layer law)
 
-**Sign-off.** WS-D lead + WS-B lead (B-1) + Production Director. The register records MS-1.
+**Sign-off.** WS-D lead + WS-B lead (B-1) + Production Director. The register records MS-1. — **V-PH2-1 (owner-side): the three-lead sign-off line is unexecuted — the workstreams' evidence is banked above; the owners sign.**
 
-**Must NOT begin before acceptance:** nav-graph migration (Phase 3), needs/mood dials (Phase 4), C0+ content (Phase 7 waves), any new location work.
+**Evaluation variances.**
+- **V-PH2-2 (owner-side):** the 15–20-minute human evaluation session (MASTER-GAME-ROADMAP §5: fresh save, no instructions, follow/refuse the beat, roam on the clock, spend recorded money, discover a place, keep a Postcard) requires a human box and is unexecuted — every automated substitute is green (the 4-day E2E plays the story; probe-ms1-clock-street plays the roam afternoon; probe-diary-ink proves readability at 390×844). The session remains the exit's human half, logged with who/when by the owner.
+- **V-PH2-3 (hygiene):** `feat/world-contract-foundation` local branch copy survives post-merge — delete during the push wave.
+
+**Must NOT begin before acceptance:** nav-graph migration (Phase 3), needs/mood dials (Phase 4), C0+ content (Phase 7 waves), any new location work. — *note: the Phase-3 nav work (A-1/A-2/WP-3v) already landed under separate owner assignments ahead of this acceptance; nothing here re-opens it.*
 
 ## Phase 3 — Navigation and physical world integration
 

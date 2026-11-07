@@ -2102,3 +2102,46 @@ Game.ts, world/, or the sim ownership table was touched (the WP's own law).
   (`2203f05`…`96490d2`) + WP-6's two (`16c3e73`, `5ba16a3`) + WP-5's two (`94088ca`,
   `b99c01f`) + this docs commit. Next per §2b: **WP-7 (evidence assembly — the
   milestone's last item)**; A-3 (DEC-4) remains the owner's call.
+
+## 2026-11-07 — WP-7 EXECUTED: the MS-1 Clock Street evidence + the PH-2 exit checklist (register v1.11.0)
+
+The milestone's last work package, under the owner's "Continue working". The WS-F law
+held: the probe adds a script, zero product code.
+
+- **The demo (`scripts/probe-ms1-clock-street.mjs`, new):** the clock-day demonstration
+  and the money-trace reconciliation joined into ONE run of the real built game. The
+  probe toggles the REAL roam switch, cranks the REAL valve (300 sim-min/real-s), and
+  an in-page rAF watcher (a probe fixture writing marks to `window.__MS1__`) samples
+  the block the first in-game minute each clause goes live — accelerated time cannot
+  skip a clause. NO scenario param: the probe drives its own controlled afternoon, so
+  the demo stands alone (and the scenario suite remains independently green).
+- **The exit sentence, clause by clause:** (1) 07:40 platform occupancy — Idris stands
+  his window (claim `se-idris-platform`, visible, the fresh world boots at 07:40 inside
+  the 07:22–07:52 band); (2) 22:00 deli close — the deli is a routed corridor at 21:58
+  (ROS-01's canon 06:00–22:00 hours) and refuses routes at 22:00 with
+  `PLACE_INACCESSIBLE` (a closed door is not an edge — A-2's model in the browser);
+  (3) the date and the diary readable — the HUD dateline "September 9 · Year 1"
+  through `datelineOfStoryDay` ONLY, the Map's "my diary" tab folds the leaf, the leaf
+  shares the dateline; (4) every dollar traceable — genesis $87.00 on both sides of
+  the sanctioned mirror, audit clean at boot and STILL clean after the whole afternoon
+  (roam invents no money, txns 0), the story day/wallet never moved (zero story
+  rewiring). **ALL 16 CHECKS PASSED, console clean.** Screenshots:
+  `shots/ms1-platform-0740.png`, `shots/ms1-deli-close-2200.png`, `shots/ms1-dateline-diary.png`.
+- **The floor gates re-ran green on the merged tree in the same battery:** 4-day E2E
+  0 failures (595 s, console clean, day-4 save holds $123 — the $87→$112→$123 math
+  unchanged, now transactional via probe-money-trace: $112.00, mirror holds, ids
+  byte-identical) · probe-world-sim 15/15 · probe-pause-set 11/11 · probe-nav 9/9 ·
+  perf-peds re-baseline: peds.update 27.1 µs/frame (0.16% of budget), heap FLAT
+  (−17 MB GC reclaim), 38 routes in 300 s.
+- **PH-2's exit checklist EXECUTED** (PHASE-ACCEPTANCE-CHECKLISTS §Phase 2): all
+  twelve items checked with evidence — WP-0…WP-6, the bridge guards (no second clock/
+  ledger/save, asserted by test), the hot-path law (review + soak numbers), E2E on the
+  integrated tree, the wc-17 exit sentence demonstrated in a browser, the save
+  round-trip (exact tick restore, old saves parse). **Variances filed:** V-PH2-1 the
+  three-lead sign-off (owner-side), V-PH2-2 the 15–20-minute human evaluation session
+  (owner-side — fresh save, no instructions, 15–20 min, logged with who/when; every
+  automated substitute is green), V-PH2-3 `feat/world-contract-foundation`'s local
+  branch copy deletion (push wave).
+- **Not pushed** — awaiting owner authorization. Unpushed on main: eleven commits
+  (WP-4 ×4, WP-6 ×2, WP-5 ×2, WP-7 docs ×3 incl. this one). **What remains is the
+  owner's: the sign-off, the human playtest, the DEC-4 (A-3) call, the push.**

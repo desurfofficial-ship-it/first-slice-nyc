@@ -87,7 +87,7 @@
 - **Acceptance:** entries render as ink with corrections struck through; the date renders from the calendar (never real time); a 390×844 probe pass; touch-law test green; no page errors.
 - **Reporting:** worklog + register (SYS-POP-06/SYS-NAR-02 → INTEGRATED) + PR + screenshots.
 
-### WP-7 — Evidence: the Clock Street demo *(WS-F)*
+### WP-7 — Evidence: the Clock Street demo *(WS-F)* — **EXECUTED 2026-11-07: probe-ms1-clock-street 16/16 + the PH-2 exit checklist; the human session + sign-off are owner variances (V-PH2-1/2)**
 - **Task scope:** assemble the milestone evidence: the clock-day probe + money-trace probe joined into a single MS-1 demonstration run (build → serve dist → drive a roam afternoon → assert 07:40 platform occupancy → assert 22:00 deli close → assert ledger reconciliation → screenshots); run the full floor gates; run the 15–20-minute evaluation session in a browser (human box, logged with who/when); update the register and close Phase 2 or list variances.
 - **Files owned:** `web-three/scripts/probe-ms1-clock-street.mjs` (new), register/worklog.
 - **Must NOT modify:** product code (WS-F law).
@@ -104,7 +104,7 @@ WP-4 (money bridge, Game.ts*)  ── DONE 2026-11-07 (3a9984d) — probe-money-
 WP-3v (ambient walkers, peds)  ── DONE 2026-11-06 (e3f1b02) — single-writer booking held
 WP-5 (R2+R7, core seam)        ── DONE 2026-11-07 (b99c01f) — landed before WP-7 so the evidence consumes all
 WP-6 (diary UI)                ── DONE 2026-11-07 (5ba16a3) — ink live, dateline through the one mapping
-WP-7 (evidence assembly)       ── last; consumes all + the post-merge perf re-baseline
+WP-7 (evidence assembly)       ── DONE 2026-11-07 (probe-ms1-clock-street 16/16 + PH-2 exit checklist)
 ```
 *Game.ts is single-writer: WP-1v, WP-2v (wiring only) and WP-4 book successive windows with the Production Director; WP-3v books `peds.ts` separately. No two WPs hold the same file simultaneously — the governance law, not a preference.*
 
@@ -124,6 +124,8 @@ WP-7 (evidence assembly)       ── last; consumes all + the post-merge perf r
 
    *UPDATE 2026-11-07 (register v1.9.0): **WP-6 LANDED + INTEGRATED** — `feat/wp-6-diary-date-visible` @ `16c3e73`, merged `5ba16a3` (same "Continue working" authorization class; A-3 still owner-gated). The Map renders the field diary as ink (folded leaf + tab, no new paper door — touch law untouched); the dateline renders through `datelineOfStoryDay` only ("September 9 · Year 1"); gates: tsc · vitest 927/927 (63 files) · build · probe-diary-ink 28/28 at 390×844 (console clean, shots) · 4-day E2E 0 failures (569 s). **Remaining order: A-3 (DEC-4, owner call) → WP-7 (evidence assembly — last, consumes the milestone); WP-5 (R2+R7) stays fully parallel (disjoint files).** Sketch.ts required no extension — the ink layer proved self-contained in `ui/diary.ts` + `style.css` (fewer touched files than the plan guessed; no structural change to the shipped two-page sheet).*
    *UPDATE 2026-11-07 (register v1.10.0): **WP-5 LANDED + INTEGRATED** — `feat/wp-5-consequence-choice` @ `94088ca`, merged `b99c01f` (same "Continue working" authorization class; the parallel WS-C track — disjoint files, landed BEFORE WP-7 so the milestone evidence consumes the whole milestone). `core/consequenceLedger.ts` (R2: append-only, promises with in-game due dates, omission maturation automatic + idempotent, determinism-from-save pinned) and `core/choiceNodes.ts` (R7: doc 10 §3's 17 nodes transcribed as frozen data, the no-fake-choices rule a validator, N2-FormC lock pinned); the save carries `ledger` as an optional trailing v1-safe field (doc 14 §3's `promises` layer realized INSIDE the ledger — a promise IS a LedgerEntry; variance documented). Gates: tsc · vitest **974/974** (65 files, +47) · build · 4-day E2E 0 failures (595 s) · probe-money-trace ALL PASSED post-merge. **Remaining order: A-3 (DEC-4, owner call) → WP-7 (evidence assembly — the milestone's last item); nothing else in the milestone remains.***
+
+   *UPDATE 2026-11-07 (register v1.11.0): **WP-7 EXECUTED — the milestone's machine-side work is COMPLETE.** `scripts/probe-ms1-clock-street.mjs` (new, the WS-F law held: zero product code) joins the clock-day demonstration and the ledger reconciliation into ONE browser run of dist/ — the roam afternoon 07:40→22:05 at 300×: Idris stands the platform at 07:40 (claim `se-idris-platform`), the deli is routed at 21:58 and refuses routes at 22:00 (`PLACE_INACCESSIBLE`, the canon 06:00–22:00 hours), the dateline + diary leaf are readable on screen, genesis $87.00 audits clean before AND after, the story never moved — **ALL 16 CHECKS PASSED**, screenshots in `web-three/shots/ms1-*.png`. The floor gates re-ran green in the same battery (4-day E2E 0 failures 595 s · probe-money-trace · probe-world-sim 15/15 · probe-pause-set 11/11 · probe-nav 9/9 · perf-peds 27.1 µs/frame heap flat). **PH-2's exit checklist executed** — all twelve items checked with evidence; three variances filed: V-PH2-1 the three-lead sign-off (owner), V-PH2-2 the 15–20-minute human evaluation session (owner; every automated substitute green), V-PH2-3 branch-copy hygiene (push wave). **What remains is the owner's: the sign-off, the human playtest, the DEC-4 (A-3) call, the push.***
 
 ### 2c. A-1/A-2 status note (2026-11-06, Technical Architecture agent)
 
