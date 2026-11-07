@@ -2208,3 +2208,42 @@ the pack fuse like the world's own statics.
   but are two parsed copies — instancing beyond the URL cache is future
   work · the washers' visual pokes ≤0.1 m past their colliders (machine
   depth vs authored box), inside the seam's own ±90 % law.
+
+## 2026-11-07 — Technical Architecture / World Systems Agent: the push wave executed — the Sandflow pack joined the line, V-PH2-3 closed, the next order queued for ratification
+
+**Directed by the owner's "Push" + "And continue working"** (the second push
+authorization this session; the first delivered Phase 3 + WP-3v at `dcff32c`).
+
+- **The divergence found and integrated honestly:** origin/main had advanced to
+  `c950162` — the Sandflow Evaluation Agent's Alder Heights asset pack (13 prop
+  swaps + 1 add via `upgradePropWithGLB`, evaluation docs + evidence, its own
+  worklog entry) — while our eleven commits (WP-4 ×4, WP-6 ×2, WP-5 ×2,
+  WP-7 docs ×3) sat unpushed; merge-base `dcff32c`. **Integration merge
+  `b2eb53b`** (no-ff, both histories preserved); the single conflict `worklog.md`
+  resolved with BOTH sides verbatim (append-append, zero content lost).
+- **The integrated tree re-gated — all green:** tsc clean · vitest **974/974**
+  (65 files) · build OK · probe-money-trace ALL PASSED ($112.00, mirror holds,
+  audit clean) · probe-diary-ink ALL PASSED · probe-ms1-clock-street ALL CHECKS
+  PASSED · probe-world-sim 15/15 · probe-pause-set 11/11 · probe-integration
+  PASS (22 seams registered, 0 errors, 8/8 street walks incl. stoop-door and
+  bodega-interior) · probe-sandflow soft-pass on this box (every measurement
+  step + the instancing numbers collected: 100 clones 757 calls → instanced
+  376 calls; the final screenshot timed out on swiftshader — the environment
+  variance the pack's own worklog already files; the load-bearing sandflow
+  gate, probe-integration, is green).
+- **The push, one invocation, non-force:** `main` `c950162..b2eb53b`
+  (fast-forward — the merge commit carries `c950162` as a parent) + three NEW
+  remote branches (`feat/wp-4-money-bridge`, `feat/wp-5-consequence-choice`,
+  `feat/wp-6-diary-date-visible`). **All four refs verified MATCH by ls-remote**;
+  tracking synced; working tree clean.
+- **V-PH2-3 CLOSED:** the `feat/world-contract-foundation` local branch copy
+  deleted during the push wave as the variance prescribed (remote copy intact at
+  `407cc0e`; `git log main..feat/world-contract-foundation` empty — nothing
+  unmerged). PHASE-ACCEPTANCE-CHECKLISTS §Phase 2 updated.
+- **"Continue working" continued honestly:** the milestone's machine-side queue
+  is EMPTY (WP-0…WP-7 done; A-3 is DEC-4, the owner's call; V-PH2-1/2 are
+  owner-side). So the run delivered the plan's own §6 "Done means" remainder:
+  **the next order drafted and queued for ratification** (NEXT-PHASE-EXECUTION-PLAN
+  §2b update, register v1.11.1) — E-1 anchor catalogue → chokepoint capacity
+  claims → R1/R8 rails engine (parallel WS-C) → A-3 upon the owner's DEC-4
+  ruling. **Nothing begins without the owner's authorization.**

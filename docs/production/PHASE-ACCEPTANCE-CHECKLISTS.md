@@ -64,7 +64,7 @@ Standing gates for **every** phase, before any phase-specific box is checked (th
 **Entry requirements.** Phase 1 accepted; DEC-1 ruling available for WP-2; work packages claimed per the governance doc (one owner each, disjoint file scopes). — **met 2026-11-06** (WP-0 merge `1bb3152`; DEC-1 ruled inside WP-2v as scheduled).
 
 **Exit checklist.**
-- [x] **WP-0** branch hygiene — DONE 2026-11-06 (`1bb3152`): `feat/player-upgrade` guard-checked and retired (no branch remains); `feat/world-contract-foundation` merged. *Hygiene variance V-PH2-3: the local `feat/world-contract-foundation` branch copy still exists post-merge — deletion pending the push wave (history preserved on main; nothing unmerged).*
+- [x] **WP-0** branch hygiene — DONE 2026-11-06 (`1bb3152`): `feat/player-upgrade` guard-checked and retired (no branch remains); `feat/world-contract-foundation` merged. *Hygiene variance V-PH2-3: ~~deletion pending the push wave~~ **CLOSED 2026-11-07 (register v1.11.1)** — the local branch copy deleted during the push wave (remote copy intact at `407cc0e`; `git log main..feat/world-contract-foundation` empty — nothing unmerged).*
 - [x] **WP-1 (D-1)** the tick valve lives in `Game.frame` — DONE (WP-1v CLOSED `0e22ff5`): `game/pauseSet.ts` (one pure statement), wardrobe/postcard in the pause set, the Map deliberately not (pinned); 11 pinned cases + probe-pause-set **11/11 re-executed on the integrated tree 2026-11-07**
 - [x] **WP-2 (D-2)** day-boundary machine on the clock + **DEC-1's epoch mapping behind one mapping function + a pinned test** — DONE (WP-2v `eab767c`): `sim/epochMap.ts`, `epochAgreement()`, DEC-1 RULED (owner-approved Option A, Sept 9 Y1); calendar tests re-pinned
 - [x] **WP-3 (B-1)** clock-keyed schedules via arbitration claims — DONE (bound cast on the branch tree, probe steps 1–4; ambient migration WP-3v `e3f1b02` — navigation-aware commutes, `EDGE_THROUGH_ROAD` closed); the pinned-times probe is **probe-ms1-clock-street.mjs (WP-7, 2026-11-07): 07:40 platform occupancy + 22:00 deli close demonstrated with screenshots** (probe-world-sim 15/15 and probe-ped-nav 7/7 bank the rest)
@@ -81,7 +81,7 @@ Standing gates for **every** phase, before any phase-specific box is checked (th
 
 **Evaluation variances.**
 - **V-PH2-2 (owner-side):** the 15–20-minute human evaluation session (MASTER-GAME-ROADMAP §5: fresh save, no instructions, follow/refuse the beat, roam on the clock, spend recorded money, discover a place, keep a Postcard) requires a human box and is unexecuted — every automated substitute is green (the 4-day E2E plays the story; probe-ms1-clock-street plays the roam afternoon; probe-diary-ink proves readability at 390×844). The session remains the exit's human half, logged with who/when by the owner.
-- **V-PH2-3 (hygiene):** `feat/world-contract-foundation` local branch copy survives post-merge — delete during the push wave.
+- **V-PH2-3 (hygiene) — CLOSED 2026-11-07:** the local branch copy was deleted during the push wave (register v1.11.1); the remote copy stands at `407cc0e`, history preserved on main (merged `1bb3152`).
 
 **Must NOT begin before acceptance:** nav-graph migration (Phase 3), needs/mood dials (Phase 4), C0+ content (Phase 7 waves), any new location work. — *note: the Phase-3 nav work (A-1/A-2/WP-3v) already landed under separate owner assignments ahead of this acceptance; nothing here re-opens it.*
 
