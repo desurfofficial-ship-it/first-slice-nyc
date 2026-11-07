@@ -21,6 +21,10 @@ import type { FieldDiaryEntry } from './fieldDiary';
 import { parseFieldDiary } from './fieldDiary';
 import type { LedgerEntry } from './consequenceLedger';
 import { parseLedger } from './consequenceLedger';
+import type { SavedChapter } from './chapters';
+import { freshChapterState, parseChapterState } from './chapters';
+import type { SavedRails } from './chapterRails';
+import { freshRailStates, parseRails } from './chapterRails';
 import { clampCalendarDay } from './calendar';
 
 export const SAVE_KEY = 'first_slice_save_v1';
@@ -113,6 +117,18 @@ export interface SaveData {
    *  (R2's own schema carries the due date); a second duplicated array
    *  would create a mirror to keep honest (the WP-4 mirror lesson). */
   ledger?: LedgerEntry[];
+  /** The chapter gate (narrative/14 R8 — core/chapters.ts): the current
+   *  chapter, the day it opened, the day last written. Optional trailing
+   *  v1-safe field: absent reads as C0, opened on day 1 (an old save is
+   *  a fresh arrival — the spine has not moved). Corrupt parses
+   *  quarantine to the same fresh state, never a crash. */
+  chapter?: SavedChapter;
+  /** The rails' fire states (narrative/14 R1 — core/chapterRails.ts):
+   *  six rails, fired + firedOnDay. Optional trailing v1-safe field:
+   *  absent reads as all-unfired (the spine has not fired yet). A fired
+   *  rail whose day is unreadable re-seeds — a rail that cannot say
+   *  when it fired cannot claim it fired. */
+  rails?: SavedRails;
 }
 
 export function defaultSave(): SaveData {
@@ -141,6 +157,8 @@ export function defaultSave(): SaveData {
     calendar_day: 1,
     field_diary: [],
     ledger: [],
+    chapter: freshChapterState(),
+    rails: freshRailStates(),
   };
 }
 
@@ -240,6 +258,13 @@ export function parseSave(raw: string | null): SaveData {
     // the consequence ledger (narrative/14 R2) — absent in old saves reads
     // as an empty ledger; corrupt entries are quarantined, never a crash
     ledger: parseLedger(d['ledger']).entries,
+    // the chapter gate (narrative/14 R8) — absent in old saves reads as a
+    // fresh arrival (C0, day 1); corrupt parses quarantine to the same
+    // fresh state, never a crash
+    chapter: parseChapterState(d['chapter']).state,
+    // the rails (narrative/14 R1) — absent in old saves reads as an
+    // unfired spine; a fired rail with an unreadable day re-seeds
+    rails: parseRails(d['rails']).rails,
   };
 }
 
