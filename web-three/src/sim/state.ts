@@ -40,9 +40,10 @@ import {
 import { EconomyLedger } from './economy';
 import {
   AvailabilityRegistry, newFlags, type ChapterState, type FlagStore,
-  type LedgerEntry, type MissableWindow,
+  type LedgerEntry,
 } from './narrative';
 import { freshLifeState, parseLifeState, type LifeState } from './life';
+import { parseMissableWindows, type MissableWindowEntry } from './missable';
 
 export const WORLD_SCHEMA_VERSION = 1;
 
@@ -88,8 +89,11 @@ export interface WorldState {
   /** The chapter machine's state. Owned by: Workstream C (narrative). */
   chapter: ChapterState;
 
-  /** Authored missable windows + their disposition. Owned by: Workstream C. */
-  missable: MissableWindow[];
+  /** Authored missable windows + their disposition (narrative/14 R6 —
+   *  sim/missable.ts, wc-05's "windows + disposition"). Owned by:
+   *  Workstream C. Empty until the runtime seeds the specimen windows
+   *  (the boot path); the flags are the truth, the state is cache. */
+  missable: MissableWindowEntry[];
 
   /** The consequence ledger (append-only). Owned by: Workstream C. */
   consequences: LedgerEntry[];
@@ -205,7 +209,7 @@ export interface WorldSaveDocument {
   ledger: ReturnType<EconomyLedger['toData']>;
   flags: Array<[string, number]>;
   chapter: ChapterState;
-  missable: MissableWindow[];
+  missable: MissableWindowEntry[];
   consequences: LedgerEntry[];
   events: WorldEventRecord[];
   environment: WorldState['environment'];
@@ -263,7 +267,12 @@ function hydrate(doc: WorldSaveDocument, notes: string[]): WorldState {
   w.flags = flags;
   w.availability = new AvailabilityRegistry();
   w.chapter = doc.chapter;
-  w.missable = doc.missable;
+  // the missable windows (narrative/14 R6) — invalid entries drop with
+  // a note and re-derive from their flags at the next tick; the seed
+  // happens in the runtime's boot path when the section is empty.
+  const missableParsed = parseMissableWindows(doc.missable);
+  w.missable = missableParsed.windows;
+  if (missableParsed.note) notes.push(missableParsed.note);
   w.consequences = doc.consequences;
   w.events = doc.events;
   w.environment = doc.environment;
