@@ -19,6 +19,8 @@
 import type { DiaryNoted } from './diary';
 import type { FieldDiaryEntry } from './fieldDiary';
 import { parseFieldDiary } from './fieldDiary';
+import type { LedgerEntry, PromiseRecord } from './consequenceLedger';
+import { parseLedger, parsePromises } from './consequenceLedger';
 import { clampCalendarDay } from './calendar';
 
 export const SAVE_KEY = 'first_slice_save_v1';
@@ -99,6 +101,18 @@ export interface SaveData {
    *  Parsed entries are quarantine-cleaned; corrupt entries are dropped and
    *  counted, never a crash. */
   field_diary?: FieldDiaryEntry[];
+  /** The consequence ledger (narrative/14 R2 — core/consequenceLedger.ts):
+   *  choices, promises, omissions, amends — append-only, the C5 cascade's
+   *  only input beside relationship states. Optional trailing v1-safe
+   *  field: absent reads as [] (an old save is an empty ledger, the
+   *  field-diary migration law). Parsed entries are quarantine-cleaned;
+   *  corrupt entries are dropped and counted, never a crash. */
+  ledger?: LedgerEntry[];
+  /** The promise register (narrative/14 R2 + narrative/10 §1): promises
+   *  with due dates; open ones mature into omissions once the due date
+   *  passes. Optional trailing v1-safe field: absent reads as []. Same
+   *  quarantine law as the ledger. */
+  promises?: PromiseRecord[];
 }
 
 export function defaultSave(): SaveData {
@@ -126,6 +140,8 @@ export function defaultSave(): SaveData {
     map_places: [],
     calendar_day: 1,
     field_diary: [],
+    ledger: [],
+    promises: [],
   };
 }
 
@@ -222,6 +238,11 @@ export function parseSave(raw: string | null): SaveData {
     // the field diary (narrative/14 R3) — absent in old saves reads as an
     // empty diary; corrupt entries are quarantined, never a crash
     field_diary: parseFieldDiary(d['field_diary']).entries,
+    // the consequence ledger + the promise register (narrative/14 R2,
+    // WP-5) — absent in old saves read as empty; corrupt entries are
+    // quarantined, never a crash (the map-notebook precedent)
+    ledger: parseLedger(d['ledger']).entries,
+    promises: parsePromises(d['promises']).promises,
   };
 }
 

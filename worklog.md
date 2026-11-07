@@ -2008,3 +2008,52 @@ the pack fuse like the world's own statics.
   but are two parsed copies — instancing beyond the URL cache is future
   work · the washers' visual pokes ≤0.1 m past their colliders (machine
   depth vs authored box), inside the seam's own ±90 % law.
+
+---
+Task ID: WP-5-R2-R7
+Agent: Narrative Systems (WS-C) Agent
+Task: WP-5 — the R2 consequence ledger + the R7 choice nodes (doc 14 §7
+step 2), pure state behind the core seam, from main c950162.
+
+Work Log:
+- Studied the precedents first (AGENTS.md §1e): core/fieldDiary.ts is the
+  append-only + quarantine law in code; core/calendar.ts the declared
+  GameDate; docs/narrative/14 §1/§2/§6 + docs/narrative/10 §1/§3 the
+  spec. Neither reference repo has an equivalent (the study-before-build
+  verdict carries over); built independently on the fieldDiary shape.
+- core/consequenceLedger.ts: LedgerEntry exactly doc 14 R2's schema;
+  PromiseRecord carries the due date (doc 10 §1: "every promise is a
+  flag with a due date"); maturePromises() turns a due-date-passed open
+  promise into exactly one omission entry (weight = the promise's own —
+  smaller coin, same currency), fire-once by the terminal open→matured
+  transition, omission ids derived (omission/<promiseId>), never minted;
+  keepPromise() terminal kept (kept promises never mature); the API has
+  no update/remove at all — frozen inputs are pinned by test.
+- core/choiceNodes.ts: the doc 10 §3 register encoded verbatim — 17
+  nodes, N0–N7, chapters and option labels from the table; locks stay
+  empty (the table authors none; R1/R8's territory, pinned so the
+  honesty is deliberate). validateNoFakeChoices() is the no-fake-choices
+  rule as a function. CAUGHT LIVE: the first flagSignature draft folded
+  in ledger entry ids — every option mints choice/<node>/<option> by
+  construction, so the forged-convergence test FAILED the draft; the
+  signature is flags-only now (doc 14 R7's own wording), the loophole
+  closed before it ever landed.
+- Save seam (the assignment's one allowed touch to an existing file):
+  `ledger` + `promises` optional trailing v1-safe fields — old saves
+  parse byte-identically to empty layers; the save fuzz wall
+  (Object.keys(defaultSave()) × 11 wrong shapes) automatically covers
+  both; parse quarantine: duplicate ids keep the first and count the
+  rest; a matured promise without its omission link is corrupt (the C5
+  join is load-bearing) and quarantines rather than heal-guessing.
+- Register v1.8.0 rows (SYS-NAR-06/07, R2, R7) updated in the same
+  commit per the update law.
+
+Stage Summary:
+- Gates at close (all executed on feat/wp-5-consequence-ledger): tsc
+  clean · vitest 932/932 (63 files; +43 = consequence-ledger 27 +
+  choice-nodes 16) · build OK.
+- Honest scope: state layer only — nothing reads it at runtime yet.
+  WP-4 books the Game.ts window (money→ledger + the promise seams);
+  the C5 cascade and the omission prose are C5 content; N0's prompt
+  prose is doc 11's C0 pack. The ledger never lies to the save; the
+  save never lies to the ledger.

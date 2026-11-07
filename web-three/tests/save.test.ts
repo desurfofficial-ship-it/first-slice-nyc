@@ -73,6 +73,10 @@ describe('save v1 — write/read roundtrip', () => {
       // same optional-trailing law one row later: calendar absent reads as
       // the story day (the C0 mood-lock), the diary absent reads as empty
       calendar_day: 2, field_diary: [],
+      // the consequence ledger + the promise register (narrative/14 R2,
+      // WP-5) — the same optional-trailing law one row later again:
+      // absent reads as empty layers
+      ledger: [], promises: [],
     });
   });
 
