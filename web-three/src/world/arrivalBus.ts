@@ -139,16 +139,24 @@ export function buildArrivalBus(
   box('BUS_Roof', cx, roof + 0.1, z, len, 0.2, halfW * 2, 0xd8d8d8);
   box('BUS_Nose', xW, bodyY, z, 0.15, bodyH, halfW * 2, PAL.taxi);
   box('BUS_Tail', xE, bodyY, z, 0.15, bodyH, halfW * 2, PAL.taxi);
-  box('BUS_Stripe', cx, 1.1, z, len, 0.18, halfW * 2 + 0.06, PAL.ink, { collide: false });
+  // the ink belt stripe wraps both faces — proud of the walls so it reads —
+  // but splits around the door gap (a bar across the doorway reads wrong)
+  box('BUS_StripeW', (xW + -28.2) / 2, 1.1, z, (-28.2) - xW, 0.18, halfW * 2 + 0.14, PAL.ink, { collide: false });
+  box('BUS_StripeE', (-27.1 + xE) / 2, 1.1, z, xE - (-27.1), 0.18, halfW * 2 + 0.14, PAL.ink, { collide: false });
 
   // north (curbside) face: the door opening at x −27.65 + windows
   box('BUS_WallN_W', (xW + -28.2) / 2, bodyY, zN, (-28.2) - xW, bodyH, 0.12, PAL.taxi);
   box('BUS_WallN_E', (-27.1 + xE) / 2, bodyY, zN, xE - (-27.1), bodyH, 0.12, PAL.taxi);
   box('BUS_DoorHeader', -27.65, 2.55, zN, 1.1, 0.4, 0.12, PAL.taxi, { collide: false });
-  // south face: wall with window insets (dark glass reads fine outside)
+  // south face: wall with window insets (the audit found the original insets
+  // buried INSIDE the wall slab — proud by 0.04 now, they finally read)
   box('BUS_WallS', cx, bodyY, zS, len, bodyH, 0.12, PAL.taxi);
   for (const wx of [-35.15, -33.15, -31.15, -29.15]) {
-    box(`BUS_WinS_${wx}`, wx, 1.55, zS - 0.02, 1.2, 0.85, 0.04, 0x2c3440, { collide: false });
+    box(`BUS_WinS_${wx}`, wx, 1.55, zS - 0.05, 1.2, 0.85, 0.06, 0x2c3440, { collide: false });
+  }
+  // curbside windows: the boarding side reads flat without them (same proud law)
+  for (const wx of [-35.15, -33.15, -31.15, -29.85]) {
+    box(`BUS_WinN_${wx}`, wx, 1.55, zN + 0.07, 1.2, 0.85, 0.06, 0x2c3440, { collide: false });
   }
   // west end: the windshield (an OPENING — the reveal looks through it)
   box('BUS_WindshieldSill', xW - 0.02, 0.72, z, 0.12, 0.35, halfW * 2 - 0.5, PAL.ink, { collide: false });
@@ -156,10 +164,53 @@ export function buildArrivalBus(
   box('BUS_WindshieldPillar', xW - 0.02, 1.6, z, 0.12, 1.45, 0.12, PAL.ink, { collide: false });
   box('BUS_Route', xW - 0.04, 2.62, z, 0.06, 0.32, 1.7, 0x2b2430, { map: routeTexture(), collide: false });
 
-  // wheels (visual), parked on the bay
+  // wheels (visual), parked on the bay — honest cylinders with hubs now (the
+  // full-game asset audit REBUILD-class polish: box wheels read as blobs)
+  const cylBox = (name: string, cx0: number, cy0: number, cz0: number, r: number, w: number, color: number, seg = 12): THREE.Mesh => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, w, seg), M(color));
+    m.name = name;
+    m.rotation.x = Math.PI / 2; // axle across the body (Z)
+    m.position.set(cx0, cy0, cz0);
+    m.castShadow = true;
+    group.add(m);
+    return m;
+  };
   for (const [wx, wz] of [[xW + 1.6, zN - 0.1], [xW + 1.6, zS + 0.1], [xE - 1.6, zN - 0.1], [xE - 1.6, zS + 0.1]] as const) {
-    box(`BUS_Wheel_${wx}_${wz > z ? 'n' : 's'}`, wx, 0.32, wz, 0.65, 0.64, 0.24, 0x2b2430, { collide: false });
+    cylBox(`BUS_Wheel_${wx}_${wz > z ? 'n' : 's'}`, wx, 0.34, wz, 0.34, 0.24, 0x2b2430, 14);
+    cylBox(`BUS_Hub_${wx}_${wz > z ? 'n' : 's'}`, wx, 0.34, wz, 0.15, 0.27, 0xd8d8d8, 10);
   }
+
+  // exterior dressing — the audit pass (all visual-only: collide stays off,
+  // the shell's colliders and the one-bay law are untouched). The tail sits
+  // 0.15 m from the loop bus's halt nose; every addition keeps inside that
+  // gap or hugs the face it dresses.
+  // front: bumper + lights (the nose faces west, down the avenue)
+  box('BUS_BumperF', xW - 0.06, 0.34, z, 0.12, 0.26, halfW * 2 + 0.02, 0x8f8a82, { collide: false });
+  box('BUS_BumperF_Lip', xW - 0.05, 0.16, z, 0.10, 0.14, halfW * 2 - 0.1, 0x8f8a82, { collide: false });
+  for (const wz of [-0.72, 0.72]) {
+    box('BUS_Headlight_+' + wz, xW - 0.04, 0.95, z + wz, 0.06, 0.22, 0.38, PAL.cream, { collide: false });
+    box('BUS_Marker_+' + wz, xW - 0.03, 1.85, z + wz, 0.05, 0.10, 0.12, PAL.amber, { collide: false });
+  }
+  box('BUS_Grille', xW - 0.03, 0.62, z, 0.06, 0.34, 1.3, PAL.ink, { collide: false });
+  // A-pillar mirrors
+  for (const sgn of [-1, 1]) {
+    box('BUS_MirrorStalk_' + sgn, xW + 0.18, 2.05, z + sgn * 1.32, 0.05, 0.05, 0.24, PAL.ink, { collide: false });
+    box('BUS_Mirror_' + sgn, xW + 0.18, 2.18, z + sgn * 1.44, 0.07, 0.34, 0.14, PAL.ink, { collide: false });
+  }
+  // rear: bumper, engine grille slats, lights, brake bar, plate
+  box('BUS_BumperR', xE + 0.06, 0.34, z, 0.12, 0.26, halfW * 2 + 0.02, 0x8f8a82, { collide: false });
+  box('BUS_BumperR_Lip', xE + 0.05, 0.16, z, 0.10, 0.14, halfW * 2 - 0.1, 0x8f8a82, { collide: false });
+  for (const gy of [0.85, 1.05, 1.25]) {
+    box('BUS_RearGrille_' + gy, xE + 0.02, gy, z, 0.05, 0.10, 1.5, PAL.ink, { collide: false });
+  }
+  for (const wz of [-0.78, 0.78]) {
+    box('BUS_Taillight_+' + wz, xE + 0.03, 1.15, z + wz, 0.06, 0.34, 0.22, PAL.coral, { collide: false });
+  }
+  box('BUS_BrakeBar', xE + 0.03, 1.62, z, 0.06, 0.12, 1.2, PAL.coral, { collide: false });
+  box('BUS_Plate', xE + 0.03, 0.52, z, 0.05, 0.20, 0.44, PAL.amber, { collide: false });
+  // roof AC pod — a transit bus's crown detail
+  box('BUS_ACBbase', cx + 1.2, roof + 0.24, z, 1.9, 0.10, 1.5, PAL.ink, { collide: false });
+  box('BUS_ACUnit', cx + 1.2, roof + 0.40, z, 1.7, 0.24, 1.34, 0xd8d8d8, { collide: false });
 
   // curb-side entry steps (the law: every rise ≤ 0.35) — the box comes
   // from BUS04_STEP so the occupancy law and the mesh are the same numbers
