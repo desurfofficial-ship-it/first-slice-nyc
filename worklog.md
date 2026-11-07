@@ -2429,3 +2429,21 @@ what is below standard, integrate, verify, merge to main.
   bpy wheels unreachable from this environment's pip index (the cars used
   the repo's trimesh pipeline instead); the gold taxi's in-motion close-up
   eluded the parked probes (family evidenced via the same-builder sedan).
+---
+
+## 2026-11-07 — Production Director: audit R2 — the baseline re-certified, DEC-4 briefed, the branch ledger closed
+
+Task ID: PROD-R2
+Agent: Production Director (Z.ai)
+Task: "Continue building (use the road map)" — with the machine-executable frontier at A-3 (DEC-4, owner-gated), execute the Production Director's remaining roadmap work: re-certify the baseline on the fleet's integrated tree, file the DEC-4 decision brief, and execute the register's mandated branch retirements (BR-3/BR-5). Audit + docs + branch ops only — no source file touched, nothing flipped, DEC-4 not applied.
+
+Work Log:
+- Local sandbox re-synced: origin/main had advanced 31ea3e0 → ec4dc6f (59 commits — WP-0, the DEC-1 ruling, WP-1v/2v/3v/4/5/6/7, Phase-3 A-1/A-2 + chokepoint capacity, E-1, R1/R8, Sandflow, interiors; register v1.16.0); the ~450-file "dirty tree" was diagnosed as file-mode noise from the sandbox restore (`core.filemode false` → clean, nothing lost), then fast-forwarded.
+- Baseline re-certified on `ec4dc6f` [executed]: tsc clean · vitest **1020/1020** (69 files) · build OK (625 ms) — the register's v1.16.0 gates reproduce on this box.
+- **DEC-4 decision brief filed**: `docs/production/DEC-4-REGISTRY-GEOMETRY-FLIP-DECISION.md` (the DEC-1 brief's law: it recommends, it does not decide). 50 registry buildings re-read; `World.ts` re-measured (**6,754 lines** — risks doc refreshed); the district builders mapped (W1–W5 + W0's district system); the flip's blockers confirmed cleared (A-1/A-2, the perf re-baseline 119/184/256, E-1's pack); three options adjudicated (A the district-order default / **B class-ordered backdrop-first — recommended** / C defer); the fidelity gate re-specified per unit (validate + skyline + screenshot pairs + draw-call ledger + probe battery); **UNRESOLVED, owner gate**.
+- **BR-3 executed per its own row**: guard-by-guard check on `feat/player-upgrade` — all 5 `player-upgrades.test.ts` guard names byte-identical branch↔main (test-file diff 0 lines; guards green in the 1020/1020 suite; source content landed via `a9718e9`/`69f8327`) — then the remote branch deleted. BR-5's deletable local copy deleted. BR-2 re-statused MERGED (`1bb3152`); BR-1 tip refreshed to `ec4dc6f`.
+- Register v1.18.0 (dashboard DEC-4 pointer, BR rows, change log — renumbered past the asset-audit's parallel v1.17.0, the monotonic-ledger law); risks doc DEC-4/R-NEW-3 refreshed; plan §2b item 4 points at the brief.
+- Not done, by law: the A-3 flip itself (DEC-4 is the owner's call — the v1.9.0 precedent stands: a generic "continue" does not rule a DEC); the owner-side variances (V-PH2-1 sign-off, V-PH2-2 playtest); B13; the content waves until their plan is ratified.
+
+Stage Summary:
+- The machine-executable frontier is now exactly one item: **A-3, fully briefed for a one-word owner ruling** ("Option B approved" turns the wave on per the brief's §6). Everything else on the roadmap is owner-side or content-wave work. Gates at close: docs-only commit; zero source files modified; no dependencies added; the branch deletions are register-mandated hygiene with the guard evidence recorded above.

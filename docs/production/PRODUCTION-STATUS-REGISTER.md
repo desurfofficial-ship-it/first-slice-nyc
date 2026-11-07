@@ -20,7 +20,7 @@
 | Phases | 0 (closing) · 1+2 (**MERGED to main, WP-0, 2026-11-06** — gates executed) · 3 (next, planned) · 4–12 (planned) |
 | Systems tracked | 48 — VERIFIED 16 · IMPLEMENTED 6 · INTEGRATED/partial 15 · PLANNED 8 · NOT STARTED 4 |
 | Narrative requirements | R0/R2/R3/R4/R7 done (R2+R7 state machines INTEGRATED — WP-5; R3's ink LIVE — WP-6) · **R1/R8 INTEGRATED (machines — the completion drive, main `40d925e`; scene-level rides the content waves)** · R5 (Phase 4), R6 (Phase 6), R9–R14 (§7 order, after C0) not started |
-| Open decisions | DEC-2…DEC-11 (**DEC-1 RULED 2026-11-06** — see [PRODUCTION-RISKS-AND-DEPENDENCIES.md](PRODUCTION-RISKS-AND-DEPENDENCIES.md)) |
+| Open decisions | DEC-2…DEC-11 (**DEC-1 RULED 2026-11-06**; **DEC-4 BRIEFED 2026-11-07 — [DEC-4-REGISTRY-GEOMETRY-FLIP-DECISION.md](DEC-4-REGISTRY-GEOMETRY-FLIP-DECISION.md), UNRESOLVED, owner gate** — see [PRODUCTION-RISKS-AND-DEPENDENCIES.md](PRODUCTION-RISKS-AND-DEPENDENCIES.md)) |
 | Open defects | B13 (draw calls, owner's call) · HYG-1 RESOLVED (v1.12.0 — the row was stale) · DEF-14 RESOLVED (v1.12.0) · DEF-2/DEF-3 RESOLVED (v1.9.0/v1.2.1) |
 | Gates | **main `607610d`+ (the interiors-integration tree — register v1.16.0): `tsc` clean · vitest **1020/1020** (69 files, +21 rails +10 capacity +6 interiors) · build OK · **probe-interior-dressing PASS** (69 GLB props + 40 ABO slots, 0 page errors) · **probe-w5-interiors PASS** (glass law intact) · **probe-integration PASS** (8/8 street walks, 71 GLB upgrades, 0 errors) · **probe-chokepoints 5/5** (230 samples full day, gate law-abiding) · 4-day E2E 0 failures (679 s on `40d925e`, console clean, day-4 save holds $123) · probe-ms1-clock-street ALL CHECKS PASSED · probe-money-trace ALL PASSED ($112.00, mirror holds, ids byte-identical) · probe-world-sim 15/15 · probe-pause-set 11/11 · probe-nav 9/9 · probe-ped-nav 7/7 · perf-peds 27.1 µs/frame heap FLAT (2026-11-07) |
 
@@ -59,11 +59,11 @@
 
 | ID | Item | Status | Evidence / notes |
 |---|---|---|---|
-| BR-1 | `main` | ACTIVE | `96bc4eb`, 2026-11-06; production docs landed; CI **success** (push run 02:54Z) |
-| BR-2 | `feat/world-contract-foundation` | READY TO MERGE | **3 ahead / 9 behind** (base `447b0e1`); sim layer + runtime integration; suite **744/744 [executed]**; probe 15/15 [executed]; conflicts: `AGENTS.md`, `tests/docs-hygiene.test.ts` (DEF-3 union), `worklog.md`; Game.ts auto-merges [merge-tree] |
-| BR-3 | `feat/player-upgrade` | SUPERSEDED — RETIRE | 3 commits ahead; content landed on main via player-repo cherry-pick (`a9718e9`, wardrobe merge `69f8327`); WP-0 = guard-by-guard check, then delete branch |
+| BR-1 | `main` | ACTIVE | fleet waves through the interiors batch (register v1.16.0) **+ the full-game asset audit (their v1.17.0, `b3c471b`) — re-certified by audit R2 on the integrated tree [executed]**: tsc clean · vitest **1020/1020** (69 files) · build OK (566 ms), post-rebase on this box; CI verified green through the v1.18.0 push |
+| BR-2 | `feat/world-contract-foundation` | **MERGED — history** | merged into main as `1bb3152` (WP-0, 2026-11-06, conflicts resolved per DEF-3 union; DEF-3 CLOSED); remote kept intact per the V-PH2-3 conservative pattern — remote deletion not ordered by any register row |
+| BR-3 | `feat/player-upgrade` | **RETIRED 2026-11-07** | the mandated guard-by-guard check executed by audit R2: all 5 `player-upgrades.test.ts` guard names byte-identical branch↔main (test-file diff 0 lines), the guards green in main's 1020/1020 suite, source content landed via the cherry-picks (`a9718e9`, `69f8327`); remote branch deleted this commit |
 | BR-4 | `desurfofficial-ship-it/First-slice-player` (separate repo) | MERGED UPSTREAM | its `feat/player-visual-kinematics-polish` was cherry-picked to main; keep as history |
-| BR-5 | `docs/production-roadmap` | MERGED — RETIRE | landed on main as `96bc4eb`; local branch deletable |
+| BR-5 | `docs/production-roadmap` | **RETIRED 2026-11-07** | landed on main as `96bc4eb`; the deletable local copy deleted this commit |
 
 ## C. Systems (owners are workstream leads; "—" = unassigned pending governance kickoff)
 
@@ -165,6 +165,7 @@
 
 | Date | Change | By |
 |---|---|---|
+| 2026-11-07 | **v1.18.0 — audit R2 (Production Director): baseline re-certified** (floor gates re-executed on the integrated tree incl. the asset-audit wave — see the BR-1 row for the executed numbers); **DEC-4 decision brief filed** — [DEC-4-REGISTRY-GEOMETRY-FLIP-DECISION.md](DEC-4-REGISTRY-GEOMETRY-FLIP-DECISION.md) (recommends the A-3 flip, class-ordered backdrop-first; UNRESOLVED, owner gate; nothing flipped); **BR hygiene executed**: BR-3 `feat/player-upgrade` RETIRED after the mandated guard-by-guard check (5/5 guards byte-identical on main, suite green), BR-5 local copy deleted, BR-2 re-statused MERGED (`1bb3152`), BR-1 tip refreshed; risks doc DEC-4/R-NEW-3 rows refreshed. *Numbered v1.18.0 — the asset-audit row below already took v1.17.0 on the parallel branch; the ledger stays monotonic (the v1.16.0 precedent)* | Production Director |
 | 2026-11-06 | Register v1.0 created from the full repository audit | Production Director |
 | 2026-11-06 | **v1.1 reconciliation** — branch advanced to `407cc0e` (runtime integration verified: gates + probe executed); PH-2/MS-1 → IMPLEMENTED (branch); 4 system rows → INTEGRATED; BR-1/2/5 updated; DEF-3 filed; DEC-1 brief sharpened — [PRODUCTION-RECONCILIATION-REPORT.md](PRODUCTION-RECONCILIATION-REPORT.md) §5 | Production Director |
 | 2026-11-06 | **v1.2 — DEC-1 ruled** (owner-approved Option A): Day 1 = Tuesday, September 9, Y1; the October mood-lock is presentation-only; `CAL_EPOCH` corrected on main; calendar tests re-pinned (661/661); ruling recorded in docs/narrative/15 §2/§7 — adjudication of record: [DEC-1-CALENDAR-CANON-DECISION.md](DEC-1-CALENDAR-CANON-DECISION.md) | Narrative Director + owner |
