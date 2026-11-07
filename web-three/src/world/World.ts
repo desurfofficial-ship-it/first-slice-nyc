@@ -34,6 +34,7 @@ import { drawIntoAtlas, atlasMaterial, atlasTexture } from './signAtlas';
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { fuseFlatParts } from './vertexFuse';
 import { FURNITURE_SLOTS, type FurnitureSlot } from './furniture';
+import { INTERIOR_SLOTS } from './interiorAssets';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { LeafDrift } from './leaves';
 import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
@@ -698,6 +699,29 @@ export class World {
     this.registerGlbProp('fridge_bodega', fridgePh);
     void this.upgradePropWithGLB('fridge_bodega', 'models/refrigerator.glb');
     this.colliders.push(boxFromCenter(-11.7, 0.92, 16.5, 1.22, 1.84, 0.76));
+    // the counter a real deli works from: register, coffee, microwave, and
+    // the produce crates by the window (sand3d ADDs — the register and
+    // coffee wear the washer-slot pattern, front east into the store; the
+    // counter items sit inside the counter's own collider)
+    const bodegaDressing = new THREE.Group();
+    bodegaDressing.name = 'Bodega_Dressing';
+    this.scene.add(bodegaDressing);
+    const mkCounterSlot = (name: string, z: number, bw: number, bh: number, bd: number): void => {
+      const slot = new THREE.Group();
+      slot.name = name;
+      slot.position.set(-19.6, 1.1 + bh / 2, z);
+      slot.rotation.y = Math.PI / 2;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), this.bank.get(0x2b2730));
+      body.castShadow = true;
+      body.receiveShadow = true;
+      slot.add(body);
+      bodegaDressing.add(slot);
+    };
+    mkCounterSlot('Bodega_Register', 14.4, 0.4, 0.3, 0.36);
+    mkCounterSlot('Bodega_Coffee', 11.6, 0.42, 0.45, 0.38);
+    this.fixture(bodegaDressing, 'Bodega_Microwave', -19.6, 1.27, 15.8, 0.385, 0.34, 0.47, PAL.cream);
+    this.fixture(bodegaDressing, 'Bodega_Produce', -18.5, 0.25, 9.3, 0.6, 0.315, 0.4, PAL.bldg);
+    this.colliders.push(boxFromCenter(-18.5, 0.16, 9.3, 0.6, 0.32, 0.4));
 
     // ---------------- props (Rule of Steam: something is always moving) ----
     this.deco('Manhole', -10, 0.025, 0.5, 0.95, 0.02, 0.95, PAL.manhole); // 0.95 m — a real manhole, not a patio
@@ -1545,6 +1569,7 @@ export class World {
     // every room carries the visibility toggle (near = fit-out + clear
     // glass; far = the shipped lit-glass face; inside = the tower ducks).
     this.buildAlderHeightsW5();
+    this.upgradeInteriorPropsWithGLB();
 
 
     // leaf drift, now over every tree on the block (shipped 12 + W1 rows)
@@ -2472,15 +2497,27 @@ export class World {
       void this.upgradePropWithGLB(`washer_${wz}`, 'models/washing_machine.glb');
       this.colliders.push(boxFromCenter(-10.35, 0.9, wz, 0.95, 1.5, 0.75));
     }
+    // dryers east wall — the washer-slot pattern (group yaw −π/2, door west
+    // into the room; the GLB takes the whole slot, control band included)
     for (const dz of [10.5, 12.2, 13.9, 15.6]) {
-      this.fixture(g, `LD_${dz}`, 0.35, 0.8, dz, 0.95, 1.35, 0.75, 0x9a938c);
-      this.fixture(g, `LDT_${dz}`, 0.35, 1.52, dz, 0.99, 0.08, 0.79, PAL.teal);
+      const slot = new THREE.Group();
+      slot.name = `LD_slot_${dz}`;
+      slot.position.set(0.35, 0.8, dz);
+      slot.rotation.y = -Math.PI / 2;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.75, 1.35, 0.95), this.bank.get(0x9a938c));
+      body.castShadow = true;
+      body.receiveShadow = true;
+      slot.add(body);
+      const band = new THREE.Mesh(new THREE.BoxGeometry(0.79, 0.08, 0.99), this.bank.get(PAL.teal));
+      band.position.y = 0.72;
+      slot.add(band);
+      g.add(slot);
       this.colliders.push(boxFromCenter(0.35, 0.8, dz, 0.95, 1.35, 0.75));
     }
-    // folding tables (2), seating (2 chairs + cart), back room (shelf+carts)
+    // folding tables (2): full-height bodies (the GLB stands on its own
+    // feet), seating (2 chairs + cart), back room (shelf+carts)
     for (const tz of [12.1, 13.1]) {
-      this.fixture(g, `LT_${tz}`, -5, 0.85, tz, 2.4, 0.07, 0.9, PAL.cream);
-      this.fixture(g, `LTleg_${tz}`, -5, 0.42, tz, 0.12, 0.85, 0.7, 0x8e6f66);
+      this.fixture(g, `LT_${tz}`, -5, 0.585, tz, 2.4, 0.85, 0.9, PAL.cream);
       this.colliders.push(boxFromCenter(-5, 0.5, tz, 2.4, 1.0, 0.9));
     }
     // the waiting chairs (ABO slot — full-height body, the Hall_Chair_A
@@ -2496,6 +2533,10 @@ export class World {
     this.fixture(g, 'LLinen_a', -6.4, 0.5, 17.9, 0.7, 1.0, 0.5, PAL.cream);
     this.fixture(g, 'LLinen_b', -3.6, 0.5, 17.9, 0.7, 1.0, 0.5, PAL.cream);
     this.colliders.push(boxFromCenter(-5, 1.0, 18.5, 4, 2.0, 0.5));
+    // the soda machine on the east wall, south of the dryers — every
+    // laundromat has one (sand3d ADD; collider matches its box)
+    this.fixture(g, 'LD_Vending', 0.5, 1.06, 17.8, 0.6, 1.8, 1.0, 0x2b2730);
+    this.colliders.push(boxFromCenter(0.5, 0.9, 17.8, 0.6, 1.8, 1.0));
 
     // the far state: the shipped bay back wall (extracted — it was baked)
     const back = this.scene.children.find((c) => c.name === 'Laundry_Back');
@@ -2544,10 +2585,30 @@ export class World {
     g.add(mirror);
     this.fixture(g, 'Barber_Counters', 38.45, 0.45, 12.3, 0.5, 0.9, 5.0, PAL.teal);
     this.colliders.push(boxFromCenter(38.45, 0.45, 12.3, 0.5, 0.9, 5.0));
+    // the register on the counter's south shoulder (sand3d ADD) — the
+    // washer-slot pattern, front west into the room
+    const regSlot = new THREE.Group();
+    regSlot.name = 'Barber_Register';
+    regSlot.position.set(38.3, 1.03, 14.4);
+    regSlot.rotation.y = -Math.PI / 2;
+    const regBody = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 0.36), this.bank.get(0x2b2730));
+    regBody.castShadow = true;
+    regBody.receiveShadow = true;
+    regSlot.add(regBody);
+    g.add(regSlot);
     // the two chairs (the registry's 35.9 / z 11 & 13.6), facing the mirror
+    // wall east — the washer-slot pattern (group yaw +π/2); the GLB is the
+    // whole chair, star base to headrest
     for (const cz of [11.0, 13.6]) {
-      this.fixture(g, `Barber_Chair_${cz}`, 35.9, 0.3, cz, 0.7, 0.6, 0.7, 0x2b2730);
-      this.fixture(g, `Barber_ChairBack_${cz}`, 35.65, 0.75, cz, 0.16, 0.9, 0.7, 0x2b2730);
+      const slot = new THREE.Group();
+      slot.name = `Barber_Chair_${cz.toFixed(1)}`;
+      slot.position.set(35.9, 0.76, cz);
+      slot.rotation.y = Math.PI / 2;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.2, 0.7), this.bank.get(0x2b2730));
+      body.castShadow = true;
+      body.receiveShadow = true;
+      slot.add(body);
+      g.add(slot);
       this.colliders.push(boxFromCenter(35.9, 0.45, cz, 0.75, 0.9, 0.75));
     }
     // framed mirrors over the counter, one per chair (ABO slot — wall
@@ -2633,6 +2694,12 @@ export class World {
     // drink fridge (E wall)
     this.fixture(g, 'Pizza_Fridge', 29.45, 0.9, 13.5, 0.5, 1.8, 3.0, 0x2b2730);
     this.colliders.push(boxFromCenter(29.45, 0.9, 13.5, 0.5, 1.8, 3.0));
+    // prep counter on the north wall, west of the deck oven (sand3d ADD —
+    // Eddie and Kev's actual work surface; collider hugs the wall)
+    this.fixture(g, 'Pizza_Prep', 26.8, 0.66, 18.9, 2.0, 1.0, 0.7, PAL.cream);
+    this.colliders.push(boxFromCenter(26.8, 0.5, 18.9, 2.0, 1.0, 0.7));
+    // the menu board over the slice counter (wall decor — no collider)
+    this.fixture(g, 'Pizza_Menu', 27, 2.3, 8.35, 2.2, 1.1, 0.06, 0x3a3440);
 
     const farParts: THREE.Object3D[] = [];
     const glass = this.scene.getObjectByName('Pizza_Glass');
@@ -2705,6 +2772,9 @@ export class World {
       this.fixture(g, `Bakery_Table_${tx}`, tx, 0.36, -27.4, 1.1, 0.72, 1.1, PAL.cream);
       this.colliders.push(boxFromCenter(tx, 0.4, -27.4, 1.1, 0.8, 1.1));
     }
+    // rear utility wall behind the oven (sand3d ADD — the flour wall)
+    this.fixture(g, 'Bakery_BackShelf', -34, 1.16, -20.5, 7.0, 2.0, 0.5, PAL.bldg2);
+    this.colliders.push(boxFromCenter(-34, 1.0, -20.5, 7.0, 2.0, 0.5));
 
     const farParts: THREE.Object3D[] = [];
     const glass = this.scene.getObjectByName('Bakery_Glass');
@@ -2789,9 +2859,10 @@ export class World {
     floor.position.set(-25, 0.13, -26);
     floor.receiveShadow = true;
     g.add(floor);
-    // crate rows (3)
+    // crate rows (3) — the bin body is 0.85 tall (the real gondola bin the
+    // spines stand in); the collider keeps the row's 1.1 envelope
     for (const rz of [-23.5, -25.5, -27.5]) {
-      this.fixture(g, `Records_Crate_${rz}`, -25, 0.55, rz, 4.4, 1.1, 0.6, 0x8e6f66);
+      this.fixture(g, `Records_Crate_${rz}`, -25, 0.585, rz, 4.4, 0.85, 0.6, 0x8e6f66);
       this.fixture(g, `Records_CrateTop_${rz}`, -25, 1.12, rz, 4.4, 0.06, 0.62, 0x2b2730);
       this.colliders.push(boxFromCenter(-25, 0.55, rz, 4.4, 1.1, 0.6));
     }
@@ -2807,6 +2878,9 @@ export class World {
     // the counter
     this.fixture(g, 'Records_Counter', -23.4, 0.55, -30.6, 1.6, 1.1, 0.7, PAL.teal);
     this.colliders.push(boxFromCenter(-23.4, 0.55, -30.6, 1.6, 1.1, 0.7));
+    // west-wall LP shelving (sand3d ADD — the browse wall the crates face)
+    this.fixture(g, 'Records_WallShelf', -27.6, 1.26, -26.5, 0.4, 2.2, 4.0, PAL.bldg2);
+    this.colliders.push(boxFromCenter(-27.6, 1.1, -26.5, 0.4, 2.2, 4.0));
 
     const farParts: THREE.Object3D[] = [];
     const glass = this.scene.getObjectByName('Records_Glass');
@@ -2873,9 +2947,12 @@ export class World {
       this.fixture(g, `Hall_Note_${i}`, -57.4 + i * 1.2, 1.5 + (i % 2) * 0.25, 20.48, 0.55, 0.7, 0.02, PAL.cream);
     }
     this.colliders.push(boxFromCenter(-55, 1.5, 20.55, 6, 1.9, 0.14));
-    // folding-chair stacks around the hall's clear zone
-    for (const [cx, cz] of [[-58.6, 22.2], [-58.6, 29.6], [-50.6, 22.2], [-50.6, 29.6]] as const) {
-      this.fixture(g, `Hall_Chairs_${cx}_${cz}`, cx, 0.45, cz, 0.55, 0.9, 0.55, PAL.teal);
+    // folding-chair stacks around the hall's clear zone (numbered — the
+    // interiorAssets drift pin matches the loop stem)
+    const hallStacks: ReadonlyArray<readonly [number, number]> =
+      [[-58.6, 22.2], [-58.6, 29.6], [-50.6, 22.2], [-50.6, 29.6]];
+    for (const [i, [cx, cz]] of hallStacks.entries()) {
+      this.fixture(g, `Hall_ChairStack_${i}`, cx, 0.45, cz, 0.55, 0.9, 0.55, PAL.teal);
       this.colliders.push(boxFromCenter(cx, 0.45, cz, 0.6, 0.9, 0.6));
     }
     // workshop (N half): table + shelves
@@ -2911,7 +2988,6 @@ export class World {
     this.fixture(g, 'Hall_FloorLamp', -48.75, 0.735, 24.75, 0.35, 1.47, 0.35, 0x8e6f66);
     this.fixture(g, 'Hall_Ottoman', -50.2, 0.23, 27.1, 0.7, 0.46, 0.5, PAL.teal);
     this.colliders.push(boxFromCenter(-50.2, 0.23, 27.1, 0.7, 0.46, 0.5));
-
     // the hall's tall windows: single warm translucent panes, always on —
     // lit from the street, see-through up close (the swap-free pane)
     for (const wz of [22.8, 29.2]) {
@@ -3002,6 +3078,8 @@ export class World {
       g.add(pie);
     }
     this.colliders.push(boxFromCenter(57, 0.55, -18.9, 1.8, 1.1, 0.6));
+    // coffee at the bar's south end (sand3d ADD — the diner's bottomless cup)
+    this.fixture(g, 'Diner_Coffee', 57.6, 1.36, -18.05, 0.45, 0.42, 0.35, 0x2b2730);
 
     // warm translucent panes in the three real openings (always visible)
     this.scene.add(this.facadePane('Diner_Glass_NW', 'x', -8.075, 50.75, 54.05, 0.98, 2.42, this.roomGlassMat));
@@ -3073,8 +3151,12 @@ export class World {
     this.fixture(g, 'Cecil_Bath_W', 14.25, 9.4, -13.1, 0.1, 2.0, 2.0, PAL.stone);
     this.fixture(g, 'Cecil_Bath_S_a', 14.6, 9.4, -12.15, 0.75, 2.0, 0.1, PAL.stone);
     this.fixture(g, 'Cecil_Bath_S_b', 15.45, 9.4, -12.15, 0.65, 2.0, 0.1, PAL.stone);
-    this.fixture(g, 'Cecil_Toilet', 15.5, 8.6, -13.6, 0.4, 0.4, 0.6, PAL.cream);
-    this.fixture(g, 'Cecil_Sink', 14.55, 8.85, -13.75, 0.45, 0.3, 0.4, PAL.cream);
+    this.fixture(g, 'Cecil_Toilet', 15.5, 8.81, -13.6, 0.4, 0.82, 0.6, PAL.cream);
+    this.fixture(g, 'Cecil_Sink', 14.55, 8.905, -13.75, 0.45, 1.01, 0.4, PAL.cream);
+    // the steam radiator under the street window (sand3d ADD — the heat
+    // every New York rental is ruled by)
+    this.fixture(g, 'Cecil_Radiator', 14.9, 8.675, -9.35, 0.9, 0.55, 0.18, 0x3a3a40);
+    this.colliders.push(boxFromCenter(14.9, 8.675, -9.35, 0.9, 0.55, 0.2));
     this.colliders.push(boxFromCenter(14.25, 9.4, -13.1, 0.12, 2.0, 2.0));
     this.colliders.push(boxFromCenter(15.0, 9.4, -12.15, 1.6, 2.0, 0.12));
     // the roof hatch (reserved, stage-5 Rooftop — registry (12.2, −12.0))
@@ -3565,6 +3647,23 @@ export class World {
 
   registerGlbProp(id: string, obj: THREE.Object3D): void {
     this.glbProps.set(id, obj);
+  }
+
+  /** The interiors dressing seam (docs/production/interiors/): wear each
+   *  manifest slot's sand3d GLB onto its placeholder — the dryers the
+   *  laundromat's washers were waiting for, the barber chairs, the cook
+   *  line, the record bins, the flour wall. The upgrade is the shipped
+   *  prop seam: missing files keep the procedural rooms whole. */
+  private upgradeInteriorPropsWithGLB(): void {
+    for (const slot of INTERIOR_SLOTS) {
+      const placeholder = this.scene.getObjectByName(slot.fixture);
+      if (!placeholder) {
+        console.info(`[interiors] ${slot.id}: fixture ${slot.fixture} not found — kept procedural`);
+        continue;
+      }
+      this.registerGlbProp(slot.id, placeholder);
+      void this.upgradePropWithGLB(slot.id, slot.file ?? `models/${slot.id}.glb`);
+    }
   }
 
   async upgradePropWithGLB(id: string, file = `models/${id}.glb`): Promise<boolean> {

@@ -2288,3 +2288,38 @@ Stage Summary:
 - Honest note: the flat ≤1 cm ride is real street behavior (brushing
   commuters at low fps); if the owner ever wants it tighter, the lever
   is the shipped MAX_PUSH authority at low fps, not the probe.
+
+## 2026-11-07 — interiors batch: the nine rooms get dressed (feat/interior-production)
+
+The owner's interiors directive landed as a production batch, not a proposal:
+audit → build → integrate → verify, room by room, until every existing
+interior was covered.
+
+- **Audit** (`docs/production/interiors/00-INVENTORY.md`): the codebase holds
+  nine enterable furnished interiors — the bodega (always-open storefront) and
+  the eight W5 rooms (LAUNDRY/BARBER/PIZZA/BAKERY/RECORDS/HALL/DINER/CECIL).
+  Their shared deficiency: equipment was colored boxes — dryers, oven, cook
+  line, cooler, toilet, kitchenettes, shelves, chair stacks.
+- **Build**: 32 sand3d programs in `tools3d/sandflow_eval/programs/`
+  (`run_interiors.py` batch-builds + QA-manifests them; postprocess strips
+  metallic for the fuse law; files land in `public/models/`). Two studio
+  passes were needed: the first taught me `s3d.at(z=…)` anchors a part's
+  BASE (everything I had stacked as centers floated — the renders showed it),
+  and `rz` does not lay a cylinder down. All programs rewritten base-anchored.
+- **Integrate**: `web-three/src/world/interiorAssets.ts` (INTERIOR_SLOTS +
+  INTERIOR_PROVENANCE) + `World.upgradeInteriorPropsWithGLB()` fired after
+  `buildAlderHeightsW5()`. Composite placeholders collapsed to full-height
+  bodies (tables, barber chairs — the shipped booth pattern); long wall units
+  authored in final world orientation so the ±90 % footprint guard passes 1:1;
+  machines wear the washer-slot pattern. New colliders wall-hugging only.
+- **Verify**: tsc clean; vitest 980/980; build OK; probe-interior-dressing
+  PASS (69 props + 40 ABO furniture, 0 page errors); probe-w5-interiors PASS;
+  9 parked-camera screenshots per interior (the visual-d4b park law — the
+  chase boom collapses on a stationary player). Two mirror-axis bugs found by
+  the screenshots themselves (microwave door, Cecil kitchenette fronts faced
+  their walls) — mirrored, rebuilt, re-probed. Evidence in
+  `docs/production/interiors/evidence/`.
+- **Honest**: the 4-day E2E stalls at the same early beat on pristine main
+  and on this branch in this sandbox (software GL; the register's green 606 s
+  run had faster iron) — rerun before the next release cut. SUB-01 platform
+  and the terminal keep their kit identity for a later pass.
