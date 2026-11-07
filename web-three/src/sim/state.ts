@@ -40,8 +40,10 @@ import {
 import { EconomyLedger } from './economy';
 import {
   AvailabilityRegistry, newFlags, type ChapterState, type FlagStore,
-  type LedgerEntry, type MissableWindow,
+  type LedgerEntry,
 } from './narrative';
+import { freshLifeState, parseLifeState, type LifeState } from './life';
+import { parseMissableWindows, type MissableWindowEntry } from './missable';
 
 export const WORLD_SCHEMA_VERSION = 1;
 
@@ -87,8 +89,11 @@ export interface WorldState {
   /** The chapter machine's state. Owned by: Workstream C (narrative). */
   chapter: ChapterState;
 
-  /** Authored missable windows + their disposition. Owned by: Workstream C. */
-  missable: MissableWindow[];
+  /** Authored missable windows + their disposition (narrative/14 R6 —
+   *  sim/missable.ts, wc-05's "windows + disposition"). Owned by:
+   *  Workstream C. Empty until the runtime seeds the specimen windows
+   *  (the boot path); the flags are the truth, the state is cache. */
+  missable: MissableWindowEntry[];
 
   /** The consequence ledger (append-only). Owned by: Workstream C. */
   consequences: LedgerEntry[];
@@ -100,6 +105,12 @@ export interface WorldState {
    *  Workstream D. Starts empty; the world does not pretend to have
    *  weather it does not simulate yet. */
   environment: Record<string, number | string | boolean>;
+
+  /** The majors' off-screen lives (narrative/14 R5 — sim/life.ts). Owned
+   *  by: Workstream B (the life machine). The City-Moves Law's state:
+   *  every major's calendar/mood/decisions advance on their own clock,
+   *  whether or not the story ever looks. */
+  life: LifeState;
 }
 
 /** Create a fresh world at the story's morning-one. */
@@ -132,6 +143,7 @@ export function createWorldState(opts?: {
     consequences: [],
     events: [],
     environment: {},
+    life: freshLifeState(),
   };
 }
 
@@ -197,10 +209,14 @@ export interface WorldSaveDocument {
   ledger: ReturnType<EconomyLedger['toData']>;
   flags: Array<[string, number]>;
   chapter: ChapterState;
-  missable: MissableWindow[];
+  missable: MissableWindowEntry[];
   consequences: LedgerEntry[];
   events: WorldEventRecord[];
   environment: WorldState['environment'];
+  /** The majors' off-screen lives (narrative/14 R5). Optional trailing
+   *  v1-safe field: old saves lack it (reads fresh, heals forward);
+   *  corrupt parses quarantine — never a crash. */
+  life?: LifeState;
 }
 
 export interface ParseResult {
@@ -251,10 +267,20 @@ function hydrate(doc: WorldSaveDocument, notes: string[]): WorldState {
   w.flags = flags;
   w.availability = new AvailabilityRegistry();
   w.chapter = doc.chapter;
-  w.missable = doc.missable;
+  // the missable windows (narrative/14 R6) — invalid entries drop with
+  // a note and re-derive from their flags at the next tick; the seed
+  // happens in the runtime's boot path when the section is empty.
+  const missableParsed = parseMissableWindows(doc.missable);
+  w.missable = missableParsed.windows;
+  if (missableParsed.note) notes.push(missableParsed.note);
   w.consequences = doc.consequences;
   w.events = doc.events;
   w.environment = doc.environment;
+  // the majors' lives (narrative/14 R5) — absent in old saves reads as
+  // fresh and heals forward at the next tick; corrupt quarantines.
+  const lifeParsed = parseLifeState((doc as { life?: unknown }).life);
+  w.life = lifeParsed.life;
+  if (lifeParsed.note) notes.push(lifeParsed.note);
   return w;
 }
 
@@ -310,6 +336,7 @@ export function snapshotWorld(w: WorldState): WorldSaveDocument {
     consequences: w.consequences.map((c) => ({ ...c, refs: [...c.refs] })),
     events: w.events.map((e) => ({ ...e })),
     environment: { ...w.environment },
+    life: JSON.parse(JSON.stringify(w.life)) as LifeState,
   };
 }
 
@@ -339,4 +366,5 @@ export const OWNERSHIP: ReadonlyArray<{
   { section: 'consequences', owner: 'Workstream C (narrative)', writes: 'append-only ledger', reads: 'cascade reads, self-portrait' },
   { section: 'events', owner: 'Workstream D (world simulation)', writes: 'world event recorder', reads: 'diary, history' },
   { section: 'environment', owner: 'Workstream D (world simulation)', writes: 'environment systems', reads: 'arbitration validity (rain), rendering' },
+  { section: 'life', owner: 'Workstream B (the life machine, sim/life.ts — narrative/14 R5)', writes: 'tickLife via the world runtime (day boundaries)', reads: 'debug surface, save, future diary/person-card surfaces' },
 ];

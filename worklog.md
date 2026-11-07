@@ -2484,11 +2484,12 @@ Work Log:
   null→fired-then-decayed, idle scan and walk stride byte-unchanged). The
   walk/sprint shots use the game's own follow camera — a parked lens keeps
   missing a moving subject, and the follow cam IS the honest gameplay view.
-- **Gates on the branch, all green**: tsc clean · vitest 1020/1020 (69
-  files — arrival/rig/player-upgrades/camera untouched and passing) · build
+- **Gates on the branch, all green**: tsc clean · vitest 1020/1020 on the branch (69 files), 1059/1059 (71
+  files) on the final merged tree — arrival/rig/player-upgrades/camera
+  untouched and passing) · build
   OK · probe-interior-dressing PASS · probe-w5-interiors PASS ·
   probe-ped-nav OK · probe-nav 9/9 · probe-world-sim 15/15 · the polish
-  probe 0 page errors both passes. Register v1.19.0 filed; wave doc
+  probe 0 page errors both passes. Register v1.21.0 filed (renumbered past the R5/R6 parallel v1.19.0/v1.20.0 — the monotonic-ledger law); wave doc
   `docs/production/PLAYER-FILM-POLISH.md`.
 - **Honest**: three evidence framing passes were needed (the bay sprint
   runway ends at a bench; the east sidewalk crosses a store interior; a
@@ -2523,3 +2524,60 @@ Work Log:
 
 Stage Summary:
 - The machine-executable frontier is now exactly one item: **A-3, fully briefed for a one-word owner ruling** ("Option B approved" turns the wave on per the brief's §6). Everything else on the roadmap is owner-side or content-wave work. Gates at close: docs-only commit; zero source files modified; no dependencies added; the branch deletions are register-mandated hygiene with the guard evidence recorded above.
+
+## 2026-11-07 — Technical Architecture / World Systems Agent: "Continue building (use the roadmap)" — R5, the majors' off-screen lives
+
+**Directed by the owner's "Continue building (Use the road map)."** The audit first: §2b's queued order is exhausted (E-1 ✓, chokepoint capacity ✓, R1/R8 ✓; A-3 = DEC-4, THE OWNER'S CALL — untouched, a general "continue" is not a DEC-4 ruling). The roadmap header adopts docs/narrative/14 §7 as THE build order; steps 1–3 are landed, so **step 4 — R5, the independence simulation — was the next machine**, non-owner-gated (Phase 3's "must NOT begin" clause blocks needs/mood dials and population growth; R5 is neither — it is per-major state over the existing cast, zero new bodies, zero new path queries). Dependencies live: schedules (WP-3/B-1), nav (A-1), canon (docs 05/07).
+
+- **R5 LANDED** (`feat/r5-independence-sim` @ `3e503ac`, merged `ccb26e7`, no-ff, zero conflicts): `sim/life.ts` — the 16 majors (doc 07 §2) as frozen authored arcs with per-chapter independent decisions whose **BINDING DEFAULT is the without-Leo line** (doc 07 §1: "binding default trajectories, not contingencies"), engagement keyed on the shipped `flag:<id>_greeted` law (no new counters), the three-state mood machine with authored rules only (the no-transplant law is a validator), calendar events on their own clock (**Doris dies Sept 14 Y3 on BOTH paths**), disclosure thresholds (level + cite; the level-encoding variance documented). `tickLife` pure/deterministic/never-rewinds, chapter INJECTED per day (the machine stays core-free). `WorldState.life` + OWNERSHIP row + the world save's optional trailing v1-safe `life?` field (old saves heal forward at boot; corrupt quarantines). `worldRuntime` ticks the lives at boot and at every day boundary before the flush; `debug()` exposes the majors. `sim/clock.ts` gains `dayOfCanonDate` (the ONE inverse of `calendarOf`, round-trip pinned — no second month table).
+- **THE R5 ACCEPTANCE IS A TEST** (14 tests): the ignore spine (zero greetings, epoch→C5's end) moves Yoli, Craig, Eddie, Deshaun, Deniz, Kev, Rachel in the DOCUMENTED directions and Doris's passing lands on her own clock; the engagement flip selects the documented with-Leo variants (Eddie's heart attack → the C4 recovery; Deshaun's fail→retake→pinning); no-transplant; idempotence; never-rewinds; span≡step; byte-identical determinism; save round-trip/absent-fresh/corrupt-quarantine; parse shape-checking.
+- **Gates, branch AND integrated tree, all green:** tsc clean · vitest **1034/1034** (70 files, +14) · build OK · **4-day E2E 0 failures (674 s, console clean — $122 at the greeting beat, the money math untouched)** · probe-world-sim 15/15 · probe-nav 9/9 · probe-chokepoints 5/5 (236 samples, 0 legality hits) · probe-ped-nav 7/7. Honest scope: the decisions/moods are DATA for a future diary/person-card surface (content waves); B-3's relationship mutations as world events stay open; the world's chapter container reads C0 in shipped play until the content wave wires advances — the machine is content-ready, the R1/R8 standard.
+- **A documentation defect caught and repaired in the same pass:** the interiors merge's register conflict resolution had accidentally DROPPED the v1.13.0/v1.14.0/v1.15.0 history rows (E-1, chokepoint capacity, R1/R8) — the whole conflicted block was replaced by the renumbered v1.16.0 row instead of keeping HEAD's three rows plus it. Restored VERBATIM from `760016c` (pre-merge main); the version ledger is monotonic again (v1.12→…→v1.17). The pushed merge `ec4dc6f` carries the loss; this local main carries the repair — the next push wave ships it.
+- **Not pushed** — the directive carried no push authorization. Remaining per the roadmap: §7 step 5 = **R6 (missable windows)** → step 6 = the C0 content pack; A-3 (DEC-4) still THE OWNER'S CALL.
+
+## 2026-11-08 — Technical Architecture / World Systems Agent: "Continue building, after that push"
+
+**Directed by the owner's "Continue building, after that push."** The build continued on the §7
+order (R6, step 5 — the last machine before the content packs), and the push authorization was
+consumed at the end. A-3/DEC-4 stayed owner-gated (a "continue" is not a ruling).
+
+- **R6 LANDED** (`feat/r6-missable-windows` @ `cb211eb`, merged `5f171fa`, no-ff, zero conflicts):
+  `sim/missable.ts` — doc 10 §4's 8 specimen windows as frozen, cited rows, every "If missed" cell
+  verbatim (the bible speaks, the engine quotes); windows resolve through core/chapters' spans
+  INJECTED (the machine stays core-free — the R5 law); canon anchors honored where the canon dates
+  them (the blackout = doc 04 §7's Oct 29–Nov 1 Y1; the gallery's May and the jobs-fair's Mar 8 =
+  doc 06 §C4's own dates; "C5 late" through the window law's extension — the chapter's last ten
+  days as lived; chapter-start conventions documented per row where the canon is silent).
+- **THE R6 ACCEPTANCE IS A TEST** (25 tests): no window ever re-opens — the terminal states are
+  FLAG-BACKED (`flag:<id>_missed` per wc-10's own fallback; `flag:<id>_entered` the content waves'
+  engagement key); the flags are the truth (a save that loses the state cache re-derives and never
+  resurrects); the miss is CONTENT — one world change (the flag + one WorldEventRecord carrying the
+  verbatim cell, dated to the day the window actually ended: boot-independent determinism), never a
+  nag; the independent floor untouched by construction (the bounded-output test proves only the 8
+  windows ever fire); save round-trip + absent-fresh + corrupt-quarantine; purity; never-rewinds.
+- **A design catch during verification:** the chapter-end anchor initially resolved onto the
+  successor's first day (chapterSpan's `to` IS the next start — the window law's own extension);
+  fixed to the chapter's last LIVED day and pinned by the R8-harmony containment test (every
+  window's both ends inside its own chapter). core's `calendarDayOf` and sim's `dayOfCanonDate`
+  verified in exact agreement across all window dates (my arithmetic doubted them; node settled it).
+- **Gates, branch AND integrated tree, all green:** tsc clean · vitest **1059/1059** (71 files, +25)
+  · build OK · 4-day E2E 0 failures (686 s, console clean — the day-boundary wiring crossed four
+  times) · probe-world-sim 15/15 · probe-nav 9/9 · probe-chokepoints 5/5 (231 samples, 0 legality
+  hits) · probe-ped-nav 7/7. (Sandbox note: the first E2E attempt raced a stale port-holder from a
+  tool-timeout kill; the clean rerun above is the evidence.)
+- **Register v1.18.0** (dashboard, D-section R6 row, SYS-POP-10, the F change log) **+ the D-section
+  R5 row REPAIRED** — it had stayed "NOT STARTED" through v1.17.0 while the dashboard and SYS-POP-05
+  carried the truth; now INTEGRATED with the v1.17.0 evidence. Plan §2b updated: the remaining §7
+  order is C0 content pack (step 6 — the first CONTENT wave; R0–R8 are all built and waiting) →
+  R9–R12 → C1–C2 content → R13–R14; A-3 still THE OWNER'S CALL.
+- **PUSHED** under the owner's explicit "after that push" (one invocation, URL-embedded Basic auth,
+  output redacted, non-force); refs verified consistent after the push.
+
+- **Addendum — the push raced a concurrent wave:** origin/main had advanced (`ec4dc6f..0eb3cca`,
+  the FULL-GAME 3D ASSET AUDIT from a parallel agent — art rebuilds + their register rows, which
+  took v1.17.0/v1.18.0 in parallel to mine). Merged `origin/main` into main as `c09ed48`: code
+  disjoint (their art/assets vs my sim machines), the three docs resolved BOTH-SIDES-VERBATIM and
+  the version ledger renumbered monotonic (their v1.17.0/v1.18.0 keep their numbers — they were
+  already on the shared remote; my R5/R6 rows ride as v1.19.0/v1.20.0, the v1.16.0 precedent).
+  **Merged-tree re-certification, all green:** tsc clean · vitest **1059/1059** (71 files) ·
+  build OK (552 ms) · probe-world-sim 15/15 · 4-day E2E 0 failures (678 s, console clean).

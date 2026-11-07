@@ -35,6 +35,9 @@ import { bootWorldBrain, buildReferencePlaceResolver, DEFAULT_TIMESCALE,
   type BrainEvent, type SimDirective, type WorldSimBrain } from '../sim/runtime';
 import { simTickOfStoryDay } from '../sim/epochMap';
 import { loadRegistry } from '../sim/registry';
+import { MAJOR_IDS, tickLife } from '../sim/life';
+import { CHAPTER_ORDER, chapterAtDay, chapterSpan, type ChapterId } from '../core/chapters';
+import { MISSABLE_SPECS, resolveMissableSpecs, freshMissableWindows, tickMissables, dayEndTickOf } from '../sim/missable';
 import { Navigation } from '../sim/nav';
 import { RouteFollower } from '../sim/nav/follower';
 import { WORLD_SAVE_KEY } from '../sim/state';
@@ -130,6 +133,67 @@ export class WorldRuntime {
     this.bootNotes = boot.notes;
     this.bindBodies();
     this.armAmbientCommute();
+    // narrative/14 R5: the majors' lives catch up to the clock at boot
+    // (a restored old save's absent life layer heals forward HERE — one
+    // deterministic catch-up from the canon epoch, not a lag day).
+    this.syncLifeToDay(this.brain.world.clock.day);
+    // narrative/14 R6: the missable windows seed (first boot) and
+    // re-derive at boot too — a restored save learns what it missed
+    // while it was away, with the records dated to the expiries.
+    this.syncMissablesToDay(this.brain.world.clock.day);
+  }
+
+  /** R5 — the majors' off-screen lives (sim/life.ts): tick to the given
+   *  day with the world's OWN signals — the greeted flags' stored ticks
+   *  (durable, save-carried) and the world's chapter container (mapped
+   *  through core/chapters' `chapterAtDay`; the machine itself stays
+   *  core-free). Deterministic from save; the result replaces the world's
+   *  life section wholesale (the tick is pure). */
+  private syncLifeToDay(day: number): void {
+    const w = this.brain.world;
+    const greetedTicks: Record<string, number | undefined> = {};
+    for (const id of MAJOR_IDS) {
+      greetedTicks[id] = w.flags.map.get(`flag:${id}_greeted`);
+    }
+    const result = tickLife(w.life, {
+      toDay: day,
+      chapterForDay: (d) => CHAPTER_ORDER.indexOf(chapterAtDay(d)),
+      greetedTicks,
+    });
+    w.life = result.life;
+  }
+
+  /** R6 — the missable-event scheduler (sim/missable.ts): seed the
+   *  specimen windows on first boot (resolved through core/chapters'
+   *  `chapterSpan` — the machine stays core-free), then evaluate to
+   *  the given day with the world's OWN flags as the truth. Each
+   *  expiry applies exactly one world change: the miss flag (dated to
+   *  the expiry day's close — deterministic, boot-independent) and ONE
+   *  WorldEventRecord whose detail is doc 10 §4's verbatim cell — a
+   *  state change the city diary may mention once, never a nag. */
+  private syncMissablesToDay(day: number): void {
+    const w = this.brain.world;
+    if (w.missable.length === 0) {
+      w.missable = freshMissableWindows(resolveMissableSpecs(
+        MISSABLE_SPECS,
+        (ch) => chapterSpan(CHAPTER_ORDER[ch] as ChapterId),
+      ));
+    }
+    const result = tickMissables(w.missable, {
+      toDay: day,
+      readFlag: (id) => w.flags.map.get(id),
+    });
+    w.missable = result.windows;
+    for (const f of result.fired) {
+      const closeTick = dayEndTickOf(f.day);
+      w.flags.set(`flag:${f.id}_missed`, closeTick);
+      w.events.push({
+        id: f.evtId,
+        tick: closeTick,
+        kind: 'missable_missed',
+        detail: f.detail,
+      });
+    }
   }
 
   /**
@@ -235,6 +299,12 @@ export class WorldRuntime {
         // D-2: the street keeps clock time while roam/scenario owns the day
         if (this.active) this.applySimPhase(e.phase);
       } else if (e.kind === 'dayBoundary') {
+        // R5: the majors' lives advance at the day boundary, BEFORE the
+        // flush — the save carries the day's decisions with the day.
+        this.syncLifeToDay(this.brain.world.clock.day);
+        // R6: the missable windows re-derive on the same law — an
+        // expiry crossed today becomes tonight's save's world change.
+        this.syncMissablesToDay(this.brain.world.clock.day);
         if (this.active) this.flushWorldSave();
       }
     }
@@ -620,6 +690,15 @@ export class WorldRuntime {
       playerCents: number; ledgerCents: number; auditClean: boolean; txnCount: number;
       recent: Array<{ id: string; kind: string; category: string; cents: number; reason: string }>;
     };
+    /** R5 — the majors' off-screen lives (sim/life.ts): mood/availability/
+     *  decisions per major, the City-Moves Law made inspectable. */
+    life: {
+      lastTickDay: number;
+      majors: Array<{ id: string; mood: string; availability: string; decisions: number; lastDay: number }>;
+    };
+    /** R6 — the missable windows (sim/missable.ts): disposition per
+     *  window, the No-FOMO law made inspectable. */
+    missable: Array<{ id: string; state: string; opensAtDay: number; closesAtDay: number; missedAtDay?: number }>;
   } {
     const w = this.brain.world;
     const npcIds = [...this.brain.records.keys()];
@@ -650,6 +729,26 @@ export class WorldRuntime {
           id: t.id, kind: t.kind, category: t.category, cents: t.amountCents, reason: t.reason,
         })),
       },
+      life: {
+        lastTickDay: w.life.lastTickDay,
+        majors: MAJOR_IDS.map((id) => {
+          const m = w.life.majors[id];
+          return {
+            id,
+            mood: m.mood,
+            availability: m.availability,
+            decisions: m.decisions.length,
+            lastDay: m.lastDay,
+          };
+        }),
+      },
+      missable: w.missable.map((m) => ({
+        id: m.id,
+        state: m.state ?? 'pending',
+        opensAtDay: m.opensAtDay,
+        closesAtDay: m.closesAtDay,
+        ...(m.missedAtDay !== undefined ? { missedAtDay: m.missedAtDay } : {}),
+      })),
       npcs: npcIds.map((id) => {
         const rec = this.brain.records.get(id)!;
         const d = this.brain.directives.get(id);
