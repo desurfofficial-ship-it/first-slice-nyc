@@ -2431,6 +2431,82 @@ what is below standard, integrate, verify, merge to main.
   eluded the parked probes (family evidenced via the same-builder sedan).
 ---
 
+## 2026-11-07 — Technical Architecture: the player and the first-session film polished to their fullest potential (the owner's two-target wave)
+
+Task ID: PROD-PLAYER-FILM
+Agent: Technical Architecture / World Systems Agent (Z.ai)
+Task: "Polish the player to its fullest potential, and upgrade it, and polish
+the first session film/video, put a lot of effort there — those two need to
+reach their fullest potential — after that push and merge to main."
+
+Work Log:
+- Read every law first: personRig.ts (the shared cast rig + its pinned
+  tests), Player.ts (the already-fluid controller — left alone),
+  GameCamera.ts (three playtest rounds of pinned camera law — left alone),
+  arrival.ts (the film, five field-report drafts deep), audio.ts (docs/30
+  house rules), and the four pinned suites (arrival/rig/player-upgrades/
+  camera). The upgrades live INSIDE the laws; not one machine timing, rig
+  proportion test or camera constant moved.
+- **The player** (personRig auto mode + Game): the head now LEADS the turn
+  (the same measured yaw rate that banks the body drives a smoothed head
+  offset, ±0.38 rad, effort-gated — the eyes arrive at the corner first);
+  sprint focus (head pitch −0.083 rad at 6.4 m/s, eyes on the block) and a
+  runner's arm pump/tuck (arm swing +50 %, ±0.055 rad tuck) above the 4.2
+  walk ceiling, gated by MEASURED speed so walk paces never see it; the
+  LANDING RECOVERY — fall distance accumulated while airborne
+  (teleport-guarded at ±14 m/s), converted at touchdown into a knee-bend dip
+  (0.03–0.085 m) that decays at 6.5/s; and FOOTSTEPS — `audio.step()` per
+  stride half-cycle, grounded only, pace-scaled, docs/30 house rules
+  (synthesized, gain-enveloped, mute-respecting, silent before the first
+  gesture; `window`-guarded so the pure test suites stay import-safe).
+- **The film** (arrival.ts view layer only): SCORED — the bus rumble loop
+  rides the film from the window seat through the driver conversation
+  (first-gesture-gated; the single-owner guard makes pre-unlock calls
+  no-ops), the rumble fades under the dip, the terminal PA bell greets the
+  coach in the dark, the two-note chime rides the door slide, skip paths
+  stop the loop; a SHOT — easeSine push to the glass (100→99.35) + downward
+  eye-line settle + a creep-phase push, forward/downward only so the
+  dome-exit margin holds, tween setters refusing writes outside the ride
+  phases so a tap-through can never fight the card; the LIVING BUS — ±2 cm
+  suspension sway (the world wobbles past the glass, the interior rides the
+  lens); glass presence (a warm lamp-reflection plane proud of the tint);
+  the bay waits with you — two honestly-scaled figures (1.55/1.4 m) in the
+  lamplight by the east bench, PLACED ON THE APRON after the evidence probe
+  PROVED the first placement (door panes) occluded by the coach body from
+  every shipped film lens — dead geometry found and moved before the merge;
+  exhaust wisps astern. The ArrivalMachine byte-identical.
+- **Evidence**: a new condition-driven probe (`probe-player-film-polish.mjs`
+  — polls the live rig/phase because software-GL runs the film clock ~3×
+  slow; timed steps misfired twice before the lesson landed) produces
+  before/after pairs on pristine main vs the branch: 17 screenshots in
+  `docs/production/player-film-polish/evidence/{before,after}/` + rig
+  metrics (sprint arm z 0.090→0.134, head pitch 0→−0.083, landing dip
+  null→fired-then-decayed, idle scan and walk stride byte-unchanged). The
+  walk/sprint shots use the game's own follow camera — a parked lens keeps
+  missing a moving subject, and the follow cam IS the honest gameplay view.
+- **Gates on the branch, all green**: tsc clean · vitest 1020/1020 (69
+  files — arrival/rig/player-upgrades/camera untouched and passing) · build
+  OK · probe-interior-dressing PASS · probe-w5-interiors PASS ·
+  probe-ped-nav OK · probe-nav 9/9 · probe-world-sim 15/15 · the polish
+  probe 0 page errors both passes. Register v1.19.0 filed; wave doc
+  `docs/production/PLAYER-FILM-POLISH.md`.
+- **Honest**: three evidence framing passes were needed (the bay sprint
+  runway ends at a bench; the east sidewalk crosses a store interior; a
+  close lens inside the doorframe box) — each failure is visible in the
+  probe's history and each fix is in the probe, not in the game. The
+  film-audio unlock depends on the browser's first-gesture policy: before
+  any tap the film plays silent BY LAW (docs/30) — the score joins from the
+  first interaction onward.
+
+Stage Summary:
+- The two named targets reached their fullest potential inside the shipped
+  laws: the player moves like a person (head, arms, knees, feet) and the
+  first session opens like a film (scored, moving, alive). Zero gameplay
+  law, machine timing, camera constant, save format or draw-budget change.
+- Merged to main (no-ff) and pushed per the owner's directive; remote SHA
+  verified after push.
+
+---
 ## 2026-11-07 — Production Director: audit R2 — the baseline re-certified, DEC-4 briefed, the branch ledger closed
 
 Task ID: PROD-R2

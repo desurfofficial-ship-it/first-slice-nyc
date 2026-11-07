@@ -62,8 +62,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { updatePersonAnim, type PersonLook } from '../world/personRig';
-import { Tweens, easeLinear } from '../engine/tweens';
+import { Tweens, easeLinear, easeSine } from '../engine/tweens';
 import { PAL } from '../core/palette';
+import { gameAudio } from './audio';
 import type { UI } from '../ui/UI';
 
 // ---------------------------------------------------------------- machine --
@@ -294,6 +295,26 @@ export class ArrivalCinematic {
       // the bus creeps toward the gate while you talk
       this.strip.position.x -= CREEP_SPEED * dt;
     }
+    // the ride sounds like a ride the moment audio is unlocked (the
+    // browsers' first-gesture policy decides when that is; the loop's
+    // single-owner guard makes every call until then a cheap no-op)
+    if (this.machine.phase === 'ride' || this.machine.phase === 'choice' || this.machine.phase === 'reply') {
+      gameAudio.rumbleStart();
+    }
+    // the living bus — the lens sways on its suspension while the coach
+    // rolls (a fuller sway) and idles at the gate (a slower, softer one).
+    // The interior rides the camera, so the WORLD is what wobbles past the
+    // glass — exactly what a bus window feels like. ±2 cm: nothing the
+    // staging cone (or the dome-exit math) can feel.
+    if (this.windowFrame) {
+      const idle = this.machine.phase !== 'ride';
+      const amp = idle ? 0.009 : 0.02;
+      const rate = idle ? 0.5 : 0.9;
+      const w = this.machine.elapsed;
+      this.host.rigPos.x = RIDE_POS.x
+        + Math.sin(w * rate) * amp
+        + Math.sin(w * rate * 2.3 + 1.1) * amp * 0.3;
+    }
     // the neighbor's breath — 1.7 s cycle, ±6 mm, the only motion she has
     if (this.neighborRig) {
       const tS = this.machine.elapsed * 1.7;
@@ -326,6 +347,11 @@ export class ArrivalCinematic {
       }
       case 'card':
         this.host.ui.cineHideBox();
+        // the terminal announces you while the screen is still dark, and
+        // the engine's rumble fades under the dip — the PA is the station
+        // greeting the coach it was waiting for
+        gameAudio.rumbleStop();
+        gameAudio.announce();
         void this.playArrivalCard();
         break;
       case 'handover':
@@ -1059,6 +1085,23 @@ export class ArrivalCinematic {
     glass.position.set(0, 0, GLASS_Z + 0.02);
     frame.add(glass);
     this.disposables.push(glass.geometry as THREE.BufferGeometry);
+    // and the interior living in that glass: a faint warm reflection of
+    // the ceiling lamps, parked just proud of the tint so the rasterizer
+    // never has to tie them. Static — the lamps are; the world moving
+    // BEHIND the reflection is what sells it.
+    const reflTex = this.glowTexture();
+    const refl = new THREE.Mesh(
+      new THREE.PlaneGeometry(AP.x * 2 * 0.82, AP.y * 2 * 0.72),
+      new THREE.MeshBasicMaterial({
+        map: reflTex, transparent: true, opacity: 0.055,
+        blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+        color: 0xffd9a0,
+      }),
+    );
+    refl.name = 'Shell_GlassReflection';
+    refl.position.set(0.06, 0.04, GLASS_Z + 0.05);
+    frame.add(refl);
+    this.disposables.push(reflTex, refl.geometry as THREE.BufferGeometry);
     // the seats — yours, and the row ahead's shoulder at the frame bottom
     part('SeatBack', mats.seat, 0, -0.33, -0.34, 0.7, 0.32, 0.14);
     part('SeatBackFar', mats.seat, 0, -0.36, -0.14, 0.66, 0.26, 0.1);
@@ -1127,6 +1170,37 @@ export class ArrivalCinematic {
     this.host.rigLook.x = RIDE_POS.x;
     this.host.rigLook.y = RIDE_POS.y - 0.7;
     this.host.rigLook.z = RIDE_POS.z - 10;
+    // the shot breathes: a slow push toward the glass and a gentle settle
+    // of the eye line across the whole ride, then a further inch of push
+    // while the coach creeps to the gate. Both motions are FORWARD and
+    // DOWNWARD only — the dome-exit margin (the staging note at RIDE_POS)
+    // was computed at this pitch, and every change here keeps or shrinks
+    // the ray lengths — and the setters refuse to write once the film has
+    // left these phases, so a fast tap-through can never fight the card's
+    // own push-in.
+    const ridePhaseLive = () =>
+      this.machine.phase === 'ride' || this.machine.phase === 'choice' || this.machine.phase === 'reply';
+    const creepPhaseLive = () =>
+      this.machine.phase === 'choice' || this.machine.phase === 'reply';
+    this.host.tweens.sequence(
+      this.host.tweens.parallel(
+        this.host.tweens.num(
+          () => this.host.rigPos.z,
+          (v) => { if (ridePhaseLive()) this.host.rigPos.z = v; },
+          RIDE_POS.z - 0.65, RIDE_SECONDS, easeSine,
+        ),
+        this.host.tweens.num(
+          () => this.host.rigLook.y,
+          (v) => { if (ridePhaseLive()) this.host.rigLook.y = v; },
+          RIDE_POS.y - 0.95, RIDE_SECONDS, easeSine,
+        ),
+      ),
+      this.host.tweens.num(
+        () => this.host.rigPos.z,
+        (v) => { if (creepPhaseLive()) this.host.rigPos.z = v; },
+        RIDE_POS.z - 0.95, 3.0, easeSine,
+      ),
+    );
     // letterbox on, HUD off — the film starts
     this.host.ui.showCine();
   }
@@ -1664,6 +1738,7 @@ export class ArrivalCinematic {
    *  sidewalk, HUD + Map note, follow camera with clean air behind. */
   private handover(): void {
     this.runId++; // any in-flight arrival card is now stale
+    gameAudio.rumbleStop(); // a skip path can land here with the loop owned
     this.teardownRide();
     this.host.ui.cineHide();
     this.host.ui.cineHideBox();
@@ -1960,6 +2035,45 @@ export class ArrivalCinematic {
     for (const tz of [COACH.z - 0.95, COACH.z + 0.95]) {
       box('Coach_Tail', tailDot, COACH.cx - 4.82, 1.9, tz, 0.06, 0.09, 0.05);
     }
+    // somebody is waiting for this coach — two figures on the apron by the
+    // east bench, standing in the open where the establishing lens sees
+    // them (the gate DOORS sit behind the coach body from every shipped
+    // film lens, so that is where their silhouettes cannot go). Each is
+    // three boxes (legs, torso, head) merged into one geometry, ink-dark,
+    // honestly human scale: 1.55 m and 1.4 m.
+    const silMat = this.lambert(0x1c1822);
+    const figure = (px: number, pz: number, h: number) => {
+      const legH = h * 0.47;
+      const torsoH = h * 0.35;
+      const headH = h * 0.13;
+      const fig = mergeGeometries([
+        new THREE.BoxGeometry(0.30, legH, 0.18).translate(0, legH / 2, 0),
+        new THREE.BoxGeometry(0.38, torsoH, 0.20).translate(0, legH + torsoH / 2, 0),
+        new THREE.BoxGeometry(0.17, headH, 0.18).translate(0, legH + torsoH + headH / 2 + 0.02, 0),
+      ], false)!;
+      const m = new THREE.Mesh(fig, silMat);
+      m.name = 'Gate_Waiter';
+      m.position.set(px, 0, pz);
+      g.add(m);
+      this.disposables.push(fig);
+    };
+    figure(COACH.cx + 6.6, COACH.z + 2.2, 1.55); // by the bench, facing the gate
+    figure(COACH.cx + 5.6, COACH.z + 1.5, 1.40); // the shorter one, nearer the pole
+    // the coach breathes at the gate — two settled exhaust wisps astern,
+    // the chimney-smoke trick (stillness reads as distance at film scale)
+    const exMat = new THREE.MeshLambertMaterial({ color: 0x9a9aa8, transparent: true, opacity: 0.28, fog: false });
+    this.disposables.push(exMat);
+    for (const [ex, ey, ez, er] of [
+      [COACH.cx - 5.15, 1.35, COACH.z - 0.35, 0.14],
+      [COACH.cx - 5.38, 1.62, COACH.z - 0.3, 0.2],
+    ] as const) {
+      const wisp = new THREE.Mesh(new THREE.SphereGeometry(er, 8, 6), exMat);
+      wisp.name = 'Coach_Exhaust';
+      wisp.position.set(ex, ey, ez);
+      wisp.scale.set(1, 1.35, 1);
+      g.add(wisp);
+      this.disposables.push(wisp.geometry as THREE.BufferGeometry);
+    }
     // wheels + hubs — the coach stood on painted air before
     wheel(COACH.cx + 3.1, COACH.z - 1.02);
     wheel(COACH.cx + 3.1, COACH.z + 1.02);
@@ -2007,8 +2121,11 @@ export class ArrivalCinematic {
   }
 
   /** The door leaf slides into the body — the film's own prop, so the
-   *  tween lives here and the host interface stays clean. */
+   *  tween lives here and the host interface stays clean. The chime rides
+   *  along: the same two-note "stand clear" the M121 pairs with its own
+   *  doors (one voice, one owner — docs/30 house rules). */
   private openFilmDoor(): void {
+    gameAudio.doorChime();
     const t = this.host.tweens;
     if (this.doorLeaf) t.num(() => this.doorLeaf!.position.x, (v) => { if (this.doorLeaf) this.doorLeaf.position.x = v; }, this.doorLeaf.position.x + 0.92, 0.9);
     if (this.doorGlass) t.num(() => this.doorGlass!.position.x, (v) => { if (this.doorGlass) this.doorGlass.position.x = v; }, this.doorGlass.position.x + 0.92, 0.9);
