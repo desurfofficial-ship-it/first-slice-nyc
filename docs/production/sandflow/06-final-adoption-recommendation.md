@@ -95,8 +95,15 @@ asset-validation job; do not add it to `package.json`.
 - [x] Reproducible workflow documented (02 §4; `tools3d/sandflow_eval/README.md`; 05)
 - [x] Final adoption decision supported by evidence (this document)
 
-**Final authority note honored:** nothing was merged or pushed; no production asset, gameplay,
-narrative, save, or world file was modified. The evaluation lives on branch
-`feat/sandflow-evaluation` as: six docs, 13 program files, 12 GLBs in
+**Final authority note honored:** nothing was merged; `main` is untouched. The evaluation
+lives on branch `feat/sandflow-evaluation` as: six docs, 13 program files, 12 GLBs in
 `public/models-experimental/`, one dev-only showcase module + `main.ts` hatch, one probe
 script, and validation/renders. Deleting those paths reverts the game to its exact prior state.
+
+**Status update 2026-11-07 (owner-authorized):** the branch is **pushed to the remote**
+(`feat/sandflow-evaluation`, no force-push, no merge), and the owner-approved production
+integration has landed on the same branch — 9 of 12 asset categories now wear their
+counterparts in the world (13 swaps + 1 add), 3 deliberately retained; see
+[07-production-integration.md](07-production-integration.md) for the replacement table,
+measured performance and the verification gates (tsc clean · 889/889 · build OK ·
+E2E 0 failures). Merging to `main` remains a separate, owner-gated decision.
