@@ -8,7 +8,9 @@ import { gameAudio } from '../game/audio';
 import type { OrderCard } from '../core/content';
 import { MAP_PLACES, SLANG_CARDS } from '../core/content';
 import { buildSketchSvg } from './sketch';
+import { mountDateline, mountDiaryInk, type DiaryInkHandle, type DatelineHandle } from './diary';
 import type { AlbumEntry } from '../postcard/Album';
+import type { FieldDiaryEntry } from '../core/fieldDiary';
 import { touchPanelUp } from './touchLaw';
 
 function el<T extends HTMLElement>(id: string): T {
@@ -54,6 +56,10 @@ export class UI {
   // ---- the Roam chip (freeroam.ts — the open-block contract's switch) ----
   readonly roamBtn = el<HTMLButtonElement>('btn-roam');
   private roamPeek = el<HTMLSpanElement>('roam-peek');
+  // ---- WP-6: the field diary's ink + the calendar dateline (ui/diary.ts) —
+  // mounted lazily on first use; both are display-only seams ----
+  private diaryInk: DiaryInkHandle | null = null;
+  private hudDateline: DatelineHandle | null = null;
   // ---- the album — the shelf where kept postcards live ----
   readonly albumBtn = el<HTMLButtonElement>('btn-album');
   readonly albumPanel = el<HTMLDivElement>('album-panel');
@@ -565,6 +571,27 @@ export class UI {
       this.mapSlangList.appendChild(li);
     }
     this.mapEmpty.hidden = notes.length > 0 || slang.length > 0;
+  }
+
+  /** WP-6 — the field diary's ink on the Map (narrative/14 R3: "the Map
+   *  renders entries as ink"). Mounts the folded leaf lazily; the render
+   *  is a rebuild of the list only (the sketch's build-once law). The
+   *  diary rides the Map's own paper surface — it adds no paper door of
+   *  its own, so the touch law's wiring is untouched. */
+  refreshDiary(entries: readonly FieldDiaryEntry[]): void {
+    if (!this.diaryInk) this.diaryInk = mountDiaryInk(el<HTMLDivElement>('map-sheet'));
+    this.diaryInk.render(entries);
+  }
+
+  /** WP-6 — the calendar dateline (HUD, and the diary leaf once mounted).
+   *  The text arrives rendered — Game passes it through
+   *  `datelineOfStoryDay` (sim/epochMap's one mapping; the R4 law: the
+   *  date comes from the calendar, never real time). The UI only ever
+   *  displays it. */
+  setDateline(text: string): void {
+    if (!this.hudDateline) this.hudDateline = mountDateline(el<HTMLDivElement>('hud-top-right'));
+    this.hudDateline.set(text);
+    this.diaryInk?.setDateline(text);
   }
 
   /** "Map wants to write this down" — the folded corner does a small

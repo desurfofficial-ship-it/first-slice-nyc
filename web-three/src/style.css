@@ -1276,3 +1276,133 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   border-top: 1px dashed rgba(58, 52, 64, 0.25);
   padding-top: 6px;
 }
+
+/* ---------------- WP-6 — the field diary's ink (narrative/14 R3 + §4) ---------------- */
+/* The Map renders entries as ink: one handwriting font (--hand-font, already
+   shipped) + the RECALL wobble — two draw calls' worth of UI, no scene cost.
+   The contradiction strike is a TEXT style, never an image. The wobble is
+   deterministic (fixed tilts, no animation): a notebook that redraws itself
+   between reads would feel haunted (sketch.ts law). The diary rides the
+   Map's own paper surface — it adds no paper door of its own, so the touch
+   law (docs/51 B7) is untouched. */
+
+/* the leaf and its tab pin to the sheet (a new rule — the shipped one is
+   untouched; the sheet's overflow:hidden clips both, so the fold reads
+   as part of the same paper) */
+#map-sheet { position: relative; }
+
+/* the dateline — the calendar date the block is living, under the clock */
+#hud-dateline {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--hand-font);
+  font-size: clamp(12px, 1.8vmin, 15px);
+  transform: rotate(-0.5deg);
+}
+
+/* the tab — a paper tab on the sheet's corner; a real button, hand-written */
+.diary-tab {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  font-family: var(--hand-font);
+  font-size: 14px;
+  color: var(--ink);
+  background: rgba(247, 179, 43, 0.14);
+  border: 1.5px dashed rgba(178, 58, 72, 0.5);
+  border-radius: 6px;
+  padding: 5px 12px;
+  transform: rotate(1.5deg);
+  cursor: pointer;
+}
+.diary-tab[aria-expanded="true"] { background: rgba(247, 179, 43, 0.3); }
+
+/* the leaf — a folded-over page of the same paper, covering the notebook
+   when read. The crease mirrors the sheet's own (gradient from the other
+   side): the leaf is the notebook's next page, not a new surface. */
+.diary-leaf {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  padding: 26px 22px 18px;
+  color: var(--ink);
+  font-family: var(--hand-font);
+  overflow-y: auto;
+  display: none;
+  background:
+    linear-gradient(270deg, rgba(58, 52, 64, 0.06) 0, rgba(58, 52, 64, 0.0) 18px),
+    var(--cream);
+}
+.diary-leaf.open { display: block; }
+
+.diary-leaf-dateline {
+  font-size: clamp(13px, 1.9vmin, 16px);
+  color: rgba(58, 52, 64, 0.6);
+  transform: rotate(-0.8deg);
+  margin-bottom: 12px;
+}
+
+/* one entry as ink — the same family as the notes list (the star bullet,
+   the slight tilt), the tilt alternating deterministically */
+.diary-entry {
+  margin: 0 0 14px;
+  padding-left: 22px;
+  position: relative;
+  transform: rotate(-0.4deg);
+}
+.diary-entry:nth-child(even) { transform: rotate(0.4deg); }
+.diary-entry::before {
+  content: '\2726';
+  position: absolute; left: 2px; top: 2px;
+  color: var(--teal);
+  font-size: 13px;
+}
+/* the mechanical epistemic tag colors the star — the diary flags honestly */
+.diary-entry[data-epistemic="RECALL"]::before { color: var(--plum); }
+.diary-entry[data-epistemic="GUESS"]::before { color: var(--gold); }
+
+.diary-entry-meta {
+  font-family: var(--ui-font);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(58, 52, 64, 0.5);
+  margin-bottom: 3px;
+}
+
+.diary-body {
+  font-size: clamp(15px, 2.2vmin, 18px);
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+/* the RECALL wobble — soft ink, a fixed tilt (doc 03 §2: RECALL renders
+   in the wobble style; never upgraded away by machinery) */
+.diary-entry[data-epistemic="RECALL"] .diary-body {
+  color: rgba(58, 52, 64, 0.62);
+  transform: rotate(-0.9deg);
+}
+
+/* the contradiction strike — a text style, not an image; the struck words
+   stay readable underneath (the body's bytes are frozen, append-only) */
+.diary-strike {
+  text-decoration: line-through;
+  text-decoration-color: rgba(178, 58, 72, 0.8);
+  text-decoration-thickness: 1.5px;
+}
+
+/* the margin note — current-tense Leo, in pencil-red, beside the line */
+.diary-margin {
+  font-size: clamp(13px, 1.9vmin, 15px);
+  color: var(--brick);
+  margin-top: 4px;
+  padding-left: 12px;
+  transform: rotate(0.6deg);
+}
+.diary-margin::before {
+  content: '\270E';
+  font-size: 12px;
+  margin-right: 4px;
+  opacity: 0.8;
+}
