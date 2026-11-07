@@ -2289,6 +2289,58 @@ Stage Summary:
   commuters at low fps); if the owner ever wants it tighter, the lever
   is the shipped MAX_PUSH authority at low fps, not the probe.
 
+## 2026-11-07 — Technical Architecture / World Systems Agent: "Push and continue working" — the second divergence integrated, E-1 landed
+
+**Directed by the owner's "Push and continue working."** Two halves, both closed.
+
+- **The push, second wave:** origin/main had advanced AGAIN between the waves —
+  `fix/def14-ped-nav-hysteresis` (register v1.12.0, the WS-B/WS-F continuation's
+  capture-derived fix for the ped-nav separation flake, R-NEW-17) landed at
+  `bf1d767`. Integration merge `aedc27d` (no-ff; register + worklog conflicts
+  resolved with BOTH sides verbatim). The DEF-14 fix re-proven on THIS box — the
+  one where the flake was first evidenced 1-of-3: **probe-ped-nav 3/3 green**
+  (after repairing the environment: the sandbox recycle had dropped the
+  Playwright headless-shell binary — an environment failure, not a product one).
+  Suite 974/974 on the integrated tree pre-E-1. **Pushed `bf1d767..aedc27d`
+  (fast-forward), ls-remote MATCH, tracking synced.**
+- **E-1 — the shipped content catalogue** (the first item of the queued order
+  the owner's message ratified; branch `feat/e1-anchor-catalogue` @ `4502ebb`,
+  merged `3d72d9b`, no-ff): `sim/contentCatalogue.ts` (new) — (1) the anchor
+  set: the contract-named anchors (newsbox, hoop/court, board, shelves —
+  wc-08 §47) under the reserved `obj:` sim ids, interaction ids carried as
+  tags, shelf goods flowing through from `SHELF_GOODS` (no second copy); (2)
+  the first building-variant pack: all 19 shipped registry buildings under
+  their registry ids, every builder line honest — code-ref tokens from the
+  registry's own style notes, `BUILDING_EVIDENCE` for the rest. The test
+  (9 cases) greps the world + interaction sources so the catalogue cannot
+  rot: `validateManifest` zero-issues, pack = the shipped set exactly,
+  mapping vs `interactionDefs.ts` literal. **Zero new assets, zero runtime
+  code touched** (wc-11 §7) — no E2E re-run per the v1.12.0 precedent.
+  Gates: tsc · vitest **983/983** (66 files, +9) · build, branch AND
+  integrated tree; docs-hygiene 5/5. SYS-WORLD-01 + SYS-WORLD-03 rows ticked.
+- **Honest scope notes:** the building pack is the SHIPPED 19, not the full
+  50-building registry — planned buildings append as they are built (the id
+  law), a pack is a promise about what exists; the anchor set is the
+  contract's NAMED four families, not every interaction (41+ exist —
+  widening the catalogue is future Workstream E scope, new entries append);
+  the catalogue is not yet wired into any runtime consumer (E-1 is
+  cataloguing; consumers arrive with the content waves and A-3's flip).
+- **Not pushed** — the E-1 commits (branch tip + merge + this docs commit)
+  await the owner's next push wave. Remaining order (§2b): chokepoint
+  capacity claims → R1/R8 rails engine (parallel WS-C); A-3 (DEC-4) unblocked.
+
+## 2026-11-07 — Technical Architecture / World Systems Agent: PRODUCTION COMPLETION DRIVE — the queued order executed to the owner-gated frontier
+
+**Directed by the owner's "PRODUCTION COMPLETION DRIVE" (audit everything remaining, execute the work, close every actionable item — no push authorized; all work stays local).** The audit first: local main `fd83f1d` (ahead 3: E-1 + merge + docs), remote main `aedc27d`, working tree clean, no new agent branches on origin (no active WS-C branch to coordinate with — the rails engine was unowned and unstarted), register/checklists/plan read in full against the codebase. The verified agent-actionable frontier was exactly two items — the queued order's 2 and 3 — plus the V-PH2-2 preparation the directive asked for. A-3/DEC-4 left untouched (owner's call); Phase 4+ (R5), Phase 6 (R6), R9–R14 all correctly blocked by the ladder + §7's binding order; B13 declined six times (owner); WP-3v scale-out + needs/mood dials parked on owner population calls.
+
+- **Chokepoint capacity claims — the A-2 remainder CLOSED** (branch `feat/chokepoint-capacity-claims` @ `4ddfb95`, merged `91a288e`, no-ff): `sim/nav/capacity.ts` (new) is the arbitration resources' PHYSICAL mapping (wc-03 §2's deferred half — Foundation D's R4 queuing was already shipped in `sim/arbitration.ts`; nobody populated the physical side). Capacity law: doors = 1 (the contract's own number), zebras = one 0.6 m pedestrian lane per body (peds.ts's own separation band — the model reuses the steering's number so they cannot disagree; the 3.4 m zebra floors to 5). Queue law mirrors arbitration R4: FIFO by (arrival tick, npcId), the head's reservation unstealable, `releaseAll` the no-starvation teardown, a body holds at most one slot and never waits while holding — deadlock impossible by construction. The executor (worldRuntime) acquires the door slot before the passage begins, releases exactly when the body clears the corridor, and STANDS OFF (`waiting-door`) at a full doorway — the queue, not a shoving match; every route-death path (away, arrival, dialogue freeze, re-derive, roam-off) pays its obligations. Two real bugs caught by my own tests before they shipped: the FIFO check blocked the queue head on its own reservation (a deadlock the gate-law tests exposed immediately), and the harness's final-step release order (the product code was right; the test harness learned from it).
+- **The measurement evidence the register owed** (the directive: "measured under realistic population loads"): STAGED — 24 walkers through door:ROS-01: service 27 f (0.9 s at walk pace), max queue wait 483 f (≈ 16 s), drain 649 f, throughput ≈ 1.11 bodies/s — orderly, bounded, zero starvation. LIVE — `scripts/probe-chokepoints.mjs` (new): a full scripted day at 300× (230 samples): the gate law-abiding at EVERY sampled instant across all 36 resources, door crossings booked in the transition log, peak visible ambient 11/12, peak crosswalk occupancy 3 against derived 5 at the canon zebra (−5,0), zero legality hits, zero unresolved contacts, zero page errors. The scope law extended honestly: ambient walkers get the full street law (footprint + jaywalk); the CAST gets the jaywalk law only — standing inside an interior is their legal workplace (Rosa in the deli is the schedule, not a violation).
+- **R1+R8 — the rails engine and the chapter gate** (branch `feat/r1r8-rails-chapter-gating` @ `b6ac941`, merged `40d925e`, no-ff; doc 14 §7 step 3, the machine the R2/R7 state has been waiting for): `core/chapters.ts` (R8) — the canon windows (doc 12 §2 verbatim) derived once through `calendarDayOf` (no hand arithmetic anywhere near the spine), the window law (gap days stay in the previous chapter — the holidays are C1's), the advance law pure (immediate successor only; at/after the window start; the chapter lived its minimum days — C0's arrival week is fixed, MIN_CHAPTER_DAYS is authored data; the authored trigger held; the day never rewinds; OPEN = the terminal continuation from C6). **The R8 acceptance is a TEST**: every C1 day from Sept 16 to Jan 5 reads C1 (the hundredth roam day included), Jan 6 reads C2. `core/chapterRails.ts` (R1) — the six load-bearing rails as frozen data, each with its canon minimum date (N2's break Mar 11 Y2, the offer Dec 9 Y2, the villain-question mid-June Y3, the receipts Sept 21 Y3, C6's open), its trigger (the calendar itself, or the register's OWN mechanical shape flags — `compact-form=*` from N2, `r3-depth=*` from N3a), and its city-diary line QUOTED VERBATIM from doc 06 §0's transaction sentences (no invented prose — the bible speaks, the engine quotes). `evaluateRails` is pure — rails fire while the player is mid-roam (no scene input exists in the signature), the spine is never skipped only waited for (a fast-forwarded calendar still meets the fall), flag-triggered rails fire late ("fires anyway... later in different clothes"), fire-once by construction; a firing yields `RailFire { id, day, cityDiary }` — data a diary surface whispers, never a banner (no DOM in the module; `validateRails` fails a rail without its line). `villainQuestionInputs` assembles R4's content from the player's ledger through consequenceLedger's own API (actors, omissions, open promises, the weight sum R5's extent reads). **Machine-level R2/R7 integration landed here** (the queued order's sentence made real at the machine level): the no-dead-rails test proves every rail trigger is writable by some register option (resolved through `resolveChoice` with its locks granted); scene-level wiring rides the C0+ content waves per §7's binding order — machines first, content after (the WP-5 precedent, honestly scoped in the register rows). `core/Save.ts`: `chapter` + `rails` as optional trailing v1-safe fields (doc 14 §3's law; absent = a fresh arrival with an unfired spine; corrupt quarantines; a fired rail with an unreadable day re-seeds — a rail that cannot say when it fired cannot claim it fired).
+- **V-PH2-2 prepared, not performed** (the directive's phase-acceptance clause): `docs/production/PLAYTEST-CHECKLIST-V-PH2-2.md` (new) — the six meaningful-play capabilities as observer ticks, the log-don't-interpret law, the honesty law (the variance stays open until a human meets it; no agent may tick it). The register/checklists point at it.
+- **Gates, both branch trees and the integrated tree (main `40d925e`):** tsc clean · vitest **1014/1014** (68 files, +31) · build OK · probe-nav 9/9 · probe-world-sim 15/15 · probe-ped-nav 7/7 · probe-chokepoints 5/5 · probe-integration PASS (8/8 walks) · probe-ms1-clock-street ALL CHECKS PASSED · 4-day E2E 0 failures (662 s branch / 679 s integrated, console clean, day-4 save holds $123 — the money math untouched). Register v1.14.0 + v1.15.0; SYS-WORLD-04/05, SYS-PLAY-09, SYS-NAR-06/07 checklist rows updated; PH-3's open list shortened to A-3 alone.
+- **Honest scope notes:** the capacity gate binds DOORS in the executor (the contract's named capacity-1 case); crosswalks carry derived capacity as MODEL + measurement (gating ambient walkers mid-crossing would touch the WP-3v steering for no measured need — the peak observed occupancy is 3 of 5 lanes); the rails' city-diary lines are quoted canon, and the city-diary SURFACE that will render them is a content-wave build; the shipped game does not yet CALL `evaluateRails` (the caller is the C0 content pack's persist-path wiring — the machine is content-ready, not content-complete, exactly as R2/R7 shipped before their scenes).
+- **Not pushed** — the directive carried NO push authorization; the tree now stands at main `40d925e` + this docs commit, ahead of origin by eight commits (3 E-1 + 2 work + 2 merges + 1 docs). The remaining sequenced work is A-3 (DEC-4, the owner's call); everything beyond it is owner-gated or content-wave.
+
 ## 2026-11-07 — interiors batch: the nine rooms get dressed (feat/interior-production)
 
 The owner's interiors directive landed as a production batch, not a proposal:
@@ -2324,7 +2376,16 @@ interior was covered.
   run had faster iron) — rerun before the next release cut. SUB-01 platform
   and the terminal keep their kit identity for a later pass.
 
-## 2026-11-07 — FULL-GAME 3D ASSET AUDIT, REBUILD & MAIN INTEGRATION (v1.14.0)
+## 2026-11-07 — Technical Architecture / World Systems Agent: "Push and merge to main" — the interiors batch integrated, the wave pushed
+
+**Directed by the owner's "Push and merge to main."** Three halves, all closed.
+
+- **The audit before the merge:** local main `760016c` (ahead 10: E-1 ×3, chokepoint ×2, R1/R8 ×2, docs ×3), remote main `aedc27d` (verified ancestor — pure fast-forward, no concurrent remote drift), working tree clean. One local branch unmerged: `feat/wp-2v-epoch-map` — **audited as SUPERSEDED, not merged**: main's `sim/epochMap.ts` (232 lines vs the branch's 151) is the superset — `datelineOfStoryDay`/`datelineOfSimDay` cover the branch's `datelineOfDay`, `epochAgreement` both sides, plus `simTickOfStoryDay`/`calendarDayForStoryDay`/`assertEpochAgreement`; main's worldRuntime/Game/UI/diary already consume it and the 430-line `sim-epoch-map.test.ts` rides main (26 references to the same APIs, worldRuntime comments credit WP-2v). Merging would have created a duplicate implementation — the branch stays as history (remote `feat/wp-2v-epoch-map` intact).
+- **The merge — `origin/feat/interior-production` @ `8cc6d88` no-ff into main as `607610d`:** the other workflow's COMPLETE interiors batch (32 sand3d programs → 32 GLBs → 46 placements, nine rooms dressed, based exactly on `aedc27d`) joined the line under the owner's explicit "merge to main". Two conflicts, both resolved with both sides verbatim: worklog.md (the drive's entries + the interiors batch entry, sequential); register (SYS-WORLD-03 takes the branch's dressed row, SYS-WORLD-04 keeps HEAD's capacity-claims row; the version table keeps v1.13.0/v1.14.0/v1.15.0 and the branch's parallel v1.13.0 is renumbered **v1.16.0** — the ledger stays monotonic, the note says so). One stray conflict marker caught and amended out of the merge commit itself (`607610d` is the amended tree).
+- **Gates on the INTEGRATED tree (`607610d`), all green:** tsc clean · vitest **1020/1020** (69 files — main's 68 + `interior-assets.test.ts`) · build OK · **probe-w5-interiors PASS** (rooms toggle, hollows walk, towers duck, glass law intact, 0 page errors) · **probe-interior-dressing PASS** (69 GLB props + 40 ABO furniture slots landed, 0 page errors) · **probe-integration PASS** (0 errors, 8/8 street walks incl. stoop-door/bodega-interior/laundry-room, 71 GLB upgrades registered, 146 calls / 255,648 tris parked portrait). The two known honest GLB log lines (mailbox/newsrack keep their procedural look) unchanged.
+- **Pushed** under the same directive (one invocation, URL-embedded Basic auth, non-force); refs verified by ls-remote. Remaining sequenced work: **A-3 (DEC-4, the owner's call)** — everything else on the machine-executable frontier is landed or owner-gated.
+
+## 2026-11-07 — FULL-GAME 3D ASSET AUDIT, REBUILD & MAIN INTEGRATION (v1.17.0 — the register row; the branch predates the parallel drive's v1.14.0/v1.15.0/v1.16.0 and integrates ON TOP of all three)
 
 Branch `feat/asset-audit-rebuild` (main `aedc27d` + interior-production
 `8cc6d88` fast-forward-merged first — it sat one commit directly on main).

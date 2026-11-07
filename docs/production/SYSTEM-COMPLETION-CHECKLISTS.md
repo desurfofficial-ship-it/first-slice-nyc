@@ -18,7 +18,7 @@ Evidence sources used for baseline statuses: source audit of `web-three/src/` (2
 **Checklist:**
 - [ ] Registry typed load + validation on main (lands with the Phase-1 merge)
 - [ ] Semantic queries find canon places (`sim-registry.test.ts` pattern) on main
-- [ ] Anchors catalogued as `obj:` content entries (Phase 3 E-1)
+- [x] Anchors catalogued as `obj:` content entries — **DONE 2026-11-07 (E-1, register v1.13.0, main `3d72d9b`)**: the contract-named set (newsbox, hoop/court, board, shelves) under reserved `obj:` sim ids in `sim/contentCatalogue.ts`, `validateManifest` clean, the interaction mapping grepped against `game/interactionDefs.ts`
 - [ ] The deliberate flip: geometry loads from the registry at runtime, one district per PR (Phase 3 A-3)
 - [ ] Fidelity gate re-pinned as the load test after the flip
 **Done when:** the running world's geometry and semantics are read from the registry, ghost gates (±0.1 m) and validator green, and no hand-transcribed coordinate remains unguarded.
@@ -36,15 +36,15 @@ Evidence sources used for baseline statuses: source audit of `web-three/src/` (2
 **Checklist:**
 - [ ] Interior set complete for the shipped narrative (C0 needs: Corner Slice, Cecil room, diner — narrative/00 §5)
 - [ ] Remaining interiors to fixture level per `docs/41-interior-design-catalogue` (history — re-derive from registry)
-- [ ] Building-variant packs through `validateManifest` (Phase 3 E-1)
+- [x] Building-variant packs through `validateManifest` — **DONE 2026-11-07 (E-1, the FIRST pack)**: the 19 shipped registry buildings (status existing / built (W2)) as `building_variant` entries under their registry ids; builder lines honest (code-ref tokens + BUILDING_EVIDENCE grepped in the world sources); later packs append as buildings are built
 - [ ] Furniture pack extension is idempotent (`tools3d/abo_select.py` + `abo_fetch.py`) and license files ship with any derived use
 **Done when:** every place the spine names is enterable and furnished; every new interior passes the glass-side + near/far laws; probes exit 0.
 
 ### SYS-WORLD-04 — Doors, stairs & elevators
-**Today:** subway door leaves + colliders (`subway/trainKit.ts`); stair law A5 (step-up 0.35 / snap 0.45) in `collide.ts` + `Player.ts`; fire-escape ladders with climb/descend-dismount guards; step-height law ≤0.33 in `stationKit.ts`. No generic door entity; shop doors are authored openings. **Phase 3 A-2 (2026-11-06): the reusable door/access model EXISTS (`sim/nav/access.ts`) — stable `door:<buildingId>` identities seeded from the registry's entrances, four-state machine (open/closed/locked/unavailable), public/restricted access, published-hours gating (the deli reads Rosa's own windows), enter/exit transitions recorded when a body walks a door edge, and the reachability function (`REACHABLE / PLACE_MISSING / PLACE_INACCESSIBLE / NO_ROUTE`) the world contract promised. Routes treat a locked door as NOT AN EDGE.** Status: PARTIAL (VERIFIED cases; door model IMPLEMENTED; capacity arbitration open).
+**Today:** subway door leaves + colliders (`subway/trainKit.ts`); stair law A5 (step-up 0.35 / snap 0.45) in `collide.ts` + `Player.ts`; fire-escape ladders with climb/descend-dismount guards; step-height law ≤0.33 in `stationKit.ts`. No generic door entity; shop doors are authored openings. **Phase 3 A-2 (2026-11-06): the reusable door/access model EXISTS (`sim/nav/access.ts`) — stable `door:<buildingId>` identities seeded from the registry's entrances, four-state machine (open/closed/locked/unavailable), public/restricted access, published-hours gating (the deli reads Rosa's own windows), enter/exit transitions recorded when a body walks a door edge, and the reachability function (`REACHABLE / PLACE_MISSING / PLACE_INACCESSIBLE / NO_ROUTE`) the world contract promised. Routes treat a locked door as NOT AN EDGE.** **A-2 remainder (2026-11-07, main `91a288e`): the capacity claims are LIVE — `sim/nav/capacity.ts` is the arbitration resources' physical mapping (wc-03 §2's deferred half): doors are capacity 1 (the contract's own number), derived resources (the `xw:` zebras) take one 0.6 m pedestrian lane per body (peds.ts's own separation band — the shipped 3.4 m zebra floors to 5); the body executor acquires the door slot before the passage, releases exactly when the body clears the corridor, and STANDS OFF (`waiting-door`) when a doorway is at capacity — the queue, not a shoving match (FIFO by arrival tick/npcId, the head's reservation unstealable, releaseAll the no-starvation teardown, a body holds at most one slot — deadlock impossible by construction).** Status: INTEGRATED + VERIFIED (door model + capacity gate live; elevators not built — none designed yet).
 **Checklist:**
 - [x] Doors/stairs mapped as arbitration resources (`door:<buildingId>` on every nav door edge; capacity ref = the contract's resource shape) — Phase 3 A-2
-- [ ] Capacity live at shipped chokepoints (arbitration) — the `resourceRef` field is wired; the capacity claims land with the crowd work (WP-3v+)
+- [x] Capacity live at shipped chokepoints (arbitration) — **DONE 2026-11-07 (main `91a288e`):** `ChokepointGate` consulted by the executor around door edges; 10 gate-law cases (`tests/sim-nav-capacity.test.ts` incl. the staged 24-walker rush: service 27 f, max wait 483 f, drain 649 f, ≈1.11 bodies/s — orderly, bounded, no starvation); the live street probe (`probe-chokepoints.mjs`, 230 samples full day) law-abiding at every instant; the E2E's authored beats untouched (0 failures, 679 s)
 - [ ] Any future elevator follows the ride-machine pattern (pure state machine, zone visibility) — not ad-hoc tweens
 **Done when:** door/stair use is schedulable by the sim (a schedule can claim a door), guards stay green, and no new door type ships without its test.
 
@@ -54,7 +54,7 @@ Evidence sources used for baseline statuses: source audit of `web-three/src/` (2
 - [x] Nav graph (nodes/edges/chokepoints) seeded from registry entrances/crosswalks — `sim/nav/build.ts`, validation clean, zero invented geometry
 - [x] Walkers migrate off hardcoded loops; crowd tests stay green during migration — **DONE 2026-11-06 (WP-3v, main `e3f1b02`):** the roster commutes over the graph (street-level destinations only — no lobby claims); the authored loops remain the fallback for unroutable walkers (the street never freezes); crowd/solidity/shuffle guards green (889/889 incl. +13 commute pins)
 - [x] Path queries allocation-free (hot-path law) — follower step 0.18 µs; queries only on destination change; source-guarded purity (no THREE/DOM/clock/dice)
-- [x] Chokepoint capacity respected (arbitration resources) — crossing edges carry `xw:<id>`, door edges carry `door:<id>` (the contract's resource refs); capacity CLAIMS land with WP-3v+
+- [x] Chokepoint capacity respected (arbitration resources) — **DONE 2026-11-07 (main `91a288e`):** crossing edges carry `xw:<id>` (derived capacity: 0.6 m lanes — the 3.4 m zebra is 5), door edges carry `door:<id>` (capacity 1, live in the executor); the measurement evidence lives in `probe-chokepoints.mjs` + `tests/sim-nav-capacity.test.ts`
 **Done when:** the reference world's people physically occupy their manifest places via graph routes, and the crowd/solidity/shuffle guards never regressed during the migration. *(Bound cast + ambient walkers: DONE — bound cast pinned by `tests/sim-nav-runtime.test.ts` + `?scenario=nav` 9/9; ambients pinned by `tests/ped-commute.test.ts` + `probe-ped-nav` 7/7 executed.)*
 
 ### SYS-WORLD-06 — Landmarks & points of interest
@@ -228,9 +228,9 @@ Evidence sources used for baseline statuses: source audit of `web-three/src/` (2
 **Done when:** every dollar the HUD shows reconciles to the ledger, from genesis, on every save. **Evidence: probe-money-trace ALL PASSED** (genesis $87.00 on both mirror sides / 0 txns → five +$5.00 business_revenue faucets → $112.00; audit clean; ids `txn:story_<tick>_<n>` deterministic across save/load — 23 money-bridge tests).
 
 ### SYS-PLAY-09 — Player progression
-**Today:** roam counters + discovery lines, Map notebook progression, awning/stool/permit beats, Skyline of Lit Windows as ambience (no numeric progress UI — a design choice per doc 01/AGENTS.md). Chapter progression (R8) not built. Status: PARTIAL.
+**Today:** roam counters + discovery lines, Map notebook progression, awning/stool/permit beats, Skyline of Lit Windows as ambience (no numeric progress UI — a design choice per doc 01/AGENTS.md). **R8's chapter gate is BUILT (2026-11-07, main `40d925e`): `core/chapters.ts` — the canon windows (doc 12 §2) as data, the advance law (trigger + minimum in-game days, never real time, never pure playtime), the R8 acceptance pinned by test (a hundred roam days in C1 meet no C2 content early). Scene-level progression rides the C0+ content waves (doc 14 §7's binding order).** Status: INTEGRATED (machine); scene-level PLANNED (content waves).
 **Checklist:**
-- [ ] R8 chapter gating implemented (Phase 7): trigger + minimum in-game days; never real time
+- [x] R8 chapter gating implemented (doc 14 §7 step 3, main `40d925e`): trigger + minimum in-game days; never real time — the acceptance law is a test, not a promise
 - [ ] No karma meter, no quest-journal takeover of the diary (R15 exclusions — audited as absences at Phase 9)
 **Done when:** progression is chapter-gated, clock-driven, and invisible machinery behind visible life.
 
@@ -348,18 +348,20 @@ Evidence sources used for baseline statuses: source audit of `web-three/src/` (2
 **Done when:** dialogue selection is deterministic, tiered, named, and voice-checked.
 
 ### SYS-NAR-06 — Relationships & consequences
-**Today:** the R2 state machine INTEGRATED (WP-5, main `b99c01f`): `core/consequenceLedger.ts` — the append-only ledger with promise→omission maturation, deterministic derived omission ids, idempotent walks, determinism-from-save pinned (23 tests); the save carries the ledger as an optional trailing v1-safe field. The C5 cascade still consumes at R1/R8 (state ahead of content, doc 14 §7). Status: INTEGRATED (state machines); consumption PLANNED (R1/R8).
+**Today:** the R2 state machine INTEGRATED (WP-5, main `b99c01f`): `core/consequenceLedger.ts` — the append-only ledger with promise→omission maturation, deterministic derived omission ids, idempotent walks, determinism-from-save pinned (23 tests); the save carries the ledger as an optional trailing v1-safe field. **The machine-level consumption LANDED (2026-11-07, main `40d925e`): the rails engine reads the ledger (`core/chapterRails.ts`'s `villainQuestionInputs` — R4's villain-question assembles actors/omissions/open promises/weight from consequenceLedger's own API; R5's extent reads the same weight sum). The C5 CASCADE itself is authored content (doc 09's beats) — it rides the C5 content wave with the ledger as its only input, exactly the contract's design.** Status: INTEGRATED (state machines + machine-level consumption); scene-level cascade PLANNED (C5 content wave).
 **Checklist:**
 - [x] R2 append-only ledger with promise→omission maturation (WP-5 — mutation fails, maturation idempotent, weights/visibility inherited)
-- [ ] C5 cascade reads only ledger + relationships, deterministic from save (the ledger's determinism half is pinned; the cascade reads at R1/R8)
+- [x] Machine-level consumption: the rails read ONLY ledger + flags (main `40d925e` — the machine the cascade will call; the ledger's determinism half is pinned)
+- [ ] C5 cascade reads only ledger + relationships, deterministic from save (the cascade's authored content rides the C5 wave; the machine-side input contract is landed and pinned)
 **Done when:** the cascade can replay from a save and produce the doc 09 cascade beat-for-beat.
 
 ### SYS-NAR-07 — Player choices
-**Today:** choice-card conversations shipped; the R7 register INTEGRATED (WP-5, main `b99c01f`): doc 10 §3's 17 structural nodes transcribed as frozen data (`core/choiceNodes.ts`), per-option flag/ledger writes with traceable act-refs, N3b's nineteen slots, N2's Form C lock (doc 10 §4), the no-fake-choices validator green (24 tests). Scene wiring lands with R1/R8. Status: INTEGRATED (state machines); scene consumption PLANNED (R1/R8).
+**Today:** choice-card conversations shipped; the R7 register INTEGRATED (WP-5, main `b99c01f`): doc 10 §3's 17 structural nodes transcribed as frozen data (`core/choiceNodes.ts`), per-option flag/ledger writes with traceable act-refs, N3b's nineteen slots, N2's Form C lock (doc 10 §4), the no-fake-choices validator green (24 tests). **The rails' shape inputs consume the register (2026-11-07, main `40d925e`): R2's trigger IS the register's own mechanical writes (`compact-form=*`), R3's is `r3-depth=*` — cross-checked by the no-dead-rails test (every trigger flag is writable by some register option, resolved through `resolveChoice` with its locks granted). Scene wiring (authored beats calling the machines) rides the C0+ content waves.** Status: INTEGRATED (state machines + machine-level consumption); scene consumption PLANNED (content waves).
 **Checklist:**
 - [x] R7 ChoiceNodes with locks, ledgerWrites, flagWrites (WP-5 — doc 10 §3 transcribed, register frozen, resolution pure)
 - [x] The no-fake-choices test (unique downstream flag signatures per structural option — validator green on the shipped register; converging registers fail)
-**Done when:** every structural choice diverges in state, provably — proven for the register; scene-level divergence rides R1/R8 content.
+- [x] The no-dead-rails law (main `40d925e`): a rail trigger no choice can write would be a dead rail — the test makes that unshippable
+**Done when:** every structural choice diverges in state, provably — proven for the register; scene-level divergence rides the content waves.
 
 ### SYS-NAR-08 — Betrayal & aftermath
 **Today:** canon complete (docs/narrative/08, 09); no build work (correctly — content waits for machines). Status: NOT STARTED (build) / CANON (design).

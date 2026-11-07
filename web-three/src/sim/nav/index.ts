@@ -25,6 +25,7 @@ import { NavSpatialIndex } from './spatial';
 import { NavPathfinder, type NavRoute, type RouteFailReason } from './pathfind';
 import { buildNavGraph, PASSABLE_FOOTPRINTS, type NavBuildResult } from './build';
 import { BuildingAccess, rosaDeliHours, type Reachability, type AccessTransition } from './access';
+import { ChokepointGate, capacityForEdge, type CapacityCounters } from './capacity';
 
 /** The walked extent — the graph's validation bounds (the district's
  *  content extent; the Times Square ride lives outside pedestrian space). */
@@ -42,6 +43,16 @@ export class Navigation {
   private readonly pointCache = new Map<string, NavRoute | null>();
   private readonly issues: NavIssue[];
   readonly notes: string[];
+  /** The chokepoint capacity gate (A-2 remainder): the arbitration
+   *  resources' physical mapping. Capacity law per edge kind
+   *  (`capacityForEdge`); the executor consults this around door and
+   *  cross edges so two bodies queue at a doorway instead of meeting
+   *  inside it. */
+  readonly gate: ChokepointGate;
+  /** resourceRef → the edge kind that named it (the capacity law's
+   *  lookup; built once, read-only at runtime). */
+  private readonly capacityKind = new Map<string, string>();
+  private readonly capacityWidth = new Map<string, number>();
   /** Bumped when door availability changes — live route holders read
    *  this to re-derive exactly once (no polling, no per-frame work). */
   accessEpoch = 0;
@@ -61,6 +72,21 @@ export class Navigation {
     this.notes = this.buildResult.notes;
     this.spatial = NavSpatialIndex.build(this.graph);
     this.pathfinder = new NavPathfinder(this.graph);
+
+    // the capacity gate reads the graph's own resources: every edge that
+    // names one (`door:<id>`, `xw:<id>`) feeds the capacity law once,
+    // here — never per query (the build-once law)
+    for (const e of this.graph.edges.values()) {
+      if (!e.resourceRef) continue;
+      if (!this.capacityKind.has(e.resourceRef)) {
+        this.capacityKind.set(e.resourceRef, e.kind);
+        this.capacityWidth.set(e.resourceRef, e.widthM);
+      }
+    }
+    this.gate = new ChokepointGate((resourceId) => {
+      const kind = this.capacityKind.get(resourceId);
+      return kind !== undefined ? capacityForEdge(kind, this.capacityWidth.get(resourceId) ?? 0) : 1;
+    });
 
     // the access authority seeds from the connected doors
     const doorDefs: Array<{ buildingId: string; x: number; z: number; faces?: string }> = [];
@@ -335,5 +361,20 @@ export class Navigation {
 
   transitionLog(): readonly AccessTransition[] {
     return this.access.transitionLog();
+  }
+
+  /** The capacity gate's measurement read (the register's numbers):
+   *  occupied chokepoints (holders never exceed capacity — pinned),
+   *  the counters, and the door count the gate knows. */
+  capacityStats(): {
+    occupied: Array<{ id: string; capacity: number; holders: string[]; waiting: string[] }>;
+    counters: CapacityCounters;
+    resources: number;
+  } {
+    return {
+      occupied: this.gate.occupied(),
+      counters: this.gate.stats(),
+      resources: this.capacityKind.size,
+    };
   }
 }

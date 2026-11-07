@@ -76,6 +76,14 @@ describe('save v1 — write/read roundtrip', () => {
       // the consequence ledger (narrative/14 R2 — WP-5): absent reads as
       // an empty ledger, the same optional-trailing law one row later
       ledger: [],
+      // the chapter gate + rails (narrative/14 R1+R8): absent reads as a
+      // fresh arrival with an unfired spine, the same law two rows later
+      chapter: { chapter: 'C0', openedOnDay: 1, calendarDay: 1 },
+      rails: {
+        R1: { fired: false, firedOnDay: null }, R2: { fired: false, firedOnDay: null },
+        R3: { fired: false, firedOnDay: null }, R4: { fired: false, firedOnDay: null },
+        R5: { fired: false, firedOnDay: null }, R6: { fired: false, firedOnDay: null },
+      },
     });
   });
 
