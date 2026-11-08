@@ -2431,6 +2431,83 @@ what is below standard, integrate, verify, merge to main.
   eluded the parked probes (family evidenced via the same-builder sedan).
 ---
 
+## 2026-11-07 — Technical Architecture: the player and the first-session film polished to their fullest potential (the owner's two-target wave)
+
+Task ID: PROD-PLAYER-FILM
+Agent: Technical Architecture / World Systems Agent (Z.ai)
+Task: "Polish the player to its fullest potential, and upgrade it, and polish
+the first session film/video, put a lot of effort there — those two need to
+reach their fullest potential — after that push and merge to main."
+
+Work Log:
+- Read every law first: personRig.ts (the shared cast rig + its pinned
+  tests), Player.ts (the already-fluid controller — left alone),
+  GameCamera.ts (three playtest rounds of pinned camera law — left alone),
+  arrival.ts (the film, five field-report drafts deep), audio.ts (docs/30
+  house rules), and the four pinned suites (arrival/rig/player-upgrades/
+  camera). The upgrades live INSIDE the laws; not one machine timing, rig
+  proportion test or camera constant moved.
+- **The player** (personRig auto mode + Game): the head now LEADS the turn
+  (the same measured yaw rate that banks the body drives a smoothed head
+  offset, ±0.38 rad, effort-gated — the eyes arrive at the corner first);
+  sprint focus (head pitch −0.083 rad at 6.4 m/s, eyes on the block) and a
+  runner's arm pump/tuck (arm swing +50 %, ±0.055 rad tuck) above the 4.2
+  walk ceiling, gated by MEASURED speed so walk paces never see it; the
+  LANDING RECOVERY — fall distance accumulated while airborne
+  (teleport-guarded at ±14 m/s), converted at touchdown into a knee-bend dip
+  (0.03–0.085 m) that decays at 6.5/s; and FOOTSTEPS — `audio.step()` per
+  stride half-cycle, grounded only, pace-scaled, docs/30 house rules
+  (synthesized, gain-enveloped, mute-respecting, silent before the first
+  gesture; `window`-guarded so the pure test suites stay import-safe).
+- **The film** (arrival.ts view layer only): SCORED — the bus rumble loop
+  rides the film from the window seat through the driver conversation
+  (first-gesture-gated; the single-owner guard makes pre-unlock calls
+  no-ops), the rumble fades under the dip, the terminal PA bell greets the
+  coach in the dark, the two-note chime rides the door slide, skip paths
+  stop the loop; a SHOT — easeSine push to the glass (100→99.35) + downward
+  eye-line settle + a creep-phase push, forward/downward only so the
+  dome-exit margin holds, tween setters refusing writes outside the ride
+  phases so a tap-through can never fight the card; the LIVING BUS — ±2 cm
+  suspension sway (the world wobbles past the glass, the interior rides the
+  lens); glass presence (a warm lamp-reflection plane proud of the tint);
+  the bay waits with you — two honestly-scaled figures (1.55/1.4 m) in the
+  lamplight by the east bench, PLACED ON THE APRON after the evidence probe
+  PROVED the first placement (door panes) occluded by the coach body from
+  every shipped film lens — dead geometry found and moved before the merge;
+  exhaust wisps astern. The ArrivalMachine byte-identical.
+- **Evidence**: a new condition-driven probe (`probe-player-film-polish.mjs`
+  — polls the live rig/phase because software-GL runs the film clock ~3×
+  slow; timed steps misfired twice before the lesson landed) produces
+  before/after pairs on pristine main vs the branch: 17 screenshots in
+  `docs/production/player-film-polish/evidence/{before,after}/` + rig
+  metrics (sprint arm z 0.090→0.134, head pitch 0→−0.083, landing dip
+  null→fired-then-decayed, idle scan and walk stride byte-unchanged). The
+  walk/sprint shots use the game's own follow camera — a parked lens keeps
+  missing a moving subject, and the follow cam IS the honest gameplay view.
+- **Gates on the branch, all green**: tsc clean · vitest 1020/1020 on the branch (69 files), 1059/1059 (71
+  files) on the final merged tree — arrival/rig/player-upgrades/camera
+  untouched and passing) · build
+  OK · probe-interior-dressing PASS · probe-w5-interiors PASS ·
+  probe-ped-nav OK · probe-nav 9/9 · probe-world-sim 15/15 · the polish
+  probe 0 page errors both passes. Register v1.21.0 filed (renumbered past the R5/R6 parallel v1.19.0/v1.20.0 — the monotonic-ledger law); wave doc
+  `docs/production/PLAYER-FILM-POLISH.md`.
+- **Honest**: three evidence framing passes were needed (the bay sprint
+  runway ends at a bench; the east sidewalk crosses a store interior; a
+  close lens inside the doorframe box) — each failure is visible in the
+  probe's history and each fix is in the probe, not in the game. The
+  film-audio unlock depends on the browser's first-gesture policy: before
+  any tap the film plays silent BY LAW (docs/30) — the score joins from the
+  first interaction onward.
+
+Stage Summary:
+- The two named targets reached their fullest potential inside the shipped
+  laws: the player moves like a person (head, arms, knees, feet) and the
+  first session opens like a film (scored, moving, alive). Zero gameplay
+  law, machine timing, camera constant, save format or draw-budget change.
+- Merged to main (no-ff) and pushed per the owner's directive; remote SHA
+  verified after push.
+
+---
 ## 2026-11-07 — Production Director: audit R2 — the baseline re-certified, DEC-4 briefed, the branch ledger closed
 
 Task ID: PROD-R2
@@ -2504,3 +2581,144 @@ consumed at the end. A-3/DEC-4 stayed owner-gated (a "continue" is not a ruling)
   already on the shared remote; my R5/R6 rows ride as v1.19.0/v1.20.0, the v1.16.0 precedent).
   **Merged-tree re-certification, all green:** tsc clean · vitest **1059/1059** (71 files) ·
   build OK (552 ms) · probe-world-sim 15/15 · 4-day E2E 0 failures (678 s, console clean).
+## 2026-11-08 — Production Director: WP-A3 unit 1/6 — W1-C flipped under the DEC-4 Option B ruling (register v1.19.0)
+
+Task ID: PROD-A3-U1
+Agent: Production Director (Z.ai)
+Task: "Option b approved" — the owner's explicit ruling on DEC-4 (the brief's §5 recommendation): the A-3 registry geometry flip is approved, executed class-first inside the district order (C/D backdrops before A/B heroes), district-by-district behind the fidelity gate, starting W1's backdrops. WP-A3's unit 1 executes per the brief's §6 (the pre-recorded required changes), nothing beyond it.
+
+Work Log:
+- DEC-4 recorded as RULED (owner, 2026-11-08, Option B). The brief's §7 exclusions respected: no new dependency, no district expansion, no registry data invention, no B13 resolution, no nav/access/schedule behavior change, no save schema change, no narrative doc edits.
+- **The flip seam built** (`World.ts`): `regShell(registryId)` — the runtime read of `world-registry.json`'s footprint x/z/w/d + height per building, cached once per boot, throwing LOUDLY on a row without footprint+height (the fallback law: the flip never invents geometry to fill a gap — wc-07 extended to rendering). `loadRegistry()` imports the same validated document the nav graph, the doors and the capacity gates already read.
+- **Unit 1 = W1's class C band** — the three Marlow walk-ups PWK-01/02/03: the hand tuple `[id, x, w, color]` retired; the mass, the 4×3 window rows and the brownstone stoop all derive from the registry numbers now. Arithmetic check at the seam: solid y = h/2, window z = fp.z − fp.d/2 + 0.06, stoop z = fp.z − fp.d/2 − 0.6 — the same values the hand constants carried (the transcription was already registry-faithful; the flip makes it STRUCTURALLY faithful).
+- **The fidelity evidence harness** (`scripts/probe-a3-flip.mjs`, new, WP-A3's own probe — zero product code): (1) the geometry census — every mesh whose world AABB intersects a band region (regions from the registry footprints; baked district tiles read via matrixWorld centers) dumped with name/pos/dims/verts/idx/flags, sorted, JSON — run-to-run deterministic (stability loop: two consecutive byte-equal censuses before the run commits its answer; InstancedMesh + the named dynamic systems + the M121's live AABB excluded — the bake's own skip laws mirrored); (2) parked-camera pairs at 7 fixed vantages. Runs against dist/.
+- **Unit 1 fidelity gate — ALL GREEN on the flipped tree:** tsc clean · vitest **1020/1020** (69 files) · build OK (538 ms) · registry mjs OK (129 IDs, 50 buildings, shipped-world fidelity 12/12 masses, 18/18 anchors) · **geometry census byte-identical** (173 band meshes, `shots/a3/pre-census.json` ≡ `u1-census.json` — the moved numbers moved no vertex) · **draw-call ledger zero drift** (probe-perf 146/216/282 + triangles byte-equal to the pre-flip baseline re-run on this box) · probe-world-sim **15/15** · probe-nav **9/9** · probe-integration **0 errors, 8/8 street walks** · 4-day E2E **0 failures** (687 s, console clean) · parked-camera pairs filed (`shots/a3/{pre,u1}-*.png`, 7 vantages — the owner-side visual bar).
+- Register v1.19.0 (PH-3 + MS-2 rows, change log); the DEC-4 doc's status line flips to RULED at the wave's close-out commit, per the audit-trail law.
+- Not done, by law: units 2–6 (W1-B → W1-A → W2-C → W3-D → W3-C and on — each its own revertible commit behind the same gate); the DEC-8/B13 owner calls; nothing outside the brief's §6.
+
+Stage Summary:
+- The A-3 wave is ON under a recorded owner ruling, and its first unit is in with the strongest fidelity evidence yet mustered in this repo (byte-identical geometry + byte-equal draw calls + the full probe battery). Gates at close: one source file (`World.ts`), one new probe script, register + worklog rows in the same commit — revertible per unit exactly as §6.1 requires.
+---
+
+## 2026-11-08 — Production Director: WP-A3 unit 2/6 — W1-B flipped (register v1.20.0) — with one caught defect and one voided battery, both recorded
+
+Task ID: PROD-A3-U2 (supersedes the voided first attempt)
+Agent: Production Director (Z.ai)
+Task: WP-A3 unit 2 under the DEC-4 Option B ruling (owner, 2026-11-08): W1's class-B band, per the brief's §6.
+
+Work Log:
+- **Flipped** (`World.ts`, buildAlderHeightsW1): KTN-00W — the Corner House (the mass, the storefront anchor, the 3×3 window grid, the crown, the 45° chamfer pier, the water tower now derive from `regShell('KTN-00W')`; the style constants — window rhythm 2.9, insets 0.2/0.32, the tank's center-anchored 1.5 m south offset — stay code); SMB-01/02/03 — the three Marlow shops (masses at h/2, storefront anchors at fp.z−d/2−0.02, window rows, the bakery's bagel at fp.z−d/2−0.3); SUB-02 — the south control house (placement + the collider box from fp+height: boxFromCenter(x, h/2, z, w, h, d)).
+- **DEFECT CAUGHT BY THE GATE (the census's first catch of the wave):** the first derivation anchored the corner house's water tower at `fp.z + d/2 − 1.5` — 18.5, six metres south of the authored 12.5 (`fp.z − 1.5`, the shipped convention on every north-side roof: the terminal's, the pizza corner's). The arithmetic seam-check MISSED it (14+6−1.5 was mis-summed to 12.5 on paper); the census did not: two bake tiles regrouped (the 19.26 m tower profile surfaced at the wrong z in `StaticBake_c1r2_51`), and the byte-identity gate REFUSED the tree. Every other gate — tsc, 1020 tests, three probes, the draw-call ledger, the E2E — was blind to a 6 m rooftop move. Fixed to `fp.z − 1.5`; the skyline is byte-identical again. **The lesson is recorded in the seam's comment now: the census is the load-bearing fidelity gate of this wave.**
+- **PROCESS VARIANCE, voided wholesale:** an intermediate battery ran on a wrongly-stashed working tree (a `git stash push` before a baseline re-measure was never popped — the tree under test was unit 1's, not unit 2's) and one commit was cut from that state with claims its code did not carry. The mistake was caught in a content audit of the branch, the commit replaced at `git reset --soft` (nothing was ever pushed), the tree state verified against the stash diff before re-running, and **no measurement from the voided battery is cited anywhere**. The stash-diff verification step is now part of the unit loop.
+- **The fidelity gate — ALL GREEN on the verified true tree:** tsc clean · vitest **1020/1020** (69 files) · build OK (560 ms) · registry mjs OK (129 IDs, fidelity 12/12 masses) · **geometry census byte-identical** (173 band meshes, `shots/a3/pre-census.json` ≡ `u2-census.json`, best-of-3 voting) · **draw-call ledger zero drift** (146/216/282, byte-equal) · probe-world-sim **15/15** · probe-nav **9/9** · probe-integration **0 errors, 8/8 street walks** · 4-day E2E **0 failures** (559 s at the script's own slow-box viewport law; two 900×700 runs on the voided tree aside, this is the true-tree run) · parked-camera pairs filed (`shots/a3/{pre,u2}-*.png`, 7 vantages).
+- Register v1.20.0 (PH-3 + MS-2 rows, change log — the variance recorded there too). Not done, by law: units 3–6 (W1-A next); nothing beyond the brief's §6.
+
+Stage Summary:
+- Two of six units in. The wave's evidence standard held under its first real test: the census refused a defective skyline the whole rest of the fleet called green, and the process variance was caught, voided and re-run rather than papered over. This is what the gate is for.
+---
+
+## 2026-11-08 — Production Director: WP-A3 unit 3/6 — W1-A flipped; W1 COMPLETE, the Phase-3 DoD geometry line met (register v1.21.0; DEC-4 status → RULED)
+
+Task ID: PROD-A3-U3
+Agent: Production Director (Z.ai)
+Task: WP-A3 unit 3 under the DEC-4 Option B ruling: W1's class-A band — the café shell KTN-06, the street's last hand-anchored W1 mass.
+
+Work Log:
+- **Flipped** (`World.ts`, buildAlderHeightsW1): KTN-06 — the mass (fp + h), the 3×3 window grid, the two cream papers (fp.x ∓ w/2 ± 2.2 insets), the FOR RENT sign (fp.z − d/2 − 0.14), the door, the water tower at `fp.z − 1.5` — the unit-2 lesson's corrected convention applied from the first write, and the census confirmed byte-identity on the FIRST build (no defect cycle this time — the seam's constants are now written from the tower convention, not re-derived per unit).
+- **The fidelity gate — ALL GREEN on the first pass:** tsc clean · vitest **1020/1020** (69 files) · build OK (555 ms) · registry mjs OK · **geometry census byte-identical** (173 band meshes, `pre` ≡ `u3`) · **draw-call ledger zero drift** (146/216/282) · probe-world-sim **15/15** · probe-nav **9/9** · probe-integration **0 errors, 8/8 street walks** · 4-day E2E **0 failures** (537 s, console clean) · parked-camera pairs filed.
+- **W1 IS FLIPPED** — all three class bands (C the walk-ups, B the corner house + shops + control house, A the café shell), each its own revertible commit behind the full gate: `9eaacfa` (U1) → `be99b11` (U2) → this commit. The Phase-3 DoD's geometry line — "geometry flip landed for at least the W0/W1 districts with the fidelity gate green" — is MET with the census's byte-identity as the evidence standard.
+- DEC-4's brief status → RULED (Option B, owner 2026-11-08); the register's PH-3/MS-2 rows updated; units 4–6 (W2-C the gable row, W3-D the backdrops, W3-C the avenue faces) continue under the standing ruling — nothing about them is re-gated, the same per-unit loop applies.
+- Not done, by law: units 4–6; the DEC-8/B13 owner calls; nothing beyond the brief's §6/§7.
+
+Stage Summary:
+- The registry is now the single render truth for the whole Day-1 street: 13 buildings' worth of masses, storefronts, windows, crowns, stoops, towers and one bagel all read `world-registry.json` at runtime, and the skyline is byte-identical to the hand-built one it replaced — with the census standing guard (it caught the one 6 m defect the rest of the fleet missed).
+---
+
+## 2026-11-08 — Production Director: the A-3 wave (units 1–3) joined the R5/R6/player-film line — the merged tree re-certified (register v1.22.0)
+
+Task ID: PROD-A3-MERGE
+Agent: Production Director (Z.ai)
+Task: integration + re-certification of the A-3 wave against the parallel remote advance, before the push.
+
+Work Log:
+- origin/main had advanced `0eb3cca` → `2426e73` while units 1–3 were in flight (R5 the majors' off-screen lives, R6 the missable-event scheduler, the player-film polish; their v1.17.0–v1.20.0 — two of which collide with this wave's v1.19.0/v1.20.0; noted on the rows per the v1.16.0 precedent). Merged no-ff; the register/worklog conflicts resolved both-sides-verbatim; a merge-artifact duplicate of the audit-R2 v1.18.0 row removed. `World.ts` auto-merged (the parallel wave never touched the flip bands).
+- **The merged tree re-certified, all green [executed]:** tsc clean · vitest **1059/1059** (71 files — the parallel wave's +39 join the line) · build OK (569 ms) · registry mjs OK · **geometry census byte-identical on the integrated tree** (173 band meshes — the flipped W1 geometry survives the merge with zero vertex movement) · **draw-call ledger zero drift** (146/216/282, byte-equal) · probe-world-sim **15/15** · probe-nav **9/9** · probe-integration **0 errors, 8/8 street walks** · 4-day E2E **0 failures** (558 s, console clean).
+- Not done, by law: units 4–6 (W2-C, W3-D, W3-C) under the standing ruling; the owner-side variances (V-PH2-1 sign-off, V-PH2-2 playtest, B13, DEC-8).
+
+Stage Summary:
+- The integration evidence standard held: the census's byte-identity survived a 5-commit parallel merge untouched, and the merged tree's full battery is green end to end. The wave is ready for the push.
+---
+
+## 2026-11-08 — Production Director: the film-building-craft wave — the arrival film's buildings rebuilt to first-impression grade (register v1.23.0)
+
+Task ID: PROD-FILM-BUILDINGS
+Agent: Production Director (Z.ai)
+Task: the owner's field verdict — "some of the buildings in the first-session film suck, they spoil the aesthetics; they are the first thing consumers see" — turned into an audit-and-craft pass over every building the film shows, then the full gate battery before the merge.
+
+Work Log:
+- **Audit first:** a fresh `?film=1` sweep (`diag-film-buildings.mjs`, 11 natural frames across ride → freeze → reply → card → handover) plus the shipped player-film evidence pinned eight defects: (A1) the DELI/BAR/PIZZA sign cycle lands TWO DELIs inside one bus window; (A2) all four storefront interiors clone-stamped; (A3) awnings are flat slabs floating off the brick; (A4) the horizon band is twenty near-identical boxes ON GRASS — a suburban strip mall; (A5) blank brick fields; (A6) the light-up leaves towers dark with a scatter of dots; (A7) the gate facade is a flat purple slab; (A8) lamp heads float as dashes.
+- **The craft, all in `arrival.ts` (code-native, the world's geometry untouched — the census domain is not entered):** the SHOPS table (12 identities: fascia/border/letter colors + wares) with a no-immediate-repeat law and hand-assigned strip shops (laundry → bodega → pizza → coffee); wares-honest interiors (hanging laundry, dense bodega stock, a white-hot oven, a diner menu board); striped canvas awnings with scalloped valances and iron rods; six matched brick palettes with value jitter, floor banding, quoins, cornice shadow, sill drips, window boxes, curtain variety and TV-blue glow; the horizon band rebuilt as a street (sidewalk/road/dashes/shoulder, 18 varied slots, a church with a steeple, a gable-roofed house, a tree-clump gap and a fenced lot, rowhouses where a shop wouldn't fit honestly); the skyline's windows densified 0.30→0.44 with whole office floors and baked beacons, light-up peak 1.15→1.55; the gate's precast paint, gridded far-tower windows with caps, a luggage cart; lamp heads on stalks.
+- **The gates, all green [executed]:** tsc clean · vitest **1059/1059** (71 files — zero test churn; the machine is untouched) · build OK (534 ms) · probe-a5c film flow end-to-end with the handover state correct and 0 page errors (its 20 s handover-budget miss was reproduced VERBATIM on pristine main `1080b13` in a throwaway worktree — pre-existing software-GL timing, not a regression) · probe-a5g portrait ok · probe-a5h first-session ok · probe-world-sim **15/15** · probe-a3-flip exit 0. Draw-call ledger: zero drift by construction (no `World.ts` change).
+- Evidence filed at `docs/production/film-building-craft/evidence/{before,after}/` — six paired frames (storefront freeze + close-up, horizon early + lit, tenement pass, gate card), each pair showing the same lens before/after.
+- Not done, by law: nothing gameplay-bearing was touched (the film is a self-contained diorama, disposed at handover); units 4–6 of the A-3 wave and the owner-side variances remain theirs.
+
+Stage Summary:
+- The first thing consumers see is now a block worth staring at: four named shops with their own trades, a church spire on the horizon, a city that actually ignites at dusk. The film's staging laws, tap flow, timings and the handover contract are untouched — the sweep and the probes both prove it.
+---
+
+## 2026-11-08 — Technical Architecture / World Systems Agent: WP-A3 unit 4/6 — W2-C the gable row flipped (register v1.24.0), with the sister line's superseded accounting
+
+Task ID: WP-A3-U4
+Agent: Technical Architecture / World Systems Agent (Z.ai)
+Task: the owner's "Push and continue building — only report back after finishing the phase" — continue the DEC-4 Option B wave under the standing ruling (plan §2b item 4: units 4–6), each unit its own revertible commit behind the full fidelity gate.
+
+Work Log:
+- **Concurrency audit first:** origin/main had advanced `72c8627` → `4860f5d` — the production line's own A-3 units 1–3/6 (W1-C, W1-B, W1-A — W1 fully flipped, the DoD geometry line met), then the player-film polish and the film-building-craft waves on top. **My own line (`feat/wp-a3-registry-flip`, units 1+2 of the same bands, executed in the same window from a common ancestor) is therefore SUPERSEDED — retired unmerged, the wp-2v precedent.** Its implementation is the odd one out; its JUDGMENTS were sound and now join the line in this unit: the status-column repair, the semantic shipped-law, the evidence-table growth and the acceptance-test pattern (all re-landed here, adapted to the remote line's `regShell` seam and 6-unit ledger).
+- **Branch `feat/wp-a3-units-4-6` from `4860f5d`.** Pre-flip baselines on the merged tree: census `pre` (173 band meshes — byte-consistent with the production line's own u1 baseline) + draw-call ledger **146/216/282** (byte-equal to the standing row).
+- **The flip (W2-C):** `buildGableRow`'s five brownstones construct through `regShell(id.replace('_','-'))` — mass, cornice (h−0.25 over w/d+0.2), parlor/upper window rows (street face +0.05), high stoop (+0.6), Fatima's scaffold (+0.3/+0.35/+0.7) all derive from the registry rows GRB-01..05; the stoop doors, window rhythm and scaffold are the style and stay code. Hand tuples `['GRB_01', -42.6, …]` retired.
+- **The bookkeeping the flip made load-bearing, repaired in the same unit:** the registry's `status` column told a lie 31 rows deep (every phase-built W1–W3 row still `planned` — the E-1-era defect; only ALY-02 had ever been maintained). Repaired to `built (W1|W2|W3)` strictly per the registry's OWN constructionPhases content lists (9 W1 + 5 W2 + 17 W3; geometry untouched; validate-registry OK). `contentCatalogue`'s shipped-law became SEMANTIC (`isShippedBuildingStatus`) and `BUILDING_EVIDENCE` grew the 30 rows' construction tokens — **the building-variant pack now truthfully carries all 50 registry buildings** (was 19; the pack's own law: "grows only as buildings are built" — they were built). `regShell` grew the planned-row refusal (a flipped band's row regressing to unbuilt fails loudly at boot — DEC-4 §5).
+- **THE FLIP'S ACCEPTANCE IS A TEST** (`tests/a3-registry-flip.test.ts`, 6 tests, ported + adapted): the band ledger (u1–u4 pinned with class guards; u5/u6 data-pre-pinned); the no-invention preconditions; the status-repair pins; **the VALUE-NEUTRAL LAW** — all 31 ledger rows' registry numbers verbatim against the retired hand truth (backdrop rows: footprint verbatim + the row height inside the segment span — the varied segment heights are style); the source law (regShell in the bands, the GRB hand tuples gone); the planned-row refusal. One suite-caught adaptation: the evidence tokens for SMB-02/03 key to the solid names (`SMB_02/03`) — the remote line's flip derives the registry id at the seam, so the dashed literals only survive for SMB-01 (the bagel's call) and the PWK array.
+- **The fidelity gate, unit 4 — ALL GREEN [executed, sequential on the idle box]:** validate-registry OK (129 IDs, 50 buildings, 12/12 masses, 18/18 anchors) · tsc clean · vitest **1065/1065** (72 files, +6) · build OK · **geometry census byte-identical** (`shots/a3/pre-` ≡ `u4-census.json`, 173 band meshes — the moved numbers moved no vertex) · **draw-call ledger pre/post byte-identical 146/216/282** (triangles byte-equal) · parked-camera pairs filed (`shots/a3/{pre,u4}-*.png`, 7 vantages) · probe-world-sim **15/15** · probe-nav **9/9** · probe-integration **0 errors, 8/8 walks, 71 GLB upgrades** · 4-day E2E **0 failures (665 s, console clean)** — run detached with a log tail (the 600 s tool ceiling), results verbatim above.
+- Register v1.24.0 (Gates clause + the F change-log row; the v1.23.0 film row untouched after a botched row-splice edit was caught and repaired in the same pass) — same commit as the flip (the §6.4 law).
+- Not done, by law: unit 5/6 (W3-D the backdrops) → unit 6/6 (W3-C the avenue faces) next, each behind the same gate; the DEC-8/B13 owner calls; the shipped-street bands (the brief's hero list names the terminal and Rosa's deli — a further unit under the standing ruling, not this plan's 6).
+
+Stage Summary:
+- The wave's second half is under way on the production line's own seam: unit 4 lands with the strongest evidence standard in the repo (byte-identical census + byte-equal ledger + the full probe battery), and the registry's status column now tells the truth the render reads. The sister line's work is accounted, not lost.
+---
+
+## 2026-11-08 — Technical Architecture / World Systems Agent: WP-A3 unit 5/6 — W3-D the avenue backdrops flipped (register v1.25.0)
+
+Task ID: WP-A3-U5
+Agent: Technical Architecture / World Systems Agent (Z.ai)
+Task: the DEC-4 Option B wave's fifth unit (plan §2b item 4 order), same branch, same gate.
+
+Work Log:
+- **The flip (W3-D):** `buildBackdrops`'s `seg`/`strip` now take the REGISTRY id and split the row's own footprint evenly — the eight avenue-wall rows (VDN-DW1a..d at x −78, VDN-DE1a..d at x +78) into equal slabs across the registry depth, the two roofline strips (VDN-DN1/DS1 at z ±53.5) into ten across the registry width. The VARIED per-segment heights are the authored style and stay code (the registry's height column is the row's canonical height — the honest data shape: footprint verbatim, height inside the segment span; pinned exactly so). The storefront hint bands ride the same derived boxes. Hand tuples retired (`seg('VDN_DW1a', -78, 8, 32, …)`, the `-60 + 12·(i+½)` strip walk).
+- **The acceptance test grew with the band:** u5 in the ledger (10 rows, the class-D guard); the source law pins the derived-key calls (`seg('VDN-DW1a', [14, 19, 16])`, `strip('VDN-DN1', heightsN)`) and the retired shapes. **One consequence the suite caught mid-gate:** the flip removed the `VDN_DW1a`-style underscore literals, so the BUILDING_EVIDENCE tokens re-keyed to the dashed registry ids — the same registry-id token law SMB rode at unit 4 (the flip's derived solid names leave no underscore literals behind).
+- **The fidelity gate, unit 5 — ALL GREEN [executed, sequential on the idle box]:** geometry census byte-identical (`u4-` ≡ `u5-census.json`, 173 band meshes — the moved numbers moved no vertex) · draw-call ledger pre/post byte-identical 146/216/282 · parked-camera pairs filed (`shots/a3/{u4,u5}-*.png`, 7 vantages) · tsc clean · vitest **1065/1065** (72 files) · build OK · probe-world-sim **15/15** · probe-nav **9/9** · probe-integration **0 errors, 8/8 walks, 71 GLB upgrades** · 4-day E2E **0 failures (683 s, console clean)**.
+- **Honest process note:** the first E2E attempt hit the driver's 900 s wall-clock ceiling mid-PASS-streak (every reported step still PASS; the in-page test simply needed more than 900 s on this software-GL box that day) — the rerun on the idle box green with no code delta between the runs, the unit-1 contention pattern's slow-box cousin. Recorded here and in the register row so the pattern stays on record.
+- Register v1.25.0 (Gates clause + the F change-log row) — same commit as the flip.
+- Not done, by law: unit 6/6 (W3-C the avenue faces) — the wave's last band; the DEC-8/B13 owner calls.
+
+Stage Summary:
+- Ten backdrop rows flipped with zero vertex movement; the wave's machinery has now absorbed every geometry shape the registry carries except the avenue faces and the far world. One band left in the plan.
+---
+
+## 2026-11-08 — Technical Architecture / World Systems Agent: WP-A3 unit 6/6 — W3-C the avenue faces flipped; THE PLAN'S SIX-UNIT WAVE COMPLETE (register v1.26.0)
+
+Task ID: WP-A3-U6
+Agent: Technical Architecture / World Systems Agent (Z.ai)
+Task: the DEC-4 Option B wave's last planned unit (plan §2b item 4), same branch, same gate.
+
+Work Log:
+- **The flip (W3-C):** `buildJuniperFaces` + `buildSycamoreFaces` read `regShell` per row — TEN-01's pair bounding box (the 4.5 m lot split and the 1 m light-slot are the style, derived against the box: lotA x0 = fp.x − fp.w/2, lotB x0 = fp.x + 0.5, lotW = (fp.w − 1)/2), SRC-02/SRC-01/KTN-07 single masses, KCM-01/SND-01 base+upper splits (the 3.2 m base/band heights are the style law; upper h = fp.h − base, y = base + upper/2), the hall's painted bands/marquee/rods/address tile, the diner's band windows/chamfer/neon/roof sign/legs, VND-02's stand placement AND collider. Cornices = h−0.25 over w/d+0.2; the window rhythms and face insets are style constants expressed against the box — every retired hand number derives byte-for-byte.
+- **The census probe grew with the band** (zero product code): three faces regions (`w3-juniper-faces`, `w3-hall`, `w3-sycamore-faces`; first-match-wins keeps KTN-06's meshes in their W1 region) + three parked vantages (`avenue-faces-w`, `hall-block`, `avenue-faces-e`) — 10 spots now.
+- **The acceptance test's ledger grew u6** (7 rows; the plan's "W3-C" shorthand acknowledged in the file — the faces band mixes the district's class-A landmarks with its class-C rows, the class guard carries ['A','C']); the source law pins the four direct regShell calls and the retired hand shapes (the TEN pair walk, the KCM/SND/SRC mass tuples, the stand's literal placement).
+- **The fidelity gate, unit 6 — ALL GREEN [executed, sequential on the idle box]:** validate-registry OK (129 IDs, 50 buildings, 12/12 masses, 18/18 anchors) · **geometry census byte-identical** (`pre6-` ≡ `u6-census.json`, 236 band meshes under the extended regions — the moved numbers moved no vertex) · **draw-call ledger pre/post byte-identical 146/216/282** · parked-camera pairs filed (`shots/a3/{pre6,u6}-*.png`, 10 vantages) · tsc clean · vitest **1065/1065** (72 files) · build OK · probe-world-sim **15/15** · probe-nav **9/9** · probe-integration **0 errors, 8/8 walks, 71 GLB upgrades** · 4-day E2E **0 failures (679 s, console clean)**.
+- **THE PLAN'S SIX-UNIT A-3 WAVE IS COMPLETE**: W1-C → W1-B → W1-A (the production line) + W2-C → W3-D → W3-C (this line) — 31 registry rows render from the registry's own numbers, each unit its own revertible commit behind the full gate, the census's byte-identity held through all of them. The DEC-4 brief's status line closed out accordingly (the §6.4 law).
+- **Honest frontier, stated on the row:** the SHIPPED-STREET band (19 'existing' rows — the original slice: KTN-01..05, ROS-01, KTS-01..03, SUB-01, VND-01, ALY-01/02, and the far world TSS-01..05 + SUB-TS) remains hand-coded — the brief's hero list names the terminal (KTN-01) and Rosa's deli (ROS-01) among the A/B heroes, so §6.4's full closure ("the last hero band flips") wants a further unit series under the standing ruling. NOT this plan's six; the flip's machinery, the probe regions and the acceptance-test pattern all extend to it unchanged. The W5 rooms' retireMass seams, the bodega assembly, the climbable fire escape and the station kit are the surfaces that unit series must carry.
+- Register v1.26.0 (Gates clause + the F change-log row) — same commit as the flip.
+
+Stage Summary:
+- The wave the owner ruled on is delivered as planned: every phase-built building now renders from the registry's own rows, the census proved zero vertex movement six times, and the registry's status column tells the truth the render reads. What remains of the double truth is the shipped street — the next unit series, one ruling away from the same machinery.
+---

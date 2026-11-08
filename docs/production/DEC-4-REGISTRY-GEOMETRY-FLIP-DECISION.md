@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Status | **UNRESOLVED — awaiting owner ruling.** This brief recommends; it does not decide. No source file, registry row, branch, or visual was changed in producing it. |
+| Status | **RULED — Option B (the owner, 2026-11-08).** Execution is governed by §6; the wave's state lives in the register (v1.19.0–v1.26.0) and the worklog (PROD-A3-U1…U3, WP-A3-U4…U6). **All six plan units are flipped behind the gate (W1-C→B→A, W2-C, W3-D, W3-C) — 31 registry rows render from the registry's own numbers; the Phase-3 DoD's geometry line met. The SHIPPED-STREET band (19 'existing' rows — the original slice and the far world, §3's hero list's terminal + Rosa's deli among them) is the identified continuation under this standing ruling, not part of the six-unit plan.** The brief's analysis below stands as filed. |
 | Author | Production Director (engineering adjudication), for the project owner |
 | Date | 2026-11-07 |
 | Question | **A-3 — the registry geometry flip:** building geometry currently loads from hand-transcribed `World.ts` builders while the registry (`docs/data/world-registry.json`) tracks the same facts as construction truth. Flip the render source to the registry? Which districts/classes flip, in what order, with what fallback? |

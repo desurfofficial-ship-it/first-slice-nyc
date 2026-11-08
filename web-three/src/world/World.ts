@@ -53,6 +53,12 @@ import { makeNet, makePolePad, makeCourtLight, makeTallyBoard, buildBackstop,
   type CourtNet, type TallyBoard } from '../court/courtDressing';
 import { makeBasketball } from '../court/Basketball';
 import { COURT_BALL_REST } from '../game/interactionDefs';
+// A-3 (DEC-4, 2026-11-07): the registry geometry flip — a flipped building's
+// placement and dimensions read the construction truth (world-registry.json)
+// at runtime; the per-style builder code stays. The registry already drives
+// the nav graph, the doors and the capacity gates; this extends the same
+// single truth to the render coordinates.
+import { loadRegistry } from '../sim/registry';
 
 export interface LadderInfo { area: AABB; top: number; }
 
@@ -4380,6 +4386,40 @@ export class World {
     this.canopySpheresCache.push({ x, y: top - 0.9, z, r: 2.15 });
   }
 
+  // ---- A-3: the registry geometry flip (DEC-4 Option B, ruled 2026-11-07)
+  // A flipped building's PLACEMENT and DIMENSIONS come from its registry
+  // row at runtime (footprint x/z/w/d + height); the look stays the
+  // authored builder code (the style builders are code, not the thing
+  // being flipped). Fallback law: a registry row without footprint+height
+  // throws LOUDLY — the flip never invents geometry to fill a gap
+  // (wc-07's no-coordinates law, extended to rendering).
+  private regShells: Map<string, { x: number; z: number; w: number; d: number; h: number }> | null = null;
+  private regStatuses: Map<string, string | undefined> | null = null;
+  /** The registry shell of a flipped building — throws when the row is
+   *  missing or lacks footprint/height, so a data gap can never render,
+   *  and when the row still reads 'planned' (A-3 unit 4, 2026-11-08: the
+   *  status column was repaired the same day — a flipped band's row must
+   *  never be able to regress to unbuilt without failing loudly here). */
+  private regShell(registryId: string): { x: number; z: number; w: number; d: number; h: number } {
+    if (!this.regShells) {
+      this.regShells = new Map();
+      this.regStatuses = new Map();
+      for (const b of loadRegistry().allBuildings()) {
+        const fp = b.footprint;
+        if (fp && b.height !== undefined && b.height > 0) {
+          this.regShells.set(b.id, { x: fp.x, z: fp.z, w: fp.w, d: fp.d, h: b.height });
+          this.regStatuses.set(b.id, b.status);
+        }
+      }
+    }
+    const s = this.regShells.get(registryId);
+    if (!s) throw new Error(`[A-3] registry building "${registryId}" has no footprint+height — the flip never invents geometry`);
+    if (this.regStatuses!.get(registryId) === 'planned') {
+      throw new Error(`[A-3] registry building "${registryId}" is still 'planned' — the flip never renders an unbuilt row (DEC-4 §5)`);
+    }
+    return s;
+  }
+
   private buildAlderHeightsW1(): void {
     const CURB = 0x8f8a82;
     const rng = seededRng(20261101);
@@ -4465,74 +4505,98 @@ export class World {
     this.solid('Yard_S', 0, 0.0, -20, 120, 0.2, 24, 0x3a7355, { receive: true, cast: false });
 
     // ---- G. SUB-02 — the south control house (props.makeControlHouse) ----
+    // A-3 flipped (2026-11-08): the placement and the collider box READ the
+    // registry (SUB-02 — fp + height); the authored pavilion geometry (the
+    // style builder) stays.
+    const sub2reg = this.regShell('SUB-02');
     const sub2 = makeControlHouse(this.bank, this.signMaterials.bind(this));
-    sub2.position.set(-57, 0.05, -6.25);
+    sub2.position.set(sub2reg.x, 0.05, sub2reg.z);
     this.scene.add(sub2);
-    this.colliders.push(boxFromCenter(-57, 1.7, -6.25, 6, 3.4, 3.5));
+    this.colliders.push(boxFromCenter(sub2reg.x, sub2reg.h / 2, sub2reg.z, sub2reg.w, sub2reg.h, sub2reg.d));
 
     // ---- H. the shells: corner infills + the Marlow row ------------------
     // KTN-00W — the Corner House (chamfer pier toward the KJ intersection)
-    this.solid('KTN_00W', -55, 8, 14, 10, 16, 12, PAL.bldg2);
+    // A-3 flipped (2026-11-08): the mass, storefront anchor, window grid,
+    // crown, chamfer pier and water tower READ the registry (KTN-00W);
+    // the style constants (window rhythm, insets, the 45° cut) stay code.
+    const ktw = this.regShell('KTN-00W');
+    this.solid('KTN_00W', ktw.x, ktw.h / 2, ktw.z, ktw.w, ktw.h, ktw.d, PAL.bldg2);
     const ch = makeStorefront(this.bank, this.signMaterials.bind(this), 'CORNER HOUSE', PAL.brick, 8);
-    ch.position.set(-55, 0.05, 8.02);
+    ch.position.set(ktw.x, 0.05, ktw.z - ktw.d / 2 + 0.02);
     ch.rotation.y = Math.PI;
     this.scene.add(ch);
     for (let f = 0; f < 3; f++) for (let c = 0; c < 3; c++) {
-      this.decoMesh(`KTN00W_Win_${f}_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), -58.4 + c * 3.4, 7.2 + f * 2.9, 7.92);
+      this.decoMesh(`KTN00W_Win_${f}_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), ktw.x - ktw.w / 2 + 1.6 + c * 3.4, 7.2 + f * 2.9, ktw.z - ktw.d / 2 - 0.08);
     }
-    this.deco('KTN00W_Crown', -55, 15.4, 14, 10.2, 0.8, 12.2, PAL.stone, {});
+    this.deco('KTN00W_Crown', ktw.x, ktw.h - 0.6, ktw.z, ktw.w + 0.2, 0.8, ktw.d + 0.2, PAL.stone, {});
     // the corner-store cut: a 45° pier flush with the SW corner faces
-    const chamfer = this.deco('KTN00W_Chamfer', -59.68, 1.9, 8.32, 0.55, 3.8, 0.55, PAL.brick, {});
+    const chamfer = this.deco('KTN00W_Chamfer', ktw.x - ktw.w / 2 + 0.32, 1.9, ktw.z - ktw.d / 2 + 0.32, 0.55, 3.8, 0.55, PAL.brick, {});
     chamfer.rotation.y = Math.PI / 4;
-    this.waterTower(-55, 16, 12.5, 1.4); // LMK-03: the corners carry tanks too
+    this.waterTower(ktw.x, ktw.h, ktw.z - 1.5, 1.4); // LMK-03: the corners carry tanks too (the tank anchors 1.5 m south of the footprint center)
 
     // KTN-06 — 6 Kestrel St East, the café shell (papered, FOR RENT)
-    this.solid('KTN_06', 55, 8, 14, 10, 16, 12, PAL.brick);
+    // A-3 flipped (2026-11-08): the mass, window grid, papers, sign, door
+    // and water tower READ the registry (KTN-06); the style constants
+    // (paper insets, sign/door offsets, the tower's center-anchored 1.5 m
+    // south offset) stay code.
+    const kt6 = this.regShell('KTN-06');
+    this.solid('KTN_06', kt6.x, kt6.h / 2, kt6.z, kt6.w, kt6.h, kt6.d, PAL.brick);
     for (let f = 0; f < 3; f++) for (let c = 0; c < 3; c++) {
-      this.decoMesh(`KTN06_Win_${f}_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), 51.6 + c * 3.4, 7.2 + f * 2.9, 7.92);
+      this.decoMesh(`KTN06_Win_${f}_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), kt6.x - kt6.w / 2 + 1.6 + c * 3.4, 7.2 + f * 2.9, kt6.z - kt6.d / 2 - 0.08);
     }
     // the vacant ground floor: cream paper over the glass, day-keyed to lit
     // when the café opens (dressing hooks ride the registry, W5)
-    this.deco('KTN06_Paper_L', 52.2, 1.6, 7.9, 2.6, 3.2, 0.06, PAL.cream, {});
-    this.deco('KTN06_Paper_R', 57.8, 1.6, 7.9, 2.6, 3.2, 0.06, PAL.cream, {});
+    this.deco('KTN06_Paper_L', kt6.x - kt6.w / 2 + 2.2, 1.6, kt6.z - kt6.d / 2 - 0.1, 2.6, 3.2, 0.06, PAL.cream, {});
+    this.deco('KTN06_Paper_R', kt6.x + kt6.w / 2 - 2.2, 1.6, kt6.z - kt6.d / 2 - 0.1, 2.6, 3.2, 0.06, PAL.cream, {});
     this.signBoard('KTN06_ForRent', 'FOR RENT', 1.5, 1.0, 0.06, 256, 160, PAL.cream, PAL.ink, 42)
-      .position.set(55, 1.9, 7.86);
-    this.deco('KTN06_Door', 55, 1.4, 7.95, 1.4, 2.8, 0.12, 0x6e554e, {});
-    this.waterTower(55, 16, 12.5, 1.4);
+      .position.set(kt6.x, 1.9, kt6.z - kt6.d / 2 - 0.14);
+    this.deco('KTN06_Door', kt6.x, 1.4, kt6.z - kt6.d / 2 - 0.05, 1.4, 2.8, 0.12, 0x6e554e, {});
+    this.waterTower(kt6.x, kt6.h, kt6.z - 1.5, 1.4);
 
-    // the Marlow row: three shopfronts + three walk-ups (doors and windows
-    // face Marlow — the registry's entrance rows are corrected to z −32)
-    const marlowShops: Array<[string, string, number, number, number, string]> = [
-      ['SMB_01', 'MARLOW BAKERY', -34, 8, PAL.bldg2, 'Bakery_Glass'],
-      ['SMB_02', 'B-SIDE RECORDS', -25, 6, PAL.brick, 'Records_Glass'],
-      ['SMB_03', 'KESTREL HARDWARE', -17, 6, PAL.bldg, ''],
+    // the Marlow row: three shopfronts (doors and windows face Marlow —
+    // the registry's entrance rows are corrected to z −32)
+    // A-3 flipped (2026-11-08): the three shop masses, storefront anchors,
+    // window rows and the bakery's bagel READ the registry (SMB-01/02/03);
+    // the style constants (sign widths, window rhythm) stay code.
+    const marlowShops: Array<[string, string, number, string]> = [
+      ['SMB_01', 'MARLOW BAKERY', PAL.bldg2, 'Bakery_Glass'],
+      ['SMB_02', 'B-SIDE RECORDS', PAL.brick, 'Records_Glass'],
+      ['SMB_03', 'KESTREL HARDWARE', PAL.bldg, ''],
     ];
-    for (const [id, label, x, w, col, glassName] of marlowShops) {
-      this.solid(id, x, 6, -26, w, 12, 12, col);
-      const shop = makeStorefront(this.bank, this.signMaterials.bind(this), label, PAL.teal, w - 1, glassName || undefined);
-      shop.position.set(x, 0.05, -32.02);
+    for (const [id, label, col, glassName] of marlowShops) {
+      const reg = this.regShell(id.replace('_', '-'));
+      this.solid(id, reg.x, reg.h / 2, reg.z, reg.w, reg.h, reg.d, col);
+      const shop = makeStorefront(this.bank, this.signMaterials.bind(this), label, PAL.teal, reg.w - 1, glassName || undefined);
+      shop.position.set(reg.x, 0.05, reg.z - reg.d / 2 - 0.02);
       shop.rotation.y = Math.PI; // the street is SOUTH of the row
       this.scene.add(shop);
       for (let c = 0; c < 2; c++) {
-        this.decoMesh(`${id}_Win_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), x - w / 2 + 1.6 + c * (w - 3.2), 8.6, -31.94);
+        this.decoMesh(`${id}_Win_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), reg.x - reg.w / 2 + 1.6 + c * (reg.w - 3.2), 8.6, reg.z - reg.d / 2 + 0.06);
       }
     }
     // the bakery's bagel silhouette in the window (Doc 04 object canon #8)
+    const smb1 = this.regShell('SMB-01');
     const bagel = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.13, 8, 18), this.bank.get(0xd9a05b));
-    bagel.position.set(-34, 1.7, -32.3);
+    bagel.position.set(smb1.x, 1.7, smb1.z - smb1.d / 2 - 0.3);
     this.scene.add(bagel);
-    const marlowWalkups: Array<[string, number, number, number]> = [
-      ['PWK_01', -44, 8, PAL.bldg], ['PWK_02', 5, 10, PAL.bldg2], ['PWK_03', 17, 10, PAL.bldg],
+
+    // the Marlow walk-ups — A-3 flipped (2026-11-07): placement and
+    // dimensions READ the registry (PWK-01/02/03); the hand constants
+    // retired. The window rows and the stoops derive from the same
+    // registry numbers (the look stays the authored builder code).
+    const marlowWalkups: Array<[string, string, number]> = [
+      ['PWK_01', 'PWK-01', PAL.bldg], ['PWK_02', 'PWK-02', PAL.bldg2], ['PWK_03', 'PWK-03', PAL.bldg],
     ];
     const pwkDoors = [PAL.teal, PAL.coral, 0x6d4c7d];
     let pwkDoorIdx = 0;
-    for (const [id, x, w, col] of marlowWalkups) {
-      this.solid(id, x, 7.5, -26, w, 15, 12, col);
+    for (const [id, regId, col] of marlowWalkups) {
+      const reg = this.regShell(regId);
+      this.solid(id, reg.x, reg.h / 2, reg.z, reg.w, reg.h, reg.d, col);
       for (let f = 0; f < 4; f++) for (let c = 0; c < 3; c++) {
-        this.decoMesh(`${id}_Win_${f}_${c}`, new THREE.BoxGeometry(1.1, 1.7, 0.08), this.bank.get(PAL.windowDim), x - w / 2 + 1.5 + c * ((w - 3) / 2), 3.4 + f * 2.9, -31.94);
+        this.decoMesh(`${id}_Win_${f}_${c}`, new THREE.BoxGeometry(1.1, 1.7, 0.08), this.bank.get(PAL.windowDim), reg.x - reg.w / 2 + 1.5 + c * ((reg.w - 3) / 2), 3.4 + f * 2.9, reg.z - reg.d / 2 + 0.06);
       }
       const stoop = makeBrownstoneStoop(this.bank, pwkDoors[pwkDoorIdx++ % 3]);
-      stoop.position.set(x, 0, -32.6);
+      stoop.position.set(reg.x, 0, reg.z - reg.d / 2 - 0.6);
       this.scene.add(stoop);
     }
 
@@ -4885,43 +4949,52 @@ export class World {
    *  Fatima's — under restoration, scaffold hint now, studio never (the
    *  registry's exterior-only promise). */
   private buildGableRow(): void {
-    const grb: Array<[string, number, number, boolean]> = [
-      // [id, center x, door color, scaffold]
-      ['GRB_01', -42.6, 0xff6b6b, false],   // the Okafor house — stoop-sale host
-      ['GRB_02', -35, 0x6d4c7d, false],     // plum door
-      ['GRB_03', -27.4, 0x6e554e, true],    // Fatima's — restoration scaffold
-      ['GRB_04', -19.8, PAL.teal, false],   // teal door
-      ['GRB_05', -12.2, PAL.coral, false],  // coral door
+    const grb: Array<[string, number, boolean]> = [
+      // [solid id, door color, scaffold] — A-3 UNIT 4 (W2-C, DEC-4 Option B
+      // approved 2026-11-08): the mass, cornice, parlor/upper window rows
+      // and the high stoop READ the registry's own rows (GRB-01..05, keyed
+      // by the REGISTRY id; the solid name derives by the shipped -→_ law)
+      // through regShell — the hand-transcribed tuples retire for the band.
+      // The stoop doors, the window rhythm, the scaffold hint are the style
+      // and stay code, expressed against the registry box (brief §5: the
+      // flip moves coordinates, not looks).
+      ['GRB_01', 0xff6b6b, false],          // the Okafor house — stoop-sale host
+      ['GRB_02', 0x6d4c7d, false],          // plum door
+      ['GRB_03', 0x6e554e, true],           // Fatima's — restoration scaffold
+      ['GRB_04', PAL.teal, false],          // teal door
+      ['GRB_05', PAL.coral, false],         // coral door
     ];
-    for (const [id, cx, door, scaffold] of grb) {
-      this.solid(id, cx, 6.25, 26, 7.6, 12.5, 12, PAL.bldg2);
-      // the cornice caps the row (KTN00W crown grammar)
-      this.deco(`${id}_Cornice`, cx, 12.25, 26, 7.8, 0.5, 12.2, PAL.stone, {});
+    for (const [id, door, scaffold] of grb) {
+      const reg = this.regShell(id.replace('_', '-'));
+      const faceZ = reg.z + reg.d / 2; // the row's street face (the Gable walk side, z 34)
+      this.solid(id, reg.x, reg.h / 2, reg.z, reg.w, reg.h, reg.d, PAL.bldg2);
+      // the cornice caps the row (KTN00W crown grammar): h − 0.25 over w/d + 0.2
+      this.deco(`${id}_Cornice`, reg.x, reg.h - 0.25, reg.z, reg.w + 0.2, 0.5, reg.d + 0.2, PAL.stone, {});
       // tall parlor windows (y 4.6) + two upper floors (7.4 / 10.2)
-      for (const wx of [cx - 1.7, cx + 1.7]) {
+      for (const wx of [reg.x - 1.7, reg.x + 1.7]) {
         this.decoMesh(`${id}_Parlor_${wx}`, new THREE.BoxGeometry(1.3, 2.2, 0.08),
-          this.bank.get(PAL.windowDim), wx, 4.6, 32.05); // floats proud of the z 32 face (W1 grammar)
+          this.bank.get(PAL.windowDim), wx, 4.6, faceZ + 0.05); // floats proud of the street face (W1 grammar)
         for (const wy of [7.4, 10.2]) {
           this.decoMesh(`${id}_Win_${wx}_${wy}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
-            this.bank.get(PAL.windowDim), wx, wy, 32.05);
+            this.bank.get(PAL.windowDim), wx, wy, faceZ + 0.05);
         }
       }
       // the high stoop — the door base at y 0.72, every riser ≤ 0.35
       const stoop = makeBrownstoneStoop(this.bank, door, true);
-      stoop.position.set(cx, 0, 32.6);
+      stoop.position.set(reg.x, 0, faceZ + 0.6);
       this.scene.add(stoop);
       if (scaffold) {
         // restoration scaffold: two poles, a deck, a guard rail — the hint
         // the GDD Regular hook needs, nothing more
-        for (const px of [cx - 1.8, cx + 1.8]) {
+        for (const px of [reg.x - 1.8, reg.x + 1.8]) {
           this.decoMesh(`GRB03_Pole_${px}`, new THREE.BoxGeometry(0.16, 5.0, 0.16),
-            this.bank.get(0x8a6a4a), px, 2.5, 32.3);
-          this.colliders.push(boxFromCenter(px, 2.5, 32.3, 0.18, 5.0, 0.18));
+            this.bank.get(0x8a6a4a), px, 2.5, faceZ + 0.3);
+          this.colliders.push(boxFromCenter(px, 2.5, faceZ + 0.3, 0.18, 5.0, 0.18));
         }
         this.decoMesh('GRB03_Deck', new THREE.BoxGeometry(3.8, 0.1, 0.9),
-          this.bank.get(0x8a6a4a), cx, 3.3, 32.35);
+          this.bank.get(0x8a6a4a), reg.x, 3.3, faceZ + 0.35);
         this.decoMesh('GRB03_Rail', new THREE.BoxGeometry(3.8, 0.06, 0.06),
-          this.bank.get(0x3a3440), cx, 4.15, 32.7);
+          this.bank.get(0x3a3440), reg.x, 4.15, faceZ + 0.7);
       }
     }
   }
@@ -4962,96 +5035,109 @@ export class World {
   private buildJuniperFaces(): void {
     // TEN-01 — two 4.5 m tenements with the light-slot between (registry
     // footprint is the pair's 10 m bounding; the slot is the airshaft tell)
-    for (const [id, x0, x1] of [['TEN_01a', -60, -55.5], ['TEN_01b', -54.5, -50]] as const) {
-      const cx = (x0 + x1) / 2, w = x1 - x0;
-      this.solid(id, cx, 8.5, -14, w, 17, 12, PAL.brick);
-      this.deco(`${id}_Cornice`, cx, 16.75, -14, w + 0.2, 0.5, 12.2, PAL.stone, {});
+    // A-3 UNIT 6 (W3-C, DEC-4 Option B): the pair's bounding box READS the
+    // registry row (TEN-01) through regShell; the lot split and the slot
+    // are the style, derived against the registry box. Hand tuples retired.
+    const ten = this.regShell('TEN-01');
+    const lotW = (ten.w - 1) / 2; // the 1 m light-slot owns the middle
+    for (const [id, x0] of [['TEN_01a', ten.x - ten.w / 2], ['TEN_01b', ten.x + 0.5]] as const) {
+      const cx = x0 + lotW / 2, w = lotW;
+      this.solid(id, cx, ten.h / 2, ten.z, w, ten.h, ten.d, PAL.brick);
+      this.deco(`${id}_Cornice`, cx, ten.h - 0.25, ten.z, w + 0.2, 0.5, ten.d + 0.2, PAL.stone, {});
       for (let f = 0; f < 5; f++) {
         for (const wx of [cx - w / 4, cx + w / 4]) {
           this.decoMesh(`${id}_Win_${f}_${wx}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
-            this.bank.get(PAL.windowDim), wx, 3.4 + f * 2.6, -7.92);
+            this.bank.get(PAL.windowDim), wx, 3.4 + f * 2.6, ten.z + ten.d / 2 + 0.08);
         }
       }
       // west-face windows — only the avenue lot reads the walk (the east
       // lot's west face IS the light-slot)
       if (id === 'TEN_01a') {
         for (let f = 0; f < 5; f++) {
-          for (const wz of [-16.5, -11.5]) {
+          for (const wz of [-16.5, -11.5]) { // the style rhythm off the row center
             this.decoMesh(`${id}_WinW_${f}_${wz}`, new THREE.BoxGeometry(0.08, 1.6, 1.1),
-              this.bank.get(PAL.windowDim), -60.04, 3.4 + f * 2.6, wz);
+              this.bank.get(PAL.windowDim), ten.x - ten.w / 2 - 0.04, 3.4 + f * 2.6, wz);
           }
         }
       }
     }
     // the two Kestrel-side doors (registry: (−57, −8) and (−51, −8), faces N)
-    for (const dx of [-57, -51]) {
-      this.deco(`TEN01_Door_${dx}`, dx, 1.4, -7.94, 1.2, 2.8, 0.12, 0x6e554e, {});
+    for (const dx of [-57, -51]) { // the rows' own entrance offsets (the style law)
+      this.deco(`TEN01_Door_${dx}`, dx, 1.4, ten.z + ten.d / 2 + 0.06, 1.2, 2.8, 0.12, 0x6e554e, {});
     }
     // the light-slot: 1 m of open sky between the lots, grilles at both
     // mouths so nobody wedges in an airshaft (the doc 35 lesson)
-    for (const gz of [-7.95, -20.05]) {
+    for (const gz of [ten.z + ten.d / 2 + 0.05, ten.z - ten.d / 2 - 0.05]) {
       const grille = makeFence(this.bank, 1.0, 1.3);
-      grille.position.set(-55, 0.05, gz);
+      grille.position.set(ten.x, 0.05, gz);
       this.scene.add(grille);
-      this.colliders.push(boxFromCenter(-55, 0.65, gz, 1.1, 1.3, 0.15));
+      this.colliders.push(boxFromCenter(ten.x, 0.65, gz, 1.1, 1.3, 0.15));
     }
     // fire escapes on both west faces (the silhouette builder, rotated to
     // face the avenue)
-    for (const ez of [-14]) {
+    for (const ez of [ten.z]) {
       const esc = makeFireEscapeDeco(this.bank, 4.4, 8.2);
-      esc.position.set(-60.02, 0, ez);
+      esc.position.set(ten.x - ten.w / 2 - 0.02, 0, ez);
       esc.rotation.y = -Math.PI / 2;
       this.scene.add(esc);
     }
 
     // SRC-02 Juniper Court (−55, −26, 10×12, h15) — pre-war walk-up
-    this.solid('SRC_02', -55, 7.5, -26, 10, 15, 12, PAL.bldg2);
-    this.deco('SRC02_Cornice', -55, 14.75, -26, 10.2, 0.5, 12.2, PAL.stone, {});
+    // A-3 UNIT 6: the mass READS the registry row (SRC-02); the window
+    // rhythm and the corrected Marlow-face door are the style.
+    const src2 = this.regShell('SRC-02');
+    this.solid('SRC_02', src2.x, src2.h / 2, src2.z, src2.w, src2.h, src2.d, PAL.bldg2);
+    this.deco('SRC02_Cornice', src2.x, src2.h - 0.25, src2.z, src2.w + 0.2, 0.5, src2.d + 0.2, PAL.stone, {});
     for (let f = 0; f < 4; f++) {
-      for (const wx of [-57.4, -52.6]) {
+      for (const wx of [src2.x - 2.4, src2.x + 2.4]) { // the style rhythm
         this.decoMesh(`SRC02_Win_${f}_${wx}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
-          this.bank.get(PAL.windowDim), wx, 3.6 + f * 2.7, -31.92); // south face (Marlow)
+          this.bank.get(PAL.windowDim), wx, 3.6 + f * 2.7, src2.z - src2.d / 2 + 0.08); // south face (Marlow)
       }
     }
     // the registry's north entrance pointed into TEN-01; corrected to the
     // Marlow face it actually fronts (docs/47)
-    this.deco('SRC02_Door', -55, 1.4, -32.06, 1.2, 2.8, 0.12, PAL.teal, {});
+    this.deco('SRC02_Door', src2.x, 1.4, src2.z - src2.d / 2 - 0.06, 1.2, 2.8, 0.12, PAL.teal, {});
     const src02Stoop = makeBrownstoneStoop(this.bank, PAL.teal);
-    src02Stoop.position.set(-55, 0, -32.6);
+    src02Stoop.position.set(src2.x, 0, src2.z - src2.d / 2 - 0.6);
     src02Stoop.rotation.y = Math.PI;
     this.scene.add(src02Stoop);
 
     // KCM-01 Alder Works Hall (−54, 26, 12×12, h15) — limestone base,
     // brick upper, painted band, the marquee (LMK-07)
-    this.solid('KCM_01_upper', -54, 9.1, 26, 12, 11.8, 12, PAL.brick);
-    this.solid('KCM_01_base', -54, 1.6, 26, 12.1, 3.2, 12.1, PAL.stone);
-    this.deco('KCM01_Band_W', -60.06, 3.55, 26, 0.12, 0.7, 12.1, PAL.teal, {});
-    this.deco('KCM01_Band_N', -54, 3.55, 32.06, 12.1, 0.7, 0.12, PAL.teal, {});
+    // A-3 UNIT 6: the mass READS the registry row (KCM-01); the base/upper
+    // split, the painted band, the marquee (LMK-07) and the address tile
+    // are the style, derived against the registry box.
+    const kcm = this.regShell('KCM-01');
+    const HALL_BASE_H = 3.2; // the limestone base's height (the style law)
+    this.solid('KCM_01_upper', kcm.x, HALL_BASE_H + (kcm.h - HALL_BASE_H) / 2, kcm.z, kcm.w, kcm.h - HALL_BASE_H, kcm.d, PAL.brick);
+    this.solid('KCM_01_base', kcm.x, HALL_BASE_H / 2, kcm.z, kcm.w + 0.1, HALL_BASE_H, kcm.d + 0.1, PAL.stone);
+    this.deco('KCM01_Band_W', kcm.x - kcm.w / 2 - 0.06, 3.55, kcm.z, 0.12, 0.7, kcm.d + 0.1, PAL.teal, {});
+    this.deco('KCM01_Band_N', kcm.x, 3.55, kcm.z + kcm.d / 2 + 0.06, kcm.w + 0.1, 0.7, 0.12, PAL.teal, {});
     // main entrance on the Juniper walk + the Gable-side door
-    this.deco('KCM01_Door_Main', -60.06, 1.5, 26, 0.14, 3.0, 1.8, 0x6e554e, {});
-    this.deco('KCM01_Door_N', -54, 1.5, 32.06, 1.4, 3.0, 0.14, 0x6e554e, {});
+    this.deco('KCM01_Door_Main', kcm.x - kcm.w / 2 - 0.06, 1.5, kcm.z, 0.14, 3.0, 1.8, 0x6e554e, {});
+    this.deco('KCM01_Door_N', kcm.x, 1.5, kcm.z + kcm.d / 2 + 0.06, 1.4, 3.0, 0.14, 0x6e554e, {});
     // the marquee: a projecting board over the main door (LMK-07) — 'x'
     // boards run thickness-in-x, width-in-z (the bodega blade's convention)
     const marquee = this.signBoard('LMK07_Marquee', 'ALDER WORKS', 0.22, 0.85, 3.0, 512, 128, PAL.ink, PAL.cream, 56, 'x');
-    marquee.position.set(-60.5, 4.1, 26);
+    marquee.position.set(kcm.x - kcm.w / 2 - 0.5, 4.1, kcm.z);
     this.scene.add(marquee);
-    for (const rz of [25.1, 26.9]) {
+    for (const rz of [kcm.z - 0.9, kcm.z + 0.9]) {
       this.decoMesh(`LMK07_Rod_${rz}`, new THREE.BoxGeometry(0.9, 0.06, 0.06),
-        this.bank.get(PAL.ink), -59.85, 4.35, rz);
+        this.bank.get(PAL.ink), kcm.x - kcm.w / 2 + 0.15, 4.35, rz);
     }
     // the painted-tile address under the marquee line
     const addr = this.signBoard('KCM01_Address', 'EST. 1927', 0.08, 0.5, 1.6, 256, 80, PAL.stone, PAL.ink, 40, 'x');
-    addr.position.set(-60.1, 2.7, 26);
+    addr.position.set(kcm.x - kcm.w / 2 - 0.1, 2.7, kcm.z);
     this.scene.add(addr);
     // hall windows (upper floors, west + north)
     for (let f = 0; f < 3; f++) {
-      for (const wz of [22.5, 29.5]) {
+      for (const wz of [kcm.z - 3.5, kcm.z + 3.5]) { // the style rhythm
         this.decoMesh(`KCM01_WinW_${f}_${wz}`, new THREE.BoxGeometry(0.08, 1.7, 1.3),
-          this.bank.get(PAL.windowDim), -60.04, 5.4 + f * 2.8, wz);
+          this.bank.get(PAL.windowDim), kcm.x - kcm.w / 2 - 0.04, 5.4 + f * 2.8, wz);
       }
-      for (const wx of [-57.5, -50.5]) {
+      for (const wx of [kcm.x - 3.5, kcm.x + 3.5]) { // the style rhythm
         this.decoMesh(`KCM01_WinN_${f}_${wx}`, new THREE.BoxGeometry(1.3, 1.7, 0.08),
-          this.bank.get(PAL.windowDim), wx, 5.4 + f * 2.8, 32.04);
+          this.bank.get(PAL.windowDim), wx, 5.4 + f * 2.8, kcm.z + kcm.d / 2 + 0.04);
       }
     }
   }
@@ -5060,87 +5146,102 @@ export class World {
    *  diner (LMK-04), SRC-01 the corner court, VND-02 the fruit stand. */
   private buildSycamoreFaces(): void {
     // KTN-07 Sycamore Studios (54, 26, 12×12, h15)
-    this.solid('KTN_07', 54, 7.5, 26, 12, 15, 12, PAL.bldg);
-    this.deco('KTN07_Cornice', 54, 14.75, 26, 12.2, 0.5, 12.2, PAL.stone, {});
+    // A-3 UNIT 6 (W3-C, DEC-4 Option B): the mass READS the registry row
+    // (KTN-07); the studio windows and the walk-up doors are the style,
+    // derived against the registry box. Hand tuples retired.
+    const k7 = this.regShell('KTN-07');
+    this.solid('KTN_07', k7.x, k7.h / 2, k7.z, k7.w, k7.h, k7.d, PAL.bldg);
+    this.deco('KTN07_Cornice', k7.x, k7.h - 0.25, k7.z, k7.w + 0.2, 0.5, k7.d + 0.2, PAL.stone, {});
     // the artist ground floor: big north studio windows
-    for (const wx of [51.2, 54, 56.8]) {
+    for (const wx of [k7.x - 2.8, k7.x, k7.x + 2.8]) { // the style rhythm
       this.decoMesh(`KTN07_Studio_${wx}`, new THREE.BoxGeometry(2.2, 1.9, 0.08),
-        this.bank.get(0x3b3346), wx, 1.9, 32.05);
+        this.bank.get(0x3b3346), wx, 1.9, k7.z + k7.d / 2 + 0.05);
     }
     for (let f = 0; f < 3; f++) {
-      for (const wx of [51.5, 56.5]) {
+      for (const wx of [k7.x - 2.5, k7.x + 2.5]) { // the style rhythm
         this.decoMesh(`KTN07_Win_${f}_${wx}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
-          this.bank.get(PAL.windowDim), wx, 5.4 + f * 2.7, 32.04);
+          this.bank.get(PAL.windowDim), wx, 5.4 + f * 2.7, k7.z + k7.d / 2 + 0.04);
       }
     }
     // doors: the registry's studio door off the yard (55, 20, S) + the
     // Sycamore-walk entrance the walk-up needs (added to the registry)
-    this.deco('KTN07_Door_S', 55, 1.4, 19.94, 1.2, 2.8, 0.12, 0x6e554e, {});
-    this.deco('KTN07_Door_E', 60.06, 1.5, 24, 0.14, 3.0, 1.4, PAL.teal, {});
+    this.deco('KTN07_Door_S', 55, 1.4, k7.z - k7.d / 2 - 0.06, 1.2, 2.8, 0.12, 0x6e554e, {});
+    this.deco('KTN07_Door_E', k7.x + k7.w / 2 + 0.06, 1.5, 24, 0.14, 3.0, 1.4, PAL.teal, {});
 
     // SND-01 the Alder Heights Diner (55, −14, 10×12, h13)
-    this.solid('SND_01_upper', 55, 8.1, -14, 10, 9.8, 12, PAL.brick);
-    this.solid('SND_01_band', 55, 1.6, -14, 10.1, 3.2, 12.1, PAL.cream);
+    // A-3 UNIT 6: the mass READS the registry row (SND-01); the porcelain
+    // band, the corner chamfer, the neon (LMK-04), the rooftop sign and
+    // the doors are the style, derived against the registry box.
+    const snd = this.regShell('SND-01');
+    const DINER_BAND_H = 3.2; // the porcelain band's height (the style law)
+    this.solid('SND_01_upper', snd.x, DINER_BAND_H + (snd.h - DINER_BAND_H) / 2, snd.z, snd.w, snd.h - DINER_BAND_H, snd.d, PAL.brick);
+    this.solid('SND_01_band', snd.x, DINER_BAND_H / 2, snd.z, snd.w + 0.1, DINER_BAND_H, snd.d + 0.1, PAL.cream);
     // band windows — the porcelain ribbon
-    for (const bx of [52.4, 57.6]) {
+    for (const bx of [snd.x - 2.6, snd.x + 2.6]) { // the style rhythm
       this.decoMesh(`SND01_BandWin_${bx}`, new THREE.BoxGeometry(3.4, 1.5, 0.08),
-        this.bank.get(0x3b3346), bx, 1.7, -7.95);
+        this.bank.get(0x3b3346), bx, 1.7, snd.z + snd.d / 2 + 0.05);
     }
     // the corner chamfer at Sycamore×Kestrel (NE), with the coral neon blade
-    const chamfer = this.deco('SND01_Chamfer', 59.45, 1.7, -8.55, 0.9, 3.4, 0.9, PAL.cream, {});
+    const chamfer = this.deco('SND01_Chamfer', snd.x + snd.w / 2 - 0.55, 1.7, snd.z + snd.d / 2 - 0.55, 0.9, 3.4, 0.9, PAL.cream, {});
     chamfer.rotation.y = Math.PI / 4;
     // the coral neon: flush on the Sycamore face by the corner — an inset
     // chamfer sign hides from both streets, a wall sign reads up and down
     // the avenue (the first draft sat in the chamfer and the shots caught it)
     const neon = this.signBoard('LMK04_Neon', 'DINER', 0.14, 2.6, 0.75, 128, 512, PAL.coral, PAL.cream, 84, 'x');
-    neon.position.set(60.12, 2.5, -9.4);
+    neon.position.set(snd.x + snd.w / 2 + 0.12, 2.5, snd.z + 4.6);
     this.scene.add(neon);
     const neonGlow = this.makeGlow(2.4);
-    neonGlow.position.set(60.5, 2.5, -9.4);
+    neonGlow.position.set(snd.x + snd.w / 2 + 0.5, 2.5, snd.z + 4.6);
     this.scene.add(neonGlow);
     // doors: Kestrel walk (N) + Sycamore walk (E)
-    this.deco('SND01_Door_N', 55, 1.5, -7.94, 1.4, 3.0, 0.12, 0x6e554e, {});
-    this.deco('SND01_Door_E', 60.06, 1.5, -14, 0.14, 3.0, 1.4, 0x6e554e, {});
+    this.deco('SND01_Door_N', snd.x, 1.5, snd.z + snd.d / 2 + 0.06, 1.4, 3.0, 0.12, 0x6e554e, {});
+    this.deco('SND01_Door_E', snd.x + snd.w / 2 + 0.06, 1.5, snd.z, 0.14, 3.0, 1.4, 0x6e554e, {});
     // the rooftop DINER sign, readable down Kestrel (faces west) — 'x'
     // board: thickness in x, the 7.6 m width running z, legs under it
-    for (const lz of [-13.2, -7.6]) {
+    for (const lz of [snd.z + 0.8, snd.z + 6.4]) { // the sign's leg pads (the style)
       this.decoMesh(`LMK04_Leg_${lz}`, new THREE.BoxGeometry(0.14, 1.6, 0.14),
-        this.bank.get(PAL.ink), 55, 13.8, lz);
+        this.bank.get(PAL.ink), snd.x, 13.8, lz);
     }
     const roofSign = this.signBoard('LMK04_Roof', 'DINER', 0.2, 1.9, 7.6, 640, 160, PAL.coral, PAL.cream, 96, 'x');
-    roofSign.position.set(55, 15.2, -10.4);
+    roofSign.position.set(snd.x, 15.2, snd.z + 3.6);
     this.scene.add(roofSign);
     // upper windows on the Sycamore face
     for (let f = 0; f < 3; f++) {
-      for (const wz of [-16.5, -11.5]) {
+      for (const wz of [snd.z - 2.5, snd.z + 2.5]) { // the style rhythm
         this.decoMesh(`SND01_Win_${f}_${wz}`, new THREE.BoxGeometry(0.08, 1.5, 1.3),
-          this.bank.get(PAL.windowDim), 60.04, 5.2 + f * 2.6, wz);
+          this.bank.get(PAL.windowDim), snd.x + snd.w / 2 + 0.04, 5.2 + f * 2.6, wz);
       }
     }
 
     // SRC-01 Sycamore Court (55, −26, 10×12, h17) — the SW corner
-    this.solid('SRC_01', 55, 8.5, -26, 10, 17, 12, PAL.bldg2);
-    this.deco('SRC01_Cornice', 55, 16.75, -26, 10.2, 0.5, 12.2, PAL.stone, {});
+    // A-3 UNIT 6: the mass READS the registry row (SRC-01); the window
+    // rows and the corrected Marlow-face door are the style.
+    const src1 = this.regShell('SRC-01');
+    this.solid('SRC_01', src1.x, src1.h / 2, src1.z, src1.w, src1.h, src1.d, PAL.bldg2);
+    this.deco('SRC01_Cornice', src1.x, src1.h - 0.25, src1.z, src1.w + 0.2, 0.5, src1.d + 0.2, PAL.stone, {});
     for (let f = 0; f < 5; f++) {
-      for (const wz of [-28.6, -23.4]) {
+      for (const wz of [src1.z - 2.6, src1.z + 2.6]) { // the style rhythm
         this.decoMesh(`SRC01_Win_${f}_${wz}`, new THREE.BoxGeometry(0.08, 1.6, 1.1),
-          this.bank.get(PAL.windowDim), 60.04, 3.4 + f * 2.6, wz);
+          this.bank.get(PAL.windowDim), src1.x + src1.w / 2 + 0.04, 3.4 + f * 2.6, wz);
       }
-      for (const wx of [52.6, 57.4]) {
+      for (const wx of [src1.x - 2.4, src1.x + 2.4]) { // the style rhythm
         this.decoMesh(`SRC01_WinS_${f}_${wx}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
-          this.bank.get(PAL.windowDim), wx, 3.4 + f * 2.6, -32.08);
+          this.bank.get(PAL.windowDim), wx, 3.4 + f * 2.6, src1.z - src1.d / 2 - 0.08);
       }
     }
     // registry entrance flipped to the Marlow face it fronts (docs/47)
-    this.deco('SRC01_Door', 55, 1.4, -32.06, 1.2, 2.8, 0.12, 0x6d4c7d, {});
+    this.deco('SRC01_Door', src1.x, 1.4, src1.z - src1.d / 2 - 0.06, 1.2, 2.8, 0.12, 0x6d4c7d, {});
     const src01Stoop = makeBrownstoneStoop(this.bank, 0x6d4c7d);
-    src01Stoop.position.set(55, 0, -32.6);
+    src01Stoop.position.set(src1.x, 0, src1.z - src1.d / 2 - 0.6);
     src01Stoop.rotation.y = Math.PI;
     this.scene.add(src01Stoop);
 
     // VND-02 — the GOLDEN ORCHARD fruit stand (63.3, −18): crate stack +
     // tarp canopy, the van's brand on the avenue. W3 correction (docs/47):
     // the registry's x 62.5 straddled the avenue spine at x 61.5.
+    // A-3 UNIT 6: the stand's placement AND its collider READ the row
+    // (VND-02); the crates, tarp and sign are the prop factory (the style).
+    const vnd = this.regShell('VND-02');
     const stand = new THREE.Group();
     stand.name = 'Dressing_FruitStand';
     const crateWood = this.bank.get(0x8a6a4a);
@@ -5165,50 +5266,64 @@ export class World {
     const fruit = this.signBoard('VND02_Sign', 'GOLDEN ORCHARD', 1.7, 0.34, 0.06, 384, 80, PAL.gold, PAL.ink, 34);
     fruit.position.set(0, 1.55, 0.62);
     stand.add(fruit);
-    stand.position.set(63.3, 0.05, -18);
+    stand.position.set(vnd.x, 0.05, vnd.z);
     this.zoneDressing.push(stand);
     this.scene.add(stand);
-    this.colliders.push(boxFromCenter(63.3, 0.6, -18, 2.2, 1.2, 1.2));
+    this.colliders.push(boxFromCenter(vnd.x, 0.6, vnd.z, vnd.w, 1.2, vnd.d));
   }
 
   /** W3, section C — the class-D backdrop walls: eight avenue segments and
    *  two roofline strips (docs/40 §3). Simplified masses, storefront hint
-   *  band, no interiors — the skyline-card honesty, one step closer. */
+   *  band, no interiors — the skyline-card honesty, one step closer.
+   *  A-3 UNIT 5 (W3-D, DEC-4 Option B): each row's segmentation derives
+   *  from the REGISTRY footprint (center/width/depth → equal slabs); the
+   *  VARIED per-segment heights are the authored style and stay code (the
+   *  registry's height column is the row's canonical height — the pin:
+   *  footprint verbatim, height inside the segment span). */
   private buildBackdrops(): void {
     const hint = (name: string, cx: number, cz: number, sx: number, sz: number): void => {
       const h = this.deco(name, cx, 1.7, cz, sx, 3.4, sz, PAL.windowDim, {});
       h.castShadow = false; // far hint bands: their shadows are noise (W3 perf)
     };
-    // Juniper W (x −82..−74): three slabs per segment per the registry notes
+    // Juniper W/E (x ±78 ±4): N slabs per row, split evenly across the
+    // registry depth
     const seg = (
-      id: string, x: number, z0: number, z1: number, heights: number[],
+      regId: string, heights: number[],
     ): void => {
+      const reg = this.regShell(regId);
+      const id = regId.replace(/-/g, '_'); // the solid's scene name — the shipped naming law
       const n = heights.length;
-      const d = (z1 - z0) / n;
+      const d = reg.d / n;
       for (let i = 0; i < n; i++) {
         const h = heights[i];
-        const cz = z0 + d * (i + 0.5);
-        this.solid(`${id}_${i}`, x, h / 2, cz, 8, h, d, i % 2 ? PAL.bldg : PAL.bldg2);
-        hint(`${id}_hint_${i}`, x, cz, 8.02, Math.min(d - 0.4, 7));
+        const cz = reg.z - reg.d / 2 + d * (i + 0.5);
+        this.solid(`${id}_${i}`, reg.x, h / 2, cz, reg.w, h, d, i % 2 ? PAL.bldg : PAL.bldg2);
+        hint(`${id}_hint_${i}`, reg.x, cz, reg.w + 0.02, Math.min(d - 0.4, 7));
       }
     };
-    seg('VDN_DW1a', -78, 8, 32, [14, 19, 16]);
-    seg('VDN_DW1b', -78, 46, 61, [15, 13]);
-    seg('VDN_DW1c', -78, -32, -8, [14, 21, 16]);
-    seg('VDN_DW1d', -78, -61, -46, [14, 12]);
-    seg('VDN_DE1a', 78, 8, 32, [17, 14, 16]);
-    seg('VDN_DE1b', 78, 46, 61, [15, 13]);
-    seg('VDN_DE1c', 78, -32, -8, [16, 22, 14]);
-    seg('VDN_DE1d', 78, -61, -46, [12, 14]);
-    // the Gable / Marlow roofline strips: rowhouse silhouettes, varied
+    seg('VDN-DW1a', [14, 19, 16]);
+    seg('VDN-DW1b', [15, 13]);
+    seg('VDN-DW1c', [14, 21, 16]);
+    seg('VDN-DW1d', [14, 12]);
+    seg('VDN-DE1a', [17, 14, 16]);
+    seg('VDN-DE1b', [15, 13]);
+    seg('VDN-DE1c', [16, 22, 14]);
+    seg('VDN-DE1d', [12, 14]);
+    // the Gable / Marlow roofline strips: rowhouse silhouettes, varied —
+    // each strip splits the registry width evenly
     const heightsN = [11, 13, 15, 12, 14, 13, 11, 15, 12, 14];
     const heightsS = [14, 12, 15, 13, 11, 14, 12, 15, 13, 11];
-    for (const [id, zc, hs] of [['VDN_DN1', 53.5, heightsN], ['VDN_DS1', -53.5, heightsS]] as const) {
+    const strip = (regId: string, hs: number[]): void => {
+      const reg = this.regShell(regId);
+      const id = regId.replace(/-/g, '_');
+      const w = reg.w / hs.length;
       for (let i = 0; i < hs.length; i++) {
-        const cx = -60 + 12 * (i + 0.5);
-        this.solid(`${id}_${i}`, cx, hs[i] / 2, zc, 12, hs[i], 10, i % 2 ? PAL.bldg2 : PAL.bldg);
+        const cx = reg.x - reg.w / 2 + w * (i + 0.5);
+        this.solid(`${id}_${i}`, cx, hs[i] / 2, reg.z, w, hs[i], reg.d, i % 2 ? PAL.bldg2 : PAL.bldg);
       }
-    }
+    };
+    strip('VDN-DN1', heightsN);
+    strip('VDN-DS1', heightsS);
   }
 
   /** W3, section D — the two painted landmarks: the Garden Mural (LMK-05,

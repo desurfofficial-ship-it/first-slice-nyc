@@ -108,6 +108,9 @@ export class Game {
   private waypoint: THREE.Sprite | null = null;
   private roofHidden = false;
   private climbLean = 0;
+  /** The walker's stride half-cycle index — footstep ownership (one soft
+   *  tap per footfall, scaled with pace; see the cast loop in frame()). */
+  private stepIndex = 0;
   /** Scratch capsule for the kid's follow-walk — reused, never allocated
    *  per frame (his physical body against the world's colliders). */
   private readonly kidCapsule: Capsule = { x: 0, y: 0.05, z: 0, radius: 0.25, height: 1.4 };
@@ -726,6 +729,23 @@ export class Game {
       updatePersonAnim(actor, dt, actor === this.playerVisual
         ? { mode: this.sitting ? 'sit' : climbing ? 'climb' : 'auto' }
         : undefined);
+    }
+
+    // the walker's own footsteps — one soft asphalt tap per stride
+    // half-cycle, grounded only, scaled with pace (a stroll pads, a
+    // sprint slaps). docs/30 house rules: synthesized, gain-enveloped,
+    // mute-respecting, silent until the first gesture unlocks audio.
+    const prig = this.playerVisual.userData.rig as PersonRig | undefined;
+    if (prig && !this.sitting && !climbing && this.player.onGround) {
+      const idx = Math.floor(prig.phase / Math.PI);
+      if (prig.smoothSpeed > 0.5) {
+        if (idx !== this.stepIndex) {
+          this.stepIndex = idx;
+          gameAudio.step(0.35 + Math.min(1, prig.smoothSpeed / 6.4) * 0.55);
+        }
+      } else {
+        this.stepIndex = idx; // parked: no steps, no stale crossing
+      }
     }
 
     // the follow beacon — a gold chevron bobbing over whoever the objective

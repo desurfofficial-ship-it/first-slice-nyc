@@ -723,7 +723,7 @@
     {
       "id": "KTN-00W",
       "name": "The Corner House",
-      "status": "planned",
+      "status": "built (W1)",
       "class": "B",
       "face": "Kestrel N",
       "block": "BLK-N",
@@ -751,7 +751,7 @@
     {
       "id": "KTN-06",
       "name": "6 Kestrel Street East — the café shell",
-      "status": "planned",
+      "status": "built (W1)",
       "class": "A",
       "face": "Kestrel N",
       "block": "BLK-N",
@@ -779,7 +779,7 @@
     {
       "id": "GRB-01",
       "name": "Gable Row 1 (the Okafor house)",
-      "status": "planned",
+      "status": "built (W2)",
       "class": "C",
       "face": "Gable S",
       "block": "BLK-N",
@@ -807,7 +807,7 @@
     {
       "id": "GRB-02",
       "name": "Gable Row 2",
-      "status": "planned",
+      "status": "built (W2)",
       "class": "C",
       "face": "Gable S",
       "block": "BLK-N",
@@ -834,7 +834,7 @@
     {
       "id": "GRB-03",
       "name": "Gable Row 3 (Fatima's)",
-      "status": "planned",
+      "status": "built (W2)",
       "class": "C",
       "face": "Gable S",
       "block": "BLK-N",
@@ -862,7 +862,7 @@
     {
       "id": "GRB-04",
       "name": "Gable Row 4",
-      "status": "planned",
+      "status": "built (W2)",
       "class": "C",
       "face": "Gable S",
       "block": "BLK-N",
@@ -889,7 +889,7 @@
     {
       "id": "GRB-05",
       "name": "Gable Row 5",
-      "status": "planned",
+      "status": "built (W2)",
       "class": "C",
       "face": "Gable S",
       "block": "BLK-N",
@@ -916,7 +916,7 @@
     {
       "id": "KCM-01",
       "name": "Alder Works Hall",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "A",
       "face": "Juniper E",
       "block": "BLK-N",
@@ -951,7 +951,7 @@
     {
       "id": "KTN-07",
       "name": "Sycamore Studios",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "C",
       "face": "Sycamore W",
       "block": "BLK-N",
@@ -984,7 +984,7 @@
     {
       "id": "SND-01",
       "name": "Alder Heights Diner",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "A",
       "face": "Sycamore W",
       "block": "BLK-S",
@@ -1018,7 +1018,7 @@
     {
       "id": "SRC-01",
       "name": "Sycamore Court",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "C",
       "face": "Sycamore W / Marlow N corner",
       "block": "BLK-S",
@@ -1045,7 +1045,7 @@
     {
       "id": "TEN-01",
       "name": "Juniper Tenements",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "C",
       "face": "Juniper E",
       "block": "BLK-S",
@@ -1078,7 +1078,7 @@
     {
       "id": "SRC-02",
       "name": "Juniper Court",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "C",
       "face": "Juniper E",
       "block": "BLK-S",
@@ -1105,7 +1105,7 @@
     {
       "id": "PWK-01",
       "name": "Marlow West Walk-up",
-      "status": "planned",
+      "status": "built (W1)",
       "class": "C",
       "face": "Marlow N",
       "block": "BLK-S",
@@ -1131,7 +1131,7 @@
     {
       "id": "SMB-01",
       "name": "Marlow Bakery ('the oven smell')",
-      "status": "planned",
+      "status": "built (W1)",
       "class": "B",
       "face": "Marlow N",
       "block": "BLK-S",
@@ -1159,7 +1159,7 @@
     {
       "id": "SMB-02",
       "name": "B-side Records",
-      "status": "planned",
+      "status": "built (W1)",
       "class": "B",
       "face": "Marlow N",
       "block": "BLK-S",
@@ -1186,7 +1186,7 @@
     {
       "id": "SMB-03",
       "name": "Kestrel Hardware",
-      "status": "planned",
+      "status": "built (W1)",
       "class": "B",
       "face": "Marlow N",
       "block": "BLK-S",
@@ -1213,7 +1213,7 @@
     {
       "id": "PWK-02",
       "name": "Marlow Mid Walk-up A",
-      "status": "planned",
+      "status": "built (W1)",
       "class": "C",
       "face": "Marlow N",
       "block": "BLK-S",
@@ -1239,7 +1239,7 @@
     {
       "id": "PWK-03",
       "name": "Marlow Mid Walk-up B",
-      "status": "planned",
+      "status": "built (W1)",
       "class": "C",
       "face": "Marlow N",
       "block": "BLK-S",
@@ -1295,7 +1295,7 @@
     {
       "id": "SUB-02",
       "name": "Alder Heights station (K) — south control house",
-      "status": "planned",
+      "status": "built (W1)",
       "class": "B",
       "face": "Kestrel S / Juniper",
       "block": null,
@@ -1346,7 +1346,7 @@
     {
       "id": "VND-02",
       "name": "Fruit stand (Sycamore)",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "C",
       "face": "Sycamore W walk",
       "block": null,
@@ -1369,7 +1369,7 @@
     {
       "id": "VDN-DW1a",
       "name": "Juniper backdrop W (Kestrel–Gable)",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "D",
       "face": "Juniper W",
       "block": null,
@@ -1389,7 +1389,7 @@
     {
       "id": "VDN-DW1b",
       "name": "Juniper backdrop W (N of Gable)",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "D",
       "face": "Juniper W",
       "block": null,
@@ -1409,7 +1409,7 @@
     {
       "id": "VDN-DW1c",
       "name": "Juniper backdrop W (Kestrel–Marlow)",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "D",
       "face": "Juniper W",
       "block": null,
@@ -1429,7 +1429,7 @@
     {
       "id": "VDN-DW1d",
       "name": "Juniper backdrop W (S of Marlow)",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "D",
       "face": "Juniper W",
       "block": null,
@@ -1449,7 +1449,7 @@
     {
       "id": "VDN-DE1a",
       "name": "Sycamore backdrop E (Kestrel–Gable)",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "D",
       "face": "Sycamore E",
       "block": null,
@@ -1469,7 +1469,7 @@
     {
       "id": "VDN-DE1b",
       "name": "Sycamore backdrop E (N of Gable)",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "D",
       "face": "Sycamore E",
       "block": null,
@@ -1489,7 +1489,7 @@
     {
       "id": "VDN-DE1c",
       "name": "Sycamore backdrop E (Kestrel–Marlow)",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "D",
       "face": "Sycamore E",
       "block": null,
@@ -1509,7 +1509,7 @@
     {
       "id": "VDN-DE1d",
       "name": "Sycamore backdrop E (S of Marlow)",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "D",
       "face": "Sycamore E",
       "block": null,
@@ -1529,7 +1529,7 @@
     {
       "id": "VDN-DN1",
       "name": "Gable backdrop row N",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "D",
       "face": "Gable N",
       "block": null,
@@ -1549,7 +1549,7 @@
     {
       "id": "VDN-DS1",
       "name": "Marlow backdrop row S",
-      "status": "planned",
+      "status": "built (W3)",
       "class": "D",
       "face": "Marlow S",
       "block": null,

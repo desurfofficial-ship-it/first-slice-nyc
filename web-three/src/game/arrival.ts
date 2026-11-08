@@ -62,8 +62,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { updatePersonAnim, type PersonLook } from '../world/personRig';
-import { Tweens, easeLinear } from '../engine/tweens';
+import { Tweens, easeLinear, easeSine } from '../engine/tweens';
 import { PAL } from '../core/palette';
+import { gameAudio } from './audio';
 import type { UI } from '../ui/UI';
 
 // ---------------------------------------------------------------- machine --
@@ -294,6 +295,26 @@ export class ArrivalCinematic {
       // the bus creeps toward the gate while you talk
       this.strip.position.x -= CREEP_SPEED * dt;
     }
+    // the ride sounds like a ride the moment audio is unlocked (the
+    // browsers' first-gesture policy decides when that is; the loop's
+    // single-owner guard makes every call until then a cheap no-op)
+    if (this.machine.phase === 'ride' || this.machine.phase === 'choice' || this.machine.phase === 'reply') {
+      gameAudio.rumbleStart();
+    }
+    // the living bus — the lens sways on its suspension while the coach
+    // rolls (a fuller sway) and idles at the gate (a slower, softer one).
+    // The interior rides the camera, so the WORLD is what wobbles past the
+    // glass — exactly what a bus window feels like. ±2 cm: nothing the
+    // staging cone (or the dome-exit math) can feel.
+    if (this.windowFrame) {
+      const idle = this.machine.phase !== 'ride';
+      const amp = idle ? 0.009 : 0.02;
+      const rate = idle ? 0.5 : 0.9;
+      const w = this.machine.elapsed;
+      this.host.rigPos.x = RIDE_POS.x
+        + Math.sin(w * rate) * amp
+        + Math.sin(w * rate * 2.3 + 1.1) * amp * 0.3;
+    }
     // the neighbor's breath — 1.7 s cycle, ±6 mm, the only motion she has
     if (this.neighborRig) {
       const tS = this.machine.elapsed * 1.7;
@@ -326,6 +347,11 @@ export class ArrivalCinematic {
       }
       case 'card':
         this.host.ui.cineHideBox();
+        // the terminal announces you while the screen is still dark, and
+        // the engine's rumble fades under the dip — the PA is the station
+        // greeting the coach it was waiting for
+        gameAudio.rumbleStop();
+        gameAudio.announce();
         void this.playArrivalCard();
         break;
       case 'handover':
@@ -614,7 +640,6 @@ export class ArrivalCinematic {
     const corniceMat = this.lambert(0x38313e);
     const capMat = this.lambert(0x2f2a36);
     const ironMat = this.lambert(0x2b2630);
-    const awnMats = [this.lambertFlat(0x2a9d8f), this.lambertFlat(0xb23a48)];
     const stoopMat = this.lambert(0x9a94a0);
     const brickSideMat = (v: number, wM: number, hM: number): THREE.MeshLambertMaterial => {
       const t = this.brickTexture(v).clone();
@@ -630,12 +655,12 @@ export class ArrivalCinematic {
       o: {
         storefront?: boolean; door?: boolean; stoop?: boolean; parapet?: number;
         floors?: number; fire?: boolean; water?: boolean; antenna?: boolean;
-        awning?: boolean; bulk?: boolean; ppm?: number;
+        awning?: boolean; bulk?: boolean; ppm?: number; shop?: number;
       } = {},
     ): void => {
       const { map, glow } = this.tenementFace(w, h, v, seed, {
         storefront: !!o.storefront, door: !!o.door, parapet: o.parapet,
-        floors: o.floors, ppm: o.ppm,
+        floors: o.floors, ppm: o.ppm, shop: o.shop,
       });
       const face = new THREE.MeshLambertMaterial({
         color: 0xffffff,
@@ -666,11 +691,32 @@ export class ArrivalCinematic {
         box(strip, 'RideAntennaBar', ironMat, x + w * 0.3, h + 1.55, z - depth * 0.15, 0.6, 0.035, 0.035);
       }
       if (o.awning && o.storefront) {
-        const aw = box(strip, 'RideAwning', awnMats[v % 2], x - w * 0.16, 2.72, z + depth / 2 + 0.3, w * 0.52, 0.06, 0.72);
+        // striped canvas, not a painted slab: the texture runs across the
+        // width, the valance hangs from the front edge, and two iron rods
+        // carry the corners back to the wall — the old flat teal slab
+        // floated with a visible gap and read as a board, not a shop
+        const awnTex = this.awningTexture(seed + v * 31);
+        this.disposables.push(awnTex);
+        const awnMat = new THREE.MeshLambertMaterial({ map: awnTex, fog: false });
+        this.disposables.push(awnMat);
+        const ax = x - w * 0.16;
+        const az = z + depth / 2 + 0.3;
+        const aw = box(strip, 'RideAwning', awnMat, ax, 2.72, az, w * 0.52, 0.06, 0.72);
         // +0.62: Rx drops the front edge (0,0,1)→(0,−sin,cos) — an awning
         // slopes DOWN out of the wall. The old −0.62 ramped it up like a
         // ski jump, back edge floating off the brick.
         aw.rotation.x = 0.62;
+        const frontY = 2.72 - Math.sin(0.62) * 0.36;
+        const frontZ = az + Math.cos(0.62) * 0.36;
+        const skirt = box(strip, 'RideAwningValance', awnMat, ax, frontY - 0.05, frontZ, w * 0.52, 0.14, 0.02);
+        skirt.rotation.x = 0.1; // hangs a touch forward, cloth off a bar
+        for (const rxd of [-1, 1]) {
+          const wallZ = z + depth / 2 + 0.02;
+          const rod = box(strip, 'RideAwningRod', ironMat,
+            ax + rxd * w * 0.26, (frontY + 3.05) / 2, (frontZ + wallZ) / 2,
+            0.035, 0.035, 0.82);
+          rod.rotation.x = Math.atan2(-(3.05 - frontY), wallZ - frontZ);
+        }
       }
       if (o.stoop) {
         // three stone steps down to the sidewalk, iron rails to hold
@@ -755,11 +801,13 @@ export class ArrivalCinematic {
     tenement(3.0, -2.9, 2.4, 6.4, 2.2, 1, 11, { parapet: 0.8, stoop: true, door: true, floors: 2 });
     tenement(4.7, -3.1, 2.8, 7.0, 2.4, 0, 23, { parapet: 0.8, stoop: true, door: true, floors: 2, bulk: true });
     tenement(6.4, -3.0, 2.3, 6.2, 2.2, 2, 37, { parapet: 0.8, stoop: true, door: true, floors: 2 });
-    // the tenements proper — taller as midtown nears, each its own face
-    tenement(8.8, -3.1, 3.0, 9.0, 2.8, 0, 51, { storefront: true, awning: true, fire: true });
-    tenement(11.3, -3.4, 3.2, 13.0, 3.0, 1, 67, { storefront: true, water: true, fire: true, bulk: true });
-    tenement(13.9, -3.1, 3.0, 11.0, 2.8, 2, 83, { storefront: true, awning: true, bulk: true });
-    tenement(16.5, -3.5, 3.4, 15.0, 3.2, 0, 97, { storefront: true, water: true, antenna: true, fire: true, ppm: 48 });
+    // the tenements proper — taller as midtown nears, each its own face,
+    // each its own trade (STRIP_SHOPS: laundry → bodega → pizza → coffee,
+    // four businesses and four brick lots in one block)
+    tenement(8.8, -3.1, 3.0, 9.0, 2.8, 4, 51, { storefront: true, awning: true, fire: true, shop: ArrivalCinematic.STRIP_SHOPS[0] });
+    tenement(11.3, -3.4, 3.2, 13.0, 3.0, 3, 67, { storefront: true, water: true, fire: true, bulk: true, shop: ArrivalCinematic.STRIP_SHOPS[1] });
+    tenement(13.9, -3.1, 3.0, 11.0, 2.8, 5, 83, { storefront: true, awning: true, bulk: true, shop: ArrivalCinematic.STRIP_SHOPS[2] });
+    tenement(16.5, -3.5, 3.4, 15.0, 3.2, 2, 97, { storefront: true, water: true, antenna: true, fire: true, ppm: 48, shop: ArrivalCinematic.STRIP_SHOPS[3] });
 
     // the city's own pavement — concrete replaces grass for the last stretch
     box(strip, 'RideSidewalk', this.lambert(0x8f8994), 9.7, 0.045, 0.3, 16, 0.05, 4.0);
@@ -768,7 +816,10 @@ export class ArrivalCinematic {
     const lampPost = (x: number) => {
       cyl(strip, 'RideLampPole', mats.frame, x, 2.15, 1.85, 0.045, 0.07, 4.3, 6);
       box(strip, 'RideLampArm', mats.frame, x, 4.22, 1.85, 0.72, 0.06, 0.06);
-      box(strip, 'RideLampHead', this.lambertEmissive(0xffe0b0, 0.85), x - 0.3, 4.14, 1.85, 0.3, 0.09, 0.16);
+      // the head hangs from a short stalk at the arm's far end — a lamp
+      // under its arm, not a white dash floating beside it
+      box(strip, 'RideLampStalk', mats.frame, x - 0.3, 4.17, 1.85, 0.03, 0.12, 0.03);
+      box(strip, 'RideLampHead', this.lambertEmissive(0xffe0b0, 0.85), x - 0.3, 4.06, 1.85, 0.26, 0.1, 0.14);
     };
     lampPost(9.9);
     lampPost(16.4);
@@ -877,18 +928,47 @@ export class ArrivalCinematic {
       }
     }
 
-    // street-level fabric — a low brick band IN FRONT of the towers (98 m
-    // out, 12 m this side of them), so the skyline sits IN a city instead
-    // of floating over one. Mini-tenements, exact-fit faces, alternate
-    // storefronts; the strip's tenements carry the close-up duty, these
-    // carry the middle distance — a lit shopfront strip at the horizon.
-    const lowZ = 12;
-    for (let i = 0; i < 20; i++) {
-      const x = -46 + i * 4.85;
-      const h = 5.0 + ((i * 37) % 23) / 10; // 5.0 … 7.2, deterministic
-      const w = 3.4;
-      const { map, glow } = this.tenementFace(w, h, i % 3, i * 29 + 3, {
-        storefront: i % 2 === 0, floors: 2, parapet: 0.5, ppm: 28,
+    // street-level fabric — the city's own edge block, IN FRONT of the
+    // towers (98 m out). The old band was twenty near-identical boxes on
+    // the meadow (same rhythm, same three signs, feet on grass — a
+    // suburban strip mall the field report called out). Now it is a
+    // street: an asphalt road with a sidewalk and a dirt shoulder under
+    // the shops, varied widths and heights, two gaps (one tree clump, one
+    // fenced lot), a church and a gable-roofed house among the stores,
+    // and a no-immediate-repeat shop sign law — a horizon of shops that
+    // never says the same name twice in a row.
+    const lowZ = 10; // the band's centerline (world z 0 — at the apron's edge)
+    // the road cross-section: sidewalk (light), road (asphalt + dashes),
+    // shoulder (dirt, blending to the meadow) — the buildings stand on
+    // pavement now, and the dark apron's near edge hides behind them
+    box(skyline, 'RideLowriseSidewalk', this.lambert(0x8f8994), 0, 0.02, 11.6, 130, 0.12, 2.6);
+    box(skyline, 'RideLowriseRoad', this.lambert(0x554f5e), 0, 0.015, 14.6, 130, 0.12, 3.4);
+    for (let dsh = 0; dsh < 14; dsh++) {
+      box(skyline, 'RideLowriseDash', this.lambert(0xd9c98a), -45 + dsh * 7, 0.085, 14.6, 2.2, 0.02, 0.14);
+    }
+    box(skyline, 'RideLowriseShoulder', this.lambert(0x6b6152), 0, 0.008, 17.8, 130, 0.1, 2.6);
+    const shopCursor = (i: number): number => (i * 5 + 3) % ArrivalCinematic.SHOPS.length;
+    for (let i = 0; i < 18; i++) {
+      // two honest gaps in the block: a tree clump (i 7) and a fenced lot
+      // (i 13) — a street with breathing room, not a wall of shops
+      if (i === 7 || i === 13) continue;
+      const x = -46 + i * 5.35 + ((i * 53) % 11) / 10 - 0.5;
+      const h = 4.2 + ((i * 37) % 45) / 10; // 4.2 … 8.6, deterministic
+      const w = 2.6 + ((i * 71) % 17) / 10; // 2.6 … 4.2
+      const zj = lowZ + ((i * 29) % 9) / 10 - 0.4;
+      const isChurch = i === 4;
+      const isHouse = i === 10;
+      // shops need the 3.5 m grade + a window floor: 7.6 m minimum — the
+      // rest of the block is rowhouses (a door, two floors of windows)
+      const storefront = !isChurch && !isHouse && i % 3 !== 1 && h >= 7.6;
+      const { map, glow } = this.tenementFace(w, h, (i * 7 + 2) % 6, i * 29 + 3, {
+        storefront,
+        door: !storefront,
+        floors: storefront ? 1 : (h > 5.8 ? 2 : 1),
+        parapet: isChurch ? 0.3 : 0.5,
+        ppm: 28,
+        shop: storefront ? shopCursor(i) : undefined,
+        signScale: 0.34,
       });
       const face = new THREE.MeshLambertMaterial({
         color: 0xffffff,
@@ -899,30 +979,70 @@ export class ArrivalCinematic {
         fog: false,
       });
       this.disposables.push(map, glow, face);
-      const side = brickSideMat(i % 3, 2.0, h);
+      const side = brickSideMat((i * 7 + 2) % 6, 2.0, h);
       const geo = new THREE.BoxGeometry(w, h, 2.0);
       const low = new THREE.Mesh(geo, [side, side, capMat, capMat, face, side]);
       low.name = 'RideLowrise';
-      low.position.set(x, h / 2, lowZ);
+      low.position.set(x, h / 2, zj);
       skyline.add(low);
       this.disposables.push(geo);
-      box(skyline, 'RideLowriseCornice', corniceMat, x, h - 0.14, lowZ, w + 0.18, 0.12, 2.18);
-      if (i % 3 === 0) box(skyline, 'RideLowriseCap', capMat, x, h + 0.1, lowZ, w + 0.06, 0.2, 2.06);
-      if (i % 4 === 1) this.waterTank(skyline, x + 0.5, h, lowZ + 0.2);
+      if (isChurch) {
+        // the steeple — a thin tower, a pyramidal cap, a finial: the
+        // vertical punctuation every horizon needs
+        box(skyline, 'RideLowriseSteeple', capMat, x, h + 1.5, zj, 0.85, 3.0, 0.85);
+        const steepleCap = new THREE.Mesh(new THREE.ConeGeometry(0.68, 1.1, 4), capMat);
+        steepleCap.name = 'RideLowriseSteepleCap';
+        steepleCap.rotation.y = Math.PI / 4;
+        steepleCap.position.set(x, h + 3.55, zj);
+        skyline.add(steepleCap);
+        this.disposables.push(steepleCap.geometry as THREE.BufferGeometry);
+        cyl(skyline, 'RideLowriseFinial', ironMat, x, h + 4.25, zj, 0.02, 0.03, 0.34, 4);
+      } else if (isHouse) {
+        // a gable-roofed two-story house — the countryside's last holdout
+        // on the block, bridging the fields and the shops
+        const houseRoof = this.gableRoof(w + 0.3, h * 0.38, 2.3, mats.roofDark);
+        houseRoof.name = 'RideLowriseHouseRoof';
+        houseRoof.position.set(x, h, zj);
+        skyline.add(houseRoof);
+        this.disposables.push(houseRoof.geometry as THREE.BufferGeometry);
+        box(skyline, 'RideLowriseChimney', brickSideMat((i * 7 + 2) % 6, 0.3, 0.8), x + w * 0.26, h + h * 0.36, zj - 0.5, 0.26, 0.75, 0.26);
+      } else {
+        box(skyline, 'RideLowriseCornice', corniceMat, x, h - 0.14, zj, w + 0.18, 0.12, 2.18);
+        if (i % 3 === 0) box(skyline, 'RideLowriseCap', capMat, x, h + 0.1, zj, w + 0.06, 0.2, 2.06);
+        if (i % 6 === 2) this.waterTank(skyline, x + 0.5, h, zj + 0.2);
+      }
+    }
+    // the gaps' dressing: a tree clump in the first, a fence + bushes in
+    // the second — lots read as lots because something owns them
+    for (const [gx, kind] of [[-8.5, 'trees'], [23.5, 'lot']] as Array<[number, string]>) {
+      if (kind === 'trees') {
+        puff(skyline, 'RideGapTreeA', mats.leafA, gx, 1.3, lowZ, 1.5, 0.9);
+        puff(skyline, 'RideGapTreeB', mats.leafB, gx + 1.3, 0.9, lowZ + 0.6, 1.1, 0.85);
+        puff(skyline, 'RideGapTreeC', mats.leafC, gx - 1.2, 0.8, lowZ - 0.5, 0.95, 0.85);
+      } else {
+        for (let f = 0; f < 5; f++) {
+          box(skyline, 'RideLotFencePost', mats.wood, gx - 1.6 + f * 0.8, 0.55, lowZ + 0.8, 0.1, 1.1, 0.1);
+        }
+        box(skyline, 'RideLotFenceRail', mats.wood, gx, 0.9, lowZ + 0.8, 3.3, 0.08, 0.08);
+        puff(skyline, 'RideLotBushA', mats.leafB, gx - 0.9, 0.5, lowZ + 1.2, 0.55, 0.8);
+        puff(skyline, 'RideLotBushB', mats.leafA, gx + 1.0, 0.45, lowZ + 1.1, 0.5, 0.8);
+      }
     }
 
     // the light-up: the beat stays (3.6 s wait, 2.4 s rise) — the far row
-    // trails the near one and the crown blooms last, the way real dusk lands
+    // trails the near one and the crown blooms last, the way real dusk
+    // lands. The near row now peaks at 1.55 (the denser windows carry it)
+    // and the far row trails at 0.42 of the near row's rise.
     this.host.tweens.sequence(
       this.host.tweens.wait(3.6),
       this.host.tweens.num(
         () => tierMats[0].emissiveIntensity,
         (v) => {
           for (const m of tierMats) m.emissiveIntensity = v;
-          for (const m of farMats) m.emissiveIntensity = 0.08 + Math.max(0, v - 0.15) * 0.6;
-          crownMat.emissiveIntensity = 0.25 + Math.max(0, v - 0.15) * 1.1;
+          for (const m of farMats) m.emissiveIntensity = 0.08 + Math.max(0, v - 0.15) * 0.42;
+          crownMat.emissiveIntensity = 0.25 + Math.max(0, v - 0.15) * 1.0;
         },
-        1.15, 2.4,
+        1.55, 2.4,
       ),
     );
 
@@ -1059,6 +1179,23 @@ export class ArrivalCinematic {
     glass.position.set(0, 0, GLASS_Z + 0.02);
     frame.add(glass);
     this.disposables.push(glass.geometry as THREE.BufferGeometry);
+    // and the interior living in that glass: a faint warm reflection of
+    // the ceiling lamps, parked just proud of the tint so the rasterizer
+    // never has to tie them. Static — the lamps are; the world moving
+    // BEHIND the reflection is what sells it.
+    const reflTex = this.glowTexture();
+    const refl = new THREE.Mesh(
+      new THREE.PlaneGeometry(AP.x * 2 * 0.82, AP.y * 2 * 0.72),
+      new THREE.MeshBasicMaterial({
+        map: reflTex, transparent: true, opacity: 0.055,
+        blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+        color: 0xffd9a0,
+      }),
+    );
+    refl.name = 'Shell_GlassReflection';
+    refl.position.set(0.06, 0.04, GLASS_Z + 0.05);
+    frame.add(refl);
+    this.disposables.push(reflTex, refl.geometry as THREE.BufferGeometry);
     // the seats — yours, and the row ahead's shoulder at the frame bottom
     part('SeatBack', mats.seat, 0, -0.33, -0.34, 0.7, 0.32, 0.14);
     part('SeatBackFar', mats.seat, 0, -0.36, -0.14, 0.66, 0.26, 0.1);
@@ -1127,6 +1264,37 @@ export class ArrivalCinematic {
     this.host.rigLook.x = RIDE_POS.x;
     this.host.rigLook.y = RIDE_POS.y - 0.7;
     this.host.rigLook.z = RIDE_POS.z - 10;
+    // the shot breathes: a slow push toward the glass and a gentle settle
+    // of the eye line across the whole ride, then a further inch of push
+    // while the coach creeps to the gate. Both motions are FORWARD and
+    // DOWNWARD only — the dome-exit margin (the staging note at RIDE_POS)
+    // was computed at this pitch, and every change here keeps or shrinks
+    // the ray lengths — and the setters refuse to write once the film has
+    // left these phases, so a fast tap-through can never fight the card's
+    // own push-in.
+    const ridePhaseLive = () =>
+      this.machine.phase === 'ride' || this.machine.phase === 'choice' || this.machine.phase === 'reply';
+    const creepPhaseLive = () =>
+      this.machine.phase === 'choice' || this.machine.phase === 'reply';
+    this.host.tweens.sequence(
+      this.host.tweens.parallel(
+        this.host.tweens.num(
+          () => this.host.rigPos.z,
+          (v) => { if (ridePhaseLive()) this.host.rigPos.z = v; },
+          RIDE_POS.z - 0.65, RIDE_SECONDS, easeSine,
+        ),
+        this.host.tweens.num(
+          () => this.host.rigLook.y,
+          (v) => { if (ridePhaseLive()) this.host.rigLook.y = v; },
+          RIDE_POS.y - 0.95, RIDE_SECONDS, easeSine,
+        ),
+      ),
+      this.host.tweens.num(
+        () => this.host.rigPos.z,
+        (v) => { if (creepPhaseLive()) this.host.rigPos.z = v; },
+        RIDE_POS.z - 0.95, 3.0, easeSine,
+      ),
+    );
     // letterbox on, HUD off — the film starts
     this.host.ui.showCine();
   }
@@ -1143,15 +1311,94 @@ export class ArrivalCinematic {
     };
   }
 
+  /** The film's shop identities — a real block, not a three-sign cycle.
+   *  The old faces stamped DELI/BAR/PIZZA on every storefront (two DELIs
+   *  inside one bus window — the field report's headline), so the block
+   *  now carries twelve named shops with their own fascia, letter and
+   *  border colors, and a `wares` key that repaints the interior behind
+   *  the glass (hanging laundry, a bodega's dense stock, a pizza oven's
+   *  glow, a diner counter). The strip tenements get hand-assigned shops;
+   *  the lowrise band draws from the table with a no-immediate-repeat
+   *  law, so a horizon of shops never shows the same name twice. */
+  private static readonly SHOPS = [
+    { name: 'LAUNDRY', fascia: '#3a6ea8', letters: '#f2e8c8', border: '#c8d8ea', wares: 'laundry' },
+    { name: 'BODEGA', fascia: '#1f6f44', letters: '#ffd98a', border: '#e8c98a', wares: 'bodega' },
+    { name: 'PIZZA', fascia: '#b23a30', letters: '#ffe9c0', border: '#e8b08a', wares: 'pizza' },
+    { name: 'COFFEE', fascia: '#4a3628', letters: '#e8c98a', border: '#a88a68', wares: 'coffee' },
+    { name: 'RECORDS', fascia: '#26232e', letters: '#e85a8a', border: '#8a5a6e', wares: 'shelves' },
+    { name: 'DINER', fascia: '#d9772f', letters: '#fff2d8', border: '#e8b08a', wares: 'coffee' },
+    { name: 'BOOKS', fascia: '#6e5a3e', letters: '#e8dcc0', border: '#c9b090', wares: 'shelves' },
+    { name: 'MARKET', fascia: '#2a7a52', letters: '#ffe9c0', border: '#a8d8b8', wares: 'bodega' },
+    { name: 'FLORIST', fascia: '#7a4a6e', letters: '#f2d8e0', border: '#d8a8c0', wares: 'shelves' },
+    { name: 'HARDWARE', fascia: '#44536a', letters: '#e8d9a8', border: '#a8b0c0', wares: 'bodega' },
+    { name: 'DELI', fascia: '#8f3040', letters: '#ffe9c0', border: '#e8b08a', wares: 'bodega' },
+    { name: 'BAR', fascia: '#26232e', letters: '#ffb85c', border: '#8a6a4a', wares: 'coffee' },
+  ] as const;
+
+  /** The strip tenements' hand-assigned shops (west → east): no repeats,
+   *  four trades, the freeze frame reads as a block where people live. */
+  private static readonly STRIP_SHOPS = [0, 1, 2, 3]; // LAUNDRY, BODEGA, PIZZA, COFFEE
+
+  /** Brick palettes — six, where the old painter cycled three. `side` is
+   *  the matching 3D return color, so a building's flanks belong to its
+   *  face. */
+  private static readonly BRICKS = [
+    { base: '#9a5a48', course: '#7d4638', side: '#7d5a4c' },
+    { base: '#a88a68', course: '#96764f', side: '#8a7258' },
+    { base: '#8a6a54', course: '#745240', side: '#6e5a50' },
+    { base: '#b5705a', course: '#9c5a46', side: '#8a6050' },
+    { base: '#7d6a58', course: '#6a5846', side: '#6e5f50' },
+    { base: '#c9b090', course: '#b09878', side: '#a89078' },
+  ] as const;
+
+  /** Striped canvas for an awning — painted stripes + a scalloped valance
+   *  along the front edge, so the old flat teal slab reads as fabric over
+   *  a shop. Four deterministic variants (two hues × two stripe rhythms)
+   *  shared across the ride. */
+  private awningTexture(seed: number): THREE.CanvasTexture {
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 64;
+    const ctx = c.getContext('2d')!;
+    const rand = this.seeded(seed);
+    const hues = ['#2a9d8f', '#b23a48', '#3a6ea8', '#d9772f'];
+    const hue = hues[Math.floor(rand() * hues.length)];
+    const cream = '#e8dcc4';
+    const stripes = rand() < 0.5 ? 8 : 12;
+    const sw = Math.ceil(128 / stripes);
+    for (let i = 0; i < stripes; i++) {
+      ctx.fillStyle = i % 2 ? cream : hue;
+      ctx.fillRect(i * sw, 0, sw, 64);
+    }
+    // the scalloped valance: half-rounds along the bottom, alternating the
+    // stripe colors so the edge belongs to the cloth
+    for (let i = 0; i < stripes; i++) {
+      ctx.fillStyle = i % 2 ? cream : hue;
+      ctx.beginPath();
+      ctx.arc(i * sw + sw / 2, 64, sw / 2, 0, Math.PI, true);
+      ctx.fill();
+    }
+    // the shade line under the slope — the valance casts it
+    const shade = ctx.createLinearGradient(0, 44, 0, 64);
+    shade.addColorStop(0, 'rgba(20,14,20,0)');
+    shade.addColorStop(1, 'rgba(20,14,20,0.34)');
+    ctx.fillStyle = shade;
+    ctx.fillRect(0, 44, 128, 20);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
   /** One painted TENEMENT face, drawn to exact size — px = metres × ppm —
    *  so a window is a window at any height (the stretched-canvas lesson).
-   *  Brick coursing, linteled sash windows with mullions, stone sills,
-   *  mechanical floors, a parapet + cornice band, a storefront with a lit
-   *  sign or a stoop-grade base, soot stripes and street grime. The glow
-   *  canvas shares every coordinate: lit windows, glass and sign letters
-   *  only. */
+   *  Brick coursing on a six-palette wheel, floor tone banding, corner
+   *  quoins, cornice shadow, sill drips, linteled sash windows with
+   *  mullions, window boxes and AC units, lit rooms with curtains and TV
+   *  glow, a parapet + cornice band, a storefront with a named, bordered,
+   *  glowing shop sign and a wares-honest interior, or a stoop-grade
+   *  base. The glow canvas shares every coordinate: lit windows, glass
+   *  and sign letters only. */
   private tenementFace(w: number, h: number, variant: number, seed: number,
-    opts: { storefront?: boolean; door?: boolean; floors?: number; parapet?: number; ppm?: number } = {},
+    opts: { storefront?: boolean; door?: boolean; floors?: number; parapet?: number; ppm?: number; shop?: number; signScale?: number } = {},
   ): { map: THREE.CanvasTexture; glow: THREE.CanvasTexture } {
     const ppm = opts.ppm ?? 40;
     const pw = Math.min(1024, Math.max(40, Math.round(w * ppm)));
@@ -1167,15 +1414,27 @@ export class ArrivalCinematic {
     gtx.fillRect(0, 0, pw, ph);
     const rand = this.seeded(seed);
 
-    // the brick field — running-bond course lines, soot weathering
-    const brick = ['#9a5a48', '#8a6a54', '#a88a68'][variant % 3];
-    ctx.fillStyle = brick;
+    // the brick field — running-bond course lines, soot weathering; the
+    // palette comes from the six-wheel (variant mod 6), the courses get a
+    // per-brick value jitter, and every other floor carries a faint tone
+    // band — the way long facades band as the brick lots changed
+    const brickPal = ArrivalCinematic.BRICKS[variant % ArrivalCinematic.BRICKS.length];
+    ctx.fillStyle = brickPal.base;
     ctx.fillRect(0, 0, pw, ph);
     ctx.fillStyle = 'rgba(0,0,0,0.12)';
     for (let y = px(0.07); y < ph; y += px(0.2)) ctx.fillRect(0, y, pw, 1);
     ctx.fillStyle = 'rgba(22,17,26,0.06)';
     for (let i = 0; i < 4; i++) {
       ctx.fillRect(px(0.3) + Math.floor(rand() * pw * 0.8), 0, px(0.45), ph);
+    }
+    // per-brick value jitter — salt in the coursing so the wall is not a
+    // flat fill with lines on it
+    const jitters = Math.floor((pw / px(0.55)) * (ph / px(0.2)) * 0.06);
+    for (let i = 0; i < jitters; i++) {
+      const bx = Math.floor(rand() * pw);
+      const by = Math.floor(rand() * ph);
+      ctx.fillStyle = rand() < 0.5 ? 'rgba(255,240,220,0.07)' : 'rgba(30,20,16,0.1)';
+      ctx.fillRect(bx, by, px(0.42), px(0.13));
     }
 
     // the roofline: parapet, cornice band, shadow — drawn; ledged in 3D too
@@ -1193,15 +1452,45 @@ export class ArrivalCinematic {
     ctx.fillRect(0, px(parapetH), pw, px(corniceH * 0.42));
     ctx.fillStyle = '#241f28';
     ctx.fillRect(0, px(parapetH + corniceH * 0.42), pw, px(0.09));
+    // the cornice casts a soft shadow onto the top floor — grounds the
+    // roofline the way the 3D ledge cannot from inside a painted face
+    const cornShadow = ctx.createLinearGradient(0, px(parapetH + corniceH), 0, px(parapetH + corniceH + 0.55));
+    cornShadow.addColorStop(0, 'rgba(16,12,20,0.26)');
+    cornShadow.addColorStop(1, 'rgba(16,12,20,0)');
+    ctx.fillStyle = cornShadow;
+    ctx.fillRect(0, px(parapetH + corniceH), pw, px(0.55));
+
+    // corner quoins on about half the buildings — lighter stone L-marks
+    // alternating orientation, the dress a masonry corner wears
+    const topY = px(parapetH + corniceH);
+    if (rand() < 0.5) {
+      const qw = px(0.24);
+      for (let f = 0; f < floors; f++) {
+        const fy = topY + px(floorH * f);
+        const flip = f % 2 === 0;
+        ctx.fillStyle = 'rgba(255,244,224,0.22)';
+        for (const ex of [0, pw - qw]) {
+          if (flip) ctx.fillRect(ex, fy, qw, px(0.34));
+          else ctx.fillRect(ex, fy, px(0.34), qw);
+          ctx.fillStyle = 'rgba(40,26,22,0.14)';
+          if (flip) ctx.fillRect(ex, fy + px(0.34), qw, 1);
+          else ctx.fillRect(ex, fy + qw, px(0.34), 1);
+          ctx.fillStyle = 'rgba(255,244,224,0.22)';
+        }
+      }
+    }
 
     // the window floors — real tenement bays, stone lintels and sills,
     // six-over-six sash drawn with mullions, lit rooms behind half-drawn
     // shades, the occasional window AC
     const winW = px(0.85);
     const winH = px(1.45);
-    const topY = px(parapetH + corniceH);
     for (let f = 0; f < floors; f++) {
       const fy = topY + px(floorH * f);
+      // the floor's tone band + the sill course under it — long facades
+      // wear faint horizontal stripes where the brick lots changed
+      ctx.fillStyle = f % 2 === 0 ? 'rgba(0,0,0,0.045)' : 'rgba(255,244,220,0.035)';
+      ctx.fillRect(0, fy, pw, px(floorH));
       ctx.fillStyle = 'rgba(0,0,0,0.13)';
       ctx.fillRect(0, fy + px(floorH) - px(0.14), pw, px(0.14));
       const bays = Math.max(1, Math.round(w / 1.7));
@@ -1218,22 +1507,49 @@ export class ArrivalCinematic {
         ctx.fillStyle = '#2c262e';
         ctx.fillRect(wx + winW / 2 - 1, wy, 2, winH);
         ctx.fillRect(wx, wy + winH / 2 - 1, winW, 2);
+        // the sill drips its weathering — two short dark tears below the
+        // stone, the stain every old window carries
+        ctx.fillStyle = 'rgba(30,22,26,0.16)';
+        ctx.fillRect(wx + px(0.12), wy + winH + px(0.1), 2, px(0.22));
+        ctx.fillRect(wx + winW - px(0.16), wy + winH + px(0.1), 2, px(0.16));
         if (rand() < 0.42) {
-          gtx.fillStyle = rand() < 0.3 ? '#ffd9a0' : '#ffb85c';
+          const litRoll = rand();
+          gtx.fillStyle = litRoll < 0.08 ? '#a8c8d8' : litRoll < 0.38 ? '#ffd9a0' : '#ffb85c';
           gtx.fillRect(wx, wy, winW, winH);
-          if (rand() < 0.35) {
-            gtx.fillStyle = '#000000';
+          // the curtains: a shade drawn partway — from the top, from the
+          // side, or a gap down the middle — three lives behind three sashes
+          const curtain = rand();
+          if (curtain < 0.3) {
+            gtx.fillStyle = 'rgba(20,12,10,0.55)';
             gtx.fillRect(wx, wy, winW, Math.round(winH * 0.42));
+          } else if (curtain < 0.5) {
+            gtx.fillStyle = 'rgba(20,12,10,0.55)';
+            gtx.fillRect(wx + Math.round(winW * 0.55), wy, Math.round(winW * 0.45), winH);
+          } else if (curtain < 0.62) {
+            gtx.fillStyle = 'rgba(20,12,10,0.5)';
+            const mid = Math.round(winW * (0.35 + rand() * 0.3));
+            gtx.fillRect(wx, wy, mid, winH);
+            gtx.fillRect(wx + mid + Math.round(winW * 0.14), wy, winW - mid - Math.round(winW * 0.14), winH);
           }
         }
-        if (rand() < 0.14) {
+        if (rand() < 0.18) {
           ctx.fillStyle = '#c9c2b4';
           ctx.fillRect(wx + px(0.18), wy + winH - px(0.26), px(0.5), px(0.28));
+        }
+        // a window box under the sill — geraniums somebody waters
+        if (rand() < 0.09 && wy + winH + px(0.32) < fy + px(floorH)) {
+          ctx.fillStyle = '#4a5a3a';
+          ctx.fillRect(wx + px(0.14), wy + winH + px(0.12), winW - px(0.28), px(0.13));
+          ctx.fillStyle = ['#c95a5a', '#d88a4a', '#e0b0c0'][Math.floor(rand() * 3)];
+          for (const dx of [0.24, 0.44, 0.62]) {
+            ctx.fillRect(wx + px(dx), wy + winH + px(0.1), px(0.09), px(0.09));
+          }
         }
       }
     }
 
-    // the grade: a storefront with a lit sign, or the stoop base
+    // the grade: a storefront with a named, bordered sign + a wares-honest
+    // interior, or the stoop base
     if (opts.storefront) {
       const gy = ph - px(gradeH);
       // cast-iron shopfront backing, painted near-black
@@ -1242,17 +1558,65 @@ export class ArrivalCinematic {
       ctx.fillStyle = '#443c48';
       ctx.fillRect(0, gy, px(0.28), px(gradeH));
       ctx.fillRect(pw - px(0.28), gy, px(0.28), px(gradeH));
-      // the sign fascia + its shadow line
-      ctx.fillStyle = ['#1f6f66', '#8f3040', '#1f6f66'][variant % 3];
-      ctx.fillRect(px(0.32), gy + px(0.14), pw - px(0.64), px(0.64));
+      // the shop's identity — fascia, edge shading, inset border, letters
+      // in relief. The old sign was a flat color band with plain text
+      // cycling three names; this one is an enamel sign with edges.
+      const shopDef = ArrivalCinematic.SHOPS[opts.shop ?? seed % ArrivalCinematic.SHOPS.length];
+      const signL = px(0.32);
+      const signW = pw - px(0.64);
+      const signY = gy + px(0.14);
+      const signH = px(0.64);
+      ctx.fillStyle = shopDef.fascia;
+      ctx.fillRect(signL, signY, signW, signH);
+      ctx.fillStyle = 'rgba(255,244,220,0.14)';
+      ctx.fillRect(signL, signY, signW, px(0.07));
       ctx.fillStyle = 'rgba(0,0,0,0.35)';
-      ctx.fillRect(px(0.32), gy + px(0.73), pw - px(0.64), px(0.05));
-      const name = ['DELI', 'BAR', 'PIZZA'][variant % 3];
-      const fs = px(0.42);
-      ctx.fillStyle = '#ffe0b0';
+      ctx.fillRect(signL, signY + signH - px(0.07), signW, px(0.07));
+      ctx.strokeStyle = shopDef.border;
+      ctx.lineWidth = Math.max(1, px(0.03));
+      ctx.strokeRect(signL + px(0.07), signY + px(0.07), signW - px(0.14), signH - px(0.14));
+      const fs = px(opts.signScale ?? 0.42);
       ctx.font = `bold ${fs}px sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(name, pw / 2, gy + px(0.44));
+      const midY = signY + signH / 2 + px(0.02);
+      // a small icon for the trades that wear one — slice, cup, hanger
+      let textCx = pw / 2;
+      const icon = shopDef.name === 'PIZZA' ? 'slice'
+        : (shopDef.name === 'COFFEE' || shopDef.name === 'DINER') ? 'cup'
+        : shopDef.name === 'LAUNDRY' ? 'hanger' : null;
+      if (icon) {
+        const ix = pw / 2 - (shopDef.name.length * fs * 0.33) / 2 - fs * 0.8;
+        textCx = pw / 2 + fs * 0.7;
+        ctx.fillStyle = shopDef.letters;
+        if (icon === 'slice') {
+          ctx.beginPath();
+          ctx.moveTo(ix - fs * 0.28, midY - fs * 0.3);
+          ctx.lineTo(ix + fs * 0.3, midY - fs * 0.3);
+          ctx.lineTo(ix, midY + fs * 0.34);
+          ctx.closePath();
+          ctx.fill();
+        } else if (icon === 'cup') {
+          ctx.fillRect(ix - fs * 0.3, midY - fs * 0.18, fs * 0.42, fs * 0.34);
+          ctx.fillRect(ix + fs * 0.12, midY - fs * 0.1, fs * 0.16, fs * 0.16);
+          ctx.fillRect(ix - fs * 0.24, midY + fs * 0.18, fs * 0.52, px(0.05));
+        } else {
+          ctx.lineWidth = Math.max(1, px(0.032));
+          ctx.beginPath();
+          ctx.arc(ix, midY - fs * 0.14, fs * 0.18, Math.PI * 1.05, Math.PI * 1.95);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(ix - fs * 0.24, midY + fs * 0.22);
+          ctx.lineTo(ix, midY - fs * 0.1);
+          ctx.lineTo(ix + fs * 0.24, midY + fs * 0.22);
+          ctx.stroke();
+        }
+      }
+      // the letters — a dark offset first (the sign reads in relief), then
+      // the bright face
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillText(shopDef.name, textCx, midY + px(0.028));
+      ctx.fillStyle = shopDef.letters;
+      ctx.fillText(shopDef.name, textCx, midY);
 
       // the shopfront itself — kickplate, mullioned display bays, a
       // transom band, a glazed door. The old grade was ONE flat glowing
@@ -1270,6 +1634,7 @@ export class ArrivalCinematic {
       const bayW = px(1.15);
       const bays = Math.max(1, Math.round((glassR - glassL) / bayW));
       const bw = (glassR - glassL) / bays;
+      const wares = shopDef.wares;
       for (let b = 0; b < bays; b++) {
         const bx0 = glassL + b * bw;
         const paneW = bw - px(0.06);
@@ -1306,22 +1671,75 @@ export class ArrivalCinematic {
         grad.addColorStop(1, 'rgba(40,22,8,0)');
         gtx.fillStyle = grad;
         gtx.fillRect(bx0 + paneW - px(0.22), mainY, px(0.22), mainH);
-        // the shelves: a dark line, then stock silhouettes sitting on it
-        // against the light — cans, boxes, whatever the shop sells
-        for (const sy of [mainY + mainH * 0.34, mainY + mainH * 0.62]) {
+        // the wares — what the shop sells decides what the glow shows:
+        if (wares === 'laundry') {
+          // a hanging rail with garments, a counter below — the wash-and-
+          // fold that every block carries
           gtx.fillStyle = 'rgba(62,34,14,0.72)';
-          gtx.fillRect(bx0 + px(0.08), sy, paneW - px(0.16), px(0.05));
-          let sx = bx0 + px(0.14);
-          while (sx < bx0 + paneW - px(0.2)) {
-            const iw = px(0.07) + Math.round(rand() * px(0.09));
-            const ih = px(0.1) + Math.round(rand() * px(0.14));
-            gtx.fillStyle = rand() < 0.25 ? 'rgba(92,50,20,0.85)' : 'rgba(56,30,12,0.82)';
-            gtx.fillRect(sx, sy - ih, iw, ih);
-            sx += iw + px(0.04);
+          gtx.fillRect(bx0 + px(0.08), mainY + mainH * 0.24, paneW - px(0.16), px(0.045));
+          const garmentCols = ['#8a7a5e', '#5e6e7e', '#9a5a54', '#6e7e5e', '#7e5e7e'];
+          let gx = bx0 + px(0.14);
+          while (gx < bx0 + paneW - px(0.24)) {
+            const gw = px(0.16) + Math.round(rand() * px(0.1));
+            const gh = px(0.4) + Math.round(rand() * px(0.34));
+            gtx.fillStyle = garmentCols[Math.floor(rand() * garmentCols.length)];
+            gtx.globalAlpha = 0.78;
+            gtx.fillRect(gx, mainY + mainH * 0.26, gw, gh);
+            gtx.globalAlpha = 1;
+            gx += gw + px(0.07);
+          }
+          gtx.fillStyle = 'rgba(62,34,14,0.6)';
+          gtx.fillRect(bx0 + px(0.1), mainY + mainH * 0.82, paneW - px(0.2), mainH * 0.14);
+        } else if (wares === 'pizza') {
+          // the oven: a white-hot mouth against the warm room, a counter
+          // along the bottom, dough boxes stacked at the side
+          gtx.fillStyle = '#ffe2a8';
+          const ovW = Math.min(px(0.7), paneW * 0.4);
+          gtx.fillRect(bx0 + paneW * 0.5 - ovW / 2, mainY + mainH * 0.3, ovW, mainH * 0.44);
+          gtx.fillStyle = '#fff4dc';
+          gtx.fillRect(bx0 + paneW * 0.5 - ovW * 0.32, mainY + mainH * 0.42, ovW * 0.64, mainH * 0.2);
+          gtx.fillStyle = 'rgba(62,34,14,0.66)';
+          gtx.fillRect(bx0 + px(0.1), mainY + mainH * 0.78, paneW - px(0.2), mainH * 0.16);
+          gtx.fillStyle = 'rgba(92,50,20,0.85)';
+          for (const bx2 of [bx0 + px(0.14), bx0 + px(0.3)]) {
+            gtx.fillRect(bx2, mainY + mainH * 0.56, px(0.22), px(0.16));
+          }
+        } else if (wares === 'coffee') {
+          // the menu board hanging in the top third, the counter with cups
+          gtx.fillStyle = 'rgba(40,24,14,0.85)';
+          gtx.fillRect(bx0 + px(0.16), mainY + mainH * 0.12, paneW - px(0.32), mainH * 0.3);
+          gtx.fillStyle = 'rgba(255,220,170,0.8)';
+          for (let mr = 0; mr < 3; mr++) {
+            gtx.fillRect(bx0 + px(0.24), mainY + mainH * (0.18 + mr * 0.08), paneW * (0.3 + rand() * 0.25), px(0.035));
+          }
+          gtx.fillStyle = 'rgba(62,34,14,0.6)';
+          gtx.fillRect(bx0 + px(0.1), mainY + mainH * 0.74, paneW - px(0.2), mainH * 0.2);
+          gtx.fillStyle = 'rgba(255,236,200,0.9)';
+          for (const cx2 of [0.3, 0.5, 0.7]) {
+            gtx.fillRect(bx0 + paneW * cx2, mainY + mainH * 0.66, px(0.09), px(0.07));
+          }
+        } else {
+          // the shelves: a dark line, then stock silhouettes sitting on it
+          // against the light — cans, boxes, whatever the shop sells
+          const shelfRows = wares === 'bodega' ? 3 : 2;
+          for (let sr = 0; sr < shelfRows; sr++) {
+            const sy = mainY + mainH * (0.24 + sr * (0.28 / Math.max(1, shelfRows - 1)) * (shelfRows === 3 ? 0.9 : 1));
+            gtx.fillStyle = 'rgba(62,34,14,0.72)';
+            gtx.fillRect(bx0 + px(0.08), sy, paneW - px(0.16), px(0.05));
+            let sx = bx0 + px(0.14);
+            while (sx < bx0 + paneW - px(0.2)) {
+              const iw = px(0.07) + Math.round(rand() * px(0.09));
+              const ih = px(0.1) + Math.round(rand() * px(0.14));
+              gtx.fillStyle = rand() < 0.25 ? 'rgba(92,50,20,0.85)' : 'rgba(56,30,12,0.82)';
+              gtx.fillRect(sx, sy - ih, iw, ih);
+              sx += iw + px(0.04);
+            }
           }
         }
-        // pendant lamps: two bright drops hanging from the ceiling strip
-        for (const lx of [bx0 + paneW * 0.3, bx0 + paneW * 0.7]) {
+        // pendant lamps: one to three bright drops, seeded per shop
+        const lampCount = 1 + Math.floor(rand() * 2.99);
+        for (let li = 0; li < lampCount; li++) {
+          const lx = bx0 + paneW * (0.28 + li * (0.44 / Math.max(1, lampCount - 1)) * (lampCount > 1 ? 1 : 0) + (lampCount === 1 ? 0.22 : 0));
           gtx.fillStyle = '#ffe9c0';
           gtx.fillRect(lx - px(0.012), mainY + px(0.02), px(0.024), px(0.16));
           gtx.fillRect(lx - px(0.05), mainY + px(0.17), px(0.1), px(0.06));
@@ -1345,15 +1763,34 @@ export class ArrivalCinematic {
       ctx.fillRect(dx, glassY, doorW, glassH);
       ctx.fillStyle = '#2c262e';
       ctx.fillRect(dx + px(0.12), glassY + px(0.12), doorW - px(0.24), glassH - px(0.24));
-      gtx.fillStyle = '#e8a95c';
+      gtx.fillStyle = wares === 'laundry' ? '#cfe0ea' : '#e8a95c';
       gtx.fillRect(dx + px(0.18), glassY + px(0.2), doorW - px(0.36), glassH * 0.42);
       ctx.fillStyle = '#9aa0ae';
       ctx.fillRect(dx + px(0.18), glassY + px(0.95), doorW - px(0.36), px(0.07));
-      // the sign letters glow too
-      gtx.fillStyle = '#ffd9a0';
-      gtx.font = `bold ${fs}px sans-serif`;
+      // the sign glows too — letters, border, icon: the whole enamel face
+      gtx.fillStyle = shopDef.letters;
+      gtx.font = ctx.font;
       gtx.textAlign = 'center'; gtx.textBaseline = 'middle';
-      gtx.fillText(name, pw / 2, gy + px(0.44));
+      gtx.fillText(shopDef.name, textCx, midY);
+      gtx.strokeStyle = shopDef.border;
+      gtx.lineWidth = Math.max(1, px(0.025));
+      gtx.strokeRect(signL + px(0.07), signY + px(0.07), signW - px(0.14), signH - px(0.14));
+      if (icon === 'slice') {
+        gtx.beginPath();
+        gtx.moveTo(textCx - (shopDef.name.length * fs * 0.33) / 2 - fs * 0.8 - fs * 0.28, midY - fs * 0.3);
+        gtx.lineTo(textCx - (shopDef.name.length * fs * 0.33) / 2 - fs * 0.8 + fs * 0.3, midY - fs * 0.3);
+        gtx.lineTo(textCx - (shopDef.name.length * fs * 0.33) / 2 - fs * 0.8, midY + fs * 0.34);
+        gtx.closePath();
+        gtx.fill();
+      } else if (icon === 'cup') {
+        const gx2 = textCx - (shopDef.name.length * fs * 0.33) / 2 - fs * 0.8;
+        gtx.fillRect(gx2 - fs * 0.3, midY - fs * 0.18, fs * 0.42, fs * 0.34);
+        gtx.fillRect(gx2 + fs * 0.12, midY - fs * 0.1, fs * 0.16, fs * 0.16);
+      } else if (icon === 'hanger') {
+        const gx2 = textCx - (shopDef.name.length * fs * 0.33) / 2 - fs * 0.8;
+        gtx.fillRect(gx2 - fs * 0.24, midY + fs * 0.1, fs * 0.48, px(0.05));
+        gtx.fillRect(gx2 - px(0.016), midY - fs * 0.14, px(0.032), fs * 0.26);
+      }
     } else if (opts.door) {
       // the stoop grade: a tall door under a lit transom, stone enframement
       ctx.fillStyle = '#57505c';
@@ -1432,19 +1869,30 @@ export class ArrivalCinematic {
     ctx.fillRect(0, px(1.1), pw, px(0.12));
 
     // windows — floors of 3.5 m, most dark at dusk, a scatter of rooms lit
+    // and the occasional whole office floor in cool white (the near row
+    // lights DENSE — the city-igniting beat needs a skyline that actually
+    // ignites, not a few scattered dots)
     const floors = Math.max(2, Math.floor((h - 1.1) / 3.5));
     const floorH = (h - 1.1) / floors;
     const winW = px(0.75);
     const winH = px(1.15);
-    const lit = haze ? 0.16 : 0.3;
+    const lit = haze ? 0.16 : 0.44;
     for (let f = 0; f < floors; f++) {
       const fy = px(1.1) + px(floorH * f + (floorH - 1.15) / 2);
       const floorDark = rand() < 0.12;
+      const officeFloor = !haze && rand() < 0.07;
       const cols = Math.max(2, Math.round(w / 0.95));
       for (let b = 0; b < cols; b++) {
         const wx = Math.round((pw / cols) * (b + 0.5) - winW / 2);
         ctx.fillStyle = haze ? 'rgba(40,34,48,0.55)' : '#463e4a';
         ctx.fillRect(wx, fy, winW, winH);
+        if (officeFloor) {
+          if (rand() < 0.82) {
+            gtx.fillStyle = '#cfd8dc';
+            gtx.fillRect(wx, fy, winW, winH);
+          }
+          continue;
+        }
         if (floorDark || rand() > lit) continue;
         const r = rand();
         gtx.fillStyle = haze
@@ -1452,6 +1900,13 @@ export class ArrivalCinematic {
           : (r < 0.05 ? '#9fd8e8' : r < 0.25 ? '#ffd9a0' : '#ffb85c');
         gtx.fillRect(wx, fy, winW, winH);
       }
+    }
+    // the aircraft beacons — baked into the glow near the top of the tall
+    // towers, the way midtown wears them at dusk
+    if (!haze && h > 18) {
+      gtx.fillStyle = '#ff4a3a';
+      gtx.fillRect(Math.round(pw * 0.3), px(1.5), Math.max(2, px(0.16)), Math.max(2, px(0.16)));
+      gtx.fillRect(Math.round(pw * 0.72), px(1.9), Math.max(2, px(0.13)), Math.max(2, px(0.13)));
     }
     // the side shading — a dark column on each edge so a tower's neighbors
     // never fuse it into one continuous slab (the flat-wall lesson)
@@ -1478,22 +1933,23 @@ export class ArrivalCinematic {
   }
 
   /** Plain running-bond brick for building SIDES (the faces carry the
-   *  painted facades; the returns just need honest masonry). Tiled. */
+   *  painted facades; the returns just need honest masonry — from the
+   *  same six-palette wheel as the face, so a flank belongs to its
+   *  building). Tiled. */
   private brickTexture(variant: number): THREE.CanvasTexture {
     const c = document.createElement('canvas');
     c.width = 64; c.height = 64;
     const ctx = c.getContext('2d')!;
     const rand = this.seeded(41 + variant * 17);
-    ctx.fillStyle = ['#7d5a4c', '#6e5a50', '#7d6a58'][variant % 3];
+    const pal = ArrivalCinematic.BRICKS[variant % ArrivalCinematic.BRICKS.length];
+    ctx.fillStyle = pal.side;
     ctx.fillRect(0, 0, 64, 64);
     for (let row = 0; row < 16; row++) {
       const y = row * 4;
       const off = (row % 2) * 4;
       for (let x = -8; x < 64; x += 8) {
         const l = rand();
-        ctx.fillStyle = l < 0.5
-          ? ['#9a5a48', '#8a6a54', '#a88a68'][variant % 3]
-          : 'rgba(0,0,0,0.18)';
+        ctx.fillStyle = l < 0.5 ? pal.base : 'rgba(0,0,0,0.18)';
         ctx.fillRect(x + off + 1, y + 1, 6, 2);
       }
     }
@@ -1517,6 +1973,48 @@ export class ArrivalCinematic {
     g.addColorStop(1, 'rgba(255,140,90,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 128, 128);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  /** The terminal gate's PRECAST facade — panel joints, reveal shading,
+   *  grime streaks, a brick base course: the card lens spends its whole
+   *  push-in on this wall, and a flat purple slab wasted the stare. */
+  private gateFacadeTexture(): THREE.CanvasTexture {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 176; // 24 × 8 m at ~21 ppm
+    const ctx = c.getContext('2d')!;
+    const rand = this.seeded(777);
+    ctx.fillStyle = '#3a3442';
+    ctx.fillRect(0, 0, 512, 176);
+    // per-panel tone jitter — precast panels never match exactly
+    for (let p = 0; p < 8; p++) {
+      ctx.fillStyle = rand() < 0.5 ? 'rgba(255,244,220,0.045)' : 'rgba(20,14,24,0.055)';
+      ctx.fillRect(p * 64, 0, 64, 176);
+    }
+    // vertical panel joints + horizontal reveal shading
+    ctx.fillStyle = 'rgba(18,14,24,0.5)';
+    for (let p = 1; p < 8; p++) ctx.fillRect(p * 64 - 1, 0, 2, 176);
+    ctx.fillStyle = 'rgba(255,244,220,0.09)';
+    for (const ry of [22, 132]) ctx.fillRect(0, ry, 512, 2);
+    ctx.fillStyle = 'rgba(16,12,20,0.4)';
+    for (const ry of [24, 134]) ctx.fillRect(0, ry, 512, 2);
+    // the brick base course — two dark courses at the feet
+    ctx.fillStyle = '#2e2836';
+    ctx.fillRect(0, 164, 512, 12);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    for (let y = 164; y < 176; y += 4) ctx.fillRect(0, y, 512, 1);
+    // grime streaks washing down from the coping
+    for (let i = 0; i < 9; i++) {
+      const gx = Math.floor(rand() * 480) + 16;
+      const gw = 3 + Math.floor(rand() * 8);
+      const grad = ctx.createLinearGradient(0, 0, 0, 60 + rand() * 80);
+      grad.addColorStop(0, 'rgba(22,16,26,0.4)');
+      grad.addColorStop(1, 'rgba(22,16,26,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(gx, 0, gw, 60 + rand() * 80);
+    }
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     return tex;
@@ -1548,13 +2046,6 @@ export class ArrivalCinematic {
   // skyline the light-up beat depends on.
   private lambert(color: number): THREE.MeshLambertMaterial {
     const m = new THREE.MeshLambertMaterial({ color, fog: false });
-    this.disposables.push(m);
-    return m;
-  }
-
-  /** Lambert with flat shading — the canopy lobes catch the dusk per-face. */
-  private lambertFlat(color: number): THREE.MeshLambertMaterial {
-    const m = new THREE.MeshLambertMaterial({ color, flatShading: true, fog: false });
     this.disposables.push(m);
     return m;
   }
@@ -1664,6 +2155,7 @@ export class ArrivalCinematic {
    *  sidewalk, HUD + Map note, follow camera with clean air behind. */
   private handover(): void {
     this.runId++; // any in-flight arrival card is now stale
+    gameAudio.rumbleStop(); // a skip path can land here with the loop owned
     this.teardownRide();
     this.host.ui.cineHide();
     this.host.ui.cineHideBox();
@@ -1760,7 +2252,17 @@ export class ArrivalCinematic {
     // lit centre entrance under a hood, a departure board, light pools
     // under the poles — and past the parapet, the skyline you watched
     // light up from the bus window, standing there when you arrive.
-    const facade = this.lambertEmissive(0x3a3442, 0.06);
+    // the facade wears the precast panel paint — joints, reveals, grime,
+    // a brick base course. The card lens stares at this wall through its
+    // whole push-in; a flat slab wasted the stare.
+    const gateTex = this.gateFacadeTexture();
+    this.disposables.push(gateTex);
+    const facade = new THREE.MeshLambertMaterial({
+      color: 0xffffff, map: gateTex,
+      emissive: 0xffffff, emissiveMap: gateTex, emissiveIntensity: 0.06,
+      fog: false,
+    });
+    this.disposables.push(facade);
     box('Gate_Facade', facade, COACH.cx, 4.0, COACH.z + 4.2, 24, 8, 1.4);
     const deep = this.lambertEmissive(0x2c2733, 0.04);
     for (const ry of [1.4, 6.2]) {
@@ -1787,22 +2289,29 @@ export class ArrivalCinematic {
     this.disposables.push(tank.geometry as THREE.BufferGeometry, tRoof.geometry as THREE.BufferGeometry);
 
     // beyond the depot: the lit city out there — the ride's last promise,
-    // kept. Dark towers rising out of the dusk haze, sparse amber windows.
+    // kept. Dark towers rising out of the dusk haze, windows in a regular
+    // two-column grid (the old random scatter read as confetti), a parapet
+    // cap on every roofline.
     const farTower = this.lambertEmissive(0x35303e, 0.04);
     const farWin = this.lambertEmissive(0xffca7a, 0.5);
-    // x-offset, height, z-depth, width, window count — seeded jitter, no rands
-    const skyline: Array<[number, number, number, number, number]> = [
-      [-17, 15, 30, 5, 4], [-11.5, 18, 34, 4, 5], [-3, 14, 28, 6, 4],
-      [7.5, 20, 36, 5, 6], [15.5, 13, 30, 6, 3], [21, 16, 38, 4, 4],
+    // x-offset, height, z-depth, width — windows derive from the grid
+    const skyline: Array<[number, number, number, number]> = [
+      [-17, 15, 30, 5], [-11.5, 18, 34, 4], [-3, 14, 28, 6],
+      [7.5, 20, 36, 5], [15.5, 13, 30, 6], [21, 16, 38, 4],
     ];
-    for (const [ox, h, zo, w, wins] of skyline) {
+    for (const [ox, h, zo, w] of skyline) {
       box('Far_Tower', farTower, COACH.cx + ox, h / 2, COACH.z + zo, w, h, 3);
-      for (let wi = 0; wi < wins; wi++) {
-        box('Far_Window', farWin,
-          COACH.cx + ox + (((wi * 37) % 100) / 100 - 0.5) * (w - 1.2),
-          1.5 + ((wi * 53) % 100) / 100 * (h - 3),
-          COACH.z + zo - 1.56, 0.4, 0.55, 0.05);
+      const rows = Math.max(3, Math.floor((h - 3) / 2.4));
+      for (let cRow = 0; cRow < rows; cRow++) {
+        for (let cCol = 0; cCol < 2; cCol++) {
+          if ((cRow * 7 + cCol * 13 + ox + 40) % 5 < 2) continue; // 40% lit
+          box('Far_Window', farWin,
+            COACH.cx + ox + (cCol === 0 ? -w * 0.22 : w * 0.22),
+            2.2 + cRow * ((h - 4) / rows),
+            COACH.z + zo - 1.56, 0.42, 0.6, 0.05);
+        }
       }
+      box('Far_Cap', farTower, COACH.cx + ox, h + 0.12, COACH.z + zo, w + 0.3, 0.24, 3.2);
     }
 
     // the lit centre entrance — somebody is waiting inside. The frame is a
@@ -1854,6 +2363,21 @@ export class ArrivalCinematic {
     // away from the plane and the software rasterizer hands the tie to the
     // dark box; 0.06 of open air north of the facade front is the proven
     // config (the original GATE sign flew with exactly this)
+
+    // a luggage cart waits west of the gate — deck, handle, wheels, two
+    // cases: the terminal is staffed, the balance of the apron is kept
+    box('Gate_CartDeck', deep, COACH.cx - 7.5, 0.32, COACH.z + 1.6, 1.5, 0.1, 0.7);
+    for (const wx of [-0.55, 0.55]) {
+      const cwr = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.06, 8), dark);
+      cwr.name = 'Gate_CartWheel';
+      cwr.rotation.x = Math.PI / 2;
+      cwr.position.set(COACH.cx - 7.5 + wx, 0.18, COACH.z + 1.6);
+      g.add(cwr);
+      this.disposables.push(cwr.geometry as THREE.BufferGeometry);
+    }
+    box('Gate_CartHandle', dark, COACH.cx - 7.5, 0.78, COACH.z + 1.3, 1.2, 0.05, 0.05);
+    box('Gate_CartCaseA', this.lambert(0x6e4a34), COACH.cx - 7.8, 0.52, COACH.z + 1.6, 0.55, 0.3, 0.4);
+    box('Gate_CartCaseB', this.lambert(0x4a3c2e), COACH.cx - 7.2, 0.5, COACH.z + 1.6, 0.45, 0.26, 0.36);
 
     // lane props by the east gap — the bay waits with you
     box('Gate_BenchSeat', this.lambert(0x4a3c2e), COACH.cx + 5.4, 0.46, COACH.z + 2.6, 1.8, 0.07, 0.45);
@@ -1960,6 +2484,45 @@ export class ArrivalCinematic {
     for (const tz of [COACH.z - 0.95, COACH.z + 0.95]) {
       box('Coach_Tail', tailDot, COACH.cx - 4.82, 1.9, tz, 0.06, 0.09, 0.05);
     }
+    // somebody is waiting for this coach — two figures on the apron by the
+    // east bench, standing in the open where the establishing lens sees
+    // them (the gate DOORS sit behind the coach body from every shipped
+    // film lens, so that is where their silhouettes cannot go). Each is
+    // three boxes (legs, torso, head) merged into one geometry, ink-dark,
+    // honestly human scale: 1.55 m and 1.4 m.
+    const silMat = this.lambert(0x1c1822);
+    const figure = (px: number, pz: number, h: number) => {
+      const legH = h * 0.47;
+      const torsoH = h * 0.35;
+      const headH = h * 0.13;
+      const fig = mergeGeometries([
+        new THREE.BoxGeometry(0.30, legH, 0.18).translate(0, legH / 2, 0),
+        new THREE.BoxGeometry(0.38, torsoH, 0.20).translate(0, legH + torsoH / 2, 0),
+        new THREE.BoxGeometry(0.17, headH, 0.18).translate(0, legH + torsoH + headH / 2 + 0.02, 0),
+      ], false)!;
+      const m = new THREE.Mesh(fig, silMat);
+      m.name = 'Gate_Waiter';
+      m.position.set(px, 0, pz);
+      g.add(m);
+      this.disposables.push(fig);
+    };
+    figure(COACH.cx + 6.6, COACH.z + 2.2, 1.55); // by the bench, facing the gate
+    figure(COACH.cx + 5.6, COACH.z + 1.5, 1.40); // the shorter one, nearer the pole
+    // the coach breathes at the gate — two settled exhaust wisps astern,
+    // the chimney-smoke trick (stillness reads as distance at film scale)
+    const exMat = new THREE.MeshLambertMaterial({ color: 0x9a9aa8, transparent: true, opacity: 0.28, fog: false });
+    this.disposables.push(exMat);
+    for (const [ex, ey, ez, er] of [
+      [COACH.cx - 5.15, 1.35, COACH.z - 0.35, 0.14],
+      [COACH.cx - 5.38, 1.62, COACH.z - 0.3, 0.2],
+    ] as const) {
+      const wisp = new THREE.Mesh(new THREE.SphereGeometry(er, 8, 6), exMat);
+      wisp.name = 'Coach_Exhaust';
+      wisp.position.set(ex, ey, ez);
+      wisp.scale.set(1, 1.35, 1);
+      g.add(wisp);
+      this.disposables.push(wisp.geometry as THREE.BufferGeometry);
+    }
     // wheels + hubs — the coach stood on painted air before
     wheel(COACH.cx + 3.1, COACH.z - 1.02);
     wheel(COACH.cx + 3.1, COACH.z + 1.02);
@@ -2007,8 +2570,11 @@ export class ArrivalCinematic {
   }
 
   /** The door leaf slides into the body — the film's own prop, so the
-   *  tween lives here and the host interface stays clean. */
+   *  tween lives here and the host interface stays clean. The chime rides
+   *  along: the same two-note "stand clear" the M121 pairs with its own
+   *  doors (one voice, one owner — docs/30 house rules). */
   private openFilmDoor(): void {
+    gameAudio.doorChime();
     const t = this.host.tweens;
     if (this.doorLeaf) t.num(() => this.doorLeaf!.position.x, (v) => { if (this.doorLeaf) this.doorLeaf.position.x = v; }, this.doorLeaf.position.x + 0.92, 0.9);
     if (this.doorGlass) t.num(() => this.doorGlass!.position.x, (v) => { if (this.doorGlass) this.doorGlass.position.x = v; }, this.doorGlass.position.x + 0.92, 0.9);

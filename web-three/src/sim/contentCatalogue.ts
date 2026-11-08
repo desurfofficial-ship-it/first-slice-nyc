@@ -17,16 +17,21 @@
  *      actually ships.
  *
  *   2. THE FIRST BUILDING-VARIANT PACK — every registry building the
- *      world actually ships (status `existing` or `built (W2)`), carried
- *      under its REGISTRY id (wc-11 §1: "a registry-style id for
- *      built-in canon props"). Kind `building_variant`; tags carry the
- *      block + classification; the builder names the authored
- *      construction honestly — code-ref masses name their
- *      `World.solid('…')` token (the registry's own style notes), the
- *      rest name the module that builds them. BUILDING_EVIDENCE pins
- *      the non-code-ref cases to greppable tokens (the test enforces
- *      it). Planned buildings join later packs as they are built —
- *      new entries append (the id law); nothing is renamed.
+ *      world actually ships (status `existing`, or `built (Wn)` for the
+ *      phase that raised it), carried under its REGISTRY id (wc-11 §1:
+ *      "a registry-style id for built-in canon props"). Kind
+ *      `building_variant`; tags carry the block + classification; the
+ *      builder names the authored construction honestly — code-ref
+ *      masses name their `World.solid('…')` token (the registry's own
+ *      style notes), the rest name the module that builds them.
+ *      BUILDING_EVIDENCE pins the non-code-ref cases to greppable tokens
+ *      (the test enforces it). The status column was repaired 2026-11-08
+ *      (A-3 unit 1's bookkeeping): 31 rows built in phases W1–W3 had
+ *      stayed 'planned' — the truth now reads from the registry's own
+ *      constructionPhases lists, and the shipped-law is semantic
+ *      (isShippedBuildingStatus), never a hand-list of phase strings
+ *      again. New buildings append as they are built (the id law);
+ *      nothing is renamed.
  *
  * The whole catalogue passes `validateManifest` (wc-11 §3, wc-15 row 17)
  * — the test proves it, so a future content agent inherits a VALID,
@@ -100,8 +105,15 @@ export interface RegistryBuildingJson {
   style?: string;
 }
 
-/** The statuses that mean the building SHIPS (the world builds it). */
-export const SHIPPED_BUILDING_STATUSES: readonly string[] = ['existing', 'built (W2)'];
+/** The shipped-law, semantic: the registry's own status vocabulary is
+ *  `existing | built (Wn) | planned` (sim/registry.ts) — a building SHIPS
+ *  when it is `existing` or when a construction phase has BUILT it.
+ *  (Before 2026-11-08 this was a hand-list `['existing', 'built (W2)']`
+ *  that aged the moment another phase's statuses were repaired; the
+ *  semantic form cannot.) */
+export function isShippedBuildingStatus(status: string | undefined): boolean {
+  return status === 'existing' || /^built \(W\d+\)$/.test(status ?? '');
+}
 
 const REGISTRY = registryJson as unknown as { buildings?: RegistryBuildingJson[] };
 
@@ -151,6 +163,41 @@ export const BUILDING_EVIDENCE: Record<string, { file: 'World.ts' | 'timesSquare
   'TSS-03': { file: 'timesSquare.ts', tokens: ['east tower'] },
   'TSS-04': { file: 'timesSquare.ts', tokens: ['south row'] },
   'TSS-05': { file: 'timesSquare.ts', tokens: ['south row'] },
+  // ---- A-3 unit 1's status repair (2026-11-08) grew the shipped slice —
+  // the W1–W3 rows below were always built; the evidence tokens are their
+  // construction names in World.ts (the flip's own band: the registry id
+  // itself, keyed by regBox).
+  'KTN-00W': { file: 'World.ts', tokens: ['KTN_00W'] },
+  'KTN-06': { file: 'World.ts', tokens: ['KTN_06'] },
+  'SMB-01': { file: 'World.ts', tokens: ['SMB-01'] },
+  'SMB-02': { file: 'World.ts', tokens: ['SMB_02'] },
+  'SMB-03': { file: 'World.ts', tokens: ['SMB_03'] },
+  'PWK-01': { file: 'World.ts', tokens: ['PWK-01'] },
+  'PWK-02': { file: 'World.ts', tokens: ['PWK-02'] },
+  'PWK-03': { file: 'World.ts', tokens: ['PWK-03'] },
+  'SUB-02': { file: 'World.ts', tokens: ['makeControlHouse'] },
+  'GRB-01': { file: 'World.ts', tokens: ['GRB_01'] },
+  'GRB-02': { file: 'World.ts', tokens: ['GRB_02'] },
+  'GRB-03': { file: 'World.ts', tokens: ['GRB_03'] },
+  'GRB-04': { file: 'World.ts', tokens: ['GRB_04'] },
+  'GRB-05': { file: 'World.ts', tokens: ['GRB_05'] },
+  'TEN-01': { file: 'World.ts', tokens: ['TEN_01a'] },
+  'SRC-01': { file: 'World.ts', tokens: ['SRC_01'] },
+  'SRC-02': { file: 'World.ts', tokens: ['SRC_02'] },
+  'KTN-07': { file: 'World.ts', tokens: ['KTN_07'] },
+  'KCM-01': { file: 'World.ts', tokens: ['KCM_01_base'] },
+  'SND-01': { file: 'World.ts', tokens: ['SND_01_band'] },
+  'VND-02': { file: 'World.ts', tokens: ['VND02_Sign'] },
+  'VDN-DW1a': { file: 'World.ts', tokens: ['VDN-DW1a'] },
+  'VDN-DW1b': { file: 'World.ts', tokens: ['VDN-DW1b'] },
+  'VDN-DW1c': { file: 'World.ts', tokens: ['VDN-DW1c'] },
+  'VDN-DW1d': { file: 'World.ts', tokens: ['VDN-DW1d'] },
+  'VDN-DE1a': { file: 'World.ts', tokens: ['VDN-DE1a'] },
+  'VDN-DE1b': { file: 'World.ts', tokens: ['VDN-DE1b'] },
+  'VDN-DE1c': { file: 'World.ts', tokens: ['VDN-DE1c'] },
+  'VDN-DE1d': { file: 'World.ts', tokens: ['VDN-DE1d'] },
+  'VDN-DN1': { file: 'World.ts', tokens: ['VDN-DN1'] },
+  'VDN-DS1': { file: 'World.ts', tokens: ['VDN-DS1'] },
 };
 
 /**
@@ -162,7 +209,7 @@ export const BUILDING_EVIDENCE: Record<string, { file: 'World.ts' | 'timesSquare
 export function shippedBuildingVariantEntries(): ContentEntry[] {
   const out: ContentEntry[] = [];
   for (const b of REGISTRY.buildings ?? []) {
-    if (!SHIPPED_BUILDING_STATUSES.includes(b.status ?? '')) continue;
+    if (!isShippedBuildingStatus(b.status)) continue;
     out.push({
       id: b.id,
       kind: 'building_variant',
