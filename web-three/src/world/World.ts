@@ -5246,42 +5246,56 @@ export class World {
 
   /** W3, section C — the class-D backdrop walls: eight avenue segments and
    *  two roofline strips (docs/40 §3). Simplified masses, storefront hint
-   *  band, no interiors — the skyline-card honesty, one step closer. */
+   *  band, no interiors — the skyline-card honesty, one step closer.
+   *  A-3 UNIT 5 (W3-D, DEC-4 Option B): each row's segmentation derives
+   *  from the REGISTRY footprint (center/width/depth → equal slabs); the
+   *  VARIED per-segment heights are the authored style and stay code (the
+   *  registry's height column is the row's canonical height — the pin:
+   *  footprint verbatim, height inside the segment span). */
   private buildBackdrops(): void {
     const hint = (name: string, cx: number, cz: number, sx: number, sz: number): void => {
       const h = this.deco(name, cx, 1.7, cz, sx, 3.4, sz, PAL.windowDim, {});
       h.castShadow = false; // far hint bands: their shadows are noise (W3 perf)
     };
-    // Juniper W (x −82..−74): three slabs per segment per the registry notes
+    // Juniper W/E (x ±78 ±4): N slabs per row, split evenly across the
+    // registry depth
     const seg = (
-      id: string, x: number, z0: number, z1: number, heights: number[],
+      regId: string, heights: number[],
     ): void => {
+      const reg = this.regShell(regId);
+      const id = regId.replace(/-/g, '_'); // the solid's scene name — the shipped naming law
       const n = heights.length;
-      const d = (z1 - z0) / n;
+      const d = reg.d / n;
       for (let i = 0; i < n; i++) {
         const h = heights[i];
-        const cz = z0 + d * (i + 0.5);
-        this.solid(`${id}_${i}`, x, h / 2, cz, 8, h, d, i % 2 ? PAL.bldg : PAL.bldg2);
-        hint(`${id}_hint_${i}`, x, cz, 8.02, Math.min(d - 0.4, 7));
+        const cz = reg.z - reg.d / 2 + d * (i + 0.5);
+        this.solid(`${id}_${i}`, reg.x, h / 2, cz, reg.w, h, d, i % 2 ? PAL.bldg : PAL.bldg2);
+        hint(`${id}_hint_${i}`, reg.x, cz, reg.w + 0.02, Math.min(d - 0.4, 7));
       }
     };
-    seg('VDN_DW1a', -78, 8, 32, [14, 19, 16]);
-    seg('VDN_DW1b', -78, 46, 61, [15, 13]);
-    seg('VDN_DW1c', -78, -32, -8, [14, 21, 16]);
-    seg('VDN_DW1d', -78, -61, -46, [14, 12]);
-    seg('VDN_DE1a', 78, 8, 32, [17, 14, 16]);
-    seg('VDN_DE1b', 78, 46, 61, [15, 13]);
-    seg('VDN_DE1c', 78, -32, -8, [16, 22, 14]);
-    seg('VDN_DE1d', 78, -61, -46, [12, 14]);
-    // the Gable / Marlow roofline strips: rowhouse silhouettes, varied
+    seg('VDN-DW1a', [14, 19, 16]);
+    seg('VDN-DW1b', [15, 13]);
+    seg('VDN-DW1c', [14, 21, 16]);
+    seg('VDN-DW1d', [14, 12]);
+    seg('VDN-DE1a', [17, 14, 16]);
+    seg('VDN-DE1b', [15, 13]);
+    seg('VDN-DE1c', [16, 22, 14]);
+    seg('VDN-DE1d', [12, 14]);
+    // the Gable / Marlow roofline strips: rowhouse silhouettes, varied —
+    // each strip splits the registry width evenly
     const heightsN = [11, 13, 15, 12, 14, 13, 11, 15, 12, 14];
     const heightsS = [14, 12, 15, 13, 11, 14, 12, 15, 13, 11];
-    for (const [id, zc, hs] of [['VDN_DN1', 53.5, heightsN], ['VDN_DS1', -53.5, heightsS]] as const) {
+    const strip = (regId: string, hs: number[]): void => {
+      const reg = this.regShell(regId);
+      const id = regId.replace(/-/g, '_');
+      const w = reg.w / hs.length;
       for (let i = 0; i < hs.length; i++) {
-        const cx = -60 + 12 * (i + 0.5);
-        this.solid(`${id}_${i}`, cx, hs[i] / 2, zc, 12, hs[i], 10, i % 2 ? PAL.bldg2 : PAL.bldg);
+        const cx = reg.x - reg.w / 2 + w * (i + 0.5);
+        this.solid(`${id}_${i}`, cx, hs[i] / 2, reg.z, w, hs[i], reg.d, i % 2 ? PAL.bldg2 : PAL.bldg);
       }
-    }
+    };
+    strip('VDN-DN1', heightsN);
+    strip('VDN-DS1', heightsS);
   }
 
   /** W3, section D — the two painted landmarks: the Garden Mural (LMK-05,

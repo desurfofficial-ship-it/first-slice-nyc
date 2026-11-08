@@ -48,6 +48,7 @@ const BANDS: Record<string, { ids: string[]; classes: string[] }> = {
   'u2-w1-b': { ids: ['KTN-00W', 'SMB-01', 'SMB-02', 'SMB-03', 'SUB-02'], classes: ['A', 'B'] },
   'u3-w1-a': { ids: ['KTN-06'], classes: ['A'] },
   'u4-w2-c': { ids: ['GRB-01', 'GRB-02', 'GRB-03', 'GRB-04', 'GRB-05'], classes: ['C', 'D'] },
+  'u5-w3-d': { ids: ['VDN-DW1a', 'VDN-DW1b', 'VDN-DW1c', 'VDN-DW1d', 'VDN-DE1a', 'VDN-DE1b', 'VDN-DE1c', 'VDN-DE1d', 'VDN-DN1', 'VDN-DS1'], classes: ['D'] },
 };
 
 /** The retired hand truth, verbatim from the pre-flip World.ts rows —
@@ -178,6 +179,11 @@ describe('A-3 registry flip — the flipped bands answer to the registry', () =>
     expect(worldTs.includes('this.regShell(regId)')).toBe(true);
     // unit 4 (W2-C): the gable row reads the registry id via the derived key
     expect(worldTs.includes("this.regShell(id.replace('_', '-'))")).toBe(true);
+    // unit 5 (W3-D): the backdrops split the registry footprints evenly
+    expect(worldTs.includes("seg('VDN-DW1a', [14, 19, 16])")).toBe(true);
+    expect(worldTs.includes("strip('VDN-DN1', heightsN)")).toBe(true);
+    expect(worldTs.includes("seg('VDN_DW1a', -78, 8, 32, [14, 19, 16])")).toBe(false);
+    expect(worldTs.includes("const cx = -60 + 12 * (i + 0.5)")).toBe(false);
     // the retired hand-literal tuples are gone from the source
     expect(worldTs.includes(`['GRB_01', -42.6, 0xff6b6b, false]`)).toBe(false);
     expect(worldTs.includes(`solid(id, cx, 6.25, 26, 7.6, 12.5, 12`)).toBe(false);

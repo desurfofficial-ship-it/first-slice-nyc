@@ -2685,3 +2685,21 @@ Work Log:
 Stage Summary:
 - The wave's second half is under way on the production line's own seam: unit 4 lands with the strongest evidence standard in the repo (byte-identical census + byte-equal ledger + the full probe battery), and the registry's status column now tells the truth the render reads. The sister line's work is accounted, not lost.
 ---
+
+## 2026-11-08 — Technical Architecture / World Systems Agent: WP-A3 unit 5/6 — W3-D the avenue backdrops flipped (register v1.25.0)
+
+Task ID: WP-A3-U5
+Agent: Technical Architecture / World Systems Agent (Z.ai)
+Task: the DEC-4 Option B wave's fifth unit (plan §2b item 4 order), same branch, same gate.
+
+Work Log:
+- **The flip (W3-D):** `buildBackdrops`'s `seg`/`strip` now take the REGISTRY id and split the row's own footprint evenly — the eight avenue-wall rows (VDN-DW1a..d at x −78, VDN-DE1a..d at x +78) into equal slabs across the registry depth, the two roofline strips (VDN-DN1/DS1 at z ±53.5) into ten across the registry width. The VARIED per-segment heights are the authored style and stay code (the registry's height column is the row's canonical height — the honest data shape: footprint verbatim, height inside the segment span; pinned exactly so). The storefront hint bands ride the same derived boxes. Hand tuples retired (`seg('VDN_DW1a', -78, 8, 32, …)`, the `-60 + 12·(i+½)` strip walk).
+- **The acceptance test grew with the band:** u5 in the ledger (10 rows, the class-D guard); the source law pins the derived-key calls (`seg('VDN-DW1a', [14, 19, 16])`, `strip('VDN-DN1', heightsN)`) and the retired shapes. **One consequence the suite caught mid-gate:** the flip removed the `VDN_DW1a`-style underscore literals, so the BUILDING_EVIDENCE tokens re-keyed to the dashed registry ids — the same registry-id token law SMB rode at unit 4 (the flip's derived solid names leave no underscore literals behind).
+- **The fidelity gate, unit 5 — ALL GREEN [executed, sequential on the idle box]:** geometry census byte-identical (`u4-` ≡ `u5-census.json`, 173 band meshes — the moved numbers moved no vertex) · draw-call ledger pre/post byte-identical 146/216/282 · parked-camera pairs filed (`shots/a3/{u4,u5}-*.png`, 7 vantages) · tsc clean · vitest **1065/1065** (72 files) · build OK · probe-world-sim **15/15** · probe-nav **9/9** · probe-integration **0 errors, 8/8 walks, 71 GLB upgrades** · 4-day E2E **0 failures (683 s, console clean)**.
+- **Honest process note:** the first E2E attempt hit the driver's 900 s wall-clock ceiling mid-PASS-streak (every reported step still PASS; the in-page test simply needed more than 900 s on this software-GL box that day) — the rerun on the idle box green with no code delta between the runs, the unit-1 contention pattern's slow-box cousin. Recorded here and in the register row so the pattern stays on record.
+- Register v1.25.0 (Gates clause + the F change-log row) — same commit as the flip.
+- Not done, by law: unit 6/6 (W3-C the avenue faces) — the wave's last band; the DEC-8/B13 owner calls.
+
+Stage Summary:
+- Ten backdrop rows flipped with zero vertex movement; the wave's machinery has now absorbed every geometry shape the registry carries except the avenue faces and the far world. One band left in the plan.
+---
