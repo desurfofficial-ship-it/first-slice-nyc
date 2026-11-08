@@ -56,6 +56,10 @@ const BAND_REGIONS = [
   ['w3-juniper-faces', -63, -47, -34, -6], // TEN-01 (fp −55,−14 10×12) + SRC-02 (−55,−26 10×12)
   ['w3-hall', -63, -45, 17, 35],           // KCM-01 (fp −54,26 12×12)
   ['w3-sycamore-faces', 47, 67, -34, 34],  // KTN-07 (54,26) + SND-01 (55,−14) + SRC-01 (55,−26) + VND-02 (63.3,−18)
+  // unit 10 (the far world): the Times Square rows — the masses, their
+  // crowns/dressing and the zone bake's tiles all read here (SUB_Root's
+  // movers stay excluded by name; no overlap with the home bands)
+  ['tss-far-row', -380, -280, -40, 40],    // TSS-01..05 (x −364..−298) + the station plaza
 ];
 
 // Dynamic systems excluded from the geometry census (they MOVE — the M121
@@ -67,9 +71,14 @@ const BAND_REGIONS = [
 // kid, the stranger, the familiar, Sal — idle-animated person rigs) and
 // the subway system's own movers (the trains and their riders, all under
 // SUB_Root). The bands' truth is static geometry.
+// unit 10 addition: the far world's own plaza movers (TSS_Mover_A..D —
+// four walking rigs the zone lights) and its idle crowd (TSS_Crowd_N —
+// breathing rigs whose world boxes jitter by millimetres between
+// samples; the u10 census's first pair caught one 0.9 m into its stroll
+// and refused the tree until the movers were named).
 // ^Player$ is name-exact on purpose: the player's idle rig jitters the
 // census at spawn, but the static PlayerCorner paving must stay counted.
-const DYNAMIC_RE = /BUS_|BUS0|car_taxi|Pigeon|Squirrel|LeafDrift|Steam|Pedestrians|Rosa|Idris|TheKid|TheStranger|TheFamiliar|Sal|SUB_Root|^Player$/i;
+const DYNAMIC_RE = /BUS_|BUS0|car_taxi|Pigeon|Squirrel|LeafDrift|Steam|Pedestrians|Rosa|Idris|TheKid|TheStranger|TheFamiliar|Sal|SUB_Root|TSS_Mover|TSS_Crowd|^Player$/i;
 
 const server = createServer((req, res) => {
   let p = decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname);
@@ -238,6 +247,8 @@ const spots = [
   ['shipped-terminal', -33, 2],
   ['shipped-north', -4, 1],
   ['shipped-south', -12, -3],
+  // unit 10 (the far world): the Times Square money shot, from the road
+  ['times-square', -332, -4],
 ];
 for (const [name, x, z] of spots) {
   await page.evaluate(([tx, tz]) => {

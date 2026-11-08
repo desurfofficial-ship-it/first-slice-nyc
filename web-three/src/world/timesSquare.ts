@@ -113,9 +113,15 @@ function marqueeTexture(): THREE.CanvasTexture {
 
 // ------------------------------------------------------------------ builder
 
+/** One flipped building's registry shell (the far world's rows travel from
+ *  World.regShell — A-3 unit 10, DEC-4 Option B standing ruling). */
+export interface TSShell { x: number; z: number; w: number; d: number; h: number }
+export type TSRegistryRows = Record<'TSS-01' | 'TSS-02' | 'TSS-03' | 'TSS-04' | 'TSS-05', TSShell>;
+
 export function buildTimesSquare(
   parent: THREE.Group,
   M: (c: number, opts?: { emissive?: number; emissiveIntensity?: number }) => THREE.MeshLambertMaterial,
+  rows: TSRegistryRows,
 ): TimesSquare {
   const group = new THREE.Group();
   group.name = 'TSS_Group';
@@ -161,9 +167,14 @@ export function buildTimesSquare(
 
   // ---- north row: the Orpheum block + the east tower (station gap in
   //      between: x −350..−320 is station B's block) ----
-  box('TSS_01_base', -364, 3, 14, 28, 6, 12, PAL.stone);
-  box('TSS_01_tower', -364, 18, 14, 24, 24, 12, PAL.brick);
-  box('TSS_01_crown', -364, 30.6, 14, 25, 1.2, 13, PAL.stone, { collide: false });
+  // A-3 UNIT 10: the masses READ their registry rows — the base/tower
+  // splits (the 6 m stone base, the 14 m brick shoulder) and the crowns'
+  // insets/oversails are the rows' own style laws, derived against the
+  // shells; the window grids, marquee, blade and screens ride the faces.
+  const t1 = rows['TSS-01'];
+  box('TSS_01_base', t1.x, 3, t1.z, t1.w, 6, t1.d, PAL.stone);
+  box('TSS_01_tower', t1.x, 6 + (t1.h - 6) / 2, t1.z, t1.w - 4, t1.h - 6, t1.d, PAL.brick);
+  box('TSS_01_crown', t1.x, t1.h + 0.6, t1.z, t1.w - 3, 1.2, t1.d + 1, PAL.stone, { collide: false });
   for (const wy of [8.6, 11.5, 14.4, 17.3, 20.2, 23.1]) {
     for (const wx of [-372, -366.5, -361, -355.5]) {
       box(`TSS_01_win_${wx}_${wy}`, wx, wy, 7.92, 1.3, 1.7, 0.1, PAL.windowDim ?? 0x514659, { collide: false, cast: false });
@@ -175,8 +186,9 @@ export function buildTimesSquare(
   box('TSS_Blade', -351.6, 7.4, 7.7, 1.3, 6.5, 0.45, 0xB23A48, { emissive: 0xffb85c, ei: 0.4 });
   box('TSS_TheaterDoor', -352.3, 1.5, 7.9, 1.6, 3.0, 0.2, 0x513a3a);
 
-  box('TSS_03_tower', -305, 13, 14, 26, 26, 12, PAL.bldg2);
-  box('TSS_03_crown', -305, 26.5, 14, 27, 1, 13, PAL.stone, { collide: false });
+  const t3 = rows['TSS-03'];
+  box('TSS_03_tower', t3.x, t3.h / 2, t3.z, t3.w, t3.h, t3.d, PAL.bldg2);
+  box('TSS_03_crown', t3.x, t3.h + 0.5, t3.z, t3.w + 1, 1, t3.d + 1, PAL.stone, { collide: false });
   for (const wy of [4, 8, 12, 16, 20, 24]) {
     for (const wx of [-313, -307, -301, -295]) {
       box(`TSS_03_win_${wx}_${wy}`, wx, wy, 7.92, 1.3, 1.7, 0.1, 0x514659, { collide: false, cast: false });
@@ -185,13 +197,16 @@ export function buildTimesSquare(
   box('TSS_03_water', -297, 28, 12, 2.2, 2.2, 2.2, 0x6e5a4e, { collide: false });
 
   // ---- south row (camera-facing: the money shot) ----
-  box('TSS_02_a', -358, 7, -14, 28, 14, 12, PAL.bldg);
-  box('TSS_02_b', -358, 19, -14, 22, 10, 12, PAL.brick);
-  box('TSS_02_crown', -358, 24.6, -14, 23, 1.2, 13, PAL.stone, { collide: false });
+  const t2 = rows['TSS-02'];
+  box('TSS_02_a', t2.x, 7, t2.z, t2.w, 14, t2.d, PAL.bldg);
+  box('TSS_02_b', t2.x, 14 + (t2.h - 14) / 2, t2.z, t2.w - 6, t2.h - 14, t2.d, PAL.brick);
+  box('TSS_02_crown', t2.x, t2.h + 0.6, t2.z, t2.w - 5, 1.2, t2.d + 1, PAL.stone, { collide: false });
   box('TSS_02_water', -366, 26.2, -12, 2.2, 2.6, 2.2, 0x6e5a4e, { collide: false });
-  box('TSS_04_tower', -326, 14, -14, 28, 28, 12, PAL.bldg2);
-  box('TSS_04_crown', -326, 28.6, -14, 29, 1.2, 13, PAL.stone, { collide: false });
-  box('TSS_05', -298, 9, -14, 20, 18, 12, PAL.brick);
+  const t4 = rows['TSS-04'];
+  box('TSS_04_tower', t4.x, t4.h / 2, t4.z, t4.w, t4.h, t4.d, PAL.bldg2);
+  box('TSS_04_crown', t4.x, t4.h + 0.6, t4.z, t4.w + 1, 1.2, t4.d + 1, PAL.stone, { collide: false });
+  const t5 = rows['TSS-05'];
+  box('TSS_05', t5.x, t5.h / 2, t5.z, t5.w, t5.h, t5.d, PAL.brick);
   for (const wx of [-368, -362, -356, -350, -344, -338, -332, -326, -320, -314, -308, -302]) {
     box(`TSS_S_win_${wx}`, wx, 3.4, -7.92, 1.4, 1.8, 0.1, 0x514659, { collide: false, cast: false });
   }
