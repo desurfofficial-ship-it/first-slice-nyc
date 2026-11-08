@@ -35,6 +35,14 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
 // footprints (world-registry.json), padded 2 m so proud storefronts,
 // stoops and window rows stay inside the census.
 const BAND_REGIONS = [
+  // unit 7 (the shipped street's class C band): the shipped street's two
+  // halves, bands kept tight so the W1/W2/W3 regions keep their meshes
+  // (first-match wins — the shipped rows must not steal the filed bands:
+  // ss-north stops at z 19.5 below the gable row, x 49.5 short of the café;
+  // ss-south starts at z −19.5 above the Marlow row and ends at x 46 short
+  // of SND-01, west of TEN-01's east face)
+  ['ss-north', -49, 49.5, 4, 19.5],    // KTN-01..05 + ALY-01 + SUB-01 + ROS-01 (fp z 14±6, faces 7.92..8.02)
+  ['ss-south', -49, 46, -19.5, -4],    // KTS-01..03 (fp z −14±6) + VND-01 + face dressing
   ['w1-marlow-row', -49, 24, -34, -18],   // PWK-01..03 + SMB-01..03 (fp z −26±6, stoops −32.6)
   ['w1-corner-w', -62, -48, 6, 22],       // KTN-00W (fp −55,14 10×12)
   ['w1-corner-e', 48, 62, 6, 22],         // KTN-06 (fp 55,14 10×12)
@@ -55,7 +63,13 @@ const BAND_REGIONS = [
 // with an ancestor whose name matches (the M121 and its driver, the
 // walking rosters, the birds, the leaves, the steam). The bands' truth is
 // static geometry.
-const DYNAMIC_RE = /BUS_|BUS0|car_taxi|Pigeon|Squirrel|LeafDrift|Steam|Pedestrians/i;
+// unit 7 additions: the shipped street's named actors (Rosa, Idris, the
+// kid, the stranger, the familiar, Sal — idle-animated person rigs) and
+// the subway system's own movers (the trains and their riders, all under
+// SUB_Root). The bands' truth is static geometry.
+// ^Player$ is name-exact on purpose: the player's idle rig jitters the
+// census at spawn, but the static PlayerCorner paving must stay counted.
+const DYNAMIC_RE = /BUS_|BUS0|car_taxi|Pigeon|Squirrel|LeafDrift|Steam|Pedestrians|Rosa|Idris|TheKid|TheStranger|TheFamiliar|Sal|SUB_Root|^Player$/i;
 
 const server = createServer((req, res) => {
   let p = decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname);
@@ -220,6 +234,10 @@ const spots = [
   ['avenue-faces-w', -66, -14],
   ['hall-block', -60, 22],
   ['avenue-faces-e', 62, -6],
+  // unit 7 (the shipped street): the terminal block, the north row, the south row
+  ['shipped-terminal', -33, 2],
+  ['shipped-north', -4, 1],
+  ['shipped-south', -12, -3],
 ];
 for (const [name, x, z] of spots) {
   await page.evaluate(([tx, tz]) => {
