@@ -40,7 +40,17 @@ import { FAMILIAR_SPEED, familiarBeatForDay } from '../world/dressing';
 import { InteractionRegistry, NEVER_NEAR, type InteractionCtx } from './interactions';
 import { buildInteractions, byDay, BUS_BENCH_SEAT, PARK_BENCH_SEAT } from './interactionDefs';
 import { worldPaused } from './pauseSet';
-import { BENCH_SIT_NOTES, PARK_SIT_NOTES, FREE_WASH_NOTES } from '../core/content';
+import { BENCH_SIT_NOTES, PARK_SIT_NOTES, FREE_WASH_NOTES, DIARY_NOTE_TEXT } from '../core/content';
+// ---- the C0 pack (narrative/14 §7 step 6 — doc 11 against the shipped
+// opening, first tranche: the spine goes live) ----
+import {
+  C0_COLD_OPEN, C0_SYSTEM_LINE, C0_THEORY, C0_FIRST_QUESTION,
+  applyColdOpen, theoryEntryDraft, questionEntryDraft, morningWhisper,
+} from '../core/c0pack';
+import { freshChapterState, serializeChapterState } from '../core/chapters';
+import { freshRailStates, serializeRails } from '../core/chapterRails';
+import { serializeLedger } from '../core/consequenceLedger';
+import { serializeFieldDiary } from '../core/fieldDiary';
 import { gameAudio } from './audio';
 import { ArrivalCinematic } from './arrival';
 import { RIDE_BEAT_TEXT, TS_SYNC_NOTE } from '../core/content';
@@ -95,8 +105,14 @@ export class Game {
    *  driver asks for it explicitly). Forces the offer at the film handover
    *  so evidence probes can tap the tiles. */
   private forcePickCard = false;
+  /** ?starter=<id> was given at boot — a direct dress skips the cold open
+   *  (the pick-card law's own pattern). */
+  private starterParamGiven = false;
   /** The pick card has been offered this session (offer once, never nag). */
   private starterOffered = false;
+  /** The cold open has been mounted this session (the once law's session
+   *  half — the durable half is the world's `node:N0=` flag). */
+  private coldOpenShown = false;
   private postcardRig = false;
   /** The Wow card (docs/51 B10) is open — the panel currently shows the
    *  sync beat's keepsake, NOT the day-end card. Dismissal takes the light
@@ -445,19 +461,36 @@ export class Game {
       // explicitly, the way any future harness will.
       this.filmRequested = params.has('film');
       this.forcePickCard = params.has('pickcard');
+      this.starterParamGiven = isStarterId(qStarter);
       if (this.driverBoot && !this.filmRequested) {
         this.ui.showNote(MAP_NOTE_BOOT);
       } else {
         // the arrival — Doc 02's opening, staged on the terminal coach
         this.arrival.begin();
       }
+      // the Day-1 reload's spine truth (the cold open's merged Day-1 save):
+      // the rails' fire-once law holds across a tab closed before Day 2
+      if (save.chapter) this.state.chapter = save.chapter;
+      if (save.rails) this.state.rails = save.rails;
+      if (save.ledger) this.state.ledger = save.ledger;
+      // the spine's first walk (the C0 pack — the machines go live): the
+      // rails evaluate for the arrival day on every Day-1 boot, human or
+      // driver, before a word is spoken. Humans read the city's line at
+      // the film's handover; drivers read it now, as a note.
+      this.runSpineWalk();
+      if (this.driverBoot || this.filmRequested) this.renderMorningWhisper();
     }
     this.ui.onNameSubmit = () => this.confirmName(this.ui.nameInput.value);
     this.ui.onStarterPick = (id) => {
       this.applyStarter(id, true);
       this.ui.closeStarterPick();
       this.ui.showNote('There you are. Now the story has a face.');
+      // the pick card is done with him — the notebook's first page is next
+      // (doc 11 §5: the picker runs before beat 0; the shipped order keeps
+      // its own handover-first shape and the cold open rides it)
+      this.maybeColdOpen();
     };
+    this.ui.onNotebookPick = (pack, optionId, freeText) => this.applyNotebookPick(pack, optionId, freeText);
     this.ui.onCineTap = () => { if (this.arrival.active) this.arrival.tap(); };
     this.ui.onCineSkip = () => { if (this.arrival.active) this.arrival.skip(); };
     this.ui.onOrderChoose = (reply) => this.advanceOrder(reply);
@@ -1510,6 +1543,9 @@ export class Game {
       case 'persist':
         this.persist();
         break;
+      case 'diary-prompt':
+        this.onDiaryPrompt(e.pack);
+        break;
     }
   }
 
@@ -1567,7 +1603,126 @@ export class Game {
       && (this.forcePickCard || (!this.driverBoot && !this.filmRequested))) {
       this.starterOffered = true;
       this.ui.showStarterPick(STARTERS);
+    } else {
+      // no card this session (a persisted face, a driver, a film probe):
+      // the cold open asks humans directly (maybeColdOpen's own laws)
+      this.maybeColdOpen();
     }
+    // the city's first line about him (R1 fires Day 1 — the rails walked
+    // at boot; the whisper reads at the handover, when the screen belongs
+    // to the morning)
+    this.renderMorningWhisper();
+  }
+
+  // ---------------- the C0 pack: the spine goes live ----------------
+  // (narrative/14 §7 step 6, doc 11 against the shipped opening — the
+  // machines R1/R2/R8 were built and waiting; this is the tranche that
+  // feeds them: the rails' fire observable in the city diary, the choice
+  // register's N0 live, the diary beats landing at their shipped beats.)
+
+  /** The spine's walk for the morning the story stands on: the rails
+   *  evaluate (fire-once) against the calendar day, with the world's own
+   *  flag store as the held set (the narrative contract's flags). The
+   *  fires stay in state for the whisper to read. */
+  private runSpineWalk(): void {
+    const held = new Set(this.worldSim.storyFlagKeys());
+    this.state.walkSpine(this.state.calendarDay, held);
+  }
+
+  /** The city's diary gets its one line for the morning (doc 09's
+   *  one-note-per-morning law): a rail's canon line outranks the ambient
+   *  note — the block may talk about coffee tomorrow, but the day the
+   *  city names him is the line that speaks. When a rail speaks, the roam
+   *  watermark does NOT move: the watermark tracks what was SAID (core/
+   *  diary.ts's own law), so the ambient note simply waits a morning. */
+  private renderMorningWhisper(): void {
+    const whisper = morningWhisper(
+      this.state.spineFires,
+      this.state.diaryCounters(),
+      this.state.diaryNoted,
+      (f) => DIARY_NOTE_TEXT[f],
+ );
+    if (!whisper) return;
+    if (whisper.kind === 'roam') {
+      this.state.diaryNoted = { ...this.state.diaryNoted, [whisper.family]: whisper.count };
+    }
+    this.pushNote(whisper.line);
+  }
+
+  /** The cold open (doc 11 §2 beat 0 — the diary's first page, choice node
+   *  N0). Fresh human boots only: drivers and film-evidence probes keep
+   *  the shipped flow (the pick-card law), a harness dress (?starter=)
+   *  skips, and the world's own N0 flag is the once law — a reload never
+   *  re-asks a page that was already written (the flag is durable in the
+   *  world save). */
+  private maybeColdOpen(): void {
+    if (this.coldOpenShown) return;
+    if (this.state.day >= 2) return;                        // a mid-week resume
+    if (this.driverBoot || this.filmRequested) return;      // the pick-card law
+    if (this.starterParamGiven) return;                     // a direct dress
+    if (this.worldSim.storyFlagKeys().some((k) => k.startsWith('node:N0='))) return;
+    this.coldOpenShown = true;
+    this.ui.showNotebookPrompt('cold-open', {
+      systemLine: C0_SYSTEM_LINE,
+      ask: 'The green notebook\u2019s first page. Write the first line.',
+      options: C0_COLD_OPEN.map((o) => ({ id: o.optionId, label: o.text })),
+      freeWrite: true,
+      freePlaceholder: '…or write your own line — it’s your notebook',
+    });
+  }
+
+  /** The notebook's pick lands — the pack's three pages, one seam:
+   *  cold-open (N0's flags + ledger entry + entry 1), the running theory,
+   *  the first question. Each lands once per save by id; a duplicate pick
+   *  is absorbed by the append seams (the idempotent law). */
+  private applyNotebookPick(pack: string, optionId: string, freeText: string): void {
+    const day = this.state.calendarDay;
+    if (pack === 'cold-open') {
+      const res = applyColdOpen(optionId, day, freeText);
+      if (res) {
+        this.state.logDiaryEntry(res.entry);
+        this.state.logLedgerEntry(res.ledgerEntry);
+        this.worldSim.setStoryFlags(res.flagWrites);
+        // Day 1 has no snapshot (the v1 law: the story save starts at
+        // Day 2) — the spine's truth + entry 1 ride a merged Day-1 save
+        // so a reload keeps the fire-once law without re-asking the page.
+        writeSave({
+          ...loadSave(),
+          field_diary: serializeFieldDiary(this.state.fieldDiary),
+          ledger: serializeLedger(this.state.ledger),
+          chapter: serializeChapterState(this.state.chapter),
+          rails: serializeRails(this.state.rails),
+        });
+      }
+    } else if (pack === 'theory') {
+      const draft = theoryEntryDraft(optionId, day);
+      if (draft) this.state.logDiaryEntry(draft);
+    } else if (pack === 'question') {
+      const draft = questionEntryDraft(optionId, day, freeText);
+      if (draft) this.state.logDiaryEntry(draft);
+    }
+    this.ui.closeNotebookPrompt();
+  }
+
+  /** The C0 pack's mid-week diary picks (doc 11 §3): the running theory
+   *  (the usual's give-back) and the first question (the Day-3 linger).
+   *  Drivers and film probes never see the paper — the pick-card law —
+   *  and take the FIRST authored option deterministically, so the
+   *  machines' save shape stays uniform across boots (no dice in
+   *  progression-adjacent prose). */
+  private onDiaryPrompt(pack: 'theory' | 'question'): void {
+    if (this.driverBoot || this.filmRequested) {
+      const first = pack === 'theory' ? C0_THEORY.options[0] : C0_FIRST_QUESTION.options[0];
+      if (first) this.applyNotebookPick(pack, first.optionId, '');
+      return;
+    }
+    const src = pack === 'theory' ? C0_THEORY : C0_FIRST_QUESTION;
+    this.ui.showNotebookPrompt(pack, {
+      ask: src.prompt,
+      options: src.options.map((o) => ({ id: o.optionId, label: o.body })),
+      freeWrite: src.freeWrite,
+      freePlaceholder: src.freeWrite ? '…or write your own question' : undefined,
+    });
   }
 
   /** Dress the walker as a picked starter — Doc 02 §0:00–2:00. Same boxes
@@ -2642,6 +2797,14 @@ export class Game {
       // quarantine-cleaned in parseSave); absence in a hand-built snapshot
       // reads as an empty diary (the migration law)
       s.fieldDiary = sd.field_diary ?? [];
+      // the spine's state rides the same v1-safe law (R1/R2/R8 — the
+      // fields are post-parse materialized in Save; absence reads as a
+      // fresh arrival with an empty ledger, so an old save wakes up and
+      // the rails simply fire now — the spine is never skipped, only
+      // waited for)
+      s.chapter = sd.chapter ?? freshChapterState();
+      s.rails = sd.rails ?? freshRailStates();
+      s.ledger = sd.ledger ?? [];
     }
     // sd === null (a rail "Tomorrow"): the live state carries the wallet, the
     // name, the awning — and the STOOL. The stool is bought, the Map is
@@ -2737,6 +2900,14 @@ export class Game {
     // day-start snapshot — this is what a restart (R) or a quit comes back to
     this.persist();
     for (const e of s.advanceDay2()) this.applyEffect(e);
+
+    // the spine walks the new morning (R1 + R8 — the C0 pack): the rails
+    // evaluate against the calendar day (fire-once), then the city's
+    // diary gets its one line — a rail's canon line outranks the ambient
+    // note, and the roam watermark only moves when its note is the one
+    // that speaks (renderMorningWhisper's law).
+    this.runSpineWalk();
+    this.renderMorningWhisper();
 
     this.ui.showTitle(`DAY ${n}`);
     await this.ui.fadeIn(900);

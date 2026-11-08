@@ -12,6 +12,7 @@ import { mountDateline, mountDiaryInk, type DiaryInkHandle, type DatelineHandle 
 import type { AlbumEntry } from '../postcard/Album';
 import type { FieldDiaryEntry } from '../core/fieldDiary';
 import { touchPanelUp } from './touchLaw';
+import { clampFreeWrite } from '../core/c0pack';
 
 function el<T extends HTMLElement>(id: string): T {
   const e = document.getElementById(id);
@@ -60,6 +61,18 @@ export class UI {
   // mounted lazily on first use; both are display-only seams ----
   private diaryInk: DiaryInkHandle | null = null;
   private hudDateline: DatelineHandle | null = null;
+  // ---- the notebook prompt — the C0 pack's diary picks (doc 11 §3) ----
+  readonly notebookPrompt = el<HTMLDivElement>('notebook-prompt');
+  private notebookSystem = el<HTMLDivElement>('notebook-system');
+  private notebookAsk = el<HTMLLabelElement>('notebook-ask');
+  private notebookChoices = el<HTMLDivElement>('notebook-choices');
+  private notebookFreeRow = el<HTMLDivElement>('notebook-free-row');
+  private notebookFree = el<HTMLInputElement>('notebook-free');
+  private notebookFreeOk = el<HTMLButtonElement>('notebook-free-ok');
+  /** The pack id currently on the notebook's page — 'cold-open' | 'theory'
+   *  | 'question'; null when the paper is shut. */
+  private notebookPack: string | null = null;
+
   // ---- the album — the shelf where kept postcards live ----
   readonly albumBtn = el<HTMLButtonElement>('btn-album');
   readonly albumPanel = el<HTMLDivElement>('album-panel');
@@ -105,6 +118,9 @@ export class UI {
   onCineSkip: (() => void) | null = null;
   /** Doc 02's starter pick — fired with the tapped starter's id. */
   onStarterPick: ((id: string) => void) | null = null;
+  /** The notebook's pick — fired with the pack id, the chosen option's id,
+   *  and the free-write line (empty string when the pick was an option). */
+  onNotebookPick: ((pack: string, optionId: string, freeText: string) => void) | null = null;
   /** The wardrobe chip — fired when the pocket's Wardrobe tile is tapped. */
   onWardrobeToggle: (() => void) | null = null;
 
@@ -178,6 +194,11 @@ export class UI {
       const btn = (e.target as HTMLElement).closest('[data-reply]');
       if (btn) this.onOrderChoose?.(Number((btn as HTMLElement).dataset.reply));
       else if (this.orderRespondedShown) this.onOrderChoose?.(null);
+    });
+    // the notebook's options + free-write line (the C0 pack's diary picks)
+    this.notebookFreeOk.addEventListener('click', () => this.commitNotebookFree());
+    this.notebookFree.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); this.commitNotebookFree(); }
     });
     // keyboard on the conversation: 1–4 choose, Space/Enter advances,
     // Escape steps back from the counter without penalty (nothing can fail)
@@ -283,6 +304,7 @@ export class UI {
       albumPanel: !this.albumPanel.hidden,
       starterCard: !this.starterCard.hidden,
       wardrobePanel: !this.wardrobePanel.hidden,
+      notebookPrompt: !this.notebookPrompt.hidden,
     }));
   }
 
@@ -413,6 +435,64 @@ export class UI {
   closeStarterPick() {
     this.starterCard.hidden = true;
     this.syncTouchUI();
+  }
+
+  // ---------------- the notebook prompt (the C0 pack) ----------------
+
+  /** One page of the green notebook: the system line in his hand, the ask,
+   *  the options as handwriting — and, where the pack offers it, the
+   *  free-write line (doc 11 §3 entry 4: "or writes their own"). */
+  showNotebookPrompt(pack: string, opts: {
+    systemLine?: string;
+    ask: string;
+    options: ReadonlyArray<{ id: string; label: string }>;
+    freeWrite: boolean;
+    freePlaceholder?: string;
+  }) {
+    this.notebookPack = pack;
+    this.notebookSystem.textContent = opts.systemLine ?? '';
+    this.notebookSystem.hidden = !opts.systemLine;
+    this.notebookAsk.textContent = opts.ask;
+    this.notebookChoices.innerHTML = '';
+    for (const o of opts.options) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'notebook-option';
+      b.dataset.option = o.id;
+      b.textContent = o.label;
+      b.addEventListener('click', () => {
+        this.onNotebookPick?.(pack, o.id, '');
+      });
+      this.notebookChoices.appendChild(b);
+    }
+    this.notebookFreeRow.hidden = !opts.freeWrite;
+    if (opts.freeWrite) {
+      this.notebookFree.value = '';
+      this.notebookFree.placeholder = opts.freePlaceholder ?? '…or write your own line';
+    }
+    this.notebookPrompt.hidden = false;
+    this.syncTouchUI();
+    this.prompt.hidden = true;
+    this.interactBtn.classList.remove('occupied');
+    if (opts.freeWrite) window.setTimeout(() => this.notebookFree.focus(), 30);
+  }
+
+  closeNotebookPrompt() {
+    this.notebookPack = null;
+    this.notebookPrompt.hidden = true;
+    this.notebookFree.blur();
+    this.syncTouchUI();
+  }
+
+  notebookIsOpen(): boolean {
+    return !this.notebookPrompt.hidden;
+  }
+
+  private commitNotebookFree() {
+    if (this.notebookPack === null) return;
+    const text = clampFreeWrite(this.notebookFree.value);
+    if (text.length === 0) return; // an empty line never lands — the paper waits
+    this.onNotebookPick?.(this.notebookPack, 'free-write', text);
   }
 
   // ---------------- the serving conversation (docs/11 + docs/12) ----------------

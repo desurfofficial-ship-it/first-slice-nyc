@@ -570,6 +570,29 @@ export class WorldRuntime {
     return this.brain.inDialogueWith(npcId);
   }
 
+  // ---- the narrative contract's flag seams (sim/state OWNERSHIP row: the
+  // flags are the narrative layer's; these are its two doors) --------------
+
+  /** Story-side flag writes (the choice nodes' flagWrites — N0's
+   *  `node:N0=<option>` + `diary-voice-bias=<option>`, the C0 pack). The
+   *  tick is the world's own clock (the greeted-flag pattern: durable,
+   *  save-carried); the world save flushes so the write survives the tab. */
+  setStoryFlags(flags: readonly string[]): void {
+    for (const f of flags) {
+      if (typeof f === 'string' && f.length > 0) this.brain.world.flags.set(f, this.brain.clock.tick);
+    }
+    // a flag write is a choice moment, not a per-frame event — flush
+    // unconditionally so the write survives the tab in story mode too
+    // (the greeted flags ride the brain's own save beats; these are rarer)
+    this.flushWorldSave();
+  }
+
+  /** The held flags, read-only — the rails' trigger side (evaluateRails'
+   *  `heldFlags`). One honest shape, no internals reached around. */
+  storyFlagKeys(): string[] {
+    return [...this.brain.world.flags.map.keys()];
+  }
+
   /** Where a sim-driven body stands right now (interaction pos getters),
    *  or null when the person is away — the registry's NEVER_NEAR pattern
    *  parks the interaction out of the y-band. */
