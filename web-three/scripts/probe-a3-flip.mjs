@@ -43,6 +43,11 @@ const BAND_REGIONS = [
   ['w3-backdrop-e', 71, 84, -62, 62],     // VDN_DE1a..d (fp x 78)
   ['w3-strip-n', -62, 62, 46, 60],        // VDN_DN1 (fp z 53.5)
   ['w3-strip-s', -62, 62, -60, -46],      // VDN_DS1 (fp z −53.5)
+  // unit 6 (W3-C): the avenue faces — first-match wins, so KTN-06's meshes
+  // stay in w1-corner-e and the parked Sycamore cars read here (static)
+  ['w3-juniper-faces', -63, -47, -34, -6], // TEN-01 (fp −55,−14 10×12) + SRC-02 (−55,−26 10×12)
+  ['w3-hall', -63, -45, 17, 35],           // KCM-01 (fp −54,26 12×12)
+  ['w3-sycamore-faces', 47, 67, -34, 34],  // KTN-07 (54,26) + SND-01 (55,−14) + SRC-01 (55,−26) + VND-02 (63.3,−18)
 ];
 
 // Dynamic systems excluded from the geometry census (they MOVE — the M121
@@ -211,6 +216,10 @@ const spots = [
   ['gable-row', -30, 34.5],
   ['backdrop-west', -70, 20],
   ['backdrop-strip-n', 0, 43.5],
+  // unit 6 (W3-C): the avenue faces' own vantages
+  ['avenue-faces-w', -66, -14],
+  ['hall-block', -60, 22],
+  ['avenue-faces-e', 62, -6],
 ];
 for (const [name, x, z] of spots) {
   await page.evaluate(([tx, tz]) => {

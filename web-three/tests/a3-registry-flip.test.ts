@@ -49,6 +49,7 @@ const BANDS: Record<string, { ids: string[]; classes: string[] }> = {
   'u3-w1-a': { ids: ['KTN-06'], classes: ['A'] },
   'u4-w2-c': { ids: ['GRB-01', 'GRB-02', 'GRB-03', 'GRB-04', 'GRB-05'], classes: ['C', 'D'] },
   'u5-w3-d': { ids: ['VDN-DW1a', 'VDN-DW1b', 'VDN-DW1c', 'VDN-DW1d', 'VDN-DE1a', 'VDN-DE1b', 'VDN-DE1c', 'VDN-DE1d', 'VDN-DN1', 'VDN-DS1'], classes: ['D'] },
+  'u6-w3-c': { ids: ['TEN-01', 'SRC-01', 'SRC-02', 'KTN-07', 'KCM-01', 'SND-01', 'VND-02'], classes: ['A', 'C'] },
 };
 
 /** The retired hand truth, verbatim from the pre-flip World.ts rows —
@@ -184,6 +185,17 @@ describe('A-3 registry flip — the flipped bands answer to the registry', () =>
     expect(worldTs.includes("strip('VDN-DN1', heightsN)")).toBe(true);
     expect(worldTs.includes("seg('VDN_DW1a', -78, 8, 32, [14, 19, 16])")).toBe(false);
     expect(worldTs.includes("const cx = -60 + 12 * (i + 0.5)")).toBe(false);
+    // unit 6 (W3-C): the avenue faces read their rows through regShell
+    expect(worldTs.includes("this.regShell('TEN-01')")).toBe(true);
+    expect(worldTs.includes("this.regShell('KCM-01')")).toBe(true);
+    expect(worldTs.includes("this.regShell('SND-01')")).toBe(true);
+    expect(worldTs.includes("this.regShell('VND-02')")).toBe(true);
+    // the retired hand tuples are gone from the source
+    expect(worldTs.includes("[['TEN_01a', -60, -55.5], ['TEN_01b', -54.5, -50]]")).toBe(false);
+    expect(worldTs.includes("solid('KCM_01_upper', -54, 9.1, 26")).toBe(false);
+    expect(worldTs.includes("solid('SND_01_upper', 55, 8.1, -14")).toBe(false);
+    expect(worldTs.includes("solid('SRC_01', 55, 8.5, -26")).toBe(false);
+    expect(worldTs.includes("stand.position.set(63.3, 0.05, -18)")).toBe(false);
     // the retired hand-literal tuples are gone from the source
     expect(worldTs.includes(`['GRB_01', -42.6, 0xff6b6b, false]`)).toBe(false);
     expect(worldTs.includes(`solid(id, cx, 6.25, 26, 7.6, 12.5, 12`)).toBe(false);

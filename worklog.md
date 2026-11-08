@@ -2703,3 +2703,22 @@ Work Log:
 Stage Summary:
 - Ten backdrop rows flipped with zero vertex movement; the wave's machinery has now absorbed every geometry shape the registry carries except the avenue faces and the far world. One band left in the plan.
 ---
+
+## 2026-11-08 — Technical Architecture / World Systems Agent: WP-A3 unit 6/6 — W3-C the avenue faces flipped; THE PLAN'S SIX-UNIT WAVE COMPLETE (register v1.26.0)
+
+Task ID: WP-A3-U6
+Agent: Technical Architecture / World Systems Agent (Z.ai)
+Task: the DEC-4 Option B wave's last planned unit (plan §2b item 4), same branch, same gate.
+
+Work Log:
+- **The flip (W3-C):** `buildJuniperFaces` + `buildSycamoreFaces` read `regShell` per row — TEN-01's pair bounding box (the 4.5 m lot split and the 1 m light-slot are the style, derived against the box: lotA x0 = fp.x − fp.w/2, lotB x0 = fp.x + 0.5, lotW = (fp.w − 1)/2), SRC-02/SRC-01/KTN-07 single masses, KCM-01/SND-01 base+upper splits (the 3.2 m base/band heights are the style law; upper h = fp.h − base, y = base + upper/2), the hall's painted bands/marquee/rods/address tile, the diner's band windows/chamfer/neon/roof sign/legs, VND-02's stand placement AND collider. Cornices = h−0.25 over w/d+0.2; the window rhythms and face insets are style constants expressed against the box — every retired hand number derives byte-for-byte.
+- **The census probe grew with the band** (zero product code): three faces regions (`w3-juniper-faces`, `w3-hall`, `w3-sycamore-faces`; first-match-wins keeps KTN-06's meshes in their W1 region) + three parked vantages (`avenue-faces-w`, `hall-block`, `avenue-faces-e`) — 10 spots now.
+- **The acceptance test's ledger grew u6** (7 rows; the plan's "W3-C" shorthand acknowledged in the file — the faces band mixes the district's class-A landmarks with its class-C rows, the class guard carries ['A','C']); the source law pins the four direct regShell calls and the retired hand shapes (the TEN pair walk, the KCM/SND/SRC mass tuples, the stand's literal placement).
+- **The fidelity gate, unit 6 — ALL GREEN [executed, sequential on the idle box]:** validate-registry OK (129 IDs, 50 buildings, 12/12 masses, 18/18 anchors) · **geometry census byte-identical** (`pre6-` ≡ `u6-census.json`, 236 band meshes under the extended regions — the moved numbers moved no vertex) · **draw-call ledger pre/post byte-identical 146/216/282** · parked-camera pairs filed (`shots/a3/{pre6,u6}-*.png`, 10 vantages) · tsc clean · vitest **1065/1065** (72 files) · build OK · probe-world-sim **15/15** · probe-nav **9/9** · probe-integration **0 errors, 8/8 walks, 71 GLB upgrades** · 4-day E2E **0 failures (679 s, console clean)**.
+- **THE PLAN'S SIX-UNIT A-3 WAVE IS COMPLETE**: W1-C → W1-B → W1-A (the production line) + W2-C → W3-D → W3-C (this line) — 31 registry rows render from the registry's own numbers, each unit its own revertible commit behind the full gate, the census's byte-identity held through all of them. The DEC-4 brief's status line closed out accordingly (the §6.4 law).
+- **Honest frontier, stated on the row:** the SHIPPED-STREET band (19 'existing' rows — the original slice: KTN-01..05, ROS-01, KTS-01..03, SUB-01, VND-01, ALY-01/02, and the far world TSS-01..05 + SUB-TS) remains hand-coded — the brief's hero list names the terminal (KTN-01) and Rosa's deli (ROS-01) among the A/B heroes, so §6.4's full closure ("the last hero band flips") wants a further unit series under the standing ruling. NOT this plan's six; the flip's machinery, the probe regions and the acceptance-test pattern all extend to it unchanged. The W5 rooms' retireMass seams, the bodega assembly, the climbable fire escape and the station kit are the surfaces that unit series must carry.
+- Register v1.26.0 (Gates clause + the F change-log row) — same commit as the flip.
+
+Stage Summary:
+- The wave the owner ruled on is delivered as planned: every phase-built building now renders from the registry's own rows, the census proved zero vertex movement six times, and the registry's status column tells the truth the render reads. What remains of the double truth is the shipped street — the next unit series, one ruling away from the same machinery.
+---
