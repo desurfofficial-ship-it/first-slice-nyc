@@ -2648,3 +2648,20 @@ Work Log:
 Stage Summary:
 - The integration evidence standard held: the census's byte-identity survived a 5-commit parallel merge untouched, and the merged tree's full battery is green end to end. The wave is ready for the push.
 ---
+
+## 2026-11-08 — Production Director: the film-building-craft wave — the arrival film's buildings rebuilt to first-impression grade (register v1.23.0)
+
+Task ID: PROD-FILM-BUILDINGS
+Agent: Production Director (Z.ai)
+Task: the owner's field verdict — "some of the buildings in the first-session film suck, they spoil the aesthetics; they are the first thing consumers see" — turned into an audit-and-craft pass over every building the film shows, then the full gate battery before the merge.
+
+Work Log:
+- **Audit first:** a fresh `?film=1` sweep (`diag-film-buildings.mjs`, 11 natural frames across ride → freeze → reply → card → handover) plus the shipped player-film evidence pinned eight defects: (A1) the DELI/BAR/PIZZA sign cycle lands TWO DELIs inside one bus window; (A2) all four storefront interiors clone-stamped; (A3) awnings are flat slabs floating off the brick; (A4) the horizon band is twenty near-identical boxes ON GRASS — a suburban strip mall; (A5) blank brick fields; (A6) the light-up leaves towers dark with a scatter of dots; (A7) the gate facade is a flat purple slab; (A8) lamp heads float as dashes.
+- **The craft, all in `arrival.ts` (code-native, the world's geometry untouched — the census domain is not entered):** the SHOPS table (12 identities: fascia/border/letter colors + wares) with a no-immediate-repeat law and hand-assigned strip shops (laundry → bodega → pizza → coffee); wares-honest interiors (hanging laundry, dense bodega stock, a white-hot oven, a diner menu board); striped canvas awnings with scalloped valances and iron rods; six matched brick palettes with value jitter, floor banding, quoins, cornice shadow, sill drips, window boxes, curtain variety and TV-blue glow; the horizon band rebuilt as a street (sidewalk/road/dashes/shoulder, 18 varied slots, a church with a steeple, a gable-roofed house, a tree-clump gap and a fenced lot, rowhouses where a shop wouldn't fit honestly); the skyline's windows densified 0.30→0.44 with whole office floors and baked beacons, light-up peak 1.15→1.55; the gate's precast paint, gridded far-tower windows with caps, a luggage cart; lamp heads on stalks.
+- **The gates, all green [executed]:** tsc clean · vitest **1059/1059** (71 files — zero test churn; the machine is untouched) · build OK (534 ms) · probe-a5c film flow end-to-end with the handover state correct and 0 page errors (its 20 s handover-budget miss was reproduced VERBATIM on pristine main `1080b13` in a throwaway worktree — pre-existing software-GL timing, not a regression) · probe-a5g portrait ok · probe-a5h first-session ok · probe-world-sim **15/15** · probe-a3-flip exit 0. Draw-call ledger: zero drift by construction (no `World.ts` change).
+- Evidence filed at `docs/production/film-building-craft/evidence/{before,after}/` — six paired frames (storefront freeze + close-up, horizon early + lit, tenement pass, gate card), each pair showing the same lens before/after.
+- Not done, by law: nothing gameplay-bearing was touched (the film is a self-contained diorama, disposed at handover); units 4–6 of the A-3 wave and the owner-side variances remain theirs.
+
+Stage Summary:
+- The first thing consumers see is now a block worth staring at: four named shops with their own trades, a church spire on the horizon, a city that actually ignites at dusk. The film's staging laws, tap flow, timings and the handover contract are untouched — the sweep and the probes both prove it.
+---
