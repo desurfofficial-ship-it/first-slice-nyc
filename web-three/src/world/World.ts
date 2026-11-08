@@ -4394,20 +4394,29 @@ export class World {
   // throws LOUDLY — the flip never invents geometry to fill a gap
   // (wc-07's no-coordinates law, extended to rendering).
   private regShells: Map<string, { x: number; z: number; w: number; d: number; h: number }> | null = null;
+  private regStatuses: Map<string, string | undefined> | null = null;
   /** The registry shell of a flipped building — throws when the row is
-   *  missing or lacks footprint/height, so a data gap can never render. */
+   *  missing or lacks footprint/height, so a data gap can never render,
+   *  and when the row still reads 'planned' (A-3 unit 4, 2026-11-08: the
+   *  status column was repaired the same day — a flipped band's row must
+   *  never be able to regress to unbuilt without failing loudly here). */
   private regShell(registryId: string): { x: number; z: number; w: number; d: number; h: number } {
     if (!this.regShells) {
       this.regShells = new Map();
+      this.regStatuses = new Map();
       for (const b of loadRegistry().allBuildings()) {
         const fp = b.footprint;
         if (fp && b.height !== undefined && b.height > 0) {
           this.regShells.set(b.id, { x: fp.x, z: fp.z, w: fp.w, d: fp.d, h: b.height });
+          this.regStatuses.set(b.id, b.status);
         }
       }
     }
     const s = this.regShells.get(registryId);
     if (!s) throw new Error(`[A-3] registry building "${registryId}" has no footprint+height — the flip never invents geometry`);
+    if (this.regStatuses!.get(registryId) === 'planned') {
+      throw new Error(`[A-3] registry building "${registryId}" is still 'planned' — the flip never renders an unbuilt row (DEC-4 §5)`);
+    }
     return s;
   }
 
@@ -4940,43 +4949,52 @@ export class World {
    *  Fatima's — under restoration, scaffold hint now, studio never (the
    *  registry's exterior-only promise). */
   private buildGableRow(): void {
-    const grb: Array<[string, number, number, boolean]> = [
-      // [id, center x, door color, scaffold]
-      ['GRB_01', -42.6, 0xff6b6b, false],   // the Okafor house — stoop-sale host
-      ['GRB_02', -35, 0x6d4c7d, false],     // plum door
-      ['GRB_03', -27.4, 0x6e554e, true],    // Fatima's — restoration scaffold
-      ['GRB_04', -19.8, PAL.teal, false],   // teal door
-      ['GRB_05', -12.2, PAL.coral, false],  // coral door
+    const grb: Array<[string, number, boolean]> = [
+      // [solid id, door color, scaffold] — A-3 UNIT 4 (W2-C, DEC-4 Option B
+      // approved 2026-11-08): the mass, cornice, parlor/upper window rows
+      // and the high stoop READ the registry's own rows (GRB-01..05, keyed
+      // by the REGISTRY id; the solid name derives by the shipped -→_ law)
+      // through regShell — the hand-transcribed tuples retire for the band.
+      // The stoop doors, the window rhythm, the scaffold hint are the style
+      // and stay code, expressed against the registry box (brief §5: the
+      // flip moves coordinates, not looks).
+      ['GRB_01', 0xff6b6b, false],          // the Okafor house — stoop-sale host
+      ['GRB_02', 0x6d4c7d, false],          // plum door
+      ['GRB_03', 0x6e554e, true],           // Fatima's — restoration scaffold
+      ['GRB_04', PAL.teal, false],          // teal door
+      ['GRB_05', PAL.coral, false],         // coral door
     ];
-    for (const [id, cx, door, scaffold] of grb) {
-      this.solid(id, cx, 6.25, 26, 7.6, 12.5, 12, PAL.bldg2);
-      // the cornice caps the row (KTN00W crown grammar)
-      this.deco(`${id}_Cornice`, cx, 12.25, 26, 7.8, 0.5, 12.2, PAL.stone, {});
+    for (const [id, door, scaffold] of grb) {
+      const reg = this.regShell(id.replace('_', '-'));
+      const faceZ = reg.z + reg.d / 2; // the row's street face (the Gable walk side, z 34)
+      this.solid(id, reg.x, reg.h / 2, reg.z, reg.w, reg.h, reg.d, PAL.bldg2);
+      // the cornice caps the row (KTN00W crown grammar): h − 0.25 over w/d + 0.2
+      this.deco(`${id}_Cornice`, reg.x, reg.h - 0.25, reg.z, reg.w + 0.2, 0.5, reg.d + 0.2, PAL.stone, {});
       // tall parlor windows (y 4.6) + two upper floors (7.4 / 10.2)
-      for (const wx of [cx - 1.7, cx + 1.7]) {
+      for (const wx of [reg.x - 1.7, reg.x + 1.7]) {
         this.decoMesh(`${id}_Parlor_${wx}`, new THREE.BoxGeometry(1.3, 2.2, 0.08),
-          this.bank.get(PAL.windowDim), wx, 4.6, 32.05); // floats proud of the z 32 face (W1 grammar)
+          this.bank.get(PAL.windowDim), wx, 4.6, faceZ + 0.05); // floats proud of the street face (W1 grammar)
         for (const wy of [7.4, 10.2]) {
           this.decoMesh(`${id}_Win_${wx}_${wy}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
-            this.bank.get(PAL.windowDim), wx, wy, 32.05);
+            this.bank.get(PAL.windowDim), wx, wy, faceZ + 0.05);
         }
       }
       // the high stoop — the door base at y 0.72, every riser ≤ 0.35
       const stoop = makeBrownstoneStoop(this.bank, door, true);
-      stoop.position.set(cx, 0, 32.6);
+      stoop.position.set(reg.x, 0, faceZ + 0.6);
       this.scene.add(stoop);
       if (scaffold) {
         // restoration scaffold: two poles, a deck, a guard rail — the hint
         // the GDD Regular hook needs, nothing more
-        for (const px of [cx - 1.8, cx + 1.8]) {
+        for (const px of [reg.x - 1.8, reg.x + 1.8]) {
           this.decoMesh(`GRB03_Pole_${px}`, new THREE.BoxGeometry(0.16, 5.0, 0.16),
-            this.bank.get(0x8a6a4a), px, 2.5, 32.3);
-          this.colliders.push(boxFromCenter(px, 2.5, 32.3, 0.18, 5.0, 0.18));
+            this.bank.get(0x8a6a4a), px, 2.5, faceZ + 0.3);
+          this.colliders.push(boxFromCenter(px, 2.5, faceZ + 0.3, 0.18, 5.0, 0.18));
         }
         this.decoMesh('GRB03_Deck', new THREE.BoxGeometry(3.8, 0.1, 0.9),
-          this.bank.get(0x8a6a4a), cx, 3.3, 32.35);
+          this.bank.get(0x8a6a4a), reg.x, 3.3, faceZ + 0.35);
         this.decoMesh('GRB03_Rail', new THREE.BoxGeometry(3.8, 0.06, 0.06),
-          this.bank.get(0x3a3440), cx, 4.15, 32.7);
+          this.bank.get(0x3a3440), reg.x, 4.15, faceZ + 0.7);
       }
     }
   }

@@ -11,7 +11,9 @@
  *   3. every `interaction:` tag names an interaction that really ships
  *      (game/interactionDefs.ts, grepped — the mapping cannot rot);
  *   4. the building pack is EXACTLY the registry's shipped buildings
- *      (status existing / built (W2)), ids = registry ids;
+ *      (semantic shipped-law: existing / built (Wn) — the status column
+ *      was repaired 2026-11-08 with A-3 unit 1's bookkeeping), ids =
+ *      registry ids;
  *   5. no builder line is a polite fiction (BUILDING_EVIDENCE tokens +
  *      code-ref tokens grepped in the world sources).
  */
@@ -21,7 +23,7 @@ import { join } from 'node:path';
 import { validateManifest } from '../src/sim/content';
 import {
   shippedAnchorEntries, shippedBuildingVariantEntries, shippedContentCatalogue,
-  BUILDING_EVIDENCE, SHIPPED_BUILDING_STATUSES,
+  BUILDING_EVIDENCE, isShippedBuildingStatus,
 } from '../src/sim/contentCatalogue';
 import { isSimId, isRegistryId } from '../src/sim/ids';
 import { SHELF_GOODS } from '../src/core/content';
@@ -92,11 +94,11 @@ describe('sim/contentCatalogue — the anchor set (wc-08 §47)', () => {
 
 describe('sim/contentCatalogue — the first building-variant pack', () => {
   const pack = shippedBuildingVariantEntries();
-  const shipped = REGISTRY.buildings.filter((b) => SHIPPED_BUILDING_STATUSES.includes(b.status ?? ''));
+  const shipped = REGISTRY.buildings.filter((b) => isShippedBuildingStatus(b.status));
 
   it('is exactly the registry\'s shipped buildings, under their registry ids', () => {
     expect(pack.length).toBe(shipped.length);
-    expect(pack.length).toBe(19); // the shipped slice today; grows only as buildings are built
+    expect(pack.length).toBe(50); // ALL 50 ship — the status column was repaired 2026-11-08 (A-3 unit 1's bookkeeping); grows only as buildings are built
     const shippedIds = new Set(shipped.map((b) => b.id));
     for (const e of pack) {
       expect(shippedIds.has(e.id)).toBe(true);
@@ -136,7 +138,7 @@ describe('sim/contentCatalogue — the whole catalogue', () => {
   const all = shippedContentCatalogue(SHELF_GOODS);
 
   it('is one valid manifest — anchors + buildings, globally unique ids', () => {
-    expect(all.length).toBe(3 + SHELF_GOODS.length + 19);
+    expect(all.length).toBe(3 + SHELF_GOODS.length + 50);
     expect(validateManifest(all)).toEqual([]);
     expect(new Set(all.map((e) => e.id)).size).toBe(all.length);
   });
