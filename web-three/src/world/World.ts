@@ -608,9 +608,17 @@ export class World {
     this.solid('Curb_S_E', 24.5, 0.065, -4.08, 51, 0.13, 0.5, CURB, { collide: false });
 
     // ---------------- buildings ----------------
+    // A-3 UNIT 7 (the shipped street's class C band, DEC-4 Option B standing
+    // ruling): the C masses READ their registry rows through regShell —
+    // KTN-03 the ginkgo walk-up, KTS-01 the brownstone row, KTS-03 the east
+    // tenement. The B/A masses keep their hand rows until units 8/9 (the
+    // Option-B order: C first, heroes last).
+    const ktn3 = this.regShell('KTN-03');
+    const kts1 = this.regShell('KTS-01');
+    const kts3 = this.regShell('KTS-03');
     this.solid('Bldg_N_West', -35.5, 7, 14, 29, 14, 12, PAL.bldg);
     this.solid('Bldg_N_East_A', -1, 9, 14, 20, 18, 12, PAL.bldg2);
-    this.solid('Bldg_N_GoldWindow', 15, 5.5, 14, 12, 11, 12, PAL.brick);
+    this.solid('Bldg_N_GoldWindow', ktn3.x, ktn3.h / 2, ktn3.z, ktn3.w, ktn3.h, ktn3.d, PAL.brick);
     // Bldg_N_East_B is split in two so the alley (buildAlley) can be a REAL
     // cut — a 2.8 m slot with open sky above — instead of a false front.
     // West half x 21–30.7, east half x 33.5–49; the alley fills the gap.
@@ -624,13 +632,13 @@ export class World {
     this.signBoard('Terminal_Sign', 'BUS TERMINAL', 5, 0.8, 0.15, 640, 96, PAL.stone, PAL.ink, 56)
       .position.set(-30, 3.4, 7.95);
 
-    this.solid('Bldg_S_West', -25, 8, -14, 50, 16, 12, PAL.bldg2);
+    this.solid('Bldg_S_West', kts1.x, kts1.h / 2, kts1.z, kts1.w, kts1.h, kts1.d, PAL.bldg2);
     this.solid('Bldg_S_FireEscape', 13, 7, -14, 26, 14, 12, PAL.brick);
-    this.solid('Bldg_S_East', 38, 9, -14, 24, 18, 12, PAL.bldg);
+    this.solid('Bldg_S_East', kts3.x, kts3.h / 2, kts3.z, kts3.w, kts3.h, kts3.d, PAL.bldg);
 
     // Water towers — Doc 04 object canon ("the buildings wear wooden hats")
     this.waterTower(-30, 14, 12.5, 1.5);
-    this.waterTower(-14, 16, -12.5, 1.7);
+    this.waterTower(-14, kts1.h, -12.5, 1.7); // unit 7: the row's own roof height
     this.waterTower(31, 16, 12.5, 1.4);
 
     // ---------------- bodega (Doc 10 §B, main.gd `_build_bodega`) ----------------
@@ -799,11 +807,21 @@ export class World {
     // Player corner — "a waiting rectangle of different paving"
     this.deco('PlayerCorner', 4, 0.12, -6, 8, 0.02, 3.6, PAL.stone);
 
+    // A-3 UNIT 7: the ginkgo building's south-face constants — face z and
+    // the window-grid origin derive against the KTN-03 shell (used by the
+    // teal door below and the window grid further down); the 3 m rhythm is
+    // the style.
+    const goldFaceZ = ktn3.z - ktn3.d / 2 - 0.06;
+    const goldGridX = ktn3.x - ktn3.w / 2 + 1.5;
+
     // The teal door (Day 2's delivery target — the objective says "the teal
     // door across the street"; now there is one, under the gold window).
-    const stoopDoor = this.decoMesh('Stoop_Door', new THREE.BoxGeometry(1.4, 2.6, 0.15), this.mat(PAL.teal), 15, 1.3, 7.92);
+    // Unit 7: the door owns the shell's center bay (x IS the row center);
+    // the knob offset and the face insets are the style.
+    const stoopDoorX = ktn3.x;
+    const stoopDoor = this.decoMesh('Stoop_Door', new THREE.BoxGeometry(1.4, 2.6, 0.15), this.mat(PAL.teal), stoopDoorX, 1.3, goldFaceZ - 0.02);
     stoopDoor.rotation.y = Math.PI; // GLB fronts face +Z — the leaf must face the street (south)
-    const stoopKnob = this.decoMesh('Stoop_Knob', new THREE.SphereGeometry(0.05, 8, 8), this.mat(PAL.gold), 15.45, 1.3, 7.84);
+    const stoopKnob = this.decoMesh('Stoop_Knob', new THREE.SphereGeometry(0.05, 8, 8), this.mat(PAL.gold), stoopDoorX + 0.45, 1.3, goldFaceZ - 0.10);
     // Sandflow prewar door wears the Day-2 target — its leaf slab is baked
     // in the canon teal (PAL.teal, tools3d/sandflow_eval/postprocess_glb.py),
     // so "the teal door across the street" reads on the model, not just the
@@ -815,8 +833,8 @@ export class World {
     // The stoop itself — "stoup = outdoor living room" deserves actual steps.
     // Two low risers (tops 0.19 / 0.28, both inside the 0.35 STEP_UP curb
     // tolerance, so the walker rolls up them without a hop).
-    this.solid('Stoop_Step', 15, 0.095, 6.9, 1.7, 0.19, 0.55, PAL.stone);
-    this.solid('Stoop_Landing', 15, 0.14, 7.55, 1.7, 0.28, 0.75, PAL.stone);
+    this.solid('Stoop_Step', stoopDoorX, 0.095, 6.9, 1.7, 0.19, 0.55, PAL.stone);
+    this.solid('Stoop_Landing', stoopDoorX, 0.14, 7.55, 1.7, 0.28, 0.75, PAL.stone);
 
     // ---------------- fire escape (main.gd `_build_fire_escape`) ------------
     // Playtest 2026-10-29: "the stairs also looks weird" — the escape used to
@@ -850,11 +868,14 @@ export class World {
     this.fireBrace(15, 8.0);
 
     // ---------------- windows + the gold one (main.gd `_build_windows`) -----
+    // A-3 UNIT 7: the grid rides the ginkgo building's south face — the face
+    // constants (goldFaceZ/goldGridX) were derived against the KTN-03 shell
+    // above; the 3 m window rhythm and the 3 m floor pitch are the style.
     const dim = PAL.windowDim;
     const dimMat = this.mat(dim, { emissive: PAL.gold, emissiveIntensity: 0 });
     for (let row = 0; row < 3; row++) {
       for (let col = 0; col < 4; col++) {
-        const p = [10.5 + col * 3, 3 + row * 3, 7.94] as const;
+        const p = [goldGridX + col * 3, 3 + row * 3, goldFaceZ] as const;
         if (row === 2 && col === 1) {
           this.goldWindowMat = this.mat(dim, { emissive: PAL.gold, emissiveIntensity: 0 });
           this.decoMesh('GoldWindow', new THREE.BoxGeometry(1.2, 1.6, 0.08), this.goldWindowMat, p[0], p[1], p[2]);
@@ -890,17 +911,18 @@ export class World {
         }
       }
     }
+    // the glows ride 0.34 proud of the window plane (unit 7: off the shell)
     this.goldGlow = this.makeGlow(3.2);
-    this.goldGlow.position.set(13.5, 9, 7.6);
+    this.goldGlow.position.set(goldGridX + 3, 9, goldFaceZ - 0.34);
     this.scene.add(this.goldGlow);
     this.secondGlow = this.makeGlow(2.6);
-    this.secondGlow.position.set(10.5, 9, 7.6);
+    this.secondGlow.position.set(goldGridX, 9, goldFaceZ - 0.34);
     this.scene.add(this.secondGlow);
     this.thirdGlow = this.makeGlow(2.6);
-    this.thirdGlow.position.set(16.5, 9, 7.6);
+    this.thirdGlow.position.set(goldGridX + 6, 9, goldFaceZ - 0.34);
     this.scene.add(this.thirdGlow);
     this.fourthGlow = this.makeGlow(2.2);
-    this.fourthGlow.position.set(19.5, 9, 7.6);
+    this.fourthGlow.position.set(goldGridX + 9, 9, goldFaceZ - 0.34);
     this.scene.add(this.fourthGlow);
 
     // ---------------- skyline card (far north-east, above the low building) -
@@ -1077,22 +1099,26 @@ export class World {
     const rng = seededRng(20261029);
 
     // ---- brownstone row (south-west face): stoops, doors, windows, AC ----
+    // A-3 UNIT 7: the stoop/window/AC z's derive against the KTS-01 shell
+    // (face +0.6/0.06/0.25 proud respectively); the stoop and window x
+    // rhythms are the row's own style (the registry row names them).
+    const brownsFace = kts1.z + kts1.d / 2;
     const stoopDoors = [PAL.teal, 0xff6b6b, 0x6d4c7d];
     const stoopX = [-40, -34, -28];
     for (let i = 0; i < stoopX.length; i++) {
       const stoop = makeBrownstoneStoop(this.bank, stoopDoors[i]);
-      stoop.position.set(stoopX[i], 0, -7.4);
+      stoop.position.set(stoopX[i], 0, brownsFace + 0.6);
       this.scene.add(stoop);
     }
     // tall parlor windows between the stoops + a couple of AC units
     for (const wx of [-43, -37, -31, -25, -19, -13, -7, -1]) {
       for (const wy of [3.6, 6.6, 9.6]) {
-        this.decoMesh(`BrownstoneWin_${wx}_${wy}`, new THREE.BoxGeometry(1.1, 1.9, 0.08), this.mat(0x3b3346), wx, wy, -7.94);
+        this.decoMesh(`BrownstoneWin_${wx}_${wy}`, new THREE.BoxGeometry(1.1, 1.9, 0.08), this.mat(0x3b3346), wx, wy, brownsFace + 0.06);
       }
     }
     for (const [ax, ay] of [[-37, 3.0], [-25, 3.0], [-13, 6.0]] as const) {
       const ac = makeACUnit(this.bank);
-      ac.position.set(ax, ay, -7.75);
+      ac.position.set(ax, ay, brownsFace + 0.25);
       this.scene.add(ac);
     }
 
@@ -1109,10 +1135,11 @@ export class World {
     pizza.position.set(27, 0.05, 8.02);
     pizza.rotation.y = Math.PI;
     this.scene.add(pizza);
-    // AC units under the gold-window building's upper windows
-    for (const ax of [10.5, 16.5]) {
+    // AC units under the gold-window building's upper windows (unit 7: the
+    // cols' x and the proud face z derive off the KTN-03 shell)
+    for (const ax of [goldGridX, goldGridX + 6]) {
       const ac = makeACUnit(this.bank);
-      ac.position.set(ax, 5.9, 7.75);
+      ac.position.set(ax, 5.9, goldFaceZ - 0.19);
       this.scene.add(ac);
     }
 
@@ -1412,8 +1439,10 @@ export class World {
     // ---- one cast-iron fire-escape silhouette on the brownstone row ------
     // Decorative only — no colliders, no triggers. The climbable escape on
     // the fire-escape building stays the lead agent's greybox geometry.
+    // Unit 7: the z rides the row face (the x is the row's own style —
+    // the registry row's style text names the silhouette at x −21.5).
     const escape = makeFireEscapeDeco(this.bank, 4.4, 8.2);
-    escape.position.set(-21.5, 0, -7.98);
+    escape.position.set(-21.5, 0, kts1.z + kts1.d / 2 + 0.02);
     this.scene.add(escape);
 
     // ---- pigeons + squirrel (seeded; behaviors in ambient.ts) ----
@@ -4117,29 +4146,36 @@ export class World {
    *  side walls, a back wall, a lintel, gravel underfoot, open sky above.
    *  The hidden corner the bulletin board's lost cat comes back to. */
   private buildAlley(): void {
+    // A-3 UNIT 7 (the shipped street's class C band, DEC-4 Option B): the
+    // slot READS its registry row (ALY-01) through regShell — the footprint
+    // and the 3 m open-sky law are the row's own truth; the walls sit half
+    // a thickness inside the row's side faces, the back wall 0.1 shy of the
+    // row's north face, the lintel caps the slot (top at the halves' first-
+    // floor line), and the approach strip / bag / wire dressing is style.
+    const aly = this.regShell('ALY-01');
     // gravel floor — flush with the sidewalk, no lip to trip a capsule.
     // W2 (docs/47): raised proud of the W1 yard slab, which had buried
     // these strips whole (top 0.1 over a floor that topped out at 0.06).
-    this.deco('Alley_Floor', 32.1, 0.125, 9.3, 2.8, 0.05, 2.6, 0x4a4552, {});
-    this.deco('Alley_Floor_2', 32.1, 0.125, 7.4, 2.8, 0.05, 1.2, 0x4a4552, {});
+    this.deco('Alley_Floor', aly.x, 0.125, aly.z, aly.w, 0.05, aly.d, 0x4a4552, {});
+    this.deco('Alley_Floor_2', aly.x, 0.125, 7.4, aly.w, 0.05, 1.2, 0x4a4552, {});
     // side walls (y 0–3) + back wall; the slot above y = 3 stays open — a
     // slice of sky between two sixteen-metre masses, exactly like a real
     // alley gives you
-    this.solid('Alley_Wall_W', 30.85, 1.5, 9.3, 0.3, 3, 2.7, PAL.brick);
-    this.solid('Alley_Wall_E', 33.35, 1.5, 9.3, 0.3, 3, 2.7, PAL.brick);
-    this.solid('Alley_Back', 32.1, 1.5, 10.5, 2.8, 3, 0.3, 0x6e554e);
+    this.solid('Alley_Wall_W', aly.x - aly.w / 2 + 0.15, aly.h / 2, aly.z, 0.3, aly.h, aly.d + 0.1, PAL.brick);
+    this.solid('Alley_Wall_E', aly.x + aly.w / 2 - 0.15, aly.h / 2, aly.z, 0.3, aly.h, aly.d + 0.1, PAL.brick);
+    this.solid('Alley_Back', aly.x, aly.h / 2, aly.z + aly.d / 2 - 0.1, aly.w, aly.h, 0.3, 0x6e554e);
     // the lintel ties the two building halves together over the mouth
-    this.solid('Alley_Lintel', 32.1, 3.45, 9.3, 3.2, 1.1, 3.4, PAL.bldg);
+    this.solid('Alley_Lintel', aly.x, aly.h + 0.45, aly.z, aly.w + 0.4, 1.1, aly.d + 0.8, PAL.bldg);
     // one honest trash bag — the alley is somebody's Tuesday
     this.decoMesh('Alley_Bag', new THREE.SphereGeometry(0.28, 8, 6), this.mat(PAL.ink), 31.6, 0.28, 9.9);
     // a string of dead bulbs across the mouth (unlit: the city fixes these
     // eventually) — one thin ink wire, two glass nubs
     const wire = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.015, 0.015), this.mat(PAL.ink));
-    wire.position.set(32.1, 2.82, 8.1);
+    wire.position.set(aly.x, 2.82, aly.z - aly.d / 2 + 0.1);
     this.scene.add(wire);
     for (const bx of [31.4, 32.8]) {
       const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 6), this.mat(PAL.cream));
-      bulb.position.set(bx, 2.74, 8.1);
+      bulb.position.set(bx, 2.74, aly.z - aly.d / 2 + 0.1);
       this.scene.add(bulb);
     }
   }
@@ -4292,12 +4328,15 @@ export class World {
    *  umbrella, gold sign. Lateral clearance to the cab's rail (z = −2) is
    *  2.55 m: the cab's half-width plus the cart's cannot reach contact. */
   private buildVendorCart(): void {
+    // A-3 UNIT 7: the cart's placement AND collider read the registry row
+    // (VND-01) through regShell — the cart builder's own body is the style.
+    const vnd = this.regShell('VND-01');
     const cart = makeVendorCart(this.bank, this.signMaterials.bind(this), 'DIRTY WATER DOGS');
-    cart.position.set(29.8, 0.05, -4.55);
+    cart.position.set(vnd.x, 0.05, vnd.z);
     cart.name = 'Dressing_VendorCart';
     this.zoneDressing.push(cart);
     this.scene.add(cart);
-    this.colliders.push(boxFromCenter(29.8, 0.6, -4.55, 1.7, 1.2, 0.9));
+    this.colliders.push(boxFromCenter(vnd.x, 0.6, vnd.z, vnd.w, 1.2, vnd.d));
   }
 
   // ================================================================

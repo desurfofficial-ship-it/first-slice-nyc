@@ -31,7 +31,10 @@ const server = createServer((req, res) => {
 await new Promise((r) => server.listen(PORT, r));
 
 const browser = await chromium.launch({
-  args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox'],
+  // --disable-dev-shm-usage: this container's /dev/shm is 64 MB — the
+  // 4-day run's shared-memory surfaces outgrow it and Chromium dies
+  // silently mid-sim (caught 2026-11-08, unit 7's gate; harness-only).
+  args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox', '--disable-dev-shm-usage'],
 });
 // Viewport override for slow/software-GL machines: at ~5 fps the loop's dt
 // clamp (0.1 s) makes game-time run at half wall speed and the four-day

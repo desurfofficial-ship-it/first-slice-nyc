@@ -31,6 +31,11 @@
  *                                            KTN-07, KCM-01, SND-01, VND-02
  *         (the plan's "W3-C" shorthand: the faces band mixes A and C rows
  *          — KCM-01/SND-01 are the district's class-A landmarks.)
+ *   UNIT 7  SS-C  the shipped street's C band (the standing ruling's
+ *                                            continuation series, the
+ *                                            original slice first)
+ *                                            KTN-03, KTS-01, KTS-03,
+ *                                            ALY-01, VND-01
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -50,6 +55,9 @@ const BANDS: Record<string, { ids: string[]; classes: string[] }> = {
   'u4-w2-c': { ids: ['GRB-01', 'GRB-02', 'GRB-03', 'GRB-04', 'GRB-05'], classes: ['C', 'D'] },
   'u5-w3-d': { ids: ['VDN-DW1a', 'VDN-DW1b', 'VDN-DW1c', 'VDN-DW1d', 'VDN-DE1a', 'VDN-DE1b', 'VDN-DE1c', 'VDN-DE1d', 'VDN-DN1', 'VDN-DS1'], classes: ['D'] },
   'u6-w3-c': { ids: ['TEN-01', 'SRC-01', 'SRC-02', 'KTN-07', 'KCM-01', 'SND-01', 'VND-02'], classes: ['A', 'C'] },
+  // unit 7 — the shipped street's class C band (the DEC-4 standing ruling's
+  // continuation series): the original slice's C rows flip first, same law
+  'u7-ss-c': { ids: ['KTN-03', 'KTS-01', 'KTS-03', 'ALY-01', 'VND-01'], classes: ['C'] },
 };
 
 /** The retired hand truth, verbatim from the pre-flip World.ts rows —
@@ -102,6 +110,15 @@ const HAND_TRUTH: Record<string, { x: number; z: number; w: number; d: number; h
   'KCM-01': { x: -54, z: 26, w: 12, d: 12, h: 15 },
   'SND-01': { x: 55, z: -14, w: 10, d: 12, h: 13 },
   'VND-02': { x: 63.3, z: -18, w: 2.2, d: 1.2, h: 2.2 },
+  // unit 7 — the shipped street's C band (verbatim from the constructor's
+  // hand rows: the ginkgo walk-up, the brownstone row, the east tenement;
+  // the alley slot's floor IS its footprint and the cart's placement IS
+  // its footprint)
+  'KTN-03': { x: 15, z: 14, w: 12, d: 12, h: 11 },
+  'KTS-01': { x: -25, z: -14, w: 50, d: 12, h: 16 },
+  'KTS-03': { x: 38, z: -14, w: 24, d: 12, h: 18 },
+  'ALY-01': { x: 32.1, z: 9.3, w: 2.8, d: 2.6, h: 3 },
+  'VND-01': { x: 29.8, z: -4.55, w: 1.7, d: 0.9, h: 2.2 },
 };
 
 /** The backdrop rows whose hand truth is segment heights INSIDE the row's
@@ -203,6 +220,20 @@ describe('A-3 registry flip — the flipped bands answer to the registry', () =>
     expect(worldTs.includes(`solid('KTN_00W', -55, 8, 14`)).toBe(false);
     expect(worldTs.includes(`solid('KTN_06', 55, 8, 14`)).toBe(false);
     expect(worldTs.includes(`sub2.position.set(-57`)).toBe(false);
+    // unit 7 (the shipped street's C band): the ginkgo walk-up, the
+    // brownstone row, the east tenement, the alley slot and the cart read
+    // their rows through regShell
+    expect(worldTs.includes("this.regShell('KTN-03')")).toBe(true);
+    expect(worldTs.includes("this.regShell('KTS-01')")).toBe(true);
+    expect(worldTs.includes("this.regShell('KTS-03')")).toBe(true);
+    expect(worldTs.includes("this.regShell('ALY-01')")).toBe(true);
+    expect(worldTs.includes("this.regShell('VND-01')")).toBe(true);
+    // the retired hand tuples are gone from the source
+    expect(worldTs.includes("solid('Bldg_N_GoldWindow', 15, 5.5, 14")).toBe(false);
+    expect(worldTs.includes("solid('Bldg_S_West', -25, 8, -14")).toBe(false);
+    expect(worldTs.includes("solid('Bldg_S_East', 38, 9, -14")).toBe(false);
+    expect(worldTs.includes("deco('Alley_Floor', 32.1")).toBe(false);
+    expect(worldTs.includes("cart.position.set(29.8")).toBe(false);
   });
 
   it('regShell would refuse a planned row (the law, at the data level: a planned row must never render)', () => {
