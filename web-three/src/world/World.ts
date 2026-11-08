@@ -608,48 +608,66 @@ export class World {
     this.solid('Curb_S_E', 24.5, 0.065, -4.08, 51, 0.13, 0.5, CURB, { collide: false });
 
     // ---------------- buildings ----------------
-    // A-3 UNIT 7 (the shipped street's class C band, DEC-4 Option B standing
-    // ruling): the C masses READ their registry rows through regShell —
-    // KTN-03 the ginkgo walk-up, KTS-01 the brownstone row, KTS-03 the east
-    // tenement. The B/A masses keep their hand rows until units 8/9 (the
-    // Option-B order: C first, heroes last).
+    // A-3 UNITS 8+9 (the shipped street's class B/A bands, DEC-4 Option B
+    // standing ruling — the continuation series COMPLETED): every shipped-
+    // street mass READS its registry row through regShell — KTN-01 the
+    // terminal, KTN-03 the ginkgo walk-up, KTN-04/KTN-05 the alley-split
+    // halves, KTS-01/KTS-03 the south row, ROS-01 the deli (the bodega
+    // block below), SUB-01 the station-house placement. KTN-02 the laundry
+    // builds in buildGardenSlot (the slot row cut it in W2). The proud
+    // dressing (doors, signs, windows, glows, stoops) derives against the
+    // shells; the rhythms, palettes and dressing are the style.
+    const ktn1 = this.regShell('KTN-01');
     const ktn3 = this.regShell('KTN-03');
+    const ktn4 = this.regShell('KTN-04');
+    const ktn5 = this.regShell('KTN-05');
     const kts1 = this.regShell('KTS-01');
     const kts3 = this.regShell('KTS-03');
-    this.solid('Bldg_N_West', -35.5, 7, 14, 29, 14, 12, PAL.bldg);
-    this.solid('Bldg_N_East_A', -1, 9, 14, 20, 18, 12, PAL.bldg2);
+    this.solid('Bldg_N_West', ktn1.x, ktn1.h / 2, ktn1.z, ktn1.w, ktn1.h, ktn1.d, PAL.bldg);
     this.solid('Bldg_N_GoldWindow', ktn3.x, ktn3.h / 2, ktn3.z, ktn3.w, ktn3.h, ktn3.d, PAL.brick);
     // Bldg_N_East_B is split in two so the alley (buildAlley) can be a REAL
     // cut — a 2.8 m slot with open sky above — instead of a false front.
-    // West half x 21–30.7, east half x 33.5–49; the alley fills the gap.
-    this.solid('Bldg_N_East_B_W', 25.85, 8, 14, 9.7, 16, 12, PAL.bldg);
-    this.solid('Bldg_N_East_B_E', 41.25, 8, 14, 15.5, 16, 12, PAL.bldg);
-    // Terminal door + sign (west building, faces the street). The sign gets a
-    // real label — the block stopped being a maze of anonymous boxes.
-    this.deco('Terminal_Door', -30, 1.4, 7.95, 3, 2.8, 0.15, PAL.teal);
+    // The halves ARE the registry rows KTN-04 (west) and KTN-05 (east);
+    // ALY-01's own row fills the gap between them.
+    this.solid('Bldg_N_East_B_W', ktn4.x, ktn4.h / 2, ktn4.z, ktn4.w, ktn4.h, ktn4.d, PAL.bldg);
+    this.solid('Bldg_N_East_B_E', ktn5.x, ktn5.h / 2, ktn5.z, ktn5.w, ktn5.h, ktn5.d, PAL.bldg);
+    // Terminal door + sign (faces the street). The sign gets a real label —
+    // the block stopped being a maze of anonymous boxes. The face z derives
+    // off the terminal's shell; the door/sign x is the facade's own style.
+    const termFaceZ = ktn1.z - ktn1.d / 2 - 0.05;
+    this.deco('Terminal_Door', -30, 1.4, termFaceZ, 3, 2.8, 0.15, PAL.teal);
     // The sign gets a real label — the block stopped being a maze of
     // anonymous boxes. (signBoard: plain box + two textured faces — W0.)
     this.signBoard('Terminal_Sign', 'BUS TERMINAL', 5, 0.8, 0.15, 640, 96, PAL.stone, PAL.ink, 56)
-      .position.set(-30, 3.4, 7.95);
+      .position.set(-30, 3.4, termFaceZ);
 
     this.solid('Bldg_S_West', kts1.x, kts1.h / 2, kts1.z, kts1.w, kts1.h, kts1.d, PAL.bldg2);
     this.solid('Bldg_S_FireEscape', 13, 7, -14, 26, 14, 12, PAL.brick);
     this.solid('Bldg_S_East', kts3.x, kts3.h / 2, kts3.z, kts3.w, kts3.h, kts3.d, PAL.bldg);
 
     // Water towers — Doc 04 object canon ("the buildings wear wooden hats")
-    this.waterTower(-30, 14, 12.5, 1.5);
+    this.waterTower(-30, ktn1.h, 12.5, 1.5); // unit 8: the terminal's own roof height
     this.waterTower(-14, kts1.h, -12.5, 1.7); // unit 7: the row's own roof height
-    this.waterTower(31, 16, 12.5, 1.4);
+    this.waterTower(31, ktn5.h, 12.5, 1.4); // unit 8: the fade king's own roof height
 
     // ---------------- bodega (Doc 10 §B, main.gd `_build_bodega`) ----------------
-    const h = 4.5;
-    this.solid('Bodega_Floor', -16, 0.06, 14, 10, 0.1, 12, PAL.interior, { receive: true, cast: false });
-    this.solid('Bodega_Wall_W', -20.8, h / 2, 14, 0.4, h, 12, PAL.stone);
-    this.solid('Bodega_Wall_E', -11.2, h / 2, 14, 0.4, h, 12, PAL.stone);
-    this.solid('Bodega_Wall_Back', -16, h / 2, 19.8, 10, h, 0.4, PAL.stone);
-    this.solid('Bodega_Front_L', -19.25, h / 2, 8.2, 3.5, h, 0.4, PAL.brick);
-    this.solid('Bodega_Front_R', -12.75, h / 2, 8.2, 3.5, h, 0.4, PAL.brick);
-    this.solid('Bodega_Front_Lintel', -16, 3.8, 8.2, 3, 1.4, 0.4, PAL.brick);
+    // A-3 UNIT 9 (the shipped street's class A band — THE HEROES): Rosa's
+    // deli READS its registry row (ROS-01) through regShell. The walls'
+    // centers sit ON the row's edges (the 0.4 m thickness straddles them),
+    // the floor/roof/walls run the row's depth plus the wall thickness, the
+    // front opening splits 3.5/3/3.5 across the row's width, and every
+    // proud face (sign, blade, window, awning) rides the derived front
+    // face. The warm window's emission and the sign texts are the style.
+    const rosa = this.regShell('ROS-01');
+    const h = rosa.h;
+    const rosaFace = rosa.z - rosa.d / 2 - 0.2; // the front walls' outer face
+    this.solid('Bodega_Floor', rosa.x, 0.06, rosa.z, rosa.w, 0.1, rosa.d + 0.4, PAL.interior, { receive: true, cast: false });
+    this.solid('Bodega_Wall_W', rosa.x - rosa.w / 2 + 0.2, h / 2, rosa.z, 0.4, h, rosa.d + 0.4, PAL.stone);
+    this.solid('Bodega_Wall_E', rosa.x + rosa.w / 2 - 0.2, h / 2, rosa.z, 0.4, h, rosa.d + 0.4, PAL.stone);
+    this.solid('Bodega_Wall_Back', rosa.x, h / 2, rosa.z + rosa.d / 2, rosa.w, h, 0.4, PAL.stone);
+    this.solid('Bodega_Front_L', rosa.x - rosa.w / 2 + 1.75, h / 2, rosa.z - rosa.d / 2, 3.5, h, 0.4, PAL.brick);
+    this.solid('Bodega_Front_R', rosa.x + rosa.w / 2 - 1.75, h / 2, rosa.z - rosa.d / 2, 3.5, h, 0.4, PAL.brick);
+    this.solid('Bodega_Front_Lintel', rosa.x, h - 0.7, rosa.z - rosa.d / 2, 3, 1.4, 0.4, PAL.brick);
     // "ROSA'S / DELI & GROCERY" — the building has a name now, and it says it
     // three ways (playtest: nobody knew whose store it was, and the chase cam
     // crops a low facade sign when you stand at the door):
@@ -658,16 +676,16 @@ export class World {
     //      when the facade board is above the frame),
     //   3. a rooftop billboard (readable from anywhere on the block).
     this.signBoard('Bodega_Sign', "ROSA'S\nDELI & GROCERY", 6.2, 1.35, 0.14, 832, 176, PAL.gold, PAL.ink, 62)
-      .position.set(-16, 4.0, 7.93);
+      .position.set(rosa.x, h - 0.5, rosaFace - 0.07);
     // blade sign: perpendicular board over the door gap, text on the ±x faces
-    this.decoMesh('Bodega_BladeBracket', new THREE.BoxGeometry(0.07, 0.5, 0.9), this.mat(PAL.ink), -14.9, 3.55, 7.55);
+    this.decoMesh('Bodega_BladeBracket', new THREE.BoxGeometry(0.07, 0.5, 0.9), this.mat(PAL.ink), rosa.x + 1.1, h - 0.95, rosaFace - 0.45);
     this.signBoard('Bodega_BladeSign', "ROSA'S", 0.12, 0.95, 1.7, 384, 192, PAL.gold, PAL.ink, 74, 'x')
-      .position.set(-14.9, 2.95, 7.1);
+      .position.set(rosa.x + 1.1, 2.95, rosaFace - 0.9);
     // The warm window (emission 0.55 — main.gd comment: "the warm window, actually warm")
     this.rosaWindowMat = this.mat(PAL.amber, { emissive: PAL.amber, emissiveIntensity: 0.55 });
-    this.decoMesh('Bodega_Window', new THREE.BoxGeometry(2.6, 1.6, 0.06), this.rosaWindowMat, -19.25, 1.8, 7.92);
-    this.deco('Bodega_Awning', -16, 3.2, 7.6, 10, 0.15, 1.2, PAL.teal);
-    this.roof = this.solid('Bodega_Roof', -16, h + 0.15, 14, 10, 0.3, 12, PAL.bldg);
+    this.decoMesh('Bodega_Window', new THREE.BoxGeometry(2.6, 1.6, 0.06), this.rosaWindowMat, rosa.x - rosa.w / 2 + 1.75, 1.8, rosaFace - 0.08);
+    this.deco('Bodega_Awning', rosa.x, h - 1.3, rosaFace - 0.4, rosa.w, 0.15, 1.2, PAL.teal);
+    this.roof = this.solid('Bodega_Roof', rosa.x, h + 0.15, rosa.z, rosa.w, 0.3, rosa.d + 0.4, PAL.bldg);
     // Rooftop billboard — the store's name over the block, readable from the
     // chase cam anywhere on the street. Childed to the roof so it ducks out
     // of the way exactly when the roof does (player steps inside).
@@ -1165,7 +1183,12 @@ export class World {
     this.solid('Plaza_Deck_W', -44.3, 0.09, 6.55, 1.4, 0.03, 2.3, PAL.stone, { collide: false, cast: false, receive: true });
     this.solid('Plaza_Deck_E', -39.3, 0.09, 6.45, 2.6, 0.03, 2.5, PAL.stone, { collide: false, cast: false, receive: true });
     const subway = makeSubwayEntrance(this.bank, this.signMaterials.bind(this));
-    subway.position.set(-42, 0.05, 6.2);
+    // A-3 UNIT 9: the station house's PLACEMENT reads its registry row
+    // (SUB-01) through regShell — the entrance's own railings, posts, sign
+    // and F bullet are the kit's style (no mass, no collider: the
+    // reconciliation's paved-path law stands).
+    const sub1 = this.regShell('SUB-01');
+    subway.position.set(sub1.x, 0.05, sub1.z);
     this.scene.add(subway);
     // NO blocker here — Agent-5's reconciliation stands (their branch, kept
     // by the docs/50 merge as the paved path): the placeholder stair-cut
@@ -1641,7 +1664,17 @@ export class World {
     const tsRoot = new THREE.Group();
     tsRoot.name = 'TSS_Group';
     this.scene.add(tsRoot);
-    this.timesSquare = buildTimesSquare(tsRoot, (c, opts) => this.mat(c, opts));
+    this.timesSquare = buildTimesSquare(tsRoot, (c, opts) => this.mat(c, opts), {
+      // A-3 UNIT 10 (the far world, DEC-4 Option B standing ruling): the
+      // Times Square masses READ their registry rows — the shells travel to
+      // the builder; the base/tower splits, crowns, screens and dressing
+      // are the rows' own style laws, derived inside.
+      'TSS-01': this.regShell('TSS-01'),
+      'TSS-02': this.regShell('TSS-02'),
+      'TSS-03': this.regShell('TSS-03'),
+      'TSS-04': this.regShell('TSS-04'),
+      'TSS-05': this.regShell('TSS-05'),
+    });
     for (const c of this.timesSquare.colliders) {
       this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d));
     }
@@ -4434,12 +4467,7 @@ export class World {
   // (wc-07's no-coordinates law, extended to rendering).
   private regShells: Map<string, { x: number; z: number; w: number; d: number; h: number }> | null = null;
   private regStatuses: Map<string, string | undefined> | null = null;
-  /** The registry shell of a flipped building — throws when the row is
-   *  missing or lacks footprint/height, so a data gap can never render,
-   *  and when the row still reads 'planned' (A-3 unit 4, 2026-11-08: the
-   *  status column was repaired the same day — a flipped band's row must
-   *  never be able to regress to unbuilt without failing loudly here). */
-  private regShell(registryId: string): { x: number; z: number; w: number; d: number; h: number } {
+  private ensureRegShells(): void {
     if (!this.regShells) {
       this.regShells = new Map();
       this.regStatuses = new Map();
@@ -4451,12 +4479,36 @@ export class World {
         }
       }
     }
-    const s = this.regShells.get(registryId);
+  }
+  /** The registry shell of a flipped building — throws when the row is
+   *  missing or lacks footprint/height, so a data gap can never render,
+   *  and when the row still reads 'planned' (A-3 unit 4, 2026-11-08: the
+   *  status column was repaired the same day — a flipped band's row must
+   *  never be able to regress to unbuilt without failing loudly here). */
+  private regShell(registryId: string): { x: number; z: number; w: number; d: number; h: number } {
+    this.ensureRegShells();
+    const s = this.regShells?.get(registryId);
     if (!s) throw new Error(`[A-3] registry building "${registryId}" has no footprint+height — the flip never invents geometry`);
     if (this.regStatuses!.get(registryId) === 'planned') {
       throw new Error(`[A-3] registry building "${registryId}" is still 'planned' — the flip never renders an unbuilt row (DEC-4 §5)`);
     }
     return s;
+  }
+
+  /** The registry footprint of a flipped SLOT row (h 0 — a cut or a station
+   *  anchor, not a mass: ALY-02 the garden slot, SUB-TS the far station).
+   *  Same refusals as regShell minus the height requirement — the row's
+   *  footprint is the truth even where no mass stands. */
+  private regFootprint(registryId: string): { x: number; z: number; w: number; d: number } {
+    this.ensureRegShells();
+    const s = this.regShells?.get(registryId);
+    if (s) return s;
+    const b = loadRegistry().allBuildings().find((x) => x.id === registryId);
+    if (!b || !b.footprint) throw new Error(`[A-3] registry building "${registryId}" has no footprint — the flip never invents geometry`);
+    if (b.status === 'planned') {
+      throw new Error(`[A-3] registry building "${registryId}" is still 'planned' — the flip never renders an unbuilt row (DEC-4 §5)`);
+    }
+    return { x: b.footprint.x, z: b.footprint.z, w: b.footprint.w, d: b.footprint.d };
   }
 
   private buildAlderHeightsW1(): void {
@@ -4733,23 +4785,25 @@ export class World {
    *  Same grammar as the shipped alley: a party-wall slot with open sky
    *  above, gravel underfoot, a lintel over the mouth. */
   private buildGardenSlot(): void {
-    // the laundry mass loses its east 2.5 m: same material, same height
-    const old = this.scene.children.find((c) => c.name === 'Bldg_N_East_A');
-    if (old) {
-      this.scene.remove(old);
-      (old as THREE.Mesh).geometry.dispose();
-      const ci = this.colliders.findIndex((b) =>
-        Math.abs(b.minX + 11) < 0.01 && Math.abs(b.maxX - 9) < 0.01
-        && Math.abs(b.minZ - 8) < 0.01 && Math.abs(b.maxZ - 20) < 0.01);
-      if (ci >= 0) this.colliders[ci].maxX = 6.5; // the cut face IS the wall
-    }
-    this.solid('Bldg_N_East_A_West', -2.25, 9, 14, 17.5, 18, 12, PAL.bldg2);
+    // A-3 UNIT 8 (the shipped street's class B band, DEC-4 Option B): the
+    // laundry mass READS its registry row (KTN-02) through regShell and the
+    // slot READS its row (ALY-02) through regFootprint — the cut lands
+    // between the row's east face and the ginkgo building's west face (the
+    // registry's own street plan: KTN-02 west, ALY-02 the slot, KTN-03
+    // east), LAUNDRY-INT untouched. The constructor's old dead mass
+    // (Bldg_N_East_A, retired here since the W2 decomposition) is gone —
+    // the west half builds ONCE, from the row; the gravel/lintel dressing
+    // rides the slot row, the open-sky gap is the slot row's own truth.
+    const ktn2 = this.regShell('KTN-02');
+    const aly2 = this.regFootprint('ALY-02');
+    this.solid('Bldg_N_East_A_West', ktn2.x, ktn2.h / 2, ktn2.z, ktn2.w, ktn2.h, ktn2.d, PAL.bldg2);
     // gravel floor, a hair PROUD of the yard slab (top 0.1 — the W1 yard
     // buried the first draft at 0.085; the parks' proud-slab grammar applies)
-    this.deco('GardenSlot_Floor_a', 7.75, 0.125, 11, 2.5, 0.05, 6, 0x4a4552, {});
-    this.deco('GardenSlot_Floor_b', 7.75, 0.125, 17, 2.5, 0.05, 6, 0x4a4552, {});
-    // the lintel ties the two masses together over the mouth
-    this.solid('GardenSlot_Lintel', 7.75, 3.55, 8.4, 3.1, 1.1, 1.6, PAL.bldg2);
+    this.deco('GardenSlot_Floor_a', aly2.x, 0.125, aly2.z - aly2.d / 4, aly2.w, 0.05, aly2.d / 2, 0x4a4552, {});
+    this.deco('GardenSlot_Floor_b', aly2.x, 0.125, aly2.z + aly2.d / 4, aly2.w, 0.05, aly2.d / 2, 0x4a4552, {});
+    // the lintel ties the two masses together over the mouth (its rise and
+    // depth are the mouth's own style; its x/w ride the slot row)
+    this.solid('GardenSlot_Lintel', aly2.x, 3.55, aly2.z - aly2.d / 2 + 0.4, aly2.w + 0.6, 1.1, 1.6, PAL.bldg2);
   }
 
   /** W2, section B — R-ALLEY: the shipped slot opens north. The back wall

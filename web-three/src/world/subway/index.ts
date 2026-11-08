@@ -13,6 +13,7 @@
  */
 
 import * as THREE from 'three';
+import { loadRegistry } from '../../sim/registry';
 import { updateZones, type ZoneDef } from './zone';
 import {
   aboardCar, beginRide, createRide, endRide, RIDE_SWAP_DX, swapFeet, tickRide,
@@ -93,8 +94,24 @@ export function buildSubwaySystem(
   const stationA = buildStation(ctx(groups.stationA), {
     cx: -44, name: 'ALDER HTS', accent: '#1f6e5c', ads: [0, 2], home: true,
   });
+  // A-3 UNIT 10 (the far world, DEC-4 Option B standing ruling): station
+  // B's cx READS its registry row (SUB-TS) — the row IS the station's
+  // transcription (x −332 = STATION_B_X, w 16.6 = the kit's halfW×2 + 0.3
+  // walls). The kit's interior constants (halfW, the z band, the platform)
+  // are the kit's style; the row anchors the placement. ride.ts's
+  // STATION_B_X stays the sim-side ride constant (a pure module, its math
+  // test-pinned) and is pinned EQUAL to this row by the A-3 acceptance
+  // suite — a diverge fails loudly there, the no-double-truth law at the
+  // data boundary.
+  const subTs = loadRegistry().allBuildings().find((b) => b.id === 'SUB-TS');
+  if (!subTs || !subTs.footprint) {
+    throw new Error('[A-3] registry building "SUB-TS" has no footprint — the flip never invents geometry');
+  }
+  if (subTs.status === 'planned') {
+    throw new Error('[A-3] registry building "SUB-TS" is still \'planned\' — the flip never renders an unbuilt row (DEC-4 §5)');
+  }
   const stationB = buildStation(ctx(groups.stationB), {
-    cx: -332, name: '42 ST-TIMES SQ', accent: '#6D4C7D', ads: [1, 2, 0], home: false,
+    cx: subTs.footprint.x, name: '42 ST-TIMES SQ', accent: '#6D4C7D', ads: [1, 2, 0], home: false,
   });
   // the fare banks' live parts (docs/50 §4.6): a pass through a gate
   // spins that hub a third-turn and clicks — the arms earn their dressing

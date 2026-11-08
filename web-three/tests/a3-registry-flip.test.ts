@@ -36,6 +36,16 @@
  *                                            original slice first)
  *                                            KTN-03, KTS-01, KTS-03,
  *                                            ALY-01, VND-01
+ *   UNIT 8  SS-B  the shipped street's B band (the same series, bulk-
+ *                                            completed with 9/10)
+ *                                            KTN-01, KTN-02, KTN-04,
+ *                                            KTN-05 + slot ALY-02
+ *   UNIT 9  SS-A  the shipped street's A band — THE HEROES
+ *                                            ROS-01, SUB-01
+ *   UNIT 10 TSS   the far world (Times Square) TSS-01..05 + slot SUB-TS
+ *         (slot rows: h 0 — a cut or a station anchor, not a mass; the
+ *          no-invention law for them is footprint-complete + not planned,
+ *          no height floor — they are read through regFootprint)
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -47,8 +57,9 @@ const worldTs = readFileSync(join(HERE, '..', 'src', 'world', 'World.ts'), 'utf8
 const reg = loadRegistry();
 
 /** The flipped-band ledger: unit id → its registry rows + the class band
- *  that names the unit. Extended per unit as each band lands. */
-const BANDS: Record<string, { ids: string[]; classes: string[] }> = {
+ *  that names the unit. Extended per unit as each band lands. Slot rows
+ *  (h 0 — cuts and station anchors) ride in `slots`. */
+const BANDS: Record<string, { ids: string[]; classes: string[]; slots?: string[] }> = {
   'u1-w1-c': { ids: ['PWK-01', 'PWK-02', 'PWK-03'], classes: ['C', 'D'] },
   'u2-w1-b': { ids: ['KTN-00W', 'SMB-01', 'SMB-02', 'SMB-03', 'SUB-02'], classes: ['A', 'B'] },
   'u3-w1-a': { ids: ['KTN-06'], classes: ['A'] },
@@ -58,6 +69,12 @@ const BANDS: Record<string, { ids: string[]; classes: string[] }> = {
   // unit 7 — the shipped street's class C band (the DEC-4 standing ruling's
   // continuation series): the original slice's C rows flip first, same law
   'u7-ss-c': { ids: ['KTN-03', 'KTS-01', 'KTS-03', 'ALY-01', 'VND-01'], classes: ['C'] },
+  // units 8+9+10 — the shipped street's B/A bands and the far world (the
+  // continuation series' bulk close: every remaining hand-coded registry
+  // building flips; A-3 COMPLETE)
+  'u8-ss-b': { ids: ['KTN-01', 'KTN-02', 'KTN-04', 'KTN-05'], classes: ['B', 'C'], slots: ['ALY-02'] },
+  'u9-ss-a': { ids: ['ROS-01', 'SUB-01'], classes: ['A', 'B'] },
+  'u10-tss': { ids: ['TSS-01', 'TSS-02', 'TSS-03', 'TSS-04', 'TSS-05'], classes: ['B', 'C', 'A'], slots: ['SUB-TS'] },
 };
 
 /** The retired hand truth, verbatim from the pre-flip World.ts rows —
@@ -119,6 +136,28 @@ const HAND_TRUTH: Record<string, { x: number; z: number; w: number; d: number; h
   'KTS-03': { x: 38, z: -14, w: 24, d: 12, h: 18 },
   'ALY-01': { x: 32.1, z: 9.3, w: 2.8, d: 2.6, h: 3 },
   'VND-01': { x: 29.8, z: -4.55, w: 1.7, d: 0.9, h: 2.2 },
+  // units 8+9 — the shipped street's B/A bands (verbatim from the
+  // constructor's hand rows: the terminal, the laundry's west mass — the
+  // garden slot's cut — the alley-split halves, Rosa's deli (the bodega
+  // block's wall centers sit ON the row edges), the station house's
+  // placement; ALY-02 is a slot row — h 0, its floor IS its footprint)
+  'KTN-01': { x: -35.5, z: 14, w: 29, d: 12, h: 14 },
+  'KTN-02': { x: -2.25, z: 14, w: 17.5, d: 12, h: 18 },
+  'KTN-04': { x: 25.85, z: 14, w: 9.7, d: 12, h: 16 },
+  'KTN-05': { x: 41.25, z: 14, w: 15.5, d: 12, h: 16 },
+  'ROS-01': { x: -16, z: 14, w: 10, d: 11.6, h: 4.5 },
+  'SUB-01': { x: -42, z: 6.2, w: 2.6, d: 3.5, h: 3.2 },
+  'ALY-02': { x: 7.75, z: 14, w: 2.5, d: 12, h: 0 },
+  // unit 10 — the far world (verbatim from timesSquare.ts's hand masses:
+  // the Orpheum block's base+tower, the east tower, the south row's
+  // shoulder+tower, the far brick; SUB-TS is a slot row that anchors
+  // station B's cx — its width IS the kit's own law, halfW×2 + 0.3 walls)
+  'TSS-01': { x: -364, z: 14, w: 28, d: 12, h: 30 },
+  'TSS-02': { x: -358, z: -14, w: 28, d: 12, h: 24 },
+  'TSS-03': { x: -305, z: 14, w: 26, d: 12, h: 26 },
+  'TSS-04': { x: -326, z: -14, w: 28, d: 12, h: 28 },
+  'TSS-05': { x: -298, z: -14, w: 20, d: 12, h: 18 },
+  'SUB-TS': { x: -332, z: 13.9, w: 16.6, d: 12.2, h: 0 },
 };
 
 /** The backdrop rows whose hand truth is segment heights INSIDE the row's
@@ -133,7 +172,7 @@ const VDN_SEGMENT_SPANS: Record<string, [number, number]> = {
 describe('A-3 registry flip — the flipped bands answer to the registry', () => {
   it('each flipped unit is exactly its named class band (the Option-B order, guarded)', () => {
     for (const [unit, band] of Object.entries(BANDS)) {
-      for (const id of band.ids) {
+      for (const id of [...band.ids, ...(band.slots ?? [])]) {
         const b = reg.building(id);
         expect(b, `${unit}: ${id}`).toBeTruthy();
         expect(band.classes, `${id} class in ${unit}`).toContain(b!.class);
@@ -147,6 +186,16 @@ describe('A-3 registry flip — the flipped bands answer to the registry', () =>
         const b = reg.building(id)!;
         expect(b.status, `${id} status`).not.toBe('planned');
         expect(b.height, `${id} height`).toBeGreaterThan(0);
+        expect(b.footprint?.w, `${id} w`).toBeGreaterThan(0);
+        expect(b.footprint?.d, `${id} d`).toBeGreaterThan(0);
+      }
+      for (const id of band.slots ?? []) {
+        // slot rows (h 0 — cuts and station anchors): footprint-complete
+        // and not planned; the height floor does not apply to a row that
+        // is honestly no mass at all
+        const b = reg.building(id)!;
+        expect(b.status, `${id} status`).not.toBe('planned');
+        expect(b.height, `${id} height (slot)`).toBeDefined();
         expect(b.footprint?.w, `${id} w`).toBeGreaterThan(0);
         expect(b.footprint?.d, `${id} d`).toBeGreaterThan(0);
       }
@@ -234,13 +283,59 @@ describe('A-3 registry flip — the flipped bands answer to the registry', () =>
     expect(worldTs.includes("solid('Bldg_S_East', 38, 9, -14")).toBe(false);
     expect(worldTs.includes("deco('Alley_Floor', 32.1")).toBe(false);
     expect(worldTs.includes("cart.position.set(29.8")).toBe(false);
+    // units 8+9 (the shipped street's B/A bands): the terminal, the laundry
+    // (built in buildGardenSlot — the constructor's dead mass is gone), the
+    // alley-split halves, the deli and the station house read their rows
+    expect(worldTs.includes("this.regShell('KTN-01')")).toBe(true);
+    expect(worldTs.includes("this.regShell('KTN-02')")).toBe(true);
+    expect(worldTs.includes("this.regShell('KTN-04')")).toBe(true);
+    expect(worldTs.includes("this.regShell('KTN-05')")).toBe(true);
+    expect(worldTs.includes("this.regShell('ROS-01')")).toBe(true);
+    expect(worldTs.includes("this.regShell('SUB-01')")).toBe(true);
+    expect(worldTs.includes("this.regFootprint('ALY-02')")).toBe(true);
+    // the retired hand tuples are gone from the source
+    expect(worldTs.includes("solid('Bldg_N_West', -35.5, 7, 14")).toBe(false);
+    expect(worldTs.includes("solid('Bldg_N_East_A', -1, 9, 14")).toBe(false);
+    expect(worldTs.includes("solid('Bldg_N_East_B_W', 25.85")).toBe(false);
+    expect(worldTs.includes("solid('Bldg_N_East_B_E', 41.25")).toBe(false);
+    expect(worldTs.includes("solid('Bodega_Floor', -16, 0.06, 14")).toBe(false);
+    expect(worldTs.includes("subway.position.set(-42")).toBe(false);
+    expect(worldTs.includes("deco('GardenSlot_Floor_a', 7.75")).toBe(false);
+    expect(worldTs.includes("waterTower(-30, 14, 12.5")).toBe(false);
+  });
+
+  it('unit 10 — the far world renders from the registry, and the ride constant agrees with the row (the no-double-truth pin)', () => {
+    const tsTs = readFileSync(join(HERE, '..', 'src', 'world', 'timesSquare.ts'), 'utf8');
+    const subwayIdx = readFileSync(join(HERE, '..', 'src', 'world', 'subway', 'index.ts'), 'utf8');
+    const rideTs = readFileSync(join(HERE, '..', 'src', 'world', 'subway', 'ride.ts'), 'utf8');
+    // the shells travel to the builder; the masses read them inside
+    expect(tsTs.includes('rows: TSRegistryRows')).toBe(true);
+    for (const id of ['TSS-01', 'TSS-02', 'TSS-03', 'TSS-04', 'TSS-05']) {
+      expect(tsTs.includes(`rows['${id}']`), id).toBe(true);
+    }
+    // the retired hand tuples are gone from the source
+    expect(tsTs.includes("box('TSS_01_base', -364")).toBe(false);
+    expect(tsTs.includes("box('TSS_02_a', -358")).toBe(false);
+    expect(tsTs.includes("box('TSS_03_tower', -305")).toBe(false);
+    expect(tsTs.includes("box('TSS_04_tower', -326")).toBe(false);
+    expect(tsTs.includes("box('TSS_05', -298")).toBe(false);
+    // station B's cx reads the SUB-TS row (the footprint anchor)
+    expect(subwayIdx.includes("find((b) => b.id === 'SUB-TS')")).toBe(true);
+    expect(subwayIdx.includes('cx: subTs.footprint.x')).toBe(true);
+    expect(subwayIdx.includes('cx: -332')).toBe(false);
+    // THE NO-DOUBLE-TRUTH PIN: ride.ts's sim-side ride constant equals the
+    // registry row's x — a registry move without the sim constant fails
+    // here (the ride math and the geometry must never diverge)
+    const m = rideTs.match(/STATION_B_X = (-?[\d.]+)/);
+    expect(m, 'STATION_B_X literal').toBeTruthy();
+    expect(Number(m![1]), 'STATION_B_X === SUB-TS.x').toBe(reg.building('SUB-TS')!.footprint!.x);
   });
 
   it('regShell would refuse a planned row (the law, at the data level: a planned row must never render)', () => {
     // no flipped-band row may be planned — but if the registry ever flips
     // one back to planned, regShell must throw, not invent geometry.
     for (const band of Object.values(BANDS)) {
-      for (const id of band.ids) expect(reg.building(id)!.status === 'planned', `${id} planned?`).toBe(false);
+      for (const id of [...band.ids, ...(band.slots ?? [])]) expect(reg.building(id)!.status === 'planned', `${id} planned?`).toBe(false);
     }
   });
 });
