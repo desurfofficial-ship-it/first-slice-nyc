@@ -26,6 +26,7 @@ import { freshChapterState, parseChapterState } from './chapters';
 import type { SavedRails } from './chapterRails';
 import { freshRailStates, parseRails } from './chapterRails';
 import { clampCalendarDay } from './calendar';
+import { freshC0Latches, parseC0Latches, type C0Latches } from './c0Pack';
 
 export const SAVE_KEY = 'first_slice_save_v1';
 // Day 4 "Say Hi" is live (docs/29-day4-say-hi.md): a new stranger with a
@@ -129,6 +130,14 @@ export interface SaveData {
    *  rail whose day is unreadable re-seeds — a rail that cannot say
    *  when it fired cannot claim it fired. */
   rails?: SavedRails;
+  /** The C0 pack's latches (narrative/14 §7 step 6 — core/c0Pack.ts):
+   *  which doc-11 beats have landed (the cold open, the theory, the
+   *  handover FACT, the question, the wobble, the three hooks, the
+   *  grounding kit, the covenant). Optional trailing v1-safe field, saved
+   *  as a PARTIAL shape (only what landed): absent reads as fresh — an
+   *  old save is a player who hasn't met the notebook yet; a corrupt
+   *  shape quarantines to fresh, never a crash (the save.gd law). */
+  c0?: Partial<C0Latches>;
 }
 
 export function defaultSave(): SaveData {
@@ -159,6 +168,10 @@ export function defaultSave(): SaveData {
     ledger: [],
     chapter: freshChapterState(),
     rails: freshRailStates(),
+    // the C0 pack's latches (narrative/14 §7 step 6) — materialized fresh,
+    // the same optional-trailing law one row later (absence in a raw JSON
+    // blob still parses to this fresh shape via parseC0Latches)
+    c0: freshC0Latches(),
   };
 }
 
@@ -265,6 +278,9 @@ export function parseSave(raw: string | null): SaveData {
     // the rails (narrative/14 R1) — absent in old saves reads as an
     // unfired spine; a fired rail with an unreadable day re-seeds
     rails: parseRails(d['rails']).rails,
+    // the C0 pack's latches (core/c0Pack.ts) — absent in old saves reads
+    // as fresh; a corrupt shape quarantines to fresh, never a crash
+    c0: parseC0Latches(d['c0']),
   };
 }
 

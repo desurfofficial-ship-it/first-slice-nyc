@@ -23,6 +23,7 @@ import { FreeRoam, roamDiscoveryLine, ROAM_OBJECTIVE } from './freeroam';
 import { WorldRuntime } from './worldRuntime';
 import { MoneyBridge } from '../sim/moneyBridge';
 import { datelineOfStoryDay } from '../sim/epochMap';
+import { freshC0Latches } from '../core/c0Pack';
 import { STARTERS, starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
 import { PAL } from '../core/palette';
 import { World, phys } from '../world/World';
@@ -49,6 +50,12 @@ import { CourtGame } from '../court/CourtGame';
 /** One waypoint on the familiar face's daily walk. dwell = seconds she
  *  stands there (the nod, the word); sit/hide = what happens on arrival. */
 interface FamiliarStop { x: number; z: number; dwell?: number; sit?: boolean; hide?: boolean; note?: string }
+
+/** The C0 pack's wobble trigger (doc 11 §3): the laundromat's door, in
+ *  world space — the laundry interaction's own spot (interactionDefs).
+ *  Passing within 4.5 m on/after Day 7 writes Entry 5 once. */
+const C0_LAUNDRY_X = -7.0;
+const C0_LAUNDRY_Z = 7.3;
 
 /** The bodega shelf's three stock spots — the Day-1 errand picks from these,
  *  and the morning restock puts them back (the shop is open every day). */
@@ -452,7 +459,18 @@ export class Game {
         this.arrival.begin();
       }
     }
-    this.ui.onNameSubmit = () => this.confirmName(this.ui.nameInput.value);
+    this.ui.onNameSubmit = () => {
+      // the name-box serves two laws: the cart's name (shipped) and the
+      // C0 free write (doc 11 — the player writes their own line). The
+      // mode is Game-side, transient, never saved.
+      if (this.nameBoxMode === 'diary') {
+        this.nameBoxMode = 'cart';
+        this.ui.closeNameBox();
+        for (const e of this.state.c0FreeWriteSubmit(this.ui.nameInput.value)) this.applyEffect(e);
+        return;
+      }
+      this.confirmName(this.ui.nameInput.value);
+    };
     this.ui.onStarterPick = (id) => {
       this.applyStarter(id, true);
       this.ui.closeStarterPick();
@@ -878,11 +896,36 @@ export class Game {
     }
   }
 
+  private nameBoxMode: 'cart' | 'diary' = 'cart';
+
   /** main.gd `_process` per-frame gameplay checks. */
   private perFrameChecks(dt: number): void {
     void dt;
     const s = this.state;
     const c = this.player.capsule;
+
+    // The C0 cold open (doc 11 §2 beat 0): the notebook's first page is
+    // the game's first screen — offered at the first moment of control
+    // (the film handed over, the picker is done) and re-offered after a
+    // canceled free write until written. Never while a card is up; the
+    // notebook never nags twice in a row. THE FILM LAW rides along: the
+    // cold open is for humans — drivers, probes and scenarios boot
+    // without it (driverBoot, the film's own rule; a headless driver
+    // that got a card owning input and pausing the world would
+    // invalidate the fleet — the regression this gate's first cut
+    // caused, caught by probe-world-sim's frozen 07:40 clock).
+    if (!this.driverBoot && s.day === 1 && !s.c0.coldOpen && !s.pendingCard
+        && !this.arrival.active && !this.mapOpen && this.nameBoxMode !== 'diary'
+        && !this.roam.active) {
+      for (const e of s.c0OpenColdOpenCard()) this.applyEffect(e);
+    }
+
+    // Entry 5 — the RECALL wobble (doc 11 §3): passing the laundromat on
+    // or after Day 7. One sensory line, faint, unexplained. The trigger
+    // rides the roam day — the story's own floor is long past.
+    if (s.day >= 7 && !s.c0.wobble && Math.hypot(c.x - C0_LAUNDRY_X, c.z - C0_LAUNDRY_Z) < 4.5) {
+      for (const e of s.c0Wobble()) this.applyEffect(e);
+    }
 
     // Seam 1: the goal is the far sidewalk, not one painted stripe
     if (s.step === Step.CROSS && c.z < -4.1) {
@@ -1313,6 +1356,19 @@ export class Game {
         // moves in both modes (mid-roam, it shows where the story waits).
         this.ui.setBeatMarker(this.state.beatPlaceId());
         if (e.step === Step.D2_IDRIS) this.startIdrisWalk();
+        // the C0 pack's beat hooks (narrative/14 §7 step 6): Entry 3 — the
+        // handover mishear lands the night the cart changes hands (doc 11
+        // §2 beat 8: "the diary entry same night, tagged FACT"); Entry 4 —
+        // the night question card opens at the Day-3 close (doc 11 §3)
+        if (e.step === Step.POSTCARD) {
+          for (const eff of this.state.c0HandoverFact()) this.applyEffect(eff);
+        }
+        // the question card, like the cold open, is for humans: a driver
+        // that got an unscripted card owning the input mid-flow would
+        // invalidate the fleet (the same law the cold open learned)
+        if (e.step === Step.D3_POSTCARD && !this.driverBoot) {
+          for (const eff of this.state.c0OpenQuestionCard()) this.applyEffect(eff);
+        }
         break;
       case 'note':
         this.pushNote(e.text);
@@ -1341,6 +1397,19 @@ export class Game {
       case 'order-close':
         this.ui.hideOrderCard();
         this.player.frozen = false;
+        break;
+      case 'diary-ink':
+        // the C0 pack's page landed (the state appended the entry) — the
+        // Map says so; the margins refresh if the Map is open (WP-6's pipe)
+        this.ui.wiggleMap();
+        if (this.mapOpen) this.ui.refreshDiary(this.state.fieldDiary);
+        break;
+      case 'diary-write-open':
+        // the C0 free write: the card folded; the name-box opens in its
+        // diary mode (the same input, a different page)
+        this.nameBoxMode = 'diary';
+        this.player.frozen = true;
+        this.ui.openNameBox();
         break;
       case 'money':
         this.ui.setMoney(this.state.money);
@@ -2642,6 +2711,10 @@ export class Game {
       // quarantine-cleaned in parseSave); absence in a hand-built snapshot
       // reads as an empty diary (the migration law)
       s.fieldDiary = sd.field_diary ?? [];
+      // the C0 pack's latches ride the same law (narrative/14 §7 step 6):
+      // post-parse the field is materialized, so a resume is exact; absence
+      // in a hand-built snapshot reads as fresh (the migration law)
+      s.c0 = { ...freshC0Latches(), ...(sd.c0 ?? {}) };
     }
     // sd === null (a rail "Tomorrow"): the live state carries the wallet, the
     // name, the awning — and the STOOL. The stool is bought, the Map is
