@@ -752,8 +752,88 @@ export class World {
     mkCounterSlot('Bodega_Register', 14.4, 0.4, 0.3, 0.36);
     mkCounterSlot('Bodega_Coffee', 11.6, 0.42, 0.45, 0.38);
     this.fixture(bodegaDressing, 'Bodega_Microwave', -19.6, 1.27, 15.8, 0.385, 0.34, 0.47, PAL.cream);
-    this.fixture(bodegaDressing, 'Bodega_Produce', -18.5, 0.25, 9.3, 0.6, 0.315, 0.4, PAL.bldg);
+    // the produce crate sits ON the floor (fixture center = half-height over
+    // the floor top 0.11 — the float fix carries the GLB to the same line)
+    this.fixture(bodegaDressing, 'Bodega_Produce', -18.5, 0.27, 9.3, 0.6, 0.315, 0.4, PAL.bldg);
     this.colliders.push(boxFromCenter(-18.5, 0.16, 9.3, 0.6, 0.32, 0.4));
+
+    // ---------------- the deli's own colors (2026-11 identity pass) --------
+    // Cream walls are the shipped stone masses seen from inside; the room's
+    // identity lands ADDITIVELY: teal wainscot + gold trim on every inner
+    // face (split around the door gap), the floor wears warm checker cream,
+    // the counter wall wears a real menu board, the back wall wears stacked
+    // product rows beside the three gondolas, the east wall hangs chip bags
+    // by the produce. The store reads as a deli from the doorway now.
+    const bodegaFloorY = 0.11, bodegaBandH = 0.55;
+    const bandW = this.bank.get(0x1f7a70), trimW = this.bank.get(0xf7b32b);
+    const bodegaBand = (name: string, alongX: boolean, at: number, a: number, b: number): void => {
+      const len = b - a, c = (a + b) / 2;
+      const band = new THREE.Mesh(
+        alongX ? new THREE.BoxGeometry(len, bodegaBandH, 0.05) : new THREE.BoxGeometry(0.05, bodegaBandH, len), bandW);
+      band.name = `${name}_Band`;
+      band.position.set(alongX ? c : at, bodegaFloorY + bodegaBandH / 2, alongX ? at : c);
+      bodegaDressing.add(band);
+      const trim = new THREE.Mesh(
+        alongX ? new THREE.BoxGeometry(len, 0.05, 0.07) : new THREE.BoxGeometry(0.07, 0.05, len), trimW);
+      trim.name = `${name}_Trim`;
+      trim.position.set(alongX ? c : at, bodegaFloorY + bodegaBandH + 0.025, alongX ? at : c);
+      bodegaDressing.add(trim);
+    };
+    bodegaBand('Bodega_W', true, -20.57, 8.4, 19.4);   // behind the counter
+    bodegaBand('Bodega_E', true, -11.43, 8.4, 19.4);   // the fridge wall
+    bodegaBand('Bodega_N', true, 19.37, -20.6, -11.4); // behind the gondolas
+    bodegaBand('Bodega_FrontW', true, 8.43, -20.6, -17.5); // the door gap splits
+    bodegaBand('Bodega_FrontE', true, 8.43, -14.5, -11.4); // ...the front band
+    // floor tint: warm checker cream (the shipped PAL.interior tan retires)
+    const bodegaFloorMesh = this.scene.children.find((o) => o.name === 'Bodega_Floor') as THREE.Mesh | undefined;
+    if (bodegaFloorMesh) bodegaFloorMesh.material = this.bank.get(0xd9c9a8);
+    // the menu board over the counter (west wall, faces east into the
+    // store) — re-parented into the dressing group so the bake keeps it
+    const menu = this.signBoard('Bodega_Menu', 'COFFEE 1.50 — CAFE CON LECHE 2.25\nBACON EGG & CHEESE 4.50 — COLD BEER · LOTTO',
+      0.06, 0.9, 4.6, 640, 112, PAL.cream, PAL.ink, 30, 'x');
+    menu.position.set(-20.53, 2.0, 13.0);
+    bodegaDressing.add(menu);
+    // stacked product rows on the back wall, beside/between the gondolas —
+    // one merged mesh per color (the props law: the row is ONE draw)
+    const productColors = [0xb23a48, 0xf7b32b, 0x2a9d8f, 0xf3e2c2, 0x6a8a5a, 0xb3552f];
+    const productGeos: Array<THREE.BufferGeometry[]> = Array.from({ length: productColors.length }, () => []);
+    for (let row = 0; row < 3; row++) {
+      const y = 1.15 + row * 0.5;
+      for (let i = 0; i < 30; i++) {
+        const x = -20.35 + i * 0.23;
+        if (x > -14.0 && x < -13.9) continue; // the gondola gap line stays clean
+        const w = 0.16 + (i % 3) * 0.02, h = 0.3 + (i % 2) * 0.06;
+        const g2 = new THREE.BoxGeometry(w, h, 0.14).translate(x, y + h / 2, 19.22);
+        productGeos[i % productColors.length].push(g2);
+      }
+    }
+    for (let ci = 0; ci < productColors.length; ci++) {
+      if (!productGeos[ci].length) continue;
+      const m = new THREE.Mesh(mergeGeometries(productGeos[ci], false)!, this.bank.get(productColors[ci]));
+      m.name = 'Bodega_ProductRow';
+      bodegaDressing.add(m);
+    }
+    // chip bags hanging by the produce (east wall) — the classic deli door
+    // strip, bright foil colors, one merged draw
+    const bagColors = [0xd94f3d, 0xf7b32b, 0x3d8bd9, 0x4a9d5a];
+    const bagGeos: Array<THREE.BufferGeometry[]> = Array.from({ length: bagColors.length }, () => []);
+    for (let i = 0; i < 8; i++) {
+      const z = 9.1 + i * 0.24, y = 1.55 + (i % 2) * 0.18;
+      const g2 = new THREE.BoxGeometry(0.05, 0.34, 0.22).translate(-11.46, y, z);
+      bagGeos[i % bagColors.length].push(g2);
+    }
+    for (let ci = 0; ci < bagColors.length; ci++) {
+      if (!bagGeos[ci].length) continue;
+      const m = new THREE.Mesh(mergeGeometries(bagGeos[ci], false)!, this.bank.get(bagColors[ci]));
+      m.name = 'Bodega_ChipBags';
+      bodegaDressing.add(m);
+    }
+    // the welcome mat inside the door gap (teal — the awning's color)
+    const mat = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.02, 0.9), this.bank.get(PAL.teal));
+    mat.name = 'Bodega_DoorMat';
+    mat.position.set(-16, bodegaFloorY + 0.01, 8.95);
+    mat.receiveShadow = true;
+    bodegaDressing.add(mat);
 
     // ---------------- props (Rule of Steam: something is always moving) ----
     this.deco('Manhole', -10, 0.025, 0.5, 0.95, 0.02, 0.95, PAL.manhole); // 0.95 m — a real manhole, not a patio
@@ -1628,6 +1708,8 @@ export class World {
     // glass; far = the shipped lit-glass face; inside = the tower ducks).
     this.buildAlderHeightsW5();
     this.upgradeInteriorPropsWithGLB();
+    // the rooms' palette (after the handles exist; dressRoom reads them)
+    this.dressW5Rooms();
 
 
     // leaf drift, now over every tree on the block (shipped 12 + W1 rows)
@@ -2456,6 +2538,80 @@ export class World {
     return g;
   }
 
+  /** A room's OWN COLORS (2026-11 interior identity pass — "is the
+   *  environment enough to convince someone to play?"). Every room wears:
+   *  a wainscot band + gold-line trim on its four inner faces (split around
+   *  the door gaps so a threshold never gets wallpapered), and one hanging
+   *  light strip under the clear height. Additive dressing — no wall box
+   *  moves, no collider changes, the band toggles with the room's group.
+   *  The band rides 0.55 m: every storefront window starts at 0.5+, so the
+   *  band can only ever meet a DOOR gap — those are the skips. */
+  private dressRoom(
+    id: string,
+    style: { wainscot: number; trim: number; light: number; clear: number;
+      skips?: Partial<Record<'x0' | 'x1' | 'z0' | 'z1', Array<[number, number]>>> },
+  ): void {
+    const h = this.interiorHandles.find((x) => x.id === id);
+    if (!h) return;
+    const g = h.group;
+    const floorY = h.yBand ? h.yBand[0] + 0.61 : 0.16; // the walkable skin
+    const bandH = 0.55, d = 0.05, inset = 0.03;
+    // subtract the door gaps from a face's span — the band runs in segments
+    const segs = (a: number, b: number, skips: Array<[number, number]> | undefined): Array<[number, number]> => {
+      let out: Array<[number, number]> = [[a, b]];
+      for (const [f, t] of skips ?? []) {
+        const next: Array<[number, number]> = [];
+        for (const [s0, s1] of out) {
+          if (t <= s0 || f >= s1) { next.push([s0, s1]); continue; }
+          if (f > s0) next.push([s0, Math.min(f, s1)]);
+          if (t < s1) next.push([Math.max(t, s0), s1]);
+        }
+        out = next;
+      }
+      return out.filter(([s0, s1]) => s1 - s0 > 0.08);
+    };
+    const bandMesh = (len: number, alongX: boolean, cx: number, cz: number, y: number, mat: THREE.Material, face: Face, kind: 'band' | 'trim'): void => {
+      const m = new THREE.Mesh(
+        alongX ? new THREE.BoxGeometry(len, kind === 'band' ? bandH : 0.05, kind === 'band' ? d : d + 0.02)
+          : new THREE.BoxGeometry(kind === 'band' ? d : d + 0.02, kind === 'band' ? bandH : 0.05, len), mat);
+      m.name = `${id}_${face}_${kind}`;
+      m.position.set(cx, y, cz);
+      g.add(m);
+    };
+    const wainsMat = this.bank.get(style.wainscot);
+    const trimMat = this.bank.get(style.trim);
+    const y0 = floorY + bandH / 2, yT = floorY + bandH + 0.025;
+    type Face = 'x0' | 'x1' | 'z0' | 'z1';
+    const faces: Array<{ face: Face; alongX: boolean; at: number }> = [
+      { face: 'z0', alongX: true, at: h.z0 + inset },
+      { face: 'z1', alongX: true, at: h.z1 - inset },
+      { face: 'x0', alongX: false, at: h.x0 + inset },
+      { face: 'x1', alongX: false, at: h.x1 - inset },
+    ];
+    for (const { face, alongX, at } of faces) {
+      const skips = style.skips?.[face];
+      const span = alongX ? [h.x0, h.x1] : [h.z0, h.z1];
+      for (const [s0, s1] of segs(span[0], span[1], skips)) {
+        const c = (s0 + s1) / 2, len = s1 - s0;
+        const cx = alongX ? c : at;
+        const cz = alongX ? at : c;
+        bandMesh(len, alongX, cx, cz, y0, wainsMat, face, 'band');
+        bandMesh(len, alongX, cx, cz, yT, trimMat, face, 'trim');
+      }
+    }
+    // the light strip: a warm emissive bar under the clear height — the
+    // room reads as lit from its own ceiling, not by the street. The name
+    // rides the GROUP's stem (INT_RECORDS → RECORDS_LightStrip), one law
+    // for probe and code — the handle ids and group names disagree.
+    const lamp = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.min((h.x1 - h.x0) * 0.42, 4.2), 0.07, 0.4),
+      this.mat(style.light, { emissive: style.light, emissiveIntensity: 0.75 }),
+    );
+    lamp.name = `${h.group.name.slice(4)}_LightStrip`;
+    lamp.position.set((h.x0 + h.x1) / 2, floorY + style.clear - 0.22, (h.z0 + h.z1) / 2);
+    g.add(lamp);
+  }
+
   private registerInterior(h: InteriorHandle): void {
     for (const o of h.nearParts) o.visible = false;
     h.near = false;
@@ -2539,8 +2695,9 @@ export class World {
 
     const g = this.roomKit('LAUNDRY');
     // floor: from the facade line back, warm plaster — continuous with the
-    // shipped bay floor (0xb9b1a6, the alcove's own gray)
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(11.7, 0.06, 10.8), this.bank.get(0xb9b1a6));
+    // shipped bay floor's neighbor — the room's own tile blue-gray (the
+    // identity pass: every room wears its own floor, not one shared tan)
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(11.7, 0.06, 10.8), this.bank.get(0xc3cdd2));
     floor.name = 'LaundryRoom_Floor';
     floor.position.set(-5.15, 0.13, 13.45);
     floor.receiveShadow = true;
@@ -2651,7 +2808,7 @@ export class World {
     ]);
 
     const g = this.roomKit('BARBER');
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.06, 11.0), this.bank.get(PAL.interior));
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.06, 11.0), this.bank.get(0xd9cfc2));
     floor.name = 'Barber_Floor';
     floor.position.set(36.6, 0.13, 13.9);
     floor.receiveShadow = true;
@@ -2745,7 +2902,7 @@ export class World {
     ]);
 
     const g = this.roomKit('PIZZA');
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.06, 11.0), this.bank.get(PAL.interior));
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.06, 11.0), this.bank.get(0xd8c39c));
     floor.name = 'Pizza_Floor';
     floor.position.set(27, 0.13, 13.9);
     floor.receiveShadow = true;
@@ -2820,7 +2977,7 @@ export class World {
     ]);
 
     const g = this.roomKit('BAKERY');
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.06, 11.6), this.bank.get(PAL.interior));
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.06, 11.6), this.bank.get(0xe6d7b4));
     floor.name = 'Bakery_Floor';
     floor.position.set(-34, 0.13, -26);
     floor.receiveShadow = true;
@@ -2932,7 +3089,7 @@ export class World {
     sign.rotation.set(0, Math.PI, -0.04); // faces the street (-z), hand-hung tilt
     g.add(sign);
 
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.06, 11.6), this.bank.get(PAL.interior));
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.06, 11.6), this.bank.get(0x5b4e66));
     floor.name = 'Records_Floor';
     floor.position.set(-25, 0.13, -26);
     floor.receiveShadow = true;
@@ -3009,7 +3166,7 @@ export class World {
     ]);
 
     const g = this.roomKit('HALL');
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(11.3, 0.06, 11.3), this.bank.get(PAL.interior));
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(11.3, 0.06, 11.3), this.bank.get(0xd0c2aa));
     floor.name = 'Hall_Floor';
     floor.position.set(-54.1, 0.13, 26.1);
     floor.receiveShadow = true;
@@ -3109,7 +3266,7 @@ export class World {
     ]);
 
     const g = this.roomKit('DINER');
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(9.6, 0.06, 11.6), this.bank.get(PAL.interior));
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(9.6, 0.06, 11.6), this.bank.get(0xdcd4c6));
     floor.name = 'Diner_Floor';
     floor.position.set(55, 0.13, -14);
     floor.receiveShadow = true;
@@ -3203,8 +3360,9 @@ export class World {
     this.roomBox('KTS02_Above_N', 10.2, 15.8, 11.25, 14, -9.1, -8, PAL.brick);
 
     const g = this.roomKit('CECIL');
-    // the floor (through the door zone — a 0.2 step up from the landing)
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 6.1), this.bank.get(PAL.interior));
+    // the floor (through the door zone — a 0.2 step up from the landing);
+    // the home pass wears warm parquet cream — his place, not a shop
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 6.1), this.bank.get(0xe0cfab));
     floor.name = 'Cecil_Floor';
     floor.position.set(13, 8.34, -11.05);
     floor.receiveShadow = true;
@@ -3264,6 +3422,61 @@ export class World {
     g.add(rug);
     // the window's warm translucent pane (always visible — lit from inside)
     this.scene.add(this.facadePane('Cecil_Glass', 'x', -8.03, 14.32, 15.48, 9.37, 10.73, this.roomGlassMat));
+    // ---------------- the home pass (2026-11 — lived-in, not staged) --------
+    // Two framed prints over the bed (terracotta + teal, the room's band
+    // colors), a monstera by the window (the pot rides the floor, no
+    // collider — the window sill corner is out of the walk line), three
+    // books leaning on the dresser top, a floor cushion by the bed. The
+    // room should read as SOMEONE's, not a showroom's.
+    const homeArt = (name: string, x: number, z: number, w: number, h: number, color: number, matte: number): void => {
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.04), this.bank.get(0x2b2730));
+      frame.name = `${name}_Frame`;
+      frame.position.set(x, 10.15, z);
+      g.add(frame);
+      const print = new THREE.Mesh(new THREE.BoxGeometry(w - 0.09, h - 0.09, 0.045), this.bank.get(matte));
+      print.name = name;
+      print.position.set(x, 10.15, z);
+      g.add(print);
+      const accent = new THREE.Mesh(new THREE.BoxGeometry(w - 0.3, h - 0.3, 0.052), this.bank.get(color));
+      accent.name = `${name}_Accent`;
+      accent.position.set(x, 10.15, z);
+      g.add(accent);
+    };
+    homeArt('Cecil_Art_W', 11.35, -13.98, 0.62, 0.8, 0xc27a4a, 0xf3e2c2);
+    homeArt('Cecil_Art_E', 12.35, -13.98, 0.52, 0.66, 0x2a9d8f, 0xf3e2c2);
+    // the monstera by the window (NE corner, off the walk line)
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.26, 10), this.bank.get(0xb3552f));
+    pot.name = 'Cecil_PlantPot';
+    pot.position.set(15.2, 8.54, -9.7);
+    pot.castShadow = true;
+    g.add(pot);
+    const leavesGeos = [
+      new THREE.SphereGeometry(0.17, 7, 6).translate(0, 0.44, 0),
+      new THREE.SphereGeometry(0.13, 7, 6).translate(0.1, 0.58, 0.06),
+      new THREE.SphereGeometry(0.11, 7, 6).translate(-0.09, 0.52, -0.05),
+    ];
+    const plant = new THREE.Mesh(mergeGeometries(leavesGeos, false)!, this.bank.get(0x4a7a4a));
+    plant.name = 'Cecil_PlantLeaves';
+    plant.position.set(15.2, 8.67, -9.7);
+    plant.castShadow = true;
+    g.add(plant);
+    // three books leaning on the dresser (the dresser top rides 9.35) —
+    // one mesh each, three colors, the shelf's tiny pop
+    for (const [i, c] of [0xb23a48, 0x2a9d8f, 0xf7b32b].entries()) {
+      const h2 = 0.19 + i * 0.02;
+      const book = new THREE.Mesh(new THREE.BoxGeometry(0.03, h2, 0.14), this.bank.get(c));
+      book.name = `Cecil_DresserBook_${i}`;
+      book.position.set(10.4 + i * 0.045, 9.35 + h2 / 2, -13.05);
+      book.castShadow = true;
+      g.add(book);
+    }
+    // a floor cushion by the bed (the honest student-nightchair)
+    const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.14, 0.5), this.bank.get(0x6a8a5a));
+    cushion.name = 'Cecil_FloorCushion';
+    cushion.position.set(13.5, 8.48, -13.55);
+    cushion.castShadow = true;
+    cushion.receiveShadow = true;
+    g.add(cushion);
     this.registerInterior({
       id: 'CECIL-ROOM', x0: 10.2, x1: 15.8, z0: -14.1, z1: -9.1,
       yBand: [7.8, 12.0],
@@ -3273,6 +3486,36 @@ export class World {
       glass: [{ axis: 'z', side: 'max', at: -8.03, a0: 14.32, a1: 15.48 }],
       group: g, nearParts: [], farParts: [], duck: [duckAbove],
     });
+  }
+
+  /** THE ROOMS' PALETTE (2026-11 identity pass). One block, eight voices —
+   *  the block's shops stop reading as one beige interior with different
+   *  props. Skips are the door gaps from the facade wallRuns above; the
+   *  wainscot rides 0.55 m so windows (0.5+) never meet the band. */
+  private dressW5Rooms(): void {
+    // laundromat: cool tile floor, teal wainscot — the dryer band's color
+    this.dressRoom('LAUNDRY-INT', { wainscot: 0x2a9d8f, trim: 0xf7b32b, light: 0xfff2d8, clear: 3.2,
+      skips: { z0: [[-7.925, -2.075]] } });
+    // barbershop: deep teal wainscot with a crimson pole stripe of trim
+    this.dressRoom('BARBER-INT', { wainscot: 0x1f6f6a, trim: 0xb23a48, light: 0xfff2d8, clear: 3.4,
+      skips: { z0: [[36.1, 37.1]] } });
+    // pizza: terracotta — the oven's warmth carries to the walls
+    this.dressRoom('PIZZA-INT', { wainscot: 0xb3552f, trim: 0xf3e2c2, light: 0xffe9c4, clear: 3.4,
+      skips: { z0: [[26.6, 27.6]] } });
+    // bakery: honey and butter — the case's warmth carries to the walls
+    this.dressRoom('BAKERY-INT', { wainscot: 0xc98a3d, trim: 0xf8ecd2, light: 0xffe9c4, clear: 3.2,
+      skips: { z0: [[-34.6, -33.4]] } });
+    // record store: deep plum, amber trim — the bins glow in a dark room
+    this.dressRoom('RECORD-INT', { wainscot: 0x3a3044, trim: 0xd99a2b, light: 0xffd98a, clear: 3.2,
+      skips: { z0: [[-25.6, -24.4]] } });
+    // the hall: sage walls, wood trim — the communal room is the calm one
+    this.dressRoom('HALL-INT', { wainscot: 0x8a6b4a, trim: 0xf1e6d0, light: 0xfff2d8, clear: 3.8,
+      skips: { x0: [[25.2, 26.8]] } });
+    // the diner: cherry band, silver trim — the classic lunch-counter read
+    this.dressRoom('DINER-INT', { wainscot: 0xa63c46, trim: 0xc0c4cc, light: 0xfff2d8, clear: 3.6,
+      skips: { z1: [[54.3, 55.7]], x1: [[-14.7, -13.3]] } });
+    // his room: terracotta band, cream trim — home, not a shop
+    this.dressRoom('CECIL-ROOM', { wainscot: 0xc27a4a, trim: 0xf6e8d2, light: 0xffd98a, clear: 2.9 });
   }
 
 
@@ -3289,6 +3532,11 @@ export class World {
       ...this.interiorHandles.flatMap((h) => h.duck),
       this.busGroup,   // the M121 runs its rail every frame (W4 p2)
       this.courtDusk,  // the pickup pair toggles at dusk (W4 p2)
+      // the deli's own dressing (2026-11 identity pass) keeps its names —
+      // the probe pins the menu board, the product rows, the chip bags and
+      // the door mat by name, and the counter slots are re-parented by the
+      // GLB upgrades after this bake. ~20 live draws, the store's the hero.
+      this.scene.children.find((o) => o.name === 'Bodega_Dressing') ?? new THREE.Group(),
       this.rosa, this.idris, this.kidGround, this.kidSil, this.stranger, this.sal,
       this.familiar, this.barrier, this.asphaltPatch,
       this.stool, this.permitReceipt,
@@ -3314,6 +3562,9 @@ export class World {
       // clearances by name (the "plaza owns its paving" regression) — two
       // receive-only slabs are a fair price for that identity
       'Plaza_Deck_W', 'Plaza_Deck_E',
+      // the deli's floor keeps its name for the palette probe (one live
+      // slab, the room-color law's ninth voice)
+      'Bodega_Floor',
       // docs/50 far world: the terminal lifts off when the player is
       // underground (the dollhouse), and the zone groups manage their own
       // visibility — none of it may join a district tile (the street ring
@@ -3796,7 +4047,6 @@ export class World {
       const center = box.getCenter(new THREE.Vector3());
       if (!(size.y > 0) || !Number.isFinite(size.y)) throw new Error('degenerate bounds');
 
-      const worldPos = placeholder.getWorldPosition(new THREE.Vector3());
       const worldQuat = placeholder.getWorldQuaternion(new THREE.Quaternion());
       const worldScale = placeholder.getWorldScale(new THREE.Vector3());
       if (Math.abs(worldScale.x - worldScale.y) > 1e-3 || Math.abs(worldScale.y - worldScale.z) > 1e-3) {
@@ -3805,6 +4055,13 @@ export class World {
 
       // Uniform scale so the generated mesh stands exactly as tall as the
       // placeholder it replaces, feet on the same ground, XZ centered on it.
+      // THE GROUND IS THE AABB's MIN — not the placeholder's origin. Most
+      // placeholders (the washer slots, the fixture() boxes, the hydrant
+      // cylinder) are CENTERED meshes whose origin rides mid-height; feet on
+      // the origin hung the model half a slot above its own footprint (the
+      // washers read as a wall-mounted row, the bodega produce crate floated
+      // a hand-span over the tiles). The furniture seam always used the box
+      // min (upgradeFurnitureWithGLB's law); the prop seam now matches it.
       const s = phSize.y / size.y;
       // Footprint guard: a car scaled to the placeholder's height must also
       // occupy a similar street width, or its collider (sized for the
@@ -3819,7 +4076,10 @@ export class World {
 
       const wrapper = new THREE.Group();
       wrapper.name = `${placeholder.name || id}_glb`;
-      wrapper.position.copy(worldPos);
+      // feet on the placeholder's GROUND (world AABB min), XZ centered on
+      // the occupied box — the furniture seam's placement law, one source.
+      const phCenter = phBox.getCenter(new THREE.Vector3());
+      wrapper.position.set(phCenter.x, phBox.min.y, phCenter.z);
       wrapper.quaternion.copy(worldQuat);
       wrapper.scale.copy(worldScale);
       wrapper.add(visual);

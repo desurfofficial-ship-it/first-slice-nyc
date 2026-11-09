@@ -87,7 +87,6 @@ export class UI {
   private starterNameFirst = el<HTMLInputElement>('starter-name-first');
   private starterNameNick = el<HTMLInputElement>('starter-name-nick');
   private starterNameLast = el<HTMLInputElement>('starter-name-last');
-  private starterChoices = el<HTMLDivElement>('starter-choices');
   // ---- the wardrobe — the 3D fitting room (ui/Wardrobe.ts) ----
   readonly wardrobeBtn = el<HTMLButtonElement>('btn-wardrobe');
   readonly wardrobePanel = el<HTMLDivElement>('wardrobe-panel');
@@ -122,7 +121,6 @@ export class UI {
   onCineTap: (() => void) | null = null;
   onCineSkip: (() => void) | null = null;
   /** Doc 02's starter pick — fired with the tapped starter's id. */
-  onStarterPick: ((id: string) => void) | null = null;
   /** The notebook's pick — fired with the pack id, the chosen option's id,
    *  and the free-write line (empty string when the pick was an option). */
   onNotebookPick: ((pack: string, optionId: string, freeText: string) => void) | null = null;
@@ -417,33 +415,14 @@ export class UI {
 
   // ---------------- who got off the bus (Doc 02 six starters) ----------------
 
-  /** The pick card: six tiles, every one safe. Open only for humans on the
-   *  film path; drivers and ?starter= boots apply directly. */
-  showStarterPick(starters: Array<{ id: string; name: string; blurb: string }>) {
-    this.starterChoices.innerHTML = '';
-    for (const s of starters) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'starter-tile';
-      b.dataset.starter = s.id;
-      b.innerHTML = `<span class="starter-name">${escapeHtml(s.name)}</span>`
-        + `<span class="starter-blurb">${escapeHtml(s.blurb)}</span>`;
-      b.addEventListener('click', () => this.onStarterPick?.(s.id));
-      this.starterChoices.appendChild(b);
-    }
-    this.starterCard.hidden = false;
-    this.syncTouchUI();
-    this.prompt.hidden = true;
-    this.interactBtn.classList.remove('occupied');
-  }
-
-  closeStarterPick() {
-    this.starterCard.hidden = true;
-    this.syncTouchUI();
-  }
+  // (2026-11: the paper pick card retired — the wardrobe's pick mode is the
+  // "who got off the bus?" beat now, six 3D previews instead of six blurbs.
+  // The #starter-card element and its UI-state line stay for the pause/panel
+  // law; the pick itself lives in ui/Wardrobe.ts openPick → Game.applyWardrobePick.)
 
   /** The name the block learns (doc 11 §5): read raw; GameState's
-   *  sanitizeIdentity owns the caps and the fallbacks. */
+   *  sanitizeIdentity owns the caps and the fallbacks. The inputs live in
+   *  the wardrobe's pick row (#wardrobe-pick-name). */
   starterName(): { first: string; nick: string; last: string } {
     return {
       first: this.starterNameFirst.value,
