@@ -38,8 +38,16 @@ import { relId, simId } from './ids';
 
 // ---------------------------------------------------------------- flags ----
 
-/** Persistent story/world flags — `flag:<local>` sim ids, set-once or
- *  overwritten by explicit rule. The single source: state.flags. */
+/** Persistent story/world flags — the single source: state.flags.
+ *
+ *  Accepted shapes (the choice system + missable + greeted seams all write here):
+ *    - `flag:<local>` / `evt:<local>` — classic sim ids (ids.ts)
+ *    - `node:<id>=<optionId>` — choice selection pivots (choiceNodes.resolveChoice;
+ *      the durable half of N0/N1a/… — Game.maybeColdOpen / worldRuntime.setStoryFlags)
+ *    - `<dimension>=<value>` — choice downstream machine keys
+ *      (e.g. `diary-voice-bias=prompt-1`, `c2-information-position=honest-odds`)
+ *
+ *  Bare names (`rosa_flag`) and other garbage still throw — a typo must be loud. */
 export interface FlagStore {
   /** flag id → the tick when it was set (ordering without a list). */
   readonly map: Map<string, number>;
@@ -48,13 +56,26 @@ export interface FlagStore {
   setAt(flagId: string): number | undefined;
 }
 
+/** True when the key is a legal story-flag shape (see FlagStore docs). */
+export function isStoryFlagId(flagId: string): boolean {
+  if (typeof flagId !== 'string' || flagId.length === 0) return false;
+  if (flagId.startsWith('flag:') || flagId.startsWith('evt:')) return true;
+  // choice selection pivot: node:<id>=<optionId>
+  if (/^node:[A-Za-z0-9_-]+=[A-Za-z0-9_-]+$/.test(flagId)) return true;
+  // dimension machine key from choice nodes: dim=value (no colon, one equals)
+  if (/^[a-z][a-z0-9_-]*=[A-Za-z0-9_-]+$/.test(flagId)) return true;
+  return false;
+}
+
 export function newFlags(): FlagStore {
   const map = new Map<string, number>();
   return {
     map,
     set(flagId, tick) {
-      if (!flagId.startsWith('flag:') && !flagId.startsWith('evt:')) {
-        throw new Error(`sim/narrative: flags must be flag:/evt: ids, got "${flagId}"`);
+      if (!isStoryFlagId(flagId)) {
+        throw new Error(
+          `sim/narrative: flags must be flag:/evt:/node: ids or dimension=value keys, got "${flagId}"`,
+        );
       }
       map.set(flagId, tick);
     },
