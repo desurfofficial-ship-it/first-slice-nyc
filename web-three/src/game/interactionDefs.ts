@@ -752,7 +752,8 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
       enabled: (s) =>
         s.step === Step.MEET_ROSA || (s.isDay2 && s.step <= Step.D2_CLIMB2)
         || (s.isDay3 && s.step >= Step.D3_WAKE && s.step <= Step.D3_CLIMB3)
-        || (s.isDay4 && s.step >= Step.D4_WAKE && s.step <= Step.D4_MAP),
+        || (s.isDay4 && s.step >= Step.D4_WAKE && s.step <= Step.D4_MAP)
+        || (s.isDay5 && s.step === Step.D5_WAKE),
       prompt: () => 'Say hi',
       perform: (ctx) => act(ctx, (s) => {
         if (s.step === Step.D3_WAKE) {
@@ -764,6 +765,10 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
         if (s.step === Step.D4_WAKE) {
           // Day 4 morning, same law: the wake beat first, chat second.
           return s.rosaD4Wake();
+        }
+        if (s.step === Step.D5_WAKE) {
+          // Days 5–7, same law — the stabilized morning's open.
+          return s.rosaD5Wake();
         }
         if (s.isDay2) {
           return s.rosaTask().effects;
@@ -786,7 +791,7 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
       enabled: (s) => {
         if (s.step === Step.CLAIM_CART || s.step === Step.SOLO || s.step === Step.D2_LUNCH
           || s.step === Step.D3_RUSH || s.step === Step.D3_STOOL
-          || s.step === Step.D4_RUSH) return true;
+          || s.step === Step.D4_RUSH || s.step === Step.D5_RUSH) return true;
         // while Idris stands AT the cart (D2_IDRIS, arrived), the cart's own
         // press is meaningless — the awning needs the counter clear — and a
         // walker parked a step nearer the cart than him fed the press to
@@ -801,6 +806,7 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
         if (s.step === Step.SOLO) return 'Take the order';
         if (s.step === Step.D2_LUNCH) return 'Serve';
         if (s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) return s.brewing ? BREWING_PROMPT : 'Serve';
+        if (s.step === Step.D5_RUSH) return s.brewing ? BREWING_PROMPT : 'Serve';
         if (s.step === Step.D3_STOOL) return 'Stool \u2014 $10';
         if (s.day >= 2 && !s.awningUp && s.money >= 15) return 'Awning \u2014 $15';
         return 'Serve';
@@ -814,7 +820,7 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
         if (s.step === Step.D2_LUNCH) {
           return ctx.game.customer ? s.serveCart() : [];
         }
-        if (s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) {
+        if (s.step === Step.D3_RUSH || s.step === Step.D4_RUSH || s.step === Step.D5_RUSH) {
           return ctx.game.customer ? s.startBrew() : [];
         }
         if (s.step === Step.D3_STOOL) return s.stoolInteraction();

@@ -348,14 +348,23 @@ describe('Day 2 — the neighborhood comes alive (Doc 22)', () => {
     expect(again).toEqual([]); // note shown once
   });
 
-  it('rail goodnight then tomorrow; a kept final day answers "still being written"', () => {
+  it('rail goodnight then tomorrow; the kept final day runs the cut, and only the latch answers "still being written"', () => {
     const s = day1ToClimb(); // day 1
     s.lingerStage = 1;
     s.rail();
     expect(s.lingerStage).toBe(2);
     const out = s.rail();
     expect(out.some((e) => e.kind === 'next-day')).toBe(true);
+    // Day 7 (MAX_DAY): the rail runs the C0\u2192C1 season cut \u2014 the
+    // interstitial lands, the chapter opens C1 \u2014 and the LATCH is what
+    // answers "still being written" on the next press (a replayed week
+    // never cuts twice).
     s.day = MAX_DAY_NUMBER;
+    s.calendarDay = MAX_DAY_NUMBER;
+    s.setStep(Step.D5_POSTCARD);
+    const cut = s.rail(); // lingerStage is already 2 \u2014 this press IS the cut
+    expect(cut.some((e) => e.kind === 'note')).toBe(true);
+    expect(s.chapter.chapter).toBe('C1');
     const beyond = s.rail();
     expect(beyond.some((e) => e.kind === 'day-beyond')).toBe(true);
   });

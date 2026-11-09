@@ -10,7 +10,7 @@ import { appendEntry, correctEntry, serializeFieldDiary, type FieldDiaryEntry } 
 import { DEFAULT_STARTER } from './starters';
 // ---- the narrative spine (narrative/14 R1/R2/R8 — the machines, now fed) ----
 import {
-  freshChapterState, touchDay, serializeChapterState,
+  freshChapterState, touchDay, serializeChapterState, advanceChapter,
   type ChapterState,
 } from './chapters';
 import {
@@ -22,7 +22,7 @@ import {
 } from './consequenceLedger';
 import {
   mishearEntryDraft, C0_THEORY_ENTRY_ID_PREFIX, C0_QUESTION_ENTRY_ID_PREFIX,
-  C0_QUESTION_FREE_ID,
+  C0_QUESTION_FREE_ID, seasonCutEntry, C0_CUT_ENTRY_ID_PREFIX,
 } from './c0pack';
 import {
   C0_BLOCK_IDS, DESHAUN_KIT_ECHO, DESHAUN_KIT_LINES, DESHAUN_SIT_LINE,
@@ -37,7 +37,11 @@ import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, ITEM_STICKERS, D3_ORDERS, 
   D4_PERMIT_ALREADY_NOTE, IDRIS_D3_FAVOR_REACTION, ROSA_FOUR_MORNINGS_NOTE,
   RUSH_CARDS, SOLO_CARDS, RUSH_NOTE_5, USUAL_NOTE,
   IDRIS_NINE_YEARS_NOTE, IDRIS_UNLOCK_NOTE, ROSA_CART_HANDOVER_NOTE,
-  ROSA_REGISTER_NOTES, type OrderCard } from './content';
+  ROSA_REGISTER_NOTES, type OrderCard,
+  // Days 5–7 (doc 11 §7) + the C0→C1 season cut
+  D5_ORDERS, ROAM_WAKE_LINES, ROAM_RUSH_DONE_NOTE,
+  C0_CUT_CITY_NOTE, C0_CUT_EDDIE_LINE, C0_CUT_MONTAGE_NOTE,
+} from './content';
 
 export const Step = {
   MEET_ROSA: 0,
@@ -75,6 +79,11 @@ export const Step = {
   D4_CLIMB4: 30,
   D4_POSTCARD: 31,
   DONE: 32,
+  // ---- Days 5–7 — the stabilized loop (doc 11 §2 beat 11 + §7) ----
+  D5_WAKE: 33,
+  D5_RUSH: 34,
+  D5_ROAM: 35,
+  D5_POSTCARD: 36,
 } as const;
 export type Step = (typeof Step)[keyof typeof Step];
 
@@ -314,6 +323,12 @@ export class GameState {
     return this.day >= 4;
   }
 
+  /** Days 5–7 — the stabilized loop (doc 11 §7). The roam-day gates read
+   *  this one flag so the wake/rush wiring can never half-apply. */
+  get isDay5(): boolean {
+    return this.day >= 5;
+  }
+
   objectiveText(): string {
     if (this.step === Step.DONE) return `Day ${this.day} is done.`;
     return OBJECTIVES[this.step] ?? '';
@@ -347,6 +362,8 @@ export class GameState {
     [Step.D4_RUSH]: 'cart',
     [Step.D4_MAP]: 'cart',
     [Step.D4_LAUNDRY]: 'laundry',
+    [Step.D5_WAKE]: 'cart',
+    [Step.D5_RUSH]: 'cart',
   };
 
   beatPlaceId(): string | null {
@@ -661,8 +678,8 @@ export class GameState {
    *  brew already running: repeated input can never double-serve). */
   startBrew(): Effect[] {
     if (this.brewing) return [];
-    if (this.step !== Step.D3_RUSH && this.step !== Step.D4_RUSH) return [];
-    const queue = this.step === Step.D3_RUSH ? D3_ORDERS : D4_ORDERS;
+    if (this.step !== Step.D3_RUSH && this.step !== Step.D4_RUSH && this.step !== Step.D5_RUSH) return [];
+    const queue = this.step === Step.D3_RUSH ? D3_ORDERS : this.step === Step.D4_RUSH ? D4_ORDERS : D5_ORDERS;
     const order = queue[this.rushIndex];
     if (!order) return [];
     this.brewing = true;
@@ -670,18 +687,22 @@ export class GameState {
   }
 
   /** The brew timer ran out (Game owns the clock). Pays, reacts, queues the
-   *  next order — or sends the kid down / opens the Map beat when done. */
+   *  next order — or opens the day's next beat when done. */
   completeBrew(): Effect[] {
     if (!this.brewing) return [];
     this.brewing = false;
     const day4 = this.step === Step.D4_RUSH;
-    const queue = day4 ? D4_ORDERS : D3_ORDERS;
+    const day5 = this.step === Step.D5_RUSH;
+    const queue = day5 ? D5_ORDERS : day4 ? D4_ORDERS : D3_ORDERS;
     const order = queue[this.rushIndex];
     if (!order) return [];
     this.rushIndex += 1;
     const out: Effect[] = [{ kind: 'serve-customer' }, ...this.earn(order.pay)];
     if (this.rushIndex >= queue.length) {
-      if (day4) {
+      if (day5) {
+        out.push({ kind: 'note', text: ROAM_RUSH_DONE_NOTE });
+        out.push(...this.setStep(Step.D5_ROAM));
+      } else if (day4) {
         out.push({ kind: 'note', text: D4_RUSH_DONE_NOTE });
         out.push(...this.setStep(Step.D4_MAP));
       } else {
@@ -693,7 +714,7 @@ export class GameState {
       // Day 3's first cup carries the remembered favor (Doc 33 §4.2) when
       // the kid was kept on Day 2 — one line, spoken, never stored. The
       // Day-4 morning rush keeps its own line: the favor lands once.
-      const favor = !day4 && order.who === 'idris' && this.kidKept;
+      const favor = !day4 && !day5 && order.who === 'idris' && this.kidKept;
       out.push({ kind: 'note', text: favor ? IDRIS_D3_FAVOR_REACTION : order.reaction });
       out.push({ kind: 'spawn-customer', who: order.who === 'idris' ? 'rush' : 'rush', x: 4, z: -4.6 });
     }
@@ -866,6 +887,58 @@ export class GameState {
     return [{ kind: 'apron-clean' }];
   }
 
+  // ---------------------------------------------------- Days 5–7 (doc 11 §7) ----
+  // "The loop stabilizes — open, rush, roam, wind-down, postcard." No new
+  // scripted stranger, no new purchases: the day belongs to the block (the
+  // laundry, the board, the fence, the counter — the block layer's hooks
+  // live here), and the wind-down rides the shipped climb → postcard → rail
+  // chain. Day 7's night runs the season cut (rail → seasonCut).
+
+  /** Rosa's open, keyed to the day's own news; the rush opens behind it —
+   *  Idris first, like every day (the stabilized loop's constant). */
+  rosaD5Wake(): Effect[] {
+    if (this.step !== Step.D5_WAKE) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: ROAM_WAKE_LINES[Math.min(2, Math.max(0, this.day - 5))] },
+      ...this.setStep(Step.D5_RUSH),
+      // Idris opens the rush — the regulars are the news that matters
+      { kind: 'spawn-customer', who: 'idris', x: 4, z: -4.6 },
+    ];
+    return out;
+  }
+
+  /** The season cut — doc 11 §7's interstitial, R4's named transition.
+   *  The diary montage (the week's entries in his hand), the city's first
+   *  morning-after note (verbatim), then Monday, 6 a.m., Eddie at the door
+   *  (verbatim). The postcard is the day's own fire-escape dusk — already
+   *  taken. The cut consumes one calendar day: the spine's chapter touches
+   *  day 8 (Sept 16) and C1's window opens (the rails wait for their wave —
+   *  R1's law: observable in the city diary, never a banner). The latch is
+   *  the diary (the montage's stable id): a replayed Day 7 never cuts twice. */
+  private seasonCut(): Effect[] {
+    if (this.hasDiaryEntryWithPrefix(C0_CUT_ENTRY_ID_PREFIX)) return [{ kind: 'day-beyond' }];
+    const out: Effect[] = [
+      { kind: 'note', text: C0_CUT_MONTAGE_NOTE },
+      { kind: 'note', text: `The city\u2019s first morning-after note: \u201C${C0_CUT_CITY_NOTE}\u201D` },
+      { kind: 'note', text: `Monday, 6 a.m. Eddie, at the door: \u201C${C0_CUT_EDDIE_LINE}\u201D` },
+    ];
+    // the montage, in his hand — dated the cut's morning (day 8, Sept 16)
+    this.c0Write(out, seasonCutEntry(this.calendarDay + 1));
+    // the boundary itself: the chapter consumes the calendar day through
+    // the machine's own door (advanceChapter). The cut IS the authored
+    // trigger — the beat is playing as this code runs — and the window +
+    // minimum-days laws still get their say (day 8 ≥ C1's start; C0 lived
+    // its seven days). The rails re-evaluate at the next walk — C1's
+    // content is the C1 wave's to bring.
+    const adv = advanceChapter(this.chapter, 'C1', {
+      day: this.calendarDay + 1,
+      triggerHeld: true, // the cut itself is the beat (doc 11 §7's interstitial)
+    });
+    if (adv.ok) this.chapter = adv.state;
+    else this.chapter = touchDay(this.chapter, this.calendarDay + 1);
+    return out;
+  }
+
   serveIdris(): Effect[] {
     if (this.step !== Step.D2_IDRIS || !this.idrisArrived) return [];
     this.idrisServed = true;
@@ -931,7 +1004,12 @@ export class GameState {
       ];
     }
     if (this.day < MAX_DAY) return [{ kind: 'next-day' }];
-    return [{ kind: 'day-beyond' }];
+    // Day 7's night is the C0→C1 season cut (doc 11 §7, R4's named
+    // transition): the interstitial runs, the chapter consumes the calendar
+    // day, and the latch keeps a replayed week from cutting twice. After
+    // the cut, the wall holds honestly — day 8 is C1's, and C1 is the next
+    // wave's to build.
+    return this.seasonCut();
   }
 
   dismissPostcard(): Effect[] {

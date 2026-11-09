@@ -263,9 +263,9 @@ describe('Day 4 afternoon — the block opens up (docs/30)', () => {
   });
 });
 
-describe('Day 4 — the wall and the relevance map', () => {
-  it('day 3\u2019s rail now says tomorrow (MAX_DAY = 4); day 4 is the wall', () => {
-    expect(MAX_DAY).toBe(4);
+describe('Day 4 — the week continues and the relevance map', () => {
+  it('day 3\u2019s rail says tomorrow (MAX_DAY = 7); day 4\u2019s rail says tomorrow too \u2014 the wall moved to Day 7\u2019s cut', () => {
+    expect(MAX_DAY).toBe(7);
     const s3 = day3Done();
     s3.lingerStage = 2;
     expect(s3.rail().some((e) => e.kind === 'next-day')).toBe(true);
@@ -273,7 +273,7 @@ describe('Day 4 — the wall and the relevance map', () => {
     s4.day = 4;
     s4.setStep(Step.D4_POSTCARD);
     s4.lingerStage = 2;
-    expect(s4.rail().some((e) => e.kind === 'day-beyond')).toBe(true);
+    expect(s4.rail().some((e) => e.kind === 'next-day')).toBe(true);
   });
 
   it('relevance: the stranger answers in her two steps and only then', () => {

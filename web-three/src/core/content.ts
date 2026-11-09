@@ -46,6 +46,11 @@ export const OBJECTIVES: Record<number, string> = {
   29: 'The washers are going. There\u2019s a notice by the crosswalk — the city posts things where you\u2019ll read them.', // D4_PERMIT
   30: 'Fire escape at dusk. The best seat is yours by habit now.',       // D4_CLIMB4
   31: '',                                                                // D4_POSTCARD
+  // ---- Days 5–7 — the stabilized loop (doc 11 §2 beat 11 + §7) ----
+  33: 'Rosa is at your cart. The morning is, too.',                      // D5_WAKE
+  34: 'The morning rush. Serve at your cart.',                           // D5_RUSH
+  35: 'The day is yours. The block is open — the laundry, the board, the fence, the counter. Fire escape at dusk.', // D5_ROAM
+  36: '',                                                                // D5_POSTCARD
 };
 
 export const MAP_NOTE_BOOT = 'You are here. That\u2019s enough.'; // Doc 08 note #1
@@ -58,6 +63,23 @@ export function composeCaption(s: {
   day: number; replay: boolean; dayStartMoney: number; money: number; cartName: string;
   awningUp?: boolean;
 }): string {
+  if (s.day >= 5) {
+    // Days 5–7 (doc 11 §7): the loop stabilizes, so the caption does too —
+    // the money line, the day, the corner's signature. The week's story
+    // lives in the diary now; the postcard is the receipt.
+    if (s.replay) {
+      return (
+        `Day ${s.day}, again. Some days you don't earn — you just get to keep.\n\n` +
+        `\u2014 ${s.cartName}, Day ${s.day}`
+      );
+    }
+    return (
+      `Day ${s.day}. $${s.dayStartMoney} \u2192 $${s.money}.\n` +
+      'Met: the block, again, on purpose.\n' +
+      'The usual is a tiny love letter. You write it daily now.\n\n' +
+      `\u2014 ${s.cartName}, Day ${s.day}`
+    );
+  }
   if (s.day >= 4) {
     if (s.replay) {
       return (
@@ -695,6 +717,66 @@ export const D4_ORDERS: D3Order[] = [
     reaction: 'The early shift: \u201CLarge black. You\u2019re part of the commute now.\u201D The city decided. That\u2019s how it happens.',
   },
 ];
+
+// --------------------------------------------- Days 5–7 (doc 11 §7) ----
+// "The block opens up" settles into the loop — open, rush, roam,
+// wind-down, postcard — and Monday runs the C0→C1 season cut. The block
+// layer's hooks (Odessa's nod, the surveyor's dawn, the lease notice) were
+// built waiting for these days; this is the week that lets them happen.
+
+export const DAY_ROAM_BEGIN_NOTES: readonly string[] = [
+  'Day 5. The corner doesn\u2019t need introducing anymore. It just needs you on it.',
+  'Day 6. The urn is warm before you are. The block noticed.',
+  'Day 7. One week in this city. The notebook has opinions.',
+];
+
+/** Rosa's open, keyed to the day's own news (authored, doc 13 voice; the
+ *  bulletin's stoop sale and the parade are the city talking to itself —
+ *  Rosa just reads the room). Day 7 is Monday: the permit window the
+ *  A-frame promised. */
+export const ROAM_WAKE_LINES: readonly string[] = [
+  'Rosa: \u201CSaturday. The stoop sale\u2019s on. So is the rush. Urn\u2019s yours.\u201D',
+  'Rosa: \u201CParade day. The block\u2019s in a good mood. So\u2019s the urn.\u201D',
+  'Rosa: \u201CMonday. Permit window\u2019s open, the A-frame said. It\u2019s been open. It\u2019s yours.\u201D',
+];
+
+export const ROAM_RUSH_DONE_NOTE =
+  'Two orders, no drama. The morning knows its shape now. The day is yours until the light says otherwise.';
+
+/** The stabilized morning rush — Idris opens, like every day. Two orders,
+ *  $5 honest, day-neutral reactions (the queue serves Days 5, 6 and 7). */
+export const D5_ORDERS: D3Order[] = [
+  {
+    who: 'idris',
+    bubble: 'THE USUAL',
+    pay: 3,
+    reaction: 'Mr. Idris: \u201CThe usual.\u201D He holds the cup a second longer than the sip needs. That\u2019s the review.',
+  },
+  {
+    who: 'rush',
+    bubble: 'ONE REGULAR',
+    pay: 2,
+    reaction: 'A regular from the line: \u201CSame as yesterday. Yesterday was perfect.\u201D',
+  },
+];
+
+export const D5_CLIMB_NOTE =
+  'A week of mornings in one chair. The city kept the seat warm \u2014 that\u2019s its side of the deal.';
+
+// --------------------------------------- the C0→C1 season cut (§7, R4) ----
+// "To C1 (season cut, Sept 16): the first interstitial: diary montage (the
+// week's entries in his hand), one postcard (the fire-escape dusk), and the
+// city's first morning-after note: 'The new one remembered the usual.' Then
+// Monday, 6 a.m., Eddie at the door: 'Real shift. Leave the tricks in Ohio.'
+// The quoted lines below are canon verbatim; the montage's prose is written
+// to spec (the week's shape, not its literal entries — the entries answer
+// to the player's choices, and the montage may not lie about them).
+
+export const C0_CUT_CITY_NOTE = 'The new one remembered the usual.';
+export const C0_CUT_EDDIE_LINE = 'Real shift. Leave the tricks in Ohio.';
+
+export const C0_CUT_MONTAGE_NOTE =
+  'The week, in one hand: a bus, a window, a cart with a name. A mango. A key\u2019s worth of trust. A stool with a kid on it. The Map worked better upside down. The light stayed.';
 
 // ------------------------------------------- Day 4 afternoon (docs/30) ----
 // "The Block Opens Up" — the block was always this big. You just hadn't

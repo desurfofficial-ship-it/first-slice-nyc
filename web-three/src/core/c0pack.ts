@@ -391,6 +391,14 @@ export function validateC0Pack(): C0PackReport {
   if (mis.body !== C0_MISHEAR_BODY || mis.epistemic !== 'FACT') {
     problems.push('mishear: the K1 record drifted from canon');
   }
+  // the season cut: the montage drafts, dated at its own morning, and the
+  // latch ids are unique across the whole pack (doc 11 §7 — the boundary
+  // the C1 wave builds against). The prefix non-collision is proven at the
+  // type level (distinct literals); the test suite pins it at runtime.
+  const cut = seasonCutEntry(8);
+  if (!cut) problems.push('season cut: the montage does not draft');
+  else if (ids.has(cut.id)) problems.push(`season cut: duplicate entry id ${cut.id}`);
+  else ids.add(cut.id);
   return { ok: problems.length === 0, problems };
 }
 
@@ -572,4 +580,30 @@ export function deshaunEntry(day: number): FieldDiaryEntry {
  *  style rides the tag; the content rides the kind). */
 export function wobbleEntry(day: number): FieldDiaryEntry {
   return entry(C0_BLOCK_IDS.wobble, 'RECALL', day, 'RECALL', ENTRY5_WOBBLE);
+}
+
+// ===========================================================================
+// THE SEASON CUT (doc 11 §7 — the C0→C1 boundary, R4's named transition)
+// ===========================================================================
+// Day 7's night, after the postcard and Rosa's goodnight: the diary
+// montage (the week's entries in his hand), one postcard (the fire-escape
+// dusk — the day's own), the city's first morning-after note, then Monday,
+// 6 a.m., Eddie at the door. The cut consumes one calendar day (the
+// spine's touchDay walks into C1's window — Sept 16). The latch is the
+// diary: the montage entry's stable id, so a replayed Day 7 never cuts
+// twice. The cut's verbatim pins are validated below (the no-drift law).
+
+import { C0_CUT_MONTAGE_NOTE } from './content';
+
+/** The cut's diary ids share this prefix — the one-cut-per-save latch. */
+export const C0_CUT_ENTRY_ID_PREFIX = 'c0-cut-';
+export const C0_CUT_MONTAGE_ID = 'c0-cut-montage';
+
+/** The interstitial's entry — the montage in HIS hand, dated the cut's
+ *  morning (day 8, Sept 16): the diary remembers the boundary itself. */
+export function seasonCutEntry(calendarDay: number): FieldDiaryEntry {
+  return entry(
+    C0_CUT_MONTAGE_ID, 'OBSERVATION', calendarDay, 'FACT',
+    C0_CUT_MONTAGE_NOTE,
+  );
 }

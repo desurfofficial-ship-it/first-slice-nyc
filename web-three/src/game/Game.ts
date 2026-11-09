@@ -17,6 +17,8 @@ import { composeCaption, tsWowCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE
   MAP_PLACES, MAP_PLACE_NOTICE_R, CITY_WILL_WAIT_NOTE, MAP_COPIED_NOTE, RIDE_END_NOTE,
   RUSH_NOTE_5, MOMENT_RUSH_CAPTION, MOMENT_TOWERS_CAPTION, MOMENT_FOLD_CAPTION,
   momentCornerCaption, MOMENT_TAGS, type MomentCardKind,
+  // Days 5–7 (doc 11 §7)
+  D5_CLIMB_NOTE, DAY_ROAM_BEGIN_NOTES,
 } from '../core/content';
 import { loadSave, writeSave, wipeSave, newGameSave, type SaveData } from '../core/Save';
 import { FreeRoam, roamDiscoveryLine, ROAM_OBJECTIVE } from './freeroam';
@@ -891,7 +893,8 @@ export class Game {
 
     // top landing (main.gd `_reach_top`)
     if (!this.reachedTopFired && capsuleInBox(c, this.world.topLandingZone)) {
-      if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4) {
+      if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4
+        || (this.state.step === Step.D5_ROAM && this.state.day >= 5)) {
         this.reachedTopFired = true;
         this.reachTop();
       }
@@ -906,13 +909,15 @@ export class Game {
       this.checkpoint = { x: 9.4, y: 0.05, z: -5.5 };
       this.startDusk();
     }
-    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4) {
+    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4
+      || (this.state.step === Step.D5_ROAM && this.state.day >= 5)) {
       this.ui.setObjective('Climb.');
     }
   }
 
   private onLadderLeave(): void {
-    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4) {
+    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4
+      || (this.state.step === Step.D5_ROAM && this.state.day >= 5)) {
       this.ladderHintPending = true;
     }
   }
@@ -1980,14 +1985,17 @@ export class Game {
 
   private reachTop(): void {
     const s = this.state;
-    const day4 = s.step === Step.D4_CLIMB4;
+    const day5 = s.day >= 5;
+    const day4 = s.step === Step.D4_CLIMB4 || day5;
     const day3 = s.step === Step.D3_CLIMB3;
     const day2 = s.step === Step.D2_CLIMB2;
-    s.setStep(day4 ? Step.D4_POSTCARD : (day3 ? Step.D3_POSTCARD : (day2 ? Step.D2_POSTCARD : Step.POSTCARD)));
+    s.setStep(day5 ? Step.D5_POSTCARD : day4 ? Step.D4_POSTCARD : (day3 ? Step.D3_POSTCARD : (day2 ? Step.D2_POSTCARD : Step.POSTCARD)));
     this.ui.setObjective('');
     this.startDusk();
     this.player.frozen = true;
-    this.ui.showNote(day4
+    this.ui.showNote(day5
+      ? D5_CLIMB_NOTE
+      : day4
       ? D4_CLIMB_NOTE
       : day3
       ? D3_CLIMB_NOTE
@@ -2162,7 +2170,7 @@ export class Game {
     this.lastPostcardKind = 'day';
     this.lastPostcardTag = undefined;
     if (s.day > 1) s.dayComplete = true;
-    s.setStep(s.day >= 4 ? Step.D4_POSTCARD : (s.day === 3 ? Step.D3_POSTCARD : (s.day > 1 ? Step.D2_POSTCARD : Step.DONE)));
+    s.setStep(s.day >= 5 ? Step.D5_POSTCARD : (s.day >= 4 ? Step.D4_POSTCARD : (s.day === 3 ? Step.D3_POSTCARD : (s.day > 1 ? Step.D2_POSTCARD : Step.DONE))));
     this.ui.setObjective('');
 
     let url: string;
@@ -2388,7 +2396,7 @@ export class Game {
     this.cam.pose = 'follow';
     const effects = this.state.dismissPostcard();
     for (const e of effects) this.applyEffect(e);
-    if (this.state.step === Step.POSTCARD || this.state.step === Step.D2_POSTCARD || this.state.step === Step.D3_POSTCARD || this.state.step === Step.D4_POSTCARD) {
+    if (this.state.step === Step.POSTCARD || this.state.step === Step.D2_POSTCARD || this.state.step === Step.D3_POSTCARD || this.state.step === Step.D4_POSTCARD || this.state.step === Step.D5_POSTCARD) {
       this.ui.setObjective(LINGER_OBJECTIVE);
     }
   }
@@ -2889,7 +2897,22 @@ export class Game {
     this.world.fourthWindowMat.emissiveIntensity = 0;
     if (s.kidKept && n < 4) this.showKid(); // in the glass until Day 4 — down here, he lives at the corner
 
-    if (n >= 4) {
+    if (n >= 5) {
+      // Days 5–7 (doc 11 §7): the stabilized loop. The cast is the Day-4
+      // line-up minus its one-time beats — the stranger walked her walk,
+      // the permit is filed, the apron is clean; the day belongs to the
+      // block (the laundry, the board, the fence, the counter) and closes
+      // at the fire escape, as every day has. Day 7's night runs the cut.
+      if (s.stoolUp) {
+        this.sitKid();
+        s.kidDown = true;
+        s.kidAtCorner = true;
+      }
+      s.setStep(Step.D5_WAKE);
+      this.ui.setObjective(s.objectiveText());
+      this.ui.setBeatMarker(s.beatPlaceId());
+      this.ui.showNote(DAY_ROAM_BEGIN_NOTES[Math.min(2, Math.max(0, n - 5))]);
+    } else if (n >= 4) {
       // the kid LIVES at the corner now — he takes his stool at sunrise
       if (s.stoolUp) {
         this.sitKid();
