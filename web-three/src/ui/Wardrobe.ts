@@ -151,6 +151,8 @@ export class Wardrobe {
   private charRoot: THREE.Group | null = null;
   private rafId = 0;
   private lastTime = 0;
+  /** Reframe the face when the stage size changes (orientation / keyboard). */
+  private stageObserver: ResizeObserver | null = null;
 
   constructor(private readonly cb: WardrobeCallbacks) {
     this.panel = el('wardrobe-panel');
@@ -433,6 +435,11 @@ export class Wardrobe {
     scene.add(this.charRoot);
     this.dressPreview();
     this.resize();
+    // reframe when the stage resizes (orientation, safe-area, keyboard)
+    if (typeof ResizeObserver !== 'undefined' && !this.stageObserver) {
+      this.stageObserver = new ResizeObserver(() => this.resize());
+      this.stageObserver.observe(this.canvas);
+    }
   }
 
   /** Swap the previewed look — the rig law does the dressing. */
@@ -450,7 +457,27 @@ export class Wardrobe {
     if (!this.renderer || !this.camera) return;
     const w = this.canvas.clientWidth || 340;
     const h = this.canvas.clientHeight || 340;
-    this.camera.aspect = w / h;
+    const aspect = w / Math.max(h, 1);
+    this.camera.aspect = aspect;
+    // Consumer framing: the chosen look is the product. Wide/short stages
+    // (phone strip) get a closer, higher-aim camera so the FACE fills the
+    // frame; taller stages keep the full-body greeting shot.
+    if (aspect > 1.2) {
+      // landscape strip — upper body + face
+      this.camera.fov = 30;
+      this.camera.position.set(0, 1.32, 2.15);
+      this.camera.lookAt(0, 1.22, 0);
+    } else if (aspect > 0.95) {
+      // near-square phone stage — chest-up, face readable
+      this.camera.fov = 32;
+      this.camera.position.set(0, 1.22, 2.45);
+      this.camera.lookAt(0, 1.12, 0);
+    } else {
+      // tall / desktop column — full figure on the pedestal
+      this.camera.fov = 35;
+      this.camera.position.set(0, 1.05, 3.1);
+      this.camera.lookAt(0, 0.92, 0);
+    }
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h, false);
   }

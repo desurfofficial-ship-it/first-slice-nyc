@@ -1204,7 +1204,8 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 #wardrobe-stage {
   position: relative;
   flex: 0 0 auto;
-  height: clamp(160px, 28vh, 280px);
+  /* The face is the product — real height so the chosen look reads in one glance. */
+  height: clamp(240px, 38dvh, 360px);
   background:
     radial-gradient(120% 90% at 50% 8%, rgba(247, 179, 43, 0.16), rgba(247, 179, 43, 0) 60%),
     linear-gradient(180deg, #2E2637 0%, #1A1420 100%);
@@ -1213,9 +1214,9 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 }
 @media (min-width: 720px) {
   #wardrobe-stage {
-    flex: 0 0 42%;
+    flex: 0 0 48%;
     height: auto;
-    min-height: 280px;
+    min-height: 340px;
   }
 }
 #wardrobe-canvas {
@@ -1416,7 +1417,8 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     box-shadow: none;
   }
   #wardrobe-stage {
-    height: clamp(150px, 26dvh, 220px);
+    /* ~40% of the phone — the consumer is choosing a FACE, not a chip */
+    height: clamp(260px, 42dvh, 380px);
     flex-shrink: 0;
   }
   #wardrobe-side {
