@@ -90,6 +90,14 @@
     <label>Who got off the bus?</label>
     <div id="starter-sub">Tap one. Every pick is safe — the city doesn't mind which.</div>
     <div id="starter-choices"></div>
+    <!-- The name entry (doc 02 §1 + doc 11 §5): the picker runs before beat
+         0, and the chosen name is the name the block learns. Defaults are
+         the canon identity — cleared fields fall back to it. -->
+    <div id="starter-name-row">
+      <input id="starter-name-first" type="text" maxlength="16" autocomplete="off" aria-label="First name" placeholder="Leo" />
+      <input id="starter-name-nick" type="text" maxlength="16" autocomplete="off" aria-label="Nickname (optional)" placeholder="nickname (optional)" />
+      <input id="starter-name-last" type="text" maxlength="20" autocomplete="off" aria-label="Last name" placeholder="Marsh" />
+    </div>
   </div>
 
   <!-- The notebook prompt — the C0 pack's diary picks (doc 11 §3; the

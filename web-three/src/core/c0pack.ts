@@ -573,3 +573,143 @@ export function deshaunEntry(day: number): FieldDiaryEntry {
 export function wobbleEntry(day: number): FieldDiaryEntry {
   return entry(C0_BLOCK_IDS.wobble, 'RECALL', day, 'RECALL', ENTRY5_WOBBLE);
 }
+
+// =====================================================================
+// SECTION 3 — the stabilized week + the season cut (tranche 3)
+//
+// doc 11 §2 beat 11 is the shipped texture of Days 5–7 ("the block opens
+// up ... Nothing is foreshadowed loudly; everything is available") and
+// doc 11 §7 is the loop's own law ("To the rest of C0 (Days 5–7): the
+// loop stabilizes — open, rush, roam, wind-down, postcard" / "To C1
+// (season cut, Sept 16): the first interstitial: diary montage (the
+// week's entries in his hand), one postcard (the fire-escape dusk), and
+// the city's first morning-after note ... Then Monday, 6 a.m., Eddie at
+// the door"). The shipped D1–D4 flow stays untouched (the canon header
+// law); this section authors ONLY what Days 5–7 and the cut say and do.
+// Canon-quoted lines are verbatim; the rest is written to spec in doc
+// 13 §3's C0 voice and cited.
+// =====================================================================
+
+/** The week's morning notes, keyed by day (authored, doc 13 §3 C0 voice —
+ *  "the performance is fun and mostly harmless"; nothing ominous; doc 11
+ *  §2 beat 11's texture: the block is available, not assigned). */
+export const C0_WEEK_BEGIN: Readonly<Record<5 | 6 | 7, string>> = Object.freeze({
+  5: 'Day 5. The block is open. Miss Odessa\u2019s window, the flyer board, the Works fence at dawn \u2014 nothing\u2019s assigned. Everything\u2019s available.',
+  6: 'Day 6. The cart, the corner, the city. Some days the loop is the point.',
+  7: 'Day 7. One week in this city. The notebook has opinions about that.',
+});
+
+/** Rosa's wake lines for the week, keyed by day (authored, doc 13 voice;
+ *  her read on Leo plants silently — "this one narrates himself"). */
+export const C0_WEEK_WAKE: Readonly<Record<5 | 6 | 7, string>> = Object.freeze({
+  5: 'Rosa: \u201CWeek\u2019s turning. Sal asked about you \u2014 I told him nothing. He enjoyed it.\u201D She taps the counter. \u201CRush first. The block will still be there after.\u201D',
+  6: 'Rosa: \u201CTwo summers ago a cart lasted three days on this corner. You made a WEEK.\u201D She slides a mango across, unasked. \u201CThat one\u2019s not an errand. That\u2019s a pension.\u201D',
+  7: 'Rosa: \u201CSeven days.\u201D She looks at the corner like she\u2019s counting something bigger. \u201CThe usual at the usual time. That\u2019s how a block adopts you \u2014 quietly, on a Monday.\u201D',
+});
+
+/** One week-day rush order — same shape as content.ts's D3Order (who,
+ *  bubble, pay, reaction). Authored, doc 13 voice; the regulars are the
+ *  week's own texture (no canon quote is invented). */
+export interface WeekOrder {
+  who: 'idris' | 'rush';
+  bubble: string;
+  pay: number;
+  reaction: string;
+}
+
+/** The week's morning queue — Idris opens, like every day (the day-3/4
+ *  law); three orders, honest pays. The reactions are the week's own:
+ *  the corner is a habit now, and habits talk. */
+export const C0_WEEK_ORDERS: readonly WeekOrder[] = Object.freeze([
+  {
+    who: 'idris',
+    bubble: 'THE USUAL',
+    pay: 3,
+    reaction: 'Mr. Idris: \u201CSeven days. Most people don\u2019t last seven hours.\u201D The cup explains the rest.',
+  },
+  {
+    who: 'rush',
+    bubble: 'REGULAR \u00B7 2 SUGARS',
+    pay: 4,
+    reaction: 'The early shift, by heart: \u201CYou remembered my order before I said it. That\u2019s the whole review.\u201D',
+  },
+  {
+    who: 'rush',
+    bubble: 'LARGE \u00B7 BLACK',
+    pay: 4,
+    reaction: 'The large black, nodding at the corner: \u201CThis spot used to be nobody\u2019s. Now it\u2019s yours. City works fast.\u201D',
+  },
+]);
+
+/** The rush-done note (authored — the stabilized loop's own quiet). */
+export const C0_WEEK_RUSH_DONE =
+  'Three orders. The urn is warm, the receipts are real, and the afternoon is yours \u2014 the block doesn\u2019t assign, it offers.';
+
+/** The wind-down note at the top of the escape (authored; doc 11 §7's
+ *  "wind-down" — the seat is habit now). */
+export const C0_WEEK_CLIMB_NOTE =
+  'Same stairs. Same seat. The week sits next to you and says nothing \u2014 that\u2019s how you know it\u2019s yours.';
+
+/** The week's golden beat (authored; the four windows are the block's
+ *  own count now — Rosa counted twice on Day 4, verbatim texture). */
+export const C0_WEEK_GOLDEN_NOTE =
+  'Four windows, lit. Somewhere in the week each of them learned your coffee order. The light stays \u2014 that\u2019s the whole job, and you\u2019re doing it.';
+
+// ------------------------------------------------------ the season cut ----
+
+/** The cut's diary latch (the block layer's own law: the latch IS the
+ *  entry; the cut plays once per save). */
+export const C0_CUT_ID = 'c0-cut-monday';
+
+/** The city's first morning-after note — doc 11 §7, verbatim. */
+export const C0_CUT_CITY_LINE = 'The new one remembered the usual.';
+
+/** Eddie at the door — doc 11 §7, verbatim. C1's first morning speaks
+ *  here as the cut's last word (the season cut, Sept 16). */
+export const C0_CUT_EDDIE_LINE = 'Real shift. Leave the tricks in Ohio.';
+
+/** The wall after the cut (authored, doc 13 voice): the week is kept;
+ *  C1's mornings are the next wave's content — the hold says so in the
+ *  world's own voice, never in project-speak. */
+export const C0_CUT_WALL =
+  'Monday, 6 a.m. The corner is yours, the week is in the notebook, and the city is already talking about you like you\u2019ve always been here.';
+
+/** The diary montage — doc 11 §7: "the week's entries in his hand."
+ *  Pure: takes the week's own entries (the player's, not a canon list)
+ *  and returns the montage lines — each entry's first line, capped, in
+ *  order. A thin week is allowed to be thin (honesty over spectacle):
+ *  one line says so, in his voice. */
+export function seasonCutMontage(entries: readonly FieldDiaryEntry[]): string[] {
+  const bodies = entries
+    .filter((e) => e.body.trim() !== '')
+    .map((e) => e.body.trim().split('\n')[0]!.slice(0, 110));
+  if (bodies.length === 0) {
+    return ['The notebook\u2019s week is thin. It\u2019s his. That\u2019s the honest count.'];
+  }
+  const out = bodies.slice(0, 5).map((b) => `\u201C${b}\u201D`);
+  if (bodies.length > 5) out.push('\u2026the rest of the week rides along.');
+  return out;
+}
+
+/** The cut's marker entry — the latch (the week, kept, in his hand). */
+export function cutEntry(day: number): FieldDiaryEntry {
+  return entry(C0_CUT_ID, 'OBSERVATION', day, 'FACT', 'One week. Facts only, and the facts are good.');
+}
+
+/** The pack's self-check grew with the section: the cut's three canon
+ *  lines must stay verbatim, the week's keys must be exactly 5|6|7. */
+export function validateC0WeekSection(): { ok: boolean; problems: string[] } {
+  const problems: string[] = [];
+  if (C0_CUT_CITY_LINE !== 'The new one remembered the usual.') {
+    problems.push('C0_CUT_CITY_LINE drifted from doc 11 §7 (verbatim law)');
+  }
+  if (C0_CUT_EDDIE_LINE !== 'Real shift. Leave the tricks in Ohio.') {
+    problems.push('C0_CUT_EDDIE_LINE drifted from doc 11 §7 (verbatim law)');
+  }
+  const keys = Object.keys(C0_WEEK_BEGIN).map(Number).sort();
+  if (keys.join(',') !== '5,6,7') problems.push(`C0_WEEK_BEGIN keys are ${keys.join(',')} (law: 5,6,7)`);
+  if (C0_WEEK_ORDERS.length < 2) problems.push('the week\u2019s rush queue is too thin to be a rush');
+  const idrisFirst = C0_WEEK_ORDERS[0]!.who === 'idris';
+  if (!idrisFirst) problems.push('the week\u2019s rush opens without Idris (the day-3/4 law)');
+  return { ok: problems.length === 0, problems };
+}

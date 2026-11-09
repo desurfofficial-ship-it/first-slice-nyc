@@ -46,6 +46,12 @@ export const OBJECTIVES: Record<number, string> = {
   29: 'The washers are going. There\u2019s a notice by the crosswalk — the city posts things where you\u2019ll read them.', // D4_PERMIT
   30: 'Fire escape at dusk. The best seat is yours by habit now.',       // D4_CLIMB4
   31: '',                                                                // D4_POSTCARD
+  // ---- Days 5–7 — the stabilized loop (doc 11 §2 beat 11 + §7: open, rush, roam, wind-down, postcard) ----
+  33: 'Morning. Rosa’s at the cart, and the block is already talking.',  // WK_WAKE
+  34: 'The morning rush. Serve at your cart — the regulars know the words now.', // WK_RUSH
+  35: 'The afternoon is yours. The block doesn’t assign, it offers.',   // WK_ROAM
+  36: 'Fire escape at dusk. The best seat is yours by habit now.',       // WK_CLIMB
+  37: '',                                                                // WK_POSTCARD
 };
 
 export const MAP_NOTE_BOOT = 'You are here. That\u2019s enough.'; // Doc 08 note #1
@@ -58,6 +64,36 @@ export function composeCaption(s: {
   day: number; replay: boolean; dayStartMoney: number; money: number; cartName: string;
   awningUp?: boolean;
 }): string {
+  if (s.day >= 7) {
+    // Day 7's card IS the season-cut postcard (doc 11 §7: "one postcard
+    // (the fire-escape dusk)") — the week's last capture, the week kept.
+    if (s.replay) {
+      return (
+        'Day 7, again. The week is kept; the light just runs longer.\n\n' +
+        `\u2014 ${s.cartName}, Day 7`
+      );
+    }
+    return (
+      `Day 7. $${s.dayStartMoney} \u2192 $${s.money}.\n` +
+      'Kept: the week. The fire-escape dusk, one more time.\n' +
+      'Monday, the corner is a habit.\n\n' +
+      `\u2014 ${s.cartName}, Day 7`
+    );
+  }
+  if (s.day >= 5) {
+    if (s.replay) {
+      return (
+        `Day ${s.day}, again. The loop holds — that\u2019s what a loop is for.\n\n` +
+        `\u2014 ${s.cartName}, Day ${s.day}`
+      );
+    }
+    return (
+      `Day ${s.day}. $${s.dayStartMoney} \u2192 $${s.money}.\n` +
+      'The loop: open, rush, roam, wind-down, this.\n' +
+      'The block is open. Everything\u2019s available.\n\n' +
+      `\u2014 ${s.cartName}, Day ${s.day}`
+    );
+  }
   if (s.day >= 4) {
     if (s.replay) {
       return (

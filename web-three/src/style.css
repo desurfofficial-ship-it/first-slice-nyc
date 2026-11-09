@@ -1467,3 +1467,34 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   margin-right: 4px;
   opacity: 0.8;
 }
+
+/* R11's name entry (doc 02 §1 + doc 11 §5): the pick card's paper row —
+   three inputs, one breath; the canon defaults show as placeholders. */
+#starter-name-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1.2fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+#starter-name-row input {
+  font-family: var(--ui-font);
+  font-size: 13px;
+  color: var(--ink);
+  background: rgba(58, 52, 64, 0.055);
+  border: 2px solid rgba(58, 52, 64, 0.16);
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-width: 0;
+}
+#starter-name-row input:focus {
+  outline: none;
+  border-color: var(--teal);
+  background: rgba(42, 157, 143, 0.08);
+}
+#starter-name-row input::placeholder {
+  color: rgba(58, 52, 64, 0.42);
+}
+@media (max-width: 430px) {
+  #starter-name-row { grid-template-columns: 1fr 1fr; }
+  #starter-name-nick { grid-column: span 2; }
+}

@@ -752,7 +752,8 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
       enabled: (s) =>
         s.step === Step.MEET_ROSA || (s.isDay2 && s.step <= Step.D2_CLIMB2)
         || (s.isDay3 && s.step >= Step.D3_WAKE && s.step <= Step.D3_CLIMB3)
-        || (s.isDay4 && s.step >= Step.D4_WAKE && s.step <= Step.D4_MAP),
+        || (s.isDay4 && s.step >= Step.D4_WAKE && s.step <= Step.D4_MAP)
+        || (s.isWeek && s.step >= Step.WK_WAKE && s.step <= Step.WK_ROAM),
       prompt: () => 'Say hi',
       perform: (ctx) => act(ctx, (s) => {
         if (s.step === Step.D3_WAKE) {
@@ -764,6 +765,11 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
         if (s.step === Step.D4_WAKE) {
           // Day 4 morning, same law: the wake beat first, chat second.
           return s.rosaD4Wake();
+        }
+        if (s.step === Step.WK_WAKE) {
+          // The stabilized week's wake (doc 11 §7): the same law, third
+          // verse — the wake beat first, chat second.
+          return s.rosaWeekWake();
         }
         if (s.isDay2) {
           return s.rosaTask().effects;
@@ -786,7 +792,7 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
       enabled: (s) => {
         if (s.step === Step.CLAIM_CART || s.step === Step.SOLO || s.step === Step.D2_LUNCH
           || s.step === Step.D3_RUSH || s.step === Step.D3_STOOL
-          || s.step === Step.D4_RUSH) return true;
+          || s.step === Step.D4_RUSH || s.step === Step.WK_RUSH) return true;
         // while Idris stands AT the cart (D2_IDRIS, arrived), the cart's own
         // press is meaningless — the awning needs the counter clear — and a
         // walker parked a step nearer the cart than him fed the press to
@@ -794,13 +800,15 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
         return (s.isDay2 && s.step >= Step.D2_WAKE && s.step < Step.D2_POSTCARD
           && !(s.step === Step.D2_IDRIS && s.idrisArrived))
           || (s.isDay3 && s.step >= Step.D3_WAKE && s.step < Step.D3_POSTCARD)
-          || (s.isDay4 && s.step >= Step.D4_WAKE && s.step < Step.D4_POSTCARD);
+          || (s.isDay4 && s.step >= Step.D4_WAKE && s.step < Step.D4_POSTCARD)
+          || (s.isWeek && s.step >= Step.WK_WAKE && s.step < Step.WK_POSTCARD);
       },
       prompt: (s) => {
         if (s.step === Step.CLAIM_CART) return 'Claim corner';
         if (s.step === Step.SOLO) return 'Take the order';
         if (s.step === Step.D2_LUNCH) return 'Serve';
         if (s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) return s.brewing ? BREWING_PROMPT : 'Serve';
+        if (s.step === Step.WK_RUSH) return s.brewing ? BREWING_PROMPT : 'Serve';
         if (s.step === Step.D3_STOOL) return 'Stool \u2014 $10';
         if (s.day >= 2 && !s.awningUp && s.money >= 15) return 'Awning \u2014 $15';
         return 'Serve';
@@ -815,6 +823,9 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
           return ctx.game.customer ? s.serveCart() : [];
         }
         if (s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) {
+          return ctx.game.customer ? s.startBrew() : [];
+        }
+        if (s.step === Step.WK_RUSH) {
           return ctx.game.customer ? s.startBrew() : [];
         }
         if (s.step === Step.D3_STOOL) return s.stoolInteraction();

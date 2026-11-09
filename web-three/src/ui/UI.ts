@@ -82,6 +82,11 @@ export class UI {
   private albumCountBadge = el<HTMLSpanElement>('album-count');
   // ---- who got off the bus (Doc 02: six starters) ----
   readonly starterCard = el<HTMLDivElement>('starter-card');
+  /** R11's name entry (doc 02 §1 + doc 11 §5): the pick card's paper row —
+   *  defaults are the canon identity; cleared fields fall back to it. */
+  private starterNameFirst = el<HTMLInputElement>('starter-name-first');
+  private starterNameNick = el<HTMLInputElement>('starter-name-nick');
+  private starterNameLast = el<HTMLInputElement>('starter-name-last');
   private starterChoices = el<HTMLDivElement>('starter-choices');
   // ---- the wardrobe — the 3D fitting room (ui/Wardrobe.ts) ----
   readonly wardrobeBtn = el<HTMLButtonElement>('btn-wardrobe');
@@ -435,6 +440,16 @@ export class UI {
   closeStarterPick() {
     this.starterCard.hidden = true;
     this.syncTouchUI();
+  }
+
+  /** The name the block learns (doc 11 §5): read raw; GameState's
+   *  sanitizeIdentity owns the caps and the fallbacks. */
+  starterName(): { first: string; nick: string; last: string } {
+    return {
+      first: this.starterNameFirst.value,
+      nick: this.starterNameNick.value,
+      last: this.starterNameLast.value,
+    };
   }
 
   // ---------------- the notebook prompt (the C0 pack) ----------------

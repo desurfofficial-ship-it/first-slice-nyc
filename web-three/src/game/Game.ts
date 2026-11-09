@@ -46,11 +46,15 @@ import { BENCH_SIT_NOTES, PARK_SIT_NOTES, FREE_WASH_NOTES, DIARY_NOTE_TEXT } fro
 import {
   C0_COLD_OPEN, C0_SYSTEM_LINE, C0_THEORY, C0_FIRST_QUESTION,
   applyColdOpen, theoryEntryDraft, questionEntryDraft, morningWhisper,
+  C0_WEEK_BEGIN, C0_WEEK_CLIMB_NOTE, C0_WEEK_GOLDEN_NOTE, C0_WEEK_ORDERS,
 } from '../core/c0pack';
 import { freshChapterState, serializeChapterState } from '../core/chapters';
 import { freshRailStates, serializeRails } from '../core/chapterRails';
 import { serializeLedger } from '../core/consequenceLedger';
 import { serializeFieldDiary } from '../core/fieldDiary';
+// ---- the §7-step-7 machines (R9–R12) ----
+import { DEFAULT_IDENTITY, sanitizeIdentity } from '../core/identity';
+import { freshFluency, isFluencyTier } from '../core/fluency';
 import { gameAudio } from './audio';
 import { ArrivalCinematic } from './arrival';
 import { RIDE_BEAT_TEXT, TS_SYNC_NOTE } from '../core/content';
@@ -488,6 +492,10 @@ export class Game {
     }
     this.ui.onNameSubmit = () => this.confirmName(this.ui.nameInput.value);
     this.ui.onStarterPick = (id) => {
+      // the name lands WITH the pick (doc 11 §5: the chosen name is the
+      // name the block learns — one breath, before beat 0; cleared fields
+      // fall back to the canon identity inside sanitizeIdentity)
+      this.state.applyIdentity(this.ui.starterName());
       this.applyStarter(id, true);
       this.ui.closeStarterPick();
       this.ui.showNote('There you are. Now the story has a face.');
@@ -891,7 +899,7 @@ export class Game {
 
     // top landing (main.gd `_reach_top`)
     if (!this.reachedTopFired && capsuleInBox(c, this.world.topLandingZone)) {
-      if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4) {
+      if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4 || this.state.step === Step.WK_CLIMB) {
         this.reachedTopFired = true;
         this.reachTop();
       }
@@ -906,13 +914,20 @@ export class Game {
       this.checkpoint = { x: 9.4, y: 0.05, z: -5.5 };
       this.startDusk();
     }
-    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4) {
+    // the stabilized week's roam → wind-down (doc 11 §7): grabbing the
+    // escape IS choosing the seat — the step follows the player, the way
+    // the shipped days' steps follow the beats
+    if (this.state.step === Step.WK_ROAM) {
+      for (const e of this.state.setStep(Step.WK_CLIMB)) this.applyEffect(e);
+      this.ui.setObjective(this.state.objectiveText());
+    }
+    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4 || this.state.step === Step.WK_CLIMB) {
       this.ui.setObjective('Climb.');
     }
   }
 
   private onLadderLeave(): void {
-    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4) {
+    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4 || this.state.step === Step.WK_CLIMB) {
       this.ladderHintPending = true;
     }
   }
@@ -942,7 +957,7 @@ export class Game {
     // the fire escape you had just correctly climbed.
     if (this.ladderHintPending && this.player.ladder === null && this.player.onGround && this.player.capsule.y < 1.0) {
       this.ladderHintPending = false;
-      if (s.step === Step.CLIMB || s.step === Step.D2_CLIMB2 || s.step === Step.D3_CLIMB3 || s.step === Step.D4_CLIMB4) {
+      if (s.step === Step.CLIMB || s.step === Step.D2_CLIMB2 || s.step === Step.D3_CLIMB3 || s.step === Step.D4_CLIMB4 || s.step === Step.WK_CLIMB) {
         this.ui.setObjective('The fire escape, around the corner. Rosa will not let this go.');
         this.ui.showNote('Rosa, from somewhere behind you: \u201CFire escape! Around the corner! You found it once!\u201D');
       }
@@ -1463,9 +1478,6 @@ export class Game {
       case 'next-day':
         void this.beginDay(this.state.day + 1, null, false);
         break;
-      case 'day-beyond':
-        this.ui.showNote(`Day ${this.state.day + 1} is still being written. The light stays a little longer.`);
-        break;
       case 'idris-served':
         this.tweens.num(
           () => this.world.idris.position.x,
@@ -1765,7 +1777,7 @@ export class Game {
     if (i >= 0) this.cast[i] = g;
     this.playerVisual = g;
     this.world.scene.remove(old);
-    if (persist) writeSave({ ...loadSave(), starter: st.id });
+    if (persist) writeSave({ ...loadSave(), starter: st.id, player_name: { ...this.state.playerIdentity } });
   }
 
   setStarter(id: string): void {
@@ -1980,14 +1992,17 @@ export class Game {
 
   private reachTop(): void {
     const s = this.state;
+    const wk = s.step === Step.WK_CLIMB;
     const day4 = s.step === Step.D4_CLIMB4;
     const day3 = s.step === Step.D3_CLIMB3;
     const day2 = s.step === Step.D2_CLIMB2;
-    s.setStep(day4 ? Step.D4_POSTCARD : (day3 ? Step.D3_POSTCARD : (day2 ? Step.D2_POSTCARD : Step.POSTCARD)));
+    s.setStep(wk ? Step.WK_POSTCARD : (day4 ? Step.D4_POSTCARD : (day3 ? Step.D3_POSTCARD : (day2 ? Step.D2_POSTCARD : Step.POSTCARD))));
     this.ui.setObjective('');
     this.startDusk();
     this.player.frozen = true;
-    this.ui.showNote(day4
+    this.ui.showNote(wk
+      ? C0_WEEK_CLIMB_NOTE
+      : day4
       ? D4_CLIMB_NOTE
       : day3
       ? D3_CLIMB_NOTE
@@ -2017,13 +2032,14 @@ export class Game {
     // §26:00–30:00): the window flickers, holds gold — and ROSA SAYS WHY.
     // The kid's cold cup connects to the window; the send-off plants
     // tomorrow's usual. The emotional payoff is authored, never UI.
-    const day1 = !day4 && !day3 && !day2;
+    const day1 = !wk && !day4 && !day3 && !day2;
     t.sequence(
       glide,
       t.wait(1.0),
       t.call(() => {
         this.lightGoldWindow();
-        if (day4) { this.goldenBeat4(); gameAudio.bell(); }
+        if (wk) { this.goldenBeatWeek(); gameAudio.bell(); }
+        else if (day4) { this.goldenBeat4(); gameAudio.bell(); }
         else if (day3) this.goldenBeat3();
         else if (day2) this.kidDuskWave();
         else {
@@ -2075,6 +2091,40 @@ export class Game {
       }
     }
     this.ui.showNote(D3_GOLDEN_NOTE);
+  }
+
+  /** The stabilized week's golden beat (doc 11 §7 — the wind-down): all
+   *  four windows relight and hold (Rosa counted them twice on Day 4 —
+   *  "Four windows now. FOUR." — the week's count is the block's own),
+   *  and the kid, down on his stool, waves without looking up. */
+  private goldenBeatWeek(): void {
+    const t = this.tweens;
+    const light = (mat: THREE.MeshLambertMaterial, hold: number) => {
+      const flick: ReturnType<Tweens['num']>[] = [];
+      for (const e of [1.4, 0.2, 2.4, 0.0, hold]) {
+        flick.push(t.num(() => mat.emissiveIntensity, (v) => { mat.emissiveIntensity = v; }, e, 0.15, (x) => x));
+      }
+      t.sequence(...flick);
+    };
+    light(this.world.secondWindowMat, 2.6);
+    light(this.world.thirdWindowMat, 2.9);
+    light(this.world.fourthWindowMat, 3.2);
+    if (this.world.kidGround.visible) {
+      const rig = this.world.kidGround.userData.rig as PersonRig | undefined;
+      if (rig) {
+        rig.mode = 'wave';
+        t.sequence(
+          t.num(() => rig.armR.rotation.x, (v) => { rig.armR.rotation.x = v; }, -2.6, 0.3),
+          t.num(() => rig.armR.rotation.z, (v) => { rig.armR.rotation.z = v; }, 0.5, 0.25),
+          t.num(() => rig.armR.rotation.z, (v) => { rig.armR.rotation.z = v; }, -0.3, 0.5),
+          t.call(() => {
+            rig.armR.rotation.x = -0.38; rig.armR.rotation.z = -0.14;
+            rig.mode = this.state.kidAtCorner ? 'sit' : 'auto';
+          }),
+        );
+      }
+    }
+    this.ui.showNote(C0_WEEK_GOLDEN_NOTE);
   }
 
   /** Day 4's golden-hour payoff: the lamp next door — the one that flickered
@@ -2162,7 +2212,7 @@ export class Game {
     this.lastPostcardKind = 'day';
     this.lastPostcardTag = undefined;
     if (s.day > 1) s.dayComplete = true;
-    s.setStep(s.day >= 4 ? Step.D4_POSTCARD : (s.day === 3 ? Step.D3_POSTCARD : (s.day > 1 ? Step.D2_POSTCARD : Step.DONE)));
+    s.setStep(s.day >= 5 ? Step.WK_POSTCARD : (s.day >= 4 ? Step.D4_POSTCARD : (s.day === 3 ? Step.D3_POSTCARD : (s.day > 1 ? Step.D2_POSTCARD : Step.DONE))));
     this.ui.setObjective('');
 
     let url: string;
@@ -2496,9 +2546,10 @@ export class Game {
       bubble.position.set(0, 2.35, 0);
       g.add(bubble);
     }
-    const queue = s.step === Step.D4_RUSH ? D4_ORDERS : D3_ORDERS;
+    const week = s.step === Step.WK_RUSH;
+    const queue = week ? C0_WEEK_ORDERS : (s.step === Step.D4_RUSH ? D4_ORDERS : D3_ORDERS);
     const order = queue[s.rushIndex];
-    if ((s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) && order) {
+    if ((s.step === Step.D3_RUSH || s.step === Step.D4_RUSH || s.step === Step.WK_RUSH) && order) {
       const bubble = this.world.makeOrderBubble(order.bubble);
       bubble.position.set(0, 2.35, 0);
       g.add(bubble);
@@ -2826,6 +2877,19 @@ export class Game {
       s.chapter = sd.chapter ?? freshChapterState();
       s.rails = sd.rails ?? freshRailStates();
       s.ledger = sd.ledger ?? [];
+      // the §7-step-7 machines ride the same v1-safe law (R9–R12):
+      // identity absent = Leo Marsh (doc 02 §1); fluency absent = the
+      // bottom rung, then healed to its chapter's floor; the send reads
+      // once; the latch reads once
+      s.playerIdentity = sd.player_name ? sanitizeIdentity(sd.player_name) : { ...DEFAULT_IDENTITY };
+      if (sd.fluency && isFluencyTier(sd.fluency.tier)) {
+        s.fluency = { tier: sd.fluency.tier, sinceDay: sd.fluency.since_day };
+      } else {
+        s.fluency = freshFluency();
+      }
+      s.healFluencyFloor();
+      s.sentPostcardDay = sd.sent_postcard?.day ?? null;
+      s.resourceNoteOffered = sd.resource_note_offered ?? false;
     }
     // sd === null (a rail "Tomorrow"): the live state carries the wallet, the
     // name, the awning — and the STOOL. The stool is bought, the Map is
@@ -2889,7 +2953,21 @@ export class Game {
     this.world.fourthWindowMat.emissiveIntensity = 0;
     if (s.kidKept && n < 4) this.showKid(); // in the glass until Day 4 — down here, he lives at the corner
 
-    if (n >= 4) {
+    if (n >= 5) {
+      // the stabilized week (doc 11 §2 beat 11 + §7 — the C0 pack's
+      // tranche 3): the same morning shape as Day 4 — the kid takes his
+      // stool, Rosa holds the wake beat, then the loop runs open → rush →
+      // roam → wind-down → postcard until the season cut closes the week.
+      if (s.stoolUp) {
+        this.sitKid();
+        s.kidDown = true;
+        s.kidAtCorner = true;
+      }
+      s.setStep(Step.WK_WAKE);
+      this.ui.setObjective(s.objectiveText());
+      this.ui.setBeatMarker(s.beatPlaceId());
+      this.ui.showNote(C0_WEEK_BEGIN[Math.min(7, Math.max(5, n)) as 5 | 6 | 7]);
+    } else if (n >= 4) {
       // the kid LIVES at the corner now — he takes his stool at sunrise
       if (s.stoolUp) {
         this.sitKid();

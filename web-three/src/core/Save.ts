@@ -26,12 +26,16 @@ import { freshChapterState, parseChapterState } from './chapters';
 import type { SavedRails } from './chapterRails';
 import { freshRailStates, parseRails } from './chapterRails';
 import { clampCalendarDay } from './calendar';
+import { isFluencyTier } from './fluency';
 
 export const SAVE_KEY = 'first_slice_save_v1';
-// Day 4 "Say Hi" is live (docs/29-day4-say-hi.md): a new stranger with a
-// duffel bag, and the lamp next door. Day 5+ is still being written —
-// the rail's goodnight holds the light instead.
-export const MAX_DAY = 4;
+// The C0 week is SEVEN days (doc 11 §2 beat 11 + §7; doc 06 §C0's Sept
+// 9–15): the shipped Days 1–4 (arrival, the usual, the corner, Say Hi)
+// and the stabilized loop Days 5–7 — open, rush, roam, wind-down,
+// postcard. Day 7's night is the season cut (Sept 16 is C1's first
+// morning): the C0→C1 interstitial plays there and the week is kept.
+// C1's own days are the next content wave (narrative/14 §7 step 8).
+export const MAX_DAY = 7;
 
 export interface SaveData {
   day: number;
@@ -129,6 +133,24 @@ export interface SaveData {
    *  rail whose day is unreadable re-seeds — a rail that cannot say
    *  when it fired cannot claim it fired. */
   rails?: SavedRails;
+  // ---- narrative/14 §7 step 7 machines — optional trailing v1-safe fields ----
+  /** R11 — the chosen identity (core/identity.ts): first/nick/last as the
+   *  name picker took them. Absent reads as the canon default Leo Marsh
+   *  (doc 02 §1) — an old save is Leo, exactly as it always was. */
+  player_name?: { first: string; nick?: string; last: string };
+  /** R10 — the fluency ladder (core/fluency.ts): the tier and the day it
+   *  was reached. Absent reads as Tourist on day 1 (the ladder persists,
+   *  doc 14 R10 — an old save starts at the bottom rung and heals forward). */
+  fluency?: { tier: string; since_day: number };
+  /** R9 — the ONE sent postcard (core/postcardDispatch.ts): to Ada, at C5,
+   *  by the C5 scene only. Absent reads as never-sent — the shipped
+   *  pipeline cannot produce a send (the kept-only law, pinned by tests). */
+  sent_postcard?: { day: number };
+  /** R12 — the resource note's once-latch (core/guardrails.ts): true once
+   *  the note has been offered at the first firing of its triggers.
+   *  Absent reads as not-yet-offered (an old save keeps the note in
+   *  reserve — the offer is never spent twice). */
+  resource_note_offered?: boolean;
 }
 
 export function defaultSave(): SaveData {
@@ -157,6 +179,7 @@ export function defaultSave(): SaveData {
     calendar_day: 1,
     field_diary: [],
     ledger: [],
+    resource_note_offered: false,
     chapter: freshChapterState(),
     rails: freshRailStates(),
   };
@@ -211,6 +234,9 @@ export function parseSave(raw: string | null): SaveData {
   // the diary watermark — present only when at least one family has been
   // noted; unknown/corrupt keys are dropped, never a crash (save.gd law)
   const diaryNoted = diaryNotedOf(d);
+  const playerName = playerNameOf(d);
+  const fluency = fluencyOf(d);
+  const sentCard = sentPostcardOf(d);
   const storyDay = clamp(Math.trunc(num('day', 1)), 1, MAX_DAY);
   return {
     day: storyDay,
@@ -265,7 +291,60 @@ export function parseSave(raw: string | null): SaveData {
     // the rails (narrative/14 R1) — absent in old saves reads as an
     // unfired spine; a fired rail with an unreadable day re-seeds
     rails: parseRails(d['rails']).rails,
+    // ---- narrative/14 §7 step 7 machines — optional trailing v1-safe ----
+    // R11 identity: absent reads as Leo Marsh (doc 02 §1's default — an
+    // old save is Leo, exactly as it always was). Per-field sanitize:
+    // a wrong-shaped piece falls out to the default, never a crash.
+    ...(playerName ? { player_name: playerName } : {}),
+    // R10 fluency: absent reads as Tourist (the ladder persists and heals
+    // forward); an unknown tier or a bad day falls out to the floor
+    ...(fluency ? { fluency } : {}),
+    // R9 the one sent postcard: absent reads as never-sent; a wrong shape
+    // falls out (the kept-only law holds — only C5's scene may write it)
+    ...(sentCard ? { sent_postcard: sentCard } : {}),
+    // R12 the resource note's once-latch: absent reads as not-yet-offered
+    resource_note_offered: bool('resource_note_offered', false),
   };
+}
+
+/** R11 — the saved identity, or undefined (reads as Leo Marsh). Each field
+ *  sanitizes independently; the whole field falls out when first AND last
+ *  are both unusable (a nameless save is the canon default, never a blank). */
+function playerNameOf(d: Record<string, unknown>): SaveData['player_name'] {
+  const raw = d['player_name'];
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined;
+  const src = raw as Record<string, unknown>;
+  const str = (v: unknown, cap: number): string =>
+    typeof v === 'string' ? v.trim().slice(0, cap) : '';
+  const first = str(src['first'], 16);
+  const last = str(src['last'], 20);
+  const nick = str(src['nick'], 16);
+  if (!first && !last) return undefined;
+  return { first, ...(nick ? { nick } : {}), last };
+}
+
+/** R10 — the saved fluency, or undefined when unusable (reads as the
+ *  floor). The tier must be a real rung (core/fluency's ladder); the day
+ *  must be a sane story day. */
+function fluencyOf(d: Record<string, unknown>): SaveData['fluency'] {
+  const raw = d['fluency'];
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined;
+  const src = raw as Record<string, unknown>;
+  if (typeof src['tier'] !== 'string' || !isFluencyTier(src['tier'])) return undefined;
+  const day = src['since_day'];
+  if (typeof day !== 'number' || !Number.isFinite(day) || day < 1) return undefined;
+  return { tier: src['tier'], since_day: clamp(Math.trunc(day), 1, MAX_DAY) };
+}
+
+/** R9 — the saved send, or undefined. The law is in the shape: there is
+ *  no `to` field to corrupt — the ONE recipient is the type itself. */
+function sentPostcardOf(d: Record<string, unknown>): SaveData['sent_postcard'] {
+  const raw = d['sent_postcard'];
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined;
+  const src = raw as Record<string, unknown>;
+  const day = src['day'];
+  if (typeof day !== 'number' || !Number.isFinite(day) || day < 1) return undefined;
+  return { day: clamp(Math.trunc(day), 1, MAX_DAY) };
 }
 
 const DIARY_PARSE_KEYS = ['shelf', 'dog', 'trim', 'wash', 'hoop'] as const;

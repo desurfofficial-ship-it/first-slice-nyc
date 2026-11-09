@@ -84,6 +84,11 @@ describe('save v1 — write/read roundtrip', () => {
         R3: { fired: false, firedOnDay: null }, R4: { fired: false, firedOnDay: null },
         R5: { fired: false, firedOnDay: null }, R6: { fired: false, firedOnDay: null },
       },
+      // the §7-step-7 machines (narrative/14 R9–R12) — the same
+      // optional-trailing law: identity/fluency/send absent read as their
+      // canon defaults (Leo Marsh, the bottom rung, never-sent); the
+      // resource note's latch materializes false (a boolean default)
+      resource_note_offered: false,
     });
   });
 
