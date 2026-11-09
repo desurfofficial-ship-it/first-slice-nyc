@@ -1085,12 +1085,35 @@ export function runAutotest(game: Game): void {
       await walkTo(12.5, -6.8, 8);
       await interact();
       check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight (day 4)' + snap());
+      // ============================================= Days 5\u20137 (doc 11 \u00a77)
+      // "The loop stabilizes \u2014 open, rush, roam, wind-down, postcard."
+      // The rail's second press no longer meets a wall: the week continues.
       await interact();
-      await waitMs(500);
-      check(s.day === 4 && !dbg.dayFading(), 'day 5 does not begin \u2014 the wall holds, honestly');
-      const save4 = loadSave();
-      check(save4.day === 4 && save4.day_complete === true && save4.stool === true && save4.map_given === true && save4.permit === true && save4.money === 123,
-        `save holds day 4 complete: $${save4.money}, map=${save4.map_given}, permit=${save4.permit}, stool=${save4.stool}`);
+      await waitMs(2400);
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < budget(8000) && !(s.day === 5 && s.step === Step.D5_WAKE)) await nextFrame();
+      }
+      check(s.day === 5 && s.step === Step.D5_WAKE, 'day 5 begins \u2014 the loop stabilizes, the week continues');
+      check(loadSave().day === 5, 'day-5 snapshot written');
+      // Rosa's open, keyed to the day's own news; the rush opens \u2014 Idris first
+      await walkTo(6.9, -5.2, 12);
+      await interact();
+      check(s.step === Step.D5_RUSH, 'day 5: Rosa\u2019s open \u2014 the rush follows, Idris first');
+      // the stabilized rush \u2014 two orders, $5, no drama
+      await walkTo(4, -5.2, 12);
+      for (let i = 0; i < 2; i++) {
+        await interact();
+        const brewT0 = performance.now();
+        while (s.brewing && performance.now() - brewT0 < 9000) await nextFrame();
+        await waitFrames(4);
+      }
+      check(!s.brewing && s.step === Step.D5_ROAM, 'day 5: two orders brewed \u2014 the day is yours (roam)');
+      check(s.money === 128, `day 5 pays $5 all in (got $${s.money})`);
+      check(game.world.kidGround.visible, 'the kid still holds his stool on the roam day');
+      const save5 = loadSave();
+      check(save5.day === 5 && save5.stool === true && save5.map_given === true && save5.permit === true && save5.money === 123,
+        `day-5 morning save holds the week's furniture: $${save5.money}, map=${save5.map_given}, permit=${save5.permit}, stool=${save5.stool}`);
     } catch (err) {
       check(false, `driver exception: ${(err as Error).message}`);
       console.error(err);

@@ -226,9 +226,9 @@ describe('Day 3 — the save round-trip', () => {
     expect(parseSave(null)).toEqual(defaultSave());
   });
 
-  it('day is clamped to MAX_DAY = 4 (day 5 does not exist yet)', () => {
+  it('day is clamped to MAX_DAY = 7 (the arrival week is the whole loop; the cut rides the calendar, not the story day)', () => {
     const parsed = parseSave(JSON.stringify({ day: 9, money: 5 }));
-    expect(parsed.day).toBe(4);
+    expect(parsed.day).toBe(7);
   });
 
   it('the key is unchanged \u2014 existing players keep their corner', () => {

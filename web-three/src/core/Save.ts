@@ -28,10 +28,13 @@ import { freshRailStates, parseRails } from './chapterRails';
 import { clampCalendarDay } from './calendar';
 
 export const SAVE_KEY = 'first_slice_save_v1';
-// Day 4 "Say Hi" is live (docs/29-day4-say-hi.md): a new stranger with a
-// duffel bag, and the lamp next door. Day 5+ is still being written —
-// the rail's goodnight holds the light instead.
-export const MAX_DAY = 4;
+// The arrival week is live end to end (doc 11 §2 beat 11 + §7): Day 4
+// "Say Hi" hands the block over, Days 5–7 stabilize the loop — open, rush,
+// roam, wind-down, postcard — and Day 7's night runs the C0→C1 season cut
+// (the montage, the city's morning-after note, Eddie's Monday line).
+// calendar.ts's own header pins the mapping: Day 1–4 are Sept 9–12, C0
+// closes Monday Sept 15 (day 7), C1 opens at the Sept 16 season cut (day 8).
+export const MAX_DAY = 7;
 
 export interface SaveData {
   day: number;
