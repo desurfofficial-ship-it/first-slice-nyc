@@ -106,6 +106,9 @@ export interface WardrobeCallbacks {
   onNewGame: (id: string) => void;
   /** "Back to the street" / Escape / the pocket toggle. */
   onClose: () => void;
+  /** PICK MODE (the film's "who got off the bus?" beat): the first wear is
+   *  free — Game applies the pick, the name and the cold open ride it. */
+  onPick: (id: string) => void;
 }
 
 const el = <T extends HTMLElement>(id: string): T => {
@@ -125,13 +128,21 @@ export class Wardrobe {
   private readonly confirmBox: HTMLElement;
   private readonly confirmText: HTMLElement;
   private readonly hint: HTMLElement;
+  private readonly title: HTMLElement;
+  private readonly sub: HTMLElement;
+  private readonly closeBtn: HTMLButtonElement;
+  private readonly lockNote: HTMLElement;
+  private readonly pickRow: HTMLElement;
+  private readonly wearBtn: HTMLButtonElement;
 
   private currentStarterId = 'classic';
   private previewId = 'classic';
-  private autoSpin = true;
+  private autoSpin = false;      // the Spin button's full turntable (opt-in)
+  private sway = true;           // the greeting: a slow breath around the face
   private dragging = false;
   private lastPointerX = 0;
-  private angle = 0.35; // the 3/4 greeting
+  private angle = 0.35; // the 3/4 greeting — the RIG faces +Z, the camera +Z
+  private pickMode = false;
 
   // the turntable guest (lazily built; the seam law keeps it optional)
   private renderer: THREE.WebGLRenderer | null = null;
@@ -152,18 +163,32 @@ export class Wardrobe {
     this.confirmBox = el('wardrobe-confirm');
     this.confirmText = el('wardrobe-confirm-text');
     this.hint = el('wardrobe-hint');
+    this.title = el('wardrobe-title');
+    this.sub = el('wardrobe-sub');
+    this.closeBtn = el<HTMLButtonElement>('wardrobe-close');
+    this.lockNote = el('wardrobe-locknote');
+    this.pickRow = el('wardrobe-pick');
+    this.wearBtn = el<HTMLButtonElement>('wardrobe-wear');
 
-    el<HTMLButtonElement>('wardrobe-close').addEventListener('click', () => this.cb.onClose());
+    this.closeBtn.addEventListener('click', () => this.cb.onClose());
     el<HTMLButtonElement>('wardrobe-keep').addEventListener('click', () => this.hideConfirm());
     el<HTMLButtonElement>('wardrobe-newgame').addEventListener('click', () => {
       this.cb.onNewGame(this.previewId);
     });
+    this.wearBtn.addEventListener('click', () => this.cb.onPick(this.previewId));
     el<HTMLButtonElement>('wardrobe-front').addEventListener('click', () => { this.angle = 0; });
-    el<HTMLButtonElement>('wardrobe-quarter').addEventListener('click', () => { this.angle = Math.PI * 0.25; });
+    el<HTMLButtonElement>('wardrobe-quarter').addEventListener('click', () => { this.angle = 0.35; });
     el<HTMLButtonElement>('wardrobe-back').addEventListener('click', () => { this.angle = Math.PI; });
     const spinBtn = el<HTMLButtonElement>('wardrobe-spin');
     spinBtn.addEventListener('click', () => {
-      this.autoSpin = !this.autoSpin;
+      if (this.autoSpin) { // full turntable off → back to the gentle sway
+        this.autoSpin = false;
+        this.sway = true;
+        this.angle = 0.35;
+      } else {
+        this.autoSpin = true;
+        this.sway = false;
+      }
       spinBtn.setAttribute('aria-pressed', String(this.autoSpin));
       spinBtn.classList.toggle('off', !this.autoSpin);
     });
@@ -183,13 +208,41 @@ export class Wardrobe {
     this.canvas.addEventListener('pointerup', drop);
     this.canvas.addEventListener('pointercancel', drop);
 
-    // Escape folds the room (the pocket's law, mirrored here)
+    // Escape folds the room (the pocket's law, mirrored here) — never during
+    // a pick: the first fit is the story's door, it cannot be escaped shut
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'Escape' && this.isOpen) {
+      if (e.code === 'Escape' && this.isOpen && !this.pickMode) {
         e.preventDefault();
         this.cb.onClose();
       }
     });
+  }
+
+  /** PICK MODE — the film's handover asks "who got off the bus?" through the
+   *  real fitting room: every tile previews live, the wear button applies,
+   *  the name row rides beneath (the paper card retires). No confirm strip:
+   *  nothing has been worn yet, there is nothing to wipe. */
+  openPick(currentStarterId: string): void {
+    this.pickMode = true;
+    this.title.textContent = 'Who got off the bus?';
+    this.sub.textContent = 'Six ways onto the block. Spin one around — wear the face that feels right; the name rides with it.';
+    this.panel.setAttribute('aria-label', 'Pick who got off the bus');
+    this.closeBtn.hidden = true;
+    this.lockNote.hidden = true;
+    this.confirmBox.hidden = true;
+    this.pickRow.hidden = false;
+    this.open(currentStarterId);
+  }
+
+  /** Back to the fitting room's own shape (Game calls this after the pick). */
+  endPickMode(): void {
+    this.pickMode = false;
+    this.title.textContent = 'Wardrobe — the fitting room';
+    this.sub.textContent = 'Six ways onto the block. The pick is for keeps.';
+    this.panel.setAttribute('aria-label', 'Wardrobe — the fitting room');
+    this.closeBtn.hidden = false;
+    this.lockNote.hidden = false;
+    this.pickRow.hidden = true;
   }
 
   get isOpen(): boolean {
@@ -204,7 +257,7 @@ export class Wardrobe {
   open(currentStarterId: string): void {
     this.currentStarterId = currentStarterId;
     this.previewId = currentStarterId;
-    this.angle = 0.35;
+    this.angle = 0.35; // face-on 3/4 — the greeting shows the FACE first
     this.hideConfirm();
     this.renderLineup();
     this.renderMeta();
@@ -216,6 +269,7 @@ export class Wardrobe {
   close(): void {
     this.panel.hidden = true;
     this.stopLoop();
+    if (this.pickMode) this.endPickMode();
   }
 
   /** The verdict surfaces: the confirm strip asks before anything moves. */
@@ -260,12 +314,12 @@ export class Wardrobe {
         `<span class="wardrobe-swatch" style="background:${row.swatch}"></span>`
         + `<span class="starter-name">${row.name}</span>`
         + `<span class="wardrobe-role">${row.role}</span>`
-        + (row.isCurrent ? '<span class="wardrobe-you">You</span>' : '');
+        + (row.isCurrent && !this.pickMode ? '<span class="wardrobe-you">You</span>' : '');
       tile.addEventListener('click', () => {
         this.previewId = row.id;
         this.renderMeta();
         this.dressPreview();
-        this.cb.onSwitchRequest(row.id);
+        if (!this.pickMode) this.cb.onSwitchRequest(row.id);
       });
       this.lineup.appendChild(tile);
     }
@@ -316,6 +370,43 @@ export class Wardrobe {
     const rim = new THREE.DirectionalLight(0xf7b32b, 1.1);
     rim.position.set(0, 3.0, -3.0);
     scene.add(rim);
+
+    // the fitting-room set: a warm back wall with a baseboard, a floor the
+    // light can pool on, two hanging bulbs — the character stands in a
+    // ROOM now, not on a void. Cheap meshes, Lambert, one flat draw each.
+    const backWall = new THREE.Mesh(
+      new THREE.PlaneGeometry(6.5, 4.2),
+      new THREE.MeshLambertMaterial({ color: 0x342b40 }),
+    );
+    backWall.position.set(0, 1.6, -1.9);
+    scene.add(backWall);
+    const wallTrim = new THREE.Mesh(
+      new THREE.PlaneGeometry(6.5, 0.14),
+      new THREE.MeshLambertMaterial({ color: 0xf7b32b, emissive: 0xf7b32b, emissiveIntensity: 0.35 }),
+    );
+    wallTrim.position.set(0, 0.07, -1.89);
+    scene.add(wallTrim);
+    const roomFloor = new THREE.Mesh(
+      new THREE.CircleGeometry(3.4, 28),
+      new THREE.MeshLambertMaterial({ color: 0x453a52 }),
+    );
+    roomFloor.rotation.x = -Math.PI / 2;
+    roomFloor.position.y = -0.075;
+    scene.add(roomFloor);
+    for (const bx of [-1.15, 1.15]) {
+      const bulb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.05, 10, 8),
+        new THREE.MeshLambertMaterial({ color: 0xffd98a, emissive: 0xffd98a, emissiveIntensity: 0.9 }),
+      );
+      bulb.position.set(bx, 2.5, -1.55);
+      scene.add(bulb);
+      const cord = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.008, 0.008, 0.55, 6),
+        new THREE.MeshLambertMaterial({ color: 0x1a1420 }),
+      );
+      cord.position.set(bx, 2.8, -1.55);
+      scene.add(cord);
+    }
 
     // the pedestal: plum drum, gold trim, a soft contact shadow
     const drum = new THREE.Mesh(
@@ -377,9 +468,18 @@ export class Wardrobe {
       const now = performance.now();
       const dt = Math.min((now - this.lastTime) / 1000, 0.1);
       this.lastTime = now;
-      if (this.autoSpin && !this.dragging) this.angle += dt * 0.45;
+      // the greeting law: the FACE stays in frame. The rest state is a slow
+      // breath around the 3/4 anchor (±0.3 rad, ~7 s cycle); the full
+      // turntable only runs while the Spin button holds it on.
+      let rot = this.angle;
+      if (this.autoSpin && !this.dragging) {
+        this.angle += dt * 0.45;
+        rot = this.angle;
+      } else if (this.sway && !this.dragging) {
+        rot = this.angle + Math.sin(now * 0.0009) * 0.3;
+      }
       if (this.charRoot) {
-        this.charRoot.rotation.y = this.angle;
+        this.charRoot.rotation.y = rot;
         updatePersonAnim(this.charRoot, dt); // the idle breath sells the room
       }
       renderer.render(scene, camera);
