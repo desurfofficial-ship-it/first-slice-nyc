@@ -264,8 +264,8 @@ describe('Day 4 afternoon — the block opens up (docs/30)', () => {
 });
 
 describe('Day 4 — the wall and the relevance map', () => {
-  it('day 3\u2019s rail says tomorrow; day 4\u2019s rail says tomorrow too \u2014 the wall moved twice now: to Day 7\u2019s cut, then past it into C1\u2019s playable season (MAX_DAY = 106, doc 06 \u00a7C1)', () => {
-    expect(MAX_DAY).toBe(106);
+  it('day 3\u2019s rail says tomorrow; day 4\u2019s rail says tomorrow too \u2014 the wall moved thrice now: to Day 7\u2019s cut, past it into C1\u2019s playable season, and into C2\u2019s playable year (MAX_DAY = 295, doc 06 §C2)', () => {
+    expect(MAX_DAY).toBe(295);
     const s3 = day3Done();
     s3.lingerStage = 2;
     expect(s3.rail().some((e) => e.kind === 'next-day')).toBe(true);

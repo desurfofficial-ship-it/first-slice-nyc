@@ -6,7 +6,7 @@
 
 import type { SaveData } from './Save';
 import type { DiaryCounters, DiaryNoted } from './diary';
-import { appendEntry, correctEntry, serializeFieldDiary, type FieldDiaryEntry } from './fieldDiary';
+import { appendEntry, correctEntry, serializeFieldDiary, type FieldDiaryEntry, type Correction } from './fieldDiary';
 import { DEFAULT_STARTER } from './starters';
 import { DEFAULT_IDENTITY, sanitizeIdentity, type PlayerIdentity } from './identity';
 import { freshFluency, fluencyAdvance, fluencyAtFloor, type FluencyState, type FluencyTier } from './fluency';
@@ -50,6 +50,26 @@ import {
   yoliEntry, craigEntry, questionCraigEntry, questionFenceEntry,
   cigarBoxEntry, blackoutTableEntry,
 } from './c1pack';
+// ---- the C2 content pack (narrative/14 §7 step 9 — doc 06 §C2) ----
+import {
+  C2_FIRST_DAY, C2_LAST_DAY, C2_CUT_DAY, C2_CUT_ID, C2_CUT_WALL,
+  C2_CUT_STAGE, c2CompressionFrom, c2RailFor,
+  c2StationOf, c2CutEntry, applyC2Pick, f3Entry, C2_FRAGMENT_IDS,
+  C2_IDS, C2_NOTICE_ASK_NOTE, C2_MAP_NOTE, C2_COMPACT_SCENE,
+  C2_MARISOL_LINE, C2_SESSION_ONE_NOTE, C2_SESSION_TWO_NOTE,
+  C2_SESSION_FLAG, C2_PRIYA_INTEL_NOTE, C2_PRIYA_FAVOR_NOTE, C2_CRAIG_OFFER_NOTE,
+  C2_EDDIE_RENEWAL_NOTE, C2_EDDIE_RENEWAL_AFTER, C2_KEV_APPEAL_NOTE,
+  C2_RENT_WAVE_NOTE, C2_RENT_WAVE_LEDGER_ID, C2_RENT_WAVE_SILENCE_REFS,
+  C2_OKTAYS_SCENE, C2_OKTAYS_MEHMET_NOTE, C2_ROSA_ANNIVERSARY_LINE,
+  C2_ROSA_ELEANOR_LINE, C2_JUNE_LEASE_NOTE,
+  C2_PRIYA_PROMPT_DEBT_REFS, C2_STRIKE_TARGETS, C2_K6_STRIKE,
+  c2K1Correction, c2K6Correction, C2_K1_MARGIN, C2_K6_MARGIN,
+  noticeEntry, mapEntry, compactEntry, coffeeEntry, sessionOneEntry,
+  sessionTwoEntry, priyaEntry, squeezeEntry, ribbonEntry, kevEntry,
+  rentEntry, oktaysEntry, anniversaryEntry, questionDorisEntry,
+  k2Entry, leaseEntry,
+} from './c2pack';
+import { dateOfCalendarDay } from './calendar';
 import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, ITEM_STICKERS, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
   D4_WAKE_NOTE, D4_STRANGER_GREET_NOTE, D4_RUSH_DONE_NOTE, D4_MAP_NOTE,
@@ -163,7 +183,7 @@ export type Effect =
   // ---- the C0 pack's diary picks (doc 11 §3 — the overlay packs). The
   // Game turns this into the NotebookPrompt overlay; a driver boot never
   // sees it (the pick-card law: drivers keep the shipped flow). ----
-  | { kind: 'diary-prompt'; pack: 'theory' | 'question' | 'choice'; node?: 'N1a' | 'N1b' }
+  | { kind: 'diary-prompt'; pack: 'theory' | 'question' | 'choice'; node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' }
   // ---- the C0 block layer's diary ink (narrative/14 §7 step 6, tranche 2
   // — core/c0Pack.ts): the state has already appended the entry; the
   // effect only tells the UI to wiggle (the map-note precedent)
@@ -373,6 +393,25 @@ export class GameState {
   *  C1_LAST_DAY's linger and the wall follows. */
   get isC1(): boolean {
     return this.day >= C1_FIRST_DAY && this.day <= C1_LAST_DAY;
+  }
+
+  /** C2's season (narrative/14 §7 step 9 — doc 06 §C2): the station days
+   *  ride the same WK_* loop with the C2 pack's voice. Same law as C1's
+   *  — the chapter gate is the wide law (R8); the day range is the
+   *  loop's own — the cut plays at C2_LAST_DAY's linger and the wall
+   *  follows. */
+  get isC2(): boolean {
+    return this.day >= C2_FIRST_DAY && this.day <= C2_LAST_DAY;
+  }
+
+  /** The season station for THIS morning, whichever season is on the
+   *  clock (the C1 and C2 packs own disjoint day ranges; the loop reads
+   *  one voice per day — the WK_* steps are the loop, the station is the
+   *  day's mouth). */
+  private seasonStation(day: number): { queue: readonly WeekOrder[]; wake: string; rushDone: string; storm?: boolean } | undefined {
+    if (this.isC2) return c2StationOf(day);
+    if (this.isC1) return c1StationOf(day);
+    return undefined;
   }
 
   objectiveText(): string {
@@ -712,8 +751,8 @@ export class GameState {
    *  three. The WK_* step gates remain the loop's — the station only
    *  re-voices it. */
   private rushQueue(): readonly WeekOrder[] {
-    if (this.step === Step.WK_RUSH && this.isC1) {
-      return c1StationOf(this.day)?.queue ?? C0_WEEK_ORDERS;
+    if (this.step === Step.WK_RUSH && (this.isC1 || this.isC2)) {
+      return this.seasonStation(this.day)?.queue ?? C0_WEEK_ORDERS;
     }
     return this.step === Step.WK_RUSH ? C0_WEEK_ORDERS : (this.step === Step.D4_RUSH ? D4_ORDERS : D3_ORDERS);
   }
@@ -736,7 +775,7 @@ export class GameState {
    *  wake (the same mouth — doc 06 §C1's season in Rosa's voice). */
   rosaWeekWake(): Effect[] {
     if (this.step !== Step.WK_WAKE) return [];
-    const station = this.isC1 ? c1StationOf(this.day) : undefined;
+    const station = this.seasonStation(this.day);
     const wake = station ? station.wake : C0_WEEK_WAKE[Math.min(7, Math.max(5, this.day)) as 5 | 6 | 7];
     return [
       { kind: 'note', text: wake },
@@ -772,9 +811,9 @@ export class GameState {
     const out: Effect[] = [{ kind: 'serve-customer' }, ...this.earn(order.pay)];
     if (this.rushIndex >= queue.length) {
       if (week) {
-        // the rush-done note is the station's own (doc 06 §C1 re-voices
+        // the rush-done note is the station's own (doc 06 §C1/§C2 re-voice
         // the loop; the C0 week keeps its three-order quiet)
-        const station = this.isC1 ? c1StationOf(this.day) : undefined;
+        const station = this.seasonStation(this.day);
         out.push({ kind: 'note', text: station ? station.rushDone : C0_WEEK_RUSH_DONE });
         out.push(...this.setStep(Step.WK_ROAM));
       } else if (day4) {
@@ -1083,6 +1122,11 @@ export class GameState {
       if (rail === 'cut') return this.c1SeasonCut();
       if (rail && typeof rail === 'object') return this.c1Compression(rail.compress);
     }
+    if (this.isC2) {
+      const rail = c2RailFor(this.day);
+      if (rail === 'cut') return this.c2SeasonCut();
+      if (rail && typeof rail === 'object') return this.c2Compression(rail.compress);
+    }
     return [{ kind: 'next-day' }];
   }
 
@@ -1162,7 +1206,17 @@ export class GameState {
    *  Dec 23 gets the wall. C2's content is the next wave's — the wall
    *  holds. */
   c1SeasonCut(): Effect[] {
-    if (this.c0Has(C1_CUT_ID)) return [{ kind: 'note', text: C1_CUT_WALL }];
+    if (this.c0Has(C1_CUT_ID)) {
+      // the cut has played: the wall answers — and the C2 wave's own law
+      // (§7 step 9 brought the days the cut opens): the FIRST press after
+      // the latch rolls into C2's first station (Tuesday, Jan 6, Y2 — the
+      // paper year, doc 06 §C2's period start) — unless this is a replayed
+      // kept Dec 23, which gets the wall and holds, never a roll out of a
+      // replay.
+      const wall: Effect[] = [{ kind: 'note', text: C1_CUT_WALL }];
+      if (this.replayDay) return wall;
+      return [...wall, { kind: 'next-day', to: C2_FIRST_DAY }];
+    }
     const out: Effect[] = [];
     for (const line of seasonCutMontage(this.fieldDiary)) {
       out.push({ kind: 'note', text: line });
@@ -1349,11 +1403,36 @@ export class GameState {
 
   /** The pick's landing: resolve through the register's own machine,
    *  write the ledger (the cascade's coin), write the ink, hand the
-   *  flags to the world store, persist. A refused pick changes nothing. */
-  applyChoicePick(nodeId: 'N1a' | 'N1b', optionId: string): Effect[] {
+   *  flags to the world store, persist. A refused pick changes nothing.
+   *  C2's nodes ride the same seam (`held` is the world's flag store —
+   *  N2's Form C expires without Yoli's session, doc 10 §4); the toast
+   *  is a local pick (ink and two seconds, no ledger). */
+  applyChoicePick(
+    nodeId: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST',
+    optionId: string,
+    held?: ReadonlySet<string>,
+  ): Effect[] {
+    const out: Effect[] = [];
+    if (nodeId === 'N2' || nodeId === 'N2b' || nodeId === 'TOAST') {
+      const apply = applyC2Pick(nodeId, optionId, this.calendarDay, held);
+      if (!apply.ok) return [];
+      if (apply.note) out.push({ kind: 'note', text: apply.note });
+      for (const draft of apply.ledger) {
+        this.logLedgerEntry(draft);
+      }
+      if (apply.diary) this.c0Write(out, apply.diary);
+      // the anniversary's toast night writes K2 — the chapter's bigger
+      // contradiction, seeded for its C5 strike (doc 06 §C2 long-term
+      // consequences; the player can feel it)
+      if (nodeId === 'TOAST' && !this.c0Has(C2_IDS.k2)) {
+        this.c0Write(out, k2Entry(this.calendarDay));
+      }
+      if (apply.flags.length > 0) out.push({ kind: 'story-flags', flags: apply.flags });
+      out.push({ kind: 'persist' });
+      return out;
+    }
     const apply = applyC1Pick(nodeId, optionId, this.calendarDay);
     if (!apply.ok) return [];
-    const out: Effect[] = [];
     if (apply.note) out.push({ kind: 'note', text: apply.note });
     for (const draft of apply.ledger) {
       this.logLedgerEntry(draft);
@@ -1361,6 +1440,304 @@ export class GameState {
     if (apply.diary) this.c0Write(out, apply.diary);
     out.push({ kind: 'story-flags', flags: apply.flags });
     out.push({ kind: 'persist' });
+    return out;
+  }
+
+  // ------------------------------------------ the C2 season's beats (narrative/14 §7 step 9) ----
+  // The chapter's interaction ink: each beat rides a SHIPPED interaction
+  // (the c0pack's recontextualization law — retained, not rewritten),
+  // latches by its diary entry (the block layer's law), and writes
+  // through the same two doors (the field diary, the consequence ledger).
+  // The chapter ALSO introduces the contradiction ledger's first strikes
+  // (K1 the cart, K6 the surveyor's GUESS — doc 03 §5, doc 15): the
+  // strikethrough mechanic taught early, before K2 is even written.
+
+  /** The diary's strike seam: append a correction to an existing entry
+   *  (the append-only law — the body's bytes never move; the offending
+   *  line gains its strikethrough and a marginal note). Silent when the
+   *  target is missing (a save that somehow skipped the C0 entry keeps
+   *  walking — correctEntry never throws). */
+  private applyStrike(target: string, correction: Correction): void {
+    const res = correctEntry(this.fieldDiary, target, correction);
+    if (res.ok) this.fieldDiary = res.entries;
+  }
+
+  /** Whether a C2 pick has landed (the pick's own ink is the latch —
+   *  the entry rides `node` and the c2- prefix; the toast's entry is
+   *  `c2-toast-*`; a refused pick writes nothing and the overlay
+   *  re-opens). */
+  private c2PickHeld(nodeId: 'N2' | 'N2b' | 'TOAST'): boolean {
+    if (nodeId === 'TOAST') {
+      return this.fieldDiary.some((e) => e.id.startsWith('c2-toast-'));
+    }
+    return this.fieldDiary.some((e) => e.node === nodeId && e.id.startsWith(`c2-${nodeId.toLowerCase()}-`));
+  }
+
+  /** The C2 season compression (R4's named transition, the C2 pack's
+   *  own days-between): the linger plays the compression's two lines and
+   *  HOLDS; the next press rolls the counters `from → to` through the
+   *  next-day door. The days between stations are CONSUMED, never played
+   *  (the station law). The marked compression is the winter→spring
+   *  season cut (crossedSeasonCut proves it). */
+  c2Compression(to: number): Effect[] {
+    const comp = c2CompressionFrom(this.day);
+    if (!comp || comp.to !== to) return [{ kind: 'next-day', to }];
+    this.pendingCompressionTo = to;
+    return [
+      { kind: 'note', text: comp.intro },
+      { kind: 'note', text: `The city: \u201C${comp.city}\u201D` },
+      { kind: 'note', text: 'One more press, and the days pass.' },
+    ];
+  }
+
+  /** The C2→C3 season cut (doc 06 §C2 handoff): the season's montage in
+   *  his hand, the handoff staged (July heat, the Fourth, Eddie's hand
+   *  on the counter), the cut's entry dated Jul 1, Y2 — and the chapter
+   *  through advanceChapter's own door at C3's window start. Plays once
+   *  per save (the latch is the entry); a replayed kept Jun 30 gets the
+   *  wall. C3's content is the next wave's — the wall holds (the roll
+   *  into C3's first station is the C3 wave's law, exactly as this wave
+   *  brought the C1 cut's roll). */
+  c2SeasonCut(): Effect[] {
+    if (this.c0Has(C2_CUT_ID)) return [{ kind: 'note', text: C2_CUT_WALL }];
+    const out: Effect[] = [];
+    for (const line of seasonCutMontage(this.fieldDiary)) {
+      out.push({ kind: 'note', text: line });
+    }
+    out.push({ kind: 'note', text: C2_CUT_STAGE });
+    out.push({ kind: 'note', text: C2_CUT_WALL });
+    this.c0Write(out, c2CutEntry());
+    // C3's window opens — the machine's own door, the window-start law
+    const adv = advanceChapter(this.chapter, 'C3', {
+      day: C2_CUT_DAY,
+      triggerHeld: true, // the cut itself is the beat (doc 06 §C2's handoff)
+    });
+    if (adv.ok) this.chapter = adv.state;
+    else this.chapter = touchDay(this.chapter, C2_CUT_DAY);
+    out.push({ kind: 'persist' });
+    return out;
+  }
+
+  /** Doc 06 §C2 starting circumstances — the formal ask (the
+   *  lease-notice interaction, day 120). */
+  c2Notice(): Effect[] {
+    if (this.day !== 120 || this.c0Has(C2_IDS.notice)) return [];
+    const out: Effect[] = [{ kind: 'note', text: C2_NOTICE_ASK_NOTE }];
+    this.c0Write(out, noticeEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C2 starting circumstances + diary/map developments — the
+   *  assemblage map reaches the mailboxes (the board, day 120); the
+   *  render poster transcribed with a GUESS tag; and the K6 strike (doc
+   *  15: the surveyor's GUESS, struck C2 — sunlight and square feet). */
+  c2BoardMap(): Effect[] {
+    if (this.day !== 120 || this.c0Has(C2_IDS.map)) return [];
+    const out: Effect[] = [{ kind: 'note', text: C2_MAP_NOTE }];
+    this.c0Write(out, mapEntry(this.day));
+    this.applyStrike(C2_STRIKE_TARGETS.k6, c2K6Correction(this.calendarDay));
+    out.push({ kind: 'note', text: `The notebook strikes a line while nobody's looking \u2014 \u201C${C2_K6_STRIKE}\u201D now has a margin: \u201C${C2_K6_MARGIN}\u201D` });
+    return out;
+  }
+
+  /** Doc 06 §C2 event 1 — the Compact's founding meeting at the garden
+   *  (the garden interaction, day 124): the pledge, the sign-in sheet
+   *  (doc 08 §3's EVIDENCE), and the K1 strike — the cart truth, the
+   *  ledger's first strikethrough, earned at the sheet (doc 03 §5.1's
+   *  sample margin verbatim). */
+  c2Compact(): Effect[] {
+    if (this.day !== 124 || this.c0Has(C2_IDS.compact)) return [];
+    const out: Effect[] = C2_COMPACT_SCENE.map((text) => ({ kind: 'note', text }) as Effect);
+    this.c0Write(out, compactEntry(this.day));
+    this.applyStrike(C2_STRIKE_TARGETS.k1, c2K1Correction(this.calendarDay));
+    out.push({ kind: 'note', text: `The notebook strikes its first line \u2014 the day-one sentence loses a word and keeps a margin: \u201C${C2_K1_MARGIN}\u201D` });
+    return out;
+  }
+
+  /** Doc 06 §C2 event 2 — Marisol's coffee (the diner booth, day 129):
+   *  the verbatim line, the card, no ask. */
+  c2Coffee(): Effect[] {
+    if (this.day !== 129 || this.c0Has(C2_IDS.coffee)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: `Marisol, sliding the cup across before you've ordered: \u201C${C2_MARISOL_LINE}\u201D` },
+    ];
+    this.c0Write(out, coffeeEntry(this.day));
+    return out;
+  }
+
+  /** Doc 10 §4's window — Yoli's C2 strategy session (the garden, days
+   *  146/147, two evenings): the schedule that N2's Form C would trade.
+   *  The flag sets ONCE, on either evening; each evening is its own
+   *  latch. Miss both and the window closes — her trust path's best
+   *  offer expires, the doc's own law. */
+  c2Session(): Effect[] {
+    if (this.day !== 146 && this.day !== 147) return [];
+    const out: Effect[] = [];
+    if (this.day === 146 && !this.c0Has(C2_IDS.session1)) {
+      out.push({ kind: 'note', text: C2_SESSION_ONE_NOTE });
+      this.c0Write(out, sessionOneEntry(this.day));
+    }
+    if (this.day === 147 && !this.c0Has(C2_IDS.session2)) {
+      out.push({ kind: 'note', text: C2_SESSION_TWO_NOTE });
+      this.c0Write(out, sessionTwoEntry(this.day));
+    }
+    if (out.length > 0) {
+      out.push({ kind: 'story-flags', flags: [C2_SESSION_FLAG] });
+    }
+    return out;
+  }
+
+  /** F3 — the M121 at dusk (doc 06 §C2 diary developments): riding the
+   *  loop home after the second evening, the wobble style, once, told to
+   *  no one. Keyed to day 147's climb step (the dusk IS the climb). */
+  c2F3AtDusk(): Effect[] {
+    if (this.day !== 147) return [];
+    if (this.step !== Step.WK_CLIMB) return [];
+    if (this.c0Has(C2_FRAGMENT_IDS.f3)) return [];
+    const out: Effect[] = [];
+    this.c0Write(out, f3Entry(this.day));
+    out.push({ kind: 'note', text: 'It passes. It always passes. The entry stays anyway \u2014 the wobble\u2019s own arithmetic.' });
+    return out;
+  }
+
+  /** Doc 06 §C2 event 3 — Priya's intel, traded for a favor (the priya
+   *  interaction, day 160): the three doc-verbatim facts, and the debt
+   *  that rides the ledger open (a promise, no due — the favor's name
+   *  comes later). */
+  c2Priya(): Effect[] {
+    if (this.day !== 160 || this.c0Has(C2_IDS.priya)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: C2_PRIYA_INTEL_NOTE },
+      { kind: 'note', text: C2_PRIYA_FAVOR_NOTE },
+    ];
+    this.c0Write(out, priyaEntry(this.day));
+    // the debt rides the ledger as a recorded act (kind 'choice' — a
+    // promise without a due is schema-invalid, and the favor's name
+    // comes later; the ledger keeps the owing visible either way)
+    this.logLedgerEntry({
+      id: 'led-c2-priya-favor',
+      kind: 'choice',
+      date: dateOfCalendarDay(this.calendarDay),
+      refs: [...C2_PRIYA_PROMPT_DEBT_REFS],
+      weight: 1,
+      visibility: 'secret',
+    });
+    return out;
+  }
+
+  /** Doc 06 §C2 events 4+5 — the squeeze (the diner booth, day 174):
+   *  Craig's private offer, and behind it N2 — the break needs a form
+   *  (the register's node, the pick overlay's seam; Form C offered only
+   *  when Yoli's session was attended, doc 10 §4). */
+  c2Squeeze(): Effect[] {
+    if (this.day !== 174) return [];
+    if (!this.c0Has(C2_IDS.squeeze)) {
+      const out: Effect[] = [{ kind: 'note', text: C2_CRAIG_OFFER_NOTE }];
+      this.c0Write(out, squeezeEntry(this.day));
+      out.push({ kind: 'note', text: 'The booth goes quiet the way a scale goes still. Four shapes, one signature, and the pen is in my hand either way.' });
+      return out;
+    }
+    if (!this.c2PickHeld('N2')) {
+      return [{ kind: 'diary-prompt', pack: 'choice', node: 'N2' }];
+    }
+    return [];
+  }
+
+  /** Doc 06 §C2 short-term consequences + important conversations — the
+   *  ribbon and Eddie's question (the eddie interaction, day 188). */
+  c2Ribbon(): Effect[] {
+    if (this.day !== 188 || this.c0Has(C2_IDS.ribbon)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: C2_EDDIE_RENEWAL_NOTE },
+      { kind: 'note', text: C2_EDDIE_RENEWAL_AFTER },
+    ];
+    this.c0Write(out, ribbonEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C2 event 8 — Kev's appeal denied (the board, day 188; an
+   *  independent event — the spine's own floor). */
+  c2Kev(): Effect[] {
+    if (this.day !== 188 || this.c0Has(C2_IDS.kev)) return [];
+    const out: Effect[] = [{ kind: 'note', text: C2_KEV_APPEAL_NOTE }];
+    this.c0Write(out, kevEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C2 event 9 — the rent wave (the newsbox, day 230): the room
+   *  re-rated, paid in silence; the diary records generosity, the ledger
+   *  records silence purchased (the Silent class, authored outside the
+   *  register — doc 10 §1). */
+  c2RentWave(): Effect[] {
+    if (this.day !== 230 || this.c0Has(C2_IDS.rent)) return [];
+    const out: Effect[] = [{ kind: 'note', text: C2_RENT_WAVE_NOTE }];
+    this.c0Write(out, rentEntry(this.day));
+    this.logLedgerEntry({
+      id: C2_RENT_WAVE_LEDGER_ID,
+      kind: 'omission',
+      date: dateOfCalendarDay(this.calendarDay),
+      refs: [...C2_RENT_WAVE_SILENCE_REFS],
+      weight: 1,
+      visibility: 'secret',
+    });
+    return out;
+  }
+
+  /** Doc 06 §C2 event 6 — the Oktays' leaving (the garden-gate
+   *  interaction, day 243): the boxes, the NO SALE, the photograph —
+   *  and behind it N2b (the Oktay moment, the register's node). The
+   *  photograph's ink reads the sheet honestly: the founding was
+   *  missable, so the sheet may or may not carry the corner's name, and
+   *  the withdrawal line tells the truth either way. */
+  c2Oktays(): Effect[] {
+    if (this.day !== 243) return [];
+    if (!this.c0Has(C2_IDS.oktays)) {
+      const out: Effect[] = C2_OKTAYS_SCENE.map((text) => ({ kind: 'note', text }) as Effect);
+      // the photograph's honest variant: the founding was missable
+      if (this.c0Has(C2_IDS.compact)) {
+        out.push({ kind: 'note', text: 'The sheet from the garden is in the photographs now \u2014 eleven lines, and the withdrawal line where the corner\u2019s name sits in my own handwriting. Deniz doesn\u2019t zoom. She doesn\u2019t have to.' });
+      } else {
+        out.push({ kind: 'note', text: 'The sheet from the garden is in the photographs now \u2014 eleven lines, and the withdrawal line\u2019s blank where a name might have been. Deniz doesn\u2019t zoom. She doesn\u2019t have to.' });
+      }
+      out.push({ kind: 'note', text: C2_OKTAYS_MEHMET_NOTE });
+      this.c0Write(out, oktaysEntry(this.day));
+      return out;
+    }
+    if (!this.c2PickHeld('N2b')) {
+      return [{ kind: 'diary-prompt', pack: 'choice', node: 'N2b' }];
+    }
+    return [];
+  }
+
+  /** Doc 06 §C2 event 7 — Rosa's twenty-five (the rosa interaction, day
+   *  269): the verbatim toast line, Eleanor's pointer, the QUESTION in
+   *  the tray — and behind it the toast itself (the local pick; doc 06
+   *  §C2 major decisions; one of the two makes Rosa stop smiling for
+   *  exactly two seconds). */
+  c2Anniversary(): Effect[] {
+    if (this.day !== 269) return [];
+    if (!this.c0Has(C2_IDS.anniversary)) {
+      const out: Effect[] = [
+        { kind: 'note', text: `Rosa, glass up, the long table holding its breath: \u201C${C2_ROSA_ANNIVERSARY_LINE}\u201D` },
+        { kind: 'note', text: `She finds me across the table — across, not beside, the seating chart's own verdict \u2014 and softens by a degree: \u201C${C2_ROSA_ELEANOR_LINE}\u201D` },
+      ];
+      this.c0Write(out, anniversaryEntry(this.day));
+      this.c0Write(out, questionDorisEntry(this.day));
+      return out;
+    }
+    if (!this.c2PickHeld('TOAST')) {
+      return [{ kind: 'diary-prompt', pack: 'choice', node: 'TOAST' }];
+    }
+    return [];
+  }
+
+  /** Doc 06 §C2 handoff — June's lease, the same paperstock (the june
+   *  interaction, day 295; her spot exists for the day and fades when
+   *  the ink has landed). */
+  c2LeaseJune(): Effect[] {
+    if (this.day !== 295 || this.c0Has(C2_IDS.lease)) return [];
+    const out: Effect[] = [{ kind: 'note', text: C2_JUNE_LEASE_NOTE }];
+    this.c0Write(out, leaseEntry(this.day));
     return out;
   }
 
