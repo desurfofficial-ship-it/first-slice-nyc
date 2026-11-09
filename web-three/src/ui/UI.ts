@@ -60,6 +60,15 @@ export class UI {
   // mounted lazily on first use; both are display-only seams ----
   private diaryInk: DiaryInkHandle | null = null;
   private hudDateline: DatelineHandle | null = null;
+  // ---- the C0 pack's write sheet (doc 11 — the notebook's paper) ----
+  readonly writeSheet = el<HTMLDivElement>('write-sheet');
+  private writeFacts = el<HTMLDivElement>('write-facts');
+  private writePrompt = el<HTMLDivElement>('write-prompt');
+  private writeOptions = el<HTMLDivElement>('write-options');
+  private writeFreeRow = el<HTMLDivElement>('write-free-row');
+  private writeFree = el<HTMLInputElement>('write-free');
+  private writeFreeOk = el<HTMLButtonElement>('write-free-ok');
+  private writeCloseBtn = el<HTMLButtonElement>('write-close');
   // ---- the album — the shelf where kept postcards live ----
   readonly albumBtn = el<HTMLButtonElement>('btn-album');
   readonly albumPanel = el<HTMLDivElement>('album-panel');
@@ -107,6 +116,13 @@ export class UI {
   onStarterPick: ((id: string) => void) | null = null;
   /** The wardrobe chip — fired when the pocket's Wardrobe tile is tapped. */
   onWardrobeToggle: (() => void) | null = null;
+  // ---- the C0 pack's write sheet (doc 11): the notebook's pick returns
+  // as (optionIndex | −1 for the free line, freeLineText). A close with
+  // nothing written returns null — the beat stays owed and re-opens on
+  // its next trigger (the cold open cannot be dismissed empty: the
+  // game's first line is the Two-Diaries Law's first word).
+  onWritePick: ((pick: number, freeLine: string) => void) | null = null;
+  onWriteClose: (() => void) | null = null;
 
   constructor() {
     this.nameOk.addEventListener('click', () => this.onNameSubmit?.());
@@ -196,6 +212,34 @@ export class UI {
     });
     this.detectTouch();
     window.addEventListener('resize', () => this.detectTouch());
+    // the write sheet: pick a line by tap or 1–9; the free line keeps by
+    // button or Enter; putting it away unwritten is refused for the cold
+    // open (prompt of record: the game's first line) and allowed otherwise
+    this.writeOptions.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('[data-write-pick]');
+      if (btn) this.onWritePick?.(Number((btn as HTMLElement).dataset.writePick), '');
+    });
+    this.writeFreeOk.addEventListener('click', () => {
+      this.onWritePick?.(-1, this.writeFree.value);
+    });
+    this.writeCloseBtn.addEventListener('click', () => this.onWriteClose?.());
+    window.addEventListener('keydown', (e) => {
+      if (this.writeSheet.hidden) return;
+      if (document.activeElement === this.writeFree) {
+        if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+          e.preventDefault();
+          this.onWritePick?.(-1, this.writeFree.value);
+        }
+        return;
+      }
+      if (e.code.startsWith('Digit')) {
+        const i = Number(e.code.slice(5)) - 1;
+        if (i >= 0) { e.preventDefault(); this.onWritePick?.(i, ''); }
+      } else if (e.code === 'Escape') {
+        e.preventDefault();
+        this.onWriteClose?.();
+      }
+    });
   }
 
   private syncAudioButton() {
@@ -283,6 +327,7 @@ export class UI {
       albumPanel: !this.albumPanel.hidden,
       starterCard: !this.starterCard.hidden,
       wardrobePanel: !this.wardrobePanel.hidden,
+      writeSheet: !this.writeSheet.hidden,
     }));
   }
 
@@ -466,6 +511,46 @@ export class UI {
     this.orderHint.hidden = true;
     this.orderRespondedShown = false;
     this.syncTouchUI();
+  }
+
+  // ---------------- the notebook's write sheet (the C0 pack, doc 11) ----
+
+  /** The green notebook opens: the system's facts-only line (when one is
+   *  owed), the prompt in Leo's hand, the authored lines you could write,
+   *  and — when freeAllowed — the free line's input. options carry their
+   *  own body text; the pick returns through onWritePick. */
+  showWriteSheet(spec: {
+    factsLine?: string;
+    prompt: string;
+    options: readonly string[];
+    freeAllowed?: boolean;
+  }) {
+    this.writeFacts.textContent = spec.factsLine ?? '';
+    this.writePrompt.textContent = spec.prompt;
+    this.writeOptions.replaceChildren();
+    spec.options.forEach((line, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.writePick = String(i);
+      b.className = 'write-option';
+      b.innerHTML = `<span class="reply-key">${i + 1}</span>${escapeHtml(line)}`;
+      this.writeOptions.appendChild(b);
+    });
+    this.writeFreeRow.hidden = !spec.freeAllowed;
+    this.writeFree.value = '';
+    this.writeSheet.hidden = false;
+    this.syncTouchUI();
+    this.prompt.hidden = true;
+  }
+
+  hideWriteSheet() {
+    this.writeSheet.hidden = true;
+    this.syncTouchUI();
+  }
+
+  /** Read-only, for probes/E2E. */
+  get writeSheetOpen(): boolean {
+    return !this.writeSheet.hidden;
   }
 
   // ---------------- the Map, as a notebook (docs/11 + docs/12) ----------------

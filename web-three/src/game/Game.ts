@@ -45,6 +45,10 @@ import { gameAudio } from './audio';
 import { ArrivalCinematic } from './arrival';
 import { RIDE_BEAT_TEXT, TS_SYNC_NOTE } from '../core/content';
 import { CourtGame } from '../court/CourtGame';
+import { phaseOf, weekdayOf } from '../sim/clock';
+import { COLD_OPEN_FACTS_LINE, COLD_OPEN_PROMPTS, THE_LISTING, ENTRY2_PROMPT,
+  ENTRY2_OPTIONS, ENTRY4_PROMPT, QUESTION_PROMPTS, PRIYA_WRONG_TRAIN,
+  setFlag as setF0Flag } from '../core/firstSession';
 
 /** One waypoint on the familiar face's daily walk. dwell = seconds she
  *  stands there (the nod, the word); sit/hide = what happens on arrival. */
@@ -447,6 +451,12 @@ export class Game {
       this.forcePickCard = params.has('pickcard');
       if (this.driverBoot && !this.filmRequested) {
         this.ui.showNote(MAP_NOTE_BOOT);
+        // the C0 pack (doc 11): ?c0=1 asks the sheet explicitly (the probe's
+        // hatch, the same law as ?pickcard=1); every other driver boot
+        // writes the first line silently so the state stays coherent for
+        // the fleet without a sheet owning the screen
+        if (this.coldOpenOwed()) this.openColdOpen();
+        else if (!this.state.firstSession.coldOpenDone) this.state.c0WriteColdOpen(0, '');
       } else {
         // the arrival — Doc 02's opening, staged on the terminal coach
         this.arrival.begin();
@@ -457,12 +467,44 @@ export class Game {
       this.applyStarter(id, true);
       this.ui.closeStarterPick();
       this.ui.showNote('There you are. Now the story has a face.');
+      // doc 11 §5 — the picker runs before beat 0; the cold open opens as
+      // the pick closes (humans only — drivers auto-write at the handover)
+      if (this.coldOpenOwed()) this.openColdOpen();
     };
     this.ui.onCineTap = () => { if (this.arrival.active) this.arrival.tap(); };
     this.ui.onCineSkip = () => { if (this.arrival.active) this.arrival.skip(); };
     this.ui.onOrderChoose = (reply) => this.advanceOrder(reply);
     this.ui.onMapToggle = () => this.toggleMap();
     this.ui.onRoamToggle = () => this.toggleRoam();
+    // the C0 pack's write sheet: the pick lands through the state's one
+    // door; the cold open cannot be dismissed empty (the game's first
+    // line is the Two-Diaries Law's first word)
+    this.ui.onWritePick = (pick, freeLine) => {
+      if (this.coldOpenUp) {
+        const line = pick >= 0 ? (COLD_OPEN_PROMPTS[pick]?.body ?? '') : freeLine;
+        if (line.trim() === '') return; // an empty first line isn't a line
+        this.state.c0WriteColdOpen(pick, freeLine);
+        this.coldOpenUp = false;
+        this.ui.hideWriteSheet();
+        // beat 2's moment — the listing on the phone, checked one more
+        // time before the story starts walking (the interaction re-reads)
+        if (!this.bootListingSaid) {
+          this.bootListingSaid = true;
+          this.ui.showNote(THE_LISTING);
+        }
+        return;
+      }
+      const out = this.state.c0WriteEntry(this.openSheet ?? 'entry2', pick, freeLine);
+      this.openSheet = null;
+      const note = out.find((e) => e.kind === 'note');
+      this.ui.hideWriteSheet();
+      if (note && note.kind === 'note') this.pushNote(note.text);
+      if (this.mapOpen) this.ui.refreshDiary(this.state.fieldDiary);
+    };
+    this.ui.onWriteClose = () => {
+      if (this.coldOpenUp) return; // the first line is owed; the paper stays
+      this.ui.hideWriteSheet();
+    };
     this.ui.postcardKeep.addEventListener('click', () => {
       if (!this.lastPostcardUrl) return;
       downloadPostcard(this.lastPostcardUrl, this.postcardFilename());
@@ -569,11 +611,11 @@ export class Game {
       if (inp.interactPressed) this.arrival.tap();
       if (inp.restartPressed) this.arrival.skip();
     } else if (inp.restartPressed && !this.dayFading && this.ui.nameBox.hidden
-      && this.ui.orderCard.hidden && this.ui.starterCard.hidden) {
+      && this.ui.orderCard.hidden && this.ui.starterCard.hidden && this.ui.writeSheet.hidden) {
       location.reload(); // R = restart the day (save rules decide what resumes)
       return;
     } else if (inp.interactPressed && !this.dayFading && this.ui.nameBox.hidden
-      && this.ui.starterCard.hidden) {
+      && this.ui.starterCard.hidden && this.ui.writeSheet.hidden) {
       if (!this.wardrobe.isOpen) {
         if (!this.ui.postcardPanel.hidden) this.dismissPostcard();
         else if (this.state.pendingCard) this.advanceOrder(null); // the card owns the counter
@@ -583,7 +625,7 @@ export class Game {
     // M folds / opens the Map — the notebook is always available, never forced
     const mapDown = this.input.isDown('KeyM');
     if (mapDown && !this.mapKeyWasDown && !this.dayFading && this.ui.nameBox.hidden
-      && this.ui.orderCard.hidden && this.ui.starterCard.hidden) {
+      && this.ui.orderCard.hidden && this.ui.starterCard.hidden && this.ui.writeSheet.hidden) {
       this.toggleMap();
     }
     this.mapKeyWasDown = mapDown;
@@ -591,7 +633,7 @@ export class Game {
     const wardrobeDown = this.input.isDown('KeyO');
     if (wardrobeDown && !this.wardrobeKeyWasDown && !this.dayFading
       && this.ui.nameBox.hidden && this.ui.orderCard.hidden
-      && this.ui.starterCard.hidden) {
+      && this.ui.starterCard.hidden && this.ui.writeSheet.hidden) {
       this.toggleWardrobe();
     }
     this.wardrobeKeyWasDown = wardrobeDown;
@@ -620,7 +662,8 @@ export class Game {
     this.cam.interiorMode = this.world.subway.underground;
     this.drainFarWorld(wdt);
     if (!this.dayFading && this.ui.nameBox.hidden && this.ui.orderCard.hidden && !this.mapOpen
-      && this.ui.starterCard.hidden && !this.arrival.active && !this.wardrobe.isOpen) {
+      && this.ui.starterCard.hidden && !this.arrival.active && !this.wardrobe.isOpen
+      && this.ui.writeSheet.hidden) {
       // movement — paused on the bench (Doc 37 §3C: the seat holds you;
       // physics would drag the capsule off it, so the walker simply rests)
       if (!this.sitting) this.player.update(dt, inp.move, inp.sprint);
@@ -1208,7 +1251,45 @@ export class Game {
   private stillFor = 0;      // seconds the player has stood still IN the stretch
   private waitFired = false; // the patience line fires once per standstill episode
   private rideEndSaid = false; // doc 08 note #6 — once per session, first arrival
+  // ---- the C0 pack (doc 11) — Game-side state ----
+  /** The cold open is on the sheet right now (the boot's beat 0). While
+   *  up: the hands are on paper, the world waits. */
+  private coldOpenUp = false;
+  /** The diary sheet currently open ('entry2' | 'entry4') — one at a
+   *  time; the pick returns to its own beat's builder. */
+  private openSheet: 'entry2' | 'entry4' | null = null;
+  /** The boot's listing moment rode the handover (the phone, once). The
+   *  terminal interaction stays available for the re-reads (its own flag,
+   *  listingRead, is the interaction's to set). */
+  private bootListingSaid = false;
+  /** The wobble/Odessa proximity sweep's throttle (0.5 s cadence). */
+  private c0AmbientTimer = 0;
   private lastWalkPos: { x: number; z: number } | null = null;
+  /** The wobble's laundromat pass, Miss Odessa's night, the two quiet
+   *  figures' visibility (doc 11): read-only gates, the fires through the
+   *  state's own methods, notes through the one queue. */
+  private c0AmbientSweep(): void {
+    const s = this.state;
+    const clock = this.worldSim.brain.world.clock;
+    const min = clock.minuteOfDay;
+    // beat 7's figure — Deshaun stands the platform through Day 2's midday
+    // window (steps D2_IDRIS…D2_LUNCH) until the kit is learned
+    const deshaunUp = s.day === 2 && s.step >= Step.D2_IDRIS && s.step <= Step.D2_LUNCH
+      && !s.firstSession.groundingLearned;
+    this.world.deshaun.visible = deshaunUp;
+    // §4 hook 2 — the surveyor works dawns only (the 5–7 a.m. band)
+    this.world.surveyor.visible = phaseOf(min) === 'dawn';
+    // entry 5 — the wobble: passing the laundromat on/after Day 7
+    const laundro = Math.hypot(this.player.capsule.x + 0.9, this.player.capsule.z - 12.2) < 6;
+    for (const e of s.c0TryWobble(laundro)) this.applyEffect(e);
+    // §4 hook 3 — Miss Odessa: 9 p.m. or later, Mon/Wed/Fri, by the gold
+    // window's street level (across from the Cecil's north window)
+    const wd = weekdayOf(s.calendarDay);
+    const odessaNightDay = wd === 'Mon' ? 1 : wd === 'Wed' ? 3 : wd === 'Fri' ? 5 : 0;
+    const odessaNear = Math.hypot(this.player.capsule.x - 13.5, this.player.capsule.z + 9.0) < 5;
+    for (const e of s.c0TryOdessa(odessaNightDay, min >= 21 * 60, odessaNear)) this.applyEffect(e);
+  }
+
   private drainFarWorld(dt: number): void {
     const w = this.world;
     // the Shuffle's brushes: the walkers already said their "'Scuse me."
@@ -1238,6 +1319,14 @@ export class Game {
       this.waitFired = false;
     }
     this.lastWalkPos = { x: px, z: pz };
+    // ---- the C0 pack's ambient sweep (0.5 s cadence): the two quiet
+    // figures' hours, the wobble's laundromat pass, Miss Odessa's night.
+    // All gates are pure reads; the fires are the state's own methods.
+    this.c0AmbientTimer -= dt;
+    if (this.c0AmbientTimer <= 0) {
+      this.c0AmbientTimer = 0.5;
+      this.c0AmbientSweep();
+    }
     // ride phase transitions → the train's own voice
     const phase = w.subway.ride.phase;
     if (phase !== this.lastRidePhase) {
@@ -1246,9 +1335,16 @@ export class Game {
       if (phase === 'departing') { gameAudio.doorChime(); gameAudio.rumbleStop(); }
       if (phase === 'arrived') {
         gameAudio.announce(); gameAudio.rumbleStop();
-        // doc 08 note #6 — the ride's parting reassurance (Map writes it
-        // down; the notebook dedupes, the voice says it once per session)
-        if (!this.rideEndSaid) {
+        // doc 11 beat 4 — the wrong train (optional, once ever, the first
+        // session's window): Priya's line takes the first ride's parting
+        // slot — both are ride-parting lines, and one voice at a time is
+        // the note law. Days 1–2 only; a first ride after that missed the
+        // beat, and the city doesn't re-stage kindness.
+        if (!this.state.firstSession.wrongTrainSaid && this.state.day <= 2) {
+          this.state.firstSession = setF0Flag(this.state.firstSession, 'wrongTrainSaid');
+          this.rideEndSaid = true; // the parting slot was spent on Priya's line
+          this.pushNote(PRIYA_WRONG_TRAIN);
+        } else if (!this.rideEndSaid) {
           this.rideEndSaid = true;
           this.state.collectNote(RIDE_END_NOTE);
           this.pushNote(RIDE_END_NOTE);
@@ -1330,6 +1426,11 @@ export class Game {
         // the state already filed the card; the margins refresh if open
         this.ui.wiggleMap();
         if (this.mapOpen) this.ui.refreshMap(this.state.mapNotes, this.state.mapSlang);
+        break;
+      case 'c0-write-sheet':
+        // the C0 pack (doc 11): the notebook opens for its beat — the
+        // paper holds the hands until a line is kept or put away
+        this.openC0Sheet(e.sheet);
         break;
       case 'order-open':
         this.player.frozen = true;
@@ -1567,6 +1668,54 @@ export class Game {
       && (this.forcePickCard || (!this.driverBoot && !this.filmRequested))) {
       this.starterOffered = true;
       this.ui.showStarterPick(STARTERS);
+      return; // the cold open opens when the pick closes (doc 11 §5's order)
+    }
+    // no pick card on this boot: the cold open opens now (humans), or the
+    // drivers write the first line silently — the state stays coherent for
+    // the fleet without a sheet owning the screen (the film probes' law)
+    if (this.coldOpenOwed()) this.openColdOpen();
+    else if (!this.state.firstSession.coldOpenDone) this.state.c0WriteColdOpen(0, '');
+  }
+
+  // ---------------- the C0 pack (doc 11) — the notebook's boot path ----
+
+  /** Beat 0 is owed on this boot: a fresh Day-1 boot (no save to resume,
+   *  the cold open lives in Day 1's no-write law) whose opening hasn't
+   *  been written yet. ?c0=1 forces the sheet even on a driver boot —
+   *  the probe's verification path, the same law as ?pickcard=1. */
+  private coldOpenOwed(): boolean {
+    const params = new URLSearchParams(location.search);
+    if (params.has('c0')) return !this.state.firstSession.coldOpenDone;
+    if (this.driverBoot) return false;
+    return this.bootedFromDay < 2 && !this.state.firstSession.coldOpenDone;
+  }
+
+  /** Beat 0 — the notebook comes out. The world waits behind the paper. */
+  private openColdOpen(): void {
+    this.coldOpenUp = true;
+    this.ui.showWriteSheet({
+      factsLine: COLD_OPEN_FACTS_LINE,
+      prompt: 'First line of the notebook. Make it yours.',
+      options: COLD_OPEN_PROMPTS.map((p) => p.body),
+      freeAllowed: true,
+    });
+  }
+
+  /** Entries 2/4 — the sheet opens for its beat (the effect's own words). */
+  private openC0Sheet(sheet: 'entry2' | 'entry4'): void {
+    this.openSheet = sheet;
+    if (sheet === 'entry2') {
+      this.ui.showWriteSheet({
+        prompt: ENTRY2_PROMPT,
+        options: ENTRY2_OPTIONS.map((o) => o.body),
+        freeAllowed: false,
+      });
+    } else {
+      this.ui.showWriteSheet({
+        prompt: ENTRY4_PROMPT,
+        options: QUESTION_PROMPTS.map((o) => o.body),
+        freeAllowed: true,
+      });
     }
   }
 
@@ -2642,6 +2791,11 @@ export class Game {
       // quarantine-cleaned in parseSave); absence in a hand-built snapshot
       // reads as an empty diary (the migration law)
       s.fieldDiary = sd.field_diary ?? [];
+      // the C0 pack's narrative layer rides the same law: the parsed save
+      // always materializes the field (parseSave), so a resume is exact;
+      // a hand-built snapshot without it keeps the live state (never
+      // rewinds — the flags are permanent progress, like the stool)
+      s.firstSession = sd.first_session ?? s.firstSession;
     }
     // sd === null (a rail "Tomorrow"): the live state carries the wallet, the
     // name, the awning — and the STOOL. The stool is bought, the Map is

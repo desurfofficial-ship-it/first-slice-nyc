@@ -12,8 +12,12 @@ export function touchPanelUp(surfaces: {
   albumPanel: boolean;
   starterCard?: boolean;
   wardrobePanel?: boolean;
+  /** The C0 pack's write sheet (doc 11 beat 0): the notebook's own paper —
+   *  the game's first screen. Paper up → the stick stands down. */
+  writeSheet?: boolean;
 }): boolean {
   return surfaces.nameBox || surfaces.orderCard || surfaces.mapPanel
     || surfaces.postcardPanel || surfaces.albumPanel
-    || !!surfaces.starterCard || !!surfaces.wardrobePanel;
+    || !!surfaces.starterCard || !!surfaces.wardrobePanel
+    || !!surfaces.writeSheet;
 }

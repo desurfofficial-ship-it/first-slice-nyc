@@ -419,6 +419,17 @@ export function runAutotest(game: Game): void {
     const s = game.state;
     const p = () => game.player.capsule;
     const dbg = game.debug;
+    // ---- the C0 pack (doc 11): the notebook answers when it opens. The
+    // driver plays Leo, and Leo keeps his own diary — when a beat opens
+    // the write sheet (entry 4 rides D3_CLIMB3), the driver writes the
+    // first authored line through the same door a thumb uses. Without
+    // this, the paper holds the hands and every later walk starves (the
+    // movement gate stands the walker down while the sheet is up). The
+    // watcher clears when the run ends; the cold open needs nothing here
+    // (a driver boot writes it silently, the coherence law).
+    const sheetWatch = window.setInterval(() => {
+      if (game.ui.writeSheetOpen) game.ui.onWritePick?.(0, '');
+    }, 250);
     /** Compact game-state snapshot for check messages — makes a failing dusk
      *  beat diagnosable from the log alone (where the walker is, what the
      *  director thinks is happening, what the light is doing). */
@@ -1095,6 +1106,7 @@ export function runAutotest(game: Game): void {
       check(false, `driver exception: ${(err as Error).message}`);
       console.error(err);
     } finally {
+      window.clearInterval(sheetWatch);
       report.done = true;
       const summary = `AUTOTEST ${report.failures.length === 0 ? 'OK' : 'FAILED'}: ${report.failures.length} failures, ${Math.round((Date.now() - report.startedAt) / 1000)}s`;
       log.textContent += summary + '\n';

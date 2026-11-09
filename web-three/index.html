@@ -92,6 +92,24 @@
     <div id="starter-choices"></div>
   </div>
 
+  <!-- The green notebook's write sheet — the C0 pack (doc 11): the game's
+       first screen (beat 0, the cold open) and the diary beats' paper.
+       A handwriting page: ruled lines, Leo's hand, the system's one
+       facts-only line above the first entry. -->
+  <div id="write-sheet" hidden role="dialog" aria-modal="true" aria-label="The notebook — write a line">
+    <div id="write-paper">
+      <div id="write-facts"></div>
+      <div id="write-prompt"></div>
+      <div id="write-options" role="group" aria-label="Lines you could write"></div>
+      <div id="write-free-row" hidden>
+        <input id="write-free" type="text" maxlength="120" placeholder="…or write your own line" autocomplete="off" spellcheck="false" aria-label="Write your own line" />
+        <button id="write-free-ok" type="button">Keep it</button>
+      </div>
+      <div id="write-hint">Pick a line. It&rsquo;s your notebook.</div>
+    </div>
+    <button id="write-close" type="button" aria-label="Put the notebook away">&times; put it away</button>
+  </div>
+
   <!-- Wardrobe — the 3D fitting room (ui/Wardrobe.ts). Looking is free;
        wearing a different face asks for a new game first (the lock law). -->
   <div id="wardrobe-panel" hidden role="dialog" aria-modal="true" aria-label="Wardrobe — the fitting room">

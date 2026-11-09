@@ -7,6 +7,11 @@
 import { MAX_DAY, type SaveData } from './Save';
 import type { DiaryCounters, DiaryNoted } from './diary';
 import { appendEntry, correctEntry, serializeFieldDiary, type FieldDiaryEntry } from './fieldDiary';
+import { dateOfCalendarDay } from './calendar';
+import { defaultFirstSession, markBeat, setFlag as setF0Flag, noteOdessaNight, writeColdOpen,
+  buildEntry2, buildEntry3, buildEntry4, buildEntry5, serializeFirstSession,
+  THE_LISTING, ROSA_MANGO_LINE, TRIAL_SHIFT_LINES, EDDIE_COVENANT, DESHAUN_LINES,
+  GROUNDING_USE_LINE, ODESSA_OBSERVATION, type FirstSessionState } from './firstSession';
 import { DEFAULT_STARTER } from './starters';
 import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, ITEM_STICKERS, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
@@ -109,7 +114,11 @@ export type Effect =
   | { kind: 'order-close' }
   // ---- the Map, as a notebook (docs/11 + docs/12 prototype 2) ----
   | { kind: 'map-note'; text: string }
-  | { kind: 'map-slang'; id: string };
+  | { kind: 'map-slang'; id: string }
+  // ---- the C0 pack's write sheet (narrative/14 §7 step 6, doc 11 §3):
+  // the notebook opens for a beat's write — Game renders the paper, the
+  // pick returns through state.c0WriteEntry
+  | { kind: 'c0-write-sheet'; sheet: 'entry2' | 'entry4' };
 
 export class GameState {
   step: Step = Step.MEET_ROSA;
@@ -191,6 +200,16 @@ export class GameState {
    *  reads as []. Append-only by construction: logDiaryEntry appends,
    *  correctDiaryEntry strikes a line, nothing removes. */
   fieldDiary: FieldDiaryEntry[] = [];
+  /** The C0 content pack's narrative layer (narrative/14 §7 step 6, doc 11
+   *  — core/firstSession.ts): the cold open, the diary beats' fire-once
+   *  flags, the three hooks. Rides the save as `first_session`; an old
+   *  save reads as the default state — the cold open only ever opens on a
+   *  fresh boot, so a pre-C0 save is never re-asked (the migration law). */
+  firstSession: FirstSessionState = defaultFirstSession();
+  /** The trial shift's and Deshaun scene's press stage (transient — never
+   *  saved; a scene interrupted mid-way re-asks from its top, the way the
+   *  awning's confirm does). */
+  c0SceneStage = 0;
   // ---- the serving conversation (docs/11 + docs/12) ----
   /** The order card currently on the counter — null when nobody's ordering.
    *  TRANSIENT: a conversation is a moment, never a save. */
@@ -308,7 +327,29 @@ export class GameState {
 
   setStep(s: Step): Effect[] {
     this.step = s;
-    return [{ kind: 'step', step: s }];
+    // ---- the C0 pack's spine hooks (narrative/14 §7 step 6, doc 11) —
+    // the shipped beats carry the new diary beats, unrewritten:
+    // beat 8's mishear rides the Day-1 night cap (the postcard beat),
+    // Entry 4's question opens with Day 3's fire escape (the notebook's
+    // own hour). Fire-once by flag; the entry rides the field diary's
+    // one door (logDiaryEntry); the sheet effects ride out to Game.
+    const out: Effect[] = [{ kind: 'step', step: s }];
+    if (s === Step.POSTCARD && !this.firstSession.fired.entry3_the_cart) {
+      const r = markBeat(this.firstSession, 'entry3_the_cart');
+      this.firstSession = r.state;
+      if (r.fired) {
+        const entry = buildEntry3(dateOfCalendarDay(this.calendarDay));
+        if (this.logDiaryEntry(entry)) {
+          out.push({ kind: 'note', text: 'The notebook gets its line for the night, tagged FACT. Facts only. That\u2019s the rule.' });
+        }
+      }
+    }
+    if (s === Step.D3_CLIMB3 && !this.firstSession.fired.entry4_first_question) {
+      const r = markBeat(this.firstSession, 'entry4_first_question');
+      this.firstSession = r.state;
+      if (r.fired) out.push({ kind: 'c0-write-sheet', sheet: 'entry4' });
+    }
+    return out;
   }
 
   earn(n: number): Effect[] {
@@ -402,6 +443,11 @@ export class GameState {
       // the line forms behind the first order — the city's word for standing
       // in it, written while you're in one (docs/08)
       this.slangEffect(out, 'online');
+      // doc 11 §2 beat 5 — Rosa, sliding the mango across. The errand is
+      // the shipped beat; this is the narrative layer over it: the read
+      // that plants silently (this one narrates himself), and the
+      // listing's name arriving in Rosa's mouth before Eddie exists.
+      out.push({ kind: 'note', text: ROSA_MANGO_LINE });
     }
     return out;
   }
@@ -901,6 +947,9 @@ export class GameState {
       // migration note in Save.ts), a new save writes both
       calendar_day: this.calendarDay,
       field_diary: serializeFieldDiary(this.fieldDiary),
+      // the C0 pack's narrative layer rides the same v1-safe law (an old
+      // save parses unchanged; this field is always materialized)
+      first_session: serializeFirstSession(this.firstSession),
     };
   }
 
@@ -932,6 +981,100 @@ export class GameState {
     const res = correctEntry(this.fieldDiary, id, { day, strike, margin });
     this.fieldDiary = res.entries;
     return res.ok;
+  }
+
+  // ------------------------------------------------- the C0 pack (doc 11) ----
+  // narrative/14 §7 step 6 — the first session's narrative layer. Every
+  // method here is fire-once by the firstSession flags; the entries ride
+  // the field diary's one door; the write-sheet effects ride out to Game.
+
+  /** Beat 0 — the cold open's write (the game's first screen). The entry
+   *  lands in the diary through the one door; Game starts the film after. */
+  c0WriteColdOpen(choice: number, freeLine: string): Effect[] {
+    const r = writeColdOpen(this.firstSession, choice, freeLine, dateOfCalendarDay(this.calendarDay));
+    this.firstSession = r.state;
+    if (r.fired && r.entry) this.logDiaryEntry(r.entry);
+    return [];
+  }
+
+  /** Beat 2 — the listing on the phone, read at the terminal benches. */
+  c0Listing(): Effect[] {
+    const out: Effect[] = [{ kind: 'note', text: THE_LISTING }];
+    if (!this.firstSession.listingRead) {
+      this.firstSession = setF0Flag(this.firstSession, 'listingRead');
+      out.push({ kind: 'note', text: 'You read it again, for the fourth time since Cleveland. The words haven\u2019t moved. Good.' });
+    }
+    return out;
+  }
+
+  /** Beat 6 — the trial shift at Corner Slice (Day 2 morning), staged over
+   *  presses: dough first, then 6:55 and the covenant, then the notebook
+   *  opens for Entry 2 (the first running theory). */
+  c0TrialShift(): Effect[] {
+    if (this.firstSession.trialShiftDone) return [];
+    if (this.c0SceneStage === 0) {
+      this.c0SceneStage = 1;
+      return [{ kind: 'note', text: TRIAL_SHIFT_LINES[0] }, { kind: 'note', text: TRIAL_SHIFT_LINES[1] }];
+    }
+    this.firstSession = setF0Flag(this.firstSession, 'trialShiftDone');
+    this.c0SceneStage = 0;
+    const r = markBeat(this.firstSession, 'entry2_first_slice');
+    this.firstSession = r.state;
+    return [
+      { kind: 'note', text: TRIAL_SHIFT_LINES[2] },
+      { kind: 'note', text: `Eddie, already back at the counter: ${EDDIE_COVENANT}` },
+      ...(r.fired ? [{ kind: 'c0-write-sheet' as const, sheet: 'entry2' as const }] : []),
+    ];
+  }
+
+  /** Beat 7 — Deshaun's grounding scene (Day 2 midday, the platform),
+   *  staged over presses; the kit is learned by the end of it. */
+  c0Deshaun(): Effect[] {
+    if (this.firstSession.groundingLearned) return [];
+    const stage = this.c0SceneStage;
+    this.c0SceneStage = Math.min(stage + 1, DESHAUN_LINES.length);
+    const out: Effect[] = [{ kind: 'note', text: DESHAUN_LINES[stage] }];
+    if (this.c0SceneStage >= DESHAUN_LINES.length) {
+      this.firstSession = setF0Flag(this.firstSession, 'groundingLearned');
+      this.c0SceneStage = 0;
+      out.push({ kind: 'note', text: GROUNDING_USE_LINE });
+    }
+    return out;
+  }
+
+  /** Entry 2/4's write — the sheet's pick lands here (the one door). */
+  c0WriteEntry(sheet: 'entry2' | 'entry4', pick: number, freeLine: string): Effect[] {
+    const entry = sheet === 'entry2'
+      ? buildEntry2(pick, freeLine, dateOfCalendarDay(this.calendarDay))
+      : buildEntry4(pick, freeLine, dateOfCalendarDay(this.calendarDay));
+    const ok = this.logDiaryEntry(entry);
+    return ok
+      ? [{ kind: 'note', text: 'The notebook takes the line. The theory keeps.' }]
+      : [{ kind: 'note', text: 'The line is already in the book.' }];
+  }
+
+  /** Entry 5 — the wobble's proximity trigger (the laundromat, Day 7+).
+   *  Auto-append through the one door, one faint note, fires once ever. */
+  c0TryWobble(nearLaundromat: boolean): Effect[] {
+    if (!nearLaundromat || this.calendarDay < 7) return [];
+    if (this.firstSession.fired.entry5_motel_hum) return [];
+    const r = markBeat(this.firstSession, 'entry5_motel_hum');
+    this.firstSession = r.state;
+    if (!r.fired) return [];
+    this.logDiaryEntry(buildEntry5(dateOfCalendarDay(this.calendarDay)));
+    return [{ kind: 'note', text: 'The dryers hum. The hum is exactly right. You stand there a second longer than the errand needed.' }];
+  }
+
+  /** §4 hook 3 — Miss Odessa's night, one observation per qualifying night
+   *  (Mon/Wed/Fri, 9 p.m. or later, by the gold window). Nobody comments;
+   *  the game never explains (doc 11 §4). */
+  c0TryOdessa(dayOfWeek: number, nightOclock: boolean, nearby: boolean): Effect[] {
+    if (!nightOclock || !nearby) return [];
+    if (dayOfWeek !== 1 && dayOfWeek !== 3 && dayOfWeek !== 5) return [];
+    const key = `d${this.calendarDay}`;
+    if (this.firstSession.odessaNights.includes(key)) return [];
+    this.firstSession = noteOdessaNight(this.firstSession, key);
+    return [{ kind: 'note', text: ODESSA_OBSERVATION }];
   }
 }
 

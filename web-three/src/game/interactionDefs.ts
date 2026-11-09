@@ -48,6 +48,9 @@ import {
 import { hallNoticeForDay } from '../world/dressing';
 import { NEVER_NEAR, type Interaction, type InteractionCtx, type Vec3Like } from './interactions';
 import type { SubwaySystem } from '../world/subway';
+import { phaseOf } from '../sim/clock';
+import { setFlag as setF0Flag, LEASE_NOTICE_TEXT, LEASE_ASK_LINE,
+  SURVEYOR_NOTE, SURVEYOR_ASK_LINE } from '../core/firstSession';
 
 /** The far world through the interaction ctx, tolerating registry-test
  *  stubs (the walker-conversation law: no world, no interaction). */
@@ -599,11 +602,74 @@ const cecilCorkboard: Interaction = {
   perform: ({ state }) => [{ kind: 'note', text: byDay(BULLETIN_NOTES, state.day) }],
 };
 
+// ------------------- the C0 pack's three quiet interactions (doc 11) ----
+
+/** Beat 2 — the listing, still open on the phone. The terminal benches'
+ *  companion: re-readable any day, the first read also earns Leo's
+ *  re-read line (the listing is why he's here — ordinary, ambitious). */
+const phoneListing: Interaction = {
+  id: 'c0_phone_listing',
+  pos: () => ({ x: -33.0, y: 0.5, z: 3.0 }), // the terminal benches, the arrival bay's edge
+  radius: 2.2,
+  enabled: () => true,
+  prompt: () => 'Check the phone',
+  perform: ({ state }) => state.c0Listing(),
+};
+
+/** §4 hook 1 — the lease notice on Eddie's wall: visible, unremarked.
+ *  A player who interacts gets the notice, then Eddie's one line. The
+ *  flag rides firstSession (asked-once; re-reads give the same two
+ *  lines — paper doesn't change just because you have). */
+const eddieLease: Interaction = {
+  id: 'c0_eddie_lease',
+  pos: () => ({ x: 27.9, y: 1.4, z: 10.3 }), // the wall by the counter, by the phone
+  radius: 2.1,
+  enabled: (s) => s.firstSession.trialShiftDone, // the wall exists once you've worked the room
+  prompt: () => 'Read the notice by the phone',
+  perform: ({ state }) => {
+    const out: Effect[] = [
+      { kind: 'note', text: LEASE_NOTICE_TEXT },
+      { kind: 'note', text: LEASE_ASK_LINE },
+    ];
+    state.firstSession = setF0Flag(state.firstSession, 'leaseAsked');
+    return out;
+  },
+};
+
+/** §4 hook 2 — the surveyor at the Works fence, dawn only (5–7 a.m.
+ *  band, phaseOf). The GUESS ("he's watching someone") is the player's
+ *  to write in the notebook; the man himself only ever gives the one
+ *  line, verbatim doc 11 §4. */
+const surveyorAsk: Interaction = {
+  id: 'c0_surveyor',
+  pos: () => ({ x: -50.5, y: 0.5, z: 22.0 }), // the Works fence line
+  radius: 2.2,
+  enabled: (_s, ctx) => {
+    // the clock through the far world, tolerating registry-test stubs
+    const g = ctx.game as { worldSim?: { brain?: { world?: { clock?: { minuteOfDay?: number } } } } };
+    const min = g.worldSim?.brain?.world?.clock?.minuteOfDay;
+    if (typeof min !== 'number') return false;
+    return phaseOf(min) === 'dawn';
+  },
+  prompt: () => 'Ask the man at the fence',
+  perform: ({ state }) => {
+    const out: Effect[] = [
+      { kind: 'note', text: SURVEYOR_NOTE },
+      { kind: 'note', text: SURVEYOR_ASK_LINE },
+    ];
+    state.firstSession = setF0Flag(setF0Flag(state.firstSession, 'surveyorSeen'), 'surveyorAsked');
+    return out;
+  },
+};
+
 export function freeRoamInteractions(src: InteractionSources): Interaction[] {
   return [bench, parkBench, court, hotdog, barber, alley, washerFree, board, newsbox, subway,
     trainA, trainB, priya, busker, buskerCoin, usher, driver, duffel,
     // W5 — the rooms (docs/41): every loop anchored inside its registry shell
     dryer, pizza, dinerCoffee, dinerBooth, pieCase, hallNotice, hallWorkshop, bakery, recordBin, recordListen, cecilGaze, cecilCorkboard,
+    // the C0 pack (doc 11): the listing at the terminal, the lease notice
+    // on Eddie's wall, the surveyor at the Works fence at dawn
+    phoneListing, eddieLease, surveyorAsk,
     ...simHellos(src), ...walkerChats(src), ...shelfInteractions(src)];
 }
 
@@ -682,6 +748,29 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
       // the card itself owns the conversation from there.
       prompt: () => 'Take the order',
       perform: (ctx) => act(ctx, (s) => s.openCounterOrder()),
+    },
+    {
+      // doc 11 §2 beat 6 — the trial shift at Corner Slice, Day 2 morning:
+      // dough, radio, the gate; at 6:55 the first slice and Eddie's
+      // six-word covenant. The ritual is the title scene. Two presses:
+      // the work, then the slice.
+      id: 'c0_trial_shift',
+      pos: () => ({ x: 27.0, y: 1.1, z: 9.7 }), // behind the Corner Slice counter
+      enabled: (s) => s.day === 2 && s.step >= Step.D2_WAKE && s.step <= Step.D2_DELIVER
+        && !s.firstSession.trialShiftDone,
+      prompt: () => 'Take the trial shift',
+      perform: (ctx) => act(ctx, (s) => s.c0TrialShift()),
+    },
+    {
+      // doc 11 §2 beat 7 — Deshaun, off-shift, Day 2 midday: the panic
+      // beat taught by a person, in scene. Visibility gates match Game's
+      // actor gate exactly (steps D2_IDRIS…D2_LUNCH until learned).
+      id: 'c0_deshaun',
+      pos: () => ({ x: -42.5, y: -3.2, z: 10.5 }), // the platform's south wall bench
+      enabled: (s) => s.day === 2 && s.step >= Step.D2_IDRIS && s.step <= Step.D2_LUNCH
+        && !s.firstSession.groundingLearned,
+      prompt: () => 'Sit with the man on the bench',
+      perform: (ctx) => act(ctx, (s) => s.c0Deshaun()),
     },
     {
       id: 'cart',

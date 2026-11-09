@@ -26,6 +26,8 @@ import { freshChapterState, parseChapterState } from './chapters';
 import type { SavedRails } from './chapterRails';
 import { freshRailStates, parseRails } from './chapterRails';
 import { clampCalendarDay } from './calendar';
+import type { FirstSessionState } from './firstSession';
+import { defaultFirstSession, parseFirstSession } from './firstSession';
 
 export const SAVE_KEY = 'first_slice_save_v1';
 // Day 4 "Say Hi" is live (docs/29-day4-say-hi.md): a new stranger with a
@@ -129,6 +131,14 @@ export interface SaveData {
    *  rail whose day is unreadable re-seeds — a rail that cannot say
    *  when it fired cannot claim it fired. */
   rails?: SavedRails;
+  /** The C0 content pack's narrative layer (narrative/14 §7 step 6, doc 11
+   *  — core/firstSession.ts): the cold open, the diary beats' fire-once
+   *  flags, the three hooks, the session's small flags. Optional trailing
+   *  v1-safe field: absent reads as the default state (an old save is a
+   *  player whose opening already happened before this layer existed — the
+   *  cold open never re-asks them; it only opens on a fresh boot). Parsed
+   *  values are quarantine-cleaned field-by-field, never a crash. */
+  first_session?: FirstSessionState;
 }
 
 export function defaultSave(): SaveData {
@@ -159,6 +169,7 @@ export function defaultSave(): SaveData {
     ledger: [],
     chapter: freshChapterState(),
     rails: freshRailStates(),
+    first_session: defaultFirstSession(),
   };
 }
 
@@ -265,6 +276,10 @@ export function parseSave(raw: string | null): SaveData {
     // the rails (narrative/14 R1) — absent in old saves reads as an
     // unfired spine; a fired rail with an unreadable day re-seeds
     rails: parseRails(d['rails']).rails,
+    // the C0 pack's narrative layer (narrative/14 §7 step 6) — absent in
+    // old saves reads as the default state; corrupt fields quarantine
+    // field-by-field, never a crash
+    first_session: parseFirstSession(d['first_session']).state,
   };
 }
 

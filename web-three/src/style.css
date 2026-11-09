@@ -1277,6 +1277,126 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   padding-top: 6px;
 }
 
+/* ---------------- the notebook's write sheet (the C0 pack, doc 11) ----
+   The game's first screen (beat 0, the cold open) and the diary beats'
+   paper: a green-notebook page, ruled lines, Leo's hand. The system's
+   one facts-only line sits above the first entry; the picks are lines
+   you could write, in your hand. Paper up → the touch stick stands down
+   (touchLaw.writeSheet). */
+#write-sheet {
+  position: fixed;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%) rotate(-0.6deg);
+  z-index: 40;
+  width: min(460px, calc(100vw - 28px));
+  max-height: calc(100vh - 60px);
+  overflow: auto;
+  animation: note-in 0.3s ease-out;
+}
+#write-paper {
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px, transparent 30px,
+      rgba(58, 52, 64, 0.16) 30px, rgba(58, 52, 64, 0.16) 31px
+    ),
+    #EAF3E4; /* the green notebook's paper */
+  color: var(--ink);
+  border-radius: 3px 10px 10px 10px; /* a corner left square: paper, folded */
+  box-shadow: 0 18px 50px rgba(26, 20, 32, 0.55);
+  padding: 18px 20px 14px;
+  display: flex; flex-direction: column; gap: 12px;
+  border-left: 10px solid #4E7A4E; /* the cover showing at the spine */
+}
+#write-sheet::before {
+  content: '\270E';
+  position: absolute;
+  top: -12px; right: 8px;
+  color: var(--gold);
+  font-size: 18px;
+  opacity: 0.9;
+  text-shadow: 0 2px 6px rgba(26, 20, 32, 0.4);
+}
+#write-facts {
+  font-family: var(--mono-font);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #4E7A4E;
+  text-transform: uppercase;
+  border-bottom: 1.5px solid rgba(78, 122, 78, 0.35);
+  padding-bottom: 6px;
+}
+#write-facts:empty { display: none; }
+#write-prompt {
+  font-family: var(--hand-font);
+  font-size: clamp(18px, 2.8vmin, 22px);
+  line-height: 1.45;
+}
+#write-options { display: flex; flex-direction: column; gap: 8px; }
+.write-option {
+  display: flex; align-items: baseline; text-align: left;
+  font-family: var(--hand-font);
+  font-size: clamp(15px, 2.3vmin, 18px);
+  line-height: 1.4;
+  color: var(--ink);
+  background: rgba(255, 248, 240, 0.55);
+  border: 1.5px dashed rgba(58, 52, 64, 0.35);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.write-option:hover { background: rgba(255, 248, 240, 0.9); border-color: var(--teal); }
+.write-option .reply-key {
+  font-family: var(--mono-font);
+  font-size: 0.8em;
+  margin-right: 8px;
+  opacity: 0.7;
+}
+#write-free-row { display: flex; gap: 8px; align-items: baseline; }
+#write-free {
+  flex: 1;
+  font-family: var(--hand-font);
+  font-size: clamp(15px, 2.3vmin, 18px);
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-bottom: 2px dashed rgba(58, 52, 64, 0.4);
+  padding: 6px 2px;
+  outline: none;
+}
+#write-free:focus { border-bottom-color: var(--teal); }
+#write-free::placeholder { color: rgba(58, 52, 64, 0.35); }
+#write-free-ok {
+  font-family: var(--ui-font);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--cream);
+  background: var(--teal);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+#write-hint {
+  font-family: var(--ui-font);
+  font-size: 11.5px;
+  opacity: 0.65;
+  text-align: center;
+}
+#write-close {
+  display: block;
+  margin: 10px auto 0;
+  font-family: var(--ui-font);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--cream);
+  background: rgba(26, 20, 32, 0.75);
+  border: none;
+  border-radius: 999px;
+  padding: 7px 16px;
+  cursor: pointer;
+}
+
 /* ---------------- WP-6 — the field diary's ink (narrative/14 R3 + §4) ---------------- */
 /* The Map renders entries as ink: one handwriting font (--hand-font, already
    shipped) + the RECALL wobble — two draw calls' worth of UI, no scene cost.

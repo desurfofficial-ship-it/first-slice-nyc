@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
   parseSave, loadSave, writeSave, wipeSave, defaultSave, SAVE_KEY, MAX_DAY,
 } from '../src/core/Save';
+import { defaultFirstSession } from '../src/core/firstSession';
 
 function memoryStore(initial: Record<string, string> = {}) {
   const map = new Map(Object.entries(initial));
@@ -84,6 +85,10 @@ describe('save v1 — write/read roundtrip', () => {
         R3: { fired: false, firedOnDay: null }, R4: { fired: false, firedOnDay: null },
         R5: { fired: false, firedOnDay: null }, R6: { fired: false, firedOnDay: null },
       },
+      // the C0 pack's narrative layer (narrative/14 §7 step 6): absent
+      // reads as the default state, the same optional-trailing law one row
+      // later — an old save is a player whose opening already happened
+      first_session: defaultFirstSession(),
     });
   });
 

@@ -35,6 +35,9 @@ describe('the paper owns the screen — one law (docs/51 B7)', () => {
     expect(touchPanelUp({ ...closed, mapPanel: true })).toBe(true);
     expect(touchPanelUp({ ...closed, postcardPanel: true })).toBe(true);
     expect(touchPanelUp({ ...closed, albumPanel: true })).toBe(true);
+    // the C0 pack's write sheet (doc 11 beat 0): the notebook's paper —
+    // the game's first screen holds the hands too
+    expect(touchPanelUp({ ...closed, writeSheet: true })).toBe(true);
   });
 
   it('leaves the hands free when every paper is closed', () => {
@@ -46,9 +49,11 @@ describe('the paper owns the screen — one law (docs/51 B7)', () => {
     expect(toggles).toHaveLength(1);
   });
 
-  it('every paper door calls the law — two doors for each of the five surfaces', () => {
+  it('every paper door calls the law — two doors per surface (the write sheet’s show/hide joined)', () => {
     const calls = uiSource.match(/this\.syncTouchUI\(\)/g);
-    expect(calls).toHaveLength(16);
+    // 16 through the player-film wave + 2 (showWriteSheet/hideWriteSheet,
+    // the C0 pack's notebook doors — doc 11)
+    expect(calls).toHaveLength(18);
   });
 
   it('the toggle reads the shared law, not an ad-hoc surface list', () => {

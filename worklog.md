@@ -2665,3 +2665,47 @@ Work Log:
 Stage Summary:
 - The first thing consumers see is now a block worth staring at: four named shops with their own trades, a church spire on the horizon, a city that actually ignites at dusk. The film's staging laws, tap flow, timings and the handover contract are untouched — the sweep and the probes both prove it.
 ---
+
+## 2026-11-08 — the C0 content pack: the first session's narrative layer (PROD-C0)
+
+Task ID: PROD-C0
+Agent: Production Director (the owner's standing "polish … after that push and merge to main" + "Let be making big impact")
+Task: narrative/14 §7 step 6 — the C0 content pack (doc 11) against the shipped opening. The wave every
+machine has been waiting for: R0–R8 all built, zero content carrying them. The first session becomes a
+played story, not a beautiful street.
+
+Work Log:
+- Scouted the whole seam chain (content.ts/GameState/interactionDefs/UI/touchLaw/Save/fieldDiary/
+  epochMap/ride); doc 11's gap list drawn against the shipped beats: the cold open, the listing, the
+  wrong train, the trial shift, the grounding scene, the mishear, entries 2/4/5, the three hooks — none
+  existed; Rosa's mango line did not exist; the mishear's FACT over-tag did not exist.
+- `core/firstSession.ts` (new): the pack's machine — pure, core-free, fire-once, never-rewinds;
+  `first_session` rides the save v1-safe (field-wise quarantine, booleans valid both ways; an old save
+  reads as defaults and the cold open never re-opens for it — it lives in Day 1's no-write law).
+  The opening law (doc 11 §6) is a VALIDATOR over every string the pack can put on screen — the test
+  fails the wave if a future edit smuggles a diagnosis dump or a conspiracy word into the opening.
+- The write sheet: `#write-sheet` (index.html) + green-notebook CSS + `UI.showWriteSheet/hideWriteSheet`
+  + touchLaw's newest member + keyboard 1–9/Enter/Escape. Paper holds the hands; the movement gate stands
+  the walker down while it is up.
+- Beats wired to the shipped spine (no step machine rewrite): entry 3 rides setStep(POSTCARD), entry 4's
+  sheet rides setStep(D3_CLIMB3), Rosa's mango line rides the errand's last pick, the trial shift is a
+  two-press authored interaction at the Corner Slice counter, Deshaun is a new world actor gated to the
+  Day-2 midday window, the surveyor dawn-gates at the Works fence, Odessa's nights are proximity+weekday
+  gated observations, the wrong train takes the first ride's parting slot (Days 1–2, once ever).
+- Driver boot law: humans get the sheet after the starter pick (doc 11 §5's order); drivers auto-write
+  the first line silently (the fleet's coherence law); `?c0=1` is the probe's hatch.
+- THE E2E TAUGHT THE DRIVER TO KEEP HIS OWN DIARY: the first full run froze Day 3 at the poster→climb
+  transition — entry 4's sheet held the hands and every later walk starved. Fixed in the autotest (a
+  watcher answers the notebook through the same door a thumb uses), NOT by weakening any assertion;
+  the re-run went 0 failures.
+- Two shape-guard suites updated honestly for the new member (save field pins +1 optional trailing
+  field; touch-law door count 16→18 with the two named doors).
+
+Gates (final tree, all executed): tsc clean · vitest 1090/1090 (72 files, +31 first-session cases) ·
+build OK (556 ms) · 4-day E2E AUTOTEST OK: 0 failures (670 s, console clean) · probe-world-sim 15/15 ·
+probe-nav 9/9 · probe-ped-nav OK · probe-chokepoints OK · probe-money-trace ALL PASSED ·
+probe-c0-first-session 26/26 (0 page errors; also re-verified: a loaded-machine world-sim wobble (14/15)
+that reproduced as 15/15 on the idle box — load artifact, recorded honestly).
+
+Evidence: docs/production/c0-first-session/{C0-FIRST-SESSION.md,evidence/} (the cold open, the entry-2
+sheet, the listing, Deshaun's platform, the surveyor's fence).

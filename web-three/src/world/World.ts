@@ -210,6 +210,13 @@ export class World {
   readonly permitReceipt: THREE.Group; // propped on the cart once the permit is filed
   // ---- the living block (Doc 33 §2.2/§2.3, dressing.ts) ----
   readonly familiar: THREE.Group;    // the familiar face — one recurring neighbor
+  /** The C0 pack's two quiet figures (doc 11): Deshaun, off-shift at the
+   *  platform (beat 7, Day 2 midday — he reads a face in one glance), and
+   *  the surveyor at the Works fence (§4 hook 2, dawn only, sun-angle
+   *  chart). Parked underground until their hours; Game flips visibility
+   *  on the same gates the interactions use. */
+  readonly deshaun: THREE.Group;     // the grounding scene, taught by a person
+  readonly surveyor: THREE.Group;    // "Light studies. Sunlight's a legal requirement."
   readonly barrier: THREE.Group;     // the water-main barrier (gone by Day 4)
   readonly asphaltPatch: THREE.Mesh; // fresh asphalt where the barrier stood
   readonly ambientWindowMatLate!: THREE.MeshLambertMaterial;   // got home late → away
@@ -1532,6 +1539,33 @@ export class World {
     this.permitReceipt = this.buildPermitReceipt();
     this.permitReceipt.visible = false;
     this.scene.add(this.permitReceipt);
+
+    // ---- the C0 pack's two quiet figures (doc 11). Deshaun stands the
+    // Day-2 midday platform by the south wall, out of the boarding lane,
+    // a cold can already in hand — the scene says he fetched it. The
+    // surveyor works the Works fence at dawn, camera up, chart under his
+    // arm. Both parked underground (the stranger's trick) until Game's
+    // hour gates flip them visible; no colliders — neither blocks a lane
+    // the player can walk, and the interactions reach by radius. ----
+    this.deshaun = this.spawnActor('Deshaun', -42.5, STATION.floorTop, 10.5, {
+      jacket: 0x4a5a6a, pants: 0x33383f, skin: 0x8a5a3b, hair: 0x2c2830, style: 'flat',
+    });
+    this.deshaun.rotation.y = Math.PI / 2; // along the platform's south wall, watching the track
+    this.deshaun.visible = false;
+    const coldCan = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.13, 10), this.mat(0xc0c8cc));
+    coldCan.castShadow = true;
+    coldCan.position.set(0.02, -0.62, 0.24); // loose in the right hand, at rest
+    this.deshaun.userData.rig.armR.add(coldCan);
+
+    this.surveyor = this.spawnActor('Surveyor', -50.5, 0.05, 22.0, {
+      jacket: 0x6a6f4a, pants: 0x47404b, skin: 0xe8b08e, hair: 0x6a645c, style: 'flat', glasses: true,
+    });
+    this.surveyor.rotation.y = Math.PI * 0.75; // faces the fence, one eye on the sun
+    this.surveyor.visible = false;
+    const sunCamera = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.11, 0.1), this.mat(PAL.ink));
+    sunCamera.castShadow = true;
+    sunCamera.position.set(0.22, -0.18, 0.16); // camera up in the right hand
+    this.surveyor.userData.rig.armR.add(sunCamera);
 
     // ---------------- steam (manhole, animating) ----------------------------
     const steamCount = 24;
