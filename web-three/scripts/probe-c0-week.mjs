@@ -271,9 +271,16 @@ console.log('--- Pass B: Day 7, the wobble + the cut ---');
   const wall = await page.evaluate(() => {
     const g = window.__game;
     const out = g.state.rail();
-    return out.filter((e) => e.kind === 'note').map((e) => e.text);
+    return {
+      notes: out.filter((e) => e.kind === 'note').map((e) => e.text),
+      rollTo: (out.find((e) => e.kind === 'next-day') ?? {}).to ?? null,
+    };
   });
-  check(wall.length === 1, 'a second rail reads the wall, never a second cut');
+  check(wall.notes.length === 1, 'a second rail reads the wall, never a second cut');
+  // the C1 wave's law: the wall's next press ROLLS into C1's first
+  // station (Monday, Sept 16 — the real shift; the replay path still
+  // holds, pinned by the vitest suite)
+  check(wall.rollTo === 8, 'the wall\u2019s next press rolls into C1\u2019s first morning (day 8 \u2014 the C1 wave\u2019s law)');
   check(errors.length === 0, `pass B console clean (${errors.length} errors${errors.length ? ': ' + errors[0] : ''})`);
   await page.close();
 }

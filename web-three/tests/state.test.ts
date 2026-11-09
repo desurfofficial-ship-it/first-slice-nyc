@@ -348,7 +348,7 @@ describe('Day 2 — the neighborhood comes alive (Doc 22)', () => {
     expect(again).toEqual([]); // note shown once
   });
 
-  it('rail goodnight then tomorrow; the kept final day plays the season cut once, then the wall', () => {
+  it('rail goodnight then tomorrow; the kept final day plays the season cut once, then the wall \u2014 and the roll into C1\u2019s first morning (the C1 wave\u2019s law)', () => {
     const s = day1ToClimb(); // day 1
     s.lingerStage = 1;
     s.rail();
@@ -357,9 +357,12 @@ describe('Day 2 — the neighborhood comes alive (Doc 22)', () => {
     expect(out.some((e) => e.kind === 'next-day')).toBe(true);
     // day 7's wall is the C0→C1 season cut (doc 11 §7) — the montage, the
     // city's morning-after line, Eddie at Monday's door; the cut's latch
-    // is its own diary entry, so a second rail reads the wall only
-    s.day = MAX_DAY_NUMBER;
-    s.calendarDay = MAX_DAY_NUMBER;
+    // is its own diary entry, so a second rail reads the wall — and, on
+    // the FIRST play (not a replay), ROLLS into C1's first station
+    // (Monday, Sept 16 — doc 06 §C1 event 1). A replayed kept Day 7 gets
+    // the wall and holds (the c0-week suite pins the replay path).
+    s.day = 7;
+    s.calendarDay = 7;
     const cut = s.rail();
     const notes = cut.filter((e) => e.kind === 'note').map((e) => (e as { text: string }).text);
     expect(cut.some((e) => e.kind === 'persist')).toBe(true);
@@ -368,13 +371,14 @@ describe('Day 2 — the neighborhood comes alive (Doc 22)', () => {
     const again = s.rail();
     const wall = again.filter((e) => e.kind === 'note').map((e) => (e as { text: string }).text);
     expect(wall.length).toBe(1);
+    // the roll: the wall's next press is Monday (the 1:1 law moves whole)
+    const roll = again.find((e) => e.kind === 'next-day') as { to?: number } | undefined;
+    expect(roll?.to).toBe(8);
   });
 });
 
-import { MAX_DAY } from '../src/core/Save';
 import { authoredRegistry, relevant } from './registryHarness';
 const reg = authoredRegistry();
-const MAX_DAY_NUMBER = MAX_DAY;
 
 describe('save snapshot rules (main.gd `_persist`)', () => {
   it('day 1 never writes', () => {
