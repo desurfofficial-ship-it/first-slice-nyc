@@ -265,6 +265,67 @@ html, body {
   #starter-card { padding: 18px 18px 14px; }
 }
 
+/* ---------------- The notebook prompt (the C0 pack's diary picks) -------- */
+/* One paper panel, the green notebook's ruled kind: the system line in his
+   hand, the ask, and the options as handwriting. Reused by the cold open
+   (doc 11 §2 beat 0), the running theory (§3 entry 2), and the first
+   question (§3 entry 4) — the tutorial IS the diary. */
+
+#notebook-system {
+  font-family: var(--hand-font);
+  font-size: 15px;
+  color: rgba(58, 52, 64, 0.55);
+  border-bottom: 1.5px dashed rgba(58, 52, 64, 0.25);
+  padding-bottom: 6px;
+}
+#notebook-ask {
+  font-family: var(--hand-font);
+  font-size: 19px;
+  line-height: 1.45;
+}
+#notebook-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.notebook-option {
+  font-family: var(--hand-font);
+  font-weight: 400;
+  font-size: 16.5px;
+  line-height: 1.4;
+  color: var(--ink);
+  text-align: left;
+  background: rgba(58, 52, 64, 0.055);
+  border: 2px solid rgba(58, 52, 64, 0.16);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+.notebook-option:hover {
+  border-color: var(--teal);
+  background: rgba(42, 157, 143, 0.08);
+}
+.notebook-option:active { transform: scale(0.99); }
+#notebook-free-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+#notebook-free {
+  font-family: var(--hand-font);
+  font-size: 17px;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-bottom: 2px dashed rgba(58, 52, 64, 0.4);
+  padding: 6px 2px;
+  outline: none;
+  width: 100%;
+  min-width: 0;
+}
+#notebook-free:focus { border-bottom-color: var(--teal); }
+#notebook-free::placeholder { color: rgba(58, 52, 64, 0.35); }
+
 button {
   font-family: var(--ui-font);
   font-weight: 700;

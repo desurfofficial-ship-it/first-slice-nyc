@@ -46,7 +46,7 @@ import {
   RECORD_LISTEN_NOTES,
 } from '../core/content';
 import { hallNoticeForDay } from '../world/dressing';
-import { EDDIE_LINES } from '../core/c0Pack';
+import { EDDIE_COVENANT, EDDIE_LINES } from '../core/c0pack';
 import { NEVER_NEAR, type Interaction, type InteractionCtx, type Vec3Like } from './interactions';
 import type { SubwaySystem } from '../world/subway';
 
@@ -627,18 +627,24 @@ function simPhase(ctx: InteractionCtx): string | null {
 }
 
 /** Eddie — the covenant at Corner Slice's counter (doc 11 §2 beat 6).
- *  He's there from the trial shift on (Day 2+); the first press receives,
- *  the notebook asks its first running question behind it, the rest are
- *  the counter's day-keyed rhythm. */
+ *  He's there from the trial shift on (Day 2+); the first press receives
+ *  the six-word covenant, the rest are the counter's day-keyed rhythm.
+ *  The latch is the session transient (rituals repeat across sessions —
+ *  that is what makes them rituals); Entry 2's running theory is the
+ *  spine tranche's beat (its own trigger fires it). */
 const eddie: Interaction = {
   id: 'eddie',
   pos: () => ({ x: 25.9, y: 1.05, z: 10.6 }),
   radius: 2.0,
   enabled: (s) => s.day >= 2,
-  prompt: (s) => (s.c0.covenant ? 'Say hi to Eddie' : 'Take the first slice'),
-  perform: ({ state }) => (state.c0.covenant
-    ? [{ kind: 'note', text: byDay(EDDIE_LINES, state.day) }]
-    : state.c0Covenant()),
+  prompt: (s) => (s.eddieCovenantSaid ? 'Say hi to Eddie' : 'Take the first slice'),
+  perform: ({ state }) => {
+    if (!state.eddieCovenantSaid) {
+      state.eddieCovenantSaid = true;
+      return [{ kind: 'note', text: `Eddie: \u201C${EDDIE_COVENANT}\u201D` }];
+    }
+    return [{ kind: 'note', text: byDay(EDDIE_LINES, state.day) }];
+  },
 };
 
 /** Hook 1 — the lease notice on Eddie's wall (doc 11 §4): visible,

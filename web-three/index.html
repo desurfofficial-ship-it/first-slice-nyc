@@ -92,6 +92,19 @@
     <div id="starter-choices"></div>
   </div>
 
+  <!-- The notebook prompt — the C0 pack's diary picks (doc 11 §3; the
+       two-diaries law: the story is told in ink). One paper panel, reused
+       by the cold open (N0), the running theory, and the first question. -->
+  <div id="notebook-prompt" class="panel" hidden role="dialog" aria-modal="true" aria-label="The green notebook">
+    <div id="notebook-system"></div>
+    <label id="notebook-ask"></label>
+    <div id="notebook-choices"></div>
+    <div id="notebook-free-row" hidden>
+      <input id="notebook-free" type="text" maxlength="120" autocomplete="off" enterkeyhint="done" />
+      <button id="notebook-free-ok" type="button">Write it</button>
+    </div>
+  </div>
+
   <!-- Wardrobe — the 3D fitting room (ui/Wardrobe.ts). Looking is free;
        wearing a different face asks for a new game first (the lock law). -->
   <div id="wardrobe-panel" hidden role="dialog" aria-modal="true" aria-label="Wardrobe — the fitting room">

@@ -7,23 +7,29 @@
 import { MAX_DAY, type SaveData } from './Save';
 import type { DiaryCounters, DiaryNoted } from './diary';
 import { appendEntry, correctEntry, serializeFieldDiary, type FieldDiaryEntry } from './fieldDiary';
-import {
-  COLD_OPEN_SYSTEM_LINE, COLD_OPEN_PROMPTS, EDDIE_COVENANT, EDDIE_LEASE_ECHO,
-  EDDIE_LEASE_LINE, DESHAUN_KIT_ECHO, DESHAUN_KIT_LINES, DESHAUN_SIT_LINE,
-  ENTRY2_PROMPT, ENTRY2_OPTIONS, ENTRY4_OPTIONS, ENTRY4_PROMPT,
-  ODESSA_NOD, ROSA_MANGO_LINE, SAM_LAW_LINE, SAM_STILL_DOING_LINE,
-  SURVEYOR_ECHO, SURVEYOR_LINE,
-  coldOpenBody, coldOpenEntry, deshaunEntry, handoverFactEntry, odessaEntry,
-  questionBody, questionEntry, surveyorGuessEntry, theoryEntry, wobbleEntry,
-  freshC0Latches, serializeC0Latches,
-  type C0Latches,
-} from './c0Pack';
-
-/** The free-write index — the third choice on the cold-open card, one
- *  past the authored prompts (c0Pack's COLD_OPEN_FREE_INDEX, restated
- *  here so the card's reply list and the router agree by construction). */
-const C0_FREE_WRITE_CHOICE = 2;
 import { DEFAULT_STARTER } from './starters';
+// ---- the narrative spine (narrative/14 R1/R2/R8 — the machines, now fed) ----
+import {
+  freshChapterState, touchDay, serializeChapterState,
+  type ChapterState,
+} from './chapters';
+import {
+  freshRailStates, evaluateRails, serializeRails,
+  type RailState, type RailFire, type RailId,
+} from './chapterRails';
+import {
+  appendLedgerEntry, serializeLedger, type LedgerEntry,
+} from './consequenceLedger';
+import {
+  mishearEntryDraft, C0_THEORY_ENTRY_ID_PREFIX, C0_QUESTION_ENTRY_ID_PREFIX,
+  C0_QUESTION_FREE_ID,
+} from './c0pack';
+import {
+  C0_BLOCK_IDS, DESHAUN_KIT_ECHO, DESHAUN_KIT_LINES, DESHAUN_SIT_LINE,
+  EDDIE_LEASE_ECHO, EDDIE_LEASE_LINE, ODESSA_NOD, ROSA_MANGO_LINE,
+  SAM_LAW_LINE, SAM_STILL_DOING_LINE, SURVEYOR_ECHO, SURVEYOR_LINE,
+  deshaunEntry, leaseSeenEntry, odessaEntry, surveyorGuessEntry, wobbleEntry,
+} from './c0pack';
 import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, ITEM_STICKERS, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
   D4_WAKE_NOTE, D4_STRANGER_GREET_NOTE, D4_RUSH_DONE_NOTE, D4_MAP_NOTE,
@@ -126,14 +132,14 @@ export type Effect =
   // ---- the Map, as a notebook (docs/11 + docs/12 prototype 2) ----
   | { kind: 'map-note'; text: string }
   | { kind: 'map-slang'; id: string }
-  // ---- the C0 pack's diary ink (narrative/14 §7 step 6): the state has
-  // already appended the entry; the effect only tells the UI to wiggle
-  // (the map-note precedent — a repeat is silence, not a second wiggle)
-  | { kind: 'diary-ink' }
-  // ---- the C0 free write (doc 11: the player writes their own line) —
-  // the card folds, the name-box opens in its diary mode (Game owns the
-  // input; the state owns the page)
-  | { kind: 'diary-write-open' };
+  // ---- the C0 pack's diary picks (doc 11 §3 — the overlay packs). The
+  // Game turns this into the NotebookPrompt overlay; a driver boot never
+  // sees it (the pick-card law: drivers keep the shipped flow). ----
+  | { kind: 'diary-prompt'; pack: 'theory' | 'question' }
+  // ---- the C0 block layer's diary ink (narrative/14 §7 step 6, tranche 2
+  // — core/c0Pack.ts): the state has already appended the entry; the
+  // effect only tells the UI to wiggle (the map-note precedent)
+  | { kind: 'diary-ink' };
 
 export class GameState {
   step: Step = Step.MEET_ROSA;
@@ -187,6 +193,10 @@ export class GameState {
   // rung is spoken once, at the handoff. A save that never heard of it
   // parses and plays unchanged.
   fourMorningsSaid = false;
+  // transient (never saved): Eddie's covenant is received once per session
+  // (the C0 block layer — rituals repeat across sessions; that is what
+  // makes them rituals)
+  eddieCovenantSaid = false;
   // ---- Day 4 afternoon — the block opens up (docs/30) ----
   apronWashing = false;   // the apron is in the machine
   apronClean = false;     // the wash finished on the Game's clock
@@ -215,13 +225,20 @@ export class GameState {
    *  reads as []. Append-only by construction: logDiaryEntry appends,
    *  correctDiaryEntry strikes a line, nothing removes. */
   fieldDiary: FieldDiaryEntry[] = [];
-  /** The C0 pack's latches (narrative/14 §7 step 6 — core/c0Pack.ts):
-   *  which doc-11 beats have landed. Rides the save as `c0`; absent reads
-   *  as fresh — an old save is a player who hasn't met the notebook yet. */
-  c0: C0Latches = freshC0Latches();
-  /** TRANSIENT (never saved): the free write awaiting the name-box —
-   *  which C0 page the typed line lands on. Null when no write is open. */
-  c0FreeWrite: 'coldOpen' | 'question' | null = null;
+  // ---- the spine's state (narrative/14 R1/R2/R8 — the machines, now fed
+  // by the C0 pack; Game materializes these from the save at boot/beginDay
+  // and the snapshot rides them back). All three default fresh/empty — an
+  // old save is a fresh arrival with an empty ledger (the v1-safe law). ----
+  /** The chapter gate (R8 — core/chapters.ts). */
+  chapter: ChapterState = freshChapterState();
+  /** The rails' fire states (R1 — core/chapterRails.ts). */
+  rails: Record<RailId, RailState> = freshRailStates();
+  /** The consequence ledger (R2 — core/consequenceLedger.ts). */
+  ledger: LedgerEntry[] = [];
+  /** The spine walk's fires from the CURRENT day-begin/boot (the morning
+   *  whisper reads this; transient — the fire states themselves are the
+   *  durable truth). */
+  spineFires: RailFire[] = [];
   // ---- the serving conversation (docs/11 + docs/12) ----
   /** The order card currently on the counter — null when nobody's ordering.
    *  TRANSIENT: a conversation is a moment, never a save. */
@@ -423,8 +440,8 @@ export class GameState {
       { kind: 'collect', id },
       // playtest 2026-10-29: picking used to be silent — say what was taken
       { kind: 'note', text: itemPickNote(id, this.itemsLeft.size) },
-      // Beat 5 (doc 11) — Rosa clocks him in one look, sliding the mango
-      // across: the read that plants silently ("this one narrates himself")
+      // Beat 5 (doc 11, the block layer) — Rosa clocks him in one look,
+      // sliding the mango across: the read that plants silently
       ...(id === 'mango' ? [{ kind: 'note' as const, text: ROSA_MANGO_LINE }] : []),
       // Doc 02 §2:00–5:00 — the fun-fact sticker rides the item; the note
       // queue reads it right after the pick line (the queue holds four)
@@ -480,9 +497,6 @@ export class GameState {
     this.orderResponded = true;
     const idx = Math.max(0, Math.min(reply, card.replies.length - 1));
     const chosen = card.replies[idx];
-    // the C0 cards route to the diary (the pack's law: the reply only
-    // chooses the PROSE — money and progress never depend on it)
-    if (card.id.startsWith('c0_')) return this.c0ReplyEffects(card, reply);
     const out: Effect[] = [{ kind: 'order-respond', text: chosen.response }];
     if (chosen.note) this.noteEffect(out, chosen.note);
     if (chosen.slang) this.slangEffect(out, chosen.slang);
@@ -557,6 +571,12 @@ export class GameState {
 
   claimCart(): Effect[] {
     if (this.step !== Step.CLAIM_CART) return [];
+    // The C0 pack's mishear (doc 11 §2 beat 8 + §3 entry 3; doc 03 §5.2's
+    // K1 record, body verbatim, tagged FACT — his first over-tag). It lands
+    // WITH the handover beat, same night as the shipped line; the id is
+    // stable so the C1 wave's strike (correctEntry) can find it. Idempotent:
+    // a replayed Day 1 appends nothing (duplicate-id rejection).
+    this.logDiaryEntry(mishearEntryDraft(this.calendarDay));
     // Doc 02 §20:00–26:00 — the handover line lands as the box opens:
     // "What're you calling it?" is the question the name box answers.
     return [
@@ -781,9 +801,9 @@ export class GameState {
     this.mapGiven = true;
     return [
       { kind: 'note', text: D4_MAP_NOTE },
-      // Beat 10's closing exchange (doc 11, verbatim): the stranger's name
-      // is Sam — the Hospitality Law performed in week one, so its echoes
-      // in C5 and C6 are earned, not quoted
+      // Beat 10's closing exchange (doc 11, the block layer, verbatim):
+      // the stranger's name is Sam — the Hospitality Law performed in
+      // week one, so its echoes in C5 and C6 are earned, not quoted
       { kind: 'note', text: SAM_STILL_DOING_LINE },
       { kind: 'note', text: SAM_LAW_LINE },
       { kind: 'stranger-departs' },
@@ -857,8 +877,22 @@ export class GameState {
         : 'Mr. Idris: \u201CTold you I\u2019d be back. The usual.\u201D It tastes the same as yesterday. That\u2019s the point.',
     });
     out.push({ kind: 'persist' });
+    // The C0 pack's running theory (doc 11 §3 entry 2, recontextualized:
+    // the shipped beat that carries the corner's first give-back is the
+    // USUAL — "I come here, and you noticed" — standing in for doc 11's
+    // Eddie ritual until the C1 wave lands the slice shop's morning). One
+    // running theory per save: the entry id prefix is the latch.
+    if (!this.hasDiaryEntryWithPrefix(C0_THEORY_ENTRY_ID_PREFIX)) {
+      out.push({ kind: 'diary-prompt', pack: 'theory' });
+    }
     out.push(...this.advanceDay2());
     return out;
+  }
+
+  /** Whether the diary carries an entry whose id starts with `prefix` —
+   *  the pack's one-per-save latches (a replayed day, a resumed week). */
+  hasDiaryEntryWithPrefix(prefix: string): boolean {
+    return this.fieldDiary.some((e) => e.id.startsWith(prefix));
   }
 
   rosaTask(): { effects: Effect[]; chat?: string } {
@@ -902,6 +936,18 @@ export class GameState {
 
   dismissPostcard(): Effect[] {
     this.lingerStage = 1;
+    // The C0 pack's first question (doc 11 §3 entry 4 — Day 3 night,
+    // "the player picks one of three authored curiosities ... or writes
+    // their own"). The shipped beat that IS Day 3 night is the fire-escape
+    // linger — "Stay a while" is the moment the notebook opens. One
+    // question per save; Days 2/4 and the replay path never ask.
+    if (this.day === 3 && !this.hasDiaryEntryWithPrefix(C0_QUESTION_ENTRY_ID_PREFIX)
+      && !this.hasDiaryEntryWithPrefix(C0_QUESTION_FREE_ID)) {
+      return [
+        { kind: 'note', text: 'Stay a while. The window is in no rush.' },
+        { kind: 'diary-prompt', pack: 'question' },
+      ];
+    }
     return [{ kind: 'note', text: 'Stay a while. The window is in no rush.' }];
   }
 
@@ -943,10 +989,13 @@ export class GameState {
       // migration note in Save.ts), a new save writes both
       calendar_day: this.calendarDay,
       field_diary: serializeFieldDiary(this.fieldDiary),
-      // the C0 pack's latches (narrative/14 §7 step 6) — optional
-      // v1-safe: absent until a beat lands, so a save that never met
-      // the notebook parses byte-identically
-      ...(serializeC0Latches(this.c0) ? { c0: serializeC0Latches(this.c0) } : {}),
+      // the spine's state (R1/R2/R8) rides the same v1-safe law — the
+      // fields exist in SaveData, parse quarantined, and were seeded by
+      // defaultSave() since the machines landed; the snapshot now carries
+      // them so the fire-once law survives the reload
+      ledger: serializeLedger(this.ledger),
+      chapter: serializeChapterState(this.chapter),
+      rails: serializeRails(this.rails),
     };
   }
 
@@ -971,6 +1020,28 @@ export class GameState {
     return res.ok;
   }
 
+  /** The ledger's append door (narrative/14 R2): the one seam the choice
+   *  nodes' ledger writes land through. Append-only; duplicate ids are
+   *  rejected (idempotent replays append nothing). */
+  logLedgerEntry(entry: LedgerEntry): boolean {
+    const res = appendLedgerEntry(this.ledger, entry);
+    this.ledger = res.entries;
+    return res.ok;
+  }
+
+  /** The spine walk (R1 + R8, the day bookkeeping): touch the chapter to
+   *  the calendar day, then evaluate the rails — fire every rail whose
+   *  minimum day has arrived and whose trigger is satisfied. Fire-once
+   *  (evaluateRails' own law); the fires return for the city diary's
+   *  morning whisper. Pure inputs, stored results. */
+  walkSpine(calendarDay: number, heldFlags: ReadonlySet<string>): RailFire[] {
+    this.chapter = touchDay(this.chapter, calendarDay);
+    const res = evaluateRails(this.rails, calendarDay, heldFlags);
+    this.rails = res.rails;
+    this.spineFires = res.fired;
+    return res.fired;
+  }
+
   /** Strike a line in an entry (doc 03 §5.1): appends the correction —
    *  margin note in current-tense Leo — and the body bytes stay frozen.
    *  Returns true when the strike landed. */
@@ -980,118 +1051,32 @@ export class GameState {
     return res.ok;
   }
 
-  // ============================== the C0 pack (narrative/14 §7 step 6) ====
-  // Doc 11's narrative layer over the shipped opening. Every method here
-  // is LATCHED (a beat lands once — the notebook never re-writes a page),
-  // rides the one diary seam (logDiaryEntry), and dates from the calendar
-  // (never real time). The effects returned are UI-only (diary-ink /
-  // notes / order-open) — the state moved first.
+  // ===================== the C0 block layer (narrative/14 §7 step 6, ======
+  // tranche 2 — core/c0Pack.ts): the five neighbors + the Day-7 wobble.
+  // The spine tranche (core/c0pack.ts) owns the beats that ride the
+  // shipped flow; these own the block around them. Every method is
+  // LATCHED BY THE DIARY ITSELF (the entry's id is the latch — the
+  // notebook remembers, so no new save shape), rides the one seam
+  // (logDiaryEntry), and dates from the calendar (never real time).
 
-  /** The one write door: append + report. A rejected draft (cap, dup id)
-   *  leaves the diary untouched and says nothing — the latch flips only
-   *  when the ink landed. */
+  /** The one write door: append + report. A rejected draft leaves the
+   *  diary untouched and says nothing. */
   private c0Write(out: Effect[], draft: FieldDiaryEntry): void {
     if (this.logDiaryEntry(draft)) out.push({ kind: 'diary-ink' });
   }
 
-  /** Beat 0 — the cold open: the player writes Entry 1 (doc 11 §2/§3).
-   *  `choice` 0/1 are the authored prompts, 2 the free write. The system
-   *  line ("Day 1. Facts only.") returns as the card's response so the
-   *  page reads in his hand. */
-  c0ColdOpen(choice: number, own?: string): Effect[] {
-    if (this.c0.coldOpen || this.day !== 1) return [];
-    const body = coldOpenBody(choice, own);
-    this.c0.coldOpen = true;
-    const out: Effect[] = [{ kind: 'order-respond', text: COLD_OPEN_SYSTEM_LINE }];
-    this.c0Write(out, coldOpenEntry(this.day, body));
-    out.push({ kind: 'order-close' });
-    return out;
-  }
-
-  /** Beat 0 — the cold open's card: the notebook's first page offers his
-   *  two authored openers and the player's own line (doc 11 §2 beat 0).
-   *  Opened by the Game at the first moment of control (the film hands
-   *  over, the picker is done) and re-offered until written — the
-   *  notebook never stays empty, and never nags twice in a row. */
-  c0OpenColdOpenCard(): Effect[] {
-    if (this.c0.coldOpen || this.pendingCard || this.day !== 1) return [];
-    const card: OrderCard = {
-      id: 'c0_cold_open',
-      bubble: COLD_OPEN_SYSTEM_LINE,
-      line: COLD_OPEN_SYSTEM_LINE,
-      replies: [
-        { label: COLD_OPEN_PROMPTS[0], response: COLD_OPEN_PROMPTS[0] },
-        { label: COLD_OPEN_PROMPTS[1], response: COLD_OPEN_PROMPTS[1] },
-        { label: 'Write my own\u2026', response: 'The notebook takes your line.' },
-      ],
-      defaultReply: 0,
-    };
-    this.pendingCard = card;
-    this.orderResponded = false;
-    return [{ kind: 'order-open', card }];
-  }
-
-  /** The free write's submit — the name-box in its diary mode. The page
-   *  decided at open time (c0FreeWrite); an empty line falls back to the
-   *  page's first authored option (the notebook never records an empty
-   *  page — coldOpenBody/questionBody's own law). */
-  c0FreeWriteSubmit(raw: string): Effect[] {
-    const target = this.c0FreeWrite;
-    this.c0FreeWrite = null;
-    if (target === 'coldOpen') return this.c0ColdOpen(C0_FREE_WRITE_CHOICE, raw);
-    if (target === 'question') {
-      if (this.c0.question !== null) return [];
-      this.c0.question = questionBody(ENTRY4_OPTIONS.length, raw);
-      const out: Effect[] = [];
-      this.c0Write(out, questionEntry(this.day, this.c0.question));
-      return out;
-    }
-    return [];
-  }
-
-  /** Beat 6 → Entry 2 — Eddie's covenant said, the theory card opens
-   *  (doc 11 §3: "after Eddie's ritual"). The covenant lands once; the
-   *  card is the notebook asking its first running question. */
-  c0Covenant(): Effect[] {
-    if (this.c0.covenant) return [];
-    this.c0.covenant = true;
-    const card: OrderCard = {
-      id: 'c0_theory',
-      bubble: ENTRY2_PROMPT,
-      line: ENTRY2_PROMPT,
-      replies: ENTRY2_OPTIONS.map((t) => ({ label: 'Write it', response: t })),
-      defaultReply: 0,
-    };
-    this.pendingCard = card;
-    this.orderResponded = false;
-    return [{ kind: 'note', text: `Eddie: \u201C${EDDIE_COVENANT}\u201D` }, { kind: 'order-open', card }];
-  }
-
-  /** Entry 4's night card — the first QUESTION (doc 11 §3). Three
-   *  authored curiosities; the fourth reply is the free write. */
-  c0OpenQuestionCard(): Effect[] {
-    if (this.c0.question !== null || this.pendingCard) return [];
-    const card: OrderCard = {
-      id: 'c0_question',
-      bubble: ENTRY4_PROMPT,
-      line: ENTRY4_PROMPT,
-      replies: [
-        ...ENTRY4_OPTIONS.map((t) => ({ label: 'Ask it', response: t })),
-        { label: 'Write my own', response: 'The notebook takes your line.' },
-      ],
-      defaultReply: 0,
-    };
-    this.pendingCard = card;
-    this.orderResponded = false;
-    return [{ kind: 'order-open', card }];
+  private c0Has(id: string): boolean {
+    return this.fieldDiary.some((e) => e.id === id);
   }
 
   /** Hook 1 — the lease notice (doc 11 §4): one line from Eddie, once;
-   *  the notice itself never changes. */
+   *  the notice itself never changes. The latch is a private marker
+   *  entry — the fuse, noted in his hand (C1 strikes its own path). */
   c0Lease(): Effect[] {
-    if (!this.c0.lease) {
-      this.c0.lease = true;
-      return [{ kind: 'note', text: `Eddie: \u201C${EDDIE_LEASE_LINE}\u201D` }];
+    if (!this.c0Has(C0_BLOCK_IDS.lease)) {
+      const out: Effect[] = [{ kind: 'note', text: `Eddie: \u201C${EDDIE_LEASE_LINE}\u201D` }];
+      this.c0Write(out, leaseSeenEntry(this.calendarDay));
+      return out;
     }
     return [{ kind: 'note', text: EDDIE_LEASE_ECHO }];
   }
@@ -1100,10 +1085,9 @@ export class GameState {
    *  the diary's GUESS written once (C2 strikes it — the pack writes,
    *  the story corrects). */
   c0Surveyor(): Effect[] {
-    if (!this.c0.surveyor) {
-      this.c0.surveyor = true;
+    if (!this.c0Has(C0_BLOCK_IDS.surveyor)) {
       const out: Effect[] = [{ kind: 'note', text: SURVEYOR_LINE }];
-      this.c0Write(out, surveyorGuessEntry(this.day));
+      this.c0Write(out, surveyorGuessEntry(this.calendarDay));
       return out;
     }
     return [{ kind: 'note', text: SURVEYOR_ECHO }];
@@ -1112,10 +1096,9 @@ export class GameState {
   /** Hook 3 — Miss Odessa's nod: one word, the handshake (doc 11 §4).
    *  Nobody comments. The game never explains. */
   c0Odessa(): Effect[] {
-    if (!this.c0.odessa) {
-      this.c0.odessa = true;
+    if (!this.c0Has(C0_BLOCK_IDS.odessa)) {
       const out: Effect[] = [{ kind: 'note', text: ODESSA_NOD }];
-      this.c0Write(out, odessaEntry(this.day));
+      this.c0Write(out, odessaEntry(this.calendarDay));
       return out;
     }
     return [{ kind: 'note', text: ODESSA_NOD }];
@@ -1124,13 +1107,12 @@ export class GameState {
   /** Beat 7 — Deshaun's grounding kit (doc 11 §2): the sit line, the
    *  count, the TALK entry — once; after that the kit is an echo. */
   c0Deshaun(): Effect[] {
-    if (!this.c0.deshaun) {
-      this.c0.deshaun = true;
+    if (!this.c0Has(C0_BLOCK_IDS.deshaun)) {
       const out: Effect[] = [
         { kind: 'note', text: DESHAUN_SIT_LINE },
         ...DESHAUN_KIT_LINES.map((text) => ({ kind: 'note' as const, text })),
       ];
-      this.c0Write(out, deshaunEntry(this.day));
+      this.c0Write(out, deshaunEntry(this.calendarDay));
       return out;
     }
     return [{ kind: 'note', text: DESHAUN_KIT_ECHO }];
@@ -1139,70 +1121,11 @@ export class GameState {
   /** Entry 5 — the RECALL wobble (doc 11 §3): written when the player
    *  passes the laundromat on/after Day 7. Faint, unexplained. */
   c0Wobble(): Effect[] {
-    if (this.c0.wobble || this.day < 7) return [];
-    this.c0.wobble = true;
+    if (this.c0Has(C0_BLOCK_IDS.wobble) || this.calendarDay < 7) return [];
     const out: Effect[] = [];
-    this.c0Write(out, wobbleEntry(this.day));
+    this.c0Write(out, wobbleEntry(this.calendarDay));
     return out;
   }
-
-  /** Entry 3 — the handover mishear, written the night the cart changes
-   *  hands (doc 11 §2 beat 8: "the diary entry same night, tagged FACT").
-   *  Called at the Day-1 close (the POSTCARD step) — the tutorial's last
-   *  lesson: the diary is not automatically true. */
-  c0HandoverFact(): Effect[] {
-    if (this.c0.handover) return [];
-    this.c0.handover = true;
-    const out: Effect[] = [];
-    this.c0Write(out, handoverFactEntry(this.day));
-    return out;
-  }
-
-  /** The C0 cards' reply routing (chooseReply's third branch): the card
-   *  ids decide which beat lands. Money and progress never depend on it —
-   *  the reply only chooses the PROSE (doc 11's law: the diary is the
-   *  tutorial, not a quiz). */
-  private c0ReplyEffects(card: OrderCard, reply: number): Effect[] {
-    const idx = Math.max(0, Math.min(reply, card.replies.length - 1));
-    switch (card.id) {
-      case 'c0_cold_open': {
-        if (idx === C0_FREE_WRITE_CHOICE) {
-          // the free write: fold the card, open the name-box (diary mode)
-          this.c0FreeWrite = 'coldOpen';
-          this.pendingCard = null;
-          return [{ kind: 'order-close' }, { kind: 'diary-write-open' }];
-        }
-        return this.c0ColdOpen(idx);
-      }
-      case 'c0_theory': {
-        if (this.c0.theory === null) {
-          this.c0.theory = ENTRY2_OPTIONS[idx] ?? ENTRY2_OPTIONS[0];
-          const out: Effect[] = [{ kind: 'order-respond', text: this.c0.theory }];
-          this.c0Write(out, theoryEntry(this.day, this.c0.theory));
-          return out;
-        }
-        return [];
-      }
-      case 'c0_question': {
-        if (idx >= ENTRY4_OPTIONS.length) {
-          // the free write: fold the card, open the name-box (diary mode)
-          this.c0FreeWrite = 'question';
-          this.pendingCard = null;
-          return [{ kind: 'order-close' }, { kind: 'diary-write-open' }];
-        }
-        if (this.c0.question === null) {
-          this.c0.question = questionBody(idx);
-          const out: Effect[] = [{ kind: 'order-respond', text: this.c0.question }];
-          this.c0Write(out, questionEntry(this.day, this.c0.question));
-          return out;
-        }
-        return [];
-      }
-      default:
-        return [];
-    }
-  }
-
 }
 
 /** TBD-3 (Doc 07) — the Shuffle's soft skip: how long you must stand still

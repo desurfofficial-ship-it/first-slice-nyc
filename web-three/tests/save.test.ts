@@ -84,13 +84,6 @@ describe('save v1 — write/read roundtrip', () => {
         R3: { fired: false, firedOnDay: null }, R4: { fired: false, firedOnDay: null },
         R5: { fired: false, firedOnDay: null }, R6: { fired: false, firedOnDay: null },
       },
-      // the C0 pack's latches (narrative/14 §7 step 6): absent reads as
-      // fresh — the same optional-trailing law one row later
-      c0: {
-        coldOpen: false, theory: null, handover: false, question: null,
-        wobble: false, lease: false, surveyor: false, odessa: false,
-        deshaun: false, covenant: false,
-      },
     });
   });
 
