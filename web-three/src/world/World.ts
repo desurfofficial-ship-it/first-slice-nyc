@@ -1263,23 +1263,15 @@ export class World {
     this.solid('Plaza_Deck_W', -44.3, 0.09, 6.55, 1.4, 0.03, 2.3, PAL.stone, { collide: false, cast: false, receive: true });
     this.solid('Plaza_Deck_E', -39.3, 0.09, 6.45, 2.6, 0.03, 2.5, PAL.stone, { collide: false, cast: false, receive: true });
     const subway = makeSubwayEntrance(this.bank, this.signMaterials.bind(this));
-    // A-3 UNIT 9: the station house's PLACEMENT reads its registry row
-    // (SUB-01) through regShell — the entrance's own railings, posts, sign
-    // and F bullet are the kit's style (no mass, no collider: the
-    // reconciliation's paved-path law stands).
+    // A-3 UNIT 9 + consumer fix (2026-11): SUB-01 sits on the K-line
+    // STAIR_SLOT center (−47.2, 6.2). The SUBWAY sign and railings frame
+    // the real hole. The old (−42, 6.2) headhouse stood on continuous
+    // sidewalk while the descendable shaft lived five metres west — players
+    // only saw a sign board and railings with no way down. Prop has no
+    // collider (paved-path law); the kit's slot walls own the grade change.
     const sub1 = this.regShell('SUB-01');
     subway.position.set(sub1.x, 0.05, sub1.z);
     this.scene.add(subway);
-    // NO blocker here — Agent-5's reconciliation stands (their branch, kept
-    // by the docs/50 merge as the paved path): the placeholder stair-cut
-    // boxes are retired and the real descendable shaft is the K-line slot
-    // west of the headhouse (x −48.5..−45.9), whose walls carry the
-    // below-grade law. The old "nobody walks into the earth" box
-    // (2.6 × 3.5 full walk depth) was authored FOR the retired cut; the
-    // merge restored it without the hole, pinching the north walk shut
-    // between itself and the K-line rails and wedging the W1 walkability
-    // gate (the walker spawns inside it and its eject direction decided
-    // the whole gate). Ground at this plot reads the flat sidewalk (0.1).
     this.flyerMat = new THREE.MeshLambertMaterial({ map: this.flyerTexture('YOUR CORNER') });
     const board = makeBulletinBoard(this.bank, this.flyerMat);
     board.position.set(-37.6, 0.05, 7.5);
