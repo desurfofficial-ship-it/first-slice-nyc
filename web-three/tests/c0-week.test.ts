@@ -53,8 +53,8 @@ function runRush(s: GameState): void {
 }
 
 describe('the C0 week — MAX_DAY and the stabilized loop (doc 11 §7)', () => {
-  it('the week is seven days — and the season it opens is playable: MAX_DAY moved to C1\u2019s canon end (the C1 wave\u2019s law, doc 06 §C1)', () => {
-    expect(MAX_DAY).toBe(106);
+  it('the week is seven days — and the seasons it opens are playable: MAX_DAY moved to the frontier\u2019s canon end (the C2 wave\u2019s law, doc 06 §C2)', () => {
+    expect(MAX_DAY).toBe(295);
   });
 
   it('the canon span closes the week: day 7 is September 15, Year 1', () => {

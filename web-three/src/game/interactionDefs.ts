@@ -292,13 +292,20 @@ const board: Interaction = {
   enabled: (s) => s.step !== Step.D3_POSTER,
   prompt: (s) => (s.isC1
     ? (s.day === 29 ? 'Read the petition' : (s.day === 30 ? 'The freezer drive' : (s.day === 95 ? 'Yoli\u2019s petitions' : 'Read the board')))
-    : 'Read the board'),
+    : (s.day === 120 ? 'The mailboxes\u2019 new map' : (s.day === 188 ? 'Kev\u2019s letter' : 'Read the board'))),
   perform: ({ state }) => {
     // C1's paper trail rides the board (doc 06 §C1 events 6/3 + the
     // 1994 conversation — the board is where the block's paper lives;
     // the recontextualizations are noted in the pack)
     if (state.isC1) {
       const beats = [...state.c1Petition(), ...state.c1Yoli(), ...state.c1Yoli1994()];
+      if (beats.length > 0) return beats;
+    }
+    // C2's paper rides the same board (doc 06 §C2): the assemblage map
+    // in the mailboxes (day 120, with the K6 strike), Kev's denied
+    // appeal (day 188) — the block's paper is the block's pulse.
+    if (state.isC2) {
+      const beats = [...state.c2BoardMap(), ...state.c2Kev()];
       if (beats.length > 0) return beats;
     }
     return [{ kind: 'note', text: byDay(BULLETIN_NOTES, state.day) }];
@@ -309,8 +316,16 @@ const newsbox: Interaction = {
   id: 'newsbox',
   pos: () => ({ x: -44.6, y: 0.85, z: 6.6 }),
   enabled: () => true,
-  prompt: () => 'Read the headlines',
-  perform: ({ state }) => [{ kind: 'note', text: byDay(NEWSPAPER_NOTES, state.day) }],
+  prompt: (s) => (s.day === 230 ? 'The paper\u2019s rent-wave page' : 'Read the headlines'),
+  perform: ({ state }) => {
+    // C2's season (doc 06 §C2 event 9): the rent wave makes the paper —
+    // the whole row's arithmetic, the room's new number, day 230.
+    if (state.isC2) {
+      const beats = state.c2RentWave();
+      if (beats.length > 0) return beats;
+    }
+    return [{ kind: 'note', text: byDay(NEWSPAPER_NOTES, state.day) }];
+  },
 };
 
 const subway: Interaction = {
@@ -364,8 +379,16 @@ const priya: Interaction = {
   id: 'priya',
   pos: () => ({ ...SUBWAY_SPOTS.priya }),
   enabled: () => true,
-  prompt: () => 'Say hi to Priya',
-  perform: ({ state }) => [{ kind: 'note', text: byDay(PRIYA_LINES, state.day) }],
+  prompt: (s) => (s.day === 160 ? 'Priya\u2019s two things' : 'Say hi to Priya'),
+  perform: ({ state }) => {
+    // C2's season (doc 06 §C2 event 3): the intel, traded for a favor —
+    // the debt rides the ledger open, day 160.
+    if (state.isC2) {
+      const beats = state.c2Priya();
+      if (beats.length > 0) return beats;
+    }
+    return [{ kind: 'note', text: byDay(PRIYA_LINES, state.day) }];
+  },
 };
 
 /** The busker — the listen is free; the coin is the gated $1. */
@@ -525,8 +548,21 @@ const dinerBooth: Interaction = {
   pos: () => ({ x: 52.6, y: 0.5, z: -14.0 }),
   radius: 2.2,
   enabled: () => true,
-  prompt: () => 'Sit in the booth',
-  perform: ({ state }) => [{ kind: 'note', text: byDay(DINER_BOOTH_NOTES, state.day) }],
+  prompt: (s) => (s.day === 129 ? 'The booth with the coffee waiting' : (s.day === 174 ? 'The back booth' : 'Sit in the booth')),
+  perform: ({ state }) => {
+    // C2's season (doc 06 §C2): Marisol's coffee (day 129, event 2 —
+    // the seduction in miniature) and Craig's squeeze (day 174, events
+    // 4+5 — the private offer, and behind it N2, the break's four
+    // forms). The booth holds both conversations; the days keep them
+    // apart.
+    if (state.isC2) {
+      const coffee = state.c2Coffee();
+      if (coffee.length > 0) return coffee;
+      const squeeze = state.c2Squeeze();
+      if (squeeze.length > 0) return squeeze;
+    }
+    return [{ kind: 'note', text: byDay(DINER_BOOTH_NOTES, state.day) }];
+  },
 };
 
 const pieCase: Interaction = {
@@ -622,6 +658,10 @@ export function freeRoamInteractions(src: InteractionSources): Interaction[] {
     // the C1 wave's own spot (narrative/14 §7 step 8 — doc 06 §C1):
     // June at the plaza, for her one day
     june,
+    // the C2 wave's own spots (narrative/14 §7 step 9 — doc 06 §C2):
+    // the garden (the Compact's founding, Yoli's two evenings) and the
+    // Oktays' last Saturday on the strip
+    garden, oktays,
     ...simHellos(src), ...walkerChats(src), ...shelfInteractions(src)];
 }
 
@@ -675,6 +715,12 @@ const eddie: Interaction = {
       const pick = state.c1PromisePick();
       if (pick.length > 0) return pick;
     }
+    // C2's season (doc 06 §C2): the ribbon and Eddie's question — the
+    // chapter's most painful kindness, at the counter where it lands.
+    if (state.isC2) {
+      const beats = state.c2Ribbon();
+      if (beats.length > 0) return beats;
+    }
     if (!state.eddieCovenantSaid) {
       state.eddieCovenantSaid = true;
       return [{ kind: 'note', text: `Eddie: \u201C${EDDIE_COVENANT}\u201D` }];
@@ -686,15 +732,64 @@ const eddie: Interaction = {
 /** C1 — June at the plaza, day 29 (doc 06 §C1 event 2: the Halcyon
  *  build-out's DOB wall, Priya's knowledge). The shipped block hosts her
  *  a step from the bus bench — the corner is where the block tells its
- *  news (the recontextualization is noted in the pack). The spot exists
- *  for her day and fades when the ink has landed. */
+ *  news (the recontextualization is noted in the pack). C2's season
+ *  hosts her once more (doc 06 §C2 handoff, day 295): June's lease, the
+ *  same paperstock — her spot exists for the day and fades when the ink
+ *  has landed. */
 const june: Interaction = {
   id: 'june',
   pos: () => ({ x: -21.6, y: 0.05, z: 6.4 }),
   radius: 2.0,
-  enabled: (s) => s.day === 29 && s.step >= Step.WK_ROAM,
-  prompt: () => 'Sit with June',
-  perform: ({ state }) => state.c1June(),
+  enabled: (s) => (s.day === 29 && s.step >= Step.WK_ROAM) || (s.day === 295 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD),
+  prompt: (s) => (s.day === 295 ? 'The paper in June\u2019s hand' : 'Sit with June'),
+  perform: ({ state }) => {
+    if (state.day === 295) {
+      const lease = state.c2LeaseJune();
+      if (lease.length > 0) return lease;
+    }
+    return state.c1June();
+  },
+};
+
+/** C2 — the garden (the Gable Garden, the block's convening place): the
+ *  Compact's founding meeting (doc 06 §C2 event 1, day 124 — the
+ *  sign-in sheet, doc 08 §3) and Yoli's strategy session (doc 10 §4's
+ *  window, days 146/147 — two evenings). The gate stands at the garden's
+ *  own fence; the spot exists for its three days and fades between
+ *  them. */
+const garden: Interaction = {
+  id: 'garden',
+  pos: () => ({ x: 2.4, y: 0.05, z: 24.6 }),
+  radius: 2.2,
+  enabled: (s) => (s.day === 124 || s.day === 146 || s.day === 147) && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: (s) => (s.day === 124 ? 'The garden meeting' : 'The shed session'),
+  perform: ({ state }) => {
+    // doc 06 §C2 event 1 (day 124, with the K1 strike — the ledger's
+    // first strikethrough, earned at the sheet) and doc 10 §4's window
+    // (days 146/147; the flag sets once, on either evening)
+    const compact = state.c2Compact();
+    if (compact.length > 0) return compact;
+    return state.c2Session();
+  },
+};
+
+/** C2 — the Oktays' last Saturday (doc 06 §C2 event 6, day 243): boxes
+ *  on the strip between the garden and the green, the register's last
+ *  sale, Deniz's photograph — and behind it N2b (the Oktay moment, the
+ *  register's node). The spot exists for the day. */
+const oktays: Interaction = {
+  id: 'oktays',
+  pos: () => ({ x: 5.4, y: 0.05, z: 22.5 }),
+  radius: 2.4,
+  enabled: (s) => s.day === 243 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'Help with the boxes',
+  perform: ({ state }) => {
+    const leaving = state.c2Oktays();
+    if (leaving.length > 0) return leaving;
+    // the scene said: the moment itself is the pick (N2b — the
+    // register's own node; the overlay carries its three options)
+    return [];
+  },
 };
 
 /** Hook 1 — the lease notice on Eddie's wall (doc 11 §4): visible,
@@ -708,10 +803,16 @@ const leaseNotice: Interaction = {
   pos: () => ({ x: 27.9, y: 1.5, z: 8.9 }),
   radius: 1.8,
   enabled: (s) => s.day >= 2,
-  prompt: (s) => (s.day === 8 ? 'Read the framed notice' : (s.day === 106 ? 'The second notice' : 'Read the notice on the wall')),
+  prompt: (s) => (s.day === 8 ? 'Read the framed notice' : (s.day === 106 ? 'The second notice' : (s.day === 120 ? 'The letter beside the frame' : 'Read the notice on the wall'))),
   perform: ({ state }) => {
     if (state.isC1) {
       const beats = state.c1Notice();
+      if (beats.length > 0) return beats;
+    }
+    // C2's season (doc 06 §C2 starting circumstances): the ask goes
+    // formal — the letter with the number typed twice, day 120.
+    if (state.isC2) {
+      const beats = state.c2Notice();
       if (beats.length > 0) return beats;
     }
     return state.c0Lease();
@@ -835,6 +936,14 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
           // economy is memory): once, at her counter, in December
           const cigar = s.c1CigarBox();
           if (cigar.length > 0) return cigar;
+        }
+        if (s.isC2 && s.day === 269) {
+          // Rosa's twenty-five (doc 06 §C2 event 7): the verbatim toast
+          // line, Eleanor's pointer, the QUESTION — and behind them, the
+          // toast itself (the local pick; one of the two makes Rosa stop
+          // smiling for exactly two seconds)
+          const anniversary = s.c2Anniversary();
+          if (anniversary.length > 0) return anniversary;
         }
         if (s.isDay2) {
           return s.rosaTask().effects;

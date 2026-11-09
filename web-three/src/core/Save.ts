@@ -39,13 +39,19 @@ export const SAVE_KEY = 'first_slice_save_v1';
 // C1's season is PLAYABLE (narrative/14 §7 step 8 — doc 06 §C1): the
 // station days run Sept 16 → Dec 23, Y1, and the season compressions jump
 // the counters whole (the 1:1 law holds by construction — epochMap). The
-// ceiling is C1's canon end (Dec 23 = day 106): the linger there plays
-// the C1→C2 season cut, C2's window opens Jan 6, Y2, and C2's content is
-// the next wave's (the wall, the honest pattern). calendar.ts's own
-// header pins the mapping: C0 closes Monday Sept 15 (day 7), C1 opens at
-// the Sept 16 season cut (day 8), the stations land on doc 06 §C1's own
-// dates through calendarDayOf (validated in the pack's self-check).
-export const MAX_DAY = 106;
+// linger at Dec 23 plays the C1→C2 season cut and the C2 wave (§7 step 9)
+// brought the days the cut opens: the cut's wall rolls into C2's first
+// morning.
+// C2's season is PLAYABLE (narrative/14 §7 step 9 — doc 06 §C2): the
+// station days run Jan 6 → Jun 30, Y2, the compressions consume the days
+// between, and the ceiling is C2's canon end (Jun 30 = day 295): the
+// linger there plays the C2→C3 season cut, C3's window opens Jul 1, Y2,
+// and C3's content is the next wave's (the wall, the honest pattern).
+// calendar.ts's own header pins the mapping: C0 closes Monday Sept 15
+// (day 7), C1 opens at the Sept 16 season cut (day 8), C2 opens Jan 6 Y2
+// (day 120), the stations land on doc 06's own dates through
+// calendarDayOf (validated in each pack's self-check).
+export const MAX_DAY = 295;
 
 export interface SaveData {
   day: number;

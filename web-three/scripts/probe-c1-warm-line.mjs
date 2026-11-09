@@ -634,15 +634,27 @@ console.log('--- Pass D: December + the cut (Dec 12 \u2192 Dec 23 \u2192 New Yea
 
   const wall = await p106.evaluate(() => {
     const s = window.__game.state;
-    const out = s.rail();
+    // the C2 wave's law (§7 step 9 brought the days the cut opens): the
+    // non-replay press ROLLS into C2's first morning; a replayed kept
+    // Dec 23 reads the wall and holds
+    const s2 = s.rail();
+    const rollTo = (s2.find((e) => e.kind === 'next-day') ?? {}).to ?? null;
+    const wallNotes = s2.filter((e) => e.kind === 'note').map((e) => e.text);
+    s.replayDay = true;
+    const s3 = s.rail();
+    s.replayDay = false;
     return {
-      notes: out.filter((e) => e.kind === 'note').map((e) => e.text),
-      rollTo: (out.find((e) => e.kind === 'next-day') ?? {}).to ?? null,
+      rollTo,
+      wallNotes,
+      replayNotes: s3.filter((e) => e.kind === 'note').map((e) => e.text),
+      replayRoll: (s3.find((e) => e.kind === 'next-day') ?? {}).to ?? null,
       chapter: s.chapter.chapter,
     };
   });
-  check(wall.notes.length === 1 && wall.rollTo === null,
-    'a replayed linger reads the wall \u2014 no roll out of C1\u2019s own cut (C2\u2019s content is the next wave)');
+  check(wall.rollTo === 120,
+    'the cut\u2019s next press rolls into C2\u2019s first morning (day 120 \u2014 the C2 wave\u2019s law: \u00a77 step 9 brought the days the cut opens)');
+  check(wall.replayNotes.length === 1 && wall.replayRoll === null,
+    'a replayed linger reads the wall \u2014 no roll out of a replay');
   check(wall.chapter === 'C2', 'the chapter stays C2 (the wall holds)');
   check(e106.length === 0, `pass D day-106 console clean (${e106.length} errors${e106.length ? ': ' + e106[0] : ''})`);
   await p106.close();
