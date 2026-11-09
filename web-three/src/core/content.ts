@@ -10,6 +10,7 @@
 
 import type { DiaryFamily } from './diary';
 import { c1CaptionOf } from './c1pack';
+import { c2CaptionOf } from './c2pack';
 
 /** Objective line per step (main.gd `_set_step`). */
 export const OBJECTIVES: Record<number, string> = {
@@ -65,17 +66,17 @@ export function composeCaption(s: {
   day: number; replay: boolean; dayStartMoney: number; money: number; cartName: string;
   awningUp?: boolean;
 }): string {
-  // C1's season (doc 06 §C1): the postcard says its own DATE — in C1 the
-  // dates are the story (the compressions moved the calendar, and the
-  // card is the receipt). The stations' own captions; a non-station day
-  // in the season falls through to the C0 branches (a crafted save's
-  // graceful degradation, the same law beginDay applies).
+  // C1's/C2's seasons (doc 06 §C1/§C2): the postcard says its own DATE —
+  // in the seasons the dates are the story (the compressions moved the
+  // calendar, and the card is the receipt). The stations' own captions;
+  // a non-station day in a season falls through to the C0 branches (a
+  // crafted save's graceful degradation, the same law beginDay applies).
   if (s.day >= 8) {
-    const c1 = c1CaptionOf(s.day);
-    if (c1) {
+    const cap = c2CaptionOf(s.day) ?? c1CaptionOf(s.day);
+    if (cap) {
       return s.replay
-        ? `Day ${s.day}, again. ${c1.replay}\n\n— ${s.cartName}, ${c1.date}`
-        : `Day ${s.day}. $${s.dayStartMoney} → $${s.money}.\n${c1.body}\n\n— ${s.cartName}, ${c1.date}`;
+        ? `Day ${s.day}, again. ${cap.replay}\n\n— ${s.cartName}, ${cap.date}`
+        : `Day ${s.day}. $${s.dayStartMoney} → $${s.money}.\n${cap.body}\n\n— ${s.cartName}, ${cap.date}`;
     }
   }
   if (s.day >= 7) {
