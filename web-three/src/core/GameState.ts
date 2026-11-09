@@ -8,6 +8,10 @@ import { MAX_DAY, type SaveData } from './Save';
 import type { DiaryCounters, DiaryNoted } from './diary';
 import { appendEntry, correctEntry, serializeFieldDiary, type FieldDiaryEntry } from './fieldDiary';
 import { DEFAULT_STARTER } from './starters';
+import { DEFAULT_IDENTITY, sanitizeIdentity, type PlayerIdentity } from './identity';
+import { freshFluency, fluencyAdvance, fluencyAtFloor, type FluencyState, type FluencyTier } from './fluency';
+import { markSent } from './postcardDispatch';
+import { RESOURCE_NOTE_TEXT, shouldOfferResourceNote } from './guardrails';
 // ---- the narrative spine (narrative/14 R1/R2/R8 — the machines, now fed) ----
 import {
   freshChapterState, touchDay, serializeChapterState,
@@ -29,6 +33,9 @@ import {
   EDDIE_LEASE_ECHO, EDDIE_LEASE_LINE, ODESSA_NOD, ROSA_MANGO_LINE,
   SAM_LAW_LINE, SAM_STILL_DOING_LINE, SURVEYOR_ECHO, SURVEYOR_LINE,
   deshaunEntry, leaseSeenEntry, odessaEntry, surveyorGuessEntry, wobbleEntry,
+  C0_CUT_CITY_LINE, C0_CUT_EDDIE_LINE, C0_CUT_ID, C0_CUT_WALL,
+  C0_WEEK_ORDERS, C0_WEEK_RUSH_DONE, C0_WEEK_WAKE,
+  cutEntry, seasonCutMontage,
 } from './c0pack';
 import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, ITEM_STICKERS, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
@@ -75,6 +82,13 @@ export const Step = {
   D4_CLIMB4: 30,
   D4_POSTCARD: 31,
   DONE: 32,
+  // ---- Days 5–7 — the stabilized loop (doc 11 §2 beat 11 + §7:
+  // open, rush, roam, wind-down, postcard; the C0 pack's tranche 3) ----
+  WK_WAKE: 33,
+  WK_RUSH: 34,
+  WK_ROAM: 35,
+  WK_CLIMB: 36,
+  WK_POSTCARD: 37,
 } as const;
 export type Step = (typeof Step)[keyof typeof Step];
 
@@ -101,7 +115,6 @@ export type Effect =
   | { kind: 'ladder-hint' }
   | { kind: 'rosa-window-warm' }
   | { kind: 'next-day' }
-  | { kind: 'day-beyond' }
   | { kind: 'idris-served' }
   | { kind: 'kid-delivered' }
   | { kind: 'awning-offer' }
@@ -239,6 +252,20 @@ export class GameState {
    *  whisper reads this; transient — the fire states themselves are the
    *  durable truth). */
   spineFires: RailFire[] = [];
+  // ---- narrative/14 §7 step 7 machines (R9–R12) — the state, v1-safe ----
+  /** R11 — the chosen identity (core/identity.ts). Defaults to Leo Marsh
+   *  (doc 02 §1); the pick-card name entry rewrites it; the save carries
+   *  it as `player_name`. */
+  playerIdentity: PlayerIdentity = { ...DEFAULT_IDENTITY };
+  /** R10 — the fluency ladder (core/fluency.ts). Persists as `fluency`;
+   *  an old save heals to its chapter's floor at boot. */
+  fluency: FluencyState = freshFluency();
+  /** R9 — the ONE send's day (core/postcardDispatch.ts). Null until C5's
+   *  scene fires; the save carries `{ day }` — the recipient is the type. */
+  sentPostcardDay: number | null = null;
+  /** R12 — the resource note's once-latch (core/guardrails.ts). Rides the
+   *  save as `resource_note_offered`. */
+  resourceNoteOffered = false;
   // ---- the serving conversation (docs/11 + docs/12) ----
   /** The order card currently on the counter — null when nobody's ordering.
    *  TRANSIENT: a conversation is a moment, never a save. */
@@ -314,6 +341,11 @@ export class GameState {
     return this.day >= 4;
   }
 
+  /** The stabilized week (doc 11 §7): days 5–7 ride the WK_* loop. */
+  get isWeek(): boolean {
+    return this.day >= 5;
+  }
+
   objectiveText(): string {
     if (this.step === Step.DONE) return `Day ${this.day} is done.`;
     return OBJECTIVES[this.step] ?? '';
@@ -347,6 +379,7 @@ export class GameState {
     [Step.D4_RUSH]: 'cart',
     [Step.D4_MAP]: 'cart',
     [Step.D4_LAUNDRY]: 'laundry',
+    [Step.WK_RUSH]: 'cart',
   };
 
   beatPlaceId(): string | null {
@@ -656,32 +689,50 @@ export class GameState {
     return out;
   }
 
+  /** Rosa's week wake (doc 11 §2 beat 11 + §7 — the stabilized loop's
+   *  open). Same law as the D3/D4 wakes: the wake beat first, chat
+   *  second; the rush opens behind it. */
+  rosaWeekWake(): Effect[] {
+    if (this.step !== Step.WK_WAKE) return [];
+    const wake = C0_WEEK_WAKE[Math.min(7, Math.max(5, this.day)) as 5 | 6 | 7];
+    return [
+      { kind: 'note', text: wake },
+      ...this.setStep(Step.WK_RUSH),
+      // Idris opens the rush — the regulars open every rush (the day-3/4 law)
+      { kind: 'spawn-customer', who: 'idris', x: 4, z: -4.6 },
+    ];
+  }
+
   /** A serve press at the cart during a morning rush. Starts a brew — no
    *  instant cups. Returns [] when nothing should happen (no order, or a
    *  brew already running: repeated input can never double-serve). */
   startBrew(): Effect[] {
     if (this.brewing) return [];
-    if (this.step !== Step.D3_RUSH && this.step !== Step.D4_RUSH) return [];
-    const queue = this.step === Step.D3_RUSH ? D3_ORDERS : D4_ORDERS;
+    if (this.step !== Step.D3_RUSH && this.step !== Step.D4_RUSH && this.step !== Step.WK_RUSH) return [];
+    const queue = this.step === Step.WK_RUSH ? C0_WEEK_ORDERS : (this.step === Step.D4_RUSH ? D4_ORDERS : D3_ORDERS);
     const order = queue[this.rushIndex];
     if (!order) return [];
     this.brewing = true;
     return [{ kind: 'brew-start' }];
   }
 
-  /** The brew timer ran out (Game owns the clock). Pays, reacts, queues the
-   *  next order — or sends the kid down / opens the Map beat when done. */
+  /** The brew timer ran out (Game owns the clock). Pays, reacts, queues
+   *  the next order — or opens the roam when done. */
   completeBrew(): Effect[] {
     if (!this.brewing) return [];
     this.brewing = false;
+    const week = this.step === Step.WK_RUSH;
     const day4 = this.step === Step.D4_RUSH;
-    const queue = day4 ? D4_ORDERS : D3_ORDERS;
+    const queue = week ? C0_WEEK_ORDERS : (day4 ? D4_ORDERS : D3_ORDERS);
     const order = queue[this.rushIndex];
     if (!order) return [];
     this.rushIndex += 1;
     const out: Effect[] = [{ kind: 'serve-customer' }, ...this.earn(order.pay)];
     if (this.rushIndex >= queue.length) {
-      if (day4) {
+      if (week) {
+        out.push({ kind: 'note', text: C0_WEEK_RUSH_DONE });
+        out.push(...this.setStep(Step.WK_ROAM));
+      } else if (day4) {
         out.push({ kind: 'note', text: D4_RUSH_DONE_NOTE });
         out.push(...this.setStep(Step.D4_MAP));
       } else {
@@ -895,6 +946,48 @@ export class GameState {
     return this.fieldDiary.some((e) => e.id.startsWith(prefix));
   }
 
+  // ------------------------------------------------ the §7-step-7 machines ----
+
+  /** R11 — the name the block learns (doc 11 §5): the pick-card name
+   *  entry lands here; sanitize owns the shape. */
+  applyIdentity(raw: unknown): void {
+    this.playerIdentity = sanitizeIdentity(raw);
+  }
+
+  /** R10 — the ladder's one advance door: content authors the beat, the
+   *  machine owns the law. A refused advance leaves the tier unchanged. */
+  advanceFluencyTo(tier: FluencyTier): boolean {
+    const res = fluencyAdvance(this.fluency, tier, { chapter: this.chapter.chapter, day: this.calendarDay });
+    if (!res.ok) return false;
+    this.fluency = res.state;
+    return true;
+  }
+
+  /** R10 — the boot-time floor: a save below its chapter's floor heals
+   *  forward (doc 13's rows are the truth the bytes must match). */
+  healFluencyFloor(): void {
+    this.fluency = fluencyAtFloor(this.fluency, this.chapter.chapter);
+  }
+
+  /** R9 — the sealed send, through the dispatch's own law. Only C5's
+   *  scene key may pass; anything else is refused and nothing moves. */
+  sendPostcardFromC5(sceneKey: string): boolean {
+    if (this.sentPostcardDay !== null) return false;
+    const res = markSent(sceneKey, this.calendarDay, false);
+    if (!res.ok || res.action !== 'sent') return false;
+    this.sentPostcardDay = res.record.day;
+    return true;
+  }
+
+  /** R12 — the resource note's once-latch, machine side: returns the
+   *  note's text when this firing is the first of the three triggers,
+   *  null otherwise (and the latch spends only when the note is offered). */
+  resourceNoteFor(sceneId: string): string | null {
+    if (!shouldOfferResourceNote(this.resourceNoteOffered, sceneId)) return null;
+    this.resourceNoteOffered = true;
+    return RESOURCE_NOTE_TEXT;
+  }
+
   rosaTask(): { effects: Effect[]; chat?: string } {
     if (this.step === Step.D2_TASK) {
       return {
@@ -931,7 +1024,34 @@ export class GameState {
       ];
     }
     if (this.day < MAX_DAY) return [{ kind: 'next-day' }];
-    return [{ kind: 'day-beyond' }];
+    // Day 7's wall is the season cut (doc 11 §7): the week's last linger
+    // plays the C0→C1 interstitial — the diary montage, the city's
+    // morning-after line, Eddie at Monday's door — and then holds. C1's
+    // own days are the next content wave (narrative/14 §7 step 8).
+    return this.seasonCut();
+  }
+
+  /** The season cut (doc 11 §7, the C0→C1 boundary, Sept 15→16): the
+   *  first interstitial, composed from the week's OWN diary — the
+   *  montage is his hand, not a canon list. Plays once per save (the
+   *  latch is the cut's diary entry — the block layer's law); a replayed
+   *  kept Day 7 gets the wall, never a second cut. The chapter machine
+   *  itself cannot advance here (R8's window law: C1 opens on calendar
+   *  day 8, and the story day is 7) — the cut binds the boundary's
+   *  CONTENT; the state advance rides C1's first morning, with the next
+   *  wave. */
+  seasonCut(): Effect[] {
+    if (this.c0Has(C0_CUT_ID)) return [{ kind: 'note', text: C0_CUT_WALL }];
+    const out: Effect[] = [];
+    for (const line of seasonCutMontage(this.fieldDiary)) {
+      out.push({ kind: 'note', text: line });
+    }
+    out.push({ kind: 'note', text: `The city, the next morning: \u201C${C0_CUT_CITY_LINE}\u201D` });
+    out.push({ kind: 'note', text: `Eddie: \u201C${C0_CUT_EDDIE_LINE}\u201D` });
+    out.push({ kind: 'note', text: C0_CUT_WALL });
+    this.c0Write(out, cutEntry(this.calendarDay));
+    out.push({ kind: 'persist' }); // the cut's latch rides the save (the block layer's law)
+    return out;
   }
 
   dismissPostcard(): Effect[] {
@@ -996,6 +1116,11 @@ export class GameState {
       ledger: serializeLedger(this.ledger),
       chapter: serializeChapterState(this.chapter),
       rails: serializeRails(this.rails),
+      // the §7-step-7 machines ride the same v1-safe law (R9–R12)
+      player_name: { ...this.playerIdentity },
+      fluency: { tier: this.fluency.tier, since_day: this.fluency.sinceDay },
+      ...(this.sentPostcardDay !== null ? { sent_postcard: { day: this.sentPostcardDay } } : {}),
+      resource_note_offered: this.resourceNoteOffered,
     };
   }
 
@@ -1124,6 +1249,7 @@ export class GameState {
     if (this.c0Has(C0_BLOCK_IDS.wobble) || this.calendarDay < 7) return [];
     const out: Effect[] = [];
     this.c0Write(out, wobbleEntry(this.calendarDay));
+    out.push({ kind: 'persist' }); // F1's fuse is canon — the diary remembers
     return out;
   }
 }
@@ -1146,6 +1272,16 @@ export function inShuffleStretch(x: number, z: number): boolean {
 }
 
 function rosaChatLineOf(s: GameState): { text: string; nextChatIndex: number } {
+  if (s.isWeek) {
+    // The stabilized week's chat (doc 11 §2 beat 11 + §7): the wake beat
+    // owns the morning; after that she is the block's running count.
+    const lines = [
+      'Rosa: \u201CFour windows now. I stopped counting. The block didn\u2019t.\u201D',
+      'Rosa: \u201CSal laminated your permit receipt. For a card, that\u2019s living right.\u201D',
+      'Rosa: \u201CMiss Odessa said morning to you. That\u2019s the whole ceremony. Don\u2019t spend it all in one place.\u201D',
+    ];
+    return { text: lines[s.rosaChatI % 3], nextChatIndex: (s.rosaChatI + 1) % 3 };
+  }
   if (s.isDay4) {
     if (!s.strangerMet) {
       return { text: 'Rosa: \u201CTerminal. Duffel bag. That look. You know the words now \u2014 go use them.\u201D', nextChatIndex: s.rosaChatI };

@@ -348,16 +348,26 @@ describe('Day 2 — the neighborhood comes alive (Doc 22)', () => {
     expect(again).toEqual([]); // note shown once
   });
 
-  it('rail goodnight then tomorrow; a kept final day answers "still being written"', () => {
+  it('rail goodnight then tomorrow; the kept final day plays the season cut once, then the wall', () => {
     const s = day1ToClimb(); // day 1
     s.lingerStage = 1;
     s.rail();
     expect(s.lingerStage).toBe(2);
     const out = s.rail();
     expect(out.some((e) => e.kind === 'next-day')).toBe(true);
+    // day 7's wall is the C0→C1 season cut (doc 11 §7) — the montage, the
+    // city's morning-after line, Eddie at Monday's door; the cut's latch
+    // is its own diary entry, so a second rail reads the wall only
     s.day = MAX_DAY_NUMBER;
-    const beyond = s.rail();
-    expect(beyond.some((e) => e.kind === 'day-beyond')).toBe(true);
+    s.calendarDay = MAX_DAY_NUMBER;
+    const cut = s.rail();
+    const notes = cut.filter((e) => e.kind === 'note').map((e) => (e as { text: string }).text);
+    expect(cut.some((e) => e.kind === 'persist')).toBe(true);
+    expect(notes.some((t) => t.includes('The new one remembered the usual.'))).toBe(true);
+    expect(notes.some((t) => t.includes('Real shift. Leave the tricks in Ohio.'))).toBe(true);
+    const again = s.rail();
+    const wall = again.filter((e) => e.kind === 'note').map((e) => (e as { text: string }).text);
+    expect(wall.length).toBe(1);
   });
 });
 

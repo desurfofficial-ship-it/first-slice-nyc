@@ -1085,12 +1085,22 @@ export function runAutotest(game: Game): void {
       await walkTo(12.5, -6.8, 8);
       await interact();
       check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight (day 4)' + snap());
-      await interact();
-      await waitMs(500);
-      check(s.day === 4 && !dbg.dayFading(), 'day 5 does not begin \u2014 the wall holds, honestly');
+      // the day-4 snapshot BEFORE the roll (the postcard's persist wrote
+      // day_complete; the next press is tomorrow and writes day 5's)
       const save4 = loadSave();
       check(save4.day === 4 && save4.day_complete === true && save4.stool === true && save4.map_given === true && save4.permit === true && save4.money === 123,
         `save holds day 4 complete: $${save4.money}, map=${save4.map_given}, permit=${save4.permit}, stool=${save4.stool}`);
+      await interact();
+      await waitMs(500);
+      // the wall moved (the C0 pack's tranche 3 — doc 11 §7): day 4's
+      // second linger-press is TOMORROW now. The week's morning begins
+      // — the stabilized loop's open, the same shape day 5 has always
+      // been authored to have.
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < budget(15000) && !(s.day === 5 && s.step === Step.WK_WAKE)) await nextFrame();
+      }
+      check(s.day === 5 && s.step === Step.WK_WAKE, 'day 5 begins \u2014 the week\u2019s stabilized loop opens (MAX_DAY = 7)' + snap());
     } catch (err) {
       check(false, `driver exception: ${(err as Error).message}`);
       console.error(err);
