@@ -4,7 +4,7 @@
  * the scene graph and the UI only ever *reflect* this state.
  */
 
-import { MAX_DAY, type SaveData } from './Save';
+import type { SaveData } from './Save';
 import type { DiaryCounters, DiaryNoted } from './diary';
 import { appendEntry, correctEntry, serializeFieldDiary, type FieldDiaryEntry } from './fieldDiary';
 import { DEFAULT_STARTER } from './starters';
@@ -37,6 +37,19 @@ import {
   C0_WEEK_ORDERS, C0_WEEK_RUSH_DONE, C0_WEEK_WAKE,
   cutEntry, seasonCutMontage,
 } from './c0pack';
+// ---- the C1 content pack (narrative/14 §7 step 8 — doc 06 §C1) ----
+import {
+  C1_FIRST_DAY, C1_LAST_DAY, C1_CUT_ADVANCE_DAY, C1_CUT_ID, C1_CUT_WALL,
+  C1_CUT_NOTICE_STAGE, c1CompressionFrom, c1RailFor,
+  c1StationOf, c1CutEntry, applyC1Pick, f1Entries, f6Entry, C1_FRAGMENT_IDS,
+  C1_IDS, C1_LADDER_LINE, C1_NOTICE_FRAME_LINE, C1_NOTICE_SECOND_LINE,
+  C1_FLOUR_LINE, C1_JUNE_WALL_NOTE, C1_PRIYA_ROUTE_LINE, C1_JUNE_REPLY_LINE,
+  C1_PETITION_NOTE, C1_KEV_LANYARD_NOTE, C1_YOLI_FREEZER_NOTE,
+  C1_YOLI_1994_NOTE, C1_CRAIG_SCENE, C1_CIGAR_BOX_SCENE, C1_BLACKOUT_TABLE_NOTE,
+  ladderEntry, noticeEvidenceEntry, petitionEntry, juneEntry,
+  yoliEntry, craigEntry, questionCraigEntry, questionFenceEntry,
+  cigarBoxEntry, blackoutTableEntry,
+} from './c1pack';
 import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, ITEM_STICKERS, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
   D4_WAKE_NOTE, D4_STRANGER_GREET_NOTE, D4_RUSH_DONE_NOTE, D4_MAP_NOTE,
@@ -45,6 +58,7 @@ import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, ITEM_STICKERS, D3_ORDERS, 
   RUSH_CARDS, SOLO_CARDS, RUSH_NOTE_5, USUAL_NOTE,
   IDRIS_NINE_YEARS_NOTE, IDRIS_UNLOCK_NOTE, ROSA_CART_HANDOVER_NOTE,
   ROSA_REGISTER_NOTES, type OrderCard } from './content';
+import type { WeekOrder } from './c0pack';
 
 export const Step = {
   MEET_ROSA: 0,
@@ -114,7 +128,8 @@ export type Effect =
   | { kind: 'reach-top'; day2: boolean }
   | { kind: 'ladder-hint' }
   | { kind: 'rosa-window-warm' }
-  | { kind: 'next-day' }
+  | { kind: 'next-day'; to?: number }
+  | { kind: 'story-flags'; flags: string[] }
   | { kind: 'idris-served' }
   | { kind: 'kid-delivered' }
   | { kind: 'awning-offer' }
@@ -148,7 +163,7 @@ export type Effect =
   // ---- the C0 pack's diary picks (doc 11 §3 — the overlay packs). The
   // Game turns this into the NotebookPrompt overlay; a driver boot never
   // sees it (the pick-card law: drivers keep the shipped flow). ----
-  | { kind: 'diary-prompt'; pack: 'theory' | 'question' }
+  | { kind: 'diary-prompt'; pack: 'theory' | 'question' | 'choice'; node?: 'N1a' | 'N1b' }
   // ---- the C0 block layer's diary ink (narrative/14 §7 step 6, tranche 2
   // — core/c0Pack.ts): the state has already appended the entry; the
   // effect only tells the UI to wiggle (the map-note precedent)
@@ -292,6 +307,12 @@ export class GameState {
   *  as `map_priya_lines` (absent reads false — an old save is a page the
   *  teach hasn't reached yet). */
   priyaLinesCopied = false;
+  /** The C1 season's two-beat linger: the compression's montage shows on
+  *  one press, the roll to the next station consumes the days on the
+  *  next. TRANSIENT (never saved): quitting mid-linger replays the
+  *  montage — the counters only ever move through the roll itself, so a
+  *  replayed montage can never move a date twice. */
+  pendingCompressionTo: number | null = null;
 
   /** The 'map-copies' beat latches. Returns true when the doodle is new. */
   copyPriyaLines(): boolean {
@@ -344,6 +365,14 @@ export class GameState {
   /** The stabilized week (doc 11 §7): days 5–7 ride the WK_* loop. */
   get isWeek(): boolean {
     return this.day >= 5;
+  }
+
+  /** C1's season (narrative/14 §7 step 8 — doc 06 §C1): the station days
+  *  ride the same WK_* loop with the C1 pack's voice. The chapter gate is
+  *  the wide law (R8); the day range is the loop's own — the cut plays at
+  *  C1_LAST_DAY's linger and the wall follows. */
+  get isC1(): boolean {
+    return this.day >= C1_FIRST_DAY && this.day <= C1_LAST_DAY;
   }
 
   objectiveText(): string {
@@ -677,6 +706,18 @@ export class GameState {
 
   // ---------------------------------------------------------------- Day 3 ----
 
+  /** The rush queue for THIS morning (the day-3/4 law's data side): the
+   *  C1 stations speak their own queues (doc 06 §C1's season — the real
+   *  shift is longer, the storm days are soup); the C0 week keeps its
+   *  three. The WK_* step gates remain the loop's — the station only
+   *  re-voices it. */
+  private rushQueue(): readonly WeekOrder[] {
+    if (this.step === Step.WK_RUSH && this.isC1) {
+      return c1StationOf(this.day)?.queue ?? C0_WEEK_ORDERS;
+    }
+    return this.step === Step.WK_RUSH ? C0_WEEK_ORDERS : (this.step === Step.D4_RUSH ? D4_ORDERS : D3_ORDERS);
+  }
+
   /** Rosa's morning-three news, at the cart. Opens the rush (Idris first). */
   rosaD3Wake(): Effect[] {
     if (this.step !== Step.D3_WAKE) return [];
@@ -691,10 +732,12 @@ export class GameState {
 
   /** Rosa's week wake (doc 11 §2 beat 11 + §7 — the stabilized loop's
    *  open). Same law as the D3/D4 wakes: the wake beat first, chat
-   *  second; the rush opens behind it. */
+   *  second; the rush opens behind it. C1's stations speak the C1 pack's
+   *  wake (the same mouth — doc 06 §C1's season in Rosa's voice). */
   rosaWeekWake(): Effect[] {
     if (this.step !== Step.WK_WAKE) return [];
-    const wake = C0_WEEK_WAKE[Math.min(7, Math.max(5, this.day)) as 5 | 6 | 7];
+    const station = this.isC1 ? c1StationOf(this.day) : undefined;
+    const wake = station ? station.wake : C0_WEEK_WAKE[Math.min(7, Math.max(5, this.day)) as 5 | 6 | 7];
     return [
       { kind: 'note', text: wake },
       ...this.setStep(Step.WK_RUSH),
@@ -709,8 +752,7 @@ export class GameState {
   startBrew(): Effect[] {
     if (this.brewing) return [];
     if (this.step !== Step.D3_RUSH && this.step !== Step.D4_RUSH && this.step !== Step.WK_RUSH) return [];
-    const queue = this.step === Step.WK_RUSH ? C0_WEEK_ORDERS : (this.step === Step.D4_RUSH ? D4_ORDERS : D3_ORDERS);
-    const order = queue[this.rushIndex];
+    const order = this.rushQueue()[this.rushIndex];
     if (!order) return [];
     this.brewing = true;
     return [{ kind: 'brew-start' }];
@@ -723,14 +765,17 @@ export class GameState {
     this.brewing = false;
     const week = this.step === Step.WK_RUSH;
     const day4 = this.step === Step.D4_RUSH;
-    const queue = week ? C0_WEEK_ORDERS : (day4 ? D4_ORDERS : D3_ORDERS);
+    const queue = this.rushQueue();
     const order = queue[this.rushIndex];
     if (!order) return [];
     this.rushIndex += 1;
     const out: Effect[] = [{ kind: 'serve-customer' }, ...this.earn(order.pay)];
     if (this.rushIndex >= queue.length) {
       if (week) {
-        out.push({ kind: 'note', text: C0_WEEK_RUSH_DONE });
+        // the rush-done note is the station's own (doc 06 §C1 re-voices
+        // the loop; the C0 week keeps its three-order quiet)
+        const station = this.isC1 ? c1StationOf(this.day) : undefined;
+        out.push({ kind: 'note', text: station ? station.rushDone : C0_WEEK_RUSH_DONE });
         out.push(...this.setStep(Step.WK_ROAM));
       } else if (day4) {
         out.push({ kind: 'note', text: D4_RUSH_DONE_NOTE });
@@ -1023,28 +1068,49 @@ export class GameState {
         { kind: 'note', text: 'Across the street, Rosa\u2019s window warms. \u201CGood night, coffee,\u201D she says \u2014 to you or the city, hard to tell.' },
       ];
     }
-    if (this.day < MAX_DAY) return [{ kind: 'next-day' }];
-    // Day 7's wall is the season cut (doc 11 §7): the week's last linger
-    // plays the C0→C1 interstitial — the diary montage, the city's
-    // morning-after line, Eddie at Monday's door — and then holds. C1's
-    // own days are the next content wave (narrative/14 §7 step 8).
-    return this.seasonCut();
+    // the season compressions' second beat (the C1 pack's two-press
+    // linger): the montage showed on the last press; THIS press rolls the
+    // counters to the next station through the next-day door (the 1:1 law
+    // moves whole — story day, sim day and calendar day together).
+    if (this.pendingCompressionTo !== null) {
+      const to = this.pendingCompressionTo;
+      this.pendingCompressionTo = null;
+      return [{ kind: 'next-day', to }];
+    }
+    if (this.day === 7) return this.seasonCut();
+    if (this.isC1) {
+      const rail = c1RailFor(this.day);
+      if (rail === 'cut') return this.c1SeasonCut();
+      if (rail && typeof rail === 'object') return this.c1Compression(rail.compress);
+    }
+    return [{ kind: 'next-day' }];
   }
 
   /** The season cut (doc 11 §7, the C0→C1 boundary, Sept 15→16): the
    *  first interstitial, composed from the week's OWN diary — the
    *  montage is his hand, not a canon list. Plays once per save (the
-   *  latch is the cut's diary entry — the block layer's law); a replayed
-   *  kept Day 7 gets the wall, never a second cut. **The boundary
-   *  itself: the chapter consumes the calendar day through the machine's
-   *  own door** (advanceChapter — the parallel days-5-7 line's judgment,
-   *  adopted at the integration): the cut IS the authored trigger — the
-   *  beat is playing as this code runs — and the window + minimum-days
-   *  laws still get their say (day 8 ≥ C1's window start; C0 lived its
-   *  seven days). C1's content is the C1 wave's to bring; the rails
-   *  re-evaluate at the next walk. */
+   *  latch is the cut's diary entry — the block layer's law). **The
+   *  boundary itself: the chapter consumes the calendar day through the
+   *  machine's own door** (advanceChapter — the parallel days-5-7 line's
+   *  judgment, adopted at the integration): the cut IS the authored
+   *  trigger — the beat is playing as this code runs — and the window +
+   *  minimum-days laws still get their say (day 8 ≥ C1's window start;
+   *  C0 lived its seven days).
+   *
+   *  The roll (the C1 wave's law — §7 step 8 brought the days it opens):
+   *  the cut's notes play on this press and HOLD; the next linger press
+   *  finds the latch set and rolls into C1's first station (Monday, Sept
+   *  16 — the real shift, doc 06 §C1 event 1) — unless this is a replayed
+   *  kept Day 7, which gets the wall and holds, never a second cut and
+   *  never a roll out of a replay. */
   seasonCut(): Effect[] {
-    if (this.c0Has(C0_CUT_ID)) return [{ kind: 'note', text: C0_CUT_WALL }];
+    if (this.c0Has(C0_CUT_ID)) {
+      // the cut has played (this linger's next press, or a replayed kept
+      // day from a reload): the wall answers; the FIRST play rolls on
+      const wall: Effect[] = [{ kind: 'note', text: C0_CUT_WALL }];
+      if (this.replayDay) return wall;
+      return [...wall, { kind: 'next-day', to: C1_FIRST_DAY }];
+    }
     const out: Effect[] = [];
     for (const line of seasonCutMontage(this.fieldDiary)) {
       out.push({ kind: 'note', text: line });
@@ -1062,6 +1128,239 @@ export class GameState {
     if (adv.ok) this.chapter = adv.state;
     else this.chapter = touchDay(this.chapter, this.calendarDay + 1);
     out.push({ kind: 'persist' }); // the cut's latch rides the save (the block layer's law)
+    return out;
+  }
+
+  /** The C1 season compression (narrative/14 R4's named transition, the
+   *  C1 pack's own days-between): the linger plays the compression's two
+   *  lines and HOLDS; the next press rolls the counters `from → to`
+   *  through the next-day door. The days between stations are CONSUMED,
+   *  never played (the pack's station law) — no diary latch: the
+   *  montage is composed from the diary, and a quit mid-linger replays
+   *  it harmlessly because only the roll moves a date. The marked
+   *  compression is the autumn→winter season cut (crossedSeasonCut
+   *  proves it; the city-diary whisper rides the compression's line —
+   *  the nor'easter's "noted once, the morning after" is its 54→95
+   *  city line). */
+  c1Compression(to: number): Effect[] {
+    const comp = c1CompressionFrom(this.day);
+    if (!comp || comp.to !== to) return [{ kind: 'next-day', to }];
+    this.pendingCompressionTo = to;
+    return [
+      { kind: 'note', text: comp.intro },
+      { kind: 'note', text: `The city: \u201C${comp.city}\u201D` },
+      { kind: 'note', text: 'One more press, and the days pass.' },
+    ];
+  }
+
+  /** The C1→C2 season cut (doc 06 §C1 handoff, New Year's Day): the
+   *  season's montage in his hand, the notice staged back into its
+   *  frame, the over-tag entry dated Jan 1, Y2 — and the chapter through
+   *  advanceChapter's own door at C2's window start (Jan 6, Y2; the cut
+   *  consumes Dec 24 → Jan 6, the window law keeping the holidays C1's).
+   *  Plays once per save (the latch is the entry); a replayed kept
+   *  Dec 23 gets the wall. C2's content is the next wave's — the wall
+   *  holds. */
+  c1SeasonCut(): Effect[] {
+    if (this.c0Has(C1_CUT_ID)) return [{ kind: 'note', text: C1_CUT_WALL }];
+    const out: Effect[] = [];
+    for (const line of seasonCutMontage(this.fieldDiary)) {
+      out.push({ kind: 'note', text: line });
+    }
+    out.push({ kind: 'note', text: C1_CUT_NOTICE_STAGE });
+    out.push({ kind: 'note', text: C1_CUT_WALL });
+    this.c0Write(out, c1CutEntry());
+    // C2's window opens — the machine's own door, the window-start law
+    const adv = advanceChapter(this.chapter, 'C2', {
+      day: C1_CUT_ADVANCE_DAY,
+      triggerHeld: true, // the cut itself is the beat (doc 06 §C1's handoff)
+    });
+    if (adv.ok) this.chapter = adv.state;
+    else this.chapter = touchDay(this.chapter, C1_CUT_ADVANCE_DAY);
+    out.push({ kind: 'persist' });
+    return out;
+  }
+
+  // ------------------------------------------ the C1 season's beats (narrative/14 §7 step 8) ----
+  // The season's interaction ink: each beat rides a SHIPPED interaction
+  // (the c0pack's recontextualization law — retained, not rewritten),
+  // latches by its diary entry (the block layer's law — a replayed day
+  // replays nothing), and writes through the same two doors (the field
+  // diary, the consequence ledger). No new save shape.
+
+  /** Doc 06 §C1 event 1 — the ladder rung, named out loud at the shop
+   *  (the eddie interaction, day 8). */
+  c1Ladder(): Effect[] {
+    if (this.day !== 8 || this.c0Has(C1_IDS.ladder)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: `Eddie: \u201C${C1_LADDER_LINE}\u201D` },
+      { kind: 'note', text: 'He goes back to the dough like the sentence was a receipt. The keys stay on his belt. Rung one is real.' },
+    ];
+    this.c0Write(out, ladderEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C1 starting circumstances + event 8 — the framed notice
+   *  (the lease_notice interaction). Wave 1: day 8, the framing. Wave 2:
+   *  day 106, the notice without the walk-back. Each is its own latch. */
+  c1Notice(): Effect[] {
+    const wave = this.day === 8 ? 1 : (this.day === 106 ? 2 : null);
+    if (wave === null) return [];
+    const id = wave === 1 ? C1_IDS.notice1 : C1_IDS.notice2;
+    if (this.c0Has(id)) return [];
+    const out: Effect[] = [{ kind: 'note', text: wave === 1 ? C1_NOTICE_FRAME_LINE : C1_NOTICE_SECOND_LINE }];
+    if (wave === 1) {
+      out.push({ kind: 'note', text: 'The glass over the paper catches the morning. A renewal notice, framed like a diploma. Photographed it when he wasn\u2019t looking.' });
+    } else {
+      out.push({ kind: 'note', text: `Eddie looks at the frame a long time. \u201C${C1_FLOUR_LINE}\u201D` });
+      out.push({ kind: 'note', text: 'The flour line lands like a verdict and a job offer in the same breath.' });
+    }
+    this.c0Write(out, noticeEvidenceEntry(this.day, wave));
+    return out;
+  }
+
+  /** Whether the day's notice beat has fired (the N1a trigger reads
+   *  this — the pick opens after the flour line has landed). */
+  get c1NoticeSaid(): boolean {
+    return this.c0Has(C1_IDS.notice2);
+  }
+
+  /** Doc 06 §C1 event 6 — the petition slip replaces the lost-cat slip
+   *  (the flyer board, day 29). */
+  c1Petition(): Effect[] {
+    if (this.day !== 29 || this.c0Has(C1_IDS.petition)) return [];
+    const out: Effect[] = [{ kind: 'note', text: C1_PETITION_NOTE }];
+    this.c0Write(out, petitionEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C1 event 2 — June and the DOB wall (the plaza bench, day
+   *  29): the build-out's wall, Priya's knowledge (the phrase verbatim),
+   *  and the card. */
+  c1June(): Effect[] {
+    if (this.day !== 29 || this.c0Has(C1_IDS.june)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: C1_JUNE_WALL_NOTE },
+      { kind: 'note', text: `Leo: \u201C${C1_PRIYA_ROUTE_LINE}\u201D` },
+      { kind: 'note', text: C1_JUNE_REPLY_LINE },
+    ];
+    this.c0Write(out, juneEntry(this.day));
+    return out;
+  }
+
+  /** F6 — Kev's delivery lanyard (the shop counter, day 29; the trigger
+   *  recontextualized to the weekend-counter seam, noted in the pack). */
+  c1KevLanyard(): Effect[] {
+    if (this.day !== 29 || this.c0Has(C1_FRAGMENT_IDS.f6)) return [];
+    const out: Effect[] = [{ kind: 'note', text: C1_KEV_LANYARD_NOTE }];
+    this.c0Write(out, f6Entry(this.day));
+    out.push({ kind: 'note', text: 'A lanyard. Shrink-wrap. A scanner gun\u2019s beep \u2014 three things I have never touched, arriving anyway. It passes. It always passes. I keep the entry anyway.' });
+    return out;
+  }
+
+  /** Doc 06 §C1 event 3 — Yoli's freezer drive (the garden, day 30). */
+  c1Yoli(): Effect[] {
+    if (this.day !== 30 || this.c0Has(C1_IDS.yoli)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: C1_YOLI_FREEZER_NOTE },
+      { kind: 'note', text: 'Twelve trays taped, three coolers loaded, the garden\u2019s freezer honest for another week. Her handshake is a receipt. I kind of love it.' },
+    ];
+    this.c0Write(out, yoliEntry(this.day));
+    return out;
+  }
+
+  /** F1 — the dryer bank (the laundromat seam, day 30's end of day):
+   *  three short RECALL entries, once, told to no one (doc 06 §C1 event
+   *  4). The C0 wobble's own proximity law, keyed to F1's canon day AND
+   *  the loop's afternoon steps (the machines talk after the rush). */
+  c1F1AtLaundry(x: number, z: number, laundryX: number, laundryZ: number): Effect[] {
+    if (this.day !== 30) return [];
+    if (this.step !== Step.WK_ROAM && this.step !== Step.WK_CLIMB) return [];
+    if (Math.hypot(x - laundryX, z - laundryZ) >= 4.5) return [];
+    if (this.c0Has(`${C1_FRAGMENT_IDS.f1}-1`)) return [];
+    const out: Effect[] = [];
+    for (const e of f1Entries(this.day)) this.c0Write(out, e);
+    return out;
+  }
+
+  /** Doc 06 §C1 event 5, the blackout table (the eddie interaction,
+   *  day 52) — and behind it, N1b: the warming station needs a role
+   *  (the register's node, the pick overlay's seam). */
+  c1BlackoutTable(): Effect[] {
+    if (this.day !== 52) return [];
+    if (!this.c0Has(C1_IDS.blackoutTable)) {
+      const out: Effect[] = [{ kind: 'note', text: C1_BLACKOUT_TABLE_NOTE }];
+      this.c0Write(out, blackoutTableEntry(this.day));
+      out.push({ kind: 'note', text: 'Eddie, from the oven, not turning around: \u201CYou\u2019re gonna have to pick a lane, kid. The room can\u2019t have three of you.\u201D' });
+      return out;
+    }
+    // the table has been said: the pick opens (once — the pick's own ink
+    // is the latch; the overlay re-opens only until the pick lands)
+    if (!this.c1PickHeld('N1b')) {
+      return [{ kind: 'diary-prompt', pack: 'choice', node: 'N1b' }];
+    }
+    return [];
+  }
+
+  /** Doc 06 §C1 event 7 + conversations — Craig's visit, the cigar box,
+   *  Yoli's 1994 (day 95, three interactions). */
+  c1Craig(): Effect[] {
+    if (this.day !== 95 || this.c0Has(C1_IDS.craig)) return [];
+    const out: Effect[] = C1_CRAIG_SCENE.map((text) => ({ kind: 'note', text }) as Effect);
+    this.c0Write(out, craigEntry(this.day));
+    this.c0Write(out, questionCraigEntry(this.day));
+    out.push({ kind: 'note', text: 'The counter where he stood needs a wipe. It usually does, after.' });
+    return out;
+  }
+
+  c1CigarBox(): Effect[] {
+    if (this.day !== 95 || this.c0Has(C1_IDS.cigarBox)) return [];
+    const out: Effect[] = [{ kind: 'note', text: C1_CIGAR_BOX_SCENE }];
+    this.c0Write(out, cigarBoxEntry(this.day));
+    return out;
+  }
+
+  c1Yoli1994(): Effect[] {
+    if (this.day !== 95 || this.c0Has(C1_IDS.qFence)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: C1_YOLI_1994_NOTE },
+      { kind: 'note', text: 'She goes back to the petitions like she didn\u2019t just hand me thirty years of weather in one sentence.' },
+    ];
+    this.c0Write(out, questionFenceEntry(this.day));
+    return out;
+  }
+
+  /** Whether the pick has landed (the pick's own ink is the latch — the
+   *  entry rides `node` and the c1- prefix; a refused pick writes
+   *  nothing and the overlay re-opens). */
+  private c1PickHeld(nodeId: 'N1a' | 'N1b'): boolean {
+    return this.fieldDiary.some((e) => e.node === nodeId && e.id.startsWith(`c1-${nodeId.toLowerCase()}-`));
+  }
+
+  /** N1a — the promise (day 106, after the flour line): the pick opens
+   *  from the eddie interaction. The overlay carries the register's
+   *  options; applyChoicePick does the writes. */
+  c1PromisePick(): Effect[] {
+    if (this.day !== 106) return [];
+    if (!this.c1NoticeSaid) return [];
+    if (this.c1PickHeld('N1a')) return [];
+    return [{ kind: 'diary-prompt', pack: 'choice', node: 'N1a' }];
+  }
+
+  /** The pick's landing: resolve through the register's own machine,
+   *  write the ledger (the cascade's coin), write the ink, hand the
+   *  flags to the world store, persist. A refused pick changes nothing. */
+  applyChoicePick(nodeId: 'N1a' | 'N1b', optionId: string): Effect[] {
+    const apply = applyC1Pick(nodeId, optionId, this.calendarDay);
+    if (!apply.ok) return [];
+    const out: Effect[] = [];
+    if (apply.note) out.push({ kind: 'note', text: apply.note });
+    for (const draft of apply.ledger) {
+      this.logLedgerEntry(draft);
+    }
+    if (apply.diary) this.c0Write(out, apply.diary);
+    out.push({ kind: 'story-flags', flags: apply.flags });
+    out.push({ kind: 'persist' });
     return out;
   }
 
@@ -1283,6 +1582,16 @@ export function inShuffleStretch(x: number, z: number): boolean {
 }
 
 function rosaChatLineOf(s: GameState): { text: string; nextChatIndex: number } {
+  if (s.isC1) {
+    // The season's chat (doc 06 §C1 re-voices the loop's mouths): the
+    // station's own line first, then the block's running count.
+    const lines = [
+      'Rosa: \u201CThe block\u2019s still counting windows. Now it counts your hours too. Full-time looks good on the corner.\u201D',
+      'Rosa: \u201CWhatever Craig\u2019s selling, we\u2019re not buying. The box says so. The box is always right.\u201D',
+      'Rosa: \u201CYou fed the block in the dark. You know what that makes you? Mine. The corner\u2019s mine, and you\u2019re the corner.\u201D',
+    ];
+    return { text: lines[s.rosaChatI % 3], nextChatIndex: (s.rosaChatI + 1) % 3 };
+  }
   if (s.isWeek) {
     // The stabilized week's chat (doc 11 §2 beat 11 + §7): the wake beat
     // owns the morning; after that she is the block's running count.

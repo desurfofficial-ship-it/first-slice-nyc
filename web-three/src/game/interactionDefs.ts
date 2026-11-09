@@ -290,8 +290,19 @@ const board: Interaction = {
   pos: () => ({ x: -37.6, y: 1.4, z: 7.5 }),
   // Day 3's beat is the poster itself — the board steps aside for it
   enabled: (s) => s.step !== Step.D3_POSTER,
-  prompt: () => 'Read the board',
-  perform: ({ state }) => [{ kind: 'note', text: byDay(BULLETIN_NOTES, state.day) }],
+  prompt: (s) => (s.isC1
+    ? (s.day === 29 ? 'Read the petition' : (s.day === 30 ? 'The freezer drive' : (s.day === 95 ? 'Yoli\u2019s petitions' : 'Read the board')))
+    : 'Read the board'),
+  perform: ({ state }) => {
+    // C1's paper trail rides the board (doc 06 §C1 events 6/3 + the
+    // 1994 conversation — the board is where the block's paper lives;
+    // the recontextualizations are noted in the pack)
+    if (state.isC1) {
+      const beats = [...state.c1Petition(), ...state.c1Yoli(), ...state.c1Yoli1994()];
+      if (beats.length > 0) return beats;
+    }
+    return [{ kind: 'note', text: byDay(BULLETIN_NOTES, state.day) }];
+  },
 };
 
 const newsbox: Interaction = {
@@ -608,6 +619,9 @@ export function freeRoamInteractions(src: InteractionSources): Interaction[] {
     // the C0 pack's neighbors (narrative/14 §7 step 6 — doc 11): Eddie's
     // counter, the lease notice, the surveyor, Miss Odessa, Deshaun
     eddie, leaseNotice, surveyor, odessa, deshaun,
+    // the C1 wave's own spot (narrative/14 §7 step 8 — doc 06 §C1):
+    // June at the plaza, for her one day
+    june,
     ...simHellos(src), ...walkerChats(src), ...shelfInteractions(src)];
 }
 
@@ -637,8 +651,30 @@ const eddie: Interaction = {
   pos: () => ({ x: 25.9, y: 1.05, z: 10.6 }),
   radius: 2.0,
   enabled: (s) => s.day >= 2,
-  prompt: (s) => (s.eddieCovenantSaid ? 'Say hi to Eddie' : 'Take the first slice'),
+  prompt: (s) => {
+    if (s.isC1) {
+      if (s.day === 8) return 'Say hi to Eddie';
+      if (s.day === 52) return 'The warming station';
+      if (s.day === 95) return 'The man at the counter';
+      if (s.day === 106) return 'The answer';
+    }
+    return s.eddieCovenantSaid ? 'Say hi to Eddie' : 'Take the first slice';
+  },
   perform: ({ state }) => {
+    // C1's season (doc 06 §C1): the ladder rung, Kev's lanyard (F6), the
+    // blackout table (and behind it N1b), Craig's visit, and — after the
+    // flour line — N1a, the promise. Each latches by its own ink.
+    if (state.isC1) {
+      const beats = [
+        ...state.c1Ladder(),
+        ...state.c1KevLanyard(),
+        ...state.c1BlackoutTable(),
+        ...state.c1Craig(),
+      ];
+      if (beats.length > 0) return beats;
+      const pick = state.c1PromisePick();
+      if (pick.length > 0) return pick;
+    }
     if (!state.eddieCovenantSaid) {
       state.eddieCovenantSaid = true;
       return [{ kind: 'note', text: `Eddie: \u201C${EDDIE_COVENANT}\u201D` }];
@@ -647,16 +683,39 @@ const eddie: Interaction = {
   },
 };
 
+/** C1 — June at the plaza, day 29 (doc 06 §C1 event 2: the Halcyon
+ *  build-out's DOB wall, Priya's knowledge). The shipped block hosts her
+ *  a step from the bus bench — the corner is where the block tells its
+ *  news (the recontextualization is noted in the pack). The spot exists
+ *  for her day and fades when the ink has landed. */
+const june: Interaction = {
+  id: 'june',
+  pos: () => ({ x: -21.6, y: 0.05, z: 6.4 }),
+  radius: 2.0,
+  enabled: (s) => s.day === 29 && s.step >= Step.WK_ROAM,
+  prompt: () => 'Sit with June',
+  perform: ({ state }) => state.c1June(),
+};
+
 /** Hook 1 — the lease notice on Eddie's wall (doc 11 §4): visible,
  *  unremarked; the interacting player gets one line. C1's fuse, lit in
- *  plain sight — the notice itself never changes. */
+ *  plain sight. C1's season re-voices it twice (doc 06 §C1): day 8, the
+ *  notice FRAMED (the starting circumstance); day 106, the second
+ *  notice without the walk-back — Eddie's flour line lands here, at the
+ *  wall where he taped it. */
 const leaseNotice: Interaction = {
   id: 'lease_notice',
   pos: () => ({ x: 27.9, y: 1.5, z: 8.9 }),
   radius: 1.8,
   enabled: (s) => s.day >= 2,
-  prompt: () => 'Read the notice on the wall',
-  perform: ({ state }) => state.c0Lease(),
+  prompt: (s) => (s.day === 8 ? 'Read the framed notice' : (s.day === 106 ? 'The second notice' : 'Read the notice on the wall')),
+  perform: ({ state }) => {
+    if (state.isC1) {
+      const beats = state.c1Notice();
+      if (beats.length > 0) return beats;
+    }
+    return state.c0Lease();
+  },
 };
 
 /** Hook 2 — the surveyor at the Works fence at dawn (doc 11 §2 beat 11 +
@@ -770,6 +829,12 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
           // The stabilized week's wake (doc 11 §7): the same law, third
           // verse — the wake beat first, chat second.
           return s.rosaWeekWake();
+        }
+        if (s.isC1 && s.day === 95) {
+          // the cigar box (doc 06 §C1 conversations — the block's real
+          // economy is memory): once, at her counter, in December
+          const cigar = s.c1CigarBox();
+          if (cigar.length > 0) return cigar;
         }
         if (s.isDay2) {
           return s.rosaTask().effects;

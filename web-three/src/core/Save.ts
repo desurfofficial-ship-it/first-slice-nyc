@@ -35,11 +35,17 @@ export const SAVE_KEY = 'first_slice_save_v1';
 // postcard. Day 7's night is the season cut (Sept 16 is C1's first
 // morning): the C0→C1 interstitial plays there, C1's window OPENS through
 // advanceChapter's own door (day 8 is the cut's own date — the R8 window
-// law satisfied verbatim), and the week is kept. C1's own days are the
-// next content wave (narrative/14 §7 step 8). calendar.ts's own header
-// pins the mapping: C0 closes Monday Sept 15 (day 7), C1 opens at the
-// Sept 16 season cut (day 8).
-export const MAX_DAY = 7;
+// law satisfied verbatim).
+// C1's season is PLAYABLE (narrative/14 §7 step 8 — doc 06 §C1): the
+// station days run Sept 16 → Dec 23, Y1, and the season compressions jump
+// the counters whole (the 1:1 law holds by construction — epochMap). The
+// ceiling is C1's canon end (Dec 23 = day 106): the linger there plays
+// the C1→C2 season cut, C2's window opens Jan 6, Y2, and C2's content is
+// the next wave's (the wall, the honest pattern). calendar.ts's own
+// header pins the mapping: C0 closes Monday Sept 15 (day 7), C1 opens at
+// the Sept 16 season cut (day 8), the stations land on doc 06 §C1's own
+// dates through calendarDayOf (validated in the pack's self-check).
+export const MAX_DAY = 106;
 
 export interface SaveData {
   day: number;
@@ -337,7 +343,13 @@ function fluencyOf(d: Record<string, unknown>): SaveData['fluency'] {
   if (typeof src['tier'] !== 'string' || !isFluencyTier(src['tier'])) return undefined;
   const day = src['since_day'];
   if (typeof day !== 'number' || !Number.isFinite(day) || day < 1) return undefined;
-  return { tier: src['tier'], since_day: clamp(Math.trunc(day), 1, MAX_DAY) };
+  // the ladder's day rides the CALENDAR (fluencyAdvance's own input is
+  // calendarDay — C1's compressions push it past the story-day ceiling),
+  // so the clamp is the calendar's own, not MAX_DAY: a C1 save's
+  // since_day (day 29, 95, …) round-trips byte-identically instead of
+  // being silently clamped to the story ceiling (the C1 wave's fix —
+  // pre-C1 the two counters agreed, so the old clamp never lied).
+  return { tier: src['tier'], since_day: clampCalendarDay(Math.trunc(day)) };
 }
 
 /** R9 — the saved send, or undefined. The law is in the shape: there is
