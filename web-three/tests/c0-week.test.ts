@@ -159,14 +159,22 @@ describe('the season cut — doc 11 §7\u2019s C0→C1 interstitial', () => {
     expect(s.fieldDiary.some((e) => e.id === C0_CUT_ID)).toBe(false);
   });
 
-  it('binds the boundary\u2019s CONTENT, not an early chapter advance (R8\u2019s window law)', () => {
-    // C1 opens on calendar day 8 (Sept 16) — the cut day's chapter is still C0
+  it('binds the boundary THROUGH the machine\u2019s own door: C1\u2019s window opens at the cut (day 8 — the R8 window law satisfied verbatim)', () => {
+    // the raw window law keeps its teeth: a bare day-7 advance refuses
     expect(chapterAtDay(7)).toBe('C0');
     expect(chapterAtDay(8)).toBe('C1');
     const s = weekStart(7);
-    const res = canAdvance(s.chapter, 'C1', { day: s.calendarDay, triggerHeld: true });
-    expect(res.ok).toBe(false);
-    expect(res.reason).toBe('window-early');
+    const refused = canAdvance(s.chapter, 'C1', { day: s.calendarDay, triggerHeld: true });
+    expect(refused.ok).toBe(false);
+    expect(refused.reason).toBe('window-early');
+    // but the CUT consumes the calendar day through advanceChapter — the
+    // boundary date (day 8, Sept 16) is C1\u2019s own window start, and C0 has
+    // lived its seven minimum days
+    s.lingerStage = 2;
+    s.rail();
+    expect(s.chapter.chapter).toBe('C1');
+    expect(s.chapter.calendarDay).toBe(8);
+    expect(s.chapter.openedOnDay).toBe(8);
   });
 });
 

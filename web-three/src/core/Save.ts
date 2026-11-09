@@ -33,8 +33,12 @@ export const SAVE_KEY = 'first_slice_save_v1';
 // 9–15): the shipped Days 1–4 (arrival, the usual, the corner, Say Hi)
 // and the stabilized loop Days 5–7 — open, rush, roam, wind-down,
 // postcard. Day 7's night is the season cut (Sept 16 is C1's first
-// morning): the C0→C1 interstitial plays there and the week is kept.
-// C1's own days are the next content wave (narrative/14 §7 step 8).
+// morning): the C0→C1 interstitial plays there, C1's window OPENS through
+// advanceChapter's own door (day 8 is the cut's own date — the R8 window
+// law satisfied verbatim), and the week is kept. C1's own days are the
+// next content wave (narrative/14 §7 step 8). calendar.ts's own header
+// pins the mapping: C0 closes Monday Sept 15 (day 7), C1 opens at the
+// Sept 16 season cut (day 8).
 export const MAX_DAY = 7;
 
 export interface SaveData {

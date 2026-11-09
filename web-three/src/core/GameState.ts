@@ -14,7 +14,7 @@ import { markSent } from './postcardDispatch';
 import { RESOURCE_NOTE_TEXT, shouldOfferResourceNote } from './guardrails';
 // ---- the narrative spine (narrative/14 R1/R2/R8 — the machines, now fed) ----
 import {
-  freshChapterState, touchDay, serializeChapterState,
+  freshChapterState, touchDay, serializeChapterState, advanceChapter,
   type ChapterState,
 } from './chapters';
 import {
@@ -1035,11 +1035,14 @@ export class GameState {
    *  first interstitial, composed from the week's OWN diary — the
    *  montage is his hand, not a canon list. Plays once per save (the
    *  latch is the cut's diary entry — the block layer's law); a replayed
-   *  kept Day 7 gets the wall, never a second cut. The chapter machine
-   *  itself cannot advance here (R8's window law: C1 opens on calendar
-   *  day 8, and the story day is 7) — the cut binds the boundary's
-   *  CONTENT; the state advance rides C1's first morning, with the next
-   *  wave. */
+   *  kept Day 7 gets the wall, never a second cut. **The boundary
+   *  itself: the chapter consumes the calendar day through the machine's
+   *  own door** (advanceChapter — the parallel days-5-7 line's judgment,
+   *  adopted at the integration): the cut IS the authored trigger — the
+   *  beat is playing as this code runs — and the window + minimum-days
+   *  laws still get their say (day 8 ≥ C1's window start; C0 lived its
+   *  seven days). C1's content is the C1 wave's to bring; the rails
+   *  re-evaluate at the next walk. */
   seasonCut(): Effect[] {
     if (this.c0Has(C0_CUT_ID)) return [{ kind: 'note', text: C0_CUT_WALL }];
     const out: Effect[] = [];
@@ -1049,7 +1052,15 @@ export class GameState {
     out.push({ kind: 'note', text: `The city, the next morning: \u201C${C0_CUT_CITY_LINE}\u201D` });
     out.push({ kind: 'note', text: `Eddie: \u201C${C0_CUT_EDDIE_LINE}\u201D` });
     out.push({ kind: 'note', text: C0_CUT_WALL });
-    this.c0Write(out, cutEntry(this.calendarDay));
+    // the montage, in his hand — dated the cut's morning (day 8, Sept 16)
+    this.c0Write(out, cutEntry(this.calendarDay + 1));
+    // C1's window opens — the machine's own door, the boundary date
+    const adv = advanceChapter(this.chapter, 'C1', {
+      day: this.calendarDay + 1,
+      triggerHeld: true, // the cut itself is the beat (doc 11 §7's interstitial)
+    });
+    if (adv.ok) this.chapter = adv.state;
+    else this.chapter = touchDay(this.chapter, this.calendarDay + 1);
     out.push({ kind: 'persist' }); // the cut's latch rides the save (the block layer's law)
     return out;
   }
