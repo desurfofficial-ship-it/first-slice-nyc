@@ -2763,3 +2763,21 @@ Work Log:
 Stage Summary:
 - The wave the owner ruled on is DONE: every one of the registry's 50 buildings — from the Marlow walk-ups to Rosa's deli to the Orpheum block — renders from the registry's own numbers, and the census proved the move byte-neutral ten times. The double truth is over; the registry is load-bearing.
 ---
+
+## 2026-11-09 — C0 CONTENT PACK (register v1.29.0) — the diary writes its first week
+
+Owner directive: "Continue building (use the road map)" + "make big impact". The §7 order's step 6 ran: **the C0 content pack — doc 11's narrative layer over the shipped opening — the first CONTENT wave.**
+
+Landed (`feat/c0-diary-pack`, one commit series):
+- `core/c0Pack.ts` (new): every doc-11 line VERBATIM (covenant, lease, surveyor, listing, Deshaun, Sam, Rosa's mango, the nod, the mishear, the wobble, the cold-open prompts), the entry factories (five ladder ids `c0-e1..e5` + the hooks'), the latches (`C0Latches`, parse/serialize, absent-reads-fresh).
+- `GameState`: the C0 seam — cold open, covenant→theory card, night-question card, free-write submit, the three hooks, Deshaun, the wobble, the handover FACT; `diary-ink` + `diary-write-open` effects; the `c0_` card-router branch (the reply chooses the PROSE — money and progress never depend on it); save `c0` (optional trailing v1-safe).
+- `Game`: the cold-open auto-offer (the notebook's first page IS the game's first screen — humans only), the wobble trigger (Day 7+, laundromat), the beat hooks (Entry 3 at the D1 close, Entry 4's card at the D3 close), the name-box's diary mode.
+- `interactionDefs`: eddie / lease_notice / surveyor (dawn-gated, clock-backed) / odessa (Day 5+) / deshaun (Day 2 midday).
+- `tests/c0-pack.test.ts` (30): verbatim quotes, the FACT mishear pinned, latch idempotence, save round-trip + quarantine, the §6 ban grep (no Corvus/crime/conspiracy), clock-backed gate proofs.
+- Docs: register v1.29.0 + R3 re-status; production docs untouched otherwise.
+
+**The fleet caught one genuine regression:** the cold-open card's first cut auto-opened under headless drivers and froze the world sim at 07:40 (`orderCardOpen` pauses the clock; pristine-main A/B proved it). Fixed under the film's own law — `driverBoot`: the notebook, like the film, is for humans. Pinned in the gate's comment.
+
+Gates: tsc clean · vitest 1096/1096 (73 files, +30) · build OK · probe-world-sim 15/15 (42.0 s, post-fix) · probe-money-trace + 4-day E2E executed at close (see register row).
+
+Stage summary: the machines R0–R8 are built; the C0 pack is the first content to run on them. The opening now teaches by the diary itself — the Two-Diaries Law is playable. Next per §7: R9–R12, then C1–C2 content.

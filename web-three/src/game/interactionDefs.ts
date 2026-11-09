@@ -46,6 +46,7 @@ import {
   RECORD_LISTEN_NOTES,
 } from '../core/content';
 import { hallNoticeForDay } from '../world/dressing';
+import { EDDIE_LINES } from '../core/c0Pack';
 import { NEVER_NEAR, type Interaction, type InteractionCtx, type Vec3Like } from './interactions';
 import type { SubwaySystem } from '../world/subway';
 
@@ -604,8 +605,98 @@ export function freeRoamInteractions(src: InteractionSources): Interaction[] {
     trainA, trainB, priya, busker, buskerCoin, usher, driver, duffel,
     // W5 — the rooms (docs/41): every loop anchored inside its registry shell
     dryer, pizza, dinerCoffee, dinerBooth, pieCase, hallNotice, hallWorkshop, bakery, recordBin, recordListen, cecilGaze, cecilCorkboard,
+    // the C0 pack's neighbors (narrative/14 §7 step 6 — doc 11): Eddie's
+    // counter, the lease notice, the surveyor, Miss Odessa, Deshaun
+    eddie, leaseNotice, surveyor, odessa, deshaun,
     ...simHellos(src), ...walkerChats(src), ...shelfInteractions(src)];
 }
+
+// ----------------------------------------------- the C0 pack's neighbors ----
+// Doc 11's narrative layer over the shipped opening (narrative/14 §7 step
+// 6): the covenant, the three hooks (small, civic, deniable), the
+// grounding kit. Every def is LATCH-GATED through the state's c0 latches
+// — a beat lands once, then it is an echo. None of them gate the story's
+// steps: the notebook never blocks the block.
+
+/** The sim clock's phase, when the harness carries one (the walker rule's
+ *  precedent: authored-only harnesses don't — the gate then yields so the
+ *  def stays testable; the real world always supplies the clock). */
+function simPhase(ctx: InteractionCtx): string | null {
+  const ws = (ctx.game as { worldSim?: { brain: { clock: { phase: string } } } }).worldSim;
+  return ws?.brain.clock.phase ?? null;
+}
+
+/** Eddie — the covenant at Corner Slice's counter (doc 11 §2 beat 6).
+ *  He's there from the trial shift on (Day 2+); the first press receives,
+ *  the notebook asks its first running question behind it, the rest are
+ *  the counter's day-keyed rhythm. */
+const eddie: Interaction = {
+  id: 'eddie',
+  pos: () => ({ x: 25.9, y: 1.05, z: 10.6 }),
+  radius: 2.0,
+  enabled: (s) => s.day >= 2,
+  prompt: (s) => (s.c0.covenant ? 'Say hi to Eddie' : 'Take the first slice'),
+  perform: ({ state }) => (state.c0.covenant
+    ? [{ kind: 'note', text: byDay(EDDIE_LINES, state.day) }]
+    : state.c0Covenant()),
+};
+
+/** Hook 1 — the lease notice on Eddie's wall (doc 11 §4): visible,
+ *  unremarked; the interacting player gets one line. C1's fuse, lit in
+ *  plain sight — the notice itself never changes. */
+const leaseNotice: Interaction = {
+  id: 'lease_notice',
+  pos: () => ({ x: 27.9, y: 1.5, z: 8.9 }),
+  radius: 1.8,
+  enabled: (s) => s.day >= 2,
+  prompt: () => 'Read the notice on the wall',
+  perform: ({ state }) => state.c0Lease(),
+};
+
+/** Hook 2 — the surveyor at the Works fence at dawn (doc 11 §2 beat 11 +
+ *  §4): a man with a camera and a sun-angle chart. Dawn only — he
+ *  measures light, professionally. The diary's GUESS is available; C2
+ *  strikes it ("it was always sunlight and square feet"). */
+const surveyor: Interaction = {
+  id: 'surveyor',
+  pos: () => ({ x: -52.5, y: 0.9, z: 18.4 }),
+  radius: 2.2,
+  enabled: (s, ctx) => {
+    const phase = simPhase(ctx);
+    return phase === null ? s.day >= 1 : phase === 'dawn';
+  },
+  prompt: () => 'Ask about the camera',
+  perform: ({ state }) => state.c0Surveyor(),
+};
+
+/** Hook 3 — Miss Odessa's nod (doc 11 §2 beat 11 + §4): one word, the
+ *  handshake. Nobody comments. The game never explains. (The second job
+ *  surfaces once, in C3, when Eli mentions Grandma sleeps on the bus.
+ *  That's all. Some things are just true.) */
+const odessa: Interaction = {
+  id: 'odessa',
+  pos: () => ({ x: 13.8, y: 0.05, z: 8.2 }),
+  radius: 2.0,
+  enabled: (s) => s.day >= 5,
+  prompt: () => 'Morning, Miss Odessa',
+  perform: ({ state }) => state.c0Odessa(),
+};
+
+/** Beat 7 — Deshaun on the platform, Day 2 midday (doc 11 §2): the panic
+ *  beat's teach. The kit is learned by a person, in scene — the
+ *  condition's first public shadow, misread as ordinary new-kid nerves. */
+const deshaun: Interaction = {
+  id: 'deshaun',
+  pos: () => ({ x: -38.4, y: SUBWAY_SPOTS.priya.y, z: 9.0 }),
+  radius: 2.2,
+  enabled: (s, ctx) => {
+    if (s.day !== 2) return false;
+    const phase = simPhase(ctx);
+    return phase === null || phase === 'midday';
+  },
+  prompt: () => 'Sit with Deshaun',
+  perform: ({ state }) => state.c0Deshaun(),
+};
 
 // ------------------------------------------- the world runtime's hellos ----
 // Phase-1 runtime integration (world-contract doc 17): the R6 door's
