@@ -98,7 +98,7 @@ const browser = await chromium.launch({ args: LAUNCH_ARGS });
     ['C8 invalid relationship entry', clone((d) => { d.relationships[0].warmth = 999; }), /warmth/],
     ['C8b dangling relationship npc', clone((d) => { d.relationships[0].a = 'npc:ghost'; }), /npc id present in this document/],
     ['C9 unexpected nested structure', clone((d) => { d.environment.weather = { nested: true }; }), /environment/],
-    ['C9b junk flag tuple', clone((d) => { d.flags = [['junk:x', 1]]; }), /flag:\/evt: sim id/],
+    ['C9b junk flag tuple', clone((d) => { d.flags = [['junk:x', 1]]; }), /flag:\/evt:\/node: id or dimension=value key/],
     ['C10 excessively large numeric', clone((d) => { d.player.moneyCents = 1000000000000; }), /moneyCents/],
     ['C10b huge business balance', clone((d) => {
       d.businesses = [{ id: 'biz:x', name: 'X', premisesBuildingId: 'KTN-01',

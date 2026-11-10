@@ -76,7 +76,11 @@ export function entryId(day: number, kind: 'day' | 'wow', caption: string): stri
 }
 
 function isDataImage(v: unknown): v is string {
-  return typeof v === 'string' && v.startsWith('data:image/');
+  // FS-AUDIT-006 (remediation): the prefix must not be wider than the
+  // writers. Every thumb the pipeline produces is a canvas raster capture
+  // (toDataURL's image/png or image/jpeg) — svg+xml and every other
+  // data:image/* flavor can never be produced, so they can never load.
+  return typeof v === 'string' && /^data:image\/(png|jpeg);/.test(v);
 }
 
 /** The parser is a wall, not a suggestion: every field is checked, wrong

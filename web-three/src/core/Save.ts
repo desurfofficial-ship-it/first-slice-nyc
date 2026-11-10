@@ -282,8 +282,12 @@ export function parseSave(raw: string | null): SaveData {
     day: storyDay,
     day_complete: bool('day_complete', false),
     replay: bool('replay', false),
-    cart_name: typeof d.cart_name === 'string' ? d.cart_name : '',
-    money: Math.max(0, Math.trunc(num('money', 87))),
+    // FS-AUDIT-004 (remediation): the parser now enforces the UI's own
+    // contract — the name field is a 24-char input (index.html maxlength)
+    // and money is a bounded gameplay quantity. A hand-edited save can no
+    // longer carry a 1e6-char name or a 1e15 balance past the wall.
+    cart_name: typeof d.cart_name === 'string' ? d.cart_name.slice(0, 24) : '',
+    money: Math.min(999_999, Math.max(0, Math.trunc(num('money', 87)))),
     awning: bool('awning', false),
     stool: bool('stool', false),
     map_given: bool('map_given', false),
@@ -291,7 +295,7 @@ export function parseSave(raw: string | null): SaveData {
     kid_kept: bool('kid_kept', false),
     idris_served: bool('idris_served', false),
     lunch_served: clamp(Math.trunc(num('lunch_served', 0)), 0, 3),
-    day_start_money: Math.max(0, Math.trunc(num('day_start_money', Math.max(0, Math.trunc(num('money', 87)))))),
+    day_start_money: Math.min(999_999, Math.max(0, Math.trunc(num('day_start_money', Math.min(999_999, Math.max(0, Math.trunc(num('money', 87)))))))),
     // the block remembers (Doc 37 §3F) — absent in old saves, reads as 0
     shelf_buys: clamp(Math.trunc(num('shelf_buys', 0)), 0, 999),
     dog_buys: clamp(Math.trunc(num('dog_buys', 0)), 0, 999),
