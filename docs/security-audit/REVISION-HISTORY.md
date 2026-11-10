@@ -54,3 +54,22 @@ All dates 2026-11-06 (UTC). Repository: `desurfofficial-ship-it/first-slice-nyc`
 | Compatibility proof | the 840-test baseline (incl. old-v1-JSON save compat, sim-state round-trips, ownership table, registry gates) passed UNCHANGED on the remediation tree before the new batteries were added; no schema change; valid saves restore exactly |
 | Independent verification | a separate agent (that did not implement the fixes) executed a refutation pass — URL-surface enumeration, 25+ hostile documents through the real parser, sandbox/isolation attacks, quarantine abuse, valid-save compatibility — verdict **HOLDS** for both fixes; its follow-up findings N-1 (ledger-replay integrity gate), N-2 (album sandbox), N-3 (quarantine namespace) and N-6 (dead field) were fixed in the same branch and pinned by tests; N-4/N-5 recorded as informational |
 | Files touched | source: `driverGate.ts` (new), `Save.ts`, `state.ts`, `Game.ts`, `autotest.ts`, `scenario.ts`, `worldRuntime.ts`, `Album.ts`, `sim/runtime.ts`; tests: 2 new files; scripts: 2 new probes + 2 harness updates; docs: this package |
+
+
+---
+
+## v1.3 — 2026-11-10 — the qa-full-spectrum wave (full-spectrum security, penetration testing, bug hunting & gameplay quality assignment)
+
+**Branch:** `fix/qa-full-spectrum` (base `origin/main` @ `ebfb08a`, register v1.35.0 — ~100 commits of evolution since the R1+R2 branch was cut).
+**Scope:** carry the R1+R2 remediation onto the evolved main; run the full-spectrum QA/security pass (play the game, break it, fix it); close what closes honestly.
+
+| What | Detail |
+|---|---|
+| Integration | the R1+R2 remediation cherry-picked onto the evolved main; conflicts resolved additively; the validator learned the EVOLVED schema (the FlagStore node:/dimension key grammar — otherwise valid saves would be quarantined; the R6 missable provenance; the R5 life section carried — otherwise the majors' lives would silently reset every reload) |
+| Merge-borne save-loss paths closed | the missable cache follows the R6 drop-and-re-derive law (a new non-fatal `warn` channel — nothing silent); three defects caught by the merged suite before reaching a player |
+| Informational findings closed | 004 (story-save bounds), 005 (the clock's day trust boundary), 006 (album mime whitelist), 007 (wardrobe escaped render) — each with a regression test; 008 documented open (needs verified SHAs); 003 remains roadmap-gated |
+| Pre-existing main defect fixed | `ebfb08a`'s missed follower: the SUB-01 nav landing (and two test pins) still pointed at the old sidewalk spot — routed bodies arrive at the headhouse that frames the real stair shaft |
+| Fleet | probe-nav, probe-money-trace and diag-ped-overlap ride the documented driver handshake (broken against gated production builds otherwise) |
+| New gameplay probes | `probe-abnormal.mjs` (14/14 — movement abuse, interaction spam, idle, restart, reload spam, mid-boot interrupts: no escapes, no NaN, no wiped saves) · `probe-first-session.mjs` (8/8 — film, SKIP, handover legibility, objective, the world answers; screenshots in `web-three/shots/first-session/`) |
+| Gates executed | tsc clean · vitest **1300/1300** (83 files) · build OK (603 ms) · probe-security-r1 **31/31** · probe-security-r2 **166/166** · world-sim **15/15** · money-trace **ALL** · nav **9/9** · 4-day E2E **0 failures** (566 s, console clean) · perf: peds 24.3 µs/frame, heap flat, draw calls 154→296 recorded |
+| Report | `docs/qa-security/SECURITY-AND-GAMEPLAY-AUDIT.md` + `evidence/` |

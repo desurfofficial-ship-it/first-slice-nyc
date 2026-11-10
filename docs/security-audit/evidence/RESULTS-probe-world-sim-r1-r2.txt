@@ -14,5 +14,5 @@ PASS  6e: repeated loading is idempotent
 PASS  7: clock-keyed dusk (D-2: visuals + street plan re-keyed)
 PASS  6g: multi-day continuity after load
 
-sim-minutes run: 1424 in 68.1s real — steps 15/15
+sim-minutes run: 1426 in 84.1s real — steps 15/15
 WORLD-SIM PROBE OK

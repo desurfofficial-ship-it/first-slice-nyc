@@ -119,6 +119,8 @@
 | **Regression test** | Extend the `tests/save.test.ts` fuzz wall: `cart_name` of 1e6 chars parses to ≤24 (or chosen cap); `money: 1e15` parses to the chosen ceiling. |
 | **Independent verification** | Verifier B — confirmed, INFORMATIONAL upheld; every rendering sink traced safe; no export/import feature exists. |
 
+> **Remediation record (qa-full-spectrum wave, 2026-11-10): FIXED.** The story-save parser now enforces the UI's own contract — `cart_name` caps at the input's 24 chars (index.html's `maxlength`), `money` and `day_start_money` cap at 999999. The audit's own proof cases (a 1e6-char name, `money: 1e15` numeric or string) no longer parse verbatim; rendering behavior for every legitimate save is unchanged. Regression: `tests/save.test.ts`'s FS-AUDIT-004 case. Gate: vitest 1300/1300 on the wave's tree.
+
 ## FS-AUDIT-005 — `GameClock` accepts an unbounded day number and `calendarOf()` is linear in it — a latent multi-hour loop with no shipped consumer today
 
 **R2 reconciliation (@ `62a6244`): CONFIRMED-CURRENT as latent — INFORMATIONAL unchanged, with a new watch item.** `sim/clock.ts` is byte-identical; battery R4.1/R4.2 re-proves the unclamped acceptance (`clock.day=1e15` restored; `new GameClock({day:1e15}).day=1e15`), R4.3/R4.4 re-prove linear `calendarOf` growth (0.43 ms @ 1e7) and O(1) weekday. **WP-2v's `epochMap.ts` is the first new production consumer of calendar math since the audit — and it does NOT reactivate the hazard:** examined line-by-line, it calls `calendarOf` only with the constant `1` (`:183`) and loop days ≤ 1460 (`:210–212`), routes every public mapping through `assertDay()` (`:69–76`, throws on non-integer/<1/>36500), and `epochAgreement` is boot/audit-time with a bounded walk. **Watch item:** `epochMap` exports `datelineOfSimDay`/`datelineOfStoryDay` for the roadmap's WP-6 (HUD/diary datelines) — WP-6 is exactly the "future consumer" this finding warned about. Routing through `epochMap` is safe (bounded to 36500, ≈1 ms); a WP-6 surface that reads `GameClock.day` directly would reactivate the latent hang — R4 (clamp the constructor) remains the durable fix.
@@ -140,6 +142,8 @@
 | **Remediation** | Clamp the clock at the trust boundary: `Math.min(day, 36500)` (mirroring `clampCalendarDay`) in the `GameClock` constructor — one line, kills the class. |
 | **Regression test** | `new GameClock({day: 1e15}).day === 36500` (or chosen max); `calendarOf` must remain O(1)-bounded after the clamp. |
 | **Independent verification** | Verifier B — confirmed, latent INFORMATIONAL upheld; confirmed `advanceReal` tick cap and the absent consumer. |
+
+> **Remediation record (qa-full-spectrum wave, 2026-11-10): FIXED.** `GameClock` now carries the day trust boundary itself — the constructor clamps `day` to [1, 36500] (the same ceiling as `clampCalendarDay`, the world-save validator's `MAX_DAY`, and epochMap's `assertDay`) and `advance` pins at the ceiling (the final day still flows; no day may ever open past 36500). `calendarOf`'s linear loop can never be handed an unbounded day again — the latent tab-freeze class is dead at the source, not at each consumer. The watch item is closed verified: WP-6's HUD dateline routes through `datelineOfStoryDay` (epochMap's bounded mapping), never the raw day. Regression: `tests/sim-clock.test.ts`'s boundary case (1e15 clamps; the crossing INTO day 36500 is a legal midnight; the ceiling absorbs `advance(1e12)`).
 
 ## FS-AUDIT-006 — Album thumb validation accepts any `data:image/` prefix, including `data:image/svg+xml` (non-exploitable as shipped)
 
@@ -163,6 +167,8 @@
 | **Regression test** | Add to `tests/album.test.ts`: an svg+xml thumb is rejected. |
 | **Independent verification** | Verifier B — confirmed as hardening; corrected one line reference (UI.ts:636) and checked the re-share/download paths. |
 
+> **Remediation record (qa-full-spectrum wave, 2026-11-10): FIXED.** The thumb whitelist is now exactly the two mimes the canvas pipeline produces (`data:image/png` and `data:image/jpeg`) — `svg+xml`, `gif`, `webp` and every other flavor can never be produced by the writers, so they can never be loaded. Regression: `tests/album.test.ts`'s field wall rejects svg+xml/gif/webp thumbs.
+
 ## FS-AUDIT-007 — Wardrobe lineup interpolates into `innerHTML` without escaping; values are developer constants (hardening only)
 
 **R2 reconciliation (@ `62a6244`): CONFIRMED-CURRENT as hardening — INFORMATIONAL unchanged.** `ui/Wardrobe.ts` byte-identical. WP-1v touched only pause wiring (`Game.ts`, `pauseSet.ts`, `worldRuntime.ts`), not wardrobe rendering; no save/URL path reaches the interpolations (unchanged).
@@ -184,6 +190,8 @@
 | **Remediation** | Escape the three interpolations (or build the tile with `textContent`), matching the codebase's own law. |
 | **Regression test** | Lint-style guard: forbid unescaped `${` inside `innerHTML` assignments (a tiny ESLint custom rule or grep gate in CI). |
 | **Independent verification** | Verifier B — confirmed as hardening-only. |
+
+> **Remediation record (qa-full-spectrum wave, 2026-11-10): FIXED (hardening).** The lineup render escapes every interpolated value (a file-local `escapeHtml`, the diary.ts/UI.ts precedent) and the swatch must prove itself plain hex before it may touch a `style` attribute — the render no longer depends on the values being developer constants. Render output is byte-identical for the shipped data. Gate: the wardrobe suite green.
 
 ## FS-AUDIT-008 — CI pins first-party actions by mutable major tag rather than commit SHA (hardening only)
 
@@ -208,6 +216,8 @@
 | **Independent verification** | Verifier B — confirmed as hardening-only. |
 
 ---
+
+> **Status note (qa-full-spectrum wave, 2026-11-10): OPEN — documented, deliberately not patched blind.** Pinning actions by commit SHA requires verifying each upstream action's real SHA at patch time; a wrong pin silently breaks the Pages deploy. Recommended: one dedicated hardening commit that pins `actions/checkout`, `actions/configure-pages`, `actions/upload-pages-artifact` and `actions/deploy-pages` to their then-current SHAs, verified against the actions' repos.
 
 ## Negative results worth stating (the genuinely secure parts)
 

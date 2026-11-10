@@ -2960,3 +2960,67 @@ Stage Summary:
 - Branch fix/security-r1-r2 is clean and ready for owner review; R3–R7
   untouched; no gameplay, narrative-canon, save-schema, calendar-epoch, or
   architecture changes; merge and publish await owner authorization.
+
+
+---
+
+Task ID: QA-FULL-SPECTRUM
+Agent: Lead security/QA/gameplay engineer (full-spectrum assignment)
+Task: Full-spectrum security, penetration testing, bug hunting and
+gameplay quality across the entire project — play it, break it, fix it,
+verify it — then publish.
+
+Work Log:
+- Carried the R1+R2 security remediation (08712a5) onto the evolved main
+  (ebfb08a, ~100 commits of evolution: WP-4..7, E-1, rails, R5/R6,
+  interiors, A-3, the C0/C1/C2 waves, polish pass 2). Conflicts resolved
+  additively; the driver gate, the storage sandbox and the entry guards
+  re-verified line-by-line on the evolved code.
+- Caught and closed three merge-borne save-loss paths BEFORE they reached
+  a player: (1) the world-save validator would have silently DROPPED the
+  R5 life section (majors' lives reset every reload) — the whitelist now
+  carries it; (2) the validator would have REFUSED valid saves carrying
+  the new FlagStore node:/dimension key grammar — it now enforces the
+  runtime's own law via isStoryFlagId; (3) a malformed missable CACHE
+  entry would have refused the whole world — it now drops with a counted
+  note per the R6 law (a new non-fatal warn channel; nothing silent).
+- Fixed a pre-existing main defect (verified on pristine ebfb08a): the
+  SUB-01 nav landing still pointed at the old sidewalk spot five metres
+  from the stair shaft the headhouse was moved onto; the landing and the
+  two stale test pins now read the registry truth. probe-nav 9/9.
+- Closed the four informational security findings with their documented
+  remediations + regression tests: 004 (story-save bounds: 24-char name,
+  999999 money), 005 (the clock's day trust boundary 1..36500 —
+  constructor clamp + advance pin; the latent calendarOf hang class is
+  dead at the source), 006 (album thumbs: png/jpeg only), 007 (wardrobe
+  render escapes every value, swatch must prove plain hex). 008 (CI
+  pinning) documented open — needs verified upstream SHAs; 003 remains
+  roadmap-gated (WP-4 now merged, the gate is ripe).
+- Completed the fleet's driver handshake: probe-nav, probe-money-trace
+  and diag-ped-overlap now authorize like e2e.mjs (broken against gated
+  production builds otherwise).
+- NEW probes: probe-abnormal.mjs (14/14 — boundary grinding, corner
+  tunneling attempts, 40xE spam, interact-while-moving, 15 s idle,
+  R-restart, reload spam, mid-boot interrupts: no escapes, no NaN, no
+  wiped saves, zero page errors) and probe-first-session.mjs (8/8 — the
+  beginner's opening: film, SKIP affordance, legible handover with
+  objective/money/dateline, the world answers the first interaction;
+  screenshot evidence in web-three/shots/first-session/).
+- Performance measured on the integrated tree: peds.update 24.3 µs/frame
+  (0.15% of budget), the commute adds 5.5 µs, heap flat over 9000 frames,
+  draw calls 154→296 recorded (B13 stands), zero page errors.
+- Gates executed on the final tree: tsc clean; vitest 1300/1300 (83
+  files); build OK (603 ms); probe-security-r1 31/31; probe-security-r2
+  166/166; probe-world-sim 15/15; probe-money-trace ALL PASSED;
+  probe-nav 9/9; 4-day story E2E 0 failures (566 s, console clean).
+- Report: docs/qa-security/SECURITY-AND-GAMEPLAY-AUDIT.md (+ evidence/);
+  audit package updated to v1.3 (04 remediation records, 07 status,
+  findings.json statuses, this worklog, the register's Gates row).
+
+Stage Summary:
+- Branch fix/qa-full-spectrum: the game is harder to break (every save
+  surface boundaried at the parser, the clock bounded at the source, the
+  drivers gated end-to-end), safer to run (no save-loss path open), and
+  verified better to play (the opening communicates; the abnormal player
+  cannot escape, crash, or wipe anything). Remaining: 003's WP-4 re-audit
+  (now unblocked), 008's CI pinning, B13's draw-call decision.

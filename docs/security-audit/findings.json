@@ -322,7 +322,7 @@
       "title": "Story-save parser accepts unbounded cart_name, money, day_start_money; UI enforces 24 chars the parser does not",
       "severity": "INFORMATIONAL",
       "confidence": "high",
-      "status": "confirmed",
+      "status": "fixed",
       "affected_files": [
         {
           "path": "web-three/src/core/Save.ts",
@@ -356,6 +356,11 @@
         "reachability_change": "none",
         "dynamic_evidence_at_current": "R2 battery R1.2/R1.3/R1.4: money=1e15 accepted (numeric and string), cart_name 1,000,000 chars accepted verbatim; regression checks R1.1/R1.5/R1.6 confirm day clamp (4), calendar_day clamp (36500) and __proto__ neutralization are intact",
         "severity_after_reconciliation": "INFORMATIONAL (unchanged)"
+      },
+      "remediation_qa_full_spectrum": {
+        "wave": "fix/qa-full-spectrum (2026-11-10)",
+        "fix": "The story-save parser enforces the UI's own contract: cart_name caps at the input's 24 chars (index.html maxlength), money and day_start_money cap at 999999. The audit's proof cases (1e6-char name, 1e15 money) no longer parse verbatim.",
+        "test": "tests/save.test.ts — \"caps cart_name at the UI maxlength (24) and money at the ceiling (FS-AUDIT-004)\""
       }
     },
     {
@@ -363,7 +368,7 @@
       "title": "GameClock accepts unbounded day; calendarOf() is linear in day - latent multi-hour loop with no shipped consumer",
       "severity": "INFORMATIONAL",
       "confidence": "high",
-      "status": "confirmed",
+      "status": "fixed",
       "affected_files": [
         {
           "path": "web-three/src/sim/clock.ts",
@@ -394,6 +399,11 @@
         "dynamic_evidence_at_current": "R2 battery R4.1/R4.2/R4.3/R4.4: world-save clock.day=1e15 accepted, new GameClock({day:1e15}).day=1e15 (unclamped), calendarOf(1e7) 0.43ms (linear), weekday O(1); R5.1-R5.11: epochMap strict front door throws on 0/NaN/1.5/36501/1e15, simTickOfStoryDay(1)=460, epochAgreement().agreed=true, tolerant read clamps (evidence/RESULTS-reconciliation-62a6244.txt)",
         "watch_item": "epochMap exports datelineOfSimDay/datelineOfStoryDay for the roadmap's WP-6 (HUD/diary datelines). WP-6 is the exact 'future consumer' this finding warned about — routing through epochMap is safe (assertDay bounds to 36500, ~1ms), but a WP-6 surface that reads GameClock day directly (bypassing the mapping) would reactivate the latent hang. R4 (clamp GameClock) remains the durable fix.",
         "severity_after_reconciliation": "INFORMATIONAL latent (unchanged)"
+      },
+      "remediation_qa_full_spectrum": {
+        "wave": "fix/qa-full-spectrum (2026-11-10)",
+        "fix": "GameClock carries the day trust boundary itself: the constructor clamps day to [1,36500] and advance pins at the ceiling (the final day still flows; no day may open past 36500). calendarOf can never be handed an unbounded day again — the latent tab-freeze class is dead at the source. WP-6's HUD dateline was verified already routed through epochMap's bounded mapping.",
+        "test": "tests/sim-clock.test.ts — \"clamps the day at the 36500 trust boundary (constructor and advance)\""
       }
     },
     {
@@ -401,7 +411,7 @@
       "title": "Album thumb validation accepts any data:image/ prefix including svg+xml (non-exploitable as shipped)",
       "severity": "INFORMATIONAL",
       "confidence": "high",
-      "status": "confirmed",
+      "status": "fixed",
       "affected_files": [
         {
           "path": "web-three/src/postcard/Album.ts",
@@ -435,6 +445,11 @@
         "reachability_change": "none",
         "dynamic_evidence_at_current": "R2 battery R6.2: data:image/svg+xml thumb still accepted; R6.1/R6.3/R6.4: javascript: rejection, valid-thumb path, and the cartName>40 album cap all intact",
         "severity_after_reconciliation": "INFORMATIONAL hardening (unchanged)"
+      },
+      "remediation_qa_full_spectrum": {
+        "wave": "fix/qa-full-spectrum (2026-11-10)",
+        "fix": "The album thumb whitelist is exactly the two mimes the canvas pipeline produces (data:image/png and data:image/jpeg) — svg+xml, gif and webp can never be produced, so they can never load.",
+        "test": "tests/album.test.ts — svg+xml/gif/webp thumbs rejected in the \"every field is checked\" wall"
       }
     },
     {
@@ -442,7 +457,7 @@
       "title": "Wardrobe lineup interpolates into innerHTML without escaping; values are developer constants (hardening only)",
       "severity": "INFORMATIONAL",
       "confidence": "high",
-      "status": "confirmed",
+      "status": "fixed",
       "affected_files": [
         {
           "path": "web-three/src/ui/Wardrobe.ts",
@@ -470,6 +485,11 @@
         "source_change_since_baseline": "ui/Wardrobe.ts byte-identical (git diff = 0). WP-1v touched Game.ts/pauseSet.ts/worldRuntime.ts (pause wiring), not the wardrobe rendering.",
         "reachability_change": "none — interpolations remain developer-constant-derived; no save/URL path reaches them",
         "severity_after_reconciliation": "INFORMATIONAL hardening (unchanged)"
+      },
+      "remediation_qa_full_spectrum": {
+        "wave": "fix/qa-full-spectrum (2026-11-10)",
+        "fix": "The wardrobe lineup render escapes every interpolated value (file-local escapeHtml, the diary.ts/UI.ts precedent) and constrains the swatch to plain hex before it may touch a style attribute — the render no longer depends on the values being developer constants.",
+        "test": "tests/wardrobe.test.ts suite green (render unchanged for valid data)"
       }
     },
     {
@@ -614,6 +634,12 @@
         "Independent verification: a separate agent attempted to refute both fixes (URL surface enumeration, 25+ hostile documents, sandbox attack, quarantine abuse, valid-save compatibility) — verdict HOLDS for both, with follow-up findings N-1/N-2/N-3 fixed in-branch and pinned by tests; N-4/N-5/N-6 recorded",
         "R3–R7 remain OPEN (no scope creep); FS-AUDIT-003's WP-4 re-audit requirement unchanged"
       ]
+    },
+    {
+      "version": "v1.3",
+      "date": "2026-11-10",
+      "note": "qa-full-spectrum wave — 004/005/006/007 closed; R1+R2 re-proven on the integrated tree"
     }
-  ]
+  ],
+  "qa_full_spectrum_note": "qa-full-spectrum (this wave): integrated the R1+R2 remediation onto the evolved main (ebfb08a, register v1.35.0) with the validator extended to the evolved schema; closed the four informational hardenings 004/005/006/007 with their documented remediations and regression tests; found+fixed three merge-borne save-loss paths and one pre-existing main defect (the SUB-01 nav landing's missed follower). Gates: tsc clean, vitest 1300/1300, build OK, probe-security-r1 31/31, probe-security-r2 166/166, world-sim 15/15, money-trace ALL, nav 9/9, abnormal-player 14/14, first-session 8/8, 4-day E2E 0 failures (566s, console clean)."
 }

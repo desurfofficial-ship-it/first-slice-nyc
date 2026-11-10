@@ -98,7 +98,7 @@ PASS  C9 unexpected nested structure: the refused document is preserved in quara
 PASS  C9 unexpected nested structure: no page errors
 PASS  C9 unexpected nested structure: the recovered world is playable (clock advanced)
 PASS  C9b junk flag tuple: refuses to a FRESH world (never a crash)
-PASS  C9b junk flag tuple: the diagnostic note names what happened — world save rejected: flags[0].key: expected a flag:/evt: sim id → fresh world
+PASS  C9b junk flag tuple: the diagnostic note names what happened — world save rejected: flags[0].key: expected a flag:/evt:/node: id or dimension=value key →
 PASS  C9b junk flag tuple: the separate STORY save survives (day 3, $150, cart intact) — day=3 money=150
 PASS  C9b junk flag tuple: the refused document left the active key (quarantined)
 PASS  C9b junk flag tuple: the refused document is preserved in quarantine, not destroyed

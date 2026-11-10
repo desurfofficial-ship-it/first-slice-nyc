@@ -2,7 +2,7 @@
 
 **Originally audited revision:** `main` @ `7995e6ea2e371644a5347f93acc8bed948bf0e54`
 **Reconciled revision (R2):** `origin/main` @ `62a6244cee258a243fdb308bd78daf7793c62cc5` — all recommendations re-validated against the current source; line anchors updated below.
-**Posture context:** no CRITICAL or HIGH findings exist. This roadmap is a prioritized, minimal-diff plan consistent with the project's own laws (small source changes at the last trusted decision point, each with a regression test). **Status update (v1.2): R1 and R2 are IMPLEMENTED and regression-tested on branch `fix/security-r1-r2` (owner-authorized remediation assignment, 2026-11-07) — records in 04 and 06, evidence in `evidence/`. R3–R7 remain OPEN. No fix has been applied by the auditor beyond the assigned R1+R2 scope.**
+**Posture context:** no CRITICAL or HIGH findings exist. This roadmap is a prioritized, minimal-diff plan consistent with the project's own laws (small source changes at the last trusted decision point, each with a regression test). **Status update (v1.3, qa-full-spectrum wave, 2026-11-10): R1 and R2 re-proven on the integrated tree (the remediation now lives on the evolved main with the validator extended to the evolved schema). **R3, R4, R5 and R6 are CLOSED** this wave — each with its documented remediation and a regression test (records in 04; the merge also closed three merge-borne save-loss paths before they reached a player). **R7 remains OPEN** (CI SHA-pinning — deliberately not patched blind; needs verified upstream SHAs). FS-AUDIT-003 remains gated on the WP-4 re-audit, which is now unblocked (WP-4 merged).**
 
 ---
 
