@@ -2909,3 +2909,131 @@ Work Log:
 
 Stage Summary:
 - The game now plays its first full YEAR. The arrival week opens it, the season proves it, and the Compact prices it — eleven signatures, four ways to break them, and the ledger's first strikes teaching the player that the notebook remembers. Eddie's question ("Who did you promise, and what did it cost them?") is now the save's own hinge, K2 is in the book tagged FACT and wrongly, and the chapter machine walked through its own door twice this wave (in at Jan 6, out at Jul 1) while the epoch law never noticed. Next per §7: C3's content (The Bridge), then R13–R14.
+
+## 2026-11-06 — WS-D: WP-2v complete — the one epoch mapping (story day ↔ sim day ↔ displayed date)
+
+Task ID: WP-2V-EPOCH-MAP
+Agent: Technical Architecture Agent (WS-D, Z.ai)
+Task: Complete the remaining WP-2v item per the approved DEC-1 ruling and
+the WP-0 integration — "the one epoch mapping + pinned test reconciling
+story day ↔ sim day ↔ displayed date" (NEXT-PHASE-EXECUTION-PLAN.md WP-2;
+register SYS-ECO-09).
+
+The canon ruling, quoted (docs/narrative/15 §2, the ruling of record):
+> **DEC-1 — the in-game calendar epoch** (owner-approved, 2026-11-06):
+> **Day 1 = Tuesday, September 9, Y1 — the arrival (doc 12 §1).**
+> "October, golden hour, forever" (doc 12 §5) is **presentation-only**:
+> an art lock on the shipped arrival chapter, never a calendar date.
+> Weekdays and weekend gating derive from the Tuesday anchor; the first
+> post-cut Monday is **Sept 22, Y1 (story day 14)** …
+
+What was missing (verified against main `7995e6e` before writing):
+- Both date authorities existed and were individually canon-true
+  (`core/calendar.ts` CAL_EPOCH `{y:1,m:9,d:9}`; `sim/clock.ts` EPOCH
+  `{year:1,month:9,dayOfMonth:9,weekday:'Tue'}`) but NOTHING joined them:
+  no consumer read dates at all (`formatGameDate`/`dateOfCalendarDay`
+  zero callers — DEC-1 §0), the sim's debug surface carried no date, and
+  the two authorities' day→date arithmetic had no cross-guard — the
+  exact "one day counter read through two different calendars" defect
+  DEC-1 §0 named, one-sided-edit-prone forever. No `epochMap.ts` and no
+  epoch-map test existed anywhere (checked before writing).
+
+What was implemented:
+- New `web-three/src/sim/epochMap.ts` — THE one mapping, pure (no THREE,
+  no DOM, no wall clock — the sim/ law holds): the 1:1 counter bridges
+  (`storyDayToSimDay`/`simDayToStoryDay`, total under junk via
+  `clampCalendarDay`); the one display path (`dateOfDay`,
+  `weekdayOfDay`, `datelineOfDay` — full month names, "September 9 ·
+  Year 1", DEC-1 §6.6's format convergence); midnight-exact tick doors
+  (`dateOfTick`/`dayOfTick` — the date flips exactly at tick % 1440 ===
+  0); and the `epochAgreement()` tripwire (both epoch constants + Day-1
+  reads + the Tuesday anchor in a handful of integer compares).
+- `game/worldRuntime.ts` debug() now reads dates through the mapping
+  (additive `date` + `epochOk` fields — the debug/HUD door WP-6 renders
+  through). No other runtime change: the valve, pause set, schedules,
+  arbitration, saves — untouched.
+- New `web-three/tests/sim-epoch-map.test.ts`, 29 pinned tests (A–H):
+  the ruled epoch on all authorities; weekday progression incl. day 7
+  (Mon, Sept 15), day 8 (Tue, the cut), day 14 (Mon, Sept 22 — doc 11
+  §7's "6 a.m. Monday"); the 1:1 bridges over 1,000 days + junk clamps;
+  pinned spine datelines (days 1/7/8/14/51/54/83/84/114/115/809);
+  midnight-exact boundaries (60 midnights both sides, a 3-day
+  minute-by-minute walk flipping ONLY on boundary minutes); the silent-
+  divergence tripwire — `calendarOf(d)` ≡ `dateOfDay(d)` and both season
+  readers agree for EVERY day 1..900 (the whole published spine +
+  margin); save/load continuity (story save `calendar_day` round-trip,
+  pre-calendar save reads day-as-calendar-day, world save repeated-load
+  idempotent, dateline stable); the forward-only day-begin reconcile
+  (never rewinds, never double-advances); schedule-timing regression
+  (Idris + Rosa answer by minute-of-day identically on days
+  1/2/7/8/14/51/114/365/809; Rosa's 22:00 closure is the exclusive end
+  on every mapped day); phase/season transitions unchanged (C1's cut is
+  a chapter cut — no meteorological turn Sept 15→16; the real turn is
+  Nov 30→Dec 1 = days 83→84); the no-real-dates source grep extended
+  across the new layer; the field diary stores the mapping's date
+  bytes exactly.
+
+Back-compat (pre-merge saves, documented — no silent data loss):
+- Story saves carry counters only (`day`, optional `calendar_day`);
+  world saves carry `{day, minuteOfDay}`. Counters are epoch-neutral:
+  nothing stored a rendered date, so nothing is migrated or lost.
+  Re-rendering under the ruled epoch moves displayed dates 22 days
+  earlier than the pre-DEC-1 October reading would have shown — that is
+  the ruling, applied (the epoch correction itself landed in `7152944`).
+- The one surface that stores absolute dates (the field diary's
+  `GameDate`) had ZERO production writers before WP-6 (no content pack,
+  `formatGameDate` zero callers), so no shipped save can hold a
+  stale-epoch diary date. From this commit the diary door stores
+  mapping dates — pinned by test.
+
+Files changed:
+- `web-three/src/sim/epochMap.ts` (new, 161 lines)
+- `web-three/tests/sim-epoch-map.test.ts` (new, 432 lines, 29 tests)
+- `web-three/src/game/worldRuntime.ts` (+7: the import, the two debug
+  fields — additive only)
+- `docs/production/PRODUCTION-STATUS-REGISTER.md` (SYS-ECO-09 →
+  VERIFIED/WP-2v closed; dashboard counts; gates row)
+- `worklog.md` (this entry)
+- Must-NOT-modify list respected: `core/Save.ts` schema untouched,
+  `world/dressing.ts` untouched, narrative docs untouched (doc 15's
+  ruling entry is the Narrative Director's, already on main), no new
+  dependencies, `sim/clock.ts` internals untouched.
+
+Tests executed (all on this branch, all just now):
+- `tsc --noEmit` — clean.
+- vitest full suite — **830/830, 57 files** (was 801/801/56 at WP-0;
+  +29 = the new epoch-map tests).
+- Relevant group re-run: sim-clock 10, sim-epoch-map 29, calendar 17,
+  save 22, sim-state 13, sim-runtime 26, field-diary 22 — 139/139.
+- `npm run build` (production) — OK (545 ms).
+- `probe-world-sim.mjs` (real Chromium against fresh dist/) — **15/15
+  PASS** (1,424 sim-minutes in 67.1 s real; zero page errors) — the
+  runtime integration is unaffected by the debug-surface addition.
+- 4-day story E2E — **0 failures, 531 s, console clean** (authored
+  beats byte-identical; save holds day 4 complete).
+
+Remaining risks, honestly:
+- The mapping's date reads route through `core/calendar.ts`; if a
+  future edit changes EITHER authority's arithmetic the 900-day sweep
+  fails the suite loudly — but nothing yet renders a date in the UI
+  (WP-6), so a red suite is the only tripwire until then. By design.
+- The sim's internal `dateString` ("Sept 9, Y1" abbreviated) remains
+  for sim-internal logging; human-facing surfaces must use
+  `datelineOfDay` — the convergence is enforced at the door, not by
+  deleting the internal format (sim/clock internals are out of WP-2v's
+  write scope by the plan).
+- Weekday truth lives in `sim/clock.ts`'s Tuesday anchor; a one-sided
+  edit there fails `epochAgreement()` + the pinned progression — no
+  independent second chain exists in `core/calendar.ts` (deliberate:
+  one authority per concern).
+
+Stage Summary:
+- WP-2v is closed: one calendar (Sept 9, Y1, Tuesday), one counter
+  (story = sim = calendar_day, 1:1), one dateline format, one door —
+  and a sweep test that makes silent divergence impossible to miss.
+  The ruling is quoted above; the register says SYS-ECO-09 VERIFIED.
+- Gates at close: tsc clean · vitest 830/830 (57 files) · build OK ·
+  probe-world-sim 15/15 · 4-day E2E 0 failures (console clean).
+- Worked on branch `feat/wp-2v-epoch-map` (from main `7995e6e`) —
+  committed locally, NOT pushed: awaiting the repository-workflow
+  confirmation + authorization per this assignment's strict rules.
