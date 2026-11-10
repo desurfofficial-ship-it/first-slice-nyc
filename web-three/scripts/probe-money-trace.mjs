@@ -44,6 +44,12 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(`PAGEERROR: ${e.message}`));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 
+// R1 (FS-AUDIT-001): the driver gate in production builds requires the
+// harness's own session handshake — a URL cannot authorize a driver
+// (game/driverGate.ts). This probe runs against dist/ and needs the
+// autotest driver, so it authorizes the same documented way as the fleet.
+await page.addInitScript(() => sessionStorage.setItem('fs_driver_authorized', '1'));
+
 await page.goto(`http://localhost:${PORT}/?autotest=1&fx=off`, { waitUntil: 'load' });
 await page.waitForFunction(() => !!window.__game, null, { timeout: 30000 });
 

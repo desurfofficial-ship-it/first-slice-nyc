@@ -31,6 +31,7 @@
  */
 
 import type { Game } from './Game';
+import { isDriverAuthorizedNow } from './driverGate';
 
 interface StepResult { name: string; ok: boolean; detail: string }
 
@@ -69,6 +70,15 @@ function npc(dbg: Dbg, id: string): NpcDbg {
 }
 
 export async function runScenario(game: Game, params: URLSearchParams): Promise<void> {
+  // R1 (FS-AUDIT-001) — defense in depth: same authorization wall as the
+  // autotest. These drivers remove/rewrite the WORLD save key; in an
+  // authorized session that key is the driver sandbox key
+  // (first_slice_world_v1_driver), so a real player's world save stays
+  // out of reach even here.
+  if (!isDriverAuthorizedNow()) {
+    console.warn('[driver] runScenario refused — debug drivers are gated in production builds (game/driverGate.ts)');
+    return;
+  }
   if (params.get('scenario') === 'nav') return runNavScenario(game);
   await runSchedulesScenario(game, params);
 }

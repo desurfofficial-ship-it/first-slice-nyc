@@ -2666,7 +2666,6 @@ Stage Summary:
 - The first thing consumers see is now a block worth staring at: four named shops with their own trades, a church spire on the horizon, a city that actually ignites at dusk. The film's staging laws, tap flow, timings and the handover contract are untouched — the sweep and the probes both prove it.
 ---
 
-<<<<<<< HEAD
 ## 2026-11-08 — Technical Architecture / World Systems Agent: WP-A3 unit 4/6 — W2-C the gable row flipped (register v1.24.0), with the sister line's superseded accounting
 
 Task ID: WP-A3-U4
@@ -3087,7 +3086,6 @@ Stage Summary:
   the C5 cascade and the omission prose are C5 content; N0's prompt
   prose is doc 11's C0 pack. The ledger never lies to the save; the
   save never lies to the ledger.
-=======
 ## 2026-11-08 — the C0 content pack: the first session's narrative layer (PROD-C0)
 
 Task ID: PROD-C0
@@ -3131,7 +3129,6 @@ that reproduced as 15/15 on the idle box — load artifact, recorded honestly).
 
 Evidence: docs/production/c0-first-session/{C0-FIRST-SESSION.md,evidence/} (the cold open, the entry-2
 sheet, the listing, Deshaun's platform, the surveyor's fence).
->>>>>>> origin/feat/c0-first-session
 
 ---
 
@@ -3153,3 +3150,118 @@ Stage Summary:
 - The branch list is EMPTY of unmerged work: every line the fleet ever pushed is now in main's history, no force-push, nothing overwritten — the three superseded lines' CODE lives on their refs and in their merge commits, their ACCOUNTS live in this worklog, and main's evolved implementations stand as the one truth.
 - The SUB-01 re-pin closes the first push-red main has shipped; every future push runs the same battery before it leaves the sandbox.
 - Next: the §7 frontier stays the C3–C6 content waves; PH-3's A-1/A-2 and the living-population tranches per the plan.
+---
+Task ID: SEC-REMEDIATION-R1-R2
+Agent: Security remediation agent (R1+R2 assignment)
+Task: Implement the first two confirmed security remediations from the
+FIRST SLICE security audit — R1 (FS-AUDIT-001: production-accessible
+destructive debug drivers) and R2 (FS-AUDIT-002: world-save parsing and
+hydration) — with proof, compatibility, and independent review prep.
+
+Work Log:
+- Verified the actual remote state (git ls-remote): origin/main =
+  62a6244cee258a243fdb308bd78daf7793c62cc5; created branch
+  fix/security-r1-r2; baseline gates recorded BEFORE any edit (tsc clean,
+  vitest 840/840 across 57 files, build OK).
+- R1: new src/game/driverGate.ts — the explicit dev/prod boundary
+  (import.meta.env.DEV or a session-storage handshake a URL cannot carry;
+  the pure decision is unit-tested) plus a driver storage sandbox
+  (first_slice_save_v1_driver / first_slice_world_v1_driver) wired through
+  Save.ts, state.ts, Game.ts (authorization decided before any storage
+  read), worldRuntime.ts, autotest.ts and scenario.ts (defense-in-depth
+  entry checks). Harnesses (e2e.mjs, probe-world-sim.mjs) authorize via
+  addInitScript. No hidden query parameter; the boundary is documented in
+  the module header and denial is logged honestly.
+- R2: sim/state.ts gained a full pre-hydration validation battery — every
+  section type/range/id/reference/bound-checked and rebuilt through a
+  strict whitelist (unknown fields dropped per the forward-compat law;
+  __proto__/constructor/prototype keys cannot survive); hydrate is guarded
+  (second net); a post-hydration integrity failure now REFUSES the
+  document; worldRuntime.ts quarantines refused documents
+  (first_slice_world_v1_quarantine — preserved, not destroyed) so the
+  repeat-reset loop ends. No schema change; valid saves restore exactly.
+- Tests: tests/driver-gate.test.ts (14), tests/world-save-validation.test.ts
+  (33 — the audit B-battery re-ported plus pollution/integrity/bounds/
+  recovery/storage-isolation cases); scripts/probe-security-r1.mjs (31
+  checks on real dist/) and scripts/probe-security-r2.mjs (166 checks on
+  real dist/ through the production reloadFromSave seam + cold-boot
+  constructor-path proofs).
+- Gates executed: tsc clean; vitest 887/887 (59 files; baseline 840
+  unchanged); build OK; probe-security-r1 31/31; probe-security-r2 166/166;
+  probe-world-sim 15/15; 4-day E2E 0 failures (small-viewport SwiftShader
+  setting, documented). Environment limits (renderer fragility) stated in
+  the audit's verification report — no test reported passed that was not
+  executed.
+- Independent refutation review performed by a separate agent; verdicts
+  recorded in docs/security-audit/04 (FS-AUDIT-001/002 remediation records).
+- Docs: audit package updated to v1.2 (04/06/07, findings.json,
+  REVISION-HISTORY) and the production register (v1.5 row).
+
+Stage Summary:
+- Branch fix/security-r1-r2 is clean and ready for owner review; R3–R7
+  untouched; no gameplay, narrative-canon, save-schema, calendar-epoch, or
+  architecture changes; merge and publish await owner authorization.
+
+
+---
+
+Task ID: QA-FULL-SPECTRUM
+Agent: Lead security/QA/gameplay engineer (full-spectrum assignment)
+Task: Full-spectrum security, penetration testing, bug hunting and
+gameplay quality across the entire project — play it, break it, fix it,
+verify it — then publish.
+
+Work Log:
+- Carried the R1+R2 security remediation (08712a5) onto the evolved main
+  (ebfb08a, ~100 commits of evolution: WP-4..7, E-1, rails, R5/R6,
+  interiors, A-3, the C0/C1/C2 waves, polish pass 2). Conflicts resolved
+  additively; the driver gate, the storage sandbox and the entry guards
+  re-verified line-by-line on the evolved code.
+- Caught and closed three merge-borne save-loss paths BEFORE they reached
+  a player: (1) the world-save validator would have silently DROPPED the
+  R5 life section (majors' lives reset every reload) — the whitelist now
+  carries it; (2) the validator would have REFUSED valid saves carrying
+  the new FlagStore node:/dimension key grammar — it now enforces the
+  runtime's own law via isStoryFlagId; (3) a malformed missable CACHE
+  entry would have refused the whole world — it now drops with a counted
+  note per the R6 law (a new non-fatal warn channel; nothing silent).
+- Fixed a pre-existing main defect (verified on pristine ebfb08a): the
+  SUB-01 nav landing still pointed at the old sidewalk spot five metres
+  from the stair shaft the headhouse was moved onto; the landing and the
+  two stale test pins now read the registry truth. probe-nav 9/9.
+- Closed the four informational security findings with their documented
+  remediations + regression tests: 004 (story-save bounds: 24-char name,
+  999999 money), 005 (the clock's day trust boundary 1..36500 —
+  constructor clamp + advance pin; the latent calendarOf hang class is
+  dead at the source), 006 (album thumbs: png/jpeg only), 007 (wardrobe
+  render escapes every value, swatch must prove plain hex). 008 (CI
+  pinning) documented open — needs verified upstream SHAs; 003 remains
+  roadmap-gated (WP-4 now merged, the gate is ripe).
+- Completed the fleet's driver handshake: probe-nav, probe-money-trace
+  and diag-ped-overlap now authorize like e2e.mjs (broken against gated
+  production builds otherwise).
+- NEW probes: probe-abnormal.mjs (14/14 — boundary grinding, corner
+  tunneling attempts, 40xE spam, interact-while-moving, 15 s idle,
+  R-restart, reload spam, mid-boot interrupts: no escapes, no NaN, no
+  wiped saves, zero page errors) and probe-first-session.mjs (8/8 — the
+  beginner's opening: film, SKIP affordance, legible handover with
+  objective/money/dateline, the world answers the first interaction;
+  screenshot evidence in web-three/shots/first-session/).
+- Performance measured on the integrated tree: peds.update 24.3 µs/frame
+  (0.15% of budget), the commute adds 5.5 µs, heap flat over 9000 frames,
+  draw calls 154→296 recorded (B13 stands), zero page errors.
+- Gates executed on the final tree: tsc clean; vitest 1300/1300 (83
+  files); build OK (603 ms); probe-security-r1 31/31; probe-security-r2
+  166/166; probe-world-sim 15/15; probe-money-trace ALL PASSED;
+  probe-nav 9/9; 4-day story E2E 0 failures (566 s, console clean).
+- Report: docs/qa-security/SECURITY-AND-GAMEPLAY-AUDIT.md (+ evidence/);
+  audit package updated to v1.3 (04 remediation records, 07 status,
+  findings.json statuses, this worklog, the register's Gates row).
+
+Stage Summary:
+- Branch fix/qa-full-spectrum: the game is harder to break (every save
+  surface boundaried at the parser, the clock bounded at the source, the
+  drivers gated end-to-end), safer to run (no save-loss path open), and
+  verified better to play (the opening communicates; the abnormal player
+  cannot escape, crash, or wipe anything). Remaining: 003's WP-4 re-audit
+  (now unblocked), 008's CI pinning, B13's draw-call decision.

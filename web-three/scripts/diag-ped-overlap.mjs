@@ -40,6 +40,9 @@ await new Promise((r) => server.listen(PORT, r));
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
 page.on('pageerror', (e) => console.log('PAGEERROR', e.message));
+// R1 (FS-AUDIT-001): the driver gate requires the harness's own session
+// handshake in production builds — a URL cannot authorize a driver.
+await page.addInitScript(() => sessionStorage.setItem('fs_driver_authorized', '1'));
 await page.goto(`http://localhost:${PORT}/?scenario=peds`, { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('#hud', { timeout: 60000 });
 await page.waitForTimeout(5000); // let the walkers arm
