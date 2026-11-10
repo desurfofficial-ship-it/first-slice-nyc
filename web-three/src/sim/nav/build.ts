@@ -280,7 +280,11 @@ export function buildNavGraph(registry: WorldRegistry): NavBuildResult {
   }
 
   // ---- 6. building doors (the contract's seed set) ------------------------
-  const landing: NavNode = { id: 'nav:landing:SUB-01', x: -42, z: 6.2, kind: 'landing', surface: 'grade', places: ['SUB-01'] };
+  // The landing sits on SUB-01's registry row (−47.2, 6.2) — the K-line
+  // STAIR_SLOT center the 2026-11 consumer fix moved the headhouse onto.
+  // The old (−42, 6.2) landing sent routed bodies to open sidewalk five
+  // metres east of the actual descendable shaft.
+  const landing: NavNode = { id: 'nav:landing:SUB-01', x: -47.2, z: 6.2, kind: 'landing', surface: 'grade', places: ['SUB-01'] };
   graph.addNode(landing);
   placeNode.set('SUB-01', landing.id);
   doorNode.set('door:SUB-01', landing.id);

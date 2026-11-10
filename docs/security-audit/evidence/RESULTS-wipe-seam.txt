@@ -1,0 +1,4 @@
+[E1] pre-wipe save: {"day":4,"money":240}
+[E2] post-wipe loadSave: {"day":1,"day_complete":false,"replay":false,"cart_name":"","money":87,"awning":false,"kid_kept":false,"idris_served":false,"lunch_served":0,"stool":false,"map_given":false,"permit":false,"shelf_buys":0,"dog_buys":0,"trims":0,"washes":0,"hoop_makes":0,"map_notes":[],"map_priya_lines":false,"map_slang":[],"map_places":[],"calendar_day":1,"field_diary":[]} (fresh defaults = progress gone)
+[E3] writeSave refused store returns: false
+[E4] verified by source: GameState.snapshotForSave day<2 → null (core/GameState.ts:884-886); harness relies on production snapshot logic via writeSave above.

@@ -2930,3 +2930,384 @@ Work Log:
 
 Stage Summary:
 - The game now plays its first full YEAR. The arrival week opens it, the season proves it, and the Compact prices it — eleven signatures, four ways to break them, and the ledger's first strikes teaching the player that the notebook remembers. Eddie's question ("Who did you promise, and what did it cost them?") is now the save's own hinge, K2 is in the book tagged FACT and wrongly, and the chapter machine walked through its own door twice this wave (in at Jan 6, out at Jul 1) while the epoch law never noticed. Next per §7: C3's content (The Bridge), then R13–R14.
+
+## 2026-11-06 — WS-D: WP-2v complete — the one epoch mapping (story day ↔ sim day ↔ displayed date)
+
+Task ID: WP-2V-EPOCH-MAP
+Agent: Technical Architecture Agent (WS-D, Z.ai)
+Task: Complete the remaining WP-2v item per the approved DEC-1 ruling and
+the WP-0 integration — "the one epoch mapping + pinned test reconciling
+story day ↔ sim day ↔ displayed date" (NEXT-PHASE-EXECUTION-PLAN.md WP-2;
+register SYS-ECO-09).
+
+The canon ruling, quoted (docs/narrative/15 §2, the ruling of record):
+> **DEC-1 — the in-game calendar epoch** (owner-approved, 2026-11-06):
+> **Day 1 = Tuesday, September 9, Y1 — the arrival (doc 12 §1).**
+> "October, golden hour, forever" (doc 12 §5) is **presentation-only**:
+> an art lock on the shipped arrival chapter, never a calendar date.
+> Weekdays and weekend gating derive from the Tuesday anchor; the first
+> post-cut Monday is **Sept 22, Y1 (story day 14)** …
+
+What was missing (verified against main `7995e6e` before writing):
+- Both date authorities existed and were individually canon-true
+  (`core/calendar.ts` CAL_EPOCH `{y:1,m:9,d:9}`; `sim/clock.ts` EPOCH
+  `{year:1,month:9,dayOfMonth:9,weekday:'Tue'}`) but NOTHING joined them:
+  no consumer read dates at all (`formatGameDate`/`dateOfCalendarDay`
+  zero callers — DEC-1 §0), the sim's debug surface carried no date, and
+  the two authorities' day→date arithmetic had no cross-guard — the
+  exact "one day counter read through two different calendars" defect
+  DEC-1 §0 named, one-sided-edit-prone forever. No `epochMap.ts` and no
+  epoch-map test existed anywhere (checked before writing).
+
+What was implemented:
+- New `web-three/src/sim/epochMap.ts` — THE one mapping, pure (no THREE,
+  no DOM, no wall clock — the sim/ law holds): the 1:1 counter bridges
+  (`storyDayToSimDay`/`simDayToStoryDay`, total under junk via
+  `clampCalendarDay`); the one display path (`dateOfDay`,
+  `weekdayOfDay`, `datelineOfDay` — full month names, "September 9 ·
+  Year 1", DEC-1 §6.6's format convergence); midnight-exact tick doors
+  (`dateOfTick`/`dayOfTick` — the date flips exactly at tick % 1440 ===
+  0); and the `epochAgreement()` tripwire (both epoch constants + Day-1
+  reads + the Tuesday anchor in a handful of integer compares).
+- `game/worldRuntime.ts` debug() now reads dates through the mapping
+  (additive `date` + `epochOk` fields — the debug/HUD door WP-6 renders
+  through). No other runtime change: the valve, pause set, schedules,
+  arbitration, saves — untouched.
+- New `web-three/tests/sim-epoch-map.test.ts`, 29 pinned tests (A–H):
+  the ruled epoch on all authorities; weekday progression incl. day 7
+  (Mon, Sept 15), day 8 (Tue, the cut), day 14 (Mon, Sept 22 — doc 11
+  §7's "6 a.m. Monday"); the 1:1 bridges over 1,000 days + junk clamps;
+  pinned spine datelines (days 1/7/8/14/51/54/83/84/114/115/809);
+  midnight-exact boundaries (60 midnights both sides, a 3-day
+  minute-by-minute walk flipping ONLY on boundary minutes); the silent-
+  divergence tripwire — `calendarOf(d)` ≡ `dateOfDay(d)` and both season
+  readers agree for EVERY day 1..900 (the whole published spine +
+  margin); save/load continuity (story save `calendar_day` round-trip,
+  pre-calendar save reads day-as-calendar-day, world save repeated-load
+  idempotent, dateline stable); the forward-only day-begin reconcile
+  (never rewinds, never double-advances); schedule-timing regression
+  (Idris + Rosa answer by minute-of-day identically on days
+  1/2/7/8/14/51/114/365/809; Rosa's 22:00 closure is the exclusive end
+  on every mapped day); phase/season transitions unchanged (C1's cut is
+  a chapter cut — no meteorological turn Sept 15→16; the real turn is
+  Nov 30→Dec 1 = days 83→84); the no-real-dates source grep extended
+  across the new layer; the field diary stores the mapping's date
+  bytes exactly.
+
+Back-compat (pre-merge saves, documented — no silent data loss):
+- Story saves carry counters only (`day`, optional `calendar_day`);
+  world saves carry `{day, minuteOfDay}`. Counters are epoch-neutral:
+  nothing stored a rendered date, so nothing is migrated or lost.
+  Re-rendering under the ruled epoch moves displayed dates 22 days
+  earlier than the pre-DEC-1 October reading would have shown — that is
+  the ruling, applied (the epoch correction itself landed in `7152944`).
+- The one surface that stores absolute dates (the field diary's
+  `GameDate`) had ZERO production writers before WP-6 (no content pack,
+  `formatGameDate` zero callers), so no shipped save can hold a
+  stale-epoch diary date. From this commit the diary door stores
+  mapping dates — pinned by test.
+
+Files changed:
+- `web-three/src/sim/epochMap.ts` (new, 161 lines)
+- `web-three/tests/sim-epoch-map.test.ts` (new, 432 lines, 29 tests)
+- `web-three/src/game/worldRuntime.ts` (+7: the import, the two debug
+  fields — additive only)
+- `docs/production/PRODUCTION-STATUS-REGISTER.md` (SYS-ECO-09 →
+  VERIFIED/WP-2v closed; dashboard counts; gates row)
+- `worklog.md` (this entry)
+- Must-NOT-modify list respected: `core/Save.ts` schema untouched,
+  `world/dressing.ts` untouched, narrative docs untouched (doc 15's
+  ruling entry is the Narrative Director's, already on main), no new
+  dependencies, `sim/clock.ts` internals untouched.
+
+Tests executed (all on this branch, all just now):
+- `tsc --noEmit` — clean.
+- vitest full suite — **830/830, 57 files** (was 801/801/56 at WP-0;
+  +29 = the new epoch-map tests).
+- Relevant group re-run: sim-clock 10, sim-epoch-map 29, calendar 17,
+  save 22, sim-state 13, sim-runtime 26, field-diary 22 — 139/139.
+- `npm run build` (production) — OK (545 ms).
+- `probe-world-sim.mjs` (real Chromium against fresh dist/) — **15/15
+  PASS** (1,424 sim-minutes in 67.1 s real; zero page errors) — the
+  runtime integration is unaffected by the debug-surface addition.
+- 4-day story E2E — **0 failures, 531 s, console clean** (authored
+  beats byte-identical; save holds day 4 complete).
+
+Remaining risks, honestly:
+- The mapping's date reads route through `core/calendar.ts`; if a
+  future edit changes EITHER authority's arithmetic the 900-day sweep
+  fails the suite loudly — but nothing yet renders a date in the UI
+  (WP-6), so a red suite is the only tripwire until then. By design.
+- The sim's internal `dateString` ("Sept 9, Y1" abbreviated) remains
+  for sim-internal logging; human-facing surfaces must use
+  `datelineOfDay` — the convergence is enforced at the door, not by
+  deleting the internal format (sim/clock internals are out of WP-2v's
+  write scope by the plan).
+- Weekday truth lives in `sim/clock.ts`'s Tuesday anchor; a one-sided
+  edit there fails `epochAgreement()` + the pinned progression — no
+  independent second chain exists in `core/calendar.ts` (deliberate:
+  one authority per concern).
+
+Stage Summary:
+- WP-2v is closed: one calendar (Sept 9, Y1, Tuesday), one counter
+  (story = sim = calendar_day, 1:1), one dateline format, one door —
+  and a sweep test that makes silent divergence impossible to miss.
+  The ruling is quoted above; the register says SYS-ECO-09 VERIFIED.
+- Gates at close: tsc clean · vitest 830/830 (57 files) · build OK ·
+  probe-world-sim 15/15 · 4-day E2E 0 failures (console clean).
+- Worked on branch `feat/wp-2v-epoch-map` (from main `7995e6e`) —
+  committed locally, NOT pushed: awaiting the repository-workflow
+  confirmation + authorization per this assignment's strict rules.
+
+---
+Task ID: WP-5-R2-R7
+Agent: Narrative Systems (WS-C) Agent
+Task: WP-5 — the R2 consequence ledger + the R7 choice nodes (doc 14 §7
+step 2), pure state behind the core seam, from main c950162.
+
+Work Log:
+- Studied the precedents first (AGENTS.md §1e): core/fieldDiary.ts is the
+  append-only + quarantine law in code; core/calendar.ts the declared
+  GameDate; docs/narrative/14 §1/§2/§6 + docs/narrative/10 §1/§3 the
+  spec. Neither reference repo has an equivalent (the study-before-build
+  verdict carries over); built independently on the fieldDiary shape.
+- core/consequenceLedger.ts: LedgerEntry exactly doc 14 R2's schema;
+  PromiseRecord carries the due date (doc 10 §1: "every promise is a
+  flag with a due date"); maturePromises() turns a due-date-passed open
+  promise into exactly one omission entry (weight = the promise's own —
+  smaller coin, same currency), fire-once by the terminal open→matured
+  transition, omission ids derived (omission/<promiseId>), never minted;
+  keepPromise() terminal kept (kept promises never mature); the API has
+  no update/remove at all — frozen inputs are pinned by test.
+- core/choiceNodes.ts: the doc 10 §3 register encoded verbatim — 17
+  nodes, N0–N7, chapters and option labels from the table; locks stay
+  empty (the table authors none; R1/R8's territory, pinned so the
+  honesty is deliberate). validateNoFakeChoices() is the no-fake-choices
+  rule as a function. CAUGHT LIVE: the first flagSignature draft folded
+  in ledger entry ids — every option mints choice/<node>/<option> by
+  construction, so the forged-convergence test FAILED the draft; the
+  signature is flags-only now (doc 14 R7's own wording), the loophole
+  closed before it ever landed.
+- Save seam (the assignment's one allowed touch to an existing file):
+  `ledger` + `promises` optional trailing v1-safe fields — old saves
+  parse byte-identically to empty layers; the save fuzz wall
+  (Object.keys(defaultSave()) × 11 wrong shapes) automatically covers
+  both; parse quarantine: duplicate ids keep the first and count the
+  rest; a matured promise without its omission link is corrupt (the C5
+  join is load-bearing) and quarantines rather than heal-guessing.
+- Register v1.8.0 rows (SYS-NAR-06/07, R2, R7) updated in the same
+  commit per the update law.
+
+Stage Summary:
+- Gates at close (all executed on feat/wp-5-consequence-ledger): tsc
+  clean · vitest 932/932 (63 files; +43 = consequence-ledger 27 +
+  choice-nodes 16) · build OK.
+- Honest scope: state layer only — nothing reads it at runtime yet.
+  WP-4 books the Game.ts window (money→ledger + the promise seams);
+  the C5 cascade and the omission prose are C5 content; N0's prompt
+  prose is doc 11's C0 pack. The ledger never lies to the save; the
+  save never lies to the ledger.
+## 2026-11-08 — the C0 content pack: the first session's narrative layer (PROD-C0)
+
+Task ID: PROD-C0
+Agent: Production Director (the owner's standing "polish … after that push and merge to main" + "Let be making big impact")
+Task: narrative/14 §7 step 6 — the C0 content pack (doc 11) against the shipped opening. The wave every
+machine has been waiting for: R0–R8 all built, zero content carrying them. The first session becomes a
+played story, not a beautiful street.
+
+Work Log:
+- Scouted the whole seam chain (content.ts/GameState/interactionDefs/UI/touchLaw/Save/fieldDiary/
+  epochMap/ride); doc 11's gap list drawn against the shipped beats: the cold open, the listing, the
+  wrong train, the trial shift, the grounding scene, the mishear, entries 2/4/5, the three hooks — none
+  existed; Rosa's mango line did not exist; the mishear's FACT over-tag did not exist.
+- `core/firstSession.ts` (new): the pack's machine — pure, core-free, fire-once, never-rewinds;
+  `first_session` rides the save v1-safe (field-wise quarantine, booleans valid both ways; an old save
+  reads as defaults and the cold open never re-opens for it — it lives in Day 1's no-write law).
+  The opening law (doc 11 §6) is a VALIDATOR over every string the pack can put on screen — the test
+  fails the wave if a future edit smuggles a diagnosis dump or a conspiracy word into the opening.
+- The write sheet: `#write-sheet` (index.html) + green-notebook CSS + `UI.showWriteSheet/hideWriteSheet`
+  + touchLaw's newest member + keyboard 1–9/Enter/Escape. Paper holds the hands; the movement gate stands
+  the walker down while it is up.
+- Beats wired to the shipped spine (no step machine rewrite): entry 3 rides setStep(POSTCARD), entry 4's
+  sheet rides setStep(D3_CLIMB3), Rosa's mango line rides the errand's last pick, the trial shift is a
+  two-press authored interaction at the Corner Slice counter, Deshaun is a new world actor gated to the
+  Day-2 midday window, the surveyor dawn-gates at the Works fence, Odessa's nights are proximity+weekday
+  gated observations, the wrong train takes the first ride's parting slot (Days 1–2, once ever).
+- Driver boot law: humans get the sheet after the starter pick (doc 11 §5's order); drivers auto-write
+  the first line silently (the fleet's coherence law); `?c0=1` is the probe's hatch.
+- THE E2E TAUGHT THE DRIVER TO KEEP HIS OWN DIARY: the first full run froze Day 3 at the poster→climb
+  transition — entry 4's sheet held the hands and every later walk starved. Fixed in the autotest (a
+  watcher answers the notebook through the same door a thumb uses), NOT by weakening any assertion;
+  the re-run went 0 failures.
+- Two shape-guard suites updated honestly for the new member (save field pins +1 optional trailing
+  field; touch-law door count 16→18 with the two named doors).
+
+Gates (final tree, all executed): tsc clean · vitest 1090/1090 (72 files, +31 first-session cases) ·
+build OK (556 ms) · 4-day E2E AUTOTEST OK: 0 failures (670 s, console clean) · probe-world-sim 15/15 ·
+probe-nav 9/9 · probe-ped-nav OK · probe-chokepoints OK · probe-money-trace ALL PASSED ·
+probe-c0-first-session 26/26 (0 page errors; also re-verified: a loaded-machine world-sim wobble (14/15)
+that reproduced as 15/15 on the idle box — load artifact, recorded honestly).
+
+Evidence: docs/production/c0-first-session/{C0-FIRST-SESSION.md,evidence/} (the cold open, the entry-2
+sheet, the listing, Deshaun's platform, the surveyor's fence).
+
+---
+
+## 2026-11-10 — Production Director: ALL BRANCHES MERGED — the fleet's every line is contained in main, and main's own red gates repaired
+
+Task ID: MERGE-ALL-2026-11-10
+Agent: Production Director (Z.ai)
+Task: Owner directive — "Merge all branches to main." Execute against the LIVE remote, never force-push, resolve honestly, gates green on the integrated tree before the push.
+
+Work Log:
+- **The survey first (the real state, not memory):** `git ls-remote` — 17 heads. Fifteen were already contained (the fleet's parallel sessions had merged them); exactly THREE lines still held unmerged commits: `feat/wp-2v-epoch-map` (d7529d7), `feat/wp-5-consequence-ledger` (784d825), `feat/c0-first-session` (a43fefa). All three proved to be EARLIER PARALLEL LINES whose work main had since evolved past — the superseded-sister precedent (v1.30.0's own integration judgment) applied at each merge.
+- **`feat/wp-2v-epoch-map` merged (a84cc7c):** main's epoch mapping is the evolved WP-2v (worldRuntime imports `simTickOfStoryDay`, the pinned suite lives); the branch's original 151-line module and its old-API tests resolve to main's. Both worklog sides preserved; register monotonic.
+- **`feat/wp-5-consequence-ledger` merged (c053aea):** main's WP-5 from `wp-5-consequence-choice` is the fuller R2 ledger + R7 choice nodes (choiceNodes 736 lines vs the branch's 308); the branch's add/add code and tests resolve to main's. Both worklog sides preserved; register monotonic.
+- **`feat/c0-first-session` merged (acb86fb):** the third parallel C0 line — the write-sheet UI + the `first_session` save field, fire-once by flags. Main's spine+block line (v1.29→v1.35) covers every doc-11 beat it implements: the cold open via the register's N0 `resolveChoice`, Eddie's covenant, the trial shift's running theory, Deshaun's grounding kit, Miss Odessa, the Day-7 wobble, Rosa's mango. Resolution per v1.30.0's judgment: code and tests resolve to main; the branch's write-sheet DOM/CSS/autotest wiring, `firstSession.ts`, its test, its probe and its evidence pack RETIRE before shipping (the branch ref + the merge commit keep them reachable forever); both worklog sides preserved verbatim. The tree after all three merges: main's code, one file changed — the worklog (+223 lines of the fleet's own accounts).
+- **THE GATE REPAIR — main was pushed RED:** the merged tree's first full battery failed 2/1246, and the tree is byte-identical to main's outside the worklog — the failures are main's own. `ebfb08a` (the SUBWAY consumer fix) moved registry SUB-01 onto the real K-line STAIR_SLOT center (−42 → −47.2) and re-homed the registry JSON + content.ts, but left two pins on the old coordinate: `a3-registry-flip`'s HAND_TRUTH row and `sim-runtime`'s platform stand-point assertion (the received 4.72 m offset = the moved anchor + Idris's deterministic +0.48 jitter, runtime.ts `standJitter`). Re-homed honestly per the spec-change law — each pin grew a stronger, corrected one: HAND_TRUTH SUB-01 → `x: -47.2` (commented with the move's law); the stand-point assertion now pins −47.2 with the ±0.72 jitter named in the comment and a tightened <1 m tolerance (the old <2 was looser than the jitter's own bound).
+- **Gates at close (the integrated tree, this sandbox, sequential):** tsc clean · **vitest 1246/1246 (81 files — main's own two re-pinned files pass, 44/44)** · build OK (573 ms) · **probe-world-sim 15/15** (85.9 s, sim-minutes 1426). `git merge-base --is-ancestor` — **all 17 remote heads contained in main**; zero open PRs (the fleet's eight closed earlier).
+
+Stage Summary:
+- The branch list is EMPTY of unmerged work: every line the fleet ever pushed is now in main's history, no force-push, nothing overwritten — the three superseded lines' CODE lives on their refs and in their merge commits, their ACCOUNTS live in this worklog, and main's evolved implementations stand as the one truth.
+- The SUB-01 re-pin closes the first push-red main has shipped; every future push runs the same battery before it leaves the sandbox.
+- Next: the §7 frontier stays the C3–C6 content waves; PH-3's A-1/A-2 and the living-population tranches per the plan.
+---
+Task ID: SEC-REMEDIATION-R1-R2
+Agent: Security remediation agent (R1+R2 assignment)
+Task: Implement the first two confirmed security remediations from the
+FIRST SLICE security audit — R1 (FS-AUDIT-001: production-accessible
+destructive debug drivers) and R2 (FS-AUDIT-002: world-save parsing and
+hydration) — with proof, compatibility, and independent review prep.
+
+Work Log:
+- Verified the actual remote state (git ls-remote): origin/main =
+  62a6244cee258a243fdb308bd78daf7793c62cc5; created branch
+  fix/security-r1-r2; baseline gates recorded BEFORE any edit (tsc clean,
+  vitest 840/840 across 57 files, build OK).
+- R1: new src/game/driverGate.ts — the explicit dev/prod boundary
+  (import.meta.env.DEV or a session-storage handshake a URL cannot carry;
+  the pure decision is unit-tested) plus a driver storage sandbox
+  (first_slice_save_v1_driver / first_slice_world_v1_driver) wired through
+  Save.ts, state.ts, Game.ts (authorization decided before any storage
+  read), worldRuntime.ts, autotest.ts and scenario.ts (defense-in-depth
+  entry checks). Harnesses (e2e.mjs, probe-world-sim.mjs) authorize via
+  addInitScript. No hidden query parameter; the boundary is documented in
+  the module header and denial is logged honestly.
+- R2: sim/state.ts gained a full pre-hydration validation battery — every
+  section type/range/id/reference/bound-checked and rebuilt through a
+  strict whitelist (unknown fields dropped per the forward-compat law;
+  __proto__/constructor/prototype keys cannot survive); hydrate is guarded
+  (second net); a post-hydration integrity failure now REFUSES the
+  document; worldRuntime.ts quarantines refused documents
+  (first_slice_world_v1_quarantine — preserved, not destroyed) so the
+  repeat-reset loop ends. No schema change; valid saves restore exactly.
+- Tests: tests/driver-gate.test.ts (14), tests/world-save-validation.test.ts
+  (33 — the audit B-battery re-ported plus pollution/integrity/bounds/
+  recovery/storage-isolation cases); scripts/probe-security-r1.mjs (31
+  checks on real dist/) and scripts/probe-security-r2.mjs (166 checks on
+  real dist/ through the production reloadFromSave seam + cold-boot
+  constructor-path proofs).
+- Gates executed: tsc clean; vitest 887/887 (59 files; baseline 840
+  unchanged); build OK; probe-security-r1 31/31; probe-security-r2 166/166;
+  probe-world-sim 15/15; 4-day E2E 0 failures (small-viewport SwiftShader
+  setting, documented). Environment limits (renderer fragility) stated in
+  the audit's verification report — no test reported passed that was not
+  executed.
+- Independent refutation review performed by a separate agent; verdicts
+  recorded in docs/security-audit/04 (FS-AUDIT-001/002 remediation records).
+- Docs: audit package updated to v1.2 (04/06/07, findings.json,
+  REVISION-HISTORY) and the production register (v1.5 row).
+
+Stage Summary:
+- Branch fix/security-r1-r2 is clean and ready for owner review; R3–R7
+  untouched; no gameplay, narrative-canon, save-schema, calendar-epoch, or
+  architecture changes; merge and publish await owner authorization.
+
+
+---
+
+Task ID: QA-FULL-SPECTRUM
+Agent: Lead security/QA/gameplay engineer (full-spectrum assignment)
+Task: Full-spectrum security, penetration testing, bug hunting and
+gameplay quality across the entire project — play it, break it, fix it,
+verify it — then publish.
+
+Work Log:
+- Carried the R1+R2 security remediation (08712a5) onto the evolved main
+  (ebfb08a, ~100 commits of evolution: WP-4..7, E-1, rails, R5/R6,
+  interiors, A-3, the C0/C1/C2 waves, polish pass 2). Conflicts resolved
+  additively; the driver gate, the storage sandbox and the entry guards
+  re-verified line-by-line on the evolved code.
+- Caught and closed three merge-borne save-loss paths BEFORE they reached
+  a player: (1) the world-save validator would have silently DROPPED the
+  R5 life section (majors' lives reset every reload) — the whitelist now
+  carries it; (2) the validator would have REFUSED valid saves carrying
+  the new FlagStore node:/dimension key grammar — it now enforces the
+  runtime's own law via isStoryFlagId; (3) a malformed missable CACHE
+  entry would have refused the whole world — it now drops with a counted
+  note per the R6 law (a new non-fatal warn channel; nothing silent).
+- Fixed a pre-existing main defect (verified on pristine ebfb08a): the
+  SUB-01 nav landing still pointed at the old sidewalk spot five metres
+  from the stair shaft the headhouse was moved onto; the landing and the
+  two stale test pins now read the registry truth. probe-nav 9/9.
+- Closed the four informational security findings with their documented
+  remediations + regression tests: 004 (story-save bounds: 24-char name,
+  999999 money), 005 (the clock's day trust boundary 1..36500 —
+  constructor clamp + advance pin; the latent calendarOf hang class is
+  dead at the source), 006 (album thumbs: png/jpeg only), 007 (wardrobe
+  render escapes every value, swatch must prove plain hex). 008 (CI
+  pinning) documented open — needs verified upstream SHAs; 003 remains
+  roadmap-gated (WP-4 now merged, the gate is ripe).
+- Completed the fleet's driver handshake: probe-nav, probe-money-trace
+  and diag-ped-overlap now authorize like e2e.mjs (broken against gated
+  production builds otherwise).
+- NEW probes: probe-abnormal.mjs (14/14 — boundary grinding, corner
+  tunneling attempts, 40xE spam, interact-while-moving, 15 s idle,
+  R-restart, reload spam, mid-boot interrupts: no escapes, no NaN, no
+  wiped saves, zero page errors) and probe-first-session.mjs (8/8 — the
+  beginner's opening: film, SKIP affordance, legible handover with
+  objective/money/dateline, the world answers the first interaction;
+  screenshot evidence in web-three/shots/first-session/).
+- Performance measured on the integrated tree: peds.update 24.3 µs/frame
+  (0.15% of budget), the commute adds 5.5 µs, heap flat over 9000 frames,
+  draw calls 154→296 recorded (B13 stands), zero page errors.
+- Gates executed on the final tree: tsc clean; vitest 1300/1300 (83
+  files); build OK (603 ms); probe-security-r1 31/31; probe-security-r2
+  166/166; probe-world-sim 15/15; probe-money-trace ALL PASSED;
+  probe-nav 9/9; 4-day story E2E 0 failures (566 s, console clean).
+- Report: docs/qa-security/SECURITY-AND-GAMEPLAY-AUDIT.md (+ evidence/);
+  audit package updated to v1.3 (04 remediation records, 07 status,
+  findings.json statuses, this worklog, the register's Gates row).
+
+Stage Summary:
+- Branch fix/qa-full-spectrum: the game is harder to break (every save
+  surface boundaried at the parser, the clock bounded at the source, the
+  drivers gated end-to-end), safer to run (no save-loss path open), and
+  verified better to play (the opening communicates; the abnormal player
+  cannot escape, crash, or wipe anything). Remaining: 003's WP-4 re-audit
+  (now unblocked), 008's CI pinning, B13's draw-call decision.
+## 2026-11-10 — Technical Architecture / World Systems Agent: WP-C3-BRIDGE — §7 step 10 in one bulk pass: The Bridge is playable (register v1.36.0)
+
+Task ID: WP-C3-BRIDGE
+Agent: Technical Architecture / World Systems Agent (Z.ai)
+Task: the owner's bulk directive, continued — the register's own frontier after v1.34.0 executed WHOLE: the C3 content wave (narrative/14 §7 step 10, doc 06 §C3) in one branch, one gate battery, one push. The chapter Jul 1 – Dec 20, Y2 is playable end to end, the game's first Silent-class pick lands, the ledger's first SECRET favor is written, and the C2 cut now rolls into July's first morning.
+
+Work Log:
+- **Study-before-build:** read doc 06 §C3 whole (the events 1–8, the conversations, the decisions, the diary/map developments, the handoff), doc 09 §4 (the nineteen faces and their dollars — the slot table's sum machine-checks to $61,500), doc 10 §3/§4 (N3a's steered rails and the water-fix specimen's "eleven days"), doc 02 §6.2 (F2's register row), doc 12 §2 (the fixed events: the collapse Jul 6, the exam Sept, the envelope Oct 3, the lunch Nov 14, the offer Dec 9), doc 13 §3 (Stage III: "I'm the bridge. Bridges get tolls."), the C2 pack's every seam (stations/compressions/cut/picks/validate), the register's waiting C3 nodes (N3a/N3b/N3c authored since step 2), the fragment register's F2 row, and the calendar's epoch (day 296 = Jul 1 Y2; day 468 = Dec 20; day 485 = Jan 6 Y3 — the cut's morning; seventeen station dates machine-verified through calendarDayOf before a line of wiring).
+- **`core/c3pack.ts` (new, pure, the c0/c1/c2pack conventions):** the station table (SEVENTEEN playable days keyed by canon calendar day: 296 July opens, 299 the busiest day, 301 the collapse, 309 the keys, 328 the paper wall, 349 the Summit, 369 Halcyon, 376 the exam, 383 the Club, 390 the envelope, 404 the pantry, 414 the sound, 420 the senate, 425 the closing pitch, 432 the lunch, 457 the offer, 468 the bridge's books — each with its begin/wake/queue/rushDone/climb/golden mouths, Idris opening every rush), the sixteen compressions (with 349→369 marked summer→fall and 432→457 fall→winter — crossedSeasonCut machine-checked for BOTH), the C3→C4 cut's content (the handoff staged DOOR-NEUTRAL — doc 10 §3's rails: the offer re-runs with January's weather whatever door N3a took; the entry dated Jan 6 Y3; the wall), F2's RECALL entry (the register's own clauses, the wobble style, at the visiting-room window's afterglow), the diary ink (the collapse's facts, the keys' burden transfer, the wall's three named stacks, the Summit's blog title, June's voice line, the exam's AIRWAY, Ada's zero questions, the QUESTION, the senate's agenda, the offer's EVIDENCE — every entry body law-sized to the diary's 600 cap), the pick packs (N3a's three doors, N3b's nineteen faces with doc 09 §4's own names and dollars, N3c's two doors), `applyC3Pick` (resolveChoice dressed: flags + ledger + ink + note), the Gino SECRET favor's ledger shape (the C2 Priya precedent), the water-fix window's two sides (the helped flag + the missed ink, doc 10 §4's consequence in the world's own voice), and `validateC3Pack` — the self-check (canon verbatim pins, the station keys landing on doc 06's dates through the calendar module, the TWO season cuts crossed, the queues honest, the Club's arithmetic summed, every option resolving, the Silent class posting nothing, no real-world years in the prose).
+- **GameState:** `isC3` getter + the season station's C3 branch (the loop reads one voice per day); the linger's rail gains the C3 dispatch (compression/cut); **the C2 cut now ROLLS INTO day 296** (the wall's next non-replay press rolls the counters WHOLE to July's first morning; a replayed kept Jun 30 still walls — the c2 suite's pin grew the roll witness); `c3Compression` (the montage arms, the roll jumps whole — and the 328→349 dispatch writes the water-fix miss ONCE when the window was crossed unhelped); `c3SeasonCut` (the montage, the door-neutral staging, the entry dated Jan 6 Y3, C4 through advanceChapter's own door, the wall holding — the roll into C4's stations is the C4 wave's law); the fifteen C3 beats (each riding a SHIPPED interaction: eddie the collapse/keys/Summit, rosa the sound, garden the water fix/Club/pantry/close, june Halcyon, bench Ada's call (the barber's precheck pattern), park_bench the senate, diner_booth the lunch, lease_notice the missing slip, surveyor the offer) each latched by its own diary id; the F2 seam rides the same reachTop law the C2 wave shipped for F3; `applyChoicePick` widened (N1a/N1b/N2/N2b/TOAST/N3a/N3b/N3c); the `storyFlagMemo` (the Silent class's latch: the not-tell writes NOTHING, so its flag is the only witness — synced from the world's held set on every spine walk, written eagerly at the pick).
+- **The scene layer:** two NEW one-day interaction slots on existing ground (elvann at the East Tenement's community room; deshaun_exam at the court's edge — the shoot mechanic owns the court's own press; no new meshes, the census untouched by construction), six existing defs re-voiced for their C3 days (eddie, rosa, garden, june, diner_booth, lease_notice), the surveyor's dawn law kept for every day but the offer's roam window, the bench/park_bench precheck pattern, and the pick overlay's seam widened (`pendingPickNode`/`onDiaryPrompt`/`applyNotebookPick` carry the C3 nodes; the driver's deterministic first take reads the C3 packs first).
+- **content.ts:** composeCaption grew the C3 branch (the postcard says its own DATE — in C3 the dates are still the story; the stations' captions keyed by day; day ≤ 295 byte-identical). **Save.ts:** MAX_DAY 295 → 468 (the ceiling is the frontier's canon end — C3's Dec 20; the C0/C1/C2 headers re-homed with reasons). Save v1-safe: no new fields.
+- **The pins moved honestly (no weakened assertions — each grew a stronger exact form):** the five MAX_DAY pins (c0-week, state-day3, state-day4, c1-warm-line, c2-compact) → 468; c2-compact's post-cut wall pin grew the roll witness (the non-replay press rolls to day 296 — the C3 wave's law; the replay holds); the autotest driver's day-5 witness names the new ceiling; **harness-only `E2E_SCALE` knob** (deviceScaleFactor, the fx=off/viewport-knob family — the driver reads STATE, not pixels; default 1) + the fps-sample diagnostic committed with the evidence tools.
+- **New suite `tests/c3-bridge.test.ts` (37 pins):** the station map (the exact canon keys, each landing on its doc 06 date through the calendar module; MAX_DAY = 468), the compressions (from/to stations, ordered, the TWO season cuts crossed), the rails (compression days map, the cut only at the frontier, null outside), every beat's latch (the verbatim pins throughout), the water fix's two sides (helped at the garden — flag + ink + no miss; missed at the window's close — once, in-character, latched), the picks (N3a's three doors with ink+flags+ledger+persist and the refused pick changing nothing; N3b's nineteen faces resolving with pairwise-unique signatures and the ink naming the face and dollar; **N3c's tell writing ink+ledger while the NOT-TELL writes NOTHING — the Silent class machine-checked, the flag the only witness, the booth's re-press honoring it**), the C3→C4 cut (chapter C4 at Jan 6 Y3, the wall holding with NO roll — the C4 wave's law), the saves (MAX_DAY, station days parse exactly, the fluency day round-trips), the captions (the card says its own DATE; C0's cards byte-identical), and `validateC3Pack` green.
+- **New probe `probe-c3-bridge.mjs`** (zero product code, five passes, 75 checks): Pass A day 296 (the C2 cut's roll landed; the dateline July 1; the linger arms and rolls WHOLE to 299) + day 301 (the collapse through the eddie def); Pass B day 309 (the keys verbatim; F2's RECALL ink at the climb seam — labeled honestly as the seam witness) + day 328 (the paper wall through the NEW elvann def, her line verbatim; the buckets' HELPED side through the garden def); Pass B2 day 328 unvisited (the miss writes ONCE at the window's close; the roll to 349); Pass C days 349→383 (the Summit's two latches + the blog's title; Halcyon through june; the exam through the NEW deshaun_exam def; the Club through the garden); Pass D days 390→420 (Ada through the bench; the pantry; the sound + the QUESTION through rosa; the senate through park_bench); Pass E days 425→468 (the closing pitch; N3b through the register with Miss Odessa's envelope naming the face and dollar; the lunch + the NETWORKING refusal + the SECRET favor; the missing slip; **N3c's not-tell posting NOTHING**; the offer through the surveyor def + Marisol v1; N3a's accept; the cut — chapter C4 at Jan 6 Y3, the entry dated, **the wall holding and rolling NOTHING**). ALL CHECKS PASSED.
+- **The fidelity gate — ALL GREEN [executed, idle box, sequential]:** validate-registry OK (via probe-a3-flip, exit 0 — registry + census + 14 vantages; the world geometry untouched by construction: core + game-state + interaction wiring only, two new interaction SLOTS on existing ground) · tsc clean · vitest **1283/1283** (82 files, +37 the C3 acceptance suite) · build OK · probe-world-sim **15/15** · probe-nav **9/9** · probe-integration **0 errors, 8/8 walks** · probe-money-trace **ALL PASSED** · probe-c0-week **ALL CHECKS PASSED** · probe-c1-warm-line **ALL CHECKS PASSED** · probe-c2-compact **ALL CHECKS PASSED** (the roll witness grown) · **probe-c3-bridge ALL CHECKS PASSED (75)** · 4-day E2E **0 failures (535 s, console clean — the driver's day-5 witness: "the seasons run to December, Y2 — MAX_DAY = 468")**.
+- Register v1.36.0 (Gates clause + the change-log row + the dashboard's narrative line + PH-7/MS-4 brought current) — same commit as the work (the §6.4 law).
+- Not done, by law: the C4–C6 content waves (§7 step 10 continues — C4's window is OPEN at day 485, its content is the next wave), R13–R14 (Phase 7 stage 9), the owner-side variances (V-PH2-1/V-PH2-2, DEC-8, B13).
+
+Stage Summary:
+- The game now plays its second YEAR's bridge: the block hands Leo its shop, its keys, its problems and its money exactly as Corvus hands him the ladder — and the player makes the three choices that price it (the offer's door, the investor's name, Eddie's silence). The notebook learned its first refusal (the lunch's entry that won't say the word), the ledger learned its first secret, and the chapter machine walked through its own door twice this wave (in at Jul 1, out at Jan 6) while the epoch law never noticed. Next per §7: C4's content (The Face), then R13–R14.
+
+**Integration addendum (same wave, 2026-11-10):** the parallel polish-pass-2 line landed on origin/main while the C3 wave was in flight (its own integration had claimed register v1.35.0 for the polish pass) — the version law re-numbers the C3 wave **v1.36.0** (the register's versions strictly monotonic), the two lines became ONE tree (merge `1b69566`), the parallel line's world fix (SUB-01 onto the real stair shaft, x −47.2) was certified by probe-a3-flip exit 0 on the merged tree, and its two stale pins (a3-registry-flip's HAND_TRUTH row, sim-runtime's stand-point witness) were completed to the new truth — the pins grew stronger exact forms, none weakened. The INTEGRATED TREE's full battery re-certified: tsc clean · vitest **1283/1283** (82 files) · build OK · probe-a3-flip exit 0 · probe-world-sim 15/15 · probe-nav 9/9 · probe-integration 0 errors, 8/8 walks · probe-money-trace ALL PASSED · probe-c0-week / c1 / c2 / c3 ALL CHECKS PASSED · probe-polish-pass OK · 4-day E2E **0 failures (528 s, console clean — the witness naming MAX_DAY = 468)**.
+
+**Final-tree addendum (same wave, 2026-11-10):** the full-spectrum QA/security line landed on origin/main mid-push (its own v1.35.1; it had repaired the same two SUB-01 red gates with jitter-aware pins) — the second integration merge (`8706bcc`) resolved the pins to the QA line's jitter-aware versions (the stronger repair, none weakened), kept both lines' register claims (the ledger monotonic), and the FINAL TREE's full battery re-certified: tsc clean · vitest **1337/1337** (84 files) · build OK · probe-a3-flip exit 0 · probe-world-sim 15/15 · probe-nav 9/9 · probe-integration 0 errors, 8/8 walks · probe-money-trace ALL PASSED · probe-c0-week / c1 / c2 / c3 ALL CHECKS PASSED · probe-polish-pass OK · probe-security-r1 / r2 · probe-abnormal · probe-first-session ALL OK · 4-day E2E **0 failures (546 s, console clean)**.

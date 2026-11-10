@@ -44,14 +44,43 @@ export const SAVE_KEY = 'first_slice_save_v1';
 // morning.
 // C2's season is PLAYABLE (narrative/14 §7 step 9 — doc 06 §C2): the
 // station days run Jan 6 → Jun 30, Y2, the compressions consume the days
-// between, and the ceiling is C2's canon end (Jun 30 = day 295): the
-// linger there plays the C2→C3 season cut, C3's window opens Jul 1, Y2,
-// and C3's content is the next wave's (the wall, the honest pattern).
+// between, and the linger at Jun 30 played the C2→C3 season cut (the C3
+// wave's roll brought the days it opens: the cut's wall rolls into C3's
+// first morning).
+// C3's season is PLAYABLE (narrative/14 §7 step 10 — doc 06 §C3): the
+// station days run Jul 1 → Dec 20, Y2, the compressions consume the days
+// between, and the ceiling is C3's canon end (Dec 20 = day 468): the
+// linger there plays the C3→C4 season cut, C4's window opens Jan 6, Y3,
+// and C4's content is the next wave's (the wall, the honest pattern).
 // calendar.ts's own header pins the mapping: C0 closes Monday Sept 15
 // (day 7), C1 opens at the Sept 16 season cut (day 8), C2 opens Jan 6 Y2
-// (day 120), the stations land on doc 06's own dates through
-// calendarDayOf (validated in each pack's self-check).
-export const MAX_DAY = 295;
+// (day 120), C3 opens Jul 1 Y2 (day 296), the stations land on doc 06's
+// own dates through calendarDayOf (validated in each pack's self-check).
+export const MAX_DAY = 468;
+
+/** Driver-sandbox key (security remediation R1, FS-AUDIT-001): an
+ *  AUTHORIZED driver session re-keys story persistence here for the whole
+ *  session (game/driverGate.ts). The driver fleet wipes, truncates and
+ *  overwrites its own key freely — a real player save is unreachable by
+ *  construction, not by discipline. Never set outside an authorized run. */
+export const DRIVER_SAVE_KEY = 'first_slice_save_v1_driver';
+
+/** Active story-save key override (R1 driver sandbox). Null outside a
+ *  driver session; set ONLY by game/driverGate.ts. */
+let saveKeyOverride: string | null = null;
+
+/** Re-key story persistence for this session (driver sandbox). Pass null
+ *  to restore the player's key. Not schema-affecting: the DOCUMENT is
+ *  identical, only the storage slot moves. */
+export function setStorySaveKeyOverride(key: string | null): void {
+  saveKeyOverride = key;
+}
+
+/** The key story persistence rides RIGHT NOW (player key, or the driver
+ *  key inside an authorized driver session). */
+export function activeSaveKey(): string {
+  return saveKeyOverride ?? SAVE_KEY;
+}
 
 export interface SaveData {
   day: number;
@@ -258,8 +287,12 @@ export function parseSave(raw: string | null): SaveData {
     day: storyDay,
     day_complete: bool('day_complete', false),
     replay: bool('replay', false),
-    cart_name: typeof d.cart_name === 'string' ? d.cart_name : '',
-    money: Math.max(0, Math.trunc(num('money', 87))),
+    // FS-AUDIT-004 (remediation): the parser now enforces the UI's own
+    // contract — the name field is a 24-char input (index.html maxlength)
+    // and money is a bounded gameplay quantity. A hand-edited save can no
+    // longer carry a 1e6-char name or a 1e15 balance past the wall.
+    cart_name: typeof d.cart_name === 'string' ? d.cart_name.slice(0, 24) : '',
+    money: Math.min(999_999, Math.max(0, Math.trunc(num('money', 87)))),
     awning: bool('awning', false),
     stool: bool('stool', false),
     map_given: bool('map_given', false),
@@ -267,7 +300,7 @@ export function parseSave(raw: string | null): SaveData {
     kid_kept: bool('kid_kept', false),
     idris_served: bool('idris_served', false),
     lunch_served: clamp(Math.trunc(num('lunch_served', 0)), 0, 3),
-    day_start_money: Math.max(0, Math.trunc(num('day_start_money', Math.max(0, Math.trunc(num('money', 87)))))),
+    day_start_money: Math.min(999_999, Math.max(0, Math.trunc(num('day_start_money', Math.min(999_999, Math.max(0, Math.trunc(num('money', 87)))))))),
     // the block remembers (Doc 37 §3F) — absent in old saves, reads as 0
     shelf_buys: clamp(Math.trunc(num('shelf_buys', 0)), 0, 999),
     dog_buys: clamp(Math.trunc(num('dog_buys', 0)), 0, 999),
@@ -391,11 +424,13 @@ function diaryNotedOf(d: Record<string, unknown>): DiaryNoted | undefined {
   return any ? out : undefined;
 }
 
-/** Load from localStorage. `store` injectable for tests. */
+/** Load from localStorage. `store` injectable for tests. Rides the active
+ *  key (the player's, or the driver sandbox key inside an authorized
+ *  driver session — R1). */
 export function loadSave(store: Pick<Storage, 'getItem'> = localStorage): SaveData {
   let raw: string | null = null;
   try {
-    raw = store.getItem(SAVE_KEY);
+    raw = store.getItem(activeSaveKey());
   } catch {
     return defaultSave(); // storage unavailable (private mode etc.) — fresh start
   }
@@ -405,16 +440,19 @@ export function loadSave(store: Pick<Storage, 'getItem'> = localStorage): SaveDa
 /** Write. Mirrors save.gd `write()`. Returns false if storage refused. */
 export function writeSave(data: SaveData, store: Pick<Storage, 'setItem'> = localStorage): boolean {
   try {
-    store.setItem(SAVE_KEY, JSON.stringify(data));
+    store.setItem(activeSaveKey(), JSON.stringify(data));
     return true;
   } catch {
     return false;
   }
 }
 
+/** Wipe the ACTIVE story-save key. Inside an authorized driver session
+ *  this can only ever reach the driver sandbox key — a real player save
+ *  is out of reach by construction (R1). */
 export function wipeSave(store: Pick<Storage, 'removeItem'> = localStorage): void {
   try {
-    store.removeItem(SAVE_KEY);
+    store.removeItem(activeSaveKey());
   } catch {
     /* nothing to wipe */
   }

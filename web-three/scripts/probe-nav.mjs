@@ -36,6 +36,11 @@ const page = await browser.newPage({ viewport: { width: Number(process.env.E2E_W
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 
+// R1 (FS-AUDIT-001): the driver gate in production builds requires the
+// harness's own session handshake — a URL cannot authorize a driver
+// (game/driverGate.ts). Same documented authorization as the fleet.
+await page.addInitScript(() => sessionStorage.setItem('fs_driver_authorized', '1'));
+
 await page.goto(`http://localhost:${PORT}/${URL_PARAMS}`, { waitUntil: 'load' });
 
 let report = null;

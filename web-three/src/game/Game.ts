@@ -19,6 +19,10 @@ import { composeCaption, tsWowCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE
   momentCornerCaption, MOMENT_TAGS, type MomentCardKind,
 } from '../core/content';
 import { loadSave, writeSave, wipeSave, newGameSave, type SaveData } from '../core/Save';
+import {
+  authorizeDebugDrivers, enableDriverStorageSandbox, readDriverHandshake,
+  type DriverAuth,
+} from './driverGate';
 import { FreeRoam, roamDiscoveryLine, ROAM_OBJECTIVE } from './freeroam';
 import { WorldRuntime } from './worldRuntime';
 import { MoneyBridge } from '../sim/moneyBridge';
@@ -50,6 +54,7 @@ import {
 } from '../core/c0pack';
 import { C1_FIRST_DAY, c1ChoicePackOf, c1StationOf } from '../core/c1pack';
 import { c2ChoicePackOf, c2StationOf } from '../core/c2pack';
+import { c3ChoicePackOf, c3StationOf } from '../core/c3pack';
 import { freshChapterState, serializeChapterState } from '../core/chapters';
 import { freshRailStates, serializeRails } from '../core/chapterRails';
 import { serializeLedger } from '../core/consequenceLedger';
@@ -187,6 +192,12 @@ export class Game {
   // one instance, event-driven, never per-frame.
   readonly moneyBridge: MoneyBridge;
 
+  /** The R1 debug-driver authorization decision (game/driverGate.ts) —
+   *  the explicit development/production boundary. Decided once at boot,
+   *  before any storage is read, because an authorized session also
+   *  re-keys persistence into the driver sandbox. */
+  private driverAuth: DriverAuth;
+
   // ---- notes don't stampede (docs/12: the city is patient) ----
   // Two notes arriving together queue instead of replacing: Rosa's quiet
   // line gets its two seconds before the rush-end note lands.
@@ -233,6 +244,24 @@ export class Game {
   private scenarioStarted = false;
 
   constructor(container: HTMLElement) {
+    // ---------------- R1: the debug-driver boundary (FS-AUDIT-001) ------
+    // Decided FIRST — before this constructor reads a single storage key —
+    // because an authorized driver session re-keys persistence into the
+    // driver sandbox (see enableDriverStorageSandbox): every read and
+    // write this session makes rides the driver keys, never the player's.
+    // In a production build a URL alone can no longer start the autotest
+    // or scenario drivers: only the dev server (import.meta.env.DEV) or
+    // the harness's own session-storage handshake opens this gate.
+    this.driverAuth = authorizeDebugDrivers({
+      devMode: import.meta.env.DEV,
+      handshake: readDriverHandshake(
+        typeof sessionStorage !== 'undefined' ? sessionStorage : undefined,
+      ),
+    });
+    if (this.driverAuth.allowed) {
+      const sandbox = enableDriverStorageSandbox();
+      console.info(`[driver] authorized (${this.driverAuth.source}) — storage sandbox active: story save → "${sandbox.storySaveKey}", world save → "${sandbox.worldSaveKey}", album → "${sandbox.albumKey}"; player save data is unreachable this session`);
+    }
     // the places the first session guarantees: the terminal you woke up on,
     // the corner you work. revealPlace dedups, so a resumed save's own
     // list (loaded later) simply keeps its order.
@@ -555,16 +584,26 @@ export class Game {
     (window as unknown as { __game: Game }).__game = this;
 
     // E2E driver (mirrors the original headless autotest) — ?autotest=1
-    if (new URLSearchParams(location.search).has('autotest') && !this.autotestStarted) {
+    // (R1, FS-AUDIT-001: the URL alone is no longer a trigger — the
+    // request must pass the driver gate below, and an authorized session
+    // runs sandboxed on the driver storage keys either way)
+    const autotestRequested = new URLSearchParams(location.search).has('autotest');
+    if (autotestRequested && !this.driverAuth.allowed) {
+      console.info('[driver] ?autotest ignored — debug drivers are gated in production builds (game/driverGate.ts); the player save is untouched');
+    }
+    if (autotestRequested && this.driverAuth.allowed && !this.autotestStarted) {
       this.autotestStarted = true;
       void import('./autotest').then(({ runAutotest }) => runAutotest(this));
     }
 
     // the runtime-integration scenario (?scenario=schedules) — the Phase-1
     // playable proof: six demonstrations on the real street, accelerated
-    // time, results streamed to window.__SCENARIO_REPORT__
+    // time, results streamed to window.__SCENARIO_REPORT__ (R1: same gate)
     const scenarioParams = new URLSearchParams(location.search);
-    if (scenarioParams.has('scenario') && !this.scenarioStarted) {
+    if (scenarioParams.has('scenario') && !this.driverAuth.allowed) {
+      console.info('[driver] ?scenario ignored — debug drivers are gated in production builds (game/driverGate.ts); the player saves are untouched');
+    }
+    if (scenarioParams.has('scenario') && this.driverAuth.allowed && !this.scenarioStarted) {
       this.scenarioStarted = true;
       void import('./scenario').then(({ runScenario }) => runScenario(this, scenarioParams));
     }
@@ -1721,7 +1760,7 @@ export class Game {
    *  cold-open (N0's flags + ledger entry + entry 1), the running theory,
    *  the first question. Each lands once per save by id; a duplicate pick
    *  is absorbed by the append seams (the idempotent law). */
-  private applyNotebookPick(pack: string, optionId: string, freeText: string, node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST'): void {
+  private applyNotebookPick(pack: string, optionId: string, freeText: string, node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c'): void {
     const day = this.state.calendarDay;
     if (pack === 'cold-open') {
       const res = applyColdOpen(optionId, day, freeText);
@@ -1766,17 +1805,19 @@ export class Game {
    *  progression-adjacent prose). C1's choice pages ride the same seam
    *  with their node id (`pendingPickNode` — transient, the page's own
    *  memory; closed pages forget it). */
-  private pendingPickNode: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | null = null;
-  private onDiaryPrompt(pack: 'theory' | 'question' | 'choice', node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST'): void {
+  private pendingPickNode: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | null = null;
+  private onDiaryPrompt(pack: 'theory' | 'question' | 'choice', node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c'): void {
     if (this.driverBoot || this.filmRequested) {
       // the pick-card law: drivers keep the shipped flow and take the
       // FIRST authored option deterministically (no dice in
       // progression-adjacent prose)
       if (pack === 'choice' && node) {
-        // the C2 packs first (N2's Form C is the held-set's honest
-        // function — drivers hold no flags, so the driver takes the first
-        // unlocked option: the canon default, pull-out), then C1's
-        const src = c2ChoicePackOf(node) ?? c1ChoicePackOf(node);
+        // the C3 packs first (all three nodes carry no locks — the
+        // driver's first option is the canon default), then C2's (N2's
+        // Form C is the held-set's honest function — drivers hold no
+        // flags, so the driver takes the first unlocked option), then
+        // C1's
+        const src = c3ChoicePackOf(node) ?? c2ChoicePackOf(node) ?? c1ChoicePackOf(node);
         const first = src?.options[0];
         if (first) this.applyNotebookPick('choice', first.optionId, '', node);
         return;
@@ -1787,7 +1828,7 @@ export class Game {
     }
     if (pack === 'choice' && node) {
       const held = new Set(this.worldSim.storyFlagKeys());
-      const src = c2ChoicePackOf(node, held) ?? c1ChoicePackOf(node);
+      const src = c3ChoicePackOf(node) ?? c2ChoicePackOf(node, held) ?? c1ChoicePackOf(node);
       if (!src) { this.ui.closeNotebookPrompt(); return; }
       this.pendingPickNode = node; // the page remembers which choice it is
       this.ui.showNotebookPrompt('choice', {
@@ -2060,14 +2101,17 @@ export class Game {
     // F3 rides the dusk (doc 06 §C2 diary developments — the M121's
     // window, the loop home: day 147's climb IS the ride; once, the
     // wobble style). BEFORE the step's own transition — the fragment's
-    // law reads the climb step.
+    // law reads the climb step. F2 rides the same law one chapter later
+    // (doc 06 §C3 event 1 — the visiting-room window's afterglow: day
+    // 309's climb, the shop's window from the fire escape).
     for (const e of s.c2F3AtDusk()) this.applyEffect(e);
+    for (const e of s.c3F2AtGlass()) this.applyEffect(e);
     s.setStep(wk ? Step.WK_POSTCARD : (day4 ? Step.D4_POSTCARD : (day3 ? Step.D3_POSTCARD : (day2 ? Step.D2_POSTCARD : Step.POSTCARD))));
     this.ui.setObjective('');
     this.startDusk();
     this.player.frozen = true;
     this.ui.showNote(wk
-      ? (c2StationOf(s.day)?.climbNote ?? c1StationOf(s.day)?.climbNote ?? C0_WEEK_CLIMB_NOTE)
+      ? (c3StationOf(s.day)?.climbNote ?? c2StationOf(s.day)?.climbNote ?? c1StationOf(s.day)?.climbNote ?? C0_WEEK_CLIMB_NOTE)
       : day4
       ? D4_CLIMB_NOTE
       : day3
@@ -2165,7 +2209,7 @@ export class Game {
    *  and the kid, down on his stool, waves without looking up. */
   private goldenBeatWeek(): void {
     const t = this.tweens;
-    const station = c2StationOf(this.state.day) ?? (this.state.isC1 ? c1StationOf(this.state.day) : undefined);
+    const station = c3StationOf(this.state.day) ?? c2StationOf(this.state.day) ?? (this.state.isC1 ? c1StationOf(this.state.day) : undefined);
     // the nor'easter's dark wind-down (doc 06 §C1 event 5): the storm
     // owns the glass — the windows stay dark, the candles are the light,
     // and the station's own note says so. No lighting tweens, no bell —
@@ -3028,7 +3072,7 @@ export class Game {
     this.world.fourthWindowMat.emissiveIntensity = 0;
     if (s.kidKept && n < 4) this.showKid(); // in the glass until Day 4 — down here, he lives at the corner
 
-    const station = c2StationOf(n) ?? (n >= C1_FIRST_DAY ? c1StationOf(n) : undefined);
+    const station = c3StationOf(n) ?? c2StationOf(n) ?? (n >= C1_FIRST_DAY ? c1StationOf(n) : undefined);
     if (station) {
       // C1's/C2's stations (narrative/14 §7 steps 8–9 — doc 06 §C1/§C2):
       // the same stabilized loop, the season's own voice. The compressions

@@ -55,6 +55,11 @@ describe('album parse — corrupt shelf is an empty shelf, never a crash', () =>
       { ...entry(), cartName: 'z'.repeat(41) },
       { ...entry(), thumb: 'http://not-a-data-url' },
       { ...entry(), thumb: 'data:text/html;base64,AA' },
+      // FS-AUDIT-006 (remediation): the mime whitelist is exactly the two
+      // types the canvas pipeline produces — svg+xml can never load
+      { ...entry(), thumb: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>' },
+      { ...entry(), thumb: 'data:image/gif;base64,AA' },
+      { ...entry(), thumb: 'data:image/webp;base64,AA' },
       { ...entry(), thumb: 'data:image/jpeg;base64,' + 'A'.repeat(200_001) },
       { ...entry(), keptAt: 'yesterday' },
       { ...entry(), keptAt: Number.NaN },

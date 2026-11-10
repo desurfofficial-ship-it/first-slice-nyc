@@ -86,9 +86,9 @@ describe('the C1 station map — doc 06 §C1\u2019s arc as playable days', () =>
     expect(C1_STATION_DAYS.join(',')).toBe('8,29,30,51,52,53,54,95,106');
     expect(C1_FIRST_DAY).toBe(8);
     expect(C1_LAST_DAY).toBe(106);
-    // the ceiling moved with the frontier (the C2 wave's law — the c2
+    // the ceiling moved with the frontier (the C3 wave's law — the c3
     // suite owns the exact pin; C1's season is fully contained):
-    expect(MAX_DAY).toBe(295);
+    expect(MAX_DAY).toBe(468);
   });
 
   it('each station lands on its doc 06 §C1 date through the calendar module (no hand arithmetic)', () => {
@@ -521,11 +521,11 @@ describe('the C1\u2192C2 season cut \u2014 the season closes through the machine
 // ---------------------------------------------------------------- saves ----
 
 describe('the saves \u2014 the season rides the v1-safe law', () => {
-  it('MAX_DAY is the frontier\u2019s canon end (C2\u2019s own suite owns the exact pin); C1\u2019s season parses EXACTLY inside it (the sparse seasons are legal)', () => {
-    expect(MAX_DAY).toBe(295);
+  it('MAX_DAY is the frontier\u2019s canon end (C3\u2019s own suite owns the exact pin); C1\u2019s season parses EXACTLY inside it (the sparse seasons are legal)', () => {
+    expect(MAX_DAY).toBe(468);
     expect(parseSave(JSON.stringify({ day: 29 })).day).toBe(29);
     expect(parseSave(JSON.stringify({ day: 106 })).day).toBe(106);
-    expect(parseSave(JSON.stringify({ day: 999 })).day).toBe(295);
+    expect(parseSave(JSON.stringify({ day: 999 })).day).toBe(468);
   });
 
   it('the fluency ladder\u2019s day is a CALENDAR day now \u2014 it round-trips past the old story ceiling', () => {

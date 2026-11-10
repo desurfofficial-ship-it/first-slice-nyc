@@ -1,0 +1,63 @@
+===== A. STORY SAVE — parseSave (web-three/src/core/Save.ts) =====
+[A1 null] expect=defaults | observed: 1/87
+[A2 empty] expect=defaults | observed: day=1 money=87
+[A3 corrupt-json] expect=defaults, no crash | observed: day=1 money=87
+[A4 array] expect=defaults | observed: day=1 Array?=false
+[A5 string] expect=defaults | observed: 1
+[A6 number] expect=defaults | observed: 1
+[A7 empty-obj] expect=defaults | observed: day=1 money=87 starter=undefined
+[A8 valid] expect=restored | observed: day=3 money=112 cart=Leo Cart starter=dee
+[A9 day-over-max] expect=clamped to 4 | observed: 4
+[A10 money-negative] expect=clamped to 0 | observed: 0
+[A11 money-huge] expect=??? upper bound check | observed: 1000000000000000
+[A12 money-huge-str] expect=??? string-number coercion | observed: 1000000000000000
+[A13 money-float] expect=trunc | observed: 99
+[A14 calendar-huge] expect=clamped 36500 | observed: 36500
+[A15 cart_name-1MB] expect=??? length check | observed: len=1000000
+[A16 map_notes-5000] expect=capped 24, >200ch dropped | observed: count=0 maxLen=-Infinity
+[A17 map_notes-not-array] expect=empty | observed: 0
+[A18 field_diary-garbage] expect=quarantined | observed: 0
+[A19 starter-5000ch] expect=dropped (absent) | observed: undefined
+[A20 starter-valid-unknown] expect=kept by parser (read site falls back) | observed: totally-unknown-face
+[A21 lunch-999] expect=clamped 3 | observed: 3
+[A22 proto-pollution] expect=no pollution, field ignored | observed: polluted=NO money=100 saveHasProto=in-copy
+[A23 proto-constructor] expect=no gadget | observed: isAdmin=NO
+[A24 bool-string-coercion] expect=coerced | observed: true/false/false
+[A25 diary_noted-garbage] expect=dropped | observed: {"trim":12}
+[A26 huge-nested-depth] expect=no stack overflow (whitelist ignores) | observed: parsed day=1
+[A27 NaN-money-str] expect=default 87 | observed: 87
+[A28 Infinity-via-1e999] expect=JSON.parse gives Infinity → reject → default | observed: money=87 finite=true
+
+===== B. WORLD SAVE — parseWorldSave (web-three/src/sim/state.ts) =====
+[B1 valid-minimal] expect=restored | observed: source=restored notes=0 day=1 playerMoney=8700
+[B2 missing-ledger] expect=??? documented law says fresh | observed: THREW TypeError: Cannot read properties of undefined (reading 'txns')
+[B3 missing-clock] expect=??? documented law says fresh | observed: THREW TypeError: Cannot read properties of undefined (reading 'day')
+[B4 missing-player] expect=??? documented law says fresh | observed: THREW TypeError: Cannot read properties of undefined (reading 'moneyCents')
+[B5 relationships-number] expect=??? throw expected | observed: THREW TypeError: doc.relationships.map is not a function
+[B6 ledger.txns-number] expect=??? throw expected | observed: THREW TypeError: doc.ledger.txns is not iterable
+[B7 flags-array-of-numbers] expect=??? accepted silently? | observed: THREW TypeError: .for is not iterable
+[B8 wrong-magic] expect=fresh (validated path) | observed: source=fresh
+[B9 future-version] expect=fresh (validated path) | observed: source=fresh
+[B10 foreign-world] expect=fresh (validated path) | observed: source=fresh
+[B11 integrity-violating] expect=??? restored-despite-audit-failure? | observed: source=restored money=1000000000000 notes=[]
+[B12 clock-day-huge] expect=??? no upper clamp on day | observed: source=restored day=1000000000000000
+[B13 npcs-garbage-shapes] expect=??? restored with junk npcs | observed: THREW TypeError: n.inventory is not iterable
+
+===== C. CALENDAR LOOP — calendarOf (web-three/src/sim/clock.ts) =====
+[C1] calendarOf(day=1e+3) → Y4 in 0.09ms (iterations ≈ 2.7e+0)
+[C1] calendarOf(day=1e+5) → Y275 in 0.02ms (iterations ≈ 2.7e+2)
+[C1] calendarOf(day=1e+7) → Y27398 in 0.69ms (iterations ≈ 2.7e+4)
+[C2] projection: day=1e15 → iterations ≈ 2.7e12; at measured rate this is a multi-hour/hang loop. NOT executed (bounded test rule).
+[C3 GameClock-huge-day] expect=accepted (no clamp) | observed: 1000000000000000
+[C4 weekdayOf-huge] expect=O(1) modulo — safe | observed: Sun
+
+===== D. ALBUM — parseAlbum (web-three/src/postcard/Album.ts) =====
+[D1 garbage-array] expect=empty | observed: 0
+[D2 javascript-thumb] expect=rejected | observed: 0
+[D3 svg-data-thumb] expect=??? accepted (data:image/ prefix) | observed: 1
+[D4 huge-thumb] expect=rejected (>200000) | observed: 0
+[D5 oversized-caption] expect=rejected (>400) | observed: 0
+[D6 million-entries] expect=capped 24 (linear scan cost noted) | observed: kept=24 in 670ms
+[D7 day-out-of-range] expect=rejected | observed: 0
+
+Total cases: 50

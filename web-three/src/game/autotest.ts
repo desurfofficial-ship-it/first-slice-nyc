@@ -12,6 +12,7 @@
 
 import { Step } from '../core/GameState';
 import { loadSave, wipeSave } from '../core/Save';
+import { isDriverAuthorizedNow } from './driverGate';
 import type { Game } from './Game';
 
 interface AutotestReport {
@@ -29,6 +30,14 @@ declare global {
 }
 
 export function runAutotest(game: Game): void {
+  // R1 (FS-AUDIT-001) — defense in depth: the URL dispatch in Game.ts is
+  // gated, and the driver ITSELF re-checks the same authorization before
+  // touching anything. No path reaches the destructive operations without
+  // the dev build flag or the harness's session-storage handshake.
+  if (!isDriverAuthorizedNow()) {
+    console.warn('[driver] runAutotest refused — debug drivers are gated in production builds (game/driverGate.ts)');
+    return;
+  }
   const report: AutotestReport = { lines: [], failures: [], done: false, startedAt: Date.now() };
   window.__AUTOTEST__ = report;
   const log = document.createElement('pre');
@@ -436,6 +445,10 @@ export function runAutotest(game: Game): void {
       // its 700 ms fade ends, and a Day-2 resume would race this check and
       // run the whole suite against a replay session (money $111, every
       // interaction "dead").
+      // R1: wipeSave() rides the ACTIVE key — inside an authorized driver
+      // session that is the driver sandbox key
+      // (first_slice_save_v1_driver), so this can only ever reset the
+      // driver's own world, never a real player save.
       wipeSave();
       if (game.bootedFromDay >= 2) location.reload();
 
@@ -1100,7 +1113,7 @@ export function runAutotest(game: Game): void {
         const t0 = performance.now();
         while (performance.now() - t0 < budget(15000) && !(s.day === 5 && s.step === Step.WK_WAKE)) await nextFrame();
       }
-      check(s.day === 5 && s.step === Step.WK_WAKE, 'day 5 begins \u2014 the week\u2019s stabilized loop opens (the seasons run to June, Y2 \u2014 MAX_DAY = 295)' + snap());
+      check(s.day === 5 && s.step === Step.WK_WAKE, 'day 5 begins \u2014 the week\u2019s stabilized loop opens (the seasons run to December, Y2 \u2014 MAX_DAY = 468)' + snap());
     } catch (err) {
       check(false, `driver exception: ${(err as Error).message}`);
       console.error(err);

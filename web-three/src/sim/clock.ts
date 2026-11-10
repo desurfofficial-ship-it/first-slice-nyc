@@ -160,6 +160,12 @@ export interface ClockData {
   minuteOfDay: number;
 }
 
+/** The day trust boundary — the same ceiling every save parser honors
+ *  (core/calendar's clampCalendarDay, the world-save validator's MAX_DAY,
+ *  epochMap's assertDay). ~100 in-game years; the story's own canon
+ *  ceiling is day 295. */
+const MAX_CLOCK_DAY = 36_500;
+
 /**
  * The simulation clock. Owns in-game time — the only writer of `day` and
  * `minuteOfDay` in the whole game (the ownership law). Presentation reads;
@@ -170,7 +176,13 @@ export class GameClock {
   minuteOfDay: number;
 
   constructor(data?: Partial<ClockData>) {
-    this.day = Math.max(1, Math.floor(data?.day ?? 1));
+    // FS-AUDIT-005 (remediation): the day carries the same trust boundary
+    // every save parser already honors (clampCalendarDay, the world-save
+    // validator's MAX_DAY, epochMap's assertDay) — 1..36500. An unbounded
+    // day made calendarOf() linear in its input (a hand-edited save plus
+    // one future consumer = a permanent tab freeze); the class is now
+    // dead at the source, not at each consumer.
+    this.day = Math.min(MAX_CLOCK_DAY, Math.max(1, Math.floor(data?.day ?? 1)));
     this.minuteOfDay = clampMinute(data?.minuteOfDay ?? 7 * 60 + 40); // the 7:40 platform
   }
 
@@ -195,12 +207,16 @@ export class GameClock {
     if (!Number.isFinite(minutes)) throw new Error('sim/clock: advance needs a finite number');
     const whole = Math.floor(minutes);
     if (whole < 0) throw new Error('sim/clock: the world never rewinds');
-    const total = this.tick + whole;
+    const prevTotal = this.tick;
+    // the same ceiling as the constructor (FS-AUDIT-005): a hostile or
+    // buggy advance can never roll the day past the trust boundary. The
+    // ceiling is ~100 in-game years — unreachable in any real session
+    // (the story's own canon ceiling is day 295).
+    const total = Math.min(prevTotal + whole, MAX_CLOCK_DAY * 1440 - 1);
     this.day = Math.floor(total / 1440) + 1;
     this.minuteOfDay = total % 1440;
     // how many midnights did we cross? (for once-per-morning machines)
-    const prevDay = Math.floor((total - whole) / 1440) + 1;
-    return this.day - prevDay;
+    return Math.floor(total / 1440) - Math.floor(prevTotal / 1440);
   }
 
   /** Set the time-of-day within the same day (day-begin machines). */
