@@ -136,8 +136,9 @@ describe('B-1: clock-keyed schedules drive arbitration all day', () => {
     const d = brain.directives.get(IDRIS)!;
     expect(d.body.mode).toBe('at');
     expect(d.body.target).not.toBeNull();
-    // SUB-01's stand point is by the station house (x ≈ −42)
-    expect(Math.abs(d.body.target!.x - (-42))).toBeLessThan(2);
+    // SUB-01's stand point is by the station house — the headhouse now
+    // sits on the stair shaft (the polish line's world fix: x ≈ −47.2)
+    expect(Math.abs(d.body.target!.x - (-47.2))).toBeLessThan(2);
     expect(Math.abs(d.body.target!.z - 6.2)).toBeLessThan(2);
 
     // the cart corner is where the shipped cart stands
