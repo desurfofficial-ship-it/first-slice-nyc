@@ -189,11 +189,20 @@ describe('R2 — a shape-broken section never reaches hydrate (the old throws, B
       (d['chapter'] as Record<string, unknown>)['rails'] = { beat: 'not-an-object' };
     }), /rails/);
     expectFresh(tampered((d) => { d['flags'] = [['flag:x', 'now']]; }), /flags\[0\]\.tick/);
-    expectFresh(tampered((d) => { d['flags'] = [['junk_prefix:x', 1]]; }), /flag:\/evt: sim id/);
+    expectFresh(tampered((d) => { d['flags'] = [['junk_prefix:x', 1]]; }), /flag:\/evt:\/node: id or dimension=value key/);
     expectFresh(tampered((d) => { d['environment'] = { weather: { nested: 'object' } }; }), /environment\.weather/);
     expectFresh(tampered((d) => { d['environment'] = { epoch: ['rain'] }; }), /environment\.epoch/);
     expectFresh(tampered((d) => { d['events'] = [{ id: 'evt:x' }]; }), /events\[0\]\.tick/);
-    expectFresh(tampered((d) => { d['missable'] = [{ id: 'm1' }]; }), /missable\[0\]\.opensAtDay/);
+    // the missable section is the R6 scheduler's CACHE (the flags are the
+    // truth): a malformed entry DROPS with a note and the document still
+    // restores — refusing a world over a cache entry would discard real
+    // story progress (the flags re-derive the dropped window's fate)
+    const missableCache = tampered((d) => { d['missable'] = [{ id: 'm1' }, ...((d['missable'] as unknown[]) ?? [])]; });
+    const missableResult = parseWorldSave(missableCache);
+    expect(missableResult.source).toBe('restored');
+    expect(missableResult.notes.join(' ')).toMatch(/malformed window/);
+    expect(missableResult.world.missable.some((m) => m.id === 'm1')).toBe(false);
+    expectFresh(tampered((d) => { d['missable'] = 'not-an-array'; }), /missable/);
     expectFresh(tampered((d) => { d['consequences'] = [{ id: 'c1', kind: 'bribe' }]; }), /consequences\[0\]\.kind/);
   });
 

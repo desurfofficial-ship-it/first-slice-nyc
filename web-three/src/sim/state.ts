@@ -39,7 +39,7 @@ import {
 } from './entities';
 import { EconomyLedger, isAccount, LEDGER_ACCOUNT_WORLD, type Transaction } from './economy';
 import {
-  AvailabilityRegistry, newFlags, type ChapterState, type FlagStore,
+  AvailabilityRegistry, isStoryFlagId, newFlags, type ChapterState, type FlagStore,
   type LedgerEntry,
 } from './narrative';
 import { freshLifeState, parseLifeState, type LifeState } from './life';
@@ -303,10 +303,14 @@ const MAX_STR = 200;
 /** Keys that must never survive document reconstruction. */
 const BANNED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
-interface SectionOk<T> { ok: true; value: T }
+interface SectionOk<T> { ok: true; value: T; warn?: string[] }
 interface SectionFail { ok: false; note: string }
 
-const ok = <T>(value: T): SectionOk<T> => ({ ok: true, value });
+/** `warn` carries NON-FATAL section findings (e.g. the missable cache's
+ *  documented drop-and-re-derive law): the document still restores, the
+ *  finding still surfaces in parseWorldSave's notes — nothing is silent. */
+const ok = <T>(value: T, warn?: string[]): SectionOk<T> =>
+  warn && warn.length > 0 ? { ok: true, value, warn } : { ok: true, value };
 const reject = (section: string, why: string): SectionFail => ({
   ok: false,
   note: `world save rejected: ${section}: ${why} → fresh world`,
@@ -632,8 +636,17 @@ function validateFlags(v: unknown): SectionOk<Array<[string, number]>> | Section
     const e = v[i];
     if (!Array.isArray(e) || e.length !== 2) return reject(at, 'expected a [flagId, tick] pair');
     const k = e[0];
-    if (typeof k !== 'string' || !isSimId(k) || (simKindOf(k) !== 'flag' && simKindOf(k) !== 'evt')) {
-      return reject(`${at}.key`, 'expected a flag:/evt: sim id');
+    // The FlagStore's own key law (sim/narrative isStoryFlagId — the same
+    // law the runtime's setter enforces): classic flag:/evt: sim ids, the
+    // choice pivots node:<id>=<optionId>, and the choice machines'
+    // <dimension>=<value> keys. A save the runtime itself would refuse to
+    // WRITE must not be loadable either — same grammar, same refusal.
+    if (typeof k !== 'string' || k.length === 0 || k.length > 120) {
+      return reject(`${at}.key`, 'expected a 1..120 char flag id');
+    }
+    const classic = simKindOf(k) === 'flag' || simKindOf(k) === 'evt';
+    if (!(classic || isStoryFlagId(k))) {
+      return reject(`${at}.key`, 'expected a flag:/evt:/node: id or dimension=value key');
     }
     if (seen.has(k)) return reject(`${at}.key`, `duplicate flag id ${k}`);
     seen.add(k);
@@ -666,21 +679,48 @@ function validateChapter(v: unknown): SectionOk<ChapterState> | SectionFail {
   return ok({ chapter: v['chapter'], rails: cleanRails, calendarDay: v['calendarDay'] });
 }
 
-function validateMissable(v: unknown): SectionOk<MissableWindow[]> | SectionFail {
+function validateMissable(v: unknown): SectionOk<MissableWindowEntry[]> | SectionFail {
   if (!Array.isArray(v)) return reject('missable', 'missing or not an array');
   if (v.length > 1000) return reject('missable', `array exceeds 1000 entries`);
-  const out: MissableWindow[] = [];
+  // The missable section is the R6 scheduler's CACHE — the flags are the
+  // truth (sim/missable's own documented law). A malformed entry therefore
+  // DROPS with a counted note and re-derives from its flags at the next
+  // tick; refusing a whole world over a cache inconsistency would discard
+  // real story progress. Only the whitelist's clean fields survive.
+  const out: MissableWindowEntry[] = [];
+  let dropped = 0;
   for (let i = 0; i < v.length; i++) {
-    const at = `missable[${i}]`;
     const m = v[i];
-    if (!isSafeRecord(m)) return reject(at, 'not an object');
-    if (!isStr(m['id'], 80)) return reject(`${at}.id`, 'expected a 1..80 char string');
-    if (!isIntIn(m['opensAtDay'], 0, MAX_DAY)) return reject(`${at}.opensAtDay`, `expected integer 0..${MAX_DAY}`);
-    if (!isIntIn(m['closesAtDay'], 0, MAX_DAY)) return reject(`${at}.closesAtDay`, `expected integer 0..${MAX_DAY}`);
-    if (!isStr(m['onMiss'], 80)) return reject(`${at}.onMiss`, 'expected a 1..80 char string');
-    out.push({ id: m['id'], opensAtDay: m['opensAtDay'], closesAtDay: m['closesAtDay'], onMiss: m['onMiss'] });
+    if (!isSafeRecord(m)) { dropped++; continue; }
+    if (!isStr(m['id'], 80)) { dropped++; continue; }
+    if (!isIntIn(m['opensAtDay'], 0, MAX_DAY)) { dropped++; continue; }
+    if (!isIntIn(m['closesAtDay'], 0, MAX_DAY)) { dropped++; continue; }
+    if (!isStr(m['onMiss'], 80)) { dropped++; continue; }
+    const title = m['title'];
+    const missDetail = m['missDetail'];
+    const cite = m['cite'];
+    if (title !== undefined && !isStr(title, 200)) { dropped++; continue; }
+    if (missDetail !== undefined && !isStr(missDetail, 1000)) { dropped++; continue; }
+    if (cite !== undefined && !isStr(cite, 300)) { dropped++; continue; }
+    const state = m['state'];
+    if (state !== undefined && state !== 'pending' && state !== 'open' && state !== 'entered' && state !== 'missed') { dropped++; continue; }
+    const enteredAtDay = m['enteredAtDay'];
+    const missedAtDay = m['missedAtDay'];
+    if (enteredAtDay !== undefined && !isIntIn(enteredAtDay, 0, MAX_DAY)) { dropped++; continue; }
+    if (missedAtDay !== undefined && !isIntIn(missedAtDay, 0, MAX_DAY)) { dropped++; continue; }
+    out.push({
+      id: m['id'], opensAtDay: m['opensAtDay'], closesAtDay: m['closesAtDay'], onMiss: m['onMiss'],
+      ...(title !== undefined ? { title } : {}),
+      ...(missDetail !== undefined ? { missDetail } : {}),
+      ...(cite !== undefined ? { cite } : {}),
+      ...(state !== undefined ? { state } : {}),
+      ...(enteredAtDay !== undefined ? { enteredAtDay } : {}),
+      ...(missedAtDay !== undefined ? { missedAtDay } : {}),
+    } as MissableWindowEntry);
   }
-  return ok(out);
+  return dropped > 0
+    ? ok(out, [`missable: ${dropped} malformed window${dropped === 1 ? '' : 's'} dropped (flags re-derive their truth)`])
+    : ok(out);
 }
 
 function validateConsequences(v: unknown): SectionOk<LedgerEntry[]> | SectionFail {
@@ -795,6 +835,29 @@ function validateWorldSaveDocument(d: Record<string, unknown>): SectionOk<WorldS
   if (!events.ok) return events;
   const environment = validateEnvironment(d['environment']);
   if (!environment.ok) return environment;
+  // The majors' lives (narrative/14 R5 — the v1-safe optional trailing
+  // field): structural bounds only. sim/life's parseLifeState owns the
+  // internals and heals corrupt entries forward (its documented contract,
+  // never a crash), so the validator's job here is to bound the payload
+  // and keep hostile shapes out — the whitelist must CARRY the section,
+  // not drop it (a dropped life would silently reset the majors' off-screen
+  // lives on every reload).
+  const life = d['life'];
+  if (life !== undefined) {
+    if (!isSafeRecord(life)) return reject('life', 'present but not an object');
+    const majors = life['majors'];
+    if (majors !== undefined) {
+      if (!isSafeRecord(majors)) return reject('life.majors', 'present but not an object');
+      if (Object.keys(majors).length > 64) return reject('life.majors', 'more than 64 majors');
+    }
+    if (life['lastTickDay'] !== undefined && !isIntIn(life['lastTickDay'], 0, MAX_DAY)) {
+      return reject('life.lastTickDay', `expected integer 0..${MAX_DAY}`);
+    }
+  }
+  // non-fatal section findings (cache sections' documented heal laws)
+  // aggregate here so parseWorldSave can surface them — nothing silent
+  const warns: string[] = [];
+  if (missable.warn) warns.push(...missable.warn);
   return ok({
     magic: 'first-slice-world',
     version: WORLD_SCHEMA_VERSION,
@@ -812,7 +875,8 @@ function validateWorldSaveDocument(d: Record<string, unknown>): SectionOk<WorldS
     consequences: consequences.value,
     events: events.value,
     environment: environment.value,
-  });
+    ...(life !== undefined ? { life: life as unknown as LifeState } : {}),
+  }, warns);
 }
 
 /** Rebuild the non-serializable parts (Maps, classes) from a document. */
@@ -907,6 +971,9 @@ export function parseWorldSave(raw: string | null | undefined): ParseResult {
   if (!validated.ok) {
     return { world: createWorldState(), source: 'fresh', notes: [validated.note] };
   }
+  // non-fatal section findings (the cache sections' documented heal laws)
+  // surface in the notes — nothing is dropped silently
+  if (validated.warn) notes.push(...validated.warn);
   // second net: hydrate is now fed a fully validated document and cannot
   // throw on shape — but the module's contract no longer DEPENDS on that
   // (or on a caller two files away remembering to catch)
