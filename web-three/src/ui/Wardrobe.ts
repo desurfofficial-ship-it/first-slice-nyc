@@ -25,6 +25,14 @@ import * as THREE from 'three';
 import { STARTERS, starterById, type Starter } from '../core/starters';
 import { buildArticulatedPerson, buildStarterSkateboard, updatePersonAnim } from '../world/personRig';
 
+/** File-local HTML escaping (the diary.ts/UI.ts precedent) — FS-AUDIT-007's
+ *  hardening: interpolated markup always escapes, even developer constants. */
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c] ?? c));
+}
+
 /** The one-breath introductions the pick card doesn't have room for. */
 export const STARTER_METADATA: Readonly<Record<string, { role: string; vibe: string; tag: string }>> = {
   classic: {
@@ -312,10 +320,15 @@ export class Wardrobe {
       tile.type = 'button';
       tile.className = 'starter-tile wardrobe-tile' + (row.isCurrent ? ' wearing' : '');
       tile.dataset.starter = row.id;
+      // FS-AUDIT-007 (hardening): the lineup is a developer-constant
+      // catalogue today, but the render must not depend on that — every
+      // interpolated value is escaped, and the swatch must prove itself a
+      // plain hex color before it may touch a style attribute.
+      const swatch = /^#[0-9a-fA-F]{3,8}$/.test(row.swatch) ? row.swatch : '#888888';
       tile.innerHTML =
-        `<span class="wardrobe-swatch" style="background:${row.swatch}"></span>`
-        + `<span class="starter-name">${row.name}</span>`
-        + `<span class="wardrobe-role">${row.role}</span>`
+        `<span class="wardrobe-swatch" style="background:${swatch}"></span>`
+        + `<span class="starter-name">${escapeHtml(row.name)}</span>`
+        + `<span class="wardrobe-role">${escapeHtml(row.role)}</span>`
         + (row.isCurrent && !this.pickMode ? '<span class="wardrobe-you">You</span>' : '');
       tile.addEventListener('click', () => {
         this.previewId = row.id;

@@ -1,0 +1,13 @@
+=== perf-peds (tsx, node v24) ===
+PED PERFORMANCE — node v24.22.2 (this machine)
+  roster: 12 armed commuters, 60 fps dt, near-tier player
+  peds.update:            28.1 µs/frame (budget 16600 µs → 0.17%)
+  routes walked:          38 in 300 s of street time
+  heap growth:            1556 KB over 9000 frames (gc off)
+  loop walkers (unarmed): 18.4 µs/frame — the commute adds 9.6 µs/frame
+
+=== probe-perf (built dist, software GL) ===
+boot-spawn: drawCalls=154 triangles=258156 fps=4 (software GL)
+mid-street-east: drawCalls=222 triangles=312266 fps=3 (software GL)
+plaza-life: drawCalls=296 triangles=358568 fps=2 (software GL)
+ZERO page errors

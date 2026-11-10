@@ -50,6 +50,18 @@ describe('save v1 — field clamping (resume exact, nothing out of range)', () =
     expect(s.money).toBe(0);
   });
 
+  // FS-AUDIT-004 (remediation): the parser now enforces the UI's own
+  // contract — a 24-char name field and a bounded money quantity. The
+  // audit's proof cases (1e6-char name, 1e15 money) can no longer parse
+  // verbatim.
+  it('caps cart_name at the UI maxlength (24) and money at the ceiling (FS-AUDIT-004)', () => {
+    const s = parseSave(JSON.stringify({ cart_name: 'A'.repeat(1_000_000), money: 1e15 }));
+    expect(s.cart_name.length).toBe(24);
+    expect(s.money).toBe(999_999);
+    const t = parseSave(JSON.stringify({ day_start_money: 1e15 }));
+    expect(t.day_start_money).toBe(999_999);
+  });
+
   it('coerces stringly-typed values (defensive)', () => {
     const s = parseSave(JSON.stringify({ day: '2', money: '112', awning: 'true' }));
     expect(s.day).toBe(2);

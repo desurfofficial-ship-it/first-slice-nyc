@@ -1,0 +1,645 @@
+{
+  "schema": "first-slice-security-audit/findings-v1",
+  "audit_metadata": {
+    "repository": "https://github.com/desurfofficial-ship-it/first-slice-nyc",
+    "branch": "main",
+    "commit_sha": "7995e6ea2e371644a5347f93acc8bed948bf0e54",
+    "commit_date": "2026-11-06T04:29:09+00:00",
+    "audit_date": "2026-11-06",
+    "methodology": "Cloudflare security-audit-skill (adapted; see 01-SECURITY-AUDIT-SCOPE.md section 2)",
+    "execution_policy": "source-and-local-only; no deployed endpoint contacted; no repository file modified",
+    "run_profile": "standard with merged phase-3/phase-5 verification (disclosed limitation)",
+    "reconciliation": {
+      "date": "2026-11-06",
+      "trigger": "owner request: reconcile the audit against the actual current repository state; verify findings at current HEAD; audit the Phase 3 branch; review post-baseline integration boundaries",
+      "current_main_sha": "62a6244cee258a243fdb308bd78daf7793c62cc5",
+      "current_main_verified_via": "git ls-remote (anonymous HTTPS) — authoritative server ref listing; matches the owner-confirmed 62a6244, not the original baseline 7995e6e",
+      "baseline_sha": "7995e6ea2e371644a5347f93acc8bed948bf0e54",
+      "baseline_local_checkout_state": "local branch main @ 7995e6ea2e371644a5347f93acc8bed948bf0e54, working tree content-identical to HEAD (572 mode-bit-only entries, 0 insertions/0 deletions); preserved untouched",
+      "upstream_delta": "7 commits, 12 files, +1040/-21: new sim/epochMap.ts (WP-2v epoch mapping), new game/pauseSet.ts (WP-1v pause set), edits to game/Game.ts and game/worldRuntime.ts, new probe-pause-set.mjs (dev-only), 3 test files, 5 docs/worklog files; package.json/package-lock.json/deploy-pages.yml UNTOUCHED",
+      "execution_policy": "source-and-local-only; anonymous read-only git access (no token used per assignment rule); no repository file modified; no dependency installed; no deployed endpoint contacted",
+      "phase3_branch": {
+        "requested": "feat/phase-3-navigation-building-access",
+        "exists": false,
+        "evidence": "git ls-remote lists exactly 4 branches + 8 PR heads, none matching; zero commits in any ref match /navigat|building-access|phase-3/i; zero files named *nav* in any ref; docs at 62a6244 state Phase 3 'not started (queued next)' (PRODUCTION-RECONCILIATION-REPORT.md:44) and gate A-1 (nav graph) on owner authorization (NEXT-PHASE-EXECUTION-PLAN.md:113-123)",
+        "consequence": "Phase 3 audit = NOT APPLICABLE (nothing to inspect); no src/sim/nav/ exists anywhere"
+      },
+      "unmerged_branches_reviewed": [
+        {
+          "ref": "origin/feat/player-upgrade",
+          "tip": "0530ebc",
+          "commits_not_in_main": 3,
+          "content": "player input: sprint, pointer drag, wheel zoom",
+          "trust_surface_scan": "no added line touches innerHTML/localStorage/URL/location/eval/fetch — no new trust surface"
+        },
+        {
+          "ref": "pull/3 (B6 camera fix a9caa0f)",
+          "commits_not_in_main": 1,
+          "trust_surface_scan": "clean"
+        },
+        {
+          "ref": "pull/4 (B6 camera fix 6829c87)",
+          "commits_not_in_main": 1,
+          "trust_surface_scan": "clean"
+        },
+        {
+          "ref": "pull/6 (B7 touch-UI fix a5d4e90)",
+          "commits_not_in_main": 1,
+          "trust_surface_scan": "clean"
+        },
+        {
+          "ref": "pull/7 (B7a fix b2ffedf)",
+          "commits_not_in_main": 1,
+          "trust_surface_scan": "clean"
+        },
+        {
+          "ref": "pull/8 (B14 docs 4a69094)",
+          "commits_not_in_main": 1,
+          "trust_surface_scan": "docs-only"
+        },
+        {
+          "ref": "origin/feat/world-contract-foundation",
+          "note": "fully merged into main (0 commits not in main)"
+        },
+        {
+          "ref": "origin/feat/wp-2v-epoch-map",
+          "note": "content merged via eab767c (squash); branch tip differs only by merge mechanics"
+        }
+      ]
+    }
+  },
+  "summary": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 2,
+    "informational": 6,
+    "confirmed": 8,
+    "disproved_hypotheses": 7,
+    "needs_validation": 2,
+    "release_blocking": false,
+    "reconciliation": {
+      "date": "2026-11-06",
+      "current_sha": "62a6244",
+      "confirmed_current": 8,
+      "fixed_upstream": 0,
+      "regressed": 0,
+      "disproved_on_recheck": 0,
+      "needs_validation_still_open": 2,
+      "new_findings": 0,
+      "severity_counts_current": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 2,
+        "informational": 6
+      },
+      "release_blocking": false
+    },
+    "remediation": {
+      "date": "2026-11-07",
+      "branch": "fix/security-r1-r2",
+      "scope": "R1 (FS-AUDIT-001) + R2 (FS-AUDIT-002) only — per assignment; R3–R7 remain OPEN",
+      "fixed": 2,
+      "open": 6,
+      "counts_after": {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 0,
+        "LOW": 2,
+        "INFORMATIONAL": 6
+      },
+      "counts_after_note": "FS-AUDIT-001/002 move to FIXED (severity-at-discovery retained in the record); the residual LOW severity descriptors describe the pre-fix exposure and the recorded residual-risk notes."
+    }
+  },
+  "findings": [
+    {
+      "id": "FS-AUDIT-001",
+      "title": "URL-triggered debug/E2E drivers wipe and overwrite player saves in production",
+      "severity": "LOW",
+      "confidence": "high",
+      "status": "fixed",
+      "affected_files": [
+        {
+          "path": "web-three/src/game/Game.ts",
+          "lines": "468-471, 477-480"
+        },
+        {
+          "path": "web-three/src/game/autotest.ts",
+          "lines": "439-440"
+        },
+        {
+          "path": "web-three/src/game/scenario.ts",
+          "lines": "97, 186, 194, 210, 213"
+        },
+        {
+          "path": "web-three/src/core/Save.ts",
+          "lines": "271-277"
+        }
+      ],
+      "subsystem": "url-parameter-surface / debug-infrastructure",
+      "vulnerability_class": "active debug code reachable via untrusted input; destructive storage action (CWE-489)",
+      "threat_model": "Attacker crafts a link to the deployed origin with ?autotest=1 or ?scenario=<any value>; any victim who opens it loses local save data (story save wiped by runAutotest; world save deleted/overwritten by runScenario) and the game auto-plays in their browser. No account, code execution, or exfiltration involved.",
+      "description": "Both drivers dispatch on mere query-param presence with no value check, no navigator.webdriver gate (that gate only skips the cinematic), no import.meta guard (none exists in src/), and no confirmation prompt. runAutotest calls wipeSave() as its first act; runScenario removes and rewrites the world-save key multiple times.",
+      "evidence": [
+        "Source trace: Game.ts:468-480 dispatches on params.has(...) and dynamically imports autotest/scenario in the production bundle (no feature flags; deploy-pages.yml builds unflagged).",
+        "Seam-level dynamic proof (evidence/RESULTS-wipe-seam.txt): wipeSave() removes key first_slice_save_v1; a seeded day-4/$240 save becomes defaults (day=1, money=87).",
+        "Verifier A: confirmed; verified no confirm()/prompt() exists in src and that the webdriver gate does not cover these paths."
+      ],
+      "impact": "Loss of the victim's local game progress (story and/or world layer) plus an unwanted auto-play session. No confidentiality impact, no code execution, no persistent compromise.",
+      "exploitability": "Trivial attacker effort (one crafted link), one-click victim. Severity bounded by asset value: regenerable local game progress in a single-player game.",
+      "remediation": {
+        "date": "2026-11-07",
+        "branch": "fix/security-r1-r2",
+        "status": "FIXED",
+        "root_cause": "Game.ts dispatched both debug drivers on mere URL-param presence (params.has(...)) with no authorization signal of any kind; autotest.ts:439 called wipeSave() (the player story save) as its first act; scenario.ts removed/rewrote the world-save key; production builds shipped both chunks and the dispatch, so one crafted link destroyed another person's save data.",
+        "design": "One explicit development/production boundary (web-three/src/game/driverGate.ts) + a driver storage sandbox:",
+        "implementation": [
+          "NEW web-three/src/game/driverGate.ts — the single decision point: authorizeDebugDrivers({devMode, handshake}) (pure, unit-tested), readDriverHandshake(sessionStorage) reading fs_driver_authorized==='1', enableDriverStorageSandbox() re-keying story+world persistence, isDriverAuthorizedNow() for defense-in-depth entry checks. The module header IS the documentation of the boundary; there is no hidden query parameter.",
+          "web-three/src/core/Save.ts — driver sandbox keys: DRIVER_SAVE_KEY ('first_slice_save_v1_driver'), setStorySaveKeyOverride(), activeSaveKey(); loadSave/writeSave/wipeSave ride the ACTIVE key. Outside an authorized session the behavior is byte-identical to before.",
+          "web-three/src/sim/state.ts — DRIVER_WORLD_SAVE_KEY ('first_slice_world_v1_driver'), setWorldSaveKeyOverride(), activeWorldSaveKey(); worldRuntime storage routes through it.",
+          "web-three/src/game/Game.ts — the authorization is decided FIRST in the constructor (before any storage read); an authorized session enables the sandbox and announces it in the console; both URL dispatches now require driverAuth.allowed, and a denied request is honestly logged ('[driver] ?autotest ignored — debug drivers are gated in production builds').",
+          "web-three/src/game/autotest.ts + scenario.ts — defense in depth: both drivers re-check isDriverAuthorizedNow() at entry and refuse otherwise; autotest's wipeSave() comment documents the sandbox routing.",
+          "web-three/src/game/worldRuntime.ts — all three storage touchpoints (constructor read, flushWorldSave, reloadFromSave) plus debug().saveKey route through activeWorldSaveKey().",
+          "scripts/e2e.mjs + scripts/probe-world-sim.mjs — the harnesses authorize themselves via page.addInitScript(() => sessionStorage.setItem('fs_driver_authorized','1')) BEFORE any page script runs — the documented non-URL path; the fleet keeps working against real built production output."
+        ],
+        "guarantees": [
+          "Production + URL alone (any params): drivers never start; the boundary says so in the console; no sandbox key is created.",
+          "An authorized driver session is STORAGE-SANDBOXED: every story read/write/wipe rides first_slice_save_v1_driver and every world read/write rides first_slice_world_v1_driver — a real player save is unreachable by construction, not by discipline.",
+          "The wardrobe 'start over' reset (Game.ts beginNewGameAs) is a player-confirmed UI action and is intentionally NOT part of the URL surface; it is unchanged.",
+          "Normal gameplay URL behavior (?starter, ?film, ?pickcard, ?worldclock, ?fx) is unchanged; the boot law, save law, schema, and calendar epoch are untouched."
+        ],
+        "regression_tests": [
+          "tests/driver-gate.test.ts (14 cases): the authorization matrix (dev/handshake/denied), handshake = sessionStorage never URL, storage-refusing browser denies, sandbox re-keys both layers, wipeSave() in a driver session hits only the driver key, a full driver write/read/wipe cycle never touches the player key, the schema is unchanged by the sandbox.",
+          "scripts/probe-security-r1.mjs (31 checks, real dist/): P1 ?autotest=1 → driver never starts, seeded day-4/$240 story save intact; P2/P2b/P3/P4 ?scenario=x / schedules / both / hostile → world save byte-identical, no driver, no page errors; N1 plain load unchanged (bootedFromDay 4); D1 authorized ?autotest=1 → driver starts AND boots from the driver key (bootedFromDay=1 with a day-4 player save present), player save intact; D2 authorized ?scenario=schedules → scenario streams on the driver world key, real world save byte-identical.",
+          "scripts/e2e.mjs (4-day story E2E against dist/) — updated for the handshake; full proof the authorized fleet path works.",
+          "scripts/probe-world-sim.mjs — updated for the handshake; the 15-step scenario battery on the sandboxed world key."
+        ],
+        "verification_evidence": "docs/security-audit/evidence/RESULTS-probe-security-r1.txt (31/31), RESULTS-vitest-r1-r2.txt (892/892 incl. driver-gate.test.ts), RESULTS-e2e-4day-r1-r2.txt, RESULTS-probe-world-sim-r1-r2.txt",
+        "follow_up": {
+          "trigger": "independent verifier findings N-2 and N-3 (2026-11-07), fixed in the same branch",
+          "N-2_album_sandbox": "the postcard album was not sandboxed — authorized driver sessions now re-key it to first_slice_album_driver (src/postcard/Album.ts: DRIVER_ALBUM_KEY + setAlbumKeyOverride + activeAlbumKey; driverGate.enableDriverStorageSandbox covers it), so driver-earned cards can never crowd a real player's shelf; the sandbox announcement names all three namespaces",
+          "N-3_quarantine_namespace": "the R2 quarantine slot now follows the active world namespace (state.ts: activeWorldQuarantineKey; driver refusals quarantine beside the driver key, never over the player namespace's slot)",
+          "N-6": "bootWorldBrain's returned saveKey now reports the ACTIVE key (sim/runtime.ts); implementer scratch artifact removed",
+          "tests": "tests/driver-gate.test.ts extended (driver shelf isolation incl. the newest-first law; player shelf byte-identical; quarantine namespace follows the override) — suite at 892/892"
+        },
+        "residual_risk": "None known for the URL→destruction path. The handshake (sessionStorage) can be set by anyone with devtools access to their OWN browser — an explicit local developer action, equivalent to typing JavaScript in the console; it cannot be triggered remotely and destroys only sandbox keys. The driver chunks still ship in the production bundle (dynamically imported only behind the gate); a future hardening could exclude them at build time if the fleet ever moves off built-output testing.",
+        "independent_reviewer_verdict": "HOLDS — survived an adversarial re-verification by a separate agent (2026-11-07). The verifier enumerated the entire URL surface, confirmed import.meta.env.DEV compiles to false in the shipped bundle (devMode:!1), confirmed no src/ code writes the handshake from any URL-reachable path, re-ran probe-security-r1 31/31 against real dist/, and could not construct any URL-only trigger for the destructive operations. Follow-up findings N-2 (album sandbox gap) and N-3 (quarantine namespace) were fixed in the same remediation branch and are covered by new regression tests; see the follow_up block below."
+      },
+      "regression_test": "Unit: dispatch disabled without authorization signal. CI gate: production dist/ contains no runAutotest/runScenario references. E2E: seeded day-3 save survives ?autotest=1.",
+      "verification": {
+        "verifier": "independent-verifier-A",
+        "decision": "confirmed",
+        "severity_upheld": true
+      },
+      "reconciliation": {
+        "status": "confirmed-current",
+        "source_change_since_baseline": "autotest.ts, scenario.ts, Save.ts byte-identical (git diff = 0). Game.ts changed ONLY in the frame-loop pause block (WP-1v); the URL dispatch is unchanged and now sits at Game.ts:469-471 (?autotest -> dynamic import -> runAutotest) and :477-480 (?scenario -> runScenario); the navigator.webdriver gate (:390-397) still only sets driverBoot (skips the film) and does not guard either driver; wipeSave still called unconditionally at autotest.ts:439; Save.ts:271-277 unchanged.",
+        "reachability_change": "none — the dispatch chain remains param-presence-only, unflagged, unconfirmed, production-shipped (deploy-pages.yml unchanged)",
+        "dynamic_evidence_at_current": "R2 battery R7.1/R7.2 (evidence/RESULTS-reconciliation-62a6244.txt): seeded day-4/$240 story save -> wipeSave() -> key removed, defaults restored (day=1, money=87) against the actual Save.ts @ 62a6244",
+        "severity_after_reconciliation": "LOW (unchanged)"
+      },
+      "severity_at_discovery": "LOW"
+    },
+    {
+      "id": "FS-AUDIT-002",
+      "title": "World-save parser contradicts its documented degrade law: shape-broken sections throw; only the boot-seam catch prevents a crash",
+      "severity": "LOW",
+      "confidence": "high",
+      "status": "fixed",
+      "affected_files": [
+        {
+          "path": "web-three/src/sim/state.ts",
+          "lines": "214-259 (hydrate), 265-292 (parseWorldSave), 28-31 (documented law)"
+        },
+        {
+          "path": "web-three/src/sim/runtime.ts",
+          "lines": "637-646 (bootWorldBrain catch)"
+        },
+        {
+          "path": "web-three/src/game/worldRuntime.ts",
+          "lines": "85-94, 285-305 (both production seams)"
+        }
+      ],
+      "subsystem": "world-save-persistence",
+      "vulnerability_class": "improper validation on deserialization; contract violation (CWE-502 family)",
+      "threat_model": "No remote vector. Requires a JSON-valid but shape-broken world save in the victim's localStorage (hand-editing, buggy third-party save tool, storage corruption preserving JSON validity). The browser itself always writes typed documents.",
+      "description": "parseWorldSave validates only magic/version/worldId then casts to WorldSaveDocument unchecked; hydrate dereferences doc.clock.day, doc.player.moneyCents, doc.relationships.map, doc.ledger.txns, doc.flags without validation. The module header promises 'anything missing/invalid/corrupt degrades to a fresh, valid world... never a crash'; the implementation throws, and survives only because bootWorldBrain catches.",
+      "evidence": [
+        "Harness battery on production modules (evidence/RESULTS-save-parsers.txt, B2-B7, B13): missing ledger/clock/player, relationships:5, ledger.txns:5, flags:[1,2,3], junk npcs all throw TypeError.",
+        "Validated refusals still work (B8-B10: wrong magic, version 99, foreign worldId -> fresh).",
+        "Verifier A: the only two callers of parseWorldSave sit inside the bootWorldBrain try/catch; main.ts adds an outer net."
+      ],
+      "impact": "Unexpected silent world-layer resets for a user with a damaged world save; the corrupt document is not quarantined and the reset repeats until the next flush overwrites it. No crash, no code execution, no cross-principal effect.",
+      "exploitability": "Not remotely exploitable; realistic only via local tampering/corruption. Architectural weight: the central persistence law currently hangs on one catch block in a different module.",
+      "remediation": {
+        "date": "2026-11-07",
+        "branch": "fix/security-r1-r2",
+        "status": "FIXED",
+        "root_cause": "parseWorldSave (sim/state.ts) validated only magic/version/worldId and then blind-cast the document into hydrate(), which dereferenced doc.clock.day, doc.relationships.map, doc.ledger.txns, doc.flags, and entity rows unchecked — shape-broken-but-JSON-valid documents threw; the documented 'corrupt save is a fresh start, never a crash' law held only because bootWorldBrain (sim/runtime.ts) happened to catch, two files away. The refused document also stayed on the active key, so the reset repeated on every boot until an autosave healed it.",
+        "design": "Full pre-hydration validation with whitelist reconstruction (all-or-nothing), a guarded hydrate as a second net, an integrity gate, and quarantine-not-destroy recovery:",
+        "implementation": [
+          "web-three/src/sim/state.ts — NEW validation battery (~470 lines): every section (seed, clock, player, npcs, relationships, businesses, ledger.txns+seq, flags, chapter.rails, missable, consequences, events, environment) is type-checked, range-checked (MAX_MONEY_CENTS=100_000_000; day 1..36500 = the project's own clampCalendarDay bound; minute 0..1439; tick bounds; warmth -100..100; trust 0..100; ledger flow laws mirrored from sim/economy post()), id-validated against the sim-id/registry-id grammars (sim/ids.ts, isAccount), reference-validated (relationships→npcs, businesses→npcs, flows→accounts), array-bound-checked (npcs ≤10k, txns ≤50k, flags ≤1k...), duplicate-checked (npc/rel/txn ids), and REBUILT through a strict whitelist — unknown properties are DROPPED (the save.gd forward-compat law) and __proto__/constructor/prototype keys cannot survive reconstruction. Any failure → the whole document is refused: fresh world + one bounded diagnostic note ('world save rejected: <section>: <why> → fresh world') — no raw values echoed, no megabytes of narration.",
+          "parseWorldSave — new pipeline: magic/version/worldId (unchanged) → validateWorldSaveDocument → hydrate inside try/catch (second net: the module's contract no longer depends on any caller) → auditWorld gate: a post-hydration integrity failure (event order, dangling refs, ledger mismatch) REFUSES the document instead of silently accepting it.",
+          "web-three/src/game/worldRuntime.ts — quarantine: constructor + reloadFromSave move a REFUSED document (raw non-empty + source 'fresh') to first_slice_world_v1_quarantine (preserved, not destroyed) and clear the active key — the refusal happens once per document instead of once per boot, and the player continues on a fresh world. The story save rides a different key and is structurally untouched (bootWorldBrain is pure: zero storage writes).",
+          "web-three/src/sim/runtime.ts — bootWorldBrain's catch remains as the outer net (unchanged contract: fresh + note)."
+        ],
+        "compatibility": [
+          "Valid saves restore exactly: the 840-test baseline suite (incl. the sim-state round-trip and 'broken money reported, not hidden' genesis-clamp case) passes UNCHANGED at 840/840 before the new batteries were added.",
+          "Unknown trailing fields are dropped, not rejected (forward compatibility, mirroring core/Save.ts's reader-names-its-fields law).",
+          "No schema change: the document written by snapshotWorld() parses exactly as before; the parser only became stricter about what it accepts.",
+          "The FS-AUDIT-003 reproduction (player.moneyCents=1e12) now lands on the new money-ceiling rejection (bounded at $1M) — the structural finding (self-consistent doc-derived economics) remains open for the WP-4 re-audit as scheduled."
+        ],
+        "regression_tests": [
+          "tests/world-save-validation.test.ts (33 cases): the audit B-battery re-ported (missing/null ledger, clock, player, relationships, npcs, flags; wrong primitives; invalid txn arrays incl. self-transfer and world-account flow laws; day 0/1e15; minute 1440; calendarDay overflow; warmth/trust ranges; junk npc rows; duplicate ids; rails junk; flag tuples; environment values; 1e12/1e15 money; seed overflow; JSON 1e999) + prototype-pollution payloads (__proto__ in doc, rails, environment; constructor keys; arrays-for-objects) + resource bounds (10,001 npcs / 50,001 txns refused at the bound) + integrity-gate cases (unordered events, double-listed relationship, non-item inventory id) + valid-save round-trips (clock/warmth/flags/ledger/npcs exact; unknown fields dropped; restored world audits clean) + a hostile parse-never-throws corpus + bootWorldBrain recovery (fresh brain + reference cast + playable clock advance) + storage-isolation proof (a recording storage stub: bootWorldBrain performs ZERO storage writes; the story save is byte-identical).",
+          "scripts/probe-security-r2.mjs (166 checks, real dist/): 21 corruption classes through the production recovery seam (reloadFromSave) — each: fresh world, named note, story save intact, refused doc quarantined, world playable; C14 valid doc restores; C15 post-quarantine boot is clean (loop ended); B1/B2 cold-boot constructor-path proofs."
+        ],
+        "verification_evidence": "docs/security-audit/evidence/RESULTS-probe-security-r2.txt (166/166), RESULTS-vitest-r1-r2.txt (892/892 incl. world-save-validation.test.ts), RESULTS-save-parsers.txt (original audit battery, preserved)",
+        "follow_up": {
+          "trigger": "independent verifier finding N-1 (2026-11-07), fixed in the same branch",
+          "N-1_ledger_replay_gate": "the verifier demonstrated a shape-valid doc whose ledger history could not be replayed (overdraft at rehydration) restoring SILENTLY with divergent business balances — hydrate's post() rejections (world.ledger.issues) were never consulted. The parse-time integrity gate now refuses on world.ledger.issues.length > 0 (notes carry the bounded OVERDRAFT/policy details), and a regression test reproduces the verifier's exact attack (biz→npc→biz overdraft loop → fresh world + note). For documents the live game writes, replay replicates the original policy-checked sequence exactly, so the new refusal cannot fire on a valid save.",
+          "N-5_consistency_blemishes": "verifier-observed silent-restore blemishes (dangling npc→rel reference, same-pair double rel edges, ghost event npcIds) recorded as INFORMATIONAL — no crash path; candidates for the next hardening pass",
+          "N-4": "the genesis-clamp note text overstates 'balances preserved' (biz fields lag the ledger on the game's own snapshots because Workstream D is not wired) — recorded; wording to be corrected with the WP-4 bridge"
+        },
+        "residual_risk": "The genesis-clamp recovery (doc balances inconsistent with their own txns in a way the clamp absorbs) still restores with a loud note and preserved balances — a documented, bounded recovery, not a silent acceptance; with the N-1 gate, everything the replay cannot reproduce is refused. FS-AUDIT-003's structural economics trust gap (doc-derived genesis) is intentionally out of scope here and remains gated on the WP-4 re-audit (the verifier confirmed N-1 belongs to the same trust family).",
+        "independent_reviewer_verdict": "HOLDS — survived an adversarial re-verification by a separate agent (2026-11-07). The verifier ran 25+ hostile documents through the real parseWorldSave (all 12 sections missing/null, wrong primitives, 1e12/1e15 numerics, __proto__/constructor keys, arrays-for-objects, resource bounds, duplicates, dangling refs): zero throws, zero partial hydrations, zero malformed docs restored; the 840-test baseline passes unchanged (suite now 892/892); recovery provably performs zero storage writes and never touches the story save; quarantine refusal conditions verified exact. The verifier's strongest attack (N-1: hydrate-time post() rejections silently swallowed) was FIXED in the same branch — the integrity gate now refuses any document whose ledger history cannot be replayed — and is pinned by a regression test reproducing the exact attack. Residual consistency blemishes (N-5) are recorded as informational; the structural economics gap remains FS-AUDIT-003 / WP-4 as scheduled."
+      },
+      "regression_test": "Port audit battery B2-B7 + B13 into tests/sim-state.test.ts: every malformed-section document yields source='fresh' with notes, never a throw.",
+      "verification": {
+        "verifier": "independent-verifier-A",
+        "decision": "confirmed",
+        "severity_upheld": true
+      },
+      "reconciliation": {
+        "status": "confirmed-current",
+        "source_change_since_baseline": "sim/state.ts and sim/runtime.ts byte-identical (git diff = 0). game/worldRuntime.ts changed ONLY inside onStoryDayBegin (~:334-346, now delegating to simTickOfStoryDay); both production boot seams are unchanged in behavior and now sit at worldRuntime.ts:86-95 (constructor: try localStorage.getItem @86, bootWorldBrain @87) and :288-295+ (reloadFromSave: try @288, bootWorldBrain @289).",
+        "reachability_change": "none — parseWorldSave still validates only magic/version/worldId then casts unchecked; bootWorldBrain's catch (:637-646, unchanged) remains the only thing converting throws to a fresh world",
+        "dynamic_evidence_at_current": "R2 battery R2.1-R2.5: missing ledger/clock/player, relationships:5, ledger.txns:5 all still throw TypeError inside the module; R2.6-R2.8: validated refusals and valid restore behave correctly (evidence/RESULTS-reconciliation-62a6244.txt)",
+        "severity_after_reconciliation": "LOW (unchanged)"
+      },
+      "severity_at_discovery": "LOW"
+    },
+    {
+      "id": "FS-AUDIT-003",
+      "title": "World restore re-derives economic truth from the save document; integrity audit is blind to tampered balances",
+      "severity": "INFORMATIONAL",
+      "confidence": "high",
+      "status": "confirmed",
+      "affected_files": [
+        {
+          "path": "web-three/src/sim/state.ts",
+          "lines": "222-248 (genesis re-derivation), 153-177 (auditWorld), 286-291 (notes-only handling)"
+        }
+      ],
+      "subsystem": "simulation-trust-boundaries",
+      "vulnerability_class": "second-order trust gap: untrusted persisted state treated as economic truth, masked by a self-referential integrity check",
+      "threat_model": "Attacker = the local player (self-impact; ordinary client-side cheating). Becomes a real trust-boundary failure only if world state feeds a shared/server-side consumer (the roadmap's D-3 money bridge).",
+      "description": "hydrate() re-derives ledger genesis from the document's final balances, so hand-edited player.moneyCents is self-consistent by construction; auditWorld then compares two doc-derived values and returns zero issues. Harness case B11: moneyCents=1e12 restores as source='restored' with zero notes.",
+      "evidence": [
+        "evidence/RESULTS-save-parsers.txt case B11.",
+        "Verifier A confirmed the D-3 money bridge is open work (AGENTS.md:11, docs/architecture/world-contract/17-implementation-roadmap.md, docs/production/NEXT-PHASE-EXECUTION-PLAN.md)."
+      ],
+      "impact": "Self-impact cheating today. Forward risk: a money-printing primitive with a blind audit if the D-3 bridge (or any shared/online feature) consumes world state.",
+      "exploitability": "Trivial locally; zero remotely today.",
+      "remediation": "When the money bridge lands: treat ledger transactions (not final balances) as trusted input, recompute balances, and plausibility-clamp restored economics with a note; reject/flag worlds failing re-simulation.",
+      "regression_test": "When the bridge lands: a restored world with doc money inconsistent with re-simulated transactions must be flagged/rejected.",
+      "verification": {
+        "verifier": "independent-verifier-A",
+        "decision": "confirmed",
+        "severity_upheld": true
+      },
+      "reconciliation": {
+        "status": "confirmed-current",
+        "source_change_since_baseline": "sim/state.ts byte-identical; no upstream change touches economy, ledger, or the restore path",
+        "reachability_change": "none — genesis re-derivation from doc balances unchanged; auditWorld still self-referential",
+        "dynamic_evidence_at_current": "R2 battery R3.1: player.moneyCents=1e12 restores as source=restored with zero notes against the actual state.ts @ 62a6244",
+        "forward_risk_update": "unchanged and still on the roadmap: docs at 62a6244 (NEXT-PHASE-EXECUTION-PLAN.md:113-123) schedule WP-4 (D-3 money->ledger bridge) as the recommended second work item, after A-1; the re-audit-before-WP-4 requirement (07) stands",
+        "severity_after_reconciliation": "INFORMATIONAL (unchanged)"
+      }
+    },
+    {
+      "id": "FS-AUDIT-004",
+      "title": "Story-save parser accepts unbounded cart_name, money, day_start_money; UI enforces 24 chars the parser does not",
+      "severity": "INFORMATIONAL",
+      "confidence": "high",
+      "status": "fixed",
+      "affected_files": [
+        {
+          "path": "web-three/src/core/Save.ts",
+          "lines": "186 (cart_name), 187 (money), 195 (day_start_money)"
+        },
+        {
+          "path": "web-three/index.html",
+          "lines": "84 (maxlength=24)"
+        }
+      ],
+      "subsystem": "story-save-persistence",
+      "vulnerability_class": "missing input length/range bound (consistency defect; no cross-principal impact)",
+      "threat_model": "Attacker = the user themself (same-origin localStorage). No save export/import feature exists, so crafted saves cannot travel between players.",
+      "description": "Harness: 1,000,000-char cart_name parses verbatim; money=1e15 accepted in numeric and string form. All rendering sinks are safe (textContent, canvas fillText, escapeHtml; postcard art slices to 14 chars); Album rejects cartName>40, so oversized names also silently block album entries.",
+      "evidence": [
+        "evidence/RESULTS-save-parsers.txt cases A11, A12, A15.",
+        "Verifier B traced every cart_name sink safe and confirmed no export/import feature exists."
+      ],
+      "impact": "Self-only display/perf oddities; functional inconsistency with the album cap. No XSS, no cross-user vector.",
+      "exploitability": "None beyond self-impact.",
+      "remediation": "Clamp cart_name (24 or 40 chars) and ceiling money/day_start_money at parse time, mirroring strList discipline.",
+      "regression_test": "Extend tests/save.test.ts fuzz wall with the three oversized cases.",
+      "verification": {
+        "verifier": "independent-verifier-B",
+        "decision": "confirmed",
+        "severity_upheld": true
+      },
+      "reconciliation": {
+        "status": "confirmed-current",
+        "source_change_since_baseline": "core/Save.ts and index.html byte-identical (git diff = 0)",
+        "reachability_change": "none",
+        "dynamic_evidence_at_current": "R2 battery R1.2/R1.3/R1.4: money=1e15 accepted (numeric and string), cart_name 1,000,000 chars accepted verbatim; regression checks R1.1/R1.5/R1.6 confirm day clamp (4), calendar_day clamp (36500) and __proto__ neutralization are intact",
+        "severity_after_reconciliation": "INFORMATIONAL (unchanged)"
+      },
+      "remediation_qa_full_spectrum": {
+        "wave": "fix/qa-full-spectrum (2026-11-10)",
+        "fix": "The story-save parser enforces the UI's own contract: cart_name caps at the input's 24 chars (index.html maxlength), money and day_start_money cap at 999999. The audit's proof cases (1e6-char name, 1e15 money) no longer parse verbatim.",
+        "test": "tests/save.test.ts — \"caps cart_name at the UI maxlength (24) and money at the ceiling (FS-AUDIT-004)\""
+      }
+    },
+    {
+      "id": "FS-AUDIT-005",
+      "title": "GameClock accepts unbounded day; calendarOf() is linear in day - latent multi-hour loop with no shipped consumer",
+      "severity": "INFORMATIONAL",
+      "confidence": "high",
+      "status": "fixed",
+      "affected_files": [
+        {
+          "path": "web-three/src/sim/clock.ts",
+          "lines": "148 (constructor), 66-80 (calendarOf loop)"
+        }
+      ],
+      "subsystem": "time-calendar-systems",
+      "vulnerability_class": "unbounded loop over attacker-influenced numeric input (CWE-400 family) - currently unreachable",
+      "threat_model": "Requires a world save with clock.day=1e15 (local tampering; accepted, proven) AND a consumer reading .date/.season on the world clock. No such consumer exists today (exhaustive grep, verifier-confirmed).",
+      "description": "Measured: day=1e7 -> 27,398 iterations in 0.69ms (linear). day=1e15 projects ~2.7e12 iterations (multi-hour hang). Not executed (bounded-test rule). weekdayOf is O(1); advanceReal is capped at 1440 ticks/call; story-side calendar values are clamped to 36500.",
+      "evidence": [
+        "evidence/RESULTS-save-parsers.txt cases C1-C4.",
+        "Verifier B consumer census: no .date/.season reader on any clock."
+      ],
+      "impact": "None today; one future consumer away from a persistent tab freeze fed by a hand-edited save.",
+      "exploitability": "Not reachable in the shipped build.",
+      "remediation": "Clamp day in the GameClock constructor (Math.min(36500, ...)) mirroring clampCalendarDay.",
+      "regression_test": "new GameClock({day: 1e15}).day === 36500; calendarOf bounded after clamp.",
+      "verification": {
+        "verifier": "independent-verifier-B",
+        "decision": "confirmed",
+        "severity_upheld": true
+      },
+      "reconciliation": {
+        "status": "confirmed-current",
+        "source_change_since_baseline": "sim/clock.ts byte-identical (git diff = 0). NEW: sim/epochMap.ts (WP-2v) imports calendarOf/weekdayOf and is the first new production consumer of calendar math since the audit.",
+        "reachability_change": "none — examined line by line: epochMap calls calendarOf only with the constant 1 (:183) and loop day <= 1460 (:210-212); every public mapping function routes through assertDay() (:69-76) which throws on non-integer, <1, or >36500; epochAgreement is boot/audit-time ('never per frame', :167) and its walk is bounded. No unbounded production consumer of GameClock day/.date/.season exists at 62a6244. The latent hazard (GameClock constructor unclamped, clock.ts:148) is byte-identical.",
+        "dynamic_evidence_at_current": "R2 battery R4.1/R4.2/R4.3/R4.4: world-save clock.day=1e15 accepted, new GameClock({day:1e15}).day=1e15 (unclamped), calendarOf(1e7) 0.43ms (linear), weekday O(1); R5.1-R5.11: epochMap strict front door throws on 0/NaN/1.5/36501/1e15, simTickOfStoryDay(1)=460, epochAgreement().agreed=true, tolerant read clamps (evidence/RESULTS-reconciliation-62a6244.txt)",
+        "watch_item": "epochMap exports datelineOfSimDay/datelineOfStoryDay for the roadmap's WP-6 (HUD/diary datelines). WP-6 is the exact 'future consumer' this finding warned about — routing through epochMap is safe (assertDay bounds to 36500, ~1ms), but a WP-6 surface that reads GameClock day directly (bypassing the mapping) would reactivate the latent hang. R4 (clamp GameClock) remains the durable fix.",
+        "severity_after_reconciliation": "INFORMATIONAL latent (unchanged)"
+      },
+      "remediation_qa_full_spectrum": {
+        "wave": "fix/qa-full-spectrum (2026-11-10)",
+        "fix": "GameClock carries the day trust boundary itself: the constructor clamps day to [1,36500] and advance pins at the ceiling (the final day still flows; no day may open past 36500). calendarOf can never be handed an unbounded day again — the latent tab-freeze class is dead at the source. WP-6's HUD dateline was verified already routed through epochMap's bounded mapping.",
+        "test": "tests/sim-clock.test.ts — \"clamps the day at the 36500 trust boundary (constructor and advance)\""
+      }
+    },
+    {
+      "id": "FS-AUDIT-006",
+      "title": "Album thumb validation accepts any data:image/ prefix including svg+xml (non-exploitable as shipped)",
+      "severity": "INFORMATIONAL",
+      "confidence": "high",
+      "status": "fixed",
+      "affected_files": [
+        {
+          "path": "web-three/src/postcard/Album.ts",
+          "lines": "58-60"
+        },
+        {
+          "path": "web-three/src/ui/UI.ts",
+          "lines": "636"
+        }
+      ],
+      "subsystem": "album-postcard-persistence",
+      "vulnerability_class": "overly permissive data-URL validation (DOM-XSS prerequisite; not exploitable here)",
+      "threat_model": "Requires hand-edited first_slice_album; only writers are canvas toDataURL raster captures. SVG via <img> executes no script and loads no external resources (SVG-as-image mode).",
+      "description": "isDataImage accepts any data:image/ prefix; thumbs reach only img.src. Re-share/download paths treat thumbs as opaque bytes. javascript: URIs and oversized values are rejected.",
+      "evidence": [
+        "evidence/RESULTS-save-parsers.txt cases D1-D7.",
+        "Verifier B corrected one line reference and confirmed all sinks."
+      ],
+      "impact": "None demonstrated.",
+      "exploitability": "None as shipped.",
+      "remediation": "Tighten to /^data:image\\/(png|jpeg);/.",
+      "regression_test": "svg+xml thumb rejected in tests/album.test.ts.",
+      "verification": {
+        "verifier": "independent-verifier-B",
+        "decision": "confirmed",
+        "severity_upheld": true
+      },
+      "reconciliation": {
+        "status": "confirmed-current",
+        "source_change_since_baseline": "postcard/Album.ts and ui/UI.ts byte-identical (git diff = 0)",
+        "reachability_change": "none",
+        "dynamic_evidence_at_current": "R2 battery R6.2: data:image/svg+xml thumb still accepted; R6.1/R6.3/R6.4: javascript: rejection, valid-thumb path, and the cartName>40 album cap all intact",
+        "severity_after_reconciliation": "INFORMATIONAL hardening (unchanged)"
+      },
+      "remediation_qa_full_spectrum": {
+        "wave": "fix/qa-full-spectrum (2026-11-10)",
+        "fix": "The album thumb whitelist is exactly the two mimes the canvas pipeline produces (data:image/png and data:image/jpeg) — svg+xml, gif and webp can never be produced, so they can never load.",
+        "test": "tests/album.test.ts — svg+xml/gif/webp thumbs rejected in the \"every field is checked\" wall"
+      }
+    },
+    {
+      "id": "FS-AUDIT-007",
+      "title": "Wardrobe lineup interpolates into innerHTML without escaping; values are developer constants (hardening only)",
+      "severity": "INFORMATIONAL",
+      "confidence": "high",
+      "status": "fixed",
+      "affected_files": [
+        {
+          "path": "web-three/src/ui/Wardrobe.ts",
+          "lines": "259-263 (renderLineup), 87-100 (wardrobeLineup)"
+        }
+      ],
+      "subsystem": "dom-ui-rendering",
+      "vulnerability_class": "inconsistent output-encoding discipline (no reachable sink)",
+      "threat_model": "None: save/URL starter values flow only through starterById/isStarterId (static fallback) and reach the DOM as booleans or textContent.",
+      "description": "row.swatch/name/role are interpolated unescaped but derive exclusively from the static STARTERS registry and STARTER_METADATA constant.",
+      "evidence": [
+        "Source trace; verifier B re-check incl. dataset.starter using static row.id."
+      ],
+      "impact": "None today; pattern invites a future save-controlled field into an unescaped sink.",
+      "exploitability": "None.",
+      "remediation": "Escape the three interpolations or build tiles with textContent; add a CI grep/ESLint gate for unescaped ${ in innerHTML assignments.",
+      "regression_test": "Lint gate in CI.",
+      "verification": {
+        "verifier": "independent-verifier-B",
+        "decision": "confirmed",
+        "severity_upheld": true
+      },
+      "reconciliation": {
+        "status": "confirmed-current",
+        "source_change_since_baseline": "ui/Wardrobe.ts byte-identical (git diff = 0). WP-1v touched Game.ts/pauseSet.ts/worldRuntime.ts (pause wiring), not the wardrobe rendering.",
+        "reachability_change": "none — interpolations remain developer-constant-derived; no save/URL path reaches them",
+        "severity_after_reconciliation": "INFORMATIONAL hardening (unchanged)"
+      },
+      "remediation_qa_full_spectrum": {
+        "wave": "fix/qa-full-spectrum (2026-11-10)",
+        "fix": "The wardrobe lineup render escapes every interpolated value (file-local escapeHtml, the diary.ts/UI.ts precedent) and constrains the swatch to plain hex before it may touch a style attribute — the render no longer depends on the values being developer constants.",
+        "test": "tests/wardrobe.test.ts suite green (render unchanged for valid data)"
+      }
+    },
+    {
+      "id": "FS-AUDIT-008",
+      "title": "CI pins first-party actions by mutable major tag rather than commit SHA (hardening only)",
+      "severity": "INFORMATIONAL",
+      "confidence": "high",
+      "status": "confirmed",
+      "affected_files": [
+        {
+          "path": ".github/workflows/deploy-pages.yml",
+          "lines": "26, 29, 50, 63"
+        }
+      ],
+      "subsystem": "ci-deployment",
+      "vulnerability_class": "unbound build inputs (supply-chain hardening)",
+      "threat_model": "Requires compromise/re-point of a GitHub-first-party action tag - outside the repository and outside any demonstrated path.",
+      "description": "Otherwise exemplary workflow: no untrusted-PR triggers, scoped permissions, no secrets, npm ci, tests gate the build, single workflow file.",
+      "evidence": [
+        "Source trace; verifier B re-read the full workflow and confirmed .github/ contains only this workflow."
+      ],
+      "impact": "None demonstrated.",
+      "exploitability": "None demonstrated.",
+      "remediation": "Pin the four actions to full commit SHAs with version comments; workflow-lint step rejecting non-SHA uses refs.",
+      "regression_test": "Workflow-lint CI step.",
+      "verification": {
+        "verifier": "independent-verifier-B",
+        "decision": "confirmed",
+        "severity_upheld": true
+      },
+      "reconciliation": {
+        "status": "confirmed-current",
+        "source_change_since_baseline": ".github/workflows/deploy-pages.yml byte-identical (git diff = 0); package.json/package-lock.json untouched by the 7 upstream commits",
+        "reachability_change": "none",
+        "severity_after_reconciliation": "INFORMATIONAL hardening (unchanged)"
+      }
+    }
+  ],
+  "disproved_hypotheses": [
+    {
+      "id": "H1",
+      "hypothesis": "Malformed world save bricks the boot (uncaught throw in WorldRuntime constructor)",
+      "refuted_by": "bootWorldBrain try/catch (sim/runtime.ts:637-646) -> fresh world + note; main.ts outer net; both callers verified inside the catch",
+      "related_finding": "FS-AUDIT-002 (downgraded to contract violation)"
+    },
+    {
+      "id": "H2",
+      "hypothesis": "cart_name from save -> XSS via dialogue/captions/postcards",
+      "refuted_by": "all sinks are textContent, canvas fillText, or escapeHtml-wrapped; postcard art slices to 14 chars"
+    },
+    {
+      "id": "H3",
+      "hypothesis": "map_notes/map_slang save strings -> XSS in Map notebook",
+      "refuted_by": "li.textContent for notes; slang renders static SLANG_CARDS via lookup guard + escapeHtml"
+    },
+    {
+      "id": "H4",
+      "hypothesis": "Save/URL starter string -> injection into pick-card/wardrobe HTML",
+      "refuted_by": "starterById static fallback; isStarterId whitelist; escaped tiles; wardrobe interpolations are static constants"
+    },
+    {
+      "id": "H5",
+      "hypothesis": "Save parse enables prototype pollution with a gadget",
+      "refuted_by": "whitelist reconstruction into a fresh object literal; __proto__/constructor keys ignored (harness A22/A23); no recursive merge in src/"
+    },
+    {
+      "id": "H6",
+      "hypothesis": "Album javascript: thumb URI -> executable sink",
+      "refuted_by": "data:image/ prefix rejects it (D2); img.src javascript: is inert in modern browsers; only data:image/* reaches img.src"
+    },
+    {
+      "id": "H7",
+      "hypothesis": "calendarOf hang reachable from the story save's calendar_day",
+      "refuted_by": "story-side clamp [1,36500] (core/calendar.ts:76-79) bounds dateOfDayIndex; world-clock variant has no consumer"
+    }
+  ],
+  "needs_validation": [
+    {
+      "id": "NV-1",
+      "title": "Branch protection on main (deployment authority context)",
+      "blockers": [
+        "Branch protection rules are repository settings, not source-visible."
+      ],
+      "why_it_matters": "The Pages workflow deploys whatever lands on main; a writer able to push directly can ship arbitrary code to the deployed origin.",
+      "resolution_plan": {
+        "owner_observed": "Repository -> Settings -> Branches: confirm main requires PR review + passing status checks and disallows force pushes."
+      },
+      "reconciliation": "still open at 62a6244 (repo settings / deployed headers remain outside source; not observed in R2 either)"
+    },
+    {
+      "id": "NV-2",
+      "title": "Deployed response headers (CSP/X-Frame-Options) on the Pages origin",
+      "blockers": [
+        "Response headers observable only against the live deployment, which this audit does not contact."
+      ],
+      "why_it_matters": "GitHub Pages sets no CSP for content; the app has no frame-sensitive or credentialed flow, so this is a hardening datum only (see roadmap P3 CSP meta).",
+      "resolution_plan": {
+        "owner_observed": "curl -sI https://<pages-url>/ and review headers."
+      },
+      "reconciliation": "still open at 62a6244 (repo settings / deployed headers remain outside source; not observed in R2 either)"
+    }
+  ],
+  "evidence_index": {
+    "parser_battery": "evidence/test_save_parsers.ts + evidence/RESULTS-save-parsers.txt (50 cases)",
+    "storage_seam": "evidence/test_wipe_seam.ts + evidence/RESULTS-wipe-seam.txt (4 checks)",
+    "npm_audit": "0 vulnerabilities; 3 prod + 92 dev; advisory DB 2026-11-06",
+    "coverage_ledger": "03-COVERAGE-LEDGER.md (17 subsystems)"
+  },
+  "disproved_hypotheses_note_r2": "Re-examined at 62a6244: the only production-source changes since baseline (epochMap.ts, pauseSet.ts, Game.ts pause block, worldRuntime onStoryDayBegin) contain no innerHTML/storage/URL/eval/fetch patterns (sink sweep clean) and no recursive merge; none of H1-H7 is re-opened. H7 additionally strengthened: epochMap's assertDay bounds any mapping-routed day to 36500.",
+  "revision_history": [
+    {
+      "version": "1.0 (original audit)",
+      "date": "2026-11-06",
+      "revision_audited": "7995e6ea2e371644a5347f93acc8bed948bf0e54",
+      "content": "first full audit: 8 confirmed findings (2 LOW, 6 INFORMATIONAL), 7 disproved hypotheses, 2 needs-validation items; 56-case evidence battery at baseline; coverage ledger 17/17 inspected, 6/17 dynamic"
+    },
+    {
+      "version": "1.1 (R2 reconciliation)",
+      "date": "2026-11-06",
+      "revision_audited": "62a6244cee258a243fdb308bd78daf7793c62cc5 (origin/main, verified via git ls-remote)",
+      "changes": [
+        "Re-established the true repository state: origin/main = 62a6244 (7 commits ahead of the audited baseline); local checkout preserved untouched",
+        "Reconciled all 8 findings against current main: all 8 CONFIRMED-CURRENT (0 fixed upstream, 0 regressed, 0 disproved on recheck); original evidence and fingerprints preserved, per-finding reconciliation records added with current line anchors",
+        "Dynamic re-verification: new 35-case R2 battery run against the actual production modules at 62a6244 (evidence/RESULTS-reconciliation-62a6244.txt, IMPORT-PATH-DIFF-PROOF.txt)",
+        "Phase 3 branch (feat/phase-3-navigation-building-access) verified ABSENT from the repository (ls-remote + all-refs search + docs cross-check) — audit scope item closed as NOT APPLICABLE with evidence",
+        "New integration surfaces reviewed: sim/epochMap.ts (strict validation front door — hardening-positive, no new findings; watch item recorded for WP-6), game/pauseSet.ts (pure boolean reducer, no trust surface), Game.ts pause wiring, worldRuntime onStoryDayBegin delegation",
+        "Unmerged branches surveyed (feat/player-upgrade, PR heads 3/4/6/7/8): no trust-boundary surfaces in added lines",
+        "npm audit re-run at the current lockfile: 0 vulnerabilities (3 prod + 92 dev)",
+        "Coverage ledger extended: per-branch coverage matrix (baseline / current main / phase 3 / unmerged branches)",
+        "No new findings; severity counts unchanged (0/0/0/2/6); release-blocking status unchanged (false)"
+      ]
+    },
+    {
+      "version": "1.2 (R1+R2 remediation)",
+      "date": "2026-11-07",
+      "revision_audited": "62a6244cee258a243fdb308bd78daf7793c62cc5 (origin/main; branch fix/security-r1-r2 adds the remediation)",
+      "changes": [
+        "R1 (FS-AUDIT-001) FIXED: the debug drivers now live behind an explicit development/production boundary (driverGate.ts: dev-build flag or session-storage harness handshake; a URL alone can never authorize) and authorized sessions run in a storage sandbox (driver keys first_slice_save_v1_driver / first_slice_world_v1_driver) — production URLs cannot trigger destructive save operations; the automated fleet keeps initializing against real built output",
+        "R2 (FS-AUDIT-002) FIXED: parseWorldSave validates and whitelist-rebuilds the COMPLETE document before hydration (ranges, ids, references, array bounds, duplicates, flow laws, prototype-pollution hazards), hydrate is guarded (second net), a post-hydration integrity failure refuses the document, and refused documents are quarantined (not destroyed) so the recovery loop ends; valid saves restore exactly",
+        "New regression packages: tests/driver-gate.test.ts (18), tests/world-save-validation.test.ts (34), scripts/probe-security-r1.mjs (31 checks on real dist/), scripts/probe-security-r2.mjs (166 checks on real dist/); harnesses e2e.mjs + probe-world-sim.mjs updated for the documented handshake",
+        "Suite at the remediation branch: tsc clean · vitest 892/892 (59 files) · build OK · probe-security-r1 31/31 · probe-security-r2 166/166 · probe-world-sim 15/15 · 4-day E2E 0 failures",
+        "Independent verification: a separate agent attempted to refute both fixes (URL surface enumeration, 25+ hostile documents, sandbox attack, quarantine abuse, valid-save compatibility) — verdict HOLDS for both, with follow-up findings N-1/N-2/N-3 fixed in-branch and pinned by tests; N-4/N-5/N-6 recorded",
+        "R3–R7 remain OPEN (no scope creep); FS-AUDIT-003's WP-4 re-audit requirement unchanged"
+      ]
+    },
+    {
+      "version": "v1.3",
+      "date": "2026-11-10",
+      "note": "qa-full-spectrum wave — 004/005/006/007 closed; R1+R2 re-proven on the integrated tree"
+    }
+  ],
+  "qa_full_spectrum_note": "qa-full-spectrum (this wave): integrated the R1+R2 remediation onto the evolved main (ebfb08a, register v1.35.0) with the validator extended to the evolved schema; closed the four informational hardenings 004/005/006/007 with their documented remediations and regression tests; found+fixed three merge-borne save-loss paths and one pre-existing main defect (the SUB-01 nav landing's missed follower). Gates: tsc clean, vitest 1300/1300, build OK, probe-security-r1 31/31, probe-security-r2 166/166, world-sim 15/15, money-trace ALL, nav 9/9, abnormal-player 14/14, first-session 8/8, 4-day E2E 0 failures (566s, console clean)."
+}

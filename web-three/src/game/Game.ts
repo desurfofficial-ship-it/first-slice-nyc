@@ -19,6 +19,10 @@ import { composeCaption, tsWowCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE
   momentCornerCaption, MOMENT_TAGS, type MomentCardKind,
 } from '../core/content';
 import { loadSave, writeSave, wipeSave, newGameSave, type SaveData } from '../core/Save';
+import {
+  authorizeDebugDrivers, enableDriverStorageSandbox, readDriverHandshake,
+  type DriverAuth,
+} from './driverGate';
 import { FreeRoam, roamDiscoveryLine, ROAM_OBJECTIVE } from './freeroam';
 import { WorldRuntime } from './worldRuntime';
 import { MoneyBridge } from '../sim/moneyBridge';
@@ -188,6 +192,12 @@ export class Game {
   // one instance, event-driven, never per-frame.
   readonly moneyBridge: MoneyBridge;
 
+  /** The R1 debug-driver authorization decision (game/driverGate.ts) —
+   *  the explicit development/production boundary. Decided once at boot,
+   *  before any storage is read, because an authorized session also
+   *  re-keys persistence into the driver sandbox. */
+  private driverAuth: DriverAuth;
+
   // ---- notes don't stampede (docs/12: the city is patient) ----
   // Two notes arriving together queue instead of replacing: Rosa's quiet
   // line gets its two seconds before the rush-end note lands.
@@ -234,6 +244,24 @@ export class Game {
   private scenarioStarted = false;
 
   constructor(container: HTMLElement) {
+    // ---------------- R1: the debug-driver boundary (FS-AUDIT-001) ------
+    // Decided FIRST — before this constructor reads a single storage key —
+    // because an authorized driver session re-keys persistence into the
+    // driver sandbox (see enableDriverStorageSandbox): every read and
+    // write this session makes rides the driver keys, never the player's.
+    // In a production build a URL alone can no longer start the autotest
+    // or scenario drivers: only the dev server (import.meta.env.DEV) or
+    // the harness's own session-storage handshake opens this gate.
+    this.driverAuth = authorizeDebugDrivers({
+      devMode: import.meta.env.DEV,
+      handshake: readDriverHandshake(
+        typeof sessionStorage !== 'undefined' ? sessionStorage : undefined,
+      ),
+    });
+    if (this.driverAuth.allowed) {
+      const sandbox = enableDriverStorageSandbox();
+      console.info(`[driver] authorized (${this.driverAuth.source}) — storage sandbox active: story save → "${sandbox.storySaveKey}", world save → "${sandbox.worldSaveKey}", album → "${sandbox.albumKey}"; player save data is unreachable this session`);
+    }
     // the places the first session guarantees: the terminal you woke up on,
     // the corner you work. revealPlace dedups, so a resumed save's own
     // list (loaded later) simply keeps its order.
@@ -556,16 +584,26 @@ export class Game {
     (window as unknown as { __game: Game }).__game = this;
 
     // E2E driver (mirrors the original headless autotest) — ?autotest=1
-    if (new URLSearchParams(location.search).has('autotest') && !this.autotestStarted) {
+    // (R1, FS-AUDIT-001: the URL alone is no longer a trigger — the
+    // request must pass the driver gate below, and an authorized session
+    // runs sandboxed on the driver storage keys either way)
+    const autotestRequested = new URLSearchParams(location.search).has('autotest');
+    if (autotestRequested && !this.driverAuth.allowed) {
+      console.info('[driver] ?autotest ignored — debug drivers are gated in production builds (game/driverGate.ts); the player save is untouched');
+    }
+    if (autotestRequested && this.driverAuth.allowed && !this.autotestStarted) {
       this.autotestStarted = true;
       void import('./autotest').then(({ runAutotest }) => runAutotest(this));
     }
 
     // the runtime-integration scenario (?scenario=schedules) — the Phase-1
     // playable proof: six demonstrations on the real street, accelerated
-    // time, results streamed to window.__SCENARIO_REPORT__
+    // time, results streamed to window.__SCENARIO_REPORT__ (R1: same gate)
     const scenarioParams = new URLSearchParams(location.search);
-    if (scenarioParams.has('scenario') && !this.scenarioStarted) {
+    if (scenarioParams.has('scenario') && !this.driverAuth.allowed) {
+      console.info('[driver] ?scenario ignored — debug drivers are gated in production builds (game/driverGate.ts); the player saves are untouched');
+    }
+    if (scenarioParams.has('scenario') && this.driverAuth.allowed && !this.scenarioStarted) {
       this.scenarioStarted = true;
       void import('./scenario').then(({ runScenario }) => runScenario(this, scenarioParams));
     }

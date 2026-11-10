@@ -82,4 +82,28 @@ describe('sim/clock — the in-game clock', () => {
     expect(calendarOf(c.day)).toMatchObject({ year: 2, month: 9, dayOfMonth: 9 });
     expect(c.date).toBe('Sept 9, Y2');
   });
+
+  // FS-AUDIT-005 (remediation): the day carries the same trust boundary as
+  // every save parser (1..36500) — the constructor clamps, advance pins at
+  // the ceiling, and calendarOf can never be handed an unbounded day.
+  it('clamps the day at the 36500 trust boundary (constructor and advance)', () => {
+    expect(new GameClock({ day: 1e15 }).day).toBe(36500);
+    expect(new GameClock({ day: 0 }).day).toBe(1);
+    expect(new GameClock({ day: -7 }).day).toBe(1);
+    // the crossing INTO day 36500 is a legal midnight cross…
+    const pre = new GameClock({ day: 36499, minuteOfDay: 1439 });
+    expect(pre.advance(2)).toBe(1);
+    expect(pre.day).toBe(36500);
+    expect(pre.minuteOfDay).toBe(1);
+    // …the final day still flows normally…
+    expect(pre.advance(1438)).toBe(0);
+    expect(pre.day).toBe(36500);
+    expect(pre.minuteOfDay).toBe(1439);
+    // …and the ceiling itself pins: no further day, ever
+    expect(pre.advance(2)).toBe(0);
+    expect(pre.day).toBe(36500);
+    expect(pre.minuteOfDay).toBe(1439);
+    expect(pre.advance(1e12)).toBe(0);
+    expect(pre.day).toBe(36500);
+  });
 });
