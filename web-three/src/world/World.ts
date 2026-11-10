@@ -36,6 +36,9 @@ import { fuseFlatParts } from './vertexFuse';
 import { FURNITURE_SLOTS, type FurnitureSlot } from './furniture';
 import { INTERIOR_SLOTS } from './interiorAssets';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
+import { makeCornice, makeBrickover, makeDownspout, makeRoofClutter, makeGrassTufts,
+  makeLeafPile, makeManhole, makeStormDrain, makePatch, makeStopLine, makeSill,
+  makeLintel, makeGooseneck, WEAR } from './facadeKit';
 import { LeafDrift } from './leaves';
 import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
 import { buildSubwaySystem, STATION, ZONE_KEEP_RE, type SubwaySystem, type ColliderSpec } from './subway';
@@ -273,6 +276,14 @@ export class World {
   }> = [];
   /** Canopy bounding spheres for the camera's sight-line guard. */
   private readonly canopySpheresCache: Array<{ x: number; y: number; z: number; r: number }> = [];
+  /** Every tree pit the world laid (the quality pass grows grass in each —
+   *  recorded at placement so the pass never re-derives coordinates). */
+  private readonly treePits: Array<{ x: number; z: number }> = [];
+  /** The visual-quality pass's ledger (docs/3d-assets): what it built and
+   *  where, recorded BEFORE bakeStatics merges the bare meshes into their
+   *  district tiles — the named groups survive the bake, the bare meshes
+   *  become tile vertices, and this list is the probe's ground truth. */
+  readonly vqLedger: Array<{ name: string; x: number; y: number; z: number }> = [];
   private readonly pigeonFlock: PigeonFlock;
   private readonly pigeonFlockEast: PigeonFlock; // the east end gets its own small knot of birds
   private readonly squirrel: Squirrel;
@@ -1420,6 +1431,7 @@ export class World {
       const pit = makeTreePit(this.bank);
       pit.position.set(tx, 0.07, tz);
       this.scene.add(pit);
+      this.treePits.push({ x: tx, z: tz });
       const t = makeTree(this.bank, rng, autumnTrees.has(i));
       t.group.position.set(tx, 0.05, tz);
       t.group.rotation.y = rng() * Math.PI * 2;
@@ -1703,6 +1715,10 @@ export class World {
     // the rooms' palette (after the handles exist; dressRoom reads them)
     this.dressW5Rooms();
 
+    // the world-visual-quality pass (docs/3d-assets): crowns, gable walls,
+    // sills, AC units, roof clutter, street-floor life — ALL pre-bake so
+    // the district tiles fuse every piece; zero colliders, zero nav changes
+    this.buildWorldVisualQualityPass();
 
     // leaf drift, now over every tree on the block (shipped 12 + W1 rows)
     this.leaves = new LeafDrift(this.scene, [...leafSpots, ...this.extraLeafSpots], 4);
@@ -3511,6 +3527,278 @@ export class World {
   }
 
 
+  // ================================================================
+  // WORLD VISUAL QUALITY PASS (docs/3d-assets) — the environment-artist
+  // wave. Every piece is static Lambert, non-transparent, non-mapped
+  // (or atlas) → bakeStatics fuses it into its district tile. NOTHING
+  // here adds a collider, moves a registry row, or touches the nav
+  // graph: decoration rides existing faces, stands on unreachable
+  // roofs, or lies flat on the road at ≤ 5 cm proud. All names wear
+  // the VQ_ prefix so the bake's skip sets and the probe never collide.
+  // ================================================================
+  private buildWorldVisualQualityPass(): void {
+    const rng = seededRng(20261110); // the pass's own seed — never re-tunes a shipped row
+    /** Add + record: the name and world position land in the ledger before
+     *  the bake fuses the mesh away — the probe reads this, not the scene. */
+    const vqAdd = (obj: THREE.Object3D, name: string): void => {
+      obj.name = name;
+      this.vqLedger.push({ name, x: +obj.position.x.toFixed(2), y: +obj.position.y.toFixed(2), z: +obj.position.z.toFixed(2) });
+      this.scene.add(obj);
+    };
+
+    // ---- 1. CROWN COMPLETION --------------------------------------------
+    // GRB/TEN/SRC-01/02/KTN-07/KTN-00W already carry cornices from their
+    // own builders; these are every OTHER mass the phases built without
+    // one. The stone band caps the roofline — the single strongest read
+    // that a mass is a building and not a wall.
+    // VDN backdrop rows are NOT crowned: their masses are per-segment
+    // heights (some taller than the registry row), so a footprint crown
+    // band would slice through them — the varied silhouettes are the look.
+    const CROWNS = ['KTN-01', 'KTN-02', 'KTN-03', 'KTN-04', 'KTN-05', 'KTS-01', 'KTS-02', 'KTS-03',
+      'KTN-06', 'PWK-01', 'PWK-02', 'PWK-03', 'SMB-01', 'SMB-02', 'SMB-03',
+      'KCM-01', 'SND-01'];
+    for (const id of CROWNS) {
+      const s = this.regShell(id);
+      const crown = makeCornice(this.bank, s.w, s.d, s.x, s.h - 0.25, s.z);
+      vqAdd(crown, `VQ_Crown_${id}`);
+    }
+
+    // ---- 2. PARTY-WALL LIFE — bricked-over windows + downspouts ---------
+    // The blank gables the audit caught (shots/world-audit g/m/t): every
+    // end or slot wall the streets actually see gets its sealed openings,
+    // the corner pipe, and where it earns it, a painted ghost sign.
+    const brickover = (id: string, wall: 'w' | 'e' | 'n' | 's', rel: Array<[number, number, number, number]>, wallColor: number): void => {
+      const s = this.regShell(id);
+      const rotY = wall === 'w' ? -Math.PI / 2 : wall === 'e' ? Math.PI / 2 : wall === 's' ? Math.PI : 0;
+      const off = 0.02;
+      for (const [a, y, w, h] of rel) {
+        const m = wall === 'w' ? makeBrickover(this.bank, wallColor, w, h, s.x - s.w / 2 - off, y, s.z + a, rotY)
+          : wall === 'e' ? makeBrickover(this.bank, wallColor, w, h, s.x + s.w / 2 + off, y, s.z + a, rotY)
+          : wall === 's' ? makeBrickover(this.bank, wallColor, w, h, s.x + a, y, s.z - s.d / 2 - off, rotY)
+          : makeBrickover(this.bank, wallColor, w, h, s.x + a, y, s.z + s.d / 2 + off, rotY);
+        vqAdd(m, `VQ_Brickover_${id}_${a}_${y}`);
+      }
+    };
+    // the alley slot's two walls (ALY-01, x 30.7 / 33.5) — seen walking through
+    brickover('KTN-04', 'e', [[-3, 5.2, 1.3, 1.9], [1.5, 8.4, 1.3, 1.9], [-2.8, 10.6, 1.1, 1.5]], PAL.bldg);
+    brickover('KTN-05', 'w', [[-2.6, 5.6, 1.3, 1.9], [2.2, 9.2, 1.3, 1.9]], PAL.bldg);
+    // the garden slot's two walls (ALY-02, x 6.5 / 9)
+    brickover('KTN-02', 'e', [[-2.5, 4.8, 1.3, 1.9], [1.8, 9.6, 1.3, 1.9]], PAL.bldg2);
+    brickover('KTN-03', 'w', [[-2.8, 5.2, 1.3, 1.9], [2, 9.6, 1.3, 1.9]], PAL.brick);
+    // the Cecil's east gable — the court looks straight at it
+    brickover('KTS-02', 'e', [[-3.4, 5.2, 1.4, 2.0], [0.6, 8.6, 1.4, 2.0], [-1.2, 11.4, 1.2, 1.6]], PAL.brick);
+    // the Juniper/Sycamore corner end walls — the avenue approach walls
+    brickover('KTN-00W', 'w', [[-3.4, 5.4, 1.3, 1.9], [-0.4, 8.6, 1.3, 1.9], [2.6, 11.4, 1.2, 1.6]], PAL.bldg2);
+    brickover('KTN-06', 'e', [[-3.4, 5.4, 1.3, 1.9], [-0.4, 8.6, 1.3, 1.9], [2.6, 11.4, 1.2, 1.6]], PAL.brick);
+    brickover('KTN-05', 'e', [[-3.6, 5.6, 1.3, 1.9], [0.4, 8.8, 1.3, 1.9]], PAL.bldg);
+    brickover('TEN-01', 'w', [[-2.6, 5.2, 1.2, 1.8], [-2.6, 9.4, 1.2, 1.8]], PAL.brick);
+    brickover('KTS-03', 'e', [[-4.2, 5.4, 1.4, 2.0], [0.6, 8.8, 1.4, 2.0], [4.6, 12.4, 1.2, 1.6]], PAL.bldg);
+    // the two big south-row end walls the green and the court face
+    brickover('KTS-01', 'w', [[-3.8, 5.6, 1.4, 2.0], [0.4, 9.0, 1.4, 2.0]], PAL.bldg2);
+    // the Marlow slot walls (PWK-01 ↔ SMB-01)
+    brickover('PWK-01', 'e', [[-2.6, 5.0, 1.2, 1.7], [1, 9.2, 1.2, 1.7]], PAL.bldg);
+    brickover('SMB-01', 'w', [[-2.6, 5.0, 1.2, 1.7], [1, 9.2, 1.2, 1.7]], PAL.bldg2);
+    // the backdrop rows' avenue-facing walls — the long walls Juniper and
+    // Sycamore see all the way up. Sealed openings above the hint bands
+    // (y ≤ 11: every segment top in every row clears them).
+    brickover('VDN-DW1a', 'e', [[-6, 5.4, 1.5, 2.1], [-2, 8.4, 1.5, 2.1], [5, 6.2, 1.4, 1.9]], PAL.bldg);
+    brickover('VDN-DW1b', 'e', [[-4, 5.8, 1.5, 2.1], [2, 8.8, 1.5, 2.1]], PAL.bldg2);
+    brickover('VDN-DW1c', 'e', [[-6, 5.2, 1.5, 2.1], [-1, 8.2, 1.5, 2.1], [4.4, 6.4, 1.4, 1.9]], PAL.bldg);
+    brickover('VDN-DW1d', 'e', [[-3.6, 5.8, 1.5, 2.1], [2.8, 8.6, 1.5, 2.1]], PAL.bldg2);
+    brickover('VDN-DE1a', 'w', [[-6, 5.4, 1.5, 2.1], [-2, 8.4, 1.5, 2.1], [5, 6.2, 1.4, 1.9]], PAL.bldg);
+    brickover('VDN-DE1b', 'w', [[-4, 5.8, 1.5, 2.1], [2, 8.8, 1.5, 2.1]], PAL.bldg2);
+    brickover('VDN-DE1c', 'w', [[-6, 5.2, 1.5, 2.1], [-1, 8.2, 1.5, 2.1], [4.4, 6.4, 1.4, 1.9]], PAL.bldg);
+    brickover('VDN-DE1d', 'w', [[-3.6, 5.8, 1.5, 2.1], [2.8, 8.6, 1.5, 2.1]], PAL.bldg2);
+    // downspouts — the corner pipes (wall-face coords, brackets point INTO
+    // the wall: east face → +π/2, west → -π/2, south → π, north → 0)
+    for (const [dx, dy, dz, ry, dh] of [
+      [-49.62, 0, 8.6, -Math.PI / 2, 13.4],  // terminal SW corner (west face)
+      [21.02, 0, 8.6, Math.PI / 2, 10.4],    // KTN-03 east face (alley-adjacent corner)
+      [-50.02, 0, -8.6, -Math.PI / 2, 15.4], // KTS-01 west end, Kestrel side
+      [25.62, 0, -7.62, Math.PI, 13.4],      // the Cecil's SE corner (court view)
+      [59.62, 0, -8.6, Math.PI / 2, 12.4],   // the diner's east corner
+      [-59.62, 0, 8.6, -Math.PI / 2, 15.4],  // the Corner House west corner
+    ] as const) {
+      const spout = makeDownspout(this.bank, dh, dx, dy, dz, ry);
+      vqAdd(spout, 'VQ_Downspout');
+    }
+
+    // ---- 3. GHOST SIGNS — the painted panels commerce left behind --------
+    // Atlas faces on painted panels: the panel tone differs from the wall
+    // on purpose (a ghost sign is a painted AREA, not a decal), the letter
+    // tone is the wall-worn cream. The board is a thin box lying IN the
+    // wall plane (x-thin, z-wide) with faces 'x' — the ±x faces measure
+    // depth × height, so the width rides depth (makeSignBoard's own law).
+    const ghosts: Array<[string, number, number, number, number, number]> = [
+      // [text, x, y, z, w(along z), h]
+      ['FADE KING\nBARBER SUPPLY', 49.08, 6.4, 14, 4.6, 2.6],
+      ['STAR BAKERY CO.', 50.08, 5.8, -14, 4.6, 2.2],
+      ['MEADOWBROOK\nDAIRY CO.', -60.08, 6.2, 14, 4.6, 2.8],
+      ['CAPITAL COFFEE\n& SPICE', -60.08, 6.8, -14, 4.2, 2.6],
+      ['ZIMMERMAN\n& SONS', 60.08, 6.6, -26, 3.8, 2.6],
+    ];
+    for (const [text, gx, gy, gz, gw, gh] of ghosts) {
+      const board = this.signBoard(`VQ_GhostSign_${text.slice(0, 8)}`, text, 0.1, gh, gw, gw * 96, gh * 96, PAL.bldg2, PAL.cream, 44, 'x');
+      board.position.set(gx, gy, gz); // no yaw: the 'x' faces already read from both sides
+      vqAdd(board, `VQ_GhostSign_${text.slice(0, 8)}`);
+    }
+
+    // ---- 4. SILL + LINTEL DRESSING on the proud-window rows -------------
+    // GRB row + TEN pair + KTN-00W/06 + the Marlow walk-ups: every window
+    // gets its stone sill (under) and lintel (over) — the reveal that stops
+    // windows reading as stickers. Formulas mirror the owning builders.
+    for (const regId of ['GRB-01', 'GRB-02', 'GRB-03', 'GRB-04', 'GRB-05']) {
+      const reg = this.regShell(regId);
+      const faceZ = reg.z + reg.d / 2 + 0.14;
+      for (const wx of [reg.x - 1.7, reg.x + 1.7]) {
+        vqAdd(makeSill(this.bank, 1.3, wx, 4.6 - 1.1 - 0.05, faceZ), 'VQ_Sill');
+        vqAdd(makeLintel(this.bank, 1.3, wx, 4.6 + 1.1 + 0.07, faceZ), 'VQ_Lintel');
+        for (const wy of [7.4, 10.2]) {
+          vqAdd(makeSill(this.bank, 1.1, wx, wy - 0.8 - 0.05, faceZ), 'VQ_Sill');
+          vqAdd(makeLintel(this.bank, 1.1, wx, wy + 0.8 + 0.07, faceZ), 'VQ_Lintel');
+        }
+      }
+    }
+    const ten = this.regShell('TEN-01');
+    const tenLotW = (ten.w - 1) / 2;
+    for (const x0 of [ten.x - ten.w / 2, ten.x + 0.5]) {
+      const cx = x0 + tenLotW / 2;
+      for (let f = 0; f < 5; f++) {
+        for (const wx of [cx - tenLotW / 4, cx + tenLotW / 4]) {
+          const wy = 3.4 + f * 2.6;
+          vqAdd(makeSill(this.bank, 1.1, wx, wy - 0.8 - 0.05, ten.z + ten.d / 2 + 0.16), 'VQ_Sill');
+          vqAdd(makeLintel(this.bank, 1.1, wx, wy + 0.8 + 0.07, ten.z + ten.d / 2 + 0.16), 'VQ_Lintel');
+        }
+      }
+    }
+    for (const regId of ['KTN-00W', 'KTN-06']) {
+      const s = this.regShell(regId);
+      const faceZ = s.z - s.d / 2 - 0.16;
+      for (let f = 0; f < 3; f++) for (let c = 0; c < 3; c++) {
+        const wx = s.x - s.w / 2 + 1.6 + c * 3.4, wy = 7.2 + f * 2.9;
+        vqAdd(makeSill(this.bank, 1.2, wx, wy - 0.8 - 0.05, faceZ), 'VQ_Sill');
+        vqAdd(makeLintel(this.bank, 1.2, wx, wy + 0.8 + 0.07, faceZ), 'VQ_Lintel');
+      }
+    }
+    for (const regId of ['PWK-01', 'PWK-02', 'PWK-03']) {
+      const s = this.regShell(regId);
+      const faceZ = s.z - s.d / 2 + 0.14;
+      for (let f = 0; f < 4; f++) for (let c = 0; c < 3; c++) {
+        const wx = s.x - s.w / 2 + 1.5 + c * ((s.w - 3) / 2), wy = 3.4 + f * 2.9;
+        vqAdd(makeSill(this.bank, 1.1, wx, wy - 0.85 - 0.05, faceZ), 'VQ_Sill');
+        vqAdd(makeLintel(this.bank, 1.1, wx, wy + 0.85 + 0.07, faceZ), 'VQ_Lintel');
+      }
+    }
+
+    // ---- 5. WINDOW AC UNITS — the summer-now tell ------------------------
+    // Hung under verified sills (window bottom − 0.26): GRB upper floors,
+    // the TEN pair's avenue face, the corner houses, the walk-ups. The
+    // unit is props.makeACUnit (the shipped builder — shared geometry).
+    let acIdx = 0;
+    const ac = (x: number, y: number, z: number): void => {
+      const unit = makeACUnit(this.bank);
+      unit.position.set(x, y, z);
+      vqAdd(unit, `VQ_AC_${acIdx++}`);
+    };
+    for (const regId of ['GRB-01', 'GRB-02', 'GRB-03', 'GRB-04', 'GRB-05']) {
+      const reg = this.regShell(regId);
+      const faceZ = reg.z + reg.d / 2 + 0.26;
+      const side = ((acIdx % 2) === 0) ? -1.7 : 1.7;
+      ac(reg.x + side, 7.4 - 0.8 - 0.26, faceZ);
+      ac(reg.x - side, 10.2 - 0.8 - 0.26, faceZ);
+    }
+    for (const x0 of [ten.x - ten.w / 2, ten.x + 0.5]) {
+      const cx = x0 + tenLotW / 2;
+      for (let f = 0; f < 3; f++) ac(cx + (f % 2 === 0 ? -tenLotW / 4 : tenLotW / 4), 3.4 + f * 2.6 - 0.8 - 0.26, ten.z + ten.d / 2 + 0.28);
+    }
+    for (const regId of ['KTN-00W', 'KTN-06']) {
+      const s = this.regShell(regId);
+      ac(s.x + 3.4, 7.2 + 2.9 - 0.8 - 0.26, s.z - s.d / 2 - 0.28);
+      ac(s.x - 3.4, 7.2 + 5.8 - 0.8 - 0.26, s.z - s.d / 2 - 0.28);
+    }
+    for (const regId of ['PWK-01', 'PWK-02', 'PWK-03']) {
+      const s = this.regShell(regId);
+      ac(s.x + (s.w - 3) / 2, 3.4 + 2.9 - 0.85 - 0.26, s.z - s.d / 2 + 0.28);
+      ac(s.x - (s.w - 3) / 2, 3.4 + 5.8 - 0.85 - 0.26, s.z - s.d / 2 + 0.28);
+    }
+
+    // ---- 6. ROOF CLUTTER — the hats' hats --------------------------------
+    // Bulkhead + vents + antenna on roofs the player can never stand on
+    // (the bodega roof keeps its billboard, the Cecil's climb keeps its
+    // top clean, the terminal carries its water tower).
+    const roofClutter: Array<[string, number, number, number]> = [
+      // [registry id, tone, ox toward the rear, oz toward the rear]
+      ['KTN-02', PAL.bldg2, 0, 2.6], ['KTN-03', PAL.brick, 0, 2.6],
+      ['KTN-04', PAL.bldg, 0, 2.6], ['KTN-05', PAL.bldg, 0, 2.6],
+      ['KTS-01', PAL.bldg2, 0, -2.6], ['KTS-03', PAL.bldg, 0, -2.6],
+      ['KTN-06', PAL.brick, 0, 2.6],
+      ['PWK-01', PAL.bldg, 0, -2.4], ['PWK-02', PAL.bldg2, 0, -2.4], ['PWK-03', PAL.bldg, 0, -2.4],
+      ['SMB-01', PAL.bldg2, 0, -2.4], ['SMB-02', PAL.brick, 0, -2.4], ['SMB-03', PAL.bldg, 0, -2.4],
+      ['KCM-01', PAL.brick, 0, -2.6], ['KTN-07', PAL.bldg2, 0, -2.6],
+      ['SND-01', PAL.stone, 0, -2.6],
+      ['TEN-01', PAL.brick, -1.6, -2.6], ['SRC-01', PAL.brick, 0, -2.6], ['SRC-02', PAL.brick, 0, -2.6],
+    ];
+    for (const [id, tone, ox, oz] of roofClutter) {
+      const s = this.regShell(id);
+      const cl = makeRoofClutter(this.bank, tone, rng);
+      cl.position.set(s.x + ox, s.h, s.z + oz);
+      vqAdd(cl, `VQ_RoofClutter_${id}`);
+    }
+
+    // ---- 7. STREET FLOOR — manholes, drains, patches, stop lines ---------
+    for (const [mx, mz] of [[-32, 1.5], [-44, -1.5], [18, -1.2], [30, 1.8], [52, -1.5],
+      [-72, 12], [-72, -14], [72, 10], [72, -18], [-20, 40], [24, 40], [-40, -42], [10, -38]] as const) {
+      vqAdd(makeManhole(this.bank, mx, mz), 'VQ_Manhole');
+    }
+    for (const [dx, dz, ry] of [[-44, 3.82, 0], [28, -3.82, 0], [58, 3.82, 0], [-62, -3.82, 0],
+      [-68.2, 10, Math.PI / 2], [-75.8, -16, Math.PI / 2], [68.2, 14, Math.PI / 2], [75.8, -22, Math.PI / 2]] as const) {
+      vqAdd(makeStormDrain(this.bank, dx, dz, ry), 'VQ_StormDrain');
+    }
+    for (const [px, pz, w, d] of [[-24, 2.2, 3, 1.6], [12, -2, 2.6, 1.4], [44, 1.5, 3.2, 1.8],
+      [-72, 24, 2.4, 3.2], [72, -12, 2.4, 3], [-40, 40, 3, 1.6]] as const) {
+      vqAdd(makePatch(this.bank, w, d, px, pz, WEAR.patchDark), 'VQ_Patch');
+    }
+    for (const [sx, sz, w, d] of [[-33, -1.8, 1.2, 0.9], [20, 1.2, 1, 0.8], [70, 8, 1.4, 1], [-18, -41.8, 1.2, 0.9]] as const) {
+      vqAdd(makePatch(this.bank, w, d, sx, sz, WEAR.stain), 'VQ_Stain');
+    }
+    // stop lines: the entering lane's bar at each avenue↔street junction
+    // (right-hand traffic: NB lane east of the center line, SB west; the
+    // bar sits 1.3 m before the junction's crosswalk)
+    for (const ax of [-72, 72]) {
+      const nb = ax + 2, sb = ax - 2;
+      vqAdd(makeStopLine(this.bank, nb, -5.8, false, 4.4), 'VQ_StopLine');   // NB → Kestrel
+      vqAdd(makeStopLine(this.bank, sb, 5.8, false, 4.4), 'VQ_StopLine');    // SB → Kestrel
+      vqAdd(makeStopLine(this.bank, nb, 34.6, false, 4.4), 'VQ_StopLine');   // NB → Gable
+      vqAdd(makeStopLine(this.bank, sb, 45.8, false, 4.4), 'VQ_StopLine');
+      vqAdd(makeStopLine(this.bank, nb, -45.8, false, 4.4), 'VQ_StopLine');  // NB → Marlow
+      vqAdd(makeStopLine(this.bank, sb, -34.6, false, 4.4), 'VQ_StopLine');
+    }
+
+    // ---- 8. GROUND LIFE — pit grass + curb leaf piles --------------------
+    for (const pit of this.treePits) {
+      const tufts = makeGrassTufts(this.bank, rng);
+      tufts.position.set(pit.x, 0.08, pit.z);
+      vqAdd(tufts, `VQ_GrassTufts_${pit.x}_${pit.z}`);
+    }
+    for (const [lx, lz, gold, r] of [[-38, 4.6, true, 0.42], [-6, -4.6, false, 0.36], [24, 4.6, true, 0.5],
+      [52, -4.6, true, 0.4], [-72, 8.2, false, 0.44], [72, -8.2, true, 0.4], [-20, 36.4, true, 0.46],
+      [34, 43.6, true, 0.38], [-44, -36.4, true, 0.42], [14, -43.6, false, 0.36]] as const) {
+      vqAdd(makeLeafPile(this.bank, gold, r, lx, 0.05, lz), 'VQ_LeafPile');
+    }
+
+    // ---- 9. DOOR LAMPS — the goosenecks over five doors ------------------
+    const lampWarm = this.bank.get(PAL.amber).clone();
+    lampWarm.emissive = new THREE.Color(PAL.amber);
+    lampWarm.emissiveIntensity = 0.5;
+    for (const [lx, ly, lz, ry] of [
+      [-34, 3.42, -32.06, Math.PI], [-25, 3.42, -32.06, Math.PI], [-17, 3.42, -32.06, Math.PI],
+      [55, 3.35, 7.86, 0], [-30, 3.05, 7.9, 0],
+    ] as const) {
+      const lamp = makeGooseneck(this.bank, lx, ly, lz, ry, lampWarm);
+      vqAdd(lamp, 'VQ_Gooseneck');
+    }
+  }
+
   private bakeStatics(): void {
     const skip = new Set<THREE.Object3D>([
       this.cartRoot, this.cartAwning, this.roof,
@@ -4692,6 +4980,7 @@ export class World {
     const pit = makeTreePit(this.bank);
     pit.position.set(x, 0.07, z);
     this.scene.add(pit);
+    this.treePits.push({ x, z });
     const blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 }> = [];
     let top = h;
     for (let i = 0; i < 3; i++) {
@@ -4954,6 +5243,7 @@ export class World {
       const pit = makeTreePit(this.bank);
       pit.position.set(tx, 0.07, tz);
       this.scene.add(pit);
+      this.treePits.push({ x: tx, z: tz });
       const t = makeTree(this.bank, rng, false);
       t.group.position.set(tx, 0.05, tz);
       t.group.rotation.y = rng() * Math.PI * 2;
@@ -5122,6 +5412,7 @@ export class World {
       const pit = makeTreePit(this.bank);
       pit.position.set(tx, 0.16, tz);
       this.scene.add(pit);
+      this.treePits.push({ x: tx, z: tz });
       const t = makeTree(this.bank, rng, false);
       t.group.position.set(tx, 0.15, tz);
       t.group.rotation.y = rng() * Math.PI * 2;
