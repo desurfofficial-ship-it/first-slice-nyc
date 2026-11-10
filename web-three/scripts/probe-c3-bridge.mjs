@@ -533,14 +533,21 @@ console.log('--- Pass E: Days 425 \u2192 432 \u2192 457 \u2192 468, the raise, t
   const wall = await p4.evaluate(() => {
     const s = window.__game.state;
     const out = s.rail();
+    // the C4 wave's law: the FIRST press after the latch rolls WHOLE
+    // into C4's first station (Jan 6, Y3 = day 485) \u2014 a replayed kept
+    // Dec 20 still walls (the replay guard)
+    const replay = s.replayDay;
     return {
       notes: out.filter((e) => e.kind === 'note').map((e) => e.text),
-      rolls: out.filter((e) => e.kind === 'next-day').length,
+      rolls: out.filter((e) => e.kind === 'next-day'),
+      rollTo: (out.find((e) => e.kind === 'next-day') ?? {}).to ?? null,
+      replay,
     };
   });
   check(wall.notes.length === 1 && wall.notes[0].includes('January opens its first morning'),
-    'the wall holds after the cut \u2014 C4\u2019s content is the next wave\u2019s');
-  check(wall.rolls === 0, 'the wall rolls nothing (the roll into C4\u2019s stations is the C4 wave\u2019s law)');
+    'the wall answers after the cut \u2014 the C4 wave brought C4\u2019s own days');
+  check(!wall.replay && wall.rollTo === 485,
+    'the FIRST press rolls into C4\u2019s first station (Jan 6, Y3 = day 485 \u2014 the roll witness, the C4 wave\u2019s law)');
   check(e4.length === 0, `pass E/468 console clean (${e4.length} errors${e4.length ? ': ' + e4[0] : ''})`);
   await p4.close();
 }

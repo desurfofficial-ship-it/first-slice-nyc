@@ -34,7 +34,11 @@ const browser = await chromium.launch({
   // --disable-dev-shm-usage: this container's /dev/shm is 64 MB — the
   // 4-day run's shared-memory surfaces outgrow it and Chromium dies
   // silently mid-sim (caught 2026-11-08, unit 7's gate; harness-only).
-  args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox', '--disable-dev-shm-usage'],
+  // --no-sandbox: this container's Chromium also dies deterministically
+  // mid-sim under the default sandbox (reproduced twice at the C4 wave's
+  // gate — day 3's midday, no console output; the probe fleet needed the
+  // same flag; harness-only, 2026-11-10).
+  args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox', '--disable-dev-shm-usage', '--no-sandbox'],
 });
 // Viewport override for slow/software-GL machines: at ~5 fps the loop's dt
 // clamp (0.1 s) makes game-time run at half wall speed and the four-day
