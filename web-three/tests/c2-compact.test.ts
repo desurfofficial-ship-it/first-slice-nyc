@@ -112,7 +112,7 @@ describe('the C2 station map — doc 06 §C2\u2019s arc as playable days', () =>
     expect(C2_LAST_DAY).toBe(295);
     // the ceiling moved with the frontier (the C3 wave's law — the c3
     // suite owns the exact pin; C2's chapter is fully contained):
-    expect(MAX_DAY).toBe(468);
+    expect(MAX_DAY).toBe(658);
   });
 
   it('each station lands on its doc 06 §C2 date through the calendar module (no hand arithmetic)', () => {
@@ -555,11 +555,11 @@ describe('the C2\u2192C3 season cut (doc 06 §C2 handoff)', () => {
 
 describe('the saves — the chapter rides the v1-safe law', () => {
   it('MAX_DAY is the frontier\u2019s canon end (C3\u2019s own suite owns the exact pin); a C2 station day parses EXACTLY (the sparse chapter is legal)', () => {
-    expect(MAX_DAY).toBe(468);
+    expect(MAX_DAY).toBe(658);
     expect(parseSave(JSON.stringify({ day: 120 })).day).toBe(120);
     expect(parseSave(JSON.stringify({ day: 243 })).day).toBe(243);
     expect(parseSave(JSON.stringify({ day: 295 })).day).toBe(295);
-    expect(parseSave(JSON.stringify({ day: 999 })).day).toBe(468);
+    expect(parseSave(JSON.stringify({ day: 999 })).day).toBe(658);
   });
 
   it('the fluency ladder\u2019s day (a CALENDAR day) round-trips well past the old story ceiling', () => {

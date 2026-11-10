@@ -18,7 +18,7 @@ import {
   type ChapterState,
 } from './chapters';
 import {
-  freshRailStates, evaluateRails, serializeRails,
+  freshRailStates, evaluateRails, serializeRails, villainQuestionInputs,
   type RailState, type RailFire, type RailId,
 } from './chapterRails';
 import {
@@ -82,6 +82,19 @@ import {
   senateEntry, clubCloseEntry, lunchEntry, ginoCardEntry, violationEntry,
   offerEntry, marisolCardEntry, f2Entry as c3F2Entry, applyC3Pick,
 } from './c3pack';
+// ---- the C4 content pack (narrative/14 §7 step 10 continued — doc 06 §C4) ----
+import {
+  C4_FIRST_DAY, C4_LAST_DAY, C4_CUT_DAY, C4_CUT_ID, C4_CUT_STAGE, C4_CUT_WALL,
+  C4_IDS, C4_EDDIE_PEN_LINE, C4_JUNE_FIGHT_LINE, C4_RACHEL_LINE,
+  C4_ERNIE_LINE, C4_TITO_SIT_LINE,
+  C4_AUDIT_LINE, C4_MEME_LINE, C4_CAMILLE_LINE,
+  C4_K3_STRIKE, C4_ODESSA_LEDGER_ID, C4_ODESSA_REFS,
+  c4StationOf, c4RailFor, c4CompressionFrom, c4CutEntry, applyC4Pick,
+  signingEntry, k4Entry, jobsFairEntry, kevFallEntry, camilleEntry,
+  discoveryEntry, k3Entry, rachelEntry, papersEntry, titoEntry, feldEntry,
+  villainEntry, questionEntry, missedEntry, f4Entry as c4F4Entry,
+  f7Entry as c4F7Entry,
+} from './c4pack';
 import { dateOfCalendarDay } from './calendar';
 import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, ITEM_STICKERS, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
@@ -196,7 +209,7 @@ export type Effect =
   // ---- the C0 pack's diary picks (doc 11 §3 — the overlay packs). The
   // Game turns this into the NotebookPrompt overlay; a driver boot never
   // sees it (the pick-card law: drivers keep the shipped flow). ----
-  | { kind: 'diary-prompt'; pack: 'theory' | 'question' | 'choice'; node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' }
+  | { kind: 'diary-prompt'; pack: 'theory' | 'question' | 'choice'; node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d' }
   // ---- the C0 block layer's diary ink (narrative/14 §7 step 6, tranche 2
   // — core/c0Pack.ts): the state has already appended the entry; the
   // effect only tells the UI to wiggle (the map-note precedent)
@@ -423,6 +436,16 @@ export class GameState {
     return this.day >= C2_FIRST_DAY && this.day <= C2_LAST_DAY;
   }
 
+  /** C4's season (narrative/14 §7 step 10 continued — doc 06 §C4): the
+   *  station days ride the same WK_* loop with the C4 pack's voice. Same
+   *  law as C1/C2/C3's — the chapter gate is the wide law (R8); the day
+   *  range is the loop's own — the cut plays at C4_LAST_DAY's linger and
+   *  the wall follows (the roll into C5's stations is the C5 wave's
+   *  law). */
+  get isC4(): boolean {
+    return this.day >= C4_FIRST_DAY && this.day <= C4_LAST_DAY;
+  }
+
   /** C3's season (narrative/14 §7 step 10 — doc 06 §C3): the station days
    *  ride the same WK_* loop with the C3 pack's voice. Same law as C1/C2's
    *  — the chapter gate is the wide law (R8); the day range is the loop's
@@ -438,6 +461,7 @@ export class GameState {
    *  one voice per day — the WK_* steps are the loop, the station is the
    *  day's mouth). */
   private seasonStation(day: number): { queue: readonly WeekOrder[]; wake: string; rushDone: string; storm?: boolean } | undefined {
+    if (this.isC4) return c4StationOf(day);
     if (this.isC3) return c3StationOf(day);
     if (this.isC2) return c2StationOf(day);
     if (this.isC1) return c1StationOf(day);
@@ -1157,6 +1181,11 @@ export class GameState {
       if (rail === 'cut') return this.c2SeasonCut();
       if (rail && typeof rail === 'object') return this.c2Compression(rail.compress);
     }
+    if (this.isC4) {
+      const rail = c4RailFor(this.day);
+      if (rail === 'cut') return this.c4SeasonCut();
+      if (rail && typeof rail === 'object') return this.c4Compression(rail.compress);
+    }
     if (this.isC3) {
       const rail = c3RailFor(this.day);
       if (rail === 'cut') return this.c3SeasonCut();
@@ -1447,11 +1476,26 @@ export class GameState {
    *  flag is the only witness, mirrored eagerly here and by the spine
    *  walk). */
   applyChoicePick(
-    nodeId: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c',
+    nodeId: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d',
     optionId: string,
     held?: ReadonlySet<string>,
   ): Effect[] {
     const out: Effect[] = [];
+    if (nodeId === 'N4a' || nodeId === 'N4b' || nodeId === 'N4c' || nodeId === 'N4d') {
+      const apply = applyC4Pick(nodeId, optionId, this.calendarDay);
+      if (!apply.ok) return [];
+      if (apply.note) out.push({ kind: 'note', text: apply.note });
+      for (const draft of apply.ledger) {
+        this.logLedgerEntry(draft);
+      }
+      if (apply.diary) this.c0Write(out, apply.diary);
+      if (apply.flags.length > 0) {
+        for (const f of apply.flags) this.storyFlagMemo.add(f);
+        out.push({ kind: 'story-flags', flags: apply.flags });
+      }
+      out.push({ kind: 'persist' });
+      return out;
+    }
     if (nodeId === 'N3a' || nodeId === 'N3b' || nodeId === 'N3c') {
       const apply = applyC3Pick(nodeId, optionId, this.calendarDay);
       if (!apply.ok) return [];
@@ -1867,7 +1911,17 @@ export class GameState {
    *  pattern; the roll into C4's stations is the C4 wave's law, exactly
    *  as this wave brought the C2 cut's roll). */
   c3SeasonCut(): Effect[] {
-    if (this.c0Has(C3_CUT_ID)) return [{ kind: 'note', text: C3_CUT_WALL }];
+    if (this.c0Has(C3_CUT_ID)) {
+      // the cut has played: the wall answers — and the C4 wave's own law
+      // (§7 step 10 continued brought the days the cut opens): the FIRST
+      // press after the latch rolls into C4's first station (Wednesday,
+      // Jan 6, Y3 — the face's winter opens, doc 06 §C4's period start) —
+      // unless this is a replayed kept Dec 20, which gets the wall and
+      // holds, never a roll out of a replay.
+      const wall: Effect[] = [{ kind: 'note', text: C3_CUT_WALL }];
+      if (this.replayDay) return wall;
+      return [...wall, { kind: 'next-day', to: C4_FIRST_DAY }];
+    }
     const out: Effect[] = [];
     for (const line of seasonCutMontage(this.fieldDiary)) {
       out.push({ kind: 'note', text: line });
@@ -2160,6 +2214,294 @@ export class GameState {
       return [{ kind: 'diary-prompt', pack: 'choice', node: 'N3a' }];
     }
     return [];
+  }
+
+  // --------------------------------------- the C4 season's beats (narrative/14 §7 step 10 continued) ----
+  // The Face: the performance winning while the ledger bleeds. Each beat
+  // rides a SHIPPED interaction (the c0pack's recontextualization law —
+  // retained, not rewritten), latches by its own diary entry (the block
+  // layer's law), and writes through the same two doors (the field
+  // diary, the consequence ledger). The chapter lands the ledger's
+  // heaviest entries (K3 struck the same scene; K4 written honestly as
+  // GUESS and KEPT), the Lost Year's F4 and F7 (the railing spends R12's
+  // opt-in resource note — the first trigger in canon order), and the
+  // register's four C4 nodes behind the scene.
+
+  /** Whether a C4 pick has landed. The ink is the usual latch (the
+   *  entry rides `node` and the c4- prefix); the ledger-only doors
+   *  (N4d's defer) latch on their ledger act, and the Silent-class door
+   *  (N4d's never) latches on its flag — the only witness, mirrored
+   *  eagerly at the pick and by the spine walk (the C3 not-tell
+   *  precedent). */
+  private c4PickHeld(nodeId: 'N4a' | 'N4b' | 'N4c' | 'N4d'): boolean {
+    if (this.fieldDiary.some((e) => e.node === nodeId && e.id.startsWith(`c4-${nodeId.toLowerCase()}-`))) return true;
+    if (this.ledger.some((e) => e.node === nodeId)) return true;
+    if (nodeId === 'N4d' && this.storyFlagMemo.has('c6-condition-handle=never')) return true;
+    return false;
+  }
+
+  /** The C4 season compression (R4's named transition, the C4 pack's
+   *  own days-between): the linger plays the compression's two lines and
+   *  HOLDS; the next press rolls the counters `from → to` through the
+   *  next-day door. The days between stations are CONSUMED, never played
+   *  (the station law). The marked compressions are the season cuts
+   *  (winter→spring at 493→546, spring→summer at 629→633 — the pack
+   *  proves both crossings). */
+  c4Compression(to: number): Effect[] {
+    const comp = c4CompressionFrom(this.day);
+    if (!comp || comp.to !== to) return [{ kind: 'next-day', to }];
+    this.pendingCompressionTo = to;
+    return [
+      { kind: 'note', text: comp.intro },
+      { kind: 'note', text: `The city: \u201C${comp.city}\u201D` },
+      { kind: 'note', text: 'One more press, and the days pass.' },
+    ];
+  }
+
+  /** The C4→C5 season cut (doc 06 §C4 handoff): the season's montage in
+   *  his hand, the handoff staged (July heat, Craig drunk at the
+   *  laundromat — "as good as sold", the fence's another lock), the
+   *  cut's entry dated Jul 3, Y3 — and the chapter through
+   *  advanceChapter's own door at C5's window start. Plays once per save
+   *  (the latch is the entry); a replayed kept Jun 28 gets the wall.
+   *  C5's content is the next wave's — the wall holds (the honest
+   *  pattern; the roll into C5's stations is the C5 wave's law). */
+  c4SeasonCut(): Effect[] {
+    if (this.c0Has(C4_CUT_ID)) return [{ kind: 'note', text: C4_CUT_WALL }];
+    const out: Effect[] = [];
+    for (const line of seasonCutMontage(this.fieldDiary)) {
+      out.push({ kind: 'note', text: line });
+    }
+    out.push({ kind: 'note', text: C4_CUT_STAGE });
+    out.push({ kind: 'note', text: C4_CUT_WALL });
+    this.c0Write(out, c4CutEntry());
+    // C5's window opens — the machine's own door, the window-start law
+    const adv = advanceChapter(this.chapter, 'C5', {
+      day: C4_CUT_DAY,
+      triggerHeld: true, // the cut itself is the beat (doc 06 §C4's handoff)
+    });
+    if (adv.ok) this.chapter = adv.state;
+    else this.chapter = touchDay(this.chapter, C4_CUT_DAY);
+    out.push({ kind: 'persist' });
+    return out;
+  }
+
+  /** Doc 12 §2's fixed event — the signing (the eddie interaction, day
+   *  493): the pen's sentence verbatim, the letter signed, and K4
+   *  written honestly as GUESS and KEPT (doc 03 §5 — the ledger's
+   *  cruelest entry is the one he leaves standing). The Map gains the
+   *  render room (doc 06 §C4 diary developments). */
+  c4Signing(): Effect[] {
+    if (this.day !== 493 || this.c0Has(C4_IDS.signing)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: `The letter is on the counter and Eddie\u2019s pen is in my hand. He says it like a benediction and a dare: \u201C${C4_EDDIE_PEN_LINE}\u201D` },
+      { kind: 'note', text: 'I sign. The deck\u2019s three hundred forty becomes the video\u2019s five hundred on the same page, because round numbers fund. Eddie nods the way you nod at weather, and we both pretend the nod is agreement.' },
+    ];
+    this.c0Write(out, signingEntry(this.day));
+    this.c0Write(out, k4Entry(this.day));
+    this.collectNote('The render room \u2014 Marisol\u2019s table, the pledge\u2019s paper.');
+    return out;
+  }
+
+  /** Doc 06 §C4 event 2 — the jobs-fair op (the kev_pledge interaction,
+   *  day 546): the banner, the clip, the thesis-in-falsehood verbatim;
+   *  F4 surfaces in the op's own garage (doc 02 §6.2's trigger); and
+   *  behind the scene, N4a — the jobs number's three doors. */
+  c4JobsFair(): Effect[] {
+    if (this.day !== 546) return [];
+    if (!this.c0Has(C4_IDS.jobsFair)) {
+      const out: Effect[] = [
+        { kind: 'note', text: 'The stage is built against our own fence. Kev fronts the hiring pledge \u2014 his face on the banner, his voice on the clip, my numbers in his mouth. THE FUTURE HIRES HERE, and the number he says is the round one.' },
+        { kind: 'note', text: `Big numbers protect the little guys \u2014 that\u2019s the sentence I gave him, and the cameras took it, and the deck in my bag says what the deck says. After the cameras: the garage under the render site, fluorescent light, a hood still warm, crying with no reason attached.` },
+      ];
+      this.c0Write(out, jobsFairEntry(this.day));
+      this.c0Write(out, c4F4Entry(this.day));
+      return out;
+    }
+    // the op has played: the answer is the pick (once — the pick's own
+    // ink is the latch; the overlay re-opens only until the pick lands)
+    if (!this.c4PickHeld('N4a')) {
+      return [{ kind: 'diary-prompt', pack: 'choice', node: 'N4a' }];
+    }
+    return [];
+  }
+
+  /** Doc 06 §C4 event 2's April — Kev's fall (the newsbox, day 580):
+   *  the audit's finding verbatim, the meme, the coalition's gain. */
+  c4KevFall(): Effect[] {
+    if (this.day !== 580 || this.c0Has(C4_IDS.kevFall)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: `The borough paper\u2019s box carries the audit\u2019s language like an obituary: the jobs are \u201C${C4_AUDIT_LINE}.\u201D Beside it, taped by somebody\u2019s hand, the clip \u2014 ${C4_MEME_LINE}, three laughing faces under it.` },
+      { kind: 'note', text: 'Kev found JMA\u2019s hard line. Yoli took him in \u2014 the coalition gains its angriest researcher, and his first case file is going to have my name on the spine. His face did it; my math did it.' },
+    ];
+    this.c0Write(out, kevFallEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C4 event 4 — Camille's exit (the garden, day 595): her
+   *  line verbatim, the staging door-neutral — the C3 pantry latch
+   *  decides which exit the player lived (the warm one remembers the
+   *  Tuesdays; the cold one is the notice standing alone). */
+  c4Camille(): Effect[] {
+    if (this.day !== 595 || this.c0Has(C4_IDS.camille)) return [];
+    const pursued = this.c0Has(C3_IDS.pantry);
+    const out: Effect[] = [];
+    out.push({ kind: 'note', text: pursued
+      ? 'The garden\u2019s south table is labeled in her own handwriting. She sees me see it. \u201CYou came to a Tuesday once,\u201D she says. \u201CThat\u2019s why the notice isn\u2019t the only thing I\u2019m leaving you.\u201D'
+      : 'The garden\u2019s south table is labeled in her own handwriting, and the transfer notice is dated like an apology that isn\u2019t one. We never shared a Tuesday. The notice is the whole conversation.' });
+    out.push({ kind: 'note', text: `Her exit line, quiet, the way exits land when they\u2019re earned: \u201C${C4_CAMILLE_LINE}\u201D` });
+    this.c0Write(out, camilleEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C4 event 5 — June finds the diary (the june interaction,
+   *  day 608): the fight's sentence verbatim, K3 written SECRET and
+   *  struck the same scene (doc 03 §5's table — the lie wears the
+   *  honest tag, the correction is doc's own), and behind the scene,
+   *  N4b — June after discovery's three doors. */
+  c4Discovery(): Effect[] {
+    if (this.day !== 608) return [];
+    if (!this.c0Has(C4_IDS.discovery)) {
+      const out: Effect[] = [
+        { kind: 'note', text: 'She was dusting. The notebook was under the bed because the notebook lives under the bed. She read the condition, and K2, and the lunch that wouldn\u2019t say the word, and the room in my head she never knew existed.' },
+        { kind: 'note', text: `The fight is quiet, which is how her fights work. Her sentence is the one I can\u2019t renew: \u201C${C4_JUNE_FIGHT_LINE}\u201D The conditions are issued once, non-negotiable, take-it-or-leave: the year at Dr. Feld\u2019s; the condition named out loud to her, not to the notebook; the Club\u2019s books shown before she asks.` },
+        { kind: 'note', text: 'The notebook writes K3 the way I\u2019ve been writing all year \u2014 the lie first, the tag honest \u2014 and then strikes it the same evening. Both lines stay. That\u2019s the ledger\u2019s law, and today it\u2019s a mirror.' },
+      ];
+      this.c0Write(out, discoveryEntry(this.day));
+      this.c0Write(out, k3Entry(this.day));
+      this.correctDiaryEntry(C4_IDS.k3, this.calendarDay, C4_K3_STRIKE.strike, C4_K3_STRIKE.margin);
+      return out;
+    }
+    // the fight has played: the answer is the pick (once)
+    if (!this.c4PickHeld('N4b')) {
+      return [{ kind: 'diary-prompt', pack: 'choice', node: 'N4b' }];
+    }
+    return [];
+  }
+
+  /** Doc 06 §C4 event 6 — Rachel (the rachel_gallery interaction, day
+   *  615): the un-impressible mirror, her surgical question verbatim.
+   *  The Map gains the gallery (doc 06 §C4 diary developments). */
+  c4Rachel(): Effect[] {
+    if (this.day !== 615 || this.c0Has(C4_IDS.rachel)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'Fitz\u2019s gallery, the velvet corner, the room where the Face is an exhibit. Rachel recognizes me instantly. I perform. She declines the performance \u2014 declines it the way you decline a flyer.' },
+      { kind: 'note', text: `Her questions are surgical, and the sharpest one stays: \u201C${C4_RACHEL_LINE}\u201D She mentions the payphone once, flatly, and refuses to elaborate. The payphone. The circuit has its own archivist.` },
+    ];
+    this.c0Write(out, rachelEntry(this.day));
+    this.collectNote('The gallery \u2014 Fitz\u2019s velvet, the room that declines to flatter.');
+    return out;
+  }
+
+  /** Doc 06 §C4 + doc 07 §2.x — the El Vann papers and the bridge story
+   *  (the elvann interaction, day 622): the papers' inventory, the
+   *  railing surfacing (F7, the register's row verbatim), R12's opt-in
+   *  resource note spending at its firing (the first trigger in canon
+   *  order — core/guardrails' own once-latch), and behind the scene,
+   *  N4c — what he does with the papers. */
+  c4Papers(): Effect[] {
+    if (this.day !== 622) return [];
+    if (!this.c0Has(C4_IDS.papers)) {
+      const out: Effect[] = [
+        { kind: 'note', text: 'The community room, the paper wall\u2019s room, and today the papers are mine to hold: the letter, the option, fifty years of the block\u2019s paper spine. El Vann, over the radiator\u2019s opinions: \u201CDevelopments fail, dear. Documents don\u2019t. They wait.\u201D' },
+        { kind: 'note', text: 'Then the bridge story, unprompted \u2014 the one from before my time, about a man on a railing over dark water, and how the story ends exactly where it ends. No conclusion attached. Cold metal. River dark. Full stop.' },
+      ];
+      this.c0Write(out, papersEntry(this.day));
+      this.c0Write(out, c4F7Entry(this.day));
+      // R12's opt-in note — once, at the first firing of F7 (the therapy
+      // session only plays if taken, Jun 15 at the earliest; the C5
+      // investigation is later). The note is an OFFER, never a lecture.
+      if (shouldOfferResourceNote(this.resourceNoteOffered, 'F7-railing')) {
+        this.resourceNoteOffered = true;
+        out.push({ kind: 'note', text: RESOURCE_NOTE_TEXT });
+      }
+      return out;
+    }
+    // the papers have played: the answer is the pick (once)
+    if (!this.c4PickHeld('N4c')) {
+      return [{ kind: 'diary-prompt', pack: 'choice', node: 'N4c' }];
+    }
+    return [];
+  }
+
+  /** Doc 06 §C4 event 7 — Tito's story (the tito_table interaction, day
+   *  629): the mirror at full length, Ernie's sentence verbatim, Tito's
+   *  thirty years verbatim. The bible forbids any character drawing the
+   *  equation — the player assembles it. */
+  c4Tito(): Effect[] {
+    if (this.day !== 629 || this.c0Has(C4_IDS.tito)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'The dominoes table, late, the cheap wine Tito saves for stories with weight. He tells the \u201994 story unprompted: Ernie, the two hundred fourteen signatures, the consulting position, the rain that came inside.' },
+      { kind: 'note', text: `\u201C${C4_ERNIE_LINE}\u201D Then Tito looks at his tiles. \u201C${C4_TITO_SIT_LINE}\u201D Nobody draws the line from him to me. The bible forbids it. The player draws it, and the pen shakes.` },
+    ];
+    this.c0Write(out, titoEntry(this.day));
+    return out;
+  }
+
+  /** Doc 12 §2's "therapy starts (Jun 3)" — the booking (the feld_room
+   *  interaction, day 633): the thread's opening, the Map's pin (doc 06
+   *  §C4 diary developments — Dr. Feld's block). The first session
+   *  itself plays the villain-question's morning when N4d takes
+   *  therapy. */
+  c4FeldBooking(): Effect[] {
+    if (this.day !== 633 || this.c0Has(C4_IDS.feld)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'Dr. Feld\u2019s block, two avenues east. The booking is made: cash-only, quiet clients, the room a room and the door a door. The Map gains its third new pin this season \u2014 the render room, the gallery, this block.' },
+      { kind: 'note', text: 'The appointment is circled twice on the Map \u2014 twice, because the first circle didn\u2019t take. The fifteenth is circled. The notebook doesn\u2019t ask what the room is for. The notebook was there for the whole diagnosis.' },
+    ];
+    this.c0Write(out, feldEntry(this.day));
+    this.collectNote('Dr. Feld\u2019s block \u2014 two avenues east, the door is a door.');
+    return out;
+  }
+
+  /** Doc 08 §6 — the villain-question scene (the late_window
+   *  interaction, day 645): 2 a.m., the shop dark, the K-Globes amber
+   *  through the gate. K2 and K4 read side by side. R4's machine reports
+   *  what the ledger remembers (machine facts only — the scene turns
+   *  them into the question; the machine never editorializes). The only
+   *  line, written, not spoken. The QUESTION rides its own entry. Behind
+   *  the scene, N4d — the morning's three doors. */
+  c4VillainQuestion(): Effect[] {
+    if (this.day !== 645) return [];
+    if (!this.c0Has(C4_IDS.villain)) {
+      const inputs = villainQuestionInputs(this.ledger, dateOfCalendarDay(this.calendarDay));
+      const out: Effect[] = [
+        { kind: 'note', text: '2 a.m., the shop dark, the K-Globes amber through the gate. I open the notebook to K2 \u2014 net good \u2014 and find my own handwriting unfamiliar. I check the date. I check the ink. I check the corner where I sign. It is mine.' },
+        { kind: 'note', text: 'K4 beside it \u2014 the GUESS I labeled honestly and kept. One page of reading my own record like evidence. No speech. The only line, written, not spoken: \u201CThe diary doesn\u2019t lie. The writer did.\u201D' },
+        { kind: 'note', text: `The ledger remembers what the world remembers: ${inputs.actors.length} actors, ${inputs.nodes.length} nodes that wrote entries, ${inputs.omissionCount} promises matured into omissions, ${inputs.openPromiseIds.length} promises still open, weight ${inputs.weightSum}. The machine reports. The question is the player\u2019s.` },
+      ];
+      this.c0Write(out, villainEntry(this.day));
+      this.c0Write(out, questionEntry(this.day));
+      return out;
+    }
+    // the scene has played: the morning's answer is the pick (once)
+    if (!this.c4PickHeld('N4d')) {
+      return [{ kind: 'diary-prompt', pack: 'choice', node: 'N4d' }];
+    }
+    return [];
+  }
+
+  /** Doc 06 §C4 event 10 — the first missed repayment (the odessa
+   *  interaction, day 654): the withdrawal that doesn't clear, Miss
+   *  Odessa's $140 covered personally in cash and told to no one, the
+   *  EVIDENCE's deletion logged. The off-books act rides the ledger as
+   *  a recorded, SECRET amends (the C3 Gino-favor precedent). */
+  c4Missed(): Effect[] {
+    if (this.day !== 654 || this.c0Has(C4_IDS.missed)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'Quiet, administrative, terrible: a withdrawal that doesn\u2019t clear. The Club\u2019s first repayment window and the machine says insufficient, politely, twice. I cover Miss Odessa\u2019s hundred forty in cash, personally, and tell no one.' },
+      { kind: 'note', text: 'The envelope is in her purse by lunch and the ledger never sees my hand. The slip photographed, then deleted \u2014 and the deletion is itself logged, because nothing in this system truly deletes. The diary tells on me anyway. The diary tells on me always.' },
+    ];
+    this.c0Write(out, missedEntry(this.day));
+    this.logLedgerEntry({
+      id: C4_ODESSA_LEDGER_ID,
+      kind: 'amends',
+      date: dateOfCalendarDay(this.calendarDay),
+      refs: [...C4_ODESSA_REFS],
+      weight: 1,
+      visibility: 'secret',
+    });
+    return out;
   }
 
   dismissPostcard(): Effect[] {

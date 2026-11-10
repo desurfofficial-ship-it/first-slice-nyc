@@ -92,7 +92,7 @@ describe('the C3 station map — doc 06 §C3\u2019s arc as playable days', () =>
     expect(C3_LAST_DAY).toBe(468);
     // the ceiling moved with the frontier (the C3 wave's law — the c3
     // suite owns the exact pin):
-    expect(MAX_DAY).toBe(468);
+    expect(MAX_DAY).toBe(658);
   });
 
   it('each station lands on its doc 06 §C3 date through the calendar module (no hand arithmetic)', () => {
@@ -511,15 +511,19 @@ describe('the C3\u2192C4 season cut (doc 06 §C3 handoff)', () => {
     expect(C3_CUT_DAY).toBe(calendarDayOf({ y: 3, m: 1, d: 6 }));
   });
 
-  it('the wall holds after the cut — C4\u2019s content is the next wave\u2019s (the roll is the C4 wave\u2019s law)', () => {
+  it('the wall answers after the cut — and the FIRST press rolls into C4\u2019s first station (the roll witness, the C4 wave\u2019s law)', () => {
     const s = day468AtLinger();
     s.rail();
     const again = s.rail();
     expect(noteTexts(again)).toEqual([C3_CUT_WALL]);
     expect(s.chapter.chapter).toBe('C4');
-    // the honest pattern: no roll out of the wall until the C4 wave
-    // brings C4's own days (exactly as this wave brought the C2 cut's roll)
-    expect(s.rail().some((e) => e.kind === 'next-day')).toBe(false);
+    // the honest pattern, grown the way this wave grew the C2 cut's roll:
+    // the C4 wave brought C4's own days, so the FIRST press after the
+    // latch rolls WHOLE into C4's first station (Jan 6, Y3 = day 485).
+    // A replayed kept Dec 20 still walls — the replay guard holds.
+    const third = s.rail();
+    expect(third.some((e) => e.kind === 'next-day' && e.to === 485)).toBe(true);
+    expect(C3_CUT_WALL).toContain('January opens its first morning');
   });
 });
 
@@ -527,11 +531,11 @@ describe('the C3\u2192C4 season cut (doc 06 §C3 handoff)', () => {
 
 describe('the saves — the chapter rides the v1-safe law', () => {
   it('MAX_DAY is the frontier\u2019s canon end; a station day parses EXACTLY (the sparse chapter is legal)', () => {
-    expect(MAX_DAY).toBe(468);
+    expect(MAX_DAY).toBe(658);
     expect(parseSave(JSON.stringify({ day: 296 })).day).toBe(296);
     expect(parseSave(JSON.stringify({ day: 432 })).day).toBe(432);
     expect(parseSave(JSON.stringify({ day: 468 })).day).toBe(468);
-    expect(parseSave(JSON.stringify({ day: 999 })).day).toBe(468);
+    expect(parseSave(JSON.stringify({ day: 999 })).day).toBe(658);
   });
 
   it('the fluency ladder\u2019s day (a CALENDAR day) round-trips deep inside the bridge', () => {

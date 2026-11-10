@@ -55,6 +55,7 @@ import {
 import { C1_FIRST_DAY, c1ChoicePackOf, c1StationOf } from '../core/c1pack';
 import { c2ChoicePackOf, c2StationOf } from '../core/c2pack';
 import { c3ChoicePackOf, c3StationOf } from '../core/c3pack';
+import { c4ChoicePackOf } from '../core/c4pack';
 import { freshChapterState, serializeChapterState } from '../core/chapters';
 import { freshRailStates, serializeRails } from '../core/chapterRails';
 import { serializeLedger } from '../core/consequenceLedger';
@@ -1760,7 +1761,7 @@ export class Game {
    *  cold-open (N0's flags + ledger entry + entry 1), the running theory,
    *  the first question. Each lands once per save by id; a duplicate pick
    *  is absorbed by the append seams (the idempotent law). */
-  private applyNotebookPick(pack: string, optionId: string, freeText: string, node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c'): void {
+  private applyNotebookPick(pack: string, optionId: string, freeText: string, node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d'): void {
     const day = this.state.calendarDay;
     if (pack === 'cold-open') {
       const res = applyColdOpen(optionId, day, freeText);
@@ -1805,8 +1806,8 @@ export class Game {
    *  progression-adjacent prose). C1's choice pages ride the same seam
    *  with their node id (`pendingPickNode` — transient, the page's own
    *  memory; closed pages forget it). */
-  private pendingPickNode: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | null = null;
-  private onDiaryPrompt(pack: 'theory' | 'question' | 'choice', node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c'): void {
+  private pendingPickNode: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d' | null = null;
+  private onDiaryPrompt(pack: 'theory' | 'question' | 'choice', node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d'): void {
     if (this.driverBoot || this.filmRequested) {
       // the pick-card law: drivers keep the shipped flow and take the
       // FIRST authored option deterministically (no dice in
@@ -1817,7 +1818,7 @@ export class Game {
         // Form C is the held-set's honest function — drivers hold no
         // flags, so the driver takes the first unlocked option), then
         // C1's
-        const src = c3ChoicePackOf(node) ?? c2ChoicePackOf(node) ?? c1ChoicePackOf(node);
+        const src = c4ChoicePackOf(node) ?? c3ChoicePackOf(node) ?? c2ChoicePackOf(node) ?? c1ChoicePackOf(node);
         const first = src?.options[0];
         if (first) this.applyNotebookPick('choice', first.optionId, '', node);
         return;
@@ -1828,7 +1829,7 @@ export class Game {
     }
     if (pack === 'choice' && node) {
       const held = new Set(this.worldSim.storyFlagKeys());
-      const src = c3ChoicePackOf(node) ?? c2ChoicePackOf(node, held) ?? c1ChoicePackOf(node);
+      const src = c4ChoicePackOf(node) ?? c3ChoicePackOf(node) ?? c2ChoicePackOf(node, held) ?? c1ChoicePackOf(node);
       if (!src) { this.ui.closeNotebookPrompt(); return; }
       this.pendingPickNode = node; // the page remembers which choice it is
       this.ui.showNotebookPrompt('choice', {
