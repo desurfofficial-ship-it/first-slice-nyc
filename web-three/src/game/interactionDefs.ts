@@ -109,8 +109,18 @@ const bench: Interaction = {
   pos: () => BUS_BENCH_SEAT,
   radius: 2.2,
   enabled: () => true, // the bench does not care what day it is
-  prompt: (_s, ctx) => (ctx.game.sitting ? 'Stand up' : 'Sit a while'),
+  prompt: (s, ctx) => {
+    if (s.isC3 && s.day === 390) return 'The envelope\u2019s call';
+    return ctx.game.sitting ? 'Stand up' : 'Sit a while';
+  },
   perform: (ctx) => {
+    // C3's season (doc 06 §C3 event 5's envelope, day 390, fixed date
+    // Oct 3): the bench hosts the call that asks zero questions — the
+    // beat BEFORE the sit logic (the barber's precheck pattern)
+    if (ctx.state.isC3 && ctx.state.day === 390) {
+      const beats = ctx.state.c3Ada();
+      if (beats.length > 0) return beats;
+    }
     if (ctx.game.sitting) {
       ctx.game.standUp();
       return [];
@@ -131,8 +141,17 @@ const parkBench: Interaction = {
   pos: () => PARK_BENCH_SEAT,
   radius: 2.2,
   enabled: () => true,
-  prompt: (_s, ctx) => (ctx.game.sitting ? 'Stand up' : 'Sit in the park'),
+  prompt: (s, ctx) => {
+    if (s.isC3 && s.day === 420) return 'The dominoes table';
+    return ctx.game.sitting ? 'Stand up' : 'Sit in the park';
+  },
   perform: (ctx) => {
+    // C3's season (doc 07 §4's senate scene, day 420): the park hosts
+    // the table that adopts Leo — the beat BEFORE the sit logic
+    if (ctx.state.isC3 && ctx.state.day === 420) {
+      const beats = ctx.state.c3Senate();
+      if (beats.length > 0) return beats;
+    }
     if (ctx.game.sitting) {
       ctx.game.standUp();
       return [];
@@ -548,7 +567,7 @@ const dinerBooth: Interaction = {
   pos: () => ({ x: 52.6, y: 0.5, z: -14.0 }),
   radius: 2.2,
   enabled: () => true,
-  prompt: (s) => (s.day === 129 ? 'The booth with the coffee waiting' : (s.day === 174 ? 'The back booth' : 'Sit in the booth')),
+  prompt: (s) => (s.day === 129 ? 'The booth with the coffee waiting' : (s.day === 174 ? 'The back booth' : (s.day === 432 ? 'The lunch with no agenda' : 'Sit in the booth'))),
   perform: ({ state }) => {
     // C2's season (doc 06 §C2): Marisol's coffee (day 129, event 2 —
     // the seduction in miniature) and Craig's squeeze (day 174, events
@@ -560,6 +579,15 @@ const dinerBooth: Interaction = {
       if (coffee.length > 0) return coffee;
       const squeeze = state.c2Squeeze();
       if (squeeze.length > 0) return squeeze;
+    }
+    // C3's season (doc 06 §C3 event 6): Gino's first lunch (day 432,
+    // fixed date Nov 14) — the networking entry that refuses the
+    // violation, the SECRET favor, and behind it N3c (the tell-or-not,
+    // the Silent class). The booth hosts the deli's corner table (the
+    // recontextualization noted at the trigger, doc 11's header law).
+    if (state.isC3) {
+      const lunch = state.c3Lunch();
+      if (lunch.length > 0) return lunch;
     }
     return [{ kind: 'note', text: byDay(DINER_BOOTH_NOTES, state.day) }];
   },
@@ -662,6 +690,10 @@ export function freeRoamInteractions(src: InteractionSources): Interaction[] {
     // the garden (the Compact's founding, Yoli's two evenings) and the
     // Oktays' last Saturday on the strip
     garden, oktays,
+    // the C3 wave's own spots (narrative/14 §7 step 10 — doc 06 §C3):
+    // El Vann's community room and Deshaun's court edge — one-day slots
+    // on existing ground (the oktays precedent, the census untouched)
+    elvann, deshaunExam,
     ...simHellos(src), ...walkerChats(src), ...shelfInteractions(src)];
 }
 
@@ -698,6 +730,11 @@ const eddie: Interaction = {
       if (s.day === 95) return 'The man at the counter';
       if (s.day === 106) return 'The answer';
     }
+    if (s.isC3) {
+      if (s.day === 301) return 'The counter\u2019s bad news';
+      if (s.day === 309) return 'The keys\u2019 afterglow';
+      if (s.day === 349) return 'The Summit\u2019s host';
+    }
     return s.eddieCovenantSaid ? 'Say hi to Eddie' : 'Take the first slice';
   },
   perform: ({ state }) => {
@@ -721,6 +758,13 @@ const eddie: Interaction = {
       const beats = state.c2Ribbon();
       if (beats.length > 0) return beats;
     }
+    // C3's season (doc 06 §C3): the collapse (day 301), the keys from
+    // the hospital bed's afterglow (day 309), and the Slice Summit
+    // after hours (day 349) — the counter is the chapter's own room.
+    if (state.isC3) {
+      const beats = [...state.c3Collapse(), ...state.c3Keys(), ...state.c3Summit()];
+      if (beats.length > 0) return beats;
+    }
     if (!state.eddieCovenantSaid) {
       state.eddieCovenantSaid = true;
       return [{ kind: 'note', text: `Eddie: \u201C${EDDIE_COVENANT}\u201D` }];
@@ -740,9 +784,16 @@ const june: Interaction = {
   id: 'june',
   pos: () => ({ x: -21.6, y: 0.05, z: 6.4 }),
   radius: 2.0,
-  enabled: (s) => (s.day === 29 && s.step >= Step.WK_ROAM) || (s.day === 295 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD),
-  prompt: (s) => (s.day === 295 ? 'The paper in June\u2019s hand' : 'Sit with June'),
+  enabled: (s) => (s.day === 29 && s.step >= Step.WK_ROAM) || (s.day === 295 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD)
+    || (s.day === 369 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD),
+  prompt: (s) => (s.day === 295 ? 'The paper in June\u2019s hand' : (s.day === 369 ? 'Opening night at Halcyon' : 'Sit with June')),
   perform: ({ state }) => {
+    // C3's season (doc 06 §C3 event 8 + doc 07 §2.x): Halcyon opens —
+    // the voice named kindly, close (day 369)
+    if (state.isC3) {
+      const halcyon = state.c3Halcyon();
+      if (halcyon.length > 0) return halcyon;
+    }
     if (state.day === 295) {
       const lease = state.c2LeaseJune();
       if (lease.length > 0) return lease;
@@ -761,14 +812,34 @@ const garden: Interaction = {
   id: 'garden',
   pos: () => ({ x: 2.4, y: 0.05, z: 24.6 }),
   radius: 2.2,
-  enabled: (s) => (s.day === 124 || s.day === 146 || s.day === 147) && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
-  prompt: (s) => (s.day === 124 ? 'The garden meeting' : 'The shed session'),
+  enabled: (s) =>
+    ((s.day === 124 || s.day === 146 || s.day === 147)
+      || (s.day === 328 || s.day === 383 || s.day === 404 || s.day === 425))
+    && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: (s) => {
+    if (s.day === 124) return 'The garden meeting';
+    if (s.day === 146 || s.day === 147) return 'The shed session';
+    if (s.day === 328) return 'The buckets\u2019 last row';
+    if (s.day === 383) return 'The Club\u2019s first pitch';
+    if (s.day === 404) return 'The pantry\u2019s Tuesday';
+    if (s.day === 425) return 'The closing pitch';
+    return 'The garden';
+  },
   perform: ({ state }) => {
     // doc 06 §C2 event 1 (day 124, with the K1 strike — the ledger's
     // first strikethrough, earned at the sheet) and doc 10 §4's window
     // (days 146/147; the flag sets once, on either evening)
     const compact = state.c2Compact();
     if (compact.length > 0) return compact;
+    // C3's season (doc 06 §C3): the water-fix week's helped side (day
+    // 328, doc 10 §4's specimen — the missed side rides the compression),
+    // the Club's founding pitch (day 383), Camille's pantry (day 404),
+    // and the closing pitch (day 425, and behind it N3b — the investor
+    // list, nineteen named faces)
+    if (state.isC3) {
+      const beats = [...state.c3WaterFix(), ...state.c3Club(), ...state.c3Pantry(), ...state.c3Close()];
+      if (beats.length > 0) return beats;
+    }
     return state.c2Session();
   },
 };
@@ -792,6 +863,31 @@ const oktays: Interaction = {
   },
 };
 
+/** C3 — El Vann's paper wall (doc 06 §C3 event 2, day 328): the East
+ *  Tenement's community room — the borrowing that becomes the first
+ *  look at the block's paper history. A one-day spot on existing ground
+ *  (the oktays precedent — no new meshes, the census untouched). */
+const elvann: Interaction = {
+  id: 'elvann',
+  pos: () => ({ x: 33.5, y: 0.05, z: -6.2 }),
+  radius: 2.0,
+  enabled: (s) => s.day === 328 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'El Vann\u2019s community room',
+  perform: ({ state }) => state.c3Elvann(),
+};
+
+/** C3 — Deshaun's exam (doc 12 §2's fixed event, day 376): his own
+ *  chapter at the rim where he keeps everything. A one-day spot at the
+ *  court's edge (the shoot mechanic owns the court's own press). */
+const deshaunExam: Interaction = {
+  id: 'deshaun_exam',
+  pos: () => ({ x: 39.5, y: 0.05, z: 1.5 }),
+  radius: 2.0,
+  enabled: (s) => s.day === 376 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'Sit with Deshaun',
+  perform: ({ state }) => state.c3Exam(),
+};
+
 /** Hook 1 — the lease notice on Eddie's wall (doc 11 §4): visible,
  *  unremarked; the interacting player gets one line. C1's fuse, lit in
  *  plain sight. C1's season re-voices it twice (doc 06 §C1): day 8, the
@@ -803,7 +899,7 @@ const leaseNotice: Interaction = {
   pos: () => ({ x: 27.9, y: 1.5, z: 8.9 }),
   radius: 1.8,
   enabled: (s) => s.day >= 2,
-  prompt: (s) => (s.day === 8 ? 'Read the framed notice' : (s.day === 106 ? 'The second notice' : (s.day === 120 ? 'The letter beside the frame' : 'Read the notice on the wall'))),
+  prompt: (s) => (s.day === 8 ? 'Read the framed notice' : (s.day === 106 ? 'The second notice' : (s.day === 120 ? 'The letter beside the frame' : (s.day === 432 ? 'The wall behind the frame' : 'Read the notice on the wall')))),
   perform: ({ state }) => {
     if (state.isC1) {
       const beats = state.c1Notice();
@@ -813,6 +909,13 @@ const leaseNotice: Interaction = {
     // formal — the letter with the number typed twice, day 120.
     if (state.isC2) {
       const beats = state.c2Notice();
+      if (beats.length > 0) return beats;
+    }
+    // C3's season (doc 06 §C3 event 6's tail): the wall's missing slip —
+    // the notebook knows what the wall lost even if the lunch entry
+    // doesn't say the word (day 432).
+    if (state.isC3) {
+      const beats = state.c3Violation();
       if (beats.length > 0) return beats;
     }
     return state.c0Lease();
@@ -828,11 +931,25 @@ const surveyor: Interaction = {
   pos: () => ({ x: -52.5, y: 0.9, z: 18.4 }),
   radius: 2.2,
   enabled: (s, ctx) => {
+    // C3's offer (doc 06 §C3 event 4, day 457): the fence door propped
+    // open for the roam window — the dawn law keeps the other days'
+    const roamDay = s.day === 457 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD;
+    if (roamDay) return true;
     const phase = simPhase(ctx);
     return phase === null ? s.day >= 1 : phase === 'dawn';
   },
-  prompt: () => 'Ask about the camera',
-  perform: ({ state }) => state.c0Surveyor(),
+  prompt: (s) => (s.day === 457 ? 'The fence door at the Works' : 'Ask about the camera'),
+  perform: ({ state }) => {
+    // C3's season (doc 06 §C3 event 4): the offer (day 457, fixed date
+    // Dec 9) — the EVIDENCE photographed unsigned, Marisol's card v1,
+    // and behind it N3a (the offer's three doors). The surveyor's spot
+    // IS the Works fence; the fence door is the beat's door.
+    if (state.isC3) {
+      const beats = state.c3Offer();
+      if (beats.length > 0) return beats;
+    }
+    return state.c0Surveyor();
+  },
 };
 
 /** Hook 3 — Miss Odessa's nod (doc 11 §2 beat 11 + §4): one word, the
@@ -944,6 +1061,13 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
           // smiling for exactly two seconds)
           const anniversary = s.c2Anniversary();
           if (anniversary.length > 0) return anniversary;
+        }
+        if (s.isC3 && s.day === 414) {
+          // the sound (doc 06 §C3 event 7 + doc 07 §2.x): Doris's fight
+          // heard, not seen; her warning verbatim at the door; the
+          // chapter's QUESTION (doc 06 §C3 diary developments)
+          const sound = s.c3Sound();
+          if (sound.length > 0) return sound;
         }
         if (s.isDay2) {
           return s.rosaTask().effects;

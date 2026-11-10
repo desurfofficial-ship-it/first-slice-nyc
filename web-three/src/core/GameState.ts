@@ -69,6 +69,19 @@ import {
   rentEntry, oktaysEntry, anniversaryEntry, questionDorisEntry,
   k2Entry, leaseEntry,
 } from './c2pack';
+// ---- the C3 content pack (narrative/14 §7 step 10 — doc 06 §C3) ----
+import {
+  C3_FIRST_DAY, C3_LAST_DAY, C3_CUT_DAY, C3_CUT_ID, C3_CUT_STAGE, C3_CUT_WALL,
+  C3_IDS, C3_FRAGMENT_IDS, C3_EDDIE_KEYS_LINE, C3_ELVANN_LINE, C3_GINO_LINE,
+  C3_WATER_FIX_FLAG, C3_WATER_FIX_MISSED_FLAG,
+  C3_GINO_FAVOR_LEDGER_ID, C3_GINO_FAVOR_REFS,
+  c3StationOf, c3RailFor, c3CompressionFrom, c3CutEntry,
+  collapseEntry, keysEntry, waterFixEntry, waterFixMissedEntry, elvannEntry,
+  summitEntry, wexlerEntry, halcyonEntry, examEntry, clubEntry, adaEntry,
+  pantryEntry, soundEntry, questionCraigEntry as c3QuestionCraigEntry,
+  senateEntry, clubCloseEntry, lunchEntry, ginoCardEntry, violationEntry,
+  offerEntry, marisolCardEntry, f2Entry as c3F2Entry, applyC3Pick,
+} from './c3pack';
 import { dateOfCalendarDay } from './calendar';
 import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, ITEM_STICKERS, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
@@ -183,7 +196,7 @@ export type Effect =
   // ---- the C0 pack's diary picks (doc 11 §3 — the overlay packs). The
   // Game turns this into the NotebookPrompt overlay; a driver boot never
   // sees it (the pick-card law: drivers keep the shipped flow). ----
-  | { kind: 'diary-prompt'; pack: 'theory' | 'question' | 'choice'; node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' }
+  | { kind: 'diary-prompt'; pack: 'theory' | 'question' | 'choice'; node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' }
   // ---- the C0 block layer's diary ink (narrative/14 §7 step 6, tranche 2
   // — core/c0Pack.ts): the state has already appended the entry; the
   // effect only tells the UI to wiggle (the map-note precedent)
@@ -333,6 +346,12 @@ export class GameState {
   *  montage — the counters only ever move through the roll itself, so a
   *  replayed montage can never move a date twice. */
   pendingCompressionTo: number | null = null;
+  /** The story flags' state-side mirror (the world's flag store is the
+   *  source of truth — this memo exists so the Silent class's latch can
+   *  be read by the state's own beat guards: N3c's not-tell writes
+   *  NOTHING, so its flag is the only witness). Synced from the world's
+   *  held set on every spine walk; written eagerly by the C3 picks. */
+  private readonly storyFlagMemo = new Set<string>();
 
   /** The 'map-copies' beat latches. Returns true when the doodle is new. */
   copyPriyaLines(): boolean {
@@ -404,11 +423,22 @@ export class GameState {
     return this.day >= C2_FIRST_DAY && this.day <= C2_LAST_DAY;
   }
 
+  /** C3's season (narrative/14 §7 step 10 — doc 06 §C3): the station days
+   *  ride the same WK_* loop with the C3 pack's voice. Same law as C1/C2's
+   *  — the chapter gate is the wide law (R8); the day range is the loop's
+   *  own — the cut plays at C3_LAST_DAY's linger and the wall follows
+   *  (the roll into C4's stations is the C4 wave's law, exactly as this
+   *  wave brought the C2 cut's roll). */
+  get isC3(): boolean {
+    return this.day >= C3_FIRST_DAY && this.day <= C3_LAST_DAY;
+  }
+
   /** The season station for THIS morning, whichever season is on the
-   *  clock (the C1 and C2 packs own disjoint day ranges; the loop reads
+   *  clock (the C1/C2/C3 packs own disjoint day ranges; the loop reads
    *  one voice per day — the WK_* steps are the loop, the station is the
    *  day's mouth). */
   private seasonStation(day: number): { queue: readonly WeekOrder[]; wake: string; rushDone: string; storm?: boolean } | undefined {
+    if (this.isC3) return c3StationOf(day);
     if (this.isC2) return c2StationOf(day);
     if (this.isC1) return c1StationOf(day);
     return undefined;
@@ -1127,6 +1157,11 @@ export class GameState {
       if (rail === 'cut') return this.c2SeasonCut();
       if (rail && typeof rail === 'object') return this.c2Compression(rail.compress);
     }
+    if (this.isC3) {
+      const rail = c3RailFor(this.day);
+      if (rail === 'cut') return this.c3SeasonCut();
+      if (rail && typeof rail === 'object') return this.c3Compression(rail.compress);
+    }
     return [{ kind: 'next-day' }];
   }
 
@@ -1406,13 +1441,32 @@ export class GameState {
    *  flags to the world store, persist. A refused pick changes nothing.
    *  C2's nodes ride the same seam (`held` is the world's flag store —
    *  N2's Form C expires without Yoli's session, doc 10 §4); the toast
-   *  is a local pick (ink and two seconds, no ledger). */
+   *  is a local pick (ink and two seconds, no ledger). C3's nodes ride
+   *  the same seam (N3a the offer, N3b the investor list, N3c the
+   *  tell-or-not — the not-tell posts NOTHING, the Silent class; its
+   *  flag is the only witness, mirrored eagerly here and by the spine
+   *  walk). */
   applyChoicePick(
-    nodeId: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST',
+    nodeId: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c',
     optionId: string,
     held?: ReadonlySet<string>,
   ): Effect[] {
     const out: Effect[] = [];
+    if (nodeId === 'N3a' || nodeId === 'N3b' || nodeId === 'N3c') {
+      const apply = applyC3Pick(nodeId, optionId, this.calendarDay);
+      if (!apply.ok) return [];
+      if (apply.note) out.push({ kind: 'note', text: apply.note });
+      for (const draft of apply.ledger) {
+        this.logLedgerEntry(draft);
+      }
+      if (apply.diary) this.c0Write(out, apply.diary);
+      if (apply.flags.length > 0) {
+        for (const f of apply.flags) this.storyFlagMemo.add(f);
+        out.push({ kind: 'story-flags', flags: apply.flags });
+      }
+      out.push({ kind: 'persist' });
+      return out;
+    }
     if (nodeId === 'N2' || nodeId === 'N2b' || nodeId === 'TOAST') {
       const apply = applyC2Pick(nodeId, optionId, this.calendarDay, held);
       if (!apply.ok) return [];
@@ -1499,7 +1553,17 @@ export class GameState {
    *  into C3's first station is the C3 wave's law, exactly as this wave
    *  brought the C1 cut's roll). */
   c2SeasonCut(): Effect[] {
-    if (this.c0Has(C2_CUT_ID)) return [{ kind: 'note', text: C2_CUT_WALL }];
+    if (this.c0Has(C2_CUT_ID)) {
+      // the cut has played: the wall answers — and the C3 wave's own law
+      // (§7 step 10 brought the days the cut opens): the FIRST press after
+      // the latch rolls into C3's first station (Wednesday, Jul 1, Y2 —
+      // July opens, doc 06 §C3's period start) — unless this is a replayed
+      // kept Jun 30, which gets the wall and holds, never a roll out of a
+      // replay.
+      const wall: Effect[] = [{ kind: 'note', text: C2_CUT_WALL }];
+      if (this.replayDay) return wall;
+      return [...wall, { kind: 'next-day', to: C3_FIRST_DAY }];
+    }
     const out: Effect[] = [];
     for (const line of seasonCutMontage(this.fieldDiary)) {
       out.push({ kind: 'note', text: line });
@@ -1741,6 +1805,363 @@ export class GameState {
     return out;
   }
 
+  // ------------------------------------------ the C3 season's beats (narrative/14 §7 step 10) ----
+  // The chapter's interaction ink: each beat rides a SHIPPED interaction
+  // (the c0pack's recontextualization law — retained, not rewritten) or
+  // one of two new one-day slots on existing ground (El Vann's community
+  // room, Deshaun's court edge — no new meshes, the census untouched),
+  // latches by its diary entry (the block layer's law), and writes
+  // through the same two doors (the field diary, the consequence ledger).
+  // The chapter's own machines: the water-fix window's two sides (doc 10
+  // §4's specimen), the ledger's first SECRET favor (Gino's — the C2
+  // Priya precedent), and the game's first entry that REFUSES to be
+  // written (N3c's not-tell — the Silent class).
+
+  /** Whether a C3 pick has landed (the pick's own ink is the latch —
+   *  the entry rides `node` and the c3- prefix). N3c's not-tell writes
+   *  NOTHING (the Silent class, doc 10 §1 — the omission exists by
+   *  absence), so its flag is the only witness, mirrored from the
+   *  world's flag store on every spine walk. */
+  private c3PickHeld(nodeId: 'N3a' | 'N3b' | 'N3c'): boolean {
+    if (nodeId === 'N3c') {
+      if (this.storyFlagMemo.has('trigger-4=absent') || this.storyFlagMemo.has('trigger-4=exists')) return true;
+      return this.fieldDiary.some((e) => e.node === nodeId && e.id.startsWith(`c3-${nodeId.toLowerCase()}-`));
+    }
+    return this.fieldDiary.some((e) => e.node === nodeId && e.id.startsWith(`c3-${nodeId.toLowerCase()}-`));
+  }
+
+  /** The C3 season compression (R4's named transition, the C3 pack's
+   *  own days-between): the linger plays the compression's two lines and
+   *  HOLDS; the next press rolls the counters `from → to` through the
+   *  next-day door. The days between stations are CONSUMED, never played
+   *  (the station law). The marked compressions are the calendar's own
+   *  crossings (summer→fall 349→369, fall→winter 432→457 —
+   *  crossedSeasonCut proves both). Doc 10 §4's specimen window closes
+   *  with the 328→349 dispatch: the water-fix week's help was the
+   *  garden's own beat (day 328); a window crossed unhelped writes its
+   *  miss ONCE here (the No-FOMO law — the miss is visible,
+   *  in-character, and latched by its own ink). */
+  c3Compression(to: number): Effect[] {
+    const comp = c3CompressionFrom(this.day);
+    if (!comp || comp.to !== to) return [{ kind: 'next-day', to }];
+    this.pendingCompressionTo = to;
+    const out: Effect[] = [
+      { kind: 'note', text: comp.intro },
+      { kind: 'note', text: `The city: \u201C${comp.city}\u201D` },
+      { kind: 'note', text: 'One more press, and the days pass.' },
+    ];
+    if (comp.from === 328 && !this.c0Has(C3_IDS.waterFix) && !this.c0Has(C3_IDS.waterFixMissed)) {
+      this.c0Write(out, waterFixMissedEntry(this.calendarDay));
+      out.push({ kind: 'story-flags', flags: [C3_WATER_FIX_MISSED_FLAG] });
+    }
+    return out;
+  }
+
+  /** The C3→C4 season cut (doc 06 §C3 handoff): the season's montage in
+   *  his hand, the handoff staged door-neutral (New Year's at the shop;
+   *  the offer re-runs with January's weather whatever door N3a took),
+   *  the cut's entry dated Jan 6, Y3 — and the chapter through
+   *  advanceChapter's own door at C4's window start. Plays once per save
+   *  (the latch is the entry); a replayed kept Dec 20 gets the wall.
+   *  C4's content is the next wave's — the wall holds (the honest
+   *  pattern; the roll into C4's stations is the C4 wave's law, exactly
+   *  as this wave brought the C2 cut's roll). */
+  c3SeasonCut(): Effect[] {
+    if (this.c0Has(C3_CUT_ID)) return [{ kind: 'note', text: C3_CUT_WALL }];
+    const out: Effect[] = [];
+    for (const line of seasonCutMontage(this.fieldDiary)) {
+      out.push({ kind: 'note', text: line });
+    }
+    out.push({ kind: 'note', text: C3_CUT_STAGE });
+    out.push({ kind: 'note', text: C3_CUT_WALL });
+    this.c0Write(out, c3CutEntry());
+    // C4's window opens — the machine's own door, the window-start law
+    const adv = advanceChapter(this.chapter, 'C4', {
+      day: C3_CUT_DAY,
+      triggerHeld: true, // the cut itself is the beat (doc 06 §C3's handoff)
+    });
+    if (adv.ok) this.chapter = adv.state;
+    else this.chapter = touchDay(this.chapter, C3_CUT_DAY);
+    out.push({ kind: 'persist' });
+    return out;
+  }
+
+  /** Doc 06 §C3 starting circumstances + doc 12 §2's fixed event — the
+   *  collapse (the eddie interaction, day 301): the omen lived, the
+   *  counter running on Leo from this morning forward. */
+  c3Collapse(): Effect[] {
+    if (this.day !== 301 || this.c0Has(C3_IDS.collapse)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'The counter, mid-rush: Eddie\u2019s hand is flat on the stainless \u2014 and it doesn\u2019t move. Then it slides. \u201CKid,\u201D he says, quiet, like an apology. \u201CCall somebody.\u201D' },
+      { kind: 'note', text: 'The ambulance takes nine minutes. Rosa holds the block\u2019s attention at her window so nobody follows the gurney. They say heart. They say caught it early. They say the word lucky like a diagnosis.' },
+    ];
+    this.c0Write(out, collapseEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C3 event 1 — the keys, from the hospital bed (the eddie
+   *  interaction, day 309): trust as burden transfer, verbatim. */
+  c3Keys(): Effect[] {
+    if (this.day !== 309 || this.c0Has(C3_IDS.keys)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: `Eddie puts the keys in my hand \u2014 the shop\u2019s, the back door\u2019s, the safe\u2019s \u2014 and says it like a schedule: \u201C${C3_EDDIE_KEYS_LINE}\u201D` },
+      { kind: 'note', text: 'I say something about the dough schedule. He says dough schedules are the easy part. He\u2019s right, and we both pretend the other thing wasn\u2019t said, which is how Eddie says the biggest things.' },
+    ];
+    this.c0Write(out, keysEntry(this.day));
+    return out;
+  }
+
+  /** F2 — the visiting-room window (doc 06 §C3 event 1: "F2 fires at
+   *  the visiting-room window", doc 02 §6.2). The recontextualization is
+   *  noted at the trigger (doc 11's header law): the shipped block hosts
+   *  the visiting room in prose, and the fragment's ink lands at the
+   *  loop's dusk — the shop's window from the fire escape, Leo's own
+   *  palm flat on the glass, hours later, still shaped (the station's
+   *  own climbNote carries the image's staging). Keyed to day 309's
+   *  climb step (the dusk IS the afterglow), once, the wobble style. */
+  c3F2AtGlass(): Effect[] {
+    if (this.day !== 309) return [];
+    if (this.step !== Step.WK_CLIMB) return [];
+    if (this.c0Has(C3_FRAGMENT_IDS.f2)) return [];
+    const out: Effect[] = [];
+    this.c0Write(out, c3F2Entry(this.day));
+    out.push({ kind: 'note', text: 'It passes. It always passes. The entry stays anyway \u2014 the wobble\u2019s own arithmetic, and the most he\u2019s written all year.' });
+    return out;
+  }
+
+  /** Doc 10 §4's specimen window — the garden's water-fix week, the
+   *  HELPED side (the garden interaction, day 328, the window's tail):
+   *  the buckets carried, the beds held, Yoli's margin kept. The flag
+   *  sets once (the C2 session precedent); the window's MISSED side
+   *  rides the 328→349 compression (c3Compression). */
+  c3WaterFix(): Effect[] {
+    if (this.day !== 328 || this.c0Has(C3_IDS.waterFix)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'The beds\u2019 south row, day eleven of the dry week: buckets from the spigot, the kid\u2019s toy pail, Yoli\u2019s own two hands. The last of the water goes on the tomatoes like it\u2019s rationed, because it is.' },
+      { kind: 'note', text: 'Yoli counts the surviving plants twice and says nothing, which is how she says thank-you-with-interest. The south row holds.' },
+    ];
+    this.c0Write(out, waterFixEntry(this.day));
+    out.push({ kind: 'story-flags', flags: [C3_WATER_FIX_FLAG] });
+    return out;
+  }
+
+  /** Doc 06 §C3 event 2 — El Vann's paper wall (the East Tenement's
+   *  community room — the chapter's first new one-day slot, day 328):
+   *  the borrowing that becomes the first look; her line verbatim. */
+  c3Elvann(): Effect[] {
+    if (this.day !== 328 || this.c0Has(C3_IDS.elvann)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: `The East Tenement\u2019s community room: folding tables, a radiator with opinions, and the paper wall \u2014 origami stacks floor to ceiling. El Vann, eighty-one, sharp as ever: \u201C${C3_ELVANN_LINE}\u201D` },
+      { kind: 'note', text: 'She didn\u2019t show everything. She showed that everything exists. Knowledge is a loaded object now, and I\u2019m the one carrying it home.' },
+    ];
+    this.c0Write(out, elvannEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C3 event 3 — the Slice Summit (the eddie interaction, day
+   *  349, the shop after hours): merchants, Corvus, the board; Wexler's
+   *  first meeting; the blog's title. Two latches: the Summit's entry
+   *  and Wexler's PERSON card. */
+  c3Summit(): Effect[] {
+    if (this.day !== 349 || this.c0Has(C3_IDS.summit)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'After hours, Corner Slice hosts it: merchants, Corvus, and the board in one room, the Accord\u2019s eleven protections on the register\u2019s lid. Dane Wexler remembers my name, my cart\u2019s name, and the kid\u2019s birthday unprompted \u2014 never lies; selects.' },
+      { kind: 'note', text: 'By eleven the local blog has the photo up \u2014 me mid-pitch, the room lit like a hearing \u2014 titled The Man Who Feeds Alder Heights. I laughed. Then I read it twice more. Titles are tolls too.' },
+    ];
+    this.c0Write(out, summitEntry(this.day));
+    this.c0Write(out, wexlerEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C3 event 8 + doc 07 §2.x — Halcyon opens (the june
+   *  interaction, day 369): the opening night, her line verbatim, the
+   *  voice named kindly, close. */
+  c3Halcyon(): Effect[] {
+    if (this.day !== 369 || this.c0Has(C3_IDS.halcyon)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'Halcyon opens \u2014 the caf\u00E9 shell at 6 Kestrel East with its lights on and June\u2019s name over the door. I make a toast in the performance voice, and she catches it, kindly, close: \u201CYou do a voice when you\u2019re scared. It\u2019s a good voice. It\u2019s not yours.\u201D' },
+      { kind: 'note', text: 'I say thanks, I\u2019ll keep it safe. She laughs. Neither of us writes it down. Somebody did.' },
+    ];
+    this.c0Write(out, halcyonEntry(this.day));
+    return out;
+  }
+
+  /** Doc 12 §2's fixed event — Deshaun's exam fail (the court-edge
+   *  slot's own day, 376): his own chapter, the block's verdict
+   *  delivered in layups. */
+  c3Exam(): Effect[] {
+    if (this.day !== 376 || this.c0Has(C3_IDS.exam)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'Deshaun, mid-layup, gallows-flat: \u201CSix weeks of study group and the man failed me on AIRWAY. You know what I do all day? I CARRY AIR.\u201D' },
+      { kind: 'note', text: 'He shoots again. \u201CSam says the union has a retake path. Sam\u2019s being kind, which Sam is.\u201D The block\u2019s youngest man teaches how the block takes a hit: out loud, at the rim, before dinner.' },
+    ];
+    this.c0Write(out, examEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C3 event 5 — the Club's founding pitch (the garden
+   *  interaction, day 383): decks honest, risk pages thin, the raise
+   *  opens at $30,000. */
+  c3Club(): Effect[] {
+    if (this.day !== 383 || this.c0Has(C3_IDS.club)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'The garden, Saturday, folding chairs: the Juniper Club\u2019s first pitch, the render on a clothesline. Eleven said yes into the folding hat. Four said later.' },
+      { kind: 'note', text: 'Yoli sat in the back row and wrote on a legal pad the whole time and did not ask a question, which from Yoli is a paragraph. The Club is real. The Club is $30,000. The carrying has started.' },
+    ];
+    this.c0Write(out, clubEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C3 event 5's envelope — Ada's $8,000 (the bus bench, day
+   *  390, fixed date Oct 3): the envelope + the phone call that asks
+   *  zero questions. */
+  c3Ada(): Effect[] {
+    if (this.day !== 390 || this.c0Has(C3_IDS.ada)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'The envelope is in the shop\u2019s mail slot with my name in my mother\u2019s handwriting and no return address. Eight thousand dollars. The phone rings eleven minutes later \u2014 her timing is a sixth sense with a phone plan \u2014 and the call asks zero questions.' },
+      { kind: 'note', text: 'I stand on the bench with the phone against my ear and the envelope under my arm and say thank you in the voice that isn\u2019t the performance, and she says, \u201CI know. That\u2019s why I didn\u2019t ask.\u201D' },
+    ];
+    this.c0Write(out, adaEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C3 event 8 — Camille's pantry drive (the garden
+   *  interaction, day 404): the alternative life enters the frame; the
+   *  PERSON card rides the entry. */
+  c3Pantry(): Effect[] {
+    if (this.day !== 404 || this.c0Has(C3_IDS.pantry)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'Camille Odom runs the pantry drive out of the garden\u2019s south table \u2014 P.S. 218\u2019s lists, the library\u2019s boxes, a Tuesday that repeats. \u201CYou\u2019re the coffee man,\u201D she says, not looking up. \u201CTuesday\u2019s hot. Donations get cold.\u201D' },
+      { kind: 'note', text: 'The alternative life is standing right there in a cardigan: no render, no raise, no blog title \u2014 a classroom, a list, a Tuesday. I pour the Tuesday\u2019s coffee. The notebook writes COULD in the margin, where the coulds live.' },
+    ];
+    this.c0Write(out, pantryEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C3 event 7 + doc 07 §2.x — the sound (the rosa
+   *  interaction, day 414): Doris finds Craig's version of the books;
+   *  the fight is off-screen, its sound on-screen; her warning verbatim
+   *  at the door; and the chapter's QUESTION writes itself. Two
+   *  latches: the sound's entry and the QUESTION's. */
+  c3Sound(): Effect[] {
+    if (this.day !== 414 || this.c0Has(C3_IDS.sound)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'The sound comes over the back fences at dusk \u2014 a door, a porch, silence. Doris, out of the hospital three weeks, found Craig\u2019s version of the books, and the fight is off-screen the way the doc writes it: no voices, just the door\u2019s slam and the kind of silence that has a shape.' },
+      { kind: 'note', text: 'Doris finds me at the corner taking the safety glass off the shop\u2019s door, and delivers the chapter\u2019s one mercy at the door, true-thing-last: \u201CYou\u2019re a good boy the way Craig\u2019s a good boy. Watch it.\u201D Then she goes in.' },
+      { kind: 'note', text: 'The QUESTION writes itself before I can stop it: What is Craig\u2019s paper?' },
+    ];
+    this.c0Write(out, soundEntry(this.day));
+    this.c0Write(out, c3QuestionCraigEntry(this.day));
+    return out;
+  }
+
+  /** Doc 07 §4's senate scene (the park bench, day 420): the dominoes
+   *  table adopts Leo, Tito's question lands, and Yoli's observation
+   *  arrives without asking. */
+  c3Senate(): Effect[] {
+    if (this.day !== 420 || this.c0Has(C3_IDS.senate)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'Corner Park, the dominoes table: the senate convenes and I\u2019m seated without a vote. Eddie\u2019s chair sits empty out of respect. Tito plays the first hand in silence, then, unprompted: \u201CWhose block is the render on, muchacho? That\u2019s today\u2019s agenda. You brought the agenda. You just don\u2019t know you\u2019re carrying it.\u201D' },
+      { kind: 'note', text: 'The tiles click. Nobody answers him, which means everybody did. And on the walk back: Yoli\u2019s noticed the Club\u2019s pitch meetings look like the Compact\u2019s, mirrored. Not an accusation. An observation with a legal pad behind it.' },
+    ];
+    this.c0Write(out, senateEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C3 event 5's closing pitch (the garden interaction, day
+   *  425) — the latch BEFORE the ask; the re-press opens N3b (the
+   *  register's node, the pick overlay's seam, nineteen named faces). */
+  c3Close(): Effect[] {
+    if (this.day !== 425) return [];
+    if (!this.c0Has(C3_IDS.close)) {
+      const out: Effect[] = [
+        { kind: 'note', text: 'The garden, Thursday evening, the last folding chairs: the Club\u2019s closing pitch. The deck\u2019s been through four drafts and the risk pages are thin on purpose \u2014 honesty as a strategy, Rosa\u2019s advice, taken.' },
+        { kind: 'note', text: 'The raise stands at $54,000 with eighteen faces; one ask left, and the room knows it the way rooms know things. Miss Odessa sits front row with her purse on her knees like the envelope\u2019s already decided. Who I ask is who I can hurt.' },
+      ];
+      this.c0Write(out, clubCloseEntry(this.day));
+      return out;
+    }
+    // the pitch has been said: the ask is the pick (once — the pick's own
+    // ink is the latch; the overlay re-opens only until the pick lands)
+    if (!this.c3PickHeld('N3b')) {
+      return [{ kind: 'diary-prompt', pack: 'choice', node: 'N3b' }];
+    }
+    return [];
+  }
+
+  /** Doc 06 §C3 event 6 — Gino's first lunch (the diner booth, day 432,
+   *  fixed date Nov 14): the NETWORKING entry — the body is the refusal,
+   *  shaped; the PERSON card rides separately; the ledger's first SECRET
+   *  favor (the C2 Priya precedent); and behind the scene, N3c — tell
+   *  Eddie or not (the Silent class, the re-press's pick). */
+  c3Lunch(): Effect[] {
+    if (this.day !== 432) return [];
+    if (!this.c0Has(C3_IDS.lunch)) {
+      const out: Effect[] = [
+        { kind: 'note', text: `Gino Trabucco buys lunch at his own deli\u2019s corner table \u2014 no agenda, he says, which is the first true thing and the first false thing. Deli sandwiches, olives arranged around the plates like punctuation, naval history where I can see the cover. Somewhere between the pickles and the coffee: \u201C${C3_GINO_LINE}\u201D` },
+        { kind: 'note', text: 'And later, quieter, the favor already done by the time it\u2019s described: the old DOB violation on Corner Slice \u2014 Eddie\u2019s paperwork ghost, years stale \u2014 has been looked into. It disappears. The lunch is recorded as networking. The violation is not recorded at all. That\u2019s the first entry I can feel refusing to be written.' },
+      ];
+      this.c0Write(out, lunchEntry(this.day));
+      this.c0Write(out, ginoCardEntry(this.day));
+      // the favor rides the ledger as a recorded act (the C2 Priya-
+      // favor precedent: a promise without a due is schema-invalid, and
+      // the favor's name comes later — the ledger keeps the owing
+      // visible either way, SECRET from the surfaces that name them)
+      this.logLedgerEntry({
+        id: C3_GINO_FAVOR_LEDGER_ID,
+        kind: 'choice',
+        date: dateOfCalendarDay(this.calendarDay),
+        refs: [...C3_GINO_FAVOR_REFS],
+        weight: 1,
+        visibility: 'secret',
+      });
+      return out;
+    }
+    // the lunch has been said: the tell-or-not is the pick (once — the
+    // not-tell's flag is the latch, mirrored from the world's flag store)
+    if (!this.c3PickHeld('N3c')) {
+      return [{ kind: 'diary-prompt', pack: 'choice', node: 'N3c' }];
+    }
+    return [];
+  }
+
+  /** The wall's missing slip (the lease-notice interaction, day 432):
+   *  an OBSERVATION the entry shapes around the gap — the notebook
+   *  knows what the wall lost even if the lunch entry doesn't say the
+   *  word. */
+  c3Violation(): Effect[] {
+    if (this.day !== 432 || this.c0Has(C3_IDS.violation)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'The wall behind Eddie\u2019s framed notice has one less paper on it \u2014 the oldest slip, the DOB violation that hung there like a ghost the whole first year, is gone. Nobody moved it. Paper doesn\u2019t move itself.' },
+    ];
+    this.c0Write(out, violationEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C3 event 4 — the offer (the Works fence, day 457, fixed
+   *  date Dec 9, riding the surveyor's own spot at the fence): the
+   *  EVIDENCE entry (photographed, unsigned) + Marisol's PERSON card
+   *  v1; and behind the scene, N3a — the offer's three doors (the
+   *  re-press's pick). */
+  c3Offer(): Effect[] {
+    if (this.day !== 457) return [];
+    if (!this.c0Has(C3_IDS.offer)) {
+      const out: Effect[] = [
+        { kind: 'note', text: 'The fence door at the Works is propped open and Marisol is standing in the render\u2019s actual footprint holding one page like it\u2019s warm. Provisions Hall, the food hall: \u201Cyour vendors, your block, our kitchen.\u201D Run it.' },
+        { kind: 'note', text: 'The pitch is perfect because it is true \u2014 and because it makes me the project\u2019s face. I photograph the page unsigned and put the phone away. Nineteen debts. One signature pending. A fixer\u2019s favor outstanding. And a page.' },
+      ];
+      this.c0Write(out, offerEntry(this.day));
+      this.c0Write(out, marisolCardEntry(this.day));
+      return out;
+    }
+    // the offer has been made: the answer is the pick (once — the pick's
+    // own ink is the latch; the overlay re-opens only until the pick lands)
+    if (!this.c3PickHeld('N3a')) {
+      return [{ kind: 'diary-prompt', pack: 'choice', node: 'N3a' }];
+    }
+    return [];
+  }
+
   dismissPostcard(): Effect[] {
     this.lingerStage = 1;
     // The C0 pack's first question (doc 11 §3 entry 4 — Day 3 night,
@@ -1847,6 +2268,7 @@ export class GameState {
    *  (evaluateRails' own law); the fires return for the city diary's
    *  morning whisper. Pure inputs, stored results. */
   walkSpine(calendarDay: number, heldFlags: ReadonlySet<string>): RailFire[] {
+    for (const f of heldFlags) this.storyFlagMemo.add(f);
     this.chapter = touchDay(this.chapter, calendarDay);
     const res = evaluateRails(this.rails, calendarDay, heldFlags);
     this.rails = res.rails;
