@@ -50,6 +50,7 @@ import {
 } from '../core/c0pack';
 import { C1_FIRST_DAY, c1ChoicePackOf, c1StationOf } from '../core/c1pack';
 import { c2ChoicePackOf, c2StationOf } from '../core/c2pack';
+import { c3ChoicePackOf, c3StationOf } from '../core/c3pack';
 import { freshChapterState, serializeChapterState } from '../core/chapters';
 import { freshRailStates, serializeRails } from '../core/chapterRails';
 import { serializeLedger } from '../core/consequenceLedger';
@@ -1726,7 +1727,7 @@ export class Game {
    *  cold-open (N0's flags + ledger entry + entry 1), the running theory,
    *  the first question. Each lands once per save by id; a duplicate pick
    *  is absorbed by the append seams (the idempotent law). */
-  private applyNotebookPick(pack: string, optionId: string, freeText: string, node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST'): void {
+  private applyNotebookPick(pack: string, optionId: string, freeText: string, node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c'): void {
     const day = this.state.calendarDay;
     if (pack === 'cold-open') {
       const res = applyColdOpen(optionId, day, freeText);
@@ -1771,17 +1772,19 @@ export class Game {
    *  progression-adjacent prose). C1's choice pages ride the same seam
    *  with their node id (`pendingPickNode` — transient, the page's own
    *  memory; closed pages forget it). */
-  private pendingPickNode: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | null = null;
-  private onDiaryPrompt(pack: 'theory' | 'question' | 'choice', node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST'): void {
+  private pendingPickNode: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | null = null;
+  private onDiaryPrompt(pack: 'theory' | 'question' | 'choice', node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c'): void {
     if (this.driverBoot || this.filmRequested) {
       // the pick-card law: drivers keep the shipped flow and take the
       // FIRST authored option deterministically (no dice in
       // progression-adjacent prose)
       if (pack === 'choice' && node) {
-        // the C2 packs first (N2's Form C is the held-set's honest
-        // function — drivers hold no flags, so the driver takes the first
-        // unlocked option: the canon default, pull-out), then C1's
-        const src = c2ChoicePackOf(node) ?? c1ChoicePackOf(node);
+        // the C3 packs first (all three nodes carry no locks — the
+        // driver's first option is the canon default), then C2's (N2's
+        // Form C is the held-set's honest function — drivers hold no
+        // flags, so the driver takes the first unlocked option), then
+        // C1's
+        const src = c3ChoicePackOf(node) ?? c2ChoicePackOf(node) ?? c1ChoicePackOf(node);
         const first = src?.options[0];
         if (first) this.applyNotebookPick('choice', first.optionId, '', node);
         return;
@@ -1792,7 +1795,7 @@ export class Game {
     }
     if (pack === 'choice' && node) {
       const held = new Set(this.worldSim.storyFlagKeys());
-      const src = c2ChoicePackOf(node, held) ?? c1ChoicePackOf(node);
+      const src = c3ChoicePackOf(node) ?? c2ChoicePackOf(node, held) ?? c1ChoicePackOf(node);
       if (!src) { this.ui.closeNotebookPrompt(); return; }
       this.pendingPickNode = node; // the page remembers which choice it is
       this.ui.showNotebookPrompt('choice', {
@@ -2052,14 +2055,17 @@ export class Game {
     // F3 rides the dusk (doc 06 §C2 diary developments — the M121's
     // window, the loop home: day 147's climb IS the ride; once, the
     // wobble style). BEFORE the step's own transition — the fragment's
-    // law reads the climb step.
+    // law reads the climb step. F2 rides the same law one chapter later
+    // (doc 06 §C3 event 1 — the visiting-room window's afterglow: day
+    // 309's climb, the shop's window from the fire escape).
     for (const e of s.c2F3AtDusk()) this.applyEffect(e);
+    for (const e of s.c3F2AtGlass()) this.applyEffect(e);
     s.setStep(wk ? Step.WK_POSTCARD : (day4 ? Step.D4_POSTCARD : (day3 ? Step.D3_POSTCARD : (day2 ? Step.D2_POSTCARD : Step.POSTCARD))));
     this.ui.setObjective('');
     this.startDusk();
     this.player.frozen = true;
     this.ui.showNote(wk
-      ? (c2StationOf(s.day)?.climbNote ?? c1StationOf(s.day)?.climbNote ?? C0_WEEK_CLIMB_NOTE)
+      ? (c3StationOf(s.day)?.climbNote ?? c2StationOf(s.day)?.climbNote ?? c1StationOf(s.day)?.climbNote ?? C0_WEEK_CLIMB_NOTE)
       : day4
       ? D4_CLIMB_NOTE
       : day3
@@ -2157,7 +2163,7 @@ export class Game {
    *  and the kid, down on his stool, waves without looking up. */
   private goldenBeatWeek(): void {
     const t = this.tweens;
-    const station = c2StationOf(this.state.day) ?? (this.state.isC1 ? c1StationOf(this.state.day) : undefined);
+    const station = c3StationOf(this.state.day) ?? c2StationOf(this.state.day) ?? (this.state.isC1 ? c1StationOf(this.state.day) : undefined);
     // the nor'easter's dark wind-down (doc 06 §C1 event 5): the storm
     // owns the glass — the windows stay dark, the candles are the light,
     // and the station's own note says so. No lighting tweens, no bell —
@@ -3020,7 +3026,7 @@ export class Game {
     this.world.fourthWindowMat.emissiveIntensity = 0;
     if (s.kidKept && n < 4) this.showKid(); // in the glass until Day 4 — down here, he lives at the corner
 
-    const station = c2StationOf(n) ?? (n >= C1_FIRST_DAY ? c1StationOf(n) : undefined);
+    const station = c3StationOf(n) ?? c2StationOf(n) ?? (n >= C1_FIRST_DAY ? c1StationOf(n) : undefined);
     if (station) {
       // C1's/C2's stations (narrative/14 §7 steps 8–9 — doc 06 §C1/§C2):
       // the same stabilized loop, the season's own voice. The compressions

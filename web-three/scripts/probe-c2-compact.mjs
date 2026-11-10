@@ -471,10 +471,17 @@ console.log('--- Pass E: Days 188 \u2192 243 \u2192 269 \u2192 295 \u2192 the cu
   const wall = await p4.evaluate(() => {
     const s = window.__game.state;
     const out = s.rail();
-    return { notes: out.filter((e) => e.kind === 'note').map((e) => e.text) };
+    return {
+      notes: out.filter((e) => e.kind === 'note').map((e) => e.text),
+      rollTo: (out.find((e) => e.kind === 'next-day') ?? {}).to ?? null,
+    };
   });
   check(wall.notes.length === 1 && wall.notes[0].includes('July opens its first morning'),
-    'the wall holds after the cut \u2014 C3\u2019s content is the next wave\u2019s');
+    'the wall answers after the cut');
+  // the C3 wave's own law (§7 step 10 brought the days the cut opens):
+  // the non-replay press behind the wall rolls the counters WHOLE into
+  // C3's first station (July 1, Y2)
+  check(wall.rollTo === 296, `the wall's next press rolls into C3's first morning (got ${wall.rollTo})`);
   check(e4.length === 0, `pass E/295 console clean (${e4.length} errors${e4.length ? ': ' + e4[0] : ''})`);
   await p4.close();
 }

@@ -32,10 +32,11 @@
  *    style, once per save, at the dusk of the window's second evening);
  *  - the C2→C3 season cut: the montage, the handoff staged, the cut's
  *    entry dated Jul 1 Y2 — and the chapter through advanceChapter's own
- *    door at C3's window start (the wall holds; the roll into C3's
- *    stations is the C3 wave's law);
- *  - the saves: MAX_DAY is C2's canon end (295), a station day parses
- *    exactly;
+ *    door at C3's window start (the wall ROLLED into C3's first morning
+ *    when the C3 wave brought its days — the C1 wave's own law, one
+ *    season down; a replayed kept Jun 30 holds);
+ *  - the saves: MAX_DAY is the frontier's canon end (468 — the C3 wave's
+ *    law), a C2 station day parses exactly;
  *  - the pack checks itself (validateC2Pack): canon verbatim, no
  *    real-world years in the prose, every option resolves.
  */
@@ -52,6 +53,7 @@ import {
   C2_N2_PACK, C2_N2B_PACK, C2_TOAST_PACK, C2_MEHMET_SENTENCE,
 } from '../src/core/c2pack';
 import { C1_CUT_ID, C1_CUT_WALL } from '../src/core/c1pack';
+import { C3_FIRST_DAY } from '../src/core/c3pack';
 import { C0_MISHEAR_ENTRY_ID } from '../src/core/c0pack';
 import { C0_BLOCK_IDS, SURVEYOR_DIARY_GUESS } from '../src/core/c0pack';
 import { calendarDayOf, dateOfCalendarDay, crossedSeasonCut } from '../src/core/calendar';
@@ -108,7 +110,9 @@ describe('the C2 station map — doc 06 §C2\u2019s arc as playable days', () =>
     expect(C2_STATION_DAYS.join(',')).toBe('120,124,129,146,147,160,174,188,230,243,269,295');
     expect(C2_FIRST_DAY).toBe(120);
     expect(C2_LAST_DAY).toBe(295);
-    expect(MAX_DAY).toBe(C2_LAST_DAY);
+    // the ceiling moved with the frontier (the C3 wave's law — the c3
+    // suite owns the exact pin; C2's chapter is fully contained):
+    expect(MAX_DAY).toBe(468);
   });
 
   it('each station lands on its doc 06 §C2 date through the calendar module (no hand arithmetic)', () => {
@@ -525,24 +529,37 @@ describe('the C2\u2192C3 season cut (doc 06 §C2 handoff)', () => {
     expect(C2_CUT_DAY).toBe(calendarDayOf({ y: 2, m: 7, d: 1 }));
   });
 
-  it('the wall holds after the cut — C3\u2019s content is the next wave\u2019s', () => {
+  it('the wall rolls into C3\u2019s first morning — and a replayed kept Jun 30 holds (the C3 wave\u2019s law: \u00A77 step 10 brought the days the cut opens)', () => {
+    // the first press after the latch: the wall answers AND the roll
+    // waits behind it — the next press rolls the counters WHOLE to C3's
+    // first station (Jul 1, Y2, July opens)
     const s = day295AtLinger();
     s.rail();
     const again = s.rail();
     expect(noteTexts(again)).toEqual([C2_CUT_WALL]);
     expect(s.chapter.chapter).toBe('C3');
+    const roll = s.rail();
+    expect(roll.some((e) => e.kind === 'next-day' && e.to === C3_FIRST_DAY)).toBe(true);
+    expect(C3_FIRST_DAY).toBe(calendarDayOf({ y: 2, m: 7, d: 1 }));
+    // the replay: the wall holds, never a roll out of a replay
+    const r = day295AtLinger();
+    r.rail();
+    r.replayDay = true;
+    const replayed = r.rail();
+    expect(noteTexts(replayed)).toEqual([C2_CUT_WALL]);
+    expect(r.rail().some((e) => e.kind === 'next-day')).toBe(false);
   });
 });
 
 // ---------------------------------------------------------------- the saves ----
 
 describe('the saves — the chapter rides the v1-safe law', () => {
-  it('MAX_DAY is C2\u2019s canon end; a station day parses EXACTLY (the sparse chapter is legal)', () => {
-    expect(MAX_DAY).toBe(295);
+  it('MAX_DAY is the frontier\u2019s canon end (C3\u2019s own suite owns the exact pin); a C2 station day parses EXACTLY (the sparse chapter is legal)', () => {
+    expect(MAX_DAY).toBe(468);
     expect(parseSave(JSON.stringify({ day: 120 })).day).toBe(120);
     expect(parseSave(JSON.stringify({ day: 243 })).day).toBe(243);
     expect(parseSave(JSON.stringify({ day: 295 })).day).toBe(295);
-    expect(parseSave(JSON.stringify({ day: 999 })).day).toBe(295);
+    expect(parseSave(JSON.stringify({ day: 999 })).day).toBe(468);
   });
 
   it('the fluency ladder\u2019s day (a CALENDAR day) round-trips well past the old story ceiling', () => {

@@ -42,7 +42,12 @@ const browser = await chromium.launch({
 // clamping; the driver is viewport-agnostic. Defaults unchanged (900x700).
 const VW = Number.parseInt(process.env.E2E_W ?? '900', 10);
 const VH = Number.parseInt(process.env.E2E_H ?? '700', 10);
-const page = await browser.newPage({ viewport: { width: VW, height: VH } });
+// E2E_SCALE — the render buffer's scale (deviceScaleFactor): a slow-machine
+// affordance in the same family as fx=off and the viewport knob. The driver
+// reads STATE, not pixels; the HUD layout is CSS-px and unaffected; only
+// the WebGL buffer shrinks. Default 1 (unchanged).
+const SCALE = Number.parseFloat(process.env.E2E_SCALE ?? '1');
+const page = await browser.newPage({ viewport: { width: VW, height: VH }, deviceScaleFactor: SCALE });
 
 const consoleErrors = [];
 page.on('console', (msg) => {
@@ -72,7 +77,7 @@ await page.goto(`http://localhost:${PORT}/?autotest=1&fx=off${WALKLOG}`, { waitU
 // pointer-events: none) while every keyboard test stayed green. Phones had
 // no M key, so on mobile the Map was unreachable, period.
 {
-  const p = await browser.newPage({ viewport: { width: VW, height: VH } });
+  const p = await browser.newPage({ viewport: { width: VW, height: VH }, deviceScaleFactor: SCALE });
   const pointerFails = [];
   const ok = (cond, what) => {
     console.log(`${cond ? 'POINTER: PASS' : 'POINTER: FAIL'} ${what}`);

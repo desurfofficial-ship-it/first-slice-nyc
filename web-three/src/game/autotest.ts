@@ -1100,7 +1100,7 @@ export function runAutotest(game: Game): void {
         const t0 = performance.now();
         while (performance.now() - t0 < budget(15000) && !(s.day === 5 && s.step === Step.WK_WAKE)) await nextFrame();
       }
-      check(s.day === 5 && s.step === Step.WK_WAKE, 'day 5 begins \u2014 the week\u2019s stabilized loop opens (the seasons run to June, Y2 \u2014 MAX_DAY = 295)' + snap());
+      check(s.day === 5 && s.step === Step.WK_WAKE, 'day 5 begins \u2014 the week\u2019s stabilized loop opens (the seasons run to December, Y2 \u2014 MAX_DAY = 468)' + snap());
     } catch (err) {
       check(false, `driver exception: ${(err as Error).message}`);
       console.error(err);

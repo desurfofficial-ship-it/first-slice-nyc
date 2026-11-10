@@ -44,14 +44,19 @@ export const SAVE_KEY = 'first_slice_save_v1';
 // morning.
 // C2's season is PLAYABLE (narrative/14 §7 step 9 — doc 06 §C2): the
 // station days run Jan 6 → Jun 30, Y2, the compressions consume the days
-// between, and the ceiling is C2's canon end (Jun 30 = day 295): the
-// linger there plays the C2→C3 season cut, C3's window opens Jul 1, Y2,
-// and C3's content is the next wave's (the wall, the honest pattern).
+// between, and the linger at Jun 30 played the C2→C3 season cut (the C3
+// wave's roll brought the days it opens: the cut's wall rolls into C3's
+// first morning).
+// C3's season is PLAYABLE (narrative/14 §7 step 10 — doc 06 §C3): the
+// station days run Jul 1 → Dec 20, Y2, the compressions consume the days
+// between, and the ceiling is C3's canon end (Dec 20 = day 468): the
+// linger there plays the C3→C4 season cut, C4's window opens Jan 6, Y3,
+// and C4's content is the next wave's (the wall, the honest pattern).
 // calendar.ts's own header pins the mapping: C0 closes Monday Sept 15
 // (day 7), C1 opens at the Sept 16 season cut (day 8), C2 opens Jan 6 Y2
-// (day 120), the stations land on doc 06's own dates through
-// calendarDayOf (validated in each pack's self-check).
-export const MAX_DAY = 295;
+// (day 120), C3 opens Jul 1 Y2 (day 296), the stations land on doc 06's
+// own dates through calendarDayOf (validated in each pack's self-check).
+export const MAX_DAY = 468;
 
 export interface SaveData {
   day: number;
