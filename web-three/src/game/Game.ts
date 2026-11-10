@@ -23,7 +23,7 @@ import { FreeRoam, roamDiscoveryLine, ROAM_OBJECTIVE } from './freeroam';
 import { WorldRuntime } from './worldRuntime';
 import { MoneyBridge } from '../sim/moneyBridge';
 import { datelineOfStoryDay } from '../sim/epochMap';
-import { STARTERS, starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
+import { starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
 import { PAL } from '../core/palette';
 import { World, phys } from '../world/World';
 import { Player, lerpAngle } from '../player/Player';
@@ -281,11 +281,13 @@ export class Game {
 
     // ---------------- the wardrobe (the fitting room) ----------------------
     // The lock law renders here: looking is free, wearing a different face
-    // is a new game. Game owns the verdict; the wardrobe is the paper.
+    // is a new game. Game owns the verdict; the wardrobe is the paper. The
+    // SAME room is the film's pick beat (openPick): the first wear is free.
     this.wardrobe = new Wardrobe({
       onSwitchRequest: (id) => this.wardrobeSwitchRequest(id),
       onNewGame: (id) => this.beginNewGameAs(id),
       onClose: () => this.toggleWardrobe(),
+      onPick: (id) => this.applyWardrobePick(id),
     });
     this.ui.onWardrobeToggle = () => this.toggleWardrobe();
 
@@ -494,19 +496,8 @@ export class Game {
       if (this.driverBoot || this.filmRequested) this.renderMorningWhisper();
     }
     this.ui.onNameSubmit = () => this.confirmName(this.ui.nameInput.value);
-    this.ui.onStarterPick = (id) => {
-      // the name lands WITH the pick (doc 11 §5: the chosen name is the
-      // name the block learns — one breath, before beat 0; cleared fields
-      // fall back to the canon identity inside sanitizeIdentity)
-      this.state.applyIdentity(this.ui.starterName());
-      this.applyStarter(id, true);
-      this.ui.closeStarterPick();
-      this.ui.showNote('There you are. Now the story has a face.');
-      // the pick card is done with him — the notebook's first page is next
-      // (doc 11 §5: the picker runs before beat 0; the shipped order keeps
-      // its own handover-first shape and the cold open rides it)
-      this.maybeColdOpen();
-    };
+    // (the paper pick card's onStarterPick retired — applyWardrobePick owns
+    // the beat now; see the wardrobe block and onArrivalHandover)
     this.ui.onNotebookPick = (pack, optionId, freeText) => this.applyNotebookPick(pack, optionId, freeText, this.pendingPickNode ?? undefined);
     this.ui.onCineTap = () => { if (this.arrival.active) this.arrival.tap(); };
     this.ui.onCineSkip = () => { if (this.arrival.active) this.arrival.skip(); };
@@ -1650,11 +1641,15 @@ export class Game {
     // Doc 02: "Six starter characters to pick from (30 seconds, all
     // delightful)." An explicit ?pickcard=1 ask wins (same law as ?film=1);
     // otherwise only humans on the film path see it — drivers and film
-    // evidence probes keep the shipped face.
+    // evidence probes keep the shipped face. The pick asks through the REAL
+    // fitting room now (wardrobe openPick, 2026-11): every face previews in
+    // 3D, the wear button applies, the name rides in with the pick. The
+    // paper starter card stays for the seam (a DOM without WebGL renders
+    // the wardrobe's own paper lineup — same tiles, same laws).
     if (!this.starterOffered && this.state.starterId === DEFAULT_STARTER
       && (this.forcePickCard || (!this.driverBoot && !this.filmRequested))) {
       this.starterOffered = true;
-      this.ui.showStarterPick(STARTERS);
+      this.wardrobe.openPick(this.state.starterId);
     } else {
       // no card this session (a persisted face, a driver, a film probe):
       // the cold open asks humans directly (maybeColdOpen's own laws)
@@ -1838,6 +1833,19 @@ export class Game {
 
   setStarter(id: string): void {
     this.applyStarter(id, true);
+  }
+
+  /** PICK MODE's wear button: the first face is applied right here — the
+   *  name lands WITH the pick (doc 11 §5: the chosen name is the name the
+   *  block learns; cleared fields fall back to the canon identity), the
+   *  starter persists, the room folds, the cold open asks its first page.
+   *  Same shape as the old paper-card pick; the room is just better now. */
+  private applyWardrobePick(id: string): void {
+    this.state.applyIdentity(this.ui.starterName());
+    this.applyStarter(id, true);
+    this.wardrobe.close(); // close() also ends pick mode — the room reopens
+    this.ui.showNote('There you are. Now the story has a face.');
+    this.maybeColdOpen();
   }
 
   // ---------------- the wardrobe (the pick is for keeps) ----------------

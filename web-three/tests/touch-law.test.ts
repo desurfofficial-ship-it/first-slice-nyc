@@ -47,11 +47,14 @@ describe('the paper owns the screen — one law (docs/51 B7)', () => {
     expect(toggles).toHaveLength(1);
   });
 
-  it('every paper door calls the law — two doors for each of the six surfaces', () => {
+  it('every paper door calls the law — two doors for each of the five surfaces', () => {
     // five shipped surfaces + the C0 pack's notebook prompt (open + close,
-    // the same two-door shape every other paper surface keeps)
+    // the same two-door shape every other paper surface keeps). 2026-11:
+    // the paper starter card retired (the wardrobe's pick mode owns the
+    // beat; the wardrobe is a canvas room, not a paper surface) — its two
+    // doors left with it, 18 → 16.
     const calls = uiSource.match(/this\.syncTouchUI\(\)/g);
-    expect(calls).toHaveLength(18);
+    expect(calls).toHaveLength(16);
   });
 
   it('the toggle reads the shared law, not an ad-hoc surface list', () => {

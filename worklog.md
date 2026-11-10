@@ -2865,6 +2865,28 @@ Work Log:
 Stage Summary:
 - The game now plays its first SEASON. Monday's real shift opens it, the block's quiet weeks stack it, the nor'easter proves it, December prices it, and the promise is the player's to make — with the ledger holding whatever they choose. The chapter machine walked through its own door twice this wave (in at Sept 16, out at Jan 6) and the epoch law never noticed. Next per §7: C2's content (The Compact), then R13–R14.
 
+---
+
+## 2026-11-09 — v1.35.0 — the polish pass 2: the flow, the home, the deli, the rooms' palette
+
+Task ID: WP-POLISH-PASS-2
+Agent: Technical Architecture / World Systems Agent (Z.ai)
+Task: the owner's directive — the post-film pick was "the shitty thing" (the paper card), items hang in Rosa's bodega, shops need creative distinct colors, every interior confirmed polished, the player's home included, other assets polished; report only when done.
+
+Work Log:
+- **Study-before-build (evidence first):** baseline Playwright passes captured the REAL user path — the film handover's paper pick card (six text-only tiles, zero visuals), the wardrobe previewing the character's BACK (the endless turntable drifts), ground-level aisle shots INSIDE the laundromat showing wall beneath the washer plinths, and a full-scene AABB audit of all 109 `_glb` wrappers. The audit named the systemic defect: `upgradePropWithGLB` puts feet at the placeholder's ORIGIN, and most placeholders are CENTERED meshes — ~40 props floated mid-air across every interior + the street (washers +0.75, gondolas +0.82, fridge +0.92, produce crate +0.25, hydrant +0.45, the bodega counter trio +0.15..0.22 over their counter top).
+- **The float fix (one law, `upgradePropWithGLB`):** wrapper feet now land at the placeholder's world AABB min, XZ centered on the occupied box — the furniture seam's own law (`upgradeFurnitureWithGLB` was always right); the documented "feet on its ground" is now true. Every interior + the hydrant + the stoop door seat in one edit.
+- **The pick flow (the beat, not the widget):** the paper starter card retires. The film's handover opens the REAL fitting room in pick mode (`openPick`): title "Who got off the bus?", six live 3D previews, the name row rides the panel (the three inputs moved, ids unchanged — sanitizeIdentity untouched), "Wear this — head out" applies via `applyWardrobePick`; no wipe-confirm on the first wear, Escape can't close a pick, the paper lineup still carries a DOM without WebGL (the seam law). UI's dead showStarterPick path removed; the touch-law door count honestly re-homed 18 → 16.
+- **The wardrobe greeting:** rest state = slow sway around the face-on 3/4 anchor (±0.3 rad); Spin = opt-in full turntable; Front/¾/Back set absolute anchors (Front now means FRONT); the stage grew the fitting-room set (plum back wall, gold baseboard, floor disc, two hanging bulbs).
+- **The rooms' palette (nine voices):** `dressRoom` + `dressW5Rooms` — per-room wainscot band + trim on the four inner faces (split around the door gaps; band rides 0.55 m, below every storefront window) + one emissive light strip under the clear height + nine distinct floor colors. The bodega got the full deli read: menu board with real prices, 6 merged product-row draws on the back wall, hanging chip bags, teal welcome mat, checker-cream floor; the dressing group + Bodega_Floor keep their names at the bake (NAMED_SKIP precedent, ~20 live draws — the store's the hero).
+- **The home pass (CECIL):** two framed prints (terracotta/teal), a monstera by the window, three colored books on the dresser, a floor cushion by the bed, terracotta band + cream trim, warm parquet floor — the room reads as SOMEONE's.
+- **New probe `probe-polish-pass.mjs`** (zero product code): the FEET LAW (18 named spot-checks — washers, dryers, crate, counter trio, gondolas, fridge, chairs, ovens, home fixtures, hydrant), the PICK FLOW contract (title/tiles/inputs/closeHidden/no-confirm), the PALETTE (8 light strips, ≥6 band pieces per room, nine distinct floors), THE DELI READ (menu/rows/bags/mat), 4 evidence shots (shots/polish-pass2/).
+- **Deliberate spec changes, honestly re-homed (no weakened assertions):** probe-a5h's pick assertions moved to the fitting-room flow (stronger: the room + name row + wear path replace a hidden div); touch-law 18 → 16 with the reason in the test; the polish probe's oven/kitchenette feet expectations sit at the slab's authored 0 line (the FLOAT was the defect; the 0.16 sink is the placeholder's authored slop, revealed honestly).
+- **The fidelity gate — ALL GREEN [sequential, same sandbox]:** tsc clean · vitest 1211/1211 (80 files) · build OK · probe-polish-pass OK · probe-interior-dressing PASS · probe-w5-interiors PASS (glass law intact) · probe-furniture-shops OK · probe-furniture OK · probe-verify-rebuilds PASS · probe-a5h OK (the new flow) · probe-world-sim 15/15 · probe-nav 9/9.
+- Not done, by law: the film's own pass rides the next wave (the owner's film notes are v1.23.0's, already shipped); B13 stays the owner's call.
+
+Stage Summary:
+- The first thing a new player does after the film is no longer a form — it's standing in a lit fitting room, spinning six real faces, naming themselves, and wearing the pick with one button. The block's nine interiors each wear their own colors now, nothing floats anywhere in the world, and Rosa's store reads as a deli from the doorway. The environment is finally arguing FOR the game.
 
 ## 2026-11-09 — Technical Architecture / World Systems Agent: WP-C2-COMPACT — §7 step 9 in one bulk pass: The Compact is playable (register v1.34.0)
 

@@ -1271,25 +1271,25 @@
       "block": null,
       "sitsOn": "plaza sidewalk (street furniture by NYC law: sidewalk control structures)",
       "footprint": {
-        "x": -42,
+        "x": -47.2,
         "z": 6.2,
         "w": 2.6,
         "d": 3.5
       },
       "height": 3.2,
       "floors": 0,
-      "style": "cast-iron stair housing with twin globes (code: makeSubwayEntrance at (−42, 6.2); collider 2.6×3.5)",
+      "style": "cast-iron stair housing with twin globes (code: makeSubwayEntrance at (−47.2, 6.2) over the K-line STAIR_SLOT; no solid collider — the shaft is the hole)",
       "exterior": "Existing: plaza decks W (−44.3, 6.55) & E (−39.3, 6.45), bulletin board (−37.6, 7.5), plaza bench (−40.5, 4.55), newsboxes (−44.6, 6.6), planter (−46.6, 4.4).",
       "entrance": [
         {
-          "x": -42,
+          "x": -47.2,
           "z": 6.2,
           "faces": "S",
           "type": "subway stair"
         }
       ],
       "interior": "MEZZ-INT (phase W5, optional): mezzanine slice — turnstiles, booth, tile name band 'ALDER HEIGHTS'",
-      "storyRole": "The front door. The player meets the block here; the stranger's bench is next to it.",
+      "storyRole": "The front door — the SUBWAY sign frames the real K-line stair shaft. The player meets the block here; the stranger's bench is next to the plaza.",
       "collider": true
     },
     {

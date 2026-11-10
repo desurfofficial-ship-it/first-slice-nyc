@@ -90,14 +90,8 @@
     <label>Who got off the bus?</label>
     <div id="starter-sub">Tap one. Every pick is safe — the city doesn't mind which.</div>
     <div id="starter-choices"></div>
-    <!-- The name entry (doc 02 §1 + doc 11 §5): the picker runs before beat
-         0, and the chosen name is the name the block learns. Defaults are
-         the canon identity — cleared fields fall back to it. -->
-    <div id="starter-name-row">
-      <input id="starter-name-first" type="text" maxlength="16" autocomplete="off" aria-label="First name" placeholder="Leo" />
-      <input id="starter-name-nick" type="text" maxlength="16" autocomplete="off" aria-label="Nickname (optional)" placeholder="nickname (optional)" />
-      <input id="starter-name-last" type="text" maxlength="20" autocomplete="off" aria-label="Last name" placeholder="Marsh" />
-    </div>
+    <!-- The name entry moved into the wardrobe's pick row (2026-11): the
+         fitting room IS the pick card now. The ids ride with the inputs. -->
   </div>
 
   <!-- The notebook prompt — the C0 pack's diary picks (doc 11 §3; the
@@ -114,7 +108,9 @@
   </div>
 
   <!-- Wardrobe — the 3D fitting room (ui/Wardrobe.ts). Looking is free;
-       wearing a different face asks for a new game first (the lock law). -->
+       wearing a different face asks for a new game first (the lock law).
+       PICK MODE (2026-11): the same room is the film's "who got off the
+       bus?" beat — first pick is free, the name rides in with the face. -->
   <div id="wardrobe-panel" hidden role="dialog" aria-modal="true" aria-label="Wardrobe — the fitting room">
     <div id="wardrobe-card">
       <div id="wardrobe-stage">
@@ -122,7 +118,7 @@
         <div id="wardrobe-hint">Drag to spin</div>
       </div>
       <div id="wardrobe-side">
-        <label>Wardrobe — the fitting room</label>
+        <label id="wardrobe-title">Wardrobe — the fitting room</label>
         <div id="wardrobe-sub">Six ways onto the block. The pick is for keeps.</div>
         <div id="wardrobe-lineup"></div>
         <div id="wardrobe-meta" hidden>
@@ -136,6 +132,14 @@
           <button id="wardrobe-back" type="button">Back</button>
           <button id="wardrobe-spin" type="button" aria-pressed="true">Spin</button>
           <button id="wardrobe-close" type="button">Back to the street</button>
+        </div>
+        <div id="wardrobe-pick" hidden>
+          <div id="wardrobe-pick-name" aria-label="Your name — the block learns it with the pick">
+            <input id="starter-name-first" type="text" maxlength="16" autocomplete="off" aria-label="First name" placeholder="Leo" />
+            <input id="starter-name-nick" type="text" maxlength="16" autocomplete="off" aria-label="Nickname (optional)" placeholder="nickname (optional)" />
+            <input id="starter-name-last" type="text" maxlength="20" autocomplete="off" aria-label="Last name" placeholder="Marsh" />
+          </div>
+          <button id="wardrobe-wear" type="button">Wear this — head out</button>
         </div>
         <div id="wardrobe-confirm" hidden>
           <div id="wardrobe-confirm-text"></div>

@@ -152,12 +152,18 @@ describe('sim/narrative — the fallback planner is deliberate, never silent', (
 });
 
 describe('sim/narrative — flag store and availability plumbing', () => {
-  it('flags accept only flag:/evt: ids and remember when they were set', () => {
+  it('flags accept flag:/evt:/node: and dimension=value keys; reject bare names', () => {
     const flags = newFlags();
     flags.set('flag:map_in_hand', 1234);
     expect(flags.has('flag:map_in_hand')).toBe(true);
     expect(flags.setAt('flag:map_in_hand')).toBe(1234);
-    expect(() => flags.set('rosa_flag', 1)).toThrow(/flag:/);
+    // choice selection pivots + downstream machine keys (N0 cold-open, N1a…)
+    flags.set('node:N0=prompt-1', 50);
+    flags.set('diary-voice-bias=prompt-1', 50);
+    expect(flags.has('node:N0=prompt-1')).toBe(true);
+    expect(flags.has('diary-voice-bias=prompt-1')).toBe(true);
+    // bare / garbage still loud
+    expect(() => flags.set('rosa_flag', 1)).toThrow(/flag:\/evt:\/node:/);
   });
 
   it('availability holds expire at their review tick', () => {

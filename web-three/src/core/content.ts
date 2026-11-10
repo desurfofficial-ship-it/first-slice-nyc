@@ -1276,7 +1276,7 @@ export interface MapPlace {
 export const MAP_PLACES: readonly MapPlace[] = [
   { id: 'terminal', label: 'the terminal', x: -24.5, z: 7.4, kind: 'bus', born: true, tilt: -2.5 },
   { id: 'bodega', label: "Rosa's", x: -16, z: 9.4, kind: 'store', born: true, tilt: 1.8 },
-  { id: 'globe', label: 'the globe', x: -42, z: 6.2, kind: 'globe', tilt: 3 },
+  { id: 'globe', label: 'the globe', x: -47.2, z: 6.2, kind: 'globe', tilt: 3 },
   { id: 'cart', label: 'your corner', x: 4, z: -6.6, kind: 'cart', born: true, tilt: -1.5 },
   { id: 'laundry', label: 'the laundry', x: -2.25, z: 12.6, kind: 'wash', tilt: 2 },
   { id: 'slice', label: 'the slice shop', x: 25.85, z: 12.6, kind: 'slice', tilt: -2 },
