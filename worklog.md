@@ -3132,3 +3132,24 @@ that reproduced as 15/15 on the idle box — load artifact, recorded honestly).
 Evidence: docs/production/c0-first-session/{C0-FIRST-SESSION.md,evidence/} (the cold open, the entry-2
 sheet, the listing, Deshaun's platform, the surveyor's fence).
 >>>>>>> origin/feat/c0-first-session
+
+---
+
+## 2026-11-10 — Production Director: ALL BRANCHES MERGED — the fleet's every line is contained in main, and main's own red gates repaired
+
+Task ID: MERGE-ALL-2026-11-10
+Agent: Production Director (Z.ai)
+Task: Owner directive — "Merge all branches to main." Execute against the LIVE remote, never force-push, resolve honestly, gates green on the integrated tree before the push.
+
+Work Log:
+- **The survey first (the real state, not memory):** `git ls-remote` — 17 heads. Fifteen were already contained (the fleet's parallel sessions had merged them); exactly THREE lines still held unmerged commits: `feat/wp-2v-epoch-map` (d7529d7), `feat/wp-5-consequence-ledger` (784d825), `feat/c0-first-session` (a43fefa). All three proved to be EARLIER PARALLEL LINES whose work main had since evolved past — the superseded-sister precedent (v1.30.0's own integration judgment) applied at each merge.
+- **`feat/wp-2v-epoch-map` merged (a84cc7c):** main's epoch mapping is the evolved WP-2v (worldRuntime imports `simTickOfStoryDay`, the pinned suite lives); the branch's original 151-line module and its old-API tests resolve to main's. Both worklog sides preserved; register monotonic.
+- **`feat/wp-5-consequence-ledger` merged (c053aea):** main's WP-5 from `wp-5-consequence-choice` is the fuller R2 ledger + R7 choice nodes (choiceNodes 736 lines vs the branch's 308); the branch's add/add code and tests resolve to main's. Both worklog sides preserved; register monotonic.
+- **`feat/c0-first-session` merged (acb86fb):** the third parallel C0 line — the write-sheet UI + the `first_session` save field, fire-once by flags. Main's spine+block line (v1.29→v1.35) covers every doc-11 beat it implements: the cold open via the register's N0 `resolveChoice`, Eddie's covenant, the trial shift's running theory, Deshaun's grounding kit, Miss Odessa, the Day-7 wobble, Rosa's mango. Resolution per v1.30.0's judgment: code and tests resolve to main; the branch's write-sheet DOM/CSS/autotest wiring, `firstSession.ts`, its test, its probe and its evidence pack RETIRE before shipping (the branch ref + the merge commit keep them reachable forever); both worklog sides preserved verbatim. The tree after all three merges: main's code, one file changed — the worklog (+223 lines of the fleet's own accounts).
+- **THE GATE REPAIR — main was pushed RED:** the merged tree's first full battery failed 2/1246, and the tree is byte-identical to main's outside the worklog — the failures are main's own. `ebfb08a` (the SUBWAY consumer fix) moved registry SUB-01 onto the real K-line STAIR_SLOT center (−42 → −47.2) and re-homed the registry JSON + content.ts, but left two pins on the old coordinate: `a3-registry-flip`'s HAND_TRUTH row and `sim-runtime`'s platform stand-point assertion (the received 4.72 m offset = the moved anchor + Idris's deterministic +0.48 jitter, runtime.ts `standJitter`). Re-homed honestly per the spec-change law — each pin grew a stronger, corrected one: HAND_TRUTH SUB-01 → `x: -47.2` (commented with the move's law); the stand-point assertion now pins −47.2 with the ±0.72 jitter named in the comment and a tightened <1 m tolerance (the old <2 was looser than the jitter's own bound).
+- **Gates at close (the integrated tree, this sandbox, sequential):** tsc clean · **vitest 1246/1246 (81 files — main's own two re-pinned files pass, 44/44)** · build OK (573 ms) · **probe-world-sim 15/15** (85.9 s, sim-minutes 1426). `git merge-base --is-ancestor` — **all 17 remote heads contained in main**; zero open PRs (the fleet's eight closed earlier).
+
+Stage Summary:
+- The branch list is EMPTY of unmerged work: every line the fleet ever pushed is now in main's history, no force-push, nothing overwritten — the three superseded lines' CODE lives on their refs and in their merge commits, their ACCOUNTS live in this worklog, and main's evolved implementations stand as the one truth.
+- The SUB-01 re-pin closes the first push-red main has shipped; every future push runs the same battery before it leaves the sandbox.
+- Next: the §7 frontier stays the C3–C6 content waves; PH-3's A-1/A-2 and the living-population tranches per the plan.

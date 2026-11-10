@@ -136,9 +136,11 @@ describe('B-1: clock-keyed schedules drive arbitration all day', () => {
     const d = brain.directives.get(IDRIS)!;
     expect(d.body.mode).toBe('at');
     expect(d.body.target).not.toBeNull();
-    // SUB-01's stand point is by the station house (x ≈ −42)
-    expect(Math.abs(d.body.target!.x - (-42))).toBeLessThan(2);
-    expect(Math.abs(d.body.target!.z - 6.2)).toBeLessThan(2);
+    // SUB-01's stand point rides the stair-slot center (x ≈ −47.2, the
+    // 2026-11 consumer fix — the entrance frames the real shaft) plus the
+    // stand-point jitter (±0.72, runtime.ts's standJitter)
+    expect(Math.abs(d.body.target!.x - (-47.2))).toBeLessThan(1);
+    expect(Math.abs(d.body.target!.z - 6.2)).toBeLessThan(1);
 
     // the cart corner is where the shipped cart stands
     brain.advanceMinutes(55); // past 07:52, into the walk
