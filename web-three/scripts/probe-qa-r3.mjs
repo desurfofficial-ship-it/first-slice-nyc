@@ -172,7 +172,14 @@ console.log('— Phase S: hostile story-save matrix (parser trust boundary) —'
   check('S: negative money clamps into range', Number.isFinite(money) && money >= 0 && money <= 999999,
     `HUD money ${money}`);
   const save = await storySaveOf(page);
-  check('S: absurd day clamps to the story ceiling', typeof save?.day === 'number' && save.day <= 814,
+  // the security property: the absurd day (99999) was CLAMPED by the
+  // parser, never echoed back, and lands inside the calendar's hard
+  // 1..36500 boundary — the story ceiling itself moves with the waves
+  // (814 at the C5 wave, 1179 at C6), so the invariant is asserted, not
+  // a pinned constant
+  check('S: absurd day clamps inside the calendar boundary',
+    typeof save?.day === 'number' && Number.isInteger(save.day) && save.day >= 1
+      && save.day <= 36500 && save.day < 99999,
     `day ${save?.day}`);
   check('S: diary payload did not execute through the Map', xss === undefined);
   // open the Map and the diary leaf — the payload must render as text

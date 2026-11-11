@@ -57,7 +57,18 @@ export const SAVE_KEY = 'first_slice_save_v1';
 // (day 120), C3 opens Jul 1 Y2 (day 296), C4 opens Jan 6 Y3 (day 485),
 // the stations land on doc 12 §2's own dates through calendarDayOf
 // (validated in each pack's self-check).
-export const MAX_DAY = 814;
+// C5's season is PLAYABLE (doc 06 §C5): Jul 3 → Nov 26, Y3; the cut
+// plays at Nov 26's linger, C6's window opens Dec 1 (day 814), and C6's
+// content was the next wave's — until it wasn't (the roll, brought home).
+// C6's season is PLAYABLE (doc 06 §C6, the arc's last content wave): the
+// stations run Dec 1, Y3 → Jun 21, Y4 (the nine-month mark, the formal
+// close), the compressions consume the gaps, and the ceiling is the open
+// endgame year's own turn (doc 12 §6: the spine ≈ 27 months plus an open
+// endgame year) — Dec 1, Y4 (day 1179). The linger at the close turns the
+// chapter OPEN — the terminal continuation the game does not end at (R15:
+// no endscreen; the sim continues inside the ceiling; the calendar is
+// data, not an accumulator).
+export const MAX_DAY = 1179;
 
 /** Driver-sandbox key (security remediation R1, FS-AUDIT-001): an
  *  AUTHORIZED driver session re-keys story persistence here for the whole

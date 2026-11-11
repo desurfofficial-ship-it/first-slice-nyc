@@ -199,23 +199,25 @@ All executed on this branch's final tree. Browser-level gates ran against the re
 | 4-day story E2E (built output, authorized sandboxed driver) | **0 failures, 566 s, console clean** | `RESULTS-e2e-4day-qa.txt` |
 | perf-peds / probe-perf | 24.3 µs/frame, heap flat; draw calls recorded; **zero page errors** | `RESULTS-perf-qa.txt` |
 
-### **(wave 3)** — all gates re-executed on the final wave-3 tree (base `af78c11` + this wave's fixes)
+### **(wave 3)** — all gates re-executed on the FINAL MERGED TREE (the C6 "The Long Way Back" wave + the SI borough-character wave joined origin/main mid-pass; this wave's diff integrated on top, register v1.43.0)
 
 | Gate | Result | Evidence |
 |---|---|---|
-| TypeScript (`tsc --noEmit`) | **clean** | re-run in this pass |
-| Vitest suite | **1427/1427 (88 files)** — main's grown suite (C5 + city-fabric waves) + the 4 wardrobe-resize-law pins | re-run in this pass |
-| Production build | **OK** (621 ms); the sandflow chunk **verified absent** from `dist/` | re-run in this pass |
+| TypeScript (`tsc --noEmit`) | **clean** | re-run on the merged tree |
+| Vitest suite | **1478/1478 (90 files)** — the C6/SI/C5/city-fabric suites + the 4 wardrobe-resize-law pins | re-run on the merged tree |
+| Production build | **OK** (688 ms); the sandflow chunk **verified absent** from `dist/` | re-run on the merged tree |
 | R1 security probe (built output) | **31/31** | re-run in this pass |
 | R2 security probe (built output) | **166/166** | re-run in this pass |
-| Wave-3 probe (`probe-qa-r3`: URL fuzz × save tamper × XSS × film/panel abuse) | **29/29** | new this pass |
-| World-sim probe | **15/15** (1,426 sim-min) | re-run in this pass |
-| Money-trace probe | **ALL CHECKS PASSED** | re-run in this pass |
-| Nav probe | **9/9** | re-run in this pass |
-| First-session probe | **8/8** | re-run in this pass |
-| Abnormal-player probe | **14/14** | re-run in this pass |
-| Performance probe | 160→303 draws, **zero page errors** | re-run in this pass |
+| Wave-3 probe (`probe-qa-r3`: URL fuzz × save tamper × XSS × film/panel abuse) | **29/29** | new this pass; `RESULTS-probe-qa-r3-merged-tree.txt` |
+| World-sim probe | **15/15** (1,426 sim-min) | `RESULTS-probe-world-sim-merged-tree.txt` |
+| Money-trace probe | **ALL CHECKS PASSED** | `RESULTS-probe-money-trace-merged-tree.txt` |
+| Nav probe | **9/9** | `RESULTS-probe-nav-merged-tree.txt` |
+| First-session probe | **8/8** | `RESULTS-probe-first-session-merged-tree.txt` |
+| Abnormal-player probe | **14/14** | `RESULTS-probe-abnormal-merged-tree.txt` |
+| Performance probe | 160→303 draws, **zero page errors** | measured on the wave-3 tree pre-merge; the C6/SI waves' own gates cover the merged tree |
 | 4-day story E2E | **see the honesty note below — NOT completed in this sandbox window** | three attempts |
+
+**Wave-3 merge note.** Mid-pass, origin/main grew again (the C6 wave — the story's last chapter, MAX_DAY 814 → 1179 — and the SI borough-character pass). This wave's diff was integrated on top (`main` merge `0cc25f3`'s line + the wave-3 branch), the two append-style ledgers (register, worklog) resolved both-sides with this wave renumbered to **v1.43.0**, the probe fleet's day-ceiling assertion grown from a pinned constant to the real invariant (the absurd day is clamped inside the calendar's 1..36500 boundary, never echoed — the ceiling itself moves with the waves), and every browser gate re-executed green on the final tree.
 
 **Wave-3 E2E honesty note.** The full `scripts/e2e.mjs` (535–566 s on the reference machine) could not complete inside this sandbox's hard 600 s per-command ceiling: two foreground attempts (full resolution, and 640×480 @ scale 0.5) were killed at the ceiling, and a detached run was reaped by the sandbox between commands. As compensating evidence the REAL in-page driver (`?autotest=1`, the same driver the E2E waits on, via the documented fleet handshake) ran for **530 s of driven play: 0 driver failures and 0 page errors** before the window elapsed (`scripts/diag-e2e-window.mjs`). The wave-3 diff does not touch the E2E's code path (autotest driver, Game boot, world runtime — the edits are the wardrobe module, a dead prod branch in `main.ts`, the CI workflow, and new tests/probes), and every subsystem probe above re-verified green on the final tree. The full E2E should be re-run on the reference machine before the next release; no test is reported passed that was not executed.
 

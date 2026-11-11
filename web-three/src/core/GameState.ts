@@ -106,6 +106,21 @@ import {
   k5Entry as c5K5Record, f5Entry as c5F5Entry,
   c5K2Correction, c5K5Correction, C5_FRAGMENT_IDS,
 } from './c5pack';
+// ---- the C6 content pack (narrative/14 §7 step 10's last content wave — doc 06 §C6) ----
+import {
+  C6_FIRST_DAY, C6_LAST_DAY, C6_OPEN_DAY, C6_HEARING_DAY,
+  C6_IDS, C6_CLOSE_ID, C6_CLOSE_STAGE, C6_CLOSE_WALL, C6_SELF_PORTRAIT_PREFIX,
+  C6_MARISOL_LINE, C6_FELD_LINE, C6_CRAIG_NOTE, C6_ADA_FIRST_LINE,
+  C6_DEBTS_COMPLETE_LINE, C6_DEBTS_OPEN_LINE, C6_REFUSAL_CITY_LINE,
+  C6_KEV_TAKES_LINE, C6_KEV_BAR_LINE,
+  c6StationOf, c6RailFor, c6CompressionFrom, c6CloseEntry,
+  firstDollarEntry, lightsEntry, kevForkEntry, kevBarEntry, depositionEntry,
+  hearingEntry, hallOpensEntry, lateOfferEntry, treeEntry, floorEntry,
+  hospitalityEntry,
+  f8Entry as c6F8Entry, applyC6Pick,
+  composeSelfPortrait, selfPortraitEntry, kevTakesLetter, debtsComplete,
+  type SelfPortraitInput,
+} from './c6pack';
 import { dateOfCalendarDay } from './calendar';
 import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, ITEM_STICKERS, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
@@ -220,7 +235,7 @@ export type Effect =
   // ---- the C0 pack's diary picks (doc 11 §3 — the overlay packs). The
   // Game turns this into the NotebookPrompt overlay; a driver boot never
   // sees it (the pick-card law: drivers keep the shipped flow). ----
-  | { kind: 'diary-prompt'; pack: 'theory' | 'question' | 'choice'; node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d' | 'N5a' | 'N5b' | 'N5c' }
+  | { kind: 'diary-prompt'; pack: 'theory' | 'question' | 'choice'; node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d' | 'N5a' | 'N5b' | 'N5c' | 'N6' | 'N7' }
   // ---- the C0 block layer's diary ink (narrative/14 §7 step 6, tranche 2
   // — core/c0Pack.ts): the state has already appended the entry; the
   // effect only tells the UI to wiggle (the map-note precedent)
@@ -467,6 +482,27 @@ export class GameState {
     return this.day >= C5_FIRST_DAY && this.day <= C5_LAST_DAY;
   }
 
+  /** C6's season (narrative/14 §7 step 10's last content wave — doc 06
+   *  §C6): the station days ride the same WK_* loop with the C6 pack's
+   *  voice. Same law as C1–C5's — the chapter gate is the wide law (R8);
+   *  the day range is the loop's own — the formal close plays at
+   *  C6_LAST_DAY's linger and OPEN follows (the terminal continuation;
+   *  the roll into C6's stations was this wave's law, brought home at
+   *  the c5SeasonCut's wall). */
+  get isC6(): boolean {
+    return this.day >= C6_FIRST_DAY && this.day <= C6_LAST_DAY;
+  }
+
+  /** The open endgame (doc 14 §2's terminal continuation id, doc 09
+   *  §8): after the formal close the simulation simply continues — no
+   *  endscreen (R15), the ordinary loop's own mornings, the ledger
+   *  never forgotten on chapter change. The self-portrait stays
+   *  writable here; nothing else is authored, by design (doc 15 §3's
+   *  intended openness). */
+  get isOpen(): boolean {
+    return this.chapter.chapter === 'OPEN';
+  }
+
   /** C3's season (narrative/14 §7 step 10 — doc 06 §C3): the station days
    *  ride the same WK_* loop with the C3 pack's voice. Same law as C1/C2's
    *  — the chapter gate is the wide law (R8); the day range is the loop's
@@ -482,6 +518,7 @@ export class GameState {
    *  one voice per day — the WK_* steps are the loop, the station is the
    *  day's mouth). */
   private seasonStation(day: number): { queue: readonly WeekOrder[]; wake: string; rushDone: string; storm?: boolean } | undefined {
+    if (this.isC6) return c6StationOf(day);
     if (this.isC5) return c5StationOf(day);
     if (this.isC4) return c4StationOf(day);
     if (this.isC3) return c3StationOf(day);
@@ -1218,6 +1255,11 @@ export class GameState {
       if (rail === 'cut') return this.c5SeasonCut();
       if (rail && typeof rail === 'object') return this.c5Compression(rail.compress);
     }
+    if (this.isC6) {
+      const rail = c6RailFor(this.day);
+      if (rail === 'open') return this.c6FormalClose();
+      if (rail && typeof rail === 'object') return this.c6Compression(rail.compress);
+    }
     return [{ kind: 'next-day' }];
   }
 
@@ -1503,11 +1545,26 @@ export class GameState {
    *  flag is the only witness, mirrored eagerly here and by the spine
    *  walk). */
   applyChoicePick(
-    nodeId: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d' | 'N5a' | 'N5b' | 'N5c',
+    nodeId: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d' | 'N5a' | 'N5b' | 'N5c' | 'N6' | 'N7',
     optionId: string,
     held?: ReadonlySet<string>,
   ): Effect[] {
     const out: Effect[] = [];
+    if (nodeId === 'N6' || nodeId === 'N7') {
+      const apply = applyC6Pick(nodeId, optionId, this.calendarDay);
+      if (!apply.ok) return [];
+      if (apply.note) out.push({ kind: 'note', text: apply.note });
+      for (const draft of apply.ledger) {
+        this.logLedgerEntry(draft);
+      }
+      if (apply.diary) this.c0Write(out, apply.diary);
+      if (apply.flags.length > 0) {
+        for (const f of apply.flags) this.storyFlagMemo.add(f);
+        out.push({ kind: 'story-flags', flags: apply.flags });
+      }
+      out.push({ kind: 'persist' });
+      return out;
+    }
     if (nodeId === 'N5a' || nodeId === 'N5b' || nodeId === 'N5c') {
       const apply = applyC5Pick(nodeId, optionId, this.calendarDay);
       if (!apply.ok) return [];
@@ -2761,7 +2818,17 @@ export class GameState {
    *  C6's content is the next wave's — the wall holds (the honest
    *  pattern; the roll into C6's stations is the C6 wave's law). */
   c5SeasonCut(): Effect[] {
-    if (this.c0Has(C5_CUT_ID)) return [{ kind: 'note', text: C5_CUT_WALL }];
+    if (this.c0Has(C5_CUT_ID)) {
+      // the cut has played: the wall answers — and the C6 wave's own
+      // law (§7 step 10's last content wave brought the days the cut
+      // opens): the FIRST press after the latch rolls into C6's first
+      // station (day 814, Dec 1, Y3 — the first dollar, doc 06 §C6's
+      // period start) — unless this is a replayed kept Nov 26, which
+      // gets the wall and holds, never a roll out of a replay.
+      const wall: Effect[] = [{ kind: 'note', text: C5_CUT_WALL }];
+      if (this.replayDay) return wall;
+      return [...wall, { kind: 'next-day', to: C6_FIRST_DAY }];
+    }
     const out: Effect[] = [];
     for (const line of seasonCutMontage(this.fieldDiary)) {
       out.push({ kind: 'note', text: line });
@@ -2784,6 +2851,356 @@ export class GameState {
    *  arms, the next press rolls). */
   c5Compression(to: number): Effect[] {
     const comp = c5CompressionFrom(this.day);
+    if (!comp || comp.to !== to) return [];
+    this.pendingCompressionTo = to;
+    return [
+      { kind: 'note', text: comp.intro },
+      { kind: 'note', text: comp.city },
+      { kind: 'note', text: 'One more press, and the days pass.' },
+    ];
+  }
+
+  // ---- the C6 season's station methods (doc 06 §C6 / doc 12 §2) ----
+
+  /** Whether the pick has landed (the c5PickHeld's own shape — the
+   *  pick's ink rides `node` and the c6- prefix; the ledger act is the
+   *  second witness; both C6 nodes post, so no flag-only door). */
+  private c6PickHeld(nodeId: 'N6' | 'N7'): boolean {
+    if (this.fieldDiary.some((e) => e.node === nodeId && e.id.startsWith(`c6-${nodeId.toLowerCase()}-`))) return true;
+    if (this.ledger.some((e) => e.node === nodeId)) return true;
+    return false;
+  }
+
+  /** The ledger's amends column — the machine's own witness that Kev's
+   *  fork and the close's verdict read (doc 09 §4's schedule; the C4
+   *  Odessa precedent for the act's shape). The stations' rows land
+   *  through the canon door each gives: the first dollar (Ada), the
+   *  letter (Grace's row, routed), the boiler-watch (Father Mike), the
+   *  booth (Verna), the last envelope (Miss Odessa). */
+  c6AmendsActs(): number {
+    return this.ledger.filter((e) => e.kind === 'amends').length;
+  }
+
+  /** One amends row, logged (the C4 act's own shape). */
+  private c6Amend(id: string, refs: string[]): void {
+    this.logLedgerEntry({
+      id,
+      kind: 'amends',
+      date: dateOfCalendarDay(this.calendarDay),
+      refs: [...refs],
+      weight: 1,
+      visibility: 'private',
+    });
+  }
+
+  /** Doc 06 §C6 event 1 — the amends ledger's first payment (day 814,
+   *  the roll's landing): the schedule's first dollar leaves through
+   *  Bea, in the order Ada's note commanded; her three-line answer
+   *  arrives on the letter she never opened. The ledger's C6 column
+   *  opens with a face on it. */
+  c6FirstDollar(): Effect[] {
+    if (this.day !== C6_FIRST_DAY || this.c0Has(C6_IDS.firstDollar)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'The first payment leaves this morning \u2014 the schedule\u2019s first dollar, through Bea, in the order her note commanded: pay your debts in order. The envelope rides inside pocket, where the cold can\u2019t make it nervous. Rows, not numbers \u2014 that was always the method she was teaching.' },
+      { kind: 'note', text: `And the letter came back \u2014 the one from two years ago, the one I never knew she\u2019d kept. Answered in three lines. The first: \u201C${C6_ADA_FIRST_LINE}\u201D The other two lines are hers. They stay hers.` },
+      { kind: 'note', text: 'The block\u2019s winter shapes hold their windows: the chain slice\u2019s perpetual noon, the Cecil\u2019s nursing student and her highlighter, the hall\u2019s fit-out glittering behind the fence. Nobody watches me do this. That\u2019s the condition the notebook was built for.' },
+    ];
+    this.c0Write(out, firstDollarEntry(this.day));
+    this.c6Amend('led-c6-first-dollar', ['ada', 'restitution', 'first-dollar']);
+    return out;
+  }
+
+  /** Doc 12 §4's winter lights + doc 04's "the block keeps a light on"
+   *  (day 835): the tin\u2019s ones on the park\u2019s tree, Yoli\u2019s
+   *  garden work-weeks on her terms, Eddie\u2019s weekly call and its
+   *  diegetic meter. */
+  c6Lights(): Effect[] {
+    if (this.day !== 835 || this.c0Has(C6_IDS.lights)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'The little park\u2019s tree wears the tin\u2019s strand tonight \u2014 ones, counted at the gold window, strung by the block\u2019s own hands. The chain window burns its corporate noon beside it. Both lights are honest. Only one of them knows what dusk is for.' },
+      { kind: 'note', text: 'Yoli\u2019s winter beds go down on her terms, her list, my name second \u2014 mulch, burlap, the rose canes tipped and pegged, no narration. The garden work-weeks are the rebuild\u2019s own church, and her terms are the only liturgy on offer. They\u2019re good terms.' },
+      { kind: 'note', text: 'Eddie\u2019s Sunday call ran eleven minutes \u2014 the cousin timed it, the man measures everything now. The meter is diegetic. The meter is kind, which is new.' },
+    ];
+    this.c0Write(out, lightsEntry(this.day));
+    return out;
+  }
+
+  /** Doc 07 §2.4 — Kev's fork (day 870): the reference letter to the
+   *  union apprenticeship, signed in person, no camera. The machine
+   *  reads the ledger\u2019s movement (kevTakesLetter); Grace\u2019s row
+   *  is routed through the amends, not cash. Both shelves canon-clean
+   *  (doc 09 §5: neither is graded). */
+  c6KevFork(): Effect[] {
+    if (this.day !== 870 || this.c0Has(C6_IDS.kevFork) || this.c0Has(C6_IDS.kevForkBar)) return [];
+    const takes = kevTakesLetter(this.c6AmendsActs());
+    const out: Effect[] = [
+      { kind: 'note', text: 'The hardest amends is a piece of paper: the reference letter to the union apprenticeship, signed in person, no camera \u2014 worthless on camera, and we both know it. Grace\u2019s fifteen hundred rides routed, not paid: her choice, the right one, the coldest kindest arithmetic of the winter.' },
+    ];
+    if (takes) {
+      out.push({ kind: 'note', text: `The ledger\u2019s movement is the machine\u2019s own witness \u2014 the schedule\u2019s first dollar, the rows that closed before this one. Kev reads the letter twice, and the shelf tips: \u201C${C6_KEV_TAKES_LINE}\u201D` });
+      this.c0Write(out, kevForkEntry(this.day));
+      this.c6Amend('led-c6-grace-letter', ['grace', 'kev-reference-letter']);
+    } else {
+      out.push({ kind: 'note', text: `The ledger\u2019s column is empty and the machine reads it honestly \u2014 the letter stays signed, in my jacket, unhandled. Across the street: \u201C${C6_KEV_BAR_LINE}\u201D` });
+      this.c0Write(out, kevBarEntry(this.day));
+    }
+    return out;
+  }
+
+  /** Deniz's deposition + Father Mike's boiler-watch close (day 898):
+   *  the sworn statement of the C2 meeting, on the record, forever
+   *  (doc 07's dial table); four months of nights, the forum apology
+   *  read with the number included (doc 09 §4's penance design). */
+  c6Deposition(): Effect[] {
+    if (this.day !== 898 || this.c0Has(C6_IDS.deposition)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'Halcyon\u2019s back office, the good chairs, the recorder\u2019s red dot \u2014 the only audience. The C2 meeting, sworn, for the coalition\u2019s record: the forms, the break, the hand. Deniz runs it like a ledger, no drama, all column. Not money \u2014 what she accepts is the sentence I said out loud when I thought the room was mine.' },
+      { kind: 'note', text: 'Father Mike\u2019s four months of boiler-watch end this week \u2014 the parish boiler fund\u2019s arithmetic in radiator heat \u2014 and the apology got read at the Ascension\u2019s forum Wednesday, out loud, the number included, the minutes keeping it forever. The hardest restitution, doc-designed and done.' },
+      { kind: 'note', text: 'The coalition\u2019s record gets its affidavit before the hearing\u2019s docket. That\u2019s why the date is the date. Deniz circles her exam\u2019s spring morning on the way out \u2014 the column between us closed, the column in her own life just opening.' },
+    ];
+    this.c0Write(out, depositionEntry(this.day));
+    this.c6Amend('led-c6-boiler-watch', ['father-mike', 'boiler-watch', 'forum-apology']);
+    return out;
+  }
+
+  /** Doc 12 §2's fixed event — the concessions hearing (day 920): the
+   *  Compact papers enter the record, Corvus concedes 220\u2192280 and
+   *  the CLT option. Yoli's win \u2014 hers; the testimony optional
+   *  (doc 09 §8). Behind the scene: N7. */
+  c6Hearing(): Effect[] {
+    if (this.day !== C6_HEARING_DAY) return [];
+    if (!this.c0Has(C6_IDS.hearing)) {
+      const out: Effect[] = [
+        { kind: 'note', text: 'The civic row\u2019s room fills with the block\u2019s Sunday clothes, and Yoli runs the Compact papers into the record \u2014 the 1994 files and the new arithmetic, the ghost\u2019s own paperwork testifying for her. Corvus\u2019s side concedes before the vote: two hundred twenty becomes two hundred eighty, and the garden slot takes the land trust option. Her win. Hers. Thirty-eight to sixty-two notwithstanding.' },
+        { kind: 'note', text: 'The chair with my name-card is the day\u2019s only open question. The papers don\u2019t need me \u2014 that was always her point. What I do with the chair, the machine reports, and the block notices without texting me about it.' },
+      ];
+      this.c0Write(out, hearingEntry(this.day));
+      return out;
+    }
+    // the hearing has played: the answer is the pick (once)
+    if (!this.c6PickHeld('N7')) {
+      return [{ kind: 'diary-prompt', pack: 'choice', node: 'N7' }];
+    }
+    return [];
+  }
+
+  /** Doc 12 §2's fixed event — the hall opens (day 948): Juniper
+   *  Commons, without him; his stall layout, her lobby, his name in no
+   *  brochure. Father Mike tears the parking-lot lease the same morning
+   *  (doc 05's load-bearing edge, resolved). */
+  c6HallOpens(): Effect[] {
+    if (this.day !== 948 || this.c0Has(C6_IDS.hallOpens)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'Juniper Commons opens \u2014 the ribbon, the crowd, the real sun, which sets when it sets. My stall layout in the floor plan: the water stations where I drew them, the sight lines where I argued. Her lobby in the light she fought the budget for. My name in no brochure, which is the correct amount of my name.' },
+      { kind: 'note', text: 'Father Mike tears the parking-lot lease on the church steps \u2014 one sheet, two steady hands, paper confetti, the parish\u2019s applause, the block\u2019s one compromised edge gone. The sexton sweeps it before lunch, because churches know confetti.' },
+      { kind: 'note', text: 'The thing opens, it works, the layout holds the crowd the way I drew it to. The only eulogy the fall needed, and nobody reads it aloud. The sim continues. The light\u2019s on.' },
+    ];
+    this.c0Write(out, hallOpensEntry(this.day));
+    return out;
+  }
+
+  /** Doc 09 §7 / doc 10 §3 — Marisol's late offer (day 969): the test.
+   *  Behind the scene: N6. Both doors supported, neither graded. */
+  c6LateOffer(): Effect[] {
+    if (this.day !== 969) return [];
+    if (!this.c0Has(C6_IDS.lateOffer)) {
+      const out: Effect[] = [
+        { kind: 'note', text: 'The plaza, the hall\u2019s shadow, and Marisol with the offer in her bag and no apology in her mouth \u2014 her syntax exact, learned from watching us build: \u201C' + C6_MARISOL_LINE + '\u201D' },
+        { kind: 'note', text: 'The chair is real. The salary is real. The exam is the same exam; the production values are better. The register prices all three doors and grades none of them \u2014 that\u2019s the machine\u2019s honesty, and mine.' },
+      ];
+      this.c0Write(out, lateOfferEntry(this.day));
+      return out;
+    }
+    // the offer has played: the answer is the pick (once)
+    if (!this.c6PickHeld('N6')) {
+      return [{ kind: 'diary-prompt', pack: 'choice', node: 'N6' }];
+    }
+    return [];
+  }
+
+  /** Doc 12 §2's fixed event — Kestrel Green's hundredth tree (day
+   *  990): planted by whoever the player has become; the city\u2019s
+   *  diary\u2019s closing note for the arc. El Vann\u2019s album to Eli;
+   *  Verna\u2019s row paid at the booth on the walk over. */
+  c6HundredthTree(): Effect[] {
+    if (this.day !== 990 || this.c0Has(C6_IDS.tree)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'Kestrel Green\u2019s hundredth tree goes in \u2014 a serviceberry, useful and pretty and early to flower \u2014 planted by whoever showed up, second row, no narration. The city\u2019s diary\u2019s closing note for the arc, and the note is a hole in the ground with a young tree over it.' },
+      { kind: 'note', text: `El Vann hands Eli the station-stamp album on the walk over \u2014 a hundred-odd stations, the last page a station that never existed \u2014 and says it once: \u201C${'Start late. Finish anyway.'}\u201D Her only sentimental act. She\u2019ll deny it by Thursday.` },
+      { kind: 'note', text: 'Verna\u2019s booth took the envelope on the way \u2014 two-three hundred, the row closed, the whistle nod, never once made to feel it. Deon\u2019s haircut landed last week, the arc\u2019s best cut. Sal\u2019s quarters found their jar. The block keeps its own books.' },
+    ];
+    this.c0Write(out, treeEntry(this.day));
+    this.c6Amend('led-c6-verna-booth', ['verna', 'crossing-guard-booth']);
+    return out;
+  }
+
+  /** Doc 09 §5/§7 — Eddie's floor, the second offer (day 1002): the
+   *  exit that is also a home, the persistent option, not an ending.
+   *  June\u2019s two shelves and Camille\u2019s letter ride the month\u2019s
+   *  prose, each reading the machine\u2019s own flags. */
+  c6Floor(): Effect[] {
+    if (this.day !== 1002 || this.c0Has(C6_IDS.floor)) return [];
+    const juneRestart = this.storyFlagMemo.has('june-conditions=full-disclosure')
+      && this.storyFlagMemo.has('c6-condition-handle=therapy');
+    const out: Effect[] = [
+      { kind: 'note', text: 'Eddie\u2019s floor in Charlotte, offered a second time \u2014 the same floor, kept made, the Sunday call at fourteen minutes, the cousin done timing it, which is its own graduation. The exit that is also a home. A persistent option, not an ending: he can visit, he can stay a season, the city will hold his place the way cities do \u2014 not at all, and completely. Taking it changes the map, not the person.' },
+      { kind: 'note', text: juneRestart
+        ? 'June\u2019s window burns at the hours the conditions\u2019 arithmetic kept, and the Friday shift at the velvet bar is hers to give \u2014 one shift a week, which in her language is a betrothal. No translation provided.'
+        : 'June\u2019s window burns according to its own arithmetic, and the light is the one I know not to look at. Her shelf is the block\u2019s success story. Both outcomes canon-clean; neither a reward.' },
+      { kind: 'note', text: 'The pantry\u2019s letter sits on my table in Camille\u2019s handwriting \u2014 logistics volunteer, exact skills, the whole ordinary year the flags witnessed behind it. Not a reconciliation. A reference. Showing up is my entire relationship with her thereafter, and the showing is mine.' },
+    ];
+    this.c0Write(out, floorEntry(this.day));
+    return out;
+  }
+
+  /** Doc 09 §8 — the formal close (day 1016's linger, the nine-month
+   *  mark): Miss Odessa\u2019s envelope last (the schedule\u2019s final
+   *  row, in cash, unopened), The Debts\u2019 verdict, the
+   *  self-portrait written or refused (the refusal commented on once,
+   *  gently), and the chapter through advanceChapter\u2019s own door into
+   *  OPEN \u2014 the terminal continuation the game does not end at
+   *  (R15: no endscreen; the ledger rides unchanged). Plays once per
+   *  save (the latch is the entry); a replayed kept Jun 21 gets the
+   *  wall. The open chapter\u2019s own law: the FIRST press after the
+   *  latch rolls into the open sim\u2019s first ordinary morning
+   *  (day 1017) \u2014 never a roll out of a replay. */
+  c6FormalClose(): Effect[] {
+    if (this.c0Has(C6_CLOSE_ID)) {
+      const wall: Effect[] = [{ kind: 'note', text: C6_CLOSE_WALL }];
+      if (this.replayDay) return wall;
+      return [...wall, { kind: 'next-day', to: C6_OPEN_DAY }];
+    }
+    const out: Effect[] = [];
+    // Miss Odessa's envelope — the schedule's last row (doc 09 §4), in
+    // cash, unopened; she uses it for the block's winter tree lights,
+    // and the city's diary notes the lights, not the debt. The close
+    // logs it and reads the verdict after.
+    const actsBefore = this.c6AmendsActs();
+    this.c6Amend('led-c6-odessa-envelope', ['odessa', 'winter-tree-lights', 'cigar-box']);
+    out.push({ kind: 'note', text: 'The cigar box\u2019s last page: Miss Odessa\u2019s envelope, the schedule\u2019s final row, in cash, unopened \u2014 she uses it for the block\u2019s winter tree lights, and the morning note records the lights, not the debt. Rosa\u2019s mail carries Craig\u2019s sticky note from Fort Lauderdale: \u201C' + C6_CRAIG_NOTE + '\u201D No signature needed.' });
+    const complete = debtsComplete(actsBefore + 1);
+    out.push({ kind: 'note', text: complete ? C6_DEBTS_COMPLETE_LINE : C6_DEBTS_OPEN_LINE });
+    // the self-portrait's state: written or refused (both canon-valid)
+    const portraits = this.fieldDiary.filter((e) => e.id.startsWith(C6_SELF_PORTRAIT_PREFIX));
+    if (portraits.length > 0) {
+      out.push({ kind: 'note', text: `The self-portrait stands \u2014 ${portraits.length} version${portraits.length === 1 ? '' : 's'} in the book, append-only, the last one current. The diary\u2019s last main-arc line is the player\u2019s. That was always the design.` });
+    } else {
+      out.push({ kind: 'note', text: C6_REFUSAL_CITY_LINE + ' The refusal is a canon-valid state, and the notebook\u2019s last main-arc line stays unwritten on purpose.' });
+    }
+    // the therapy year's close: Feld's registered line surfaces when
+    // the year was attended (the C6 canon line, doc 15's register)
+    if (this.storyFlagMemo.has('c6-condition-handle=therapy')) {
+      out.push({ kind: 'note', text: `The therapy notes close their year, and Feld\u2019s sentence sits where it earned its place: \u201C${C6_FELD_LINE}\u201D` });
+    } else {
+      out.push({ kind: 'note', text: 'The therapy chair waits, which is its own honest state, and the notes say so without scoring it.' });
+    }
+    out.push({ kind: 'note', text: C6_CLOSE_STAGE });
+    out.push({ kind: 'note', text: C6_CLOSE_WALL });
+    this.c0Write(out, c6CloseEntry());
+    // OPEN — the terminal continuation, through the machine's own door
+    // (doc 14 §2: reachable only from C6; the beat IS the trigger).
+    // R15's law: no ending screen; the ledger is never forgotten.
+    const adv = advanceChapter(this.chapter, 'OPEN', {
+      day: C6_OPEN_DAY,
+      triggerHeld: true, // the close itself is the beat (doc 09 §8)
+    });
+    if (adv.ok) this.chapter = adv.state;
+    else this.chapter = touchDay(this.chapter, C6_OPEN_DAY);
+    out.push({ kind: 'persist' });
+    return out;
+  }
+
+  /** The self-portrait (doc 03 §7 — the arc's decision form): composed
+   *  from the machine\u2019s own facts \u2014 standing, the amends ledger,
+   *  the relationships that repaired or didn\u2019t, the fragments
+   *  recovered, the therapy attendance, the contradictions still
+   *  standing unstruck (K4 may stand; that is allowed and means
+   *  something). Written in his voice, honest to the state it
+   *  describes, never grading him. Append-only: each version kept;
+   *  once per day (the notebook writes once a day); F8 fires inside
+   *  the first one and only there (doc 02 §6.2). */
+  writeSelfPortrait(): Effect[] {
+    if (!this.isC6 && !this.isOpen) return [];
+    const today = dateOfCalendarDay(this.calendarDay);
+    if (this.fieldDiary.some((e) => e.id.startsWith(C6_SELF_PORTRAIT_PREFIX)
+      && e.date.y === today.y && e.date.m === today.m && e.date.d === today.d)) return [];
+    const prior = this.fieldDiary.filter((e) => e.id.startsWith(C6_SELF_PORTRAIT_PREFIX));
+    const n = prior.length + 1;
+    const restitutionSize = this.storyFlagMemo.has('restitution-size=settle') ? 'settle' as const
+      : this.storyFlagMemo.has('restitution-size=fight-and-lose-more') ? 'fight-and-lose-more' as const
+      : null;
+    const firstChapter = this.storyFlagMemo.has('c6-first-chapter=ledger-pace') ? 'ledger-pace' as const
+      : this.storyFlagMemo.has('c6-first-chapter=diner-plus-ledger') ? 'diner-plus-ledger' as const
+      : this.storyFlagMemo.has('c6-first-chapter=charlotte-floor') ? 'charlotte-floor' as const
+      : null;
+    const standing = this.storyFlagMemo.has('c6-standing=garden-reckoning') ? 'garden-reckoning' as const
+      : this.storyFlagMemo.has('c6-standing=statement') ? 'statement' as const
+      : this.storyFlagMemo.has('c6-standing=silence') ? 'silence' as const
+      : null;
+    const testimony = this.storyFlagMemo.has('epilogue-taste=testify') ? 'testify' as const
+      : this.storyFlagMemo.has('epilogue-taste=refuse') ? 'refuse' as const
+      : this.storyFlagMemo.has('epilogue-taste=the-wexler-file') ? 'the-wexler-file' as const
+      : null;
+    const marisol = this.storyFlagMemo.has('self-portrait-raw-material=accept') ? 'accept' as const
+      : this.storyFlagMemo.has('self-portrait-raw-material=decline-and-warn') ? 'decline-and-warn' as const
+      : this.storyFlagMemo.has('self-portrait-raw-material=decline') ? 'decline' as const
+      : null;
+    const input: SelfPortraitInput = {
+      day: this.calendarDay,
+      money: this.money,
+      amendsActs: this.c6AmendsActs(),
+      restitutionSize,
+      firstChapter,
+      standing,
+      juneConditions: this.storyFlagMemo.has('june-conditions=full-disclosure'),
+      therapy: this.storyFlagMemo.has('c6-condition-handle=therapy'),
+      kevTakes: this.c0Has(C6_IDS.kevFork),
+      testimony,
+      marisol,
+      fragmentsRecovered: this.fieldDiary.filter((e) => e.kind === 'RECALL').length,
+      k4Unstruck: this.fieldDiary.some((e) => e.id === 'c4-k4-corvus-partner' && e.corrections.length === 0),
+      hallOpen: this.day >= 948,
+      hearingWon: this.day >= C6_HEARING_DAY,
+    };
+    const { body } = composeSelfPortrait(input);
+    const out: Effect[] = [
+      { kind: 'note', text: 'The notebook opens to the last question \u2014 the one the whole system was built for. Nobody assigned it. Nobody will read it. That\u2019s the point of it.' },
+    ];
+    for (const para of body.split('\n\n')) {
+      out.push({ kind: 'note', text: para });
+    }
+    this.c0Write(out, selfPortraitEntry(n, this.calendarDay, body));
+    // F8 — the diary's own birth, its final reveal (doc 02 §6.2): only
+    // ever inside the FIRST self-portrait, once per save
+    if (n === 1 && !this.c0Has('c6-f8-day1')) {
+      this.c0Write(out, c6F8Entry(this.calendarDay));
+      out.push({ kind: 'note', text: 'And behind the ink, the notebook\u2019s own birth surfaces once \u2014 a green notebook, a nurse\u2019s handwriting, the words Day 1 dated thirteen months after the year began. The diary remembers itself.' });
+    }
+    if (prior.length > 0) {
+      out.push({ kind: 'note', text: `Version ${n} of the portrait. The old ones stay \u2014 append-only is the law; a man changes, and the book keeps the record of him changing.` });
+    }
+    return out;
+  }
+
+  /** Doc 09 §8's hospitality close (day 1016's slot, the beat before
+   *  the linger's formal close): the stranger with the duffel at the
+   *  terminal, and a slice on the counter at whatever shop now exists
+   *  \u2014 because someone \u2014 Eli, or the new tenants, or a man
+   *  named Leo \u2014 kept the ritual. */
+  c6Hospitality(): Effect[] {
+    if (this.day !== C6_LAST_DAY || this.c0Has(C6_IDS.hospitality)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'A stranger comes up the subway stairs with a duffel \u2014 the walk, the bag, the squint at the street signs, all of it nine months ago and a whole person ago. Rosa looks at him the way she looked at me, from the bodega doorway, to no one and to everyone.' },
+      { kind: 'note', text: 'The chain window has a slice on the counter at open \u2014 free, nobody\u2019s ordering, nobody\u2019s paying, the kid behind the register shrugs like the counter\u2019s always done this. Somebody kept the ritual. Eli, or the new tenants, or a man named Leo. The block knows which names it would pick. The block\u2019s not saying.' },
+    ];
+    this.c0Write(out, hospitalityEntry(this.day));
+    return out;
+  }
+
+  /** The C6 compressions (the c5Compression's own shape — the montage
+   *  arms, the next press rolls). */
+  c6Compression(to: number): Effect[] {
+    const comp = c6CompressionFrom(this.day);
     if (!comp || comp.to !== to) return [];
     this.pendingCompressionTo = to;
     return [

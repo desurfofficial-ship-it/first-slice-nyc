@@ -729,6 +729,16 @@ export function freeRoamInteractions(src: InteractionSources): Interaction[] {
     // station phone, and the terminal stairs — one-day slots on
     // existing ground (the census untouched)
     funeralPorch, lastNight, lawyerOffice, oneAmCall, phoneHome, terminalStairs,
+    // the C6 wave's own spots (narrative/14 §7 step 10's last content
+    // wave — doc 06 §C6): the first dollar, the winter lights, Kev's
+    // fork, the deposition, the hearing, the hall's opening, the late
+    // offer, the hundredth tree, the floor, and the hospitality close —
+    // one-day slots on existing ground (the census untouched) — plus
+    // the self-portrait, the one PERSISTENT slot of the endgame (doc
+    // 03 §7: writable at any point in C6+, each version kept)
+    c6FirstDollar, c6Lights, c6KevFork, c6Deposition, c6Hearing,
+    c6HallOpens, c6LateOffer, c6HundredthTree, c6Floor, c6Hospitality,
+    c6SelfPortrait,
     ...simHellos(src), ...walkerChats(src), ...shelfInteractions(src)];
 }
 
@@ -1197,6 +1207,141 @@ const terminalStairs: Interaction = {
   enabled: (s) => s.day === 809 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
   prompt: () => 'The subway stairs',
   perform: ({ state }) => state.c5Terminal(),
+};
+
+/** C6 — the first dollar (doc 06 §C6 event 1, day 814, the roll's
+ *  landing): the schedule's first payment through Bea, Ada's three-line
+ *  answer. One-day slot by Rosa's door (the census untouched). */
+const c6FirstDollar: Interaction = {
+  id: 'c6_first_dollar',
+  pos: () => ({ x: -17.6, y: 0.05, z: 10.6 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 814 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The first dollar\u2019s morning',
+  perform: ({ state }) => state.c6FirstDollar(),
+};
+
+/** C6 — the winter lights (doc 12 §4 / doc 04, day 835): the tin's
+ *  ones on the park's tree, Yoli's terms, the call's diegetic meter.
+ *  One-day slot at the little park's tree (the census untouched). */
+const c6Lights: Interaction = {
+  id: 'c6_lights',
+  pos: () => ({ x: 37.6, y: 0.05, z: -7.2 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 835 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The lights on the tree',
+  perform: ({ state }) => state.c6Lights(),
+};
+
+/** C6 — Kev's fork (doc 07 §2.4, day 870): the reference letter, signed
+ *  in person, no camera; the machine reads the ledger. One-day slot at
+ *  Halcyon's corner of the plaza (the census untouched). */
+const c6KevFork: Interaction = {
+  id: 'c6_kev_fork',
+  pos: () => ({ x: -22.2, y: 0.05, z: 7.2 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 870 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The letter',
+  perform: ({ state }) => state.c6KevFork(),
+};
+
+/** C6 — the deposition (doc 07's dial table, day 898): Deniz's sworn
+ *  statement of the C2 meeting; Father Mike's boiler-watch closes.
+ *  One-day slot on the civic row's other door (the census untouched). */
+const c6Deposition: Interaction = {
+  id: 'c6_deposition',
+  pos: () => ({ x: -49.6, y: 0.05, z: 18.4 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 898 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The sworn statement',
+  perform: ({ state }) => state.c6Deposition(),
+};
+
+/** C6 — the concessions hearing (doc 12 §2, day 920): the Compact
+ *  papers, the 220→280, the CLT option — and behind it N7. One-day
+ *  slot on the civic row (the census untouched). */
+const c6Hearing: Interaction = {
+  id: 'c6_hearing',
+  pos: () => ({ x: -51.2, y: 0.05, z: 15.6 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 920 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The hearing',
+  perform: ({ state }) => state.c6Hearing(),
+};
+
+/** C6 — the hall opens (doc 12 §2, day 948): Juniper Commons, without
+ *  him; the lease torn on the church steps. One-day slot at the Works
+ *  fence's other gate (the census untouched). */
+const c6HallOpens: Interaction = {
+  id: 'c6_hall_opens',
+  pos: () => ({ x: -50.2, y: 0.05, z: 14.5 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 948 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'Juniper Commons',
+  perform: ({ state }) => state.c6HallOpens(),
+};
+
+/** C6 — Marisol's late offer (doc 09 §7, day 969): the test — and
+ *  behind it N6. One-day slot at the plaza's other corner (the census
+ *  untouched). */
+const c6LateOffer: Interaction = {
+  id: 'c6_late_offer',
+  pos: () => ({ x: -24.8, y: 0.05, z: 10.4 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 969 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The late offer',
+  perform: ({ state }) => state.c6LateOffer(),
+};
+
+/** C6 — the hundredth tree (doc 12 §2, day 990): Kestrel Green's
+ *  serviceberry; the album to Eli; Verna's booth. One-day slot at the
+ *  park's east side (the census untouched). */
+const c6HundredthTree: Interaction = {
+  id: 'c6_hundredth_tree',
+  pos: () => ({ x: 41.6, y: 0.05, z: -5.2 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 990 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The hundredth tree',
+  perform: ({ state }) => state.c6HundredthTree(),
+};
+
+/** C6 — Eddie's floor, the second offer (doc 09 §5, day 1002): the
+ *  exit that is also a home; June's shelves; Camille's letter. One-day
+ *  slot by the phone corner (the census untouched). */
+const c6Floor: Interaction = {
+  id: 'c6_floor',
+  pos: () => ({ x: 12.8, y: 0.05, z: 7.0 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 1002 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The floor',
+  perform: ({ state }) => state.c6Floor(),
+};
+
+/** C6 — the hospitality close (doc 06 §C6's last event, day 1016): the
+ *  stranger with the duffel at the terminal, the slice on the counter.
+ *  One-day slot at the subway stairs' mouth (the census untouched). */
+const c6Hospitality: Interaction = {
+  id: 'c6_hospitality',
+  pos: () => ({ x: -43.2, y: 0.05, z: 4.2 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 1016 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The hospitality close',
+  perform: ({ state }) => state.c6Hospitality(),
+};
+
+/** C6 — the self-portrait (doc 03 §7 — the arc's decision form): a
+ *  PERSISTENT slot on the cart's own corner, available any day of C6
+ *  and the open endgame (the notebook's last question). Composed from
+ *  the machine's own facts; append-only, each version kept; F8 fires
+ *  inside the first one only; once per day. The census untouched —
+ *  invisible trigger, existing ground. */
+const c6SelfPortrait: Interaction = {
+  id: 'self_portrait',
+  pos: () => ({ x: 7.0, y: 0.05, z: -3.0 }),
+  radius: 2.2,
+  enabled: (s) => (s.isC6 || s.isOpen) && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The notebook\u2019s last question',
+  perform: ({ state }) => state.writeSelfPortrait(),
 };
 
 /** Beat 7 — Deshaun on the platform, Day 2 midday (doc 11 §2): the panic

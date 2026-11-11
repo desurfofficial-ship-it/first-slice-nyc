@@ -502,17 +502,32 @@ console.log('--- Pass E: Day 802, the call home; Day 809, the terminal and the c
   check(cut.cutEntry, 'the cut\u2019s entry is the latch');
   check(cut.chapterAfter === 'C6', `the chapter rides the machine\u2019s door to C6 (got ${cut.chapterAfter})`);
   // the wall holds: no roll out of the wall until the C6 wave
+  const wallRoll = await p2.evaluate(() => {
+    const s = window.__game.state;
+    const again = s.rail();
+    const third = s.rail();
+    return {
+      wallOnly: again.filter((e) => e.kind === 'note').map((e) => e.text).join('|').startsWith('December opens cold'),
+      roll: third.find((e) => e.kind === 'next-day'),
+    };
+  });
+  // the C6 wave's own law (§7 step 10's last content wave brought the
+  // days the cut opens — the pin grew the roll witness, none weakened):
+  // the wall answers first, then the next press rolls WHOLE into C6's
+  // first station (day 814, the cut's own morning)
   const wall = await p2.evaluate(() => {
     const s = window.__game.state;
     const again = s.rail();
     const third = s.rail();
     return {
       wallOnly: again.filter((e) => e.kind === 'note').map((e) => e.text).join('|').startsWith('December opens cold'),
-      noRoll: !third.some((e) => e.kind === 'next-day'),
+      roll: third.find((e) => e.kind === 'next-day'),
     };
   });
-  check(wall.wallOnly && wall.noRoll,
-    'the wall holds \u2014 C6\u2019s content is the next wave\u2019s (the honest pattern)');
+  check(wallRoll.wallOnly,
+    'the wall answers after the cut (the season kept, in the world\u2019s own voice)');
+  check(!!wallRoll.roll && wallRoll.roll.to === 814,
+    'the roll lands in C6\u2019s first station (day 814, Dec 1 Y3 \u2014 the C6 wave\u2019s law)');
   check(e2.length === 0, `pass E/809 console clean (${e2.length} errors${e2.length ? ': ' + e2[0] : ''})`);
   await closeSeason(season2);
 }
