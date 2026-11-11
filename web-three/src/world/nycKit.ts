@@ -1,7 +1,7 @@
 /**
  * The NYC character kit — architectural and street details ported from
  * mrdoob/slop-newyork (MIT, Copyright (c) 2026 Mr.doob — see
- * web-three/THIRD-PARTY-NOTICES.md) and adapted to FIRST SLICE's world
+ * THIRD-PARTY-NOTICES.md (repo root)) and adapted to FIRST SLICE's world
  * laws. The source builds these as instanced pools around a streamed
  * WebGPU city; here the SAME construction recipes (water-tower trestle,
  * rooftop chillers, cornice bands, awnings, the fire-escape template, the
@@ -10,12 +10,14 @@
  * piece into its district tile for free.
  *
  * What was ported vs adapted (docs/slop-integration/01-SOURCE-REUSE-REPORT.md):
- *   - water tower ........... js/buildings.js 508–567 (trestle + barrel +
- *                             cone construction, 1:1 part list; TSL wood
- *                             grain → flat Lambert stave brown)
  *   - rooftop HVAC .......... js/buildings.js 569–593 + js/building-details.js
  *                             (w/d/h ranges and the masonry/modern heights;
  *                             the shader-drawn louvers → proud geometry)
+ *                             NOTE — the water tower and chimney ports were
+ *                             retired in the 2026-11-11 union: main's own
+ *                             city-fabric pass (cityFabric.ts) already owns
+ *                             the roofscape's tanks/chimneys/bulkheads, so
+ *                             this kit keeps the chillers the fabric lacks
  *   - cornice band .......... js/building-details.js 46–53 (0.55 × 0.65
  *                             projecting band, hung 0.33 under the roof)
  *   - awnings ............... js/buildings.js 598–613 (1.8 × 0.75 canvas
@@ -94,66 +96,6 @@ function shadows(g: THREE.Object3D): void {
   g.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
 }
 
-// ------------------------------------------------------------- water tower
-/**
- * The 3-part rooftop cedar water tank — the port of the source's trestle +
- * barrel + cone construction (buildings.js 508–567): four splayed steel
- * legs with X-bracing, a chime deck ring, the feed riser, the 12-sided
- * staved barrel and its conical roof cap. ~7 m tall above its roof seat —
- * the real proportion the source measured. `r` scales the barrel radius
- * (the shipped canon tanks run 1.4–1.7).
- */
-export function makeWaterTowerNYC(bank: MatBank, r = 1.5, rng?: () => number): THREE.Group {
-  const g = new THREE.Group();
-  g.name = 'NYC_WaterTower';
-  const wood = bank.get(NYC.stave);
-  const woodDark = bank.get(NYC.staveDark);
-  const steel = bank.get(NYC.ironLeg);
-  const cap = bank.get(NYC.cap);
-
-  // the open 4-leg steel trestle (splayed posts, X braces, deck ring, riser)
-  const legH = r * 1.83;                      // source: 2.75 legs for r 1.75
-  const spread = r * 0.6;                     // source: ±1.05 for r 1.75
-  for (const [lx, lz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
-    const leg = place(box(), steel, 0.14, legH, 0.14, lx * spread, legH / 2, lz * spread);
-    leg.rotation.z = lx * 0.06;
-    leg.rotation.x = -lz * 0.06;
-    g.add(leg);
-  }
-  // X braces, two per face (the source's y 0.2 / −0.45 pairs)
-  const braceY1 = legH * 0.28, braceY2 = legH * 0.62;
-  for (const [ax, ay] of [[0, 1], [0, -1], [1, 0], [-1, 0]] as const) {
-    const b1 = place(box(), steel, ax ? spread * 2.2 : 0.09, 0.09, ax ? 0.09 : spread * 2.2, ax * spread, braceY1, ay * spread);
-    b1.rotation.y = ax ? 0.28 : -0.28;
-    g.add(b1);
-    const b2 = place(box(), steel, ax ? spread * 2.2 : 0.09, 0.09, ax ? 0.09 : spread * 2.2, ax * spread, braceY2, ay * spread);
-    b2.rotation.y = ax ? -0.28 : 0.28;
-    g.add(b2);
-  }
-  // the chime deck the barrel sits on
-  g.add(place(cyl12(), steel, r * 2.15, 0.13, r * 2.15, 0, legH + 0.06, 0));
-  // the feed riser climbing through the trestle
-  g.add(place(cyl8(), steel, 0.16, legH + 0.5, 0.16, 0, (legH + 0.5) / 2, 0));
-
-  // the staved barrel + conical cap (a hoop band reads at the seams)
-  const barrelY = legH + r * 0.8 + 0.1;
-  g.add(place(cyl12(), wood, r * 2, r * 1.6, r * 2, 0, barrelY, 0));
-  // two iron hoop bands — the source paints them; we build them
-  for (const hy of [-r * 0.5, r * 0.45]) {
-    g.add(place(cyl12(), steel, r * 2.06, 0.07, r * 2.06, 0, barrelY + hy, 0));
-  }
-  g.add(place(cyl12(), woodDark, r * 2.02, r * 1.62, r * 2.02, 0.04, barrelY, 0));
-  // the roof cap cone
-  g.add(place(new THREE.ConeGeometry(0.5, 1, 12), cap, r * 2.3, r * 0.75, r * 2.3, 0, barrelY + r * 0.8 + r * 0.36, 0));
-  // a tiny hatch ladder on the riser side (the inspector's way up)
-  const rungs = rng ? 3 + Math.floor(rng() * 3) : 4;
-  for (let i = 0; i < rungs; i++) {
-    g.add(place(box(), steel, 0.26, 0.03, 0.03, 0, legH * 0.3 + i * (legH * 0.62) / rungs, spread + 0.1));
-  }
-  shadows(g);
-  return g;
-}
-
 // ------------------------------------------------------------ rooftop HVAC
 /**
  * A rooftop chiller: the source's w/d 2.4–5.0 × h 2.4 (masonry roofs) box
@@ -179,28 +121,6 @@ export function makeHVACUnitNYC(bank: MatBank, w: number, d: number, h: number, 
   // the pipe stub running back toward the bulkhead
   const stubL = 0.5 + rng() * 0.8;
   g.add(place(cyl8(), dark, 0.09, stubL, 0.09, w * 0.3, h * 0.45, -d / 2 - stubL / 2));
-  shadows(g);
-  return g;
-}
-
-// ---------------------------------------------------------------- chimney
-/**
- * A brick chimney stack with its terra-cotta pots — the pre-war roofline
- * tell the source's modern-HVAC grammar never needed but New York's older
- * masses all carry. One honest stack; callers seed count/placement.
- */
-export function makeChimneyNYC(bank: MatBank, h: number, rng: () => number, wall: number): THREE.Group {
-  const g = new THREE.Group();
-  g.name = 'NYC_Chimney';
-  const brick = bank.get(wall === PAL.brick ? 0x8e3d47 : 0x7d5f57); // the wall's own darkened brick
-  const cap = bank.get(NYC.cap);
-  const pot = bank.get(0xa3857a); // PAL.bldg2 — the terra cotta
-  g.add(place(box(), brick, 0.85, h, 0.85, 0, h / 2, 0));
-  g.add(place(box(), cap, 1.0, 0.1, 1.0, 0, h + 0.05, 0));
-  const pots = 1 + (rng() < 0.5 ? 1 : 0);
-  for (let i = 0; i < pots; i++) {
-    g.add(place(cyl8(), pot, 0.2, 0.3, 0.2, (i - (pots - 1) / 2) * 0.28, h + 0.25, 0));
-  }
   shadows(g);
   return g;
 }

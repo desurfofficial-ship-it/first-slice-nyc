@@ -43,8 +43,11 @@ import { makeCornice, makeBrickover, makeDownspout, makeRoofClutter, makeGrassTu
 // details PORTED from mrdoob/slop-newyork (MIT) and rebuilt in the
 // facadeKit convention. Provenance and part-by-part mapping:
 // docs/slop-integration/01-SOURCE-REUSE-REPORT.md; licensing:
-// web-three/THIRD-PARTY-NOTICES.md. The pass below is the only consumer.
-import { makeWaterTowerNYC, makeHVACUnitNYC, makeChimneyNYC, makeCorniceBand,
+// THIRD-PARTY-NOTICES.md (repo root, the merged tree's notice file). The
+// World SI pass is the only consumer; the city-fabric pass (main's own
+// slop-newyork roofscape) owns tanks/chimneys/bulkheads — this kit keeps
+// the chillers, escapes and street pieces.
+import { makeHVACUnitNYC, makeCorniceBand,
   makeAwningNYC, makeFireEscapeStack, makeSteamVentNYC, makeSubwayStairNYC,
   makeSubwayGlobePost, makeMailboxNYC, makeScaffoldShedNYC, NYC } from './nycKit';
 import { buildSkylineLandmarks } from './skylineLandmarks';
@@ -53,6 +56,7 @@ import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './pe
 import { buildSubwaySystem, STATION, ZONE_KEEP_RE, type SubwaySystem, type ColliderSpec } from './subway';
 import { buildTimesSquare, type TimesSquare } from './timesSquare';
 import { buildArrivalBus, BUS04_RECT, playerOccupiesBus04, type ArrivalBus } from './arrivalBus';
+import { buildCityFabric } from './cityFabric';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay,
   skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH,
   STREET_PLAN, PEDESTRIAN_ROLES, type StreetPlan } from './dressing';
@@ -1729,14 +1733,28 @@ export class World {
     // the district tiles fuse every piece; zero colliders, zero nav changes
     this.buildWorldVisualQualityPass();
 
-    // SI (2026-11-11): the borough-character pass — the slop-newyork port.
-    // The three Mallow-row buildings (registry LMS-01/IND-01/GLS-01), the
-    // ported roofline systems (water towers, chillers, chimneys, cornice
-    // bands), the multi-landing fire escapes, the street life (mailbox,
-    // steam vent, signal blades, globes) — pre-bake like every static wave;
-    // the five colliders it adds are street furniture sized and seated
-    // EXACTLY like the shipped bulletin board / planter set (off the walk
-    // lanes, never in a nav footprint). docs/slop-integration/ has the maps.
+    // the city-fabric pass (docs/production/city-fabric — the slop-newyork
+    // adaptation): rooftop water tanks + chimneys + bulkheads on the registry
+    // roofscape, the four documented-but-never-built skyline rows (SKY-W/E/S
+    // + the north depth row) as real varied buildings, and the sidewalk
+    // furniture (meters, DSNY baskets, cross-street name blades). All
+    // pre-bake so the tiles fuse the fabric; the skyline pair is NAMED_SKIP
+    // (always visible, never district-owned). Zero colliders, zero nav
+    // changes, deterministic (pinned by tests/city-fabric.test.ts).
+    this.buildCityFabricPass();
+
+    // SI (2026-11-11): the borough-character pass — the slop-newyork port's
+    // other half. The three Mallow-row buildings (registry LMS-01/IND-01/
+    // GLS-01) and their styles, the multi-landing fire escapes, the cornice
+    // bands, the rooftop chillers (the fabric pass owns tanks/chimneys/
+    // bulkheads — this pass keeps only what the fabric lacks), and the
+    // street life (mailbox, steam vent, the Kestrel blade, the Juniper
+    // mast, the station globes, the TS subway stair). Pre-bake like every
+    // static wave; its five colliders are street furniture seated off the
+    // walk lanes exactly like the shipped bulletin board / planter set.
+    // The union ruling (2026-11-11, both waves landed in parallel): the
+    // fabric's roofscape owns tanks/chimneys/bulkheads, so this pass ships
+    // without them — docs/slop-integration/01 §2 records the retirement.
     this.buildAlderHeightsSI();
 
     // leaf drift, now over every tree on the block (shipped 12 + W1 rows)
@@ -3560,6 +3578,37 @@ export class World {
   // roofs, or lies flat on the road at ≤ 5 cm proud. All names wear
   // the VQ_ prefix so the bake's skip sets and the probe never collide.
   // ================================================================
+  /** The city-fabric placement ledger (the vqLedger pattern): the bake
+   *  fuses the in-tile fabric meshes away, so probes read this. */
+  readonly fabricLedger: Array<{ name: string; x: number; y: number; z: number }> = [];
+  /** The city-fabric pass (docs/production/city-fabric — the slop-newyork
+   *  adaptation, MIT-attributed in THIRD-PARTY-NOTICES.md): the module owns
+   *  the geometry; World owns the seams — the registry shells (the
+   *  no-invention law), the shared vc materials, the shipped skyline window
+   *  material (the fabric's panes ride the dusk tween with the towers'), and
+   *  the pole-sign atlas for the cross-street blades. Called pre-bake so the
+   *  in-tile fabric fuses into the district batches; the skyline pair is
+   *  NAMED_SKIP. Zero colliders, zero nav changes, deterministic. */
+  private buildCityFabricPass(): void {
+    buildCityFabric({
+      ledger: this.fabricLedger,
+      scene: this.scene,
+      mat: (c, o) => this.mat(c, o),
+      vc: (fog) => this.vcMaterial(fog),
+      regShell: (id) => this.regShell(id),
+      buildings: loadRegistry().allBuildings(),
+      skylineWinMat: this.skylineWinMat,
+      poleSign: (text, x, z, ry) => {
+        const p = makePoleSign(this.bank, this.signMaterials.bind(this), text, { y: 4.9 });
+        p.position.set(x, 0, z);
+        p.rotation.y = ry;
+        p.name = `Fabric_Blade_${text.replace(/\s+/g, '_')}`;
+        this.scene.add(p);
+        this.vqLedger.push({ name: p.name, x, y: 0, z });
+      },
+    });
+  }
+
   private buildWorldVisualQualityPass(): void {
     const rng = seededRng(20261110); // the pass's own seed — never re-tunes a shipped row
     /** Add + record: the name and world position land in the ledger before
@@ -3927,42 +3976,21 @@ export class World {
     this.deco('GLS01_Cap', gls.x, gls.h - 0.18, gls.z, gls.w + 0.16, 0.36, gls.d + 0.16, PAL.ink, {});
   }
 
-  /** SI, section B — the ported ROOFLINE systems: water towers (the 3-part
-   *  trestle build), rooftop chillers, chimney stacks, roof bulkheads, and
-   *  the band-course cornices. Eligibility follows the source's rules
-   *  (masonry, h ≥ 14 for tanks, the seeded chances), the canon tanks the
-   *  Doc-04 object canon already placed stay exactly where they are. */
+  /** SI, section B — the roofline systems this pass owns: rooftop chillers
+   *  and the band-course cornices. THE UNION RULING (2026-11-11): the
+   *  city-fabric pass (main's own slop-newyork roofscape, seeded per-row)
+   *  already owns water tanks, chimney stacks, roof bulkheads and antennae
+   *  over every registry roof INCLUDING the Mallow row — so this pass
+   *  retired its own tank/chimney/bulkhead rows rather than double-place
+   *  them (docs/slop-integration/01 §2 records the retirement). What the
+   *  fabric lacks and this pass keeps: the chillers (the fabric has none)
+   *  and the band-course ledges (the fabric has none). */
   private dressRooflines(): void {
     const rng = seededRng(20261111);
-    // roof occupancy — the ported roofSpot idea: one reserved seat per
-    // claim, later claims (chillers, chimneys) keep 2.4 m clear of them
-    const reserved = new Map<string, Array<{ x: number; z: number }>>();
-    const reserve = (id: string, x: number, z: number): void => {
-      const list = reserved.get(id) ?? [];
-      list.push({ x, z });
-      reserved.set(id, list);
-    };
-    const clearOf = (id: string, x: number, z: number): boolean =>
-      (reserved.get(id) ?? []).every((p) => Math.hypot(p.x - x, p.z - z) > 2.4);
-    // ---- water towers (the ported 3-part construction) ------------------
-    // five roofs the canon set doesn't already carry: KTS-03, TEN-01,
-    // SRC-01, KTN-02, LMS-01 — masonry, h ≥ 14, seats clear of vents
-    const tanks: Array<[string, number, number, number, number]> = [
-      ['KTS-03', 34.0, 1.6, -15.5, 0.7],
-      ['TEN-01', -57.75, 1.4, -26.0, 2.1],
-      ['SRC-01', 53.5, 1.5, -24.5, 4.4],
-      ['KTN-02', -6.0, 1.5, 12.5, 1.2],
-      ['LMS-01', 25.5, 1.5, -24.5, 5.1],
-    ];
-    for (const [id, tx, r, tz, rot] of tanks) {
-      const s = this.regShell(id);
-      reserve(id, tx, tz);
-      const wt = makeWaterTowerNYC(this.bank, r, rng);
-      wt.position.set(tx, s.h + 0.04, tz);
-      wt.rotation.y = rot;
-      this.siAdd(wt, `SI_WaterTower_${id}`);
-    }
     // ---- rooftop chillers (the source's 35% rule; LMS/IND/GLS always) ---
+    // the fabric never placed a chiller — this is the one roof system that
+    // stays ours; seats are jitters within the roof, clear of the fabric's
+    // own center-biased items by the roofs' spare depth
     const hvacRoofs: Array<[string, string]> = [
       ['KTN-03', 'bldg'], ['KTN-04', 'bldg2'], ['KTS-02', 'brick'], ['SMB-02', 'brick'],
       ['PWK-01', 'bldg'], ['KCM-01', 'brick'], ['KTN-07', 'bldg2'], ['IND-01', 'brick'],
@@ -3976,11 +4004,8 @@ export class World {
       const h = tone === 'ink' ? 3.0 : 2.4;
       const ox = (rng() - 0.5) * (s.w - w - 1.6);
       const oz = (rng() - 0.5) * (s.d - d - 1.6);
-      const px = s.x + ox, pz = s.z + oz;
-      if (!clearOf(id, px, pz)) continue;
-      reserve(id, px, pz);
       const unit = makeHVACUnitNYC(this.bank, w, d, h, rng);
-      unit.position.set(px, s.h, pz);
+      unit.position.set(s.x + ox, s.h, s.z + oz);
       this.siAdd(unit, `SI_HVAC_${id}`);
     }
     // GLS-01's roof line: a second chiller in a row (the modern roof)
@@ -3989,33 +4014,6 @@ export class World {
       const unit = makeHVACUnitNYC(this.bank, 2.4, 2.2, 2.6, rng);
       unit.position.set(s.x + 3.2, s.h, s.z + 2.4);
       this.siAdd(unit, 'SI_HVAC_GLS-01_B');
-    }
-    // ---- chimney stacks (the pre-war roofline tell) ----------------------
-    const chimneys: Array<[string, number, number]> = [
-      ['GRB-01', 12.5, PAL.brick], ['GRB-02', 12.5, PAL.brick], ['GRB-03', 12.5, PAL.brick],
-      ['GRB-04', 12.5, PAL.brick], ['GRB-05', 12.5, PAL.brick],
-      ['TEN-01', 17, PAL.brick], ['PWK-02', 15, PAL.bldg2], ['PWK-03', 15, PAL.bldg],
-      ['LMS-01', 20, PAL.brick], ['KTN-03', 11, PAL.bldg2],
-    ];
-    for (const [id, , wall] of chimneys) {
-      const s = this.regShell(id);
-      const count = 1 + (rng() < 0.5 ? 1 : 0);
-      for (let i = 0; i < count; i++) {
-        const cx = s.x + (rng() - 0.5) * (s.w - 2.4);
-        const cz = s.z + (rng() - 0.5) * (s.d - 2.4);
-        if (!clearOf(id, cx, cz)) continue;
-        reserve(id, cx, cz);
-        const ch = makeChimneyNYC(this.bank, 1.3 + rng() * 0.8, rng, wall);
-        ch.position.set(cx, s.h, cz);
-        this.siAdd(ch, `SI_Chimney_${id}_${i}`);
-      }
-    }
-    // ---- roof bulkheads on the new row's roofs ---------------------------
-    for (const [id, tone] of [['IND-01', 0x8e3d47], ['GLS-01', 0x3a3440], ['LMS-01', 0x8e3d47]] as const) {
-      const s = this.regShell(id);
-      const clutter = makeRoofClutter(this.bank, tone, rng);
-      clutter.position.set(s.x - s.w / 2 + 1.4, s.h, s.z + s.d / 2 - 1.5);
-      this.siAdd(clutter, `SI_RoofClutter_${id}`);
     }
     // ---- band-course cornices (the source's mid-band ledges) -------------
     const bands: Array<[string, number]> = [
@@ -4091,7 +4089,10 @@ export class World {
     const vent = makeSteamVentNYC(this.bank, -2.0, 7.55);
     this.siAdd(vent, 'SI_SteamVent_Kestrel');
     this.colliders.push(boxFromCenter(-2.0, 0.62, 7.55, 0.6, 1.3, 0.6));
-    // the Kestrel blade on the shipped signal mast (bolted beside the arm)
+    // the Kestrel blade on the shipped signal mast (bolted beside the arm;
+    // the fabric pass owns the cross-street blades at the four corners —
+    // its JUNIPER AVE blade already reads that corner, so this pass adds
+    // only the Kestrel one and the mast itself)
     const blade = makePoleSign(this.bank, this.signMaterials.bind(this), 'KESTREL ST',
       { w: 1.5, h: 0.38, y: 3.55, bg: NYC.shedGreen, fg: PAL.cream, facing: 'street' });
     blade.position.set(-1.45, 0.05, -7.55);
@@ -4104,10 +4105,6 @@ export class World {
     signal.rotation.y = -Math.PI / 2; // the arm reaches over Juniper's road
     this.scene.add(signal);
     this.colliders.push(boxFromCenter(-65.3, 2.75, -7.55, 0.3, 5.5, 0.3));
-    const blade2 = makePoleSign(this.bank, this.signMaterials.bind(this), 'JUNIPER AV',
-      { w: 1.5, h: 0.38, y: 3.55, bg: NYC.shedGreen, fg: PAL.cream, facing: 'street' });
-    blade2.position.set(-64.95, 0.05, -7.55);
-    this.siAdd(blade2, 'SI_Blade_Juniper');
     // the globes flank the station headhouse (both stair corners)
     const globeW = makeSubwayGlobePost(this.bank, -48.75, 4.2);
     this.siAdd(globeW, 'SI_Globe_SUB01_W');
@@ -4206,7 +4203,11 @@ export class World {
       // underground (the dollhouse), and the zone groups manage their own
       // visibility — none of it may join a district tile (the street ring
       // would light the tunnel forever)
-      'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121']);
+      // + the city-fabric skyline pair (docs/production/city-fabric): the
+      // rows live OUTSIDE every district tile (x ±110 / z −88 / z +104) —
+      // a tile ring that drops them would blink the horizon out of view
+      'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121',
+      'SkylineFabric', 'SkylineFabricWindows']);
     const excluded = (o: THREE.Object3D): boolean => {
       for (let p: THREE.Object3D | null = o; p !== null; p = p.parent) {
         if (skip.has(p) || NAMED_SKIP.has(p.name)) return true;

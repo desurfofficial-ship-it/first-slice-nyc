@@ -86,6 +86,6 @@ and its determinism. License the reuse honestly (MIT).
 - `web-three/tests/nyc-integration.test.ts` (new) — 18 guards.
 - `web-three/scripts/probe-nyc-integration.mjs` (new) — the boot probe.
 - `web-three/shots/nyc-integration/` (new) — evidence shots.
-- `web-three/THIRD-PARTY-NOTICES.md` (new) — the MIT notice.
+- `THIRD-PARTY-NOTICES.md (repo root)` (new) — the MIT notice.
 - `docs/slop-integration/01/02/03` + this worklog (new).
 - `docs/production/PRODUCTION-STATUS-REGISTER.md` — the v1.39.0 row.

@@ -4,7 +4,7 @@
 **Source:** [mrdoob/slop-newyork](https://github.com/mrdoob/slop-newyork)
 (commit `536a907` — "Improve pedestrian jump and landing animation") ·
 **License:** MIT (Copyright (c) 2026 Mr.doob) — notices in
-[`web-three/THIRD-PARTY-NOTICES.md`](../../web-three/THIRD-PARTY-NOTICES.md).
+[`THIRD-PARTY-NOTICES.md (repo root)`](../../THIRD-PARTY-NOTICES.md (repo root)).
 
 This report records what was taken from the reference repository, where each
 part came from in its source, how it was adapted, and where it now lives in
@@ -55,12 +55,25 @@ Every port carries a provenance header in its module
 (`web-three/src/world/nycKit.ts`, `web-three/src/world/skylineLandmarks.ts`)
 and the pass that consumes them is `World.buildAlderHeightsSI()`.
 
+**THE UNION (2026-11-11).** Two slop-newyork waves landed in parallel and
+became one tree: main's city-fabric pass (docs/production/city-fabric,
+v1.40.0) had independently ported the roofscape (water tanks, chimneys,
+bulkheads, antennae), the four SKY-W/E/S/N building rows, the cross-street
+blades, and a root MIT notice. The verified union de-conflicts the two:
+the fabric owns tanks/chimneys/bulkheads/antennae, and this wave retired
+its own five tank/chimney/bulkhead rows and its redundant JUNIPER AV
+blade, keeping what the fabric lacks (§2's rows 1–2 and the tank/chimney
+line items below are retired accordingly; the kit's water-tower and
+chimney builders were removed with them). Both suites pin the boundary
+(`probe-nyc-integration.mjs` asserts the SI ledger carries no
+fabric-owned roof items; `tests/city-fabric.test.ts` pins theirs).
+
 | # | What was taken | Source location | Adaptation into FIRST SLICE | Now lives at |
 |---|---|---|---|---|
-| 1 | **Cedar water tower, 3-part construction** — 4 splayed steel legs with X-bracing, chime deck ring, feed riser, 12-sided staved barrel, hoop bands, conical cap | `js/buildings.js` 508–567 (trestle part list, barrel/cone geometry, the y+1.3/+4.2/+6.7 assembly) | Rebuilt as a static Lambert piece-builder (`makeWaterTowerNYC`) in the facadeKit convention: shared unit geometries, `MatBank` tones, hoop bands as geometry instead of the TSL stave shader, hatch-ladder rungs seeded by the caller. The existing shipped `waterTower()` (simple tank+cone+legs) stays untouched for the five canon roofs; the ported build dresses five MORE roofs (KTS-03, TEN-01, SRC-01, KTN-02, LMS-01) | `nycKit.ts` · `World.dressRooflines()` |
-| 2 | **Rooftop chiller grammar** — the source's w/d 2.4–5.0 × h 2.4 (masonry) / 3.4 (modern) ranges and its 35%-of-roofs rule | `js/building-details.js` 85–88 + `js/buildings.js` 569–593 | `makeHVACUnitNYC`: box body, proud louver skirt, two dark fan wells on the top, pipe stub — the source draws louvers/fans in a shader; geometry reads the same from street distance and stays bakeable. Seeded 35% gate over ten eligible flat roofs → 6 units + the glass infill's roof line | `nycKit.ts` · `World.dressRooflines()` |
+| 1 | **Cedar water tower, 3-part construction** — 4 splayed steel legs with X-bracing, chime deck ring, feed riser, 12-sided staved barrel, hoop bands, conical cap | `js/buildings.js` 508–567 | **RETIRED IN THE UNION** — the city-fabric pass owns the roofscape's tanks (11 `Fabric_Tank_*` rows on the merged tree); this wave's port was removed rather than double-place them | retired 2026-11-11 |
+| 2 | **Rooftop chiller grammar** — the source's w/d 2.4–5.0 × h 2.4 (masonry) / 3.4 (modern) ranges and its 35%-of-roofs rule | `js/building-details.js` 85–88 + `js/buildings.js` 569–593 | `makeHVACUnitNYC`: box body, proud louver skirt, two dark fan wells on the top, pipe stub — the source draws louvers/fans in a shader; geometry reads the same from street distance and stays bakeable. Seeded 35% gate over ten eligible flat roofs (the fabric places no chillers — this is the one roof system the SI pass keeps) | `nycKit.ts` · `World.dressRooflines()` |
 | 3 | **Projecting cornice band** — 0.55 × 0.65 stone band hung 0.33 under the roofline on per-edge placement | `js/building-details.js` 46–53 (+ the hang-offset rule at `js/buildings.js` 731–740) | `makeCorniceBand` — single-face band courses (the source caps per-edge; FIRST SLICE's full-perimeter `makeCornice` already caps whole masses). Applied as mid-band courses on LMS-01 (S+N), KTN-02, KTS-03, KTN-05 | `nycKit.ts` · `World.dressRooflines()` |
-| 4 | **Roof-spot occupancy** — 8-try containment + occupancy-set placement so tanks/chillers never collide on one roof | `js/building-details.js` 63–80 (`roofSpot`, `containsBox`, the occupied list) | Simplified to FIRST SLICE's flat rectangular roofs: a per-building reserved-seat map with a 2.4 m clearance check for chillers and chimneys (the tanks claim their seats first) | `World.dressRooflines()` |
+| 4 | **Roof-spot occupancy** — 8-try containment + occupancy-set placement so tanks/chillers never collide on one roof | `js/building-details.js` 63–80 (`roofSpot`, `containsBox`, the occupied list) | Applied while the wave carried its own tank/chimney rows; retired with them in the union (the fabric's per-row hash seeding owns the roofscape's seat discipline) | retired 2026-11-11 |
 | 5 | **Storefront detail grammar** — 10 m edge segments, the ≤4-per-building cap, awning slab 1.8 × 0.75 at y 3.8, the 5-canvas palette | `js/building-details.js` 91–119 + `js/buildings.js` 598–613 | `makeAwningNYC` with the source's 5-color row re-anchored to Doc-04 darkenings (brick/teal/plum/gold/ink → `NYC.awn*`, pinned verbatim by `tests/nyc-integration.test.ts`). Used for the Mallow Court's lobby canvas; the gallery front rides the shipped `makeStorefront` grammar with the source's plum | `nycKit.ts` · `World.dressStorefrontRow()` |
 | 6 | **Sidewalk scaffold shed** — the green shed slab, one per building at 6% | `js/building-details.js` 102–104 + `js/buildings.js` 649–654, 798–806 | `makeScaffoldShedNYC` built out honestly (ply deck at 3.3 m, valance, steel legs, braces) and placed in the GLS-01 yard per the registry's own exterior line; the deck joins the camera's canopy-sphere set (the shipped sidestep law) instead of adding colliders | `nycKit.ts` · `World.dressStorefrontRow()` |
 | 7 | **Fire-escape template** — per-landing decks, alternating diagonal flights, drop ladder, gooseneck over the parapet; landings = min(floors−1, 7); the masonry + h ≤ 30 eligibility rule | `js/fire-escapes.js` 38–81 (the 6-plane template + tread quads), `js/buildings.js` 312–341 (placement law) | `makeFireEscapeStack`: the same silhouette rebuilt in opaque thin boxes (FIRST SLICE is untextured Lambert — the source's alpha-tested ironwork planes become real posts/rails/treads, fully bakeable). Five stacks on yard/flank faces (KTS-03 S, LMS-01 N, IND-01 N, SRC-01 E, PWK-02 N) chosen by the source's own rules — never a door, stoop, or storefront face. Silhouette-only deco, per the shipped fire-escape law (the Cecil's climbable escape stays the only gameplay one) | `nycKit.ts` · `World.dressFireEscapes()` |
@@ -112,9 +125,12 @@ and the pass that consumes them is `World.buildAlderHeightsSI()`.
 
 - `tests/nyc-integration.test.ts` — 18 guards (registry containment, nav
   validity, palette anchors, part lists, eligibility laws, skyline deco).
-- `scripts/probe-nyc-integration.mjs` — 30 boot checks pinning every SI
-  ledger row by name + position, the lane-clearance law, the draw-call
-  budget, and console cleanliness; evidence shots in
-  `web-three/shots/nyc-integration/`.
-- `scripts/probe-world-visual-quality.mjs` — OK (the VQ pins survive the
-  pass). `scripts/probe-world-sim.mjs` — 15/15. Full vitest 1395/1395.
+- `scripts/probe-nyc-integration.mjs` — boot checks pinning every SI
+  ledger row by name + position, the union boundary (no SI items of the
+  fabric-owned roof kinds; the fabric ledger carries its tanks and
+  chimneys), the lane-clearance law, the draw-call budget, and console
+  cleanliness; evidence shots in `web-three/shots/nyc-integration/`.
+- Merged-tree gates: tsc clean · vitest **1440/1440** (88 files) · build
+  OK · probe-nyc-integration OK · probe-world-visual-quality OK ·
+  probe-city-fabric OK · probe-world-sim 15/15 · 4-day E2E **0 failures**
+  (490 s, console clean).

@@ -103,24 +103,24 @@ check('mallow row: the shells read x 22..50 (the free stretch, SRC-01 intact)',
   data.shells['LMS-01']?.x === 28 && data.shells['GLS-01']?.x === 45 && data.shells['SRC-01']?.x === 55,
   JSON.stringify(data.shells));
 
-// 2. WATER TOWERS — five ported tanks, each at its pass seat
-const tanks = [
-  ['SI_WaterTower_KTS-03', 34.0, -15.5, 18],
-  ['SI_WaterTower_TEN-01', -57.75, -26.0, 17],
-  ['SI_WaterTower_SRC-01', 53.5, -24.5, 17],
-  ['SI_WaterTower_KTN-02', -6.0, 12.5, 18],
-  ['SI_WaterTower_LMS-01', 25.5, -24.5, 20],
-];
-for (const [nm, x, z, roofY] of tanks) {
-  const t = si(nm);
-  check(`water tower: ${nm} at its seat on the roof`, !!t && t.x === x && t.z === z && t.y === roofY + 0.04,
-    JSON.stringify(t));
-}
+// 2. THE UNION BOUNDARY — the city-fabric pass (main's own slop-newyork
+//    roofscape) owns water tanks/chimneys/bulkheads/antennae; the SI pass
+//    retired its duplicates in the 2026-11-11 union. Pinned BOTH ways:
+const retired = ['SI_WaterTower_', 'SI_Chimney_', 'SI_RoofClutter_'];
+const retiredLeftovers = data.si.filter((r) => retired.some((p) => r.name.startsWith(p)));
+check('union ruling: no SI roof items of the fabric-owned kinds remain', retiredLeftovers.length === 0,
+  JSON.stringify(retiredLeftovers.slice(0, 4)));
+const fabricTanks = await page.evaluate(() => {
+  const w = window.__game.world;
+  const rows = (w.fabricLedger ?? []).map((r) => r.name);
+  return { tanks: rows.filter((n) => n.startsWith('Fabric_Tank_')).length,
+    chimneys: rows.filter((n) => n.startsWith('Fabric_Chimney_')).length };
+});
+check('union ruling: the fabric roofscape carries its tanks and chimneys',
+  fabricTanks.tanks >= 1 && fabricTanks.chimneys >= 1, JSON.stringify(fabricTanks));
 
-// 3. ROOFLINE SYSTEMS
+// 3. ROOFLINE SYSTEMS (the SI-owned ones)
 check('chillers: ≥ 4 rooftop HVAC units (the 35% rule, seeded)', siCount('SI_HVAC') >= 4, `${siCount('SI_HVAC')}`);
-check('chimneys: ≥ 10 stacks on the pre-war roofs', siCount('SI_Chimney') >= 10, `${siCount('SI_Chimney')}`);
-check('bulkheads: 3 new-roof clutter groups', siCount('SI_RoofClutter') === 3, `${siCount('SI_RoofClutter')}`);
 check('band cornices: the court wears its mid-band courses (S+N), plus 3 on the older row',
   siCount('SI_CorniceBand') === 5, `${siCount('SI_CorniceBand')}`);
 
@@ -140,8 +140,8 @@ for (const [nm, x, z] of escapes) {
 // 5. STREET LIFE
 check('mailbox: the relay box at the bodega corner', si('SI_Mailbox_Kestrel')?.x === -12.3, JSON.stringify(si('SI_Mailbox_Kestrel')));
 check('steam vent: the ConEd stack against the laundry wall', si('SI_SteamVent_Kestrel')?.x === -2.0, JSON.stringify(si('SI_SteamVent_Kestrel')));
-check('blades: KESTREL ST + JUNIPER AV on their masts', si('SI_Blade_Kestrel')?.x === -1.45 && si('SI_Blade_Juniper')?.x === -64.95,
-  JSON.stringify([si('SI_Blade_Kestrel'), si('SI_Blade_Juniper')]));
+check('blades: the KESTREL ST blade on the shipped mast (the fabric pass owns the cross-street corners)',
+  si('SI_Blade_Kestrel')?.x === -1.45, JSON.stringify(si('SI_Blade_Kestrel')));
 check('globes: the pair flanking the station headhouse', si('SI_Globe_SUB01_W')?.x === -48.75 && si('SI_Globe_SUB01_E')?.x === -45.65,
   JSON.stringify([si('SI_Globe_SUB01_W'), si('SI_Globe_SUB01_E')]));
 check('awning: the court lobby wears its canvas', !!si('SI_Awning_LMS01_Lobby'), JSON.stringify(si('SI_Awning_LMS01_Lobby')));
@@ -164,7 +164,7 @@ const furniture = [
   ['globe W', -48.75, 4.2, 0.14, 0.14],
   ['globe E', -45.65, 4.2, 0.14, 0.14],
 ];
-const LANES = [[0, 6.5], [0, -6.5], [0, -34.6], [0, 35], [-82.5, 0], [-61.5, 0], [61.5, 0], [82.5, 0]];
+const LANES = [[0, 6.5], [0, -6.5], [0, -34.6], [0, 35], [-82.5, 0], [-61.5, 0], [61.5, 0], [82.5, 0], [0, 46.5], [0, -46.5]];
 let clearOk = true;
 const clearLog = [];
 for (const [nm, fx, fz, hx, hz] of furniture) {
@@ -187,9 +187,9 @@ await page.evaluate(() => {
 const shots = [
   ['si-mallow-row.png', [21.5, 2.8, -45.0], [36, 5.5, -29.5]],   // the row from Marlow, 3/4 west
   ['si-mallow-court.png', [22.8, 1.55, -35.6], [28, 2.2, -31.8]], // the limestone stoop + awning
-  ['si-roofline-marlow.png', [8, 9.5, -46], [36, 13, -24]],      // tanks + escapes over the row
+  ['si-roofline-marlow.png', [8, 9.5, -46], [36, 13, -24]],      // fabric tanks + SI escapes/chillers over the row
   ['si-kestrel-life.png', [-10, 2.9, -3.2], [-12.3, 0.9, 7.5]],  // mailbox over the cab
-  ['si-skyline.png', [-10, 12, -18], [2, 34, 90]],               // the landmark band
+  ['si-skyline.png', [-10, 12, -18], [2, 34, 90]],               // the landmark band + the fabric's depth rows
   ['si-avenue-signal.png', [-61.5, 1.9, -11.5], [-65.3, 4.2, -7.5]], // the Juniper mast
 ];
 for (const [out, cam, look] of shots) {

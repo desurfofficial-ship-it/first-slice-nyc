@@ -1,7 +1,7 @@
 /**
  * The far-skyline landmark silhouettes — construction techniques ported
  * from mrdoob/slop-newyork's custom landmark builds (MIT, Copyright (c)
- * 2026 Mr.doob — see web-three/THIRD-PARTY-NOTICES.md) and re-scaled for
+ * 2026 Mr.doob — see THIRD-PARTY-NOTICES.md (repo root)) and re-scaled for
  * FIRST SLICE's skyline card (World.ts:1037, the z 90 band north of the
  * grid, fog:false, deco-only, zero colliders).
  *

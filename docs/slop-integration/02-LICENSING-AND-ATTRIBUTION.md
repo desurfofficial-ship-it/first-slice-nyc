@@ -7,7 +7,7 @@
 
 **mrdoob/slop-newyork** is MIT-licensed. The complete license text
 (© 2026 Mr.doob) is reproduced in
-[`web-three/THIRD-PARTY-NOTICES.md`](../../web-three/THIRD-PARTY-NOTICES.md),
+[`THIRD-PARTY-NOTICES.md (repo root)`](../../THIRD-PARTY-NOTICES.md (repo root)),
 which ships with the repository. The adapted modules carry provenance
 headers naming the source and pointing at that file
 (`web-three/src/world/nycKit.ts`, `web-three/src/world/skylineLandmarks.ts`),
@@ -52,11 +52,13 @@ are untouched.
 
 ## 4. Attribution in-repo (the audit trail)
 
-1. `web-three/THIRD-PARTY-NOTICES.md` — the MIT text + scope statement.
+1. `THIRD-PARTY-NOTICES.md (repo root)` — the MIT text + scope statement.
 2. `web-three/src/world/nycKit.ts` header — per-part source line mapping.
 3. `web-three/src/world/skylineLandmarks.ts` header — landmark techniques.
 4. `web-three/src/world/World.ts` — the SI pass comment block citing the
    reports and the notices file.
+4b. The root `THIRD-PARTY-NOTICES.md` names BOTH slop-newyork-adapting
+   modules (cityFabric.ts + nycKit.ts/skylineLandmarks.ts) after the union.
 5. `docs/slop-integration/01-SOURCE-REUSE-REPORT.md` — the part-by-part
    provenance table (source file + line ranges).
 6. `docs/production/PRODUCTION-STATUS-REGISTER.md` — the SI-1 register row.

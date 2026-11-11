@@ -114,7 +114,9 @@ const shipped = [
   ['KTS-01', -25, -14, 50, 12, 16],    // Bldg_S_West
   ['KTS-02', 13, -14, 26, 12, 14],     // Bldg_S_FireEscape
   ['KTS-03', 38, -14, 24, 12, 18],     // Bldg_S_East
-  ['SUB-01', -42, 6.2, 2.6, 3.5, 3.2], // subway entrance + collider
+  // SUB-01 re-homed to the K-line STAIR_SLOT center (2026-11 consumer
+  // fix, ebfb08a): the headhouse frames the hole you can walk down into
+  ['SUB-01', -47.2, 6.2, 2.6, 3.5, 3.2], // subway entrance + collider
   ['VND-01', 29.8, -4.55, 1.7, 0.9, 2.2] // dog cart
 ];
 for (const [id, x, z, w, d, h] of shipped) {

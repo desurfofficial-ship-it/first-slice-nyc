@@ -31,7 +31,7 @@ import { loadRegistry, validateCrossRefsStatic } from '../src/sim/registry';
 import { buildNavGraph } from '../src/sim/nav/build';
 import { Navigation } from '../src/sim/nav';
 import {
-  makeWaterTowerNYC, makeHVACUnitNYC, makeChimneyNYC, makeCorniceBand,
+  makeHVACUnitNYC, makeCorniceBand,
   makeAwningNYC, makeFireEscapeStack, makeSteamVentNYC, makeSubwayStairNYC,
   makeSubwayGlobePost, makeMailboxNYC, makeScaffoldShedNYC,
   AWNING_COLORS, NYC,
@@ -173,14 +173,10 @@ describe('the ported kit builds (DOM-free)', () => {
     expect(NYC.awnInk).toBe(0x2d2d32);    // PAL.ink darkened
   });
 
-  it('builds the water tower with its full 3-part part list', () => {
-    const wt = makeWaterTowerNYC(bank, 1.5, seededRng(7));
-    expect(wt.name).toBe('NYC_WaterTower');
-    // 4 legs + 8 braces + deck ring + riser + barrel + 2 hoops + shadow
-    // liner + cap + 4 rungs = the ported trestle construction
-    expect(wt.children.length).toBeGreaterThanOrEqual(18);
-    const mesh = wt.children.find((c) => (c as THREE.Mesh).isMesh) as THREE.Mesh;
-    expect(mesh.material).toBe(bank.get(NYC.ironLeg));
+  it('builds the rooftop chiller with its louver skirt and fan wells', () => {
+    const hv = makeHVACUnitNYC(bank, 3.2, 2.6, 2.4, seededRng(9));
+    expect(hv.name).toBe('NYC_HVAC');
+    expect(hv.children.length).toBeGreaterThanOrEqual(6);
   });
 
   it('builds a fire-escape deck per landing with flights between', () => {
@@ -194,7 +190,6 @@ describe('the ported kit builds (DOM-free)', () => {
 
   it('builds the small street pieces by name', () => {
     expect(makeHVACUnitNYC(bank, 3.2, 2.6, 2.4, seededRng(9)).name).toBe('NYC_HVAC');
-    expect(makeChimneyNYC(bank, 1.8, seededRng(3), 0xb23a48).name).toBe('NYC_Chimney');
     expect(makeCorniceBand(bank, 10, 12, 0, 0, 0).name).toBe('NYC_CorniceBand');
     expect(makeAwningNYC(bank, 2, 3, 0, 3.8, 0, 0).name).toBe('NYC_Awning');
     expect(makeSteamVentNYC(bank, 1, 2).name).toBe('NYC_SteamVent');
@@ -213,9 +208,9 @@ describe('the ported kit builds (DOM-free)', () => {
     expect(globes.length).toBe(2);
   });
 
-  it('is deterministic: the same seed builds the same tank', () => {
-    const a = makeWaterTowerNYC(bank, 1.5, seededRng(20261111));
-    const b = makeWaterTowerNYC(bank, 1.5, seededRng(20261111));
+  it('is deterministic: the same seed builds the same chiller', () => {
+    const a = makeHVACUnitNYC(bank, 3.2, 2.6, 2.4, seededRng(20261111));
+    const b = makeHVACUnitNYC(bank, 3.2, 2.6, 2.4, seededRng(20261111));
     expect(b.children.length).toBe(a.children.length);
     for (let i = 0; i < a.children.length; i++) {
       expect(b.children[i].position.x).toBeCloseTo(a.children[i].position.x, 6);
@@ -262,17 +257,13 @@ describe('the skyline landmark silhouettes', () => {
 // ------------------------------------------------------- eligibility laws
 
 describe('the roof-eligibility laws the pass applies', () => {
-  it('puts tanks only on tall masonry roofs that the canon set does not carry', () => {
-    const canon = new Set(['KTN-01', 'KTS-01', 'KTN-05', 'KTN-00W', 'KTN-06']);
-    const tankIds = ['KTS-03', 'TEN-01', 'SRC-01', 'KTN-02', 'LMS-01'];
-    for (const id of tankIds) {
-      const b = registry.building(id)!;
-      expect(b.height, `${id} tall`).toBeGreaterThanOrEqual(14);
-      expect(canon.has(id), `${id} not canon`).toBe(false);
-    }
-    // and every OTHER canon-tank roof keeps exactly its shipped tank
-    for (const id of canon) expect(registry.building(id)).not.toBeNull();
-  });
+  // The union ruling (2026-11-11): the city-fabric pass (cityFabric.ts,
+  // main's own slop-newyork roofscape) owns water tanks, chimney stacks,
+  // roof bulkheads and antennae over every registry roof INCLUDING the
+  // Mallow row — the SI pass retired its own tank/chimney/bulkhead rows
+  // rather than double-place them. The boundary is pinned at boot by
+  // probe-nyc-integration.mjs (the SI ledger carries no roof items of
+  // those kinds; the fabric's own ledger carries them).
 
   it('hungs each escape stack on a face away from that building\'s own door', () => {
     // escape face per building (the pass's table); the doors face the street

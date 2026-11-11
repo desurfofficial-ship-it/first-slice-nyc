@@ -25,18 +25,18 @@ The row reads from Marlow as one street wall with SRC-01 —
 
 All changes are seeded (`seededRng(20261111)`) — deterministic across builds:
 
-- **Water tanks (ported 3-part trestle construction)** on 5 roofs that the
-  canon set doesn't carry: KTS-03, TEN-01, SRC-01, KTN-02, LMS-01. The five
-  canon tanks (terminal, brownstone row, Fade King, corner houses) are
-  untouched — pinned by test.
+- **Water tanks / chimney stacks / roof bulkheads** — RETIRED IN THE UNION:
+  the city-fabric pass (v1.40.0, main's own slop-newyork roofscape) owns
+  those systems over every registry roof (11 fabric tanks, 14 fabric
+  chimneys on the merged tree); this wave's duplicates were removed rather
+  than double-placed. The Mallow row's roofs are dressed by the fabric
+  (tanks where its hash lands them, antennae on the court's 20 m roof) and
+  by this wave's chillers + the bulkhead-free rooflines below.
 - **Rooftop chillers** on 6 of 10 eligible flat roofs (the source's 35%
   seeded rule) + the glass infill's roof line: KTN-03/04, KTS-02, SMB-02,
   PWK-01, KCM-01, KTN-07 (seeded picks), IND-01, GLS-01 ×2, LMS-01.
-- **Chimney stacks** (13 total) on the pre-war roofs: GRB-01..05, TEN-01,
-  PWK-02/03, LMS-01, KTN-03 — seated clear of tanks/chillers by the ported
-  roof-spot occupancy rule.
-- **Roof bulkheads** on the 3 new roofs (`makeRoofClutter`, the shipped
-  builder).
+
+
 - **Band-course cornices** on LMS-01 (S+N), KTN-02, KTS-03, KTN-05 (the
   ported projecting band, hung 0.33 under the roofline).
 - **Multi-landing fire escapes** (the ported escape template) on 5
@@ -65,7 +65,7 @@ the worst-case renderer):
 
 | Metric | Before (baseline `9ee4bf7`) | After (SI-1) | Budget |
 |---|---|---|---|
-| Boot draw calls | 157 (VQ probe baseline) | **158** | < 200 (the VQ gate) |
+| Boot draw calls | 157 (VQ probe baseline) | **158** (SI pass) / **164** on the merged tree (the fabric pass adds 6) | < 200 (the VQ gate) |
 | Boot triangles | ~281 k | **284 k** | — |
 | Statics added by the pass | — | ~350 pieces | all PRE-BAKE → fused into district tiles |
 | Draw-call cost of the pass | — | **+1 call** | the lobby-awning + gallery emissive glass keys |
@@ -83,10 +83,10 @@ and TSL shaders) survives that pipeline.
 | System | Result | Evidence |
 |---|---|---|
 | TypeScript | clean | `npx tsc --noEmit` — 0 errors |
-| Unit suite | **1395/1395** (86 files) — was 1377/1377; +18 = the SI guards | `npx vitest run` |
+| Unit suite | **1440/1440** (88 files) on the merged tree — the SI guards + the fabric/C5 suites | `npx vitest run` |
 | Production build | OK (611 ms) | `npm run build` |
-| 4-day E2E | **0 failures** (the full playthrough, console clean) | `node scripts/e2e.mjs` |
-| World-sim probe | **15/15** (1,426 sim-min) | `scripts/probe-world-sim.mjs` |
+| 4-day E2E | **0 failures** (490 s, the full playthrough, console clean) | `node scripts/e2e.mjs` |
+| World-sim probe | **15/15** (1,426 sim-min, 95.5 s) | `scripts/probe-world-sim.mjs` |
 | VQ probe | **OK** — every shipped pin survives (crowns 17, sills 104, ghosts 5, budget < 200) | `scripts/probe-world-visual-quality.mjs` |
 | SI probe | **OK** — 30 checks, all SI rows pinned by name + position | `scripts/probe-nyc-integration.mjs` |
 | Player movement / collision | masses are `solid()` AABBs on registry shells; the dock is steppable (0.3 m ≤ the 0.35 step law); furniture off the lanes | probe lane-clearance check |
