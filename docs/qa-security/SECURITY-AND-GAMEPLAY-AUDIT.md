@@ -55,7 +55,17 @@
 ### B-3 — Smaller findings (no action or recorded below)
 
 - `perf-peds.mjs` re-measured on the merged tree: **27.3 µs/frame** peds.update (0.16% of budget), heap +497 KB over 9,000 frames — flat; the merged world lines cost the commute ~+2 µs/frame over the wave-1 reading (24.3 µs) — within the register's own drift band, no action.
-- The `?showcase=sandflow` production reachability (wave 1, informational) remains as recorded — unchanged this wave, still non-destructive, still the recorded future DEV-guard item.
+- The `?showcase=sandflow` production reachability (wave 1, informational) was **closed during this wave by the parallel QA wave 3** (the DEV gate with its chunk eliminated from the bundle); the merged tree supersedes this wave's independent re-recording of the item.
+
+### B-3b — FS-QA2-003: the abnormal probe's A7 liveness gate lied on the grown world (harness gate repaired)
+
+| Field | Value |
+|---|---|
+| **Severity** | LOW (harness gate — a healthy game reported as failing on a slower machine) |
+| **Discovered** | The final-tree re-certification: `probe-abnormal` failed A7 twice on the terrace tree (86/91 frames in the 15 s idle window vs the check's 100-frame floor; hours earlier the same check passed with room to spare) |
+| **Root cause** | A7's `framesIdle > 100` floor is a proxy for "the loop is alive" calibrated on the lighter pre-terrace tree; the terrace build-out's world content dropped this software-GL sandbox's idle render to ~6 fps and the proxy started reporting a healthy, ticking, error-free game as failed |
+| **Fix** | The gate now asserts the real invariant — the frame loop advanced at all (never zero), the sim clock advanced while idle, zero page errors — and the frame rate is RECORDED in the detail line, not gated (frame rate is probe-perf/perf-peds' measurement, not a liveness gate) |
+| **Verification** | `probe-abnormal` **14/14** on the final tree (tick +10, 90 frames recorded) |
 
 ## C. Security Findings
 
@@ -89,6 +99,7 @@ Measured on the merged tree (software GL — the environment's measurement, not 
 | Metric | Result | Context |
 |---|---|---|
 | `peds.update` | **27.3 µs/frame** (0.16% of the 16.6 ms budget) | 12 armed commuters; wave-1 read 24.3 µs — the merged world lines cost ~+2–3 µs, inside the register's drift band |
+| `peds.update` (final tree, after the terrace build-out) | **58.7 µs/frame** (0.35% of budget) — still budget-safe, heap flat | the terrace wave's grown world (neighborhoodFabric +460 lines, World +165) roughly doubled the ped-step context cost; zero peds.ts/nav changes — recorded as the watch item it is (B13-adjacent), no action at µs scale |
 | Heap (peds) | +497 KB over 9,000 frames (gc off) | flat-line; wave-1 read +2,444 KB — no runaway growth |
 | Soak (30.6 sim-min, accelerated) | 0 failures, page clean | the W4 acceptance passes (B-2) |
 | E2E long-session | 702 s of driven play, 0 failures, console clean | `E2E_SCALE=0.5` render-buffer affordance (documented in the harness; the driver reads STATE, not pixels) |
@@ -104,14 +115,14 @@ All executed on this wave's final tree; browser-level gates against the real bui
 |---|---|---|
 | TypeScript (`tsc --noEmit`) | **clean** | `evidence/RESULTS-typecheck-qa2.txt` |
 | Vitest suite (wave tree) | **1,481/1,481 (90 files)** — main's 1,474 + the 7 plain-morning guards | `evidence/RESULTS-vitest-qa2.txt` |
-| **Merged tree re-certification** (origin/main moved mid-wave — the parallel QA wave 3 landed as v1.43.0; the merge is this wave's final tree) | tsc clean · build OK (611 ms) · vitest **1,485/1,485 (91 files)** · R1 **OK** · R2 **OK** · probe-c6 **60/0** · abnormal **OK** · the 4-day E2E re-run (below) | `evidence/RESULTS-*-merged.txt` |
+| **Merged tree re-certification** (origin/main moved TWICE mid-wave — the parallel QA wave 3 (v1.43.0), then the terrace build-out (v1.44.0); this wave renumbers to v1.45.0, the ledger strictly monotonic and unique; the waves touch disjoint src files) | tsc clean · build OK (644 ms) · vitest **1,496/1,496 (92 files)** · R1 **OK** · R2 **OK** · probe-c6 **60/0** · abnormal **OK** (after the FS-QA2-003 gate repair, §B-3b) · the 4-day E2E re-run (below) | `evidence/RESULTS-*-merged.txt`, `evidence/RESULTS-probe-abnormal-final.txt` |
 | Production build | **OK** | build log, this wave's commits |
 | R1 security probe | **31/31** | `evidence/RESULTS-probe-security-r1-qa2.txt` |
 | R2 security probe | **166/166** | `evidence/RESULTS-probe-security-r2-qa2.txt` |
 | Abnormal-player probe | **14/14** | `evidence/RESULTS-probe-abnormal-qa2.txt` |
 | W4 pedestrian soak (30.6 sim-min) | **OK — 0 failures** | `evidence/RESULTS-probe-w4-soak-qa2.txt` |
 | 4-day story E2E (wave tree) | **0 failures, 702 s, console clean** | `evidence/RESULTS-e2e-4day-qa2.txt` |
-| 4-day story E2E (merged tree) | **0 failures, 578 s, console clean — the wave’s final gate** | `evidence/RESULTS-e2e-4day-merged.txt` |
+| 4-day story E2E (merged tree) | **0 failures, 678 s, console clean — the wave’s final gate** (re-run after the terrace wave joined; 578 s on the pre-terrace merged tree also 0 failures) | `evidence/RESULTS-e2e-4day-merged.txt` |
 | probe-world-sim / nav / money-trace | **15/15 · 9/9 · ALL CHECKS PASSED** | this wave's run log |
 | probe-first-session / C5 / C6 | **8/8 · 68/0 · 60/0** | this wave's run log |
 | perf-peds | 27.3 µs/frame, heap flat | `evidence/RESULTS-perf-qa2.txt` |

@@ -1,12 +1,12 @@
-PACE: guard budgets ×3.67
+PACE: guard budgets ×4.00
 POINTER: PASS the pocket opens by CLICK and shows the tools
 POINTER: PASS the Map opens by CLICK on the HUD button
-POINTER: PASS the Map folds again by click
-TRACE : [pace] avg frame 368.4 ms over 60 — event budgets ×3.68
+TRACE : [pace] avg frame 401.7 ms over 60 — event budgets ×4.00
 DRIVER: PASS player stands on the sidewalk (y=0.10)
 DRIVER: PASS the camera occlusion buffer covers every canopy
+POINTER: PASS the Map folds again by click
+DRIVER: PASS walk cycle swings the hips while moving (max |hipL|=0.726)
 POINTER: PASS the audio button toggles by click
-DRIVER: PASS walk cycle swings the hips while moving (max |hipL|=0.634)
 DRIVER: PASS Rosa greeting advances flow
 POINTER: PASS the album opens by CLICK on the HUD button
 POINTER: PASS the album folds again by click
@@ -94,7 +94,7 @@ DRIVER: PASS four orders brewed and served
 DRIVER: PASS morning rush pays $19 (got $130)
 DRIVER: PASS the kid is waiting at the stoop
 DRIVER: PASS the kid joins you
-DRIVER: PASS the kid is actually walking (x 15.0 → 10.7)
+DRIVER: PASS the kid is actually walking (x 15.0 → 10.5)
 DRIVER: PASS the kid reached the corner on his own feet
 DRIVER: PASS stool up: -$10 (got $120)
 DRIVER: PASS the flyer objective is up
@@ -128,7 +128,7 @@ DRIVER: PASS the permit asks for a confirm press
 DRIVER: PASS permit filed: -$10, honest money (got $123)
 DRIVER: PASS the receipt sits on the cart
 DRIVER: PASS a repeat press at the A-frame spends nothing
-DRIVER: PASS day 4: grabbed ladder 1 [step=30 day=4 pos=(9.4,0.10,-7.1) ladder=true ground=false frozen=false dusk=true rig=false linger=0 panelHidden=true w2=0.0 w3=0.0]
+DRIVER: PASS day 4: grabbed ladder 1 [step=30 day=4 pos=(9.4,0.10,-6.8) ladder=true ground=false frozen=false dusk=true rig=false linger=0 panelHidden=true w2=0.0 w3=0.0]
 DRIVER: PASS day 4: grabbed ladder 2 (pos=15.3,-7.0) [step=30 day=4 pos=(15.3,4.08,-7.0) ladder=true ground=false frozen=false dusk=true rig=false linger=0 panelHidden=true w2=0.0 w3=0.0]
 DRIVER: PASS day 4: ladder caps at the rail (y=8.35) [step=30 day=4 pos=(16.4,8.35,-7.2) ladder=true ground=false frozen=false dusk=true rig=false linger=0 panelHidden=true w2=0.0 w3=0.0]
 DRIVER: PASS day 4 postcard composes [step=31 day=4 pos=(15.1,8.07,-7.2) ladder=false ground=true frozen=true dusk=true rig=true linger=0 panelHidden=false w2=0.0 w3=0.0]
@@ -139,8 +139,8 @@ DRIVER: PASS day 4 end lingers too [step=31 day=4 pos=(15.1,8.07,-7.2) ladder=fa
 DRIVER: PASS rail: Rosa’s goodnight (day 4) [step=31 day=4 pos=(12.6,8.07,-6.8) ladder=false ground=true frozen=false dusk=true rig=false linger=2 panelHidden=true w2=0.0 w3=0.0]
 DRIVER: PASS save holds day 4 complete: $123, map=true, permit=true, stool=true
 DRIVER: PASS day 5 begins — the week’s stabilized loop opens (the seasons run to the open endgame’s turn, Dec 1, Y4 — MAX_DAY = 1179) [step=33 day=5 pos=(3.0,0.10,-5.4) ladder=false ground=true frozen=false dusk=false rig=false linger=0 panelHidden=true w2=0.0 w3=0.0]
-DRIVER: AUTOTEST OK: 0 failures, 578s
+DRIVER: AUTOTEST OK: 0 failures, 678s
 === SUMMARY ===
-AUTOTEST OK: 0 failures, 578s
+AUTOTEST OK: 0 failures, 678s
 === CONSOLE ERRORS ===
 (none)
