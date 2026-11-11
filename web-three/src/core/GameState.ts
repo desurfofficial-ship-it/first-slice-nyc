@@ -121,6 +121,7 @@ import {
   composeSelfPortrait, selfPortraitEntry, kevTakesLetter, debtsComplete,
   type SelfPortraitInput,
 } from './c6pack';
+import { amendsFromLedger, amendsPortraitFacts } from './amends';
 import { dateOfCalendarDay } from './calendar';
 import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, ITEM_STICKERS, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
@@ -2881,6 +2882,15 @@ export class GameState {
     return this.ledger.filter((e) => e.kind === 'amends').length;
   }
 
+  /** R14 — the amends economy's row-level progress, derived from the
+   *  ledger's amends acts (core/amends.ts): the same ledger answers the
+   *  same rows, deterministically, with no new save bytes (the v1 law
+   *  keeps — the acts already ride the save; old saves answer from the
+   *  acts they carry). */
+  amendsProgress() {
+    return amendsFromLedger(this.ledger.filter((e) => e.kind === 'amends'));
+  }
+
   /** One amends row, logged (the C4 act's own shape). */
   private c6Amend(id: string, refs: string[]): void {
     this.logLedgerEntry({
@@ -3161,6 +3171,7 @@ export class GameState {
       k4Unstruck: this.fieldDiary.some((e) => e.id === 'c4-k4-corvus-partner' && e.corrections.length === 0),
       hallOpen: this.day >= 948,
       hearingWon: this.day >= C6_HEARING_DAY,
+      amendsFacts: amendsPortraitFacts(this.amendsProgress()),
     };
     const { body } = composeSelfPortrait(input);
     const out: Effect[] = [
