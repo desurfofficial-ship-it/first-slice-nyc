@@ -5,7 +5,8 @@ projects. This file preserves the required copyright and license notices.
 
 ## slop-newyork (partial adaptation)
 
-The `web-three/src/world/cityFabric.ts` module adapts techniques,
+The `web-three/src/world/cityFabric.ts` and
+`web-three/src/world/neighborhoodFabric.ts` modules adapt techniques,
 procedural-construction patterns, and deterministic-seeding approaches from
 [slop-newyork](https://github.com/mrdoob/slop-newyork) by mrdoob.
 

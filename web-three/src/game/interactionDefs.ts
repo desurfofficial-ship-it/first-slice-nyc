@@ -44,6 +44,8 @@ import {
   BAKERY_PRICE, BAKERY_OFFER, BAKERY_BROKE, BAKERY_LINES,
   RECORD_BIN_PRICE, RECORD_BIN_OFFER, RECORD_BIN_BROKE, RECORD_BIN_LINES,
   RECORD_LISTEN_NOTES,
+  // W6 — the terraces (docs/production/terrace-buildout)
+  TERRACE_STOOP_NOTES, TERRACE_PAYPHONE_NOTES, TERRACE_FLYER_NOTES,
 } from '../core/content';
 import { hallNoticeForDay } from '../world/dressing';
 import { EDDIE_COVENANT, EDDIE_LINES } from '../core/c0pack';
@@ -699,6 +701,39 @@ const cecilCorkboard: Interaction = {
   perform: ({ state }) => [{ kind: 'note', text: byDay(BULLETIN_NOTES, state.day) }],
 };
 
+// ------------------------------------------- the W6 terrace prompts ----
+// docs/production/terrace-buildout: the terrace build-out's own three
+// loops — a stoop to sit on, a payphone that works, a flyer board that
+// never gets cleaned. One-day-slot law (the oktays precedent): existing
+// ground, the census untouched, no save fields.
+
+const terraceStoop: Interaction = {
+  id: 'terrace_stoop',
+  pos: () => ({ x: -66.2, y: 1.2, z: 47.4 }),
+  radius: 2.2,
+  enabled: () => true,
+  prompt: () => 'Sit on the stoop',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(TERRACE_STOOP_NOTES, state.day) }],
+};
+
+const terracePayphone: Interaction = {
+  id: 'terrace_payphone',
+  pos: () => ({ x: 66.6, y: 1.4, z: 47.6 }),
+  radius: 2.0,
+  enabled: () => true,
+  prompt: () => 'Lift the receiver',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(TERRACE_PAYPHONE_NOTES, state.day) }],
+};
+
+const terraceFlyer: Interaction = {
+  id: 'terrace_flyer',
+  pos: () => ({ x: -58.9, y: 1.3, z: -47.5 }),
+  radius: 2.0,
+  enabled: () => true,
+  prompt: () => 'Read the flyer board',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(TERRACE_FLYER_NOTES, state.day) }],
+};
+
 export function freeRoamInteractions(src: InteractionSources): Interaction[] {
   return [bench, parkBench, court, hotdog, barber, alley, washerFree, board, newsbox, subway,
     trainA, trainB, priya, busker, buskerCoin, usher, driver, duffel,
@@ -729,6 +764,9 @@ export function freeRoamInteractions(src: InteractionSources): Interaction[] {
     // station phone, and the terminal stairs — one-day slots on
     // existing ground (the census untouched)
     funeralPorch, lastNight, lawyerOffice, oneAmCall, phoneHome, terminalStairs,
+    // the W6 terrace prompts (docs/production/terrace-buildout): the
+    // stoop, the payphone, the flyer board — existing ground, one-day-slot law
+    terraceStoop, terracePayphone, terraceFlyer,
     ...simHellos(src), ...walkerChats(src), ...shelfInteractions(src)];
 }
 
