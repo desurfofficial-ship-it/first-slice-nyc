@@ -57,6 +57,7 @@ import { buildSubwaySystem, STATION, ZONE_KEEP_RE, type SubwaySystem, type Colli
 import { buildTimesSquare, type TimesSquare } from './timesSquare';
 import { buildArrivalBus, BUS04_RECT, playerOccupiesBus04, type ArrivalBus } from './arrivalBus';
 import { buildCityFabric } from './cityFabric';
+import { buildNeighborhoodFabric } from './neighborhoodFabric';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay,
   skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH,
   STREET_PLAN, PEDESTRIAN_ROLES, type StreetPlan } from './dressing';
@@ -1119,12 +1120,15 @@ export class World {
     // ---------------- invisible bounds (the master-world core) -------------
     // W1: the shipped x ±48 / z ∓22/22.5 walls are RETIRED (docs/45 W1 —
     // "retire the x ±48 walls"; the grid is walkable now, Gable and Marlow
-    // sit outside the old z walls). The boundary moves to the registry's
-    // playable core: x ±84, z ±48 — never before a district has content.
-    this.colliders.push(boxFromCenter(-84, 5, 0, 1, 20, 96));
-    this.colliders.push(boxFromCenter(84, 5, 0, 1, 20, 96));
-    this.colliders.push(boxFromCenter(0, 6, -48, 168, 24, 1)); // south wall behind Marlow
-    this.colliders.push(boxFromCenter(0, 6, 48, 168, 24, 1));  // north wall behind Gable
+    // sit outside the old z walls). The boundary moved to the registry's
+    // playable core: x ±84, z ±48. W6 (the terrace build-out, the owner's
+    // 2026-11-11 expansion authorization — DEC-8 satisfied in the register):
+    // the core grows to z ±64 and the strips behind Gable and Marlow become
+    // real rows — the z walls follow the registry's own bounds.
+    this.colliders.push(boxFromCenter(-84, 5, 0, 1, 20, 128));
+    this.colliders.push(boxFromCenter(84, 5, 0, 1, 20, 128));
+    this.colliders.push(boxFromCenter(0, 6, -64, 168, 24, 1)); // south wall behind the Carrow terrace
+    this.colliders.push(boxFromCenter(0, 6, 64, 168, 24, 1));  // north wall behind the Larkin terrace
 
     // zones
     this.crosswalkZone = boxFromCenter(-5, 1, 0, 3.4, 2, 7.5);
@@ -1710,6 +1714,14 @@ export class World {
     this.buildAlderHeightsW2();
     // W3: the avenue walls, the landmarks, the painted gables. Also pre-bake.
     this.buildAlderHeightsW3();
+    // W6: the terrace build-out (docs/production/terrace-buildout — the
+    // owner's expansion authorization): the core grows z ±48 → ±64, the
+    // strips behind Gable and Marlow gain eight real rows (every mass via
+    // regShell — the no-invention law), the gardens behind the pinned
+    // backdrop rows get lawn, benches and trees. All pre-bake. The
+    // neighborhood fabric (ironwork, terrace faces, street props) runs in
+    // its own pass just before the bake.
+    this.buildAlderHeightsW6Terrace();
     // W4 part 1: the district's static life — zone figures, parked cars,
     // the BUS-03 stop — all pre-bake so the W0 merge swallows them (the
     // perf law: the zones cost merges, not draw calls).
@@ -1742,6 +1754,9 @@ export class World {
     // (always visible, never district-owned). Zero colliders, zero nav
     // changes, deterministic (pinned by tests/city-fabric.test.ts).
     this.buildCityFabricPass();
+
+    // the neighborhood fabric pass (the W6 continuation — same bake law)
+    this.buildNeighborhoodFabricPass();
 
     // SI (2026-11-11): the borough-character pass — the slop-newyork port's
     // other half. The three Mallow-row buildings (registry LMS-01/IND-01/
@@ -3581,6 +3596,9 @@ export class World {
   /** The city-fabric placement ledger (the vqLedger pattern): the bake
    *  fuses the in-tile fabric meshes away, so probes read this. */
   readonly fabricLedger: Array<{ name: string; x: number; y: number; z: number }> = [];
+  /** The neighborhood fabric's placement ledger (the W6 wave — the probe's
+   *  ground truth, same law as fabricLedger). */
+  readonly nbhdLedger: Array<{ name: string; x: number; y: number; z: number }> = [];
   /** The city-fabric pass (docs/production/city-fabric — the slop-newyork
    *  adaptation, MIT-attributed in THIRD-PARTY-NOTICES.md): the module owns
    *  the geometry; World owns the seams — the registry shells (the
@@ -3606,6 +3624,25 @@ export class World {
         this.scene.add(p);
         this.vqLedger.push({ name: p.name, x, y: 0, z });
       },
+    });
+  }
+
+  /** The neighborhood fabric pass (docs/production/terrace-buildout — the
+   *  W6 continuation of the slop-newyork adaptation): fire-escape ironwork
+   *  across the facades, the exposed street faces of the pinned backdrop
+   *  rows (windows, cornices, lit panes riding the dusk material), and the
+   *  missing sidewalk furniture (mailboxes, bike hoops, hydrants, the ConEd
+   *  steam stacks, the terrace payphone). All pre-bake so the tiles fuse
+   *  it; zero colliders, zero nav changes, deterministic. */
+  private buildNeighborhoodFabricPass(): void {
+    buildNeighborhoodFabric({
+      ledger: this.nbhdLedger,
+      scene: this.scene,
+      mat: (c, o) => this.mat(c, o),
+      vc: (fog) => this.vcMaterial(fog),
+      regShell: (id) => this.regShell(id),
+      buildings: loadRegistry().allBuildings(),
+      skylineWinMat: this.skylineWinMat,
     });
   }
 
@@ -6446,6 +6483,122 @@ export class World {
    *  alpha. The W1 simple rows' instances stay at aFade = 1 forever.
    *  Runs AFTER the bake — an InstancedMesh is a Mesh, and the bake must
    *  never swallow it. */
+  /** W6 — THE TERRACE BUILD-OUT (docs/production/terrace-buildout): the
+   *  playable core grows z ±48 → ±64 (the walls follow the registry's own
+   *  bounds) and the strips become real neighborhood. Eight new masses —
+   *  four brownstones continuing Gable's row north, four walk-ups/shops
+   *  continuing Marlow south — every one reading its registry row through
+   *  regShell (the no-invention law; the rows are status 'built (W6)').
+   *  Behind the pinned backdrop rows (VDN-DN1/DS1, footprints untouched)
+   *  the Larkin and Carrow gardens: lawn, gravel path, benches, street
+   *  trees riding the shipped simple-row grammar. The district bake's
+   *  clamp law puts the strips in the edge rows' tiles — same law the
+   *  backdrop rows have always lived under; zero grid surgery. */
+  private buildAlderHeightsW6Terrace(): void {
+    const rng = seededRng(20261111); // the wave's own seed — never re-tunes a shipped row
+
+    // ---- the terrace walk slabs (the walk plane continues to the walls) --
+    this.solid('Terrace_N_Walk', 0, -0.05, 56, 168, 0.3, 16, PAL.walk, { receive: true, cast: false });
+    this.solid('Terrace_S_Walk', 0, -0.05, -56, 168, 0.3, 16, PAL.walk, { receive: true, cast: false });
+
+    // ---- the eight terrace masses (A-3 law: every row via regShell) ------
+    interface TerraceStyle { mass: number; door: number; storefront?: string; awning?: number }
+    const terraceRows: Array<[string, TerraceStyle]> = [
+      // the Larkin terrace — Gable's brownstone row continues north (the
+      // strip's clean land is x −68..−60 / 60..68: the avenue roadways keep
+      // their corridors and the backdrop rows keep their footprints)
+      ['GRB_06', { mass: PAL.bldg2, door: PAL.teal }],
+      ['GRB_07', { mass: PAL.bldg2, door: 0x6d4c7d }],
+      // the Carrow terrace — Marlow's shop-and-walk-up row continues south
+      ['TEN_02', { mass: PAL.brick, door: 0x6d4c7d, storefront: 'CARROW FRUITS', awning: PAL.teal }],
+      ['KTS_04', { mass: PAL.brick, door: PAL.coral, storefront: 'TERRACE WINE', awning: 0x9e222e }],
+    ];
+    for (const [id, style] of terraceRows) {
+      const regId = id.replace('_', '-');
+      const reg = this.regShell(regId);
+      const row = loadRegistry().building(regId);
+      const isNorthRow = reg.z > 0;              // the Larkin terrace faces south (−z)
+      const faceZ = isNorthRow ? reg.z - reg.d / 2 : reg.z + reg.d / 2; // ±48.5
+      this.solid(id, reg.x, reg.h / 2, reg.z, reg.w, reg.h, reg.d, style.mass);
+      // the cornice caps the mass (the crown grammar)
+      this.deco(`${id}_Cornice`, reg.x, reg.h - 0.25, reg.z, reg.w + 0.2, 0.5, reg.d + 0.2, PAL.stone, {});
+      // the window rhythm against the registry box
+      const floors = Math.max(2, Math.round(reg.h / 3.3));
+      const cols = reg.w >= 7 ? 2 : 1;
+      for (let f = 0; f < floors; f++) {
+        for (let c = 0; c < cols; c++) {
+          const wx = reg.x - reg.w / 2 + (reg.w / (cols + 1)) * (c + 1);
+          const wy = 3.4 + f * ((reg.h - 1.2) / floors);
+          if (wy > reg.h - 1.0) continue;
+          this.decoMesh(`${id}_Win_${f}_${c}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
+            this.bank.get(PAL.windowDim), wx, wy, faceZ + (isNorthRow ? -0.05 : 0.05));
+        }
+      }
+      // the entrance craft — the registry's own row says which
+      const ent = row?.entrance?.[0];
+      const entX = ent?.x ?? reg.x;
+      if (style.storefront) {
+        // the shopfront faces the walk (north, +z, for the Carrow rows)
+        const shop = makeStorefront(this.bank, this.signMaterials.bind(this),
+          style.storefront, style.awning ?? PAL.teal, reg.w - 1);
+        shop.position.set(reg.x, 0.05, faceZ + 0.04);
+        this.scene.add(shop);
+        const door = makeBrownstoneStoop(this.bank, style.door, false);
+        door.position.set(entX, 0, faceZ + 0.6);
+        this.scene.add(door);
+      } else if (isNorthRow) {
+        // the Larkin high stoops — the row faces south, so the stoop turns
+        // (door recessed at the face plane, steps descend onto the walk)
+        const stoop = makeBrownstoneStoop(this.bank, style.door, true);
+        stoop.position.set(entX, 0, faceZ - 0.6);
+        stoop.rotation.y = Math.PI;
+        this.scene.add(stoop);
+      } else {
+        const stoop = makeBrownstoneStoop(this.bank, style.door, false);
+        stoop.position.set(entX, 0, faceZ + 0.6);
+        this.scene.add(stoop);
+      }
+    }
+
+    // ---- the gardens behind the pinned backdrop rows (footprints never
+    // move — the Larkin and Carrow gardens ARE the strip behind them) ----
+    this.deco('Terrace_N_Lawn', 0, 0.125, 61.2, 116, 0.05, 5, 0x3a7355, {});
+    this.deco('Terrace_N_Path', 0, 0.155, 60.2, 100, 0.05, 1.3, PAL.stone, {});
+    this.deco('Terrace_S_Lawn', 0, 0.125, -61.2, 116, 0.05, 5, 0x3a7355, {});
+    this.deco('Terrace_S_Path', 0, 0.155, -60.2, 100, 0.05, 1.3, PAL.stone, {});
+    for (const [bx, bz, byaw] of [
+      [-24, 62.1, Math.PI], [28, 62.1, Math.PI], [-30, -62.1, 0], [22, -62.1, 0],
+    ] as const) {
+      const b = makeBench(this.bank);
+      b.position.set(bx, 0.15, bz);
+      b.rotation.y = byaw;
+      this.scene.add(b);
+      this.colliders.push(boxFromCenter(bx, 0.45, bz, 1.85, 0.7, 0.62));
+    }
+    for (const tx of [-52, -36, -8, 12, 36, 52]) this.buildSimpleTree(tx, 61.6, rng);
+    for (const tx of [-56, -40, -16, 4, 32, 48]) this.buildSimpleTree(tx, -61.6, rng);
+    // the community-garden corner of the Larkin garden (the W2 parks kit:
+    // two beds, the shed, the compost bin — the residents' strip)
+    const bedA = makeGardenBed(this.bank, rng);
+    bedA.position.set(-2, 0.15, 62.4);
+    this.scene.add(bedA);
+    const bedB = makeGardenBed(this.bank, rng);
+    bedB.position.set(20, 0.15, 62.4);
+    this.scene.add(bedB);
+    const shed = makeShed(this.bank);
+    shed.position.set(-44, 0.15, 62.6);
+    this.scene.add(shed);
+    this.colliders.push(boxFromCenter(-44, 1.1, 62.6, 2.0, 2.2, 1.4));
+    const compost = makeCompostBin(this.bank);
+    compost.position.set(-40.5, 0.15, 62.7);
+    this.scene.add(compost);
+
+    // the terrace flyer board (the W6 anchors — the interactions read these)
+    const board = makeBulletinBoard(this.bank, this.flyerMat);
+    board.position.set(-58.9, 0.15, -47.55);
+    this.scene.add(board);
+  }
+
   private buildInstancedTreeRows(): void {
     if (this.canopyBuilt) return;
     const count = [0, 0, 0, 0];

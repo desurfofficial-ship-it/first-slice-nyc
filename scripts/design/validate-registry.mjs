@@ -119,6 +119,25 @@ const shipped = [
   ['SUB-01', -47.2, 6.2, 2.6, 3.5, 3.2], // subway entrance + collider
   ['VND-01', 29.8, -4.55, 1.7, 0.9, 2.2] // dog cart
 ];
+// W6 — the terrace build-out (2026-11-11): the strips behind Gable and
+// Marlow are real rows now; the masses are pinned like every band before,
+// with their own status column (the shipped list above is 'existing' law)
+const w6 = [
+  ['GRB-06', -64, 56.2, 8, 15.4, 12.5],
+  ['GRB-07', 64, 56.2, 8, 15.4, 12.5],
+  ['TEN-02', -64, -56.2, 8, 15.4, 16.5],
+  ['KTS-04', 64, -56.2, 8, 15.4, 18]
+];
+for (const [id, x, z, w, d, h] of w6) {
+  const b = R.buildings.find((y) => y.id === id);
+  ok(b, `MISSING W6 ${id}`);
+  if (b) {
+    const f = b.footprint;
+    ok(f.x === x && f.z === z && f.w === w && f.d === d && b.height === h,
+      `W6 DRIFT ${id}: registry (${f.x},${f.z},${f.w},${f.d},h${b.height}) != plan (${x},${z},${w},${d},h${h})`);
+    ok(b.status === 'built (W6)', `${id} must be status 'built (W6)'`);
+  }
+}
 for (const [id, x, z, w, d, h] of shipped) {
   const b = R.buildings.find((y) => y.id === id);
   ok(b, `MISSING EXISTING ${id} — the registry must carry every shipped mass`);
@@ -179,4 +198,4 @@ if (problems.length) {
   for (const p of problems) console.log('  ✗ ' + p);
   process.exit(1);
 }
-console.log(`REGISTRY VALIDATION OK — ${ids.size} IDs, ${R.buildings.length} buildings (${R.buildings.filter(b => b.status === 'existing').length} existing), ${R.streets.length} streets, ${R.parks.length} parks, ${R.interiors.length} interiors. Shipped-world fidelity: 12/12 masses, ${anchors.length}/${anchors.length} anchors.`);
+console.log(`REGISTRY VALIDATION OK — ${ids.size} IDs, ${R.buildings.length} buildings (${R.buildings.filter(b => b.status === 'existing').length} existing), ${R.streets.length} streets, ${R.parks.length} parks, ${R.interiors.length} interiors. Shipped-world fidelity: 17/17 masses (13 shipped + 4 W6), ${anchors.length}/${anchors.length} anchors.`);

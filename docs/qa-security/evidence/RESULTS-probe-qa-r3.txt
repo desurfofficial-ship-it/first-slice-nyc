@@ -1,0 +1,34 @@
+— Phase U: URL fuzz on the production build (day-4 seeded save) —
+PASS  U: garbage worldclock boots without errors
+PASS  U: garbage worldclock executes nothing
+PASS  U: garbage worldclock leaves the story save intact — day 4 money 240
+PASS  U: negative worldclock boots without errors
+PASS  U: negative worldclock executes nothing
+PASS  U: negative worldclock leaves the story save intact — day 4 money 240
+PASS  U: infinite worldclock boots without errors
+PASS  U: infinite worldclock executes nothing
+PASS  U: infinite worldclock leaves the story save intact — day 4 money 240
+PASS  U: every harmless param at once boots without errors
+PASS  U: every harmless param at once executes nothing
+PASS  U: every harmless param at once leaves the story save intact — day 4 money 240
+PASS  U: script payload in a param boots without errors
+PASS  U: script payload in a param executes nothing
+PASS  U: script payload in a param leaves the story save intact — day 4 money 240
+— Phase S: hostile story-save matrix (parser trust boundary) —
+PASS  S: hostile save boots without errors
+PASS  S: no payload executed (cart name, player name, diary, ledger)
+PASS  S: negative money clamps into range — HUD money 0
+PASS  S: absurd day clamps to the story ceiling — day 814
+PASS  S: diary payload did not execute through the Map
+PASS  S: diary renders hostile entries as ink, not markup
+PASS  S: the hostile diary body still renders (as text)
+— Phase P: human-mode boot (webdriver hidden) — film + panel abuse —
+PASS  P: the arrival film plays for a human boot
+PASS  P: E-spam during the film produces no errors
+PASS  P: skipping the film after abuse lands the handover
+PASS  P: taking the default look after the film produces no errors
+PASS  P: 20× rapid Map toggling produces no errors
+PASS  P: pocket/sound toggle spam produces no errors
+PASS  P: the wallet stays finite after the abuse — HUD money 87
+QA-R3 PROBE: 29/29 checks passed
+QA-R3 PROBE OK — URL fuzz, save tampering, XSS payloads and panel abuse all stay inside the trust boundaries

@@ -75,6 +75,19 @@ const BANDS: Record<string, { ids: string[]; classes: string[]; slots?: string[]
   'u8-ss-b': { ids: ['KTN-01', 'KTN-02', 'KTN-04', 'KTN-05'], classes: ['B', 'C'], slots: ['ALY-02'] },
   'u9-ss-a': { ids: ['ROS-01', 'SUB-01'], classes: ['A', 'B'] },
   'u10-tss': { ids: ['TSS-01', 'TSS-02', 'TSS-03', 'TSS-04', 'TSS-05'], classes: ['B', 'C', 'A'], slots: ['SUB-TS'] },
+  // unit 11 — the W6 terrace build-out (docs/production/terrace-buildout,
+  // the owner's 2026-11-11 expansion authorization): the strips behind
+  // Gable and Marlow become real rows, same flip law
+  'u11-w6': { ids: ['GRB-06', 'GRB-07', 'TEN-02', 'KTS-04'], classes: ['C'] },
+};
+
+/** Unit 11's hand truth — the W6 terrace masses, verbatim from the plan
+ *  the validator pins (scripts/design/validate-registry.mjs). */
+const HAND_TRUTH_W6: Record<string, { x: number; z: number; w: number; d: number; h: number }> = {
+  'GRB-06': { x: -64, z: 56.2, w: 8, d: 15.4, h: 12.5 },
+  'GRB-07': { x: 64, z: 56.2, w: 8, d: 15.4, h: 12.5 },
+  'TEN-02': { x: -64, z: -56.2, w: 8, d: 15.4, h: 16.5 },
+  'KTS-04': { x: 64, z: -56.2, w: 8, d: 15.4, h: 18 },
 };
 
 /** The retired hand truth, verbatim from the pre-flip World.ts rows —
@@ -218,6 +231,9 @@ describe('A-3 registry flip — the flipped bands answer to the registry', () =>
     }
     for (const id of [...VDN_IDS, 'TEN-01', 'SRC-01', 'SRC-02', 'KTN-07', 'KCM-01', 'SND-01', 'VND-02']) {
       expect(reg.building(id)!.status, id).toBe('built (W3)');
+    }
+    for (const id of Object.keys(HAND_TRUTH_W6)) {
+      expect(reg.building(id)!.status, id).toBe('built (W6)');
     }
     expect(reg.building('KTN-01')!.status).toBe('existing'); // the originals stay
   });
