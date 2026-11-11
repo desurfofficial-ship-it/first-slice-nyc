@@ -36,7 +36,7 @@
  *    the chapter through advanceChapter's own door at C5's window start
  *    — and the wall holds afterward (the roll into C5's stations is the
  *    C5 wave's law; the honest pattern);
- *  - the saves: MAX_DAY = 814, station days parse exactly;
+ *  - the saves: MAX_DAY = 1179, station days parse exactly;
  *  - the captions: every station has a caption; the composer serves it
  *    with the date; C3's cards are byte-identical (the pre-C4 text never
  *    moved);
@@ -106,7 +106,7 @@ describe('the C4 station map — doc 06 §C4\u2019s arc as playable days', () =>
     expect(C4_LAST_DAY).toBe(658);
     // the ceiling moved with the frontier (the C4 wave's law — the c4
     // suite owns the exact pin):
-    expect(MAX_DAY).toBe(814);
+    expect(MAX_DAY).toBe(1179);
     expect(calendarDayOf({ y: 3, m: 1, d: 6 })).toBe(485);   // the face's winter opens
     expect(calendarDayOf({ y: 3, m: 6, d: 28 })).toBe(658);  // the face's books (the period end)
     expect(calendarDayOf({ y: 3, m: 7, d: 3 })).toBe(663);   // the cut's morning (July heat)
@@ -570,11 +570,11 @@ describe('the C4\u2192C5 season cut (doc 06 §C4 handoff)', () => {
 
 describe('the saves — the chapter rides the v1-safe law', () => {
   it('MAX_DAY is the frontier\u2019s canon end; a station day parses EXACTLY (the sparse chapter is legal)', () => {
-    expect(MAX_DAY).toBe(814);
+    expect(MAX_DAY).toBe(1179);
     expect(parseSave(JSON.stringify({ day: 485 })).day).toBe(485);
     expect(parseSave(JSON.stringify({ day: 622 })).day).toBe(622);
     expect(parseSave(JSON.stringify({ day: 658 })).day).toBe(658);
-    expect(parseSave(JSON.stringify({ day: 999 })).day).toBe(814);
+    expect(parseSave(JSON.stringify({ day: 99999 })).day).toBe(1179);
   });
 
   it('the fluency ladder\u2019s day (a CALENDAR day) round-trips deep inside the face\u2019s winter', () => {
