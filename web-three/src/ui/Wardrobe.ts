@@ -451,7 +451,10 @@ export class Wardrobe {
     // reframe when the stage resizes (orientation, safe-area, keyboard)
     if (typeof ResizeObserver !== 'undefined' && !this.stageObserver) {
       this.stageObserver = new ResizeObserver(() => this.resize());
-      this.stageObserver.observe(this.canvas);
+      // The resize law: observe the LAYOUT OWNER (the stage), never the
+      // canvas — the canvas's own size is the drawing buffer resize()
+      // writes, and an observer armed on it re-fires on its own writes.
+      this.stageObserver.observe(this.canvas.parentElement ?? this.canvas);
     }
   }
 
@@ -468,8 +471,18 @@ export class Wardrobe {
 
   private resize(): void {
     if (!this.renderer || !this.camera) return;
-    const w = this.canvas.clientWidth || 340;
-    const h = this.canvas.clientHeight || 340;
+    // The resize law (the QA audit's wardrobe loop fix): measure the LAYOUT
+    // OWNER — the stage host — never the canvas itself. The canvas's
+    // intrinsic size IS the drawing buffer this method writes; reading a
+    // size the same call can rewrite made the desktop row layout (stage
+    // height:auto) grow the card one pixel per frame in a ResizeObserver
+    // loop, with the loop toast on screen the whole time. The canvas now
+    // also sits out of layout flow (style.css #wardrobe-canvas), so the
+    // buffer write can never move layout again — this guard is the belt
+    // to that pair of suspenders.
+    const host = this.canvas.parentElement ?? this.canvas;
+    const w = host.clientWidth || 340;
+    const h = host.clientHeight || 340;
     const aspect = w / Math.max(h, 1);
     this.camera.aspect = aspect;
     // Consumer framing: the chosen look is the product. Wide/short stages
@@ -492,7 +505,16 @@ export class Wardrobe {
       this.camera.lookAt(0, 0.92, 0);
     }
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(w, h, false);
+    // No-op guard: setSize writes the canvas's intrinsic size — rewriting
+    // the same buffer is how the ResizeObserver loop re-armed itself
+    // forever (the "loop completed with undelivered notifications" toast).
+    // Only write when the buffer actually changes.
+    const pr = this.renderer.getPixelRatio();
+    const bw = Math.floor(w * pr);
+    const bh = Math.floor(h * pr);
+    if (this.canvas.width !== bw || this.canvas.height !== bh) {
+      this.renderer.setSize(w, h, false);
+    }
   }
 
   private startLoop(): void {
