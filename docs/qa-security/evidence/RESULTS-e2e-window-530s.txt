@@ -1,0 +1,42 @@
+[t+15s] {"done":false,"failures":0}
+[t+30s] {"done":false,"failures":0}
+[t+46s] {"done":false,"failures":0}
+[t+61s] {"done":false,"failures":0}
+[t+76s] {"done":false,"failures":0}
+[t+91s] {"done":false,"failures":0}
+[t+106s] {"done":false,"failures":0}
+[t+121s] {"done":false,"failures":0}
+[t+136s] {"done":false,"failures":0}
+[t+151s] {"done":false,"failures":0}
+[t+166s] {"done":false,"failures":0}
+[t+182s] {"done":false,"failures":0}
+[t+197s] {"done":false,"failures":0}
+[t+212s] {"done":false,"failures":0}
+[t+227s] {"done":false,"failures":0}
+[t+242s] {"done":false,"failures":0}
+[t+257s] {"done":false,"failures":0}
+[t+273s] {"done":false,"failures":0}
+[t+288s] {"done":false,"failures":0}
+[t+303s] {"done":false,"failures":0}
+[t+318s] {"done":false,"failures":0}
+[t+333s] {"done":false,"failures":0}
+[t+348s] {"done":false,"failures":0}
+[t+363s] {"done":false,"failures":0}
+[t+378s] {"done":false,"failures":0}
+[t+394s] {"done":false,"failures":0}
+[t+409s] {"done":false,"failures":0}
+[t+424s] {"done":false,"failures":0}
+[t+439s] {"done":false,"failures":0}
+[t+454s] {"done":false,"failures":0}
+[t+469s] {"done":false,"failures":0}
+[t+484s] {"done":false,"failures":0}
+[t+500s] {"done":false,"failures":0}
+[t+515s] {"done":false,"failures":0}
+[t+530s] {"done":false,"failures":0}
+FINAL: {
+ "done": false,
+ "failures": [],
+ "logTail": []
+}
+page errors (non-SwiftShader): 0 []
+E2E DRIVER WINDOW ELAPSED (530 s) — partial evidence only

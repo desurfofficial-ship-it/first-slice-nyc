@@ -400,7 +400,7 @@
     "zMin": 48,
     "zMax": 64
    },
-   "identity": "Gable's brownstone row continues north (GRB-06..09) with the Larkin garden behind the VDN-DN1 mass"
+   "identity": "Gable's brownstone row continues north (GRB-06/07) with the Larkin garden behind the VDN-DN1 mass"
   },
   {
    "id": "BLK-S2",
@@ -411,7 +411,7 @@
     "zMin": -64,
     "zMax": -48
    },
-   "identity": "Marlow's shop-and-walk-up row continues south (TEN-02..03, KTS-04..05) with the Carrow garden behind the VDN-DS1 mass"
+   "identity": "Marlow's shop-and-walk-up row continues south (TEN-02/KTS-04) with the Carrow garden behind the VDN-DS1 mass"
   }
  ],
  "buildings": [
@@ -1586,6 +1586,69 @@
    "height": 14,
    "floors": 4,
    "exterior": "Mirror strip; SKY-S card behind.",
+   "entrance": [],
+   "interior": null,
+   "collider": true
+  },
+  {
+   "id": "LMS-01",
+   "name": "The Mallow Court",
+   "status": "built (SI-1)",
+   "class": "C",
+   "face": "Marlow N",
+   "block": "BLK-S",
+   "footprint": {
+    "x": 28,
+    "z": -26,
+    "w": 12,
+    "d": 12
+   },
+   "height": 20,
+   "floors": 7,
+   "style": "pre-war limestone apartment court (slop-integration wave SI-1): stone base, buff ashlar upper, mid-band cornice, tall parlor openings, roof bulkhead + tank + chimney set",
+   "exterior": "Lobby entrance with high stoop on the Marlow walk; court-side light slot toward IND-01.",
+   "entrance": [],
+   "interior": null,
+   "collider": true
+  },
+  {
+   "id": "IND-01",
+   "name": "The Mallow Works",
+   "status": "built (SI-1)",
+   "class": "C",
+   "face": "Marlow N",
+   "block": "BLK-S",
+   "footprint": {
+    "x": 37,
+    "z": -26,
+    "w": 6,
+    "d": 12
+   },
+   "height": 12,
+   "floors": 3,
+   "style": "old industrial loft/warehouse (slop-integration wave SI-1): brick shell, freight doors + loading platform on the walk, rooftop chiller + bulkhead",
+   "exterior": "Painted ghost-panel lintel over the freight door; the last working floor of the row.",
+   "entrance": [],
+   "interior": null,
+   "collider": true
+  },
+  {
+   "id": "GLS-01",
+   "name": "The Glass Infill",
+   "status": "built (SI-1)",
+   "class": "C",
+   "face": "Marlow N",
+   "block": "BLK-S",
+   "footprint": {
+    "x": 45,
+    "z": -26,
+    "w": 10,
+    "d": 12
+   },
+   "height": 16,
+   "floors": 6,
+   "style": "modern glass infill over a stone base (slop-integration wave SI-1): dark curtain grid on the walk face, brick flank walls, rooftop chiller line",
+   "exterior": "The one new neighbor the row got this year; construction shed off its flank in the yard.",
    "entrance": [],
    "interior": null,
    "collider": true

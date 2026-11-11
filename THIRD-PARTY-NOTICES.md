@@ -5,9 +5,13 @@ projects. This file preserves the required copyright and license notices.
 
 ## slop-newyork (partial adaptation)
 
-The `web-three/src/world/cityFabric.ts` and
-`web-three/src/world/neighborhoodFabric.ts` modules adapt techniques,
-procedural-construction patterns, and deterministic-seeding approaches from
+The `web-three/src/world/cityFabric.ts` module (the city-fabric pass,
+docs/production/city-fabric/), the `web-three/src/world/neighborhoodFabric.ts`
+module (the terrace build-out, docs/production/terrace-buildout/), and the
+`web-three/src/world/nycKit.ts` + `web-three/src/world/skylineLandmarks.ts`
+modules (the SI borough-character pass, docs/slop-integration/) adapt
+techniques, procedural-construction patterns, and deterministic-seeding
+approaches from
 [slop-newyork](https://github.com/mrdoob/slop-newyork) by mrdoob.
 
 slop-newyork is licensed under the MIT License:

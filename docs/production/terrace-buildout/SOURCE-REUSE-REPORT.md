@@ -1,6 +1,6 @@
 # SOURCE REUSE REPORT — the terrace build-out (W6)
 
-Wave: **the W6 terrace build-out** (register v1.41.0) · Source: [mrdoob/slop-newyork](https://github.com/mrdoob/slop-newyork) (MIT, © 2026 Mr.doob) · Continues: `docs/production/city-fabric/SOURCE-REUSE-REPORT.md` (v1.40.0)
+Wave: **the W6 terrace build-out** (register v1.44.0) · Source: [mrdoob/slop-newyork](https://github.com/mrdoob/slop-newyork) (MIT, © 2026 Mr.doob) · Continues: `docs/production/city-fabric/SOURCE-REUSE-REPORT.md` (v1.40.0)
 
 ## 1. What this wave took from the source
 

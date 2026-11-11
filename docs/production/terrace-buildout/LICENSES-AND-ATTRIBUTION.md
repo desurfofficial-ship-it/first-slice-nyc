@@ -1,4 +1,4 @@
-# LICENSES & ATTRIBUTION — the terrace build-out (W6, register v1.41.0)
+# LICENSES & ATTRIBUTION — the terrace build-out (W6, register v1.44.0)
 
 ## Source: mrdoob/slop-newyork
 

@@ -1220,6 +1220,13 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   }
 }
 #wardrobe-canvas {
+  /* The resize law: OUT of layout flow. The canvas's intrinsic size is the
+     drawing buffer Wardrobe.resize() writes; a canvas in flow inside the
+     auto-height desktop stage fed that size back into layout and the card
+     grew a pixel per frame in a ResizeObserver loop (loop toast on screen
+     the whole time). Absolutely positioned inside the stage (already
+     position:relative), the buffer write can never move layout again. */
+  position: absolute; inset: 0;
   width: 100%; height: 100%;
   display: block;
   cursor: grab;

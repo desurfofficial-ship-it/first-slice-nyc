@@ -1,4 +1,4 @@
-# ASSET CHANGES — the terrace build-out (W6, register v1.41.0)
+# ASSET CHANGES — the terrace build-out (W6, register v1.44.0)
 
 Every change is deterministic (seeded PRNGs only — a rebuild is
 byte-identical, pinned by `tests/neighborhood-fabric.test.ts`).

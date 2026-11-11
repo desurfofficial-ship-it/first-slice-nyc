@@ -98,7 +98,7 @@ describe('sim/contentCatalogue — the first building-variant pack', () => {
 
   it('is exactly the registry\'s shipped buildings, under their registry ids', () => {
     expect(pack.length).toBe(shipped.length);
-    expect(pack.length).toBe(54); // ALL 54 ship — the status column w (W6 appended 4 terrace rows, docs/production/terrace-buildout)as repaired 2026-11-08 (A-3 unit 1's bookkeeping); grows only as buildings are built
+    expect(pack.length).toBe(57); // ALL 57 ship — the status column was repaired 2026-11-08 (A-3 unit 1's bookkeeping); grows only as buildings are built (53 fleet + 4 W6 terrace rows)
     const shippedIds = new Set(shipped.map((b) => b.id));
     for (const e of pack) {
       expect(shippedIds.has(e.id)).toBe(true);
@@ -138,7 +138,7 @@ describe('sim/contentCatalogue — the whole catalogue', () => {
   const all = shippedContentCatalogue(SHELF_GOODS);
 
   it('is one valid manifest — anchors + buildings, globally unique ids', () => {
-    expect(all.length).toBe(3 + SHELF_GOODS.length + 54); // W6: +4 terrace rows
+    expect(all.length).toBe(3 + SHELF_GOODS.length + 57); // 53 fleet + 4 W6 terrace rows
     expect(validateManifest(all)).toEqual([]);
     expect(new Set(all.map((e) => e.id)).size).toBe(all.length);
   });

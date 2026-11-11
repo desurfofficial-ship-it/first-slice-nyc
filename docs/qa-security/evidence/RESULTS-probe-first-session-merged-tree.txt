@@ -1,0 +1,11 @@
+PASS  1: a fresh stranger lands in the arrival film (the opening communicates)
+PASS  2: the film offers a visible SKIP affordance — Skip ▸
+PASS  3: the film ends by playing (or skipping) into the handover
+PASS  4: the HUD is present and carrying text —  Someone by the terminal is waving at you. Rosa waves from the bodega — follow her, or tap Pocket → Roam and t
+PASS  5: an objective/prompt line is visible to the beginner — #objective: "Someone by the terminal is waving at you."
+PASS  6: walking offers an interaction (the prompt line appears) — Say hi
+PASS  7: the world answers the beginner's interaction (box, card, or note) — {"nameBox":false,"orderCard":false,"starterCard":false,"pendingCard":false,"note":true}
+PASS  8: the whole first session is console-clean
+
+FIRST-SESSION PROBE: 8/8 checks passed
+FIRST-SESSION PROBE OK — the opening communicates, the world answers

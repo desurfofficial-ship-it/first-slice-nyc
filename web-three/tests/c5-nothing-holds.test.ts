@@ -7,7 +7,7 @@
  * shape):
  *  - the station map: TEN playable days keyed to doc 12 §2's own canon
  *    dates through the calendar module (no hand arithmetic), the ceiling
- *    moved to the frontier's canon end (814 = the C5→C6 cut's morning,
+ *    moved to the frontier's canon end (814 was the C5→C6 cut's morning;
  *    Dec 1, Y3);
  *  - the compressions: from a station to a station, ordered, and the ONE
  *    season cut is the calendar's own crossing (summer→autumn 663→736 —
@@ -40,7 +40,7 @@
  *    chapter at C6 through advanceChapter's own door — and the wall
  *    holds afterward (the roll into C6's stations is the C6 wave's
  *    law; the honest pattern);
- *  - the saves: MAX_DAY = 814, station days parse exactly;
+ *  - the saves: MAX_DAY = 1179, station days parse exactly;
  *  - the captions: every station has a caption; the composer serves it
  *    with the date; C4's cards are byte-identical (the pre-C5 text
  *    never moved);
@@ -68,6 +68,7 @@ import {
   C5_N5A_PACK, C5_N5B_PACK, C5_N5C_PACK, c5RestitutionFor, C5_CUT_WALL,
 } from '../src/core/c5pack';
 import { calendarDayOf, dateOfCalendarDay, crossedSeasonCut } from '../src/core/calendar';
+import { C6_FIRST_DAY } from '../src/core/c6pack';
 import { advanceChapter } from '../src/core/chapters';
 import { composeCaption } from '../src/core/content';
 import { markSent, SENT_SCENE_C5 } from '../src/core/postcardDispatch';
@@ -114,7 +115,7 @@ describe('the C5 station map — doc 06 §C5\u2019s arc as playable days', () =>
     expect(C5_LAST_DAY).toBe(809);
     // the ceiling moved with the frontier (the C5 wave's law — the c5
     // suite owns the exact pin):
-    expect(MAX_DAY).toBe(814);
+    expect(MAX_DAY).toBe(1179);
     expect(calendarDayOf({ y: 3, m: 7, d: 3 })).toBe(663);    // the loaded machine opens
     expect(calendarDayOf({ y: 3, m: 11, d: 26 })).toBe(809);  // the terminal (the period end)
     expect(calendarDayOf({ y: 3, m: 12, d: 1 })).toBe(814);   // the cut's morning (snow on the hoarding)
@@ -596,14 +597,28 @@ describe('the C5→C6 season cut (doc 06 §C5 handoff)', () => {
     expect(C5_CUT_DAY).toBe(calendarDayOf({ y: 3, m: 12, d: 1 }));
   });
 
-  it('the wall holds after the cut \u2014 C6\u2019s content is the next wave\u2019s (the honest pattern)', () => {
+  it('the wall answers after the cut \u2014 and the C6 wave\u2019s own law: the next press rolls into C6\u2019s first station (Dec 1, Y3 = 814, the cut\u2019s own morning)', () => {
     const s = day809AtLinger();
-    s.rail();
-    const again = s.rail();
-    expect(noteTexts(again)).toEqual([C5_CUT_WALL]);
+    s.rail(); // the cut plays — the latch lands, the chapter turns
+    const out = s.rail();
+    expect(noteTexts(out)).toEqual([C5_CUT_WALL]);
     expect(s.chapter.chapter).toBe('C6');
-    // the honest pattern: no roll out of the wall until the C6 wave
-    // brings C6's own days (exactly as this wave brought the C4 cut's roll)
+    // the C6 wave's law (§7 step 10's last content wave brought the days
+    // the cut opens — exactly as this wave brought the C4 cut's roll):
+    // the next press rolls WHOLE into C6's first station, which is the
+    // cut's own morning (the cut pointed at Dec 1; the roll lands there)
+    const roll = s.rail();
+    expect(roll.some((e) => e.kind === 'next-day' && e.to === C6_FIRST_DAY)).toBe(true);
+    expect(C6_FIRST_DAY).toBe(814);
+    expect(C6_FIRST_DAY).toBe(C5_CUT_DAY);
+  });
+
+  it('a replayed kept Nov 26 still walls \u2014 the replay guard holds', () => {
+    const s = day809AtLinger();
+    s.rail(); // the cut plays first
+    s.replayDay = true;
+    const out = s.rail();
+    expect(noteTexts(out)).toEqual([C5_CUT_WALL]);
     expect(s.rail().some((e) => e.kind === 'next-day')).toBe(false);
   });
 });
@@ -612,11 +627,11 @@ describe('the C5→C6 season cut (doc 06 §C5 handoff)', () => {
 
 describe('the saves — the chapter rides the v1-safe law', () => {
   it('MAX_DAY is the frontier\u2019s canon end; a station day parses EXACTLY (the sparse chapter is legal)', () => {
-    expect(MAX_DAY).toBe(814);
+    expect(MAX_DAY).toBe(1179);
     expect(parseSave(JSON.stringify({ day: 663 })).day).toBe(663);
     expect(parseSave(JSON.stringify({ day: 756 })).day).toBe(756);
     expect(parseSave(JSON.stringify({ day: 809 })).day).toBe(809);
-    expect(parseSave(JSON.stringify({ day: 999 })).day).toBe(814);
+    expect(parseSave(JSON.stringify({ day: 99999 })).day).toBe(1179);
   });
 
   it('the fluency ladder\u2019s day (a CALENDAR day) round-trips deep inside the fall', () => {

@@ -13,6 +13,7 @@ import { c1CaptionOf } from './c1pack';
 import { c2CaptionOf } from './c2pack';
 import { c4CaptionOf } from './c4pack';
 import { c5CaptionOf } from './c5pack';
+import { c6CaptionOf } from './c6pack';
 import { c3CaptionOf } from './c3pack';
 
 /** Objective line per step (main.gd `_set_step`). */
@@ -75,7 +76,7 @@ export function composeCaption(s: {
   // a non-station day in a season falls through to the C0 branches (a
   // crafted save's graceful degradation, the same law beginDay applies).
   if (s.day >= 8) {
-    const cap = c5CaptionOf(s.day) ?? c4CaptionOf(s.day) ?? c3CaptionOf(s.day) ?? c2CaptionOf(s.day) ?? c1CaptionOf(s.day);
+    const cap = c6CaptionOf(s.day) ?? c5CaptionOf(s.day) ?? c4CaptionOf(s.day) ?? c3CaptionOf(s.day) ?? c2CaptionOf(s.day) ?? c1CaptionOf(s.day);
     if (cap) {
       return s.replay
         ? `Day ${s.day}, again. ${cap.replay}\n\n— ${s.cartName}, ${cap.date}`

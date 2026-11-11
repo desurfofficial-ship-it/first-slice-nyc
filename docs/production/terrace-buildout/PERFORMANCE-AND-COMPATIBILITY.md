@@ -1,4 +1,4 @@
-# PERFORMANCE & COMPATIBILITY — the terrace build-out (W6, register v1.41.0)
+# PERFORMANCE & COMPATIBILITY — the terrace build-out (W6, register v1.44.0)
 
 ## Method
 

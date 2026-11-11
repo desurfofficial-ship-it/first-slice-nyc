@@ -36,7 +36,7 @@ describe('save v1 — corrupt save is a fresh start, never a crash', () => {
 
 describe('save v1 — field clamping (resume exact, nothing out of range)', () => {
   it('clamps day to [1, MAX_DAY] (the C1 wave moved the ceiling to the season\u2019s end — the clamp moves with it)', () => {
-    expect(parseSave(JSON.stringify({ day: 999 })).day).toBe(MAX_DAY);
+    expect(parseSave(JSON.stringify({ day: 99999 })).day).toBe(MAX_DAY);
     // a day inside the C1 season now parses EXACTLY (the stations are
     // sparse — day 29 is October 7, and a save standing there is legal)
     expect(parseSave(JSON.stringify({ day: 29 })).day).toBe(29);
