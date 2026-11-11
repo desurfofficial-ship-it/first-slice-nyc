@@ -57,7 +57,7 @@ export const SAVE_KEY = 'first_slice_save_v1';
 // (day 120), C3 opens Jul 1 Y2 (day 296), C4 opens Jan 6 Y3 (day 485),
 // the stations land on doc 12 §2's own dates through calendarDayOf
 // (validated in each pack's self-check).
-export const MAX_DAY = 658;
+export const MAX_DAY = 814;
 
 /** Driver-sandbox key (security remediation R1, FS-AUDIT-001): an
  *  AUTHORIZED driver session re-keys story persistence here for the whole

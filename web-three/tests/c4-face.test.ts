@@ -36,7 +36,7 @@
  *    the chapter through advanceChapter's own door at C5's window start
  *    — and the wall holds afterward (the roll into C5's stations is the
  *    C5 wave's law; the honest pattern);
- *  - the saves: MAX_DAY = 658, station days parse exactly;
+ *  - the saves: MAX_DAY = 814, station days parse exactly;
  *  - the captions: every station has a caption; the composer serves it
  *    with the date; C3's cards are byte-identical (the pre-C4 text never
  *    moved);
@@ -106,7 +106,7 @@ describe('the C4 station map — doc 06 §C4\u2019s arc as playable days', () =>
     expect(C4_LAST_DAY).toBe(658);
     // the ceiling moved with the frontier (the C4 wave's law — the c4
     // suite owns the exact pin):
-    expect(MAX_DAY).toBe(658);
+    expect(MAX_DAY).toBe(814);
     expect(calendarDayOf({ y: 3, m: 1, d: 6 })).toBe(485);   // the face's winter opens
     expect(calendarDayOf({ y: 3, m: 6, d: 28 })).toBe(658);  // the face's books (the period end)
     expect(calendarDayOf({ y: 3, m: 7, d: 3 })).toBe(663);   // the cut's morning (July heat)
@@ -550,15 +550,19 @@ describe('the C4\u2192C5 season cut (doc 06 §C4 handoff)', () => {
     expect(C4_CUT_DAY).toBe(calendarDayOf({ y: 3, m: 7, d: 3 }));
   });
 
-  it('the wall holds after the cut \u2014 C5\u2019s content is the next wave\u2019s (the roll is the C5 wave\u2019s law)', () => {
+  it('the wall answers after the cut \u2014 and the FIRST press rolls into C5\u2019s first station (the roll witness, the C5 wave\u2019s law)', () => {
     const s = day658AtLinger();
     s.rail();
     const again = s.rail();
     expect(noteTexts(again)).toEqual([C4_CUT_WALL]);
     expect(s.chapter.chapter).toBe('C5');
-    // the honest pattern: no roll out of the wall until the C5 wave
-    // brings C5's own days (exactly as this wave brought the C3 cut's roll)
-    expect(s.rail().some((e) => e.kind === 'next-day')).toBe(false);
+    // the honest pattern, grown the way every wave grew its predecessor's
+    // roll: the C5 wave brought C5's own days, so the FIRST press after
+    // the latch rolls WHOLE into C5's first station (Jul 3, Y3 = 663).
+    // A replayed kept Jun 28 still walls \u2014 the replay guard holds.
+    const third = s.rail();
+    expect(third.some((e) => e.kind === 'next-day' && e.to === 663)).toBe(true);
+    expect(C4_CUT_WALL).toContain('July\u2019s first morning');
   });
 });
 
@@ -566,11 +570,11 @@ describe('the C4\u2192C5 season cut (doc 06 §C4 handoff)', () => {
 
 describe('the saves — the chapter rides the v1-safe law', () => {
   it('MAX_DAY is the frontier\u2019s canon end; a station day parses EXACTLY (the sparse chapter is legal)', () => {
-    expect(MAX_DAY).toBe(658);
+    expect(MAX_DAY).toBe(814);
     expect(parseSave(JSON.stringify({ day: 485 })).day).toBe(485);
     expect(parseSave(JSON.stringify({ day: 622 })).day).toBe(622);
     expect(parseSave(JSON.stringify({ day: 658 })).day).toBe(658);
-    expect(parseSave(JSON.stringify({ day: 999 })).day).toBe(658);
+    expect(parseSave(JSON.stringify({ day: 999 })).day).toBe(814);
   });
 
   it('the fluency ladder\u2019s day (a CALENDAR day) round-trips deep inside the face\u2019s winter', () => {

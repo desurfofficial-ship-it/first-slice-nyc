@@ -1761,7 +1761,7 @@ export class Game {
    *  cold-open (N0's flags + ledger entry + entry 1), the running theory,
    *  the first question. Each lands once per save by id; a duplicate pick
    *  is absorbed by the append seams (the idempotent law). */
-  private applyNotebookPick(pack: string, optionId: string, freeText: string, node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d'): void {
+  private applyNotebookPick(pack: string, optionId: string, freeText: string, node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d' | 'N5a' | 'N5b' | 'N5c'): void {
     const day = this.state.calendarDay;
     if (pack === 'cold-open') {
       const res = applyColdOpen(optionId, day, freeText);
@@ -1806,8 +1806,8 @@ export class Game {
    *  progression-adjacent prose). C1's choice pages ride the same seam
    *  with their node id (`pendingPickNode` — transient, the page's own
    *  memory; closed pages forget it). */
-  private pendingPickNode: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d' | null = null;
-  private onDiaryPrompt(pack: 'theory' | 'question' | 'choice', node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d'): void {
+  private pendingPickNode: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d' | 'N5a' | 'N5b' | 'N5c' | null = null;
+  private onDiaryPrompt(pack: 'theory' | 'question' | 'choice', node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d' | 'N5a' | 'N5b' | 'N5c'): void {
     if (this.driverBoot || this.filmRequested) {
       // the pick-card law: drivers keep the shipped flow and take the
       // FIRST authored option deterministically (no dice in

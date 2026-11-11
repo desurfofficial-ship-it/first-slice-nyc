@@ -508,12 +508,16 @@ console.log('--- Pass E: Day 654, the withdrawal; Day 658, the cut ---');
     const s = window.__game.state;
     const again = s.rail();
     const notes = again.filter((e) => e.kind === 'note').map((e) => e.text);
-    const roll = s.rail().some((e) => e.kind === 'next-day');
-    return { notes, roll };
+    // the C5 wave brought C5's own days: the FIRST press after the latch
+    // rolls WHOLE into C5's first station (Jul 3, Y3 = 663) — the roll
+    // witness, grown the way this wave grew the C3 cut's roll
+    const roll = s.rail().find((e) => e.kind === 'next-day');
+    return { notes, rollTo: roll?.to ?? null };
   });
   check(wall.notes.length === 1 && wall.notes[0].includes('survive in ink'),
-    'the wall holds after the cut (the roll into C5\u2019s stations is the C5 wave\u2019s law)');
-  check(!wall.roll, 'no roll out of the wall (the honest pattern)');
+    'the wall answers after the cut (the ink is the latch, the wall speaks once)');
+  check(wall.rollTo === 663,
+    'the wall\u2019s next press rolls WHOLE into C5\u2019s first station (663 \u2014 the roll witness, the C5 wave\u2019s law)');
   check(e4.length === 0, `pass E/658 console clean (${e4.length} errors${e4.length ? ': ' + e4[0] : ''})`);
   await closeSeason(season4);
 }
