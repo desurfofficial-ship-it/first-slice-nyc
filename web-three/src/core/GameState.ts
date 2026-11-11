@@ -34,7 +34,7 @@ import {
   SAM_LAW_LINE, SAM_STILL_DOING_LINE, SURVEYOR_ECHO, SURVEYOR_LINE,
   deshaunEntry, leaseSeenEntry, odessaEntry, surveyorGuessEntry, wobbleEntry,
   C0_CUT_CITY_LINE, C0_CUT_EDDIE_LINE, C0_CUT_ID, C0_CUT_WALL,
-  C0_WEEK_ORDERS, C0_WEEK_RUSH_DONE, C0_WEEK_WAKE,
+  C0_WEEK_ORDERS, C0_WEEK_RUSH_DONE, weekWakeLineFor,
   cutEntry, seasonCutMontage,
 } from './c0pack';
 // ---- the C1 content pack (narrative/14 §7 step 8 — doc 06 §C1) ----
@@ -889,7 +889,10 @@ export class GameState {
   rosaWeekWake(): Effect[] {
     if (this.step !== Step.WK_WAKE) return [];
     const station = this.seasonStation(this.day);
-    const wake = station ? station.wake : C0_WEEK_WAKE[Math.min(7, Math.max(5, this.day)) as 5 | 6 | 7];
+    // FS-QA2-001: a station's own wake wins; the C0 week's day-keyed lines
+    // belong to days 5–7; the plain mornings speak the plain wake — never
+    // "Seven days." on day 1018 (tests/plain-mornings.test.ts).
+    const wake = weekWakeLineFor(this.day, station?.wake);
     return [
       { kind: 'note', text: wake },
       ...this.setStep(Step.WK_RUSH),

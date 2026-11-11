@@ -3381,6 +3381,30 @@ Not done, by law: the C6 content wave (§7 step 10's last content wave — the w
 
 Stage Summary:
 - The game now plays its THIRD year's fall: the machine loads, fires, and the player lives every trigger week — the funeral's arithmetic, the receipts' verdict, the books in daylight, the four seconds in the dark, the tile sentence, the system's mercy, the two calls that end and the one that doesn't, and the terminal's duffel bag. The ledger learned its last correction (K5, signed), the postcard pipeline fired its only send, and the chapter machine walked through its own door twice this wave (in at Jul 3, out at Dec 1) while the epoch law never noticed. Next per §7: C6's content (The Long Way Back — the wall holds), then R13–R14.
+
+## 2026-11-11 — Technical Architecture / World Systems Agent: W6-TERRACE-BUILDOUT — the exhaustive bulk wave: the map grows its fourth sides (register v1.44.0)
+
+Task ID: W6-TERRACE-BUILDOUT
+Agent: Technical Architecture / World Systems Agent (Z.ai)
+Task: the owner's continuation directive — "add some of their buildings into the game to expand the game map … look for promising or must have things to include in the game asap … expand the game map is not a problem here (This one should be an exhaustive large bulk build)". The v1.40.0 city-fabric report's deliberate leftovers (the fire-escape ironwork red, the storefront/prop pools) executed WHOLE, plus the expansion the owner authorized (DEC-8 satisfied in-register).
+
+What landed (one commit series on main):
+- THE WALLS MOVE: `bounds.playableCore` z ±48 → ±64 (the registry's own bounds, the owner's 2026-11-11 authorization); World.ts's z wall colliders follow; the strips behind Gable and Marlow become real neighborhood (the district bake's clamp law puts them in the edge-row tiles — zero grid surgery, zero ring regression).
+- FOUR NEW ROWS (append-only, `built (W6)`, regShell-only construction): GRB-06/GRB-07 — the Larkin terrace, Gable's brownstone row continuing north (high stoops, cornices, coral/plum/teal doors); TEN-02/KTS-04 — the Carrow terrace, Marlow's shop-and-walk-up row continuing south (CARROW FRUITS teal awning, TERRACE WINE deep-red awning). Pinned verbatim in validate-registry §7-W6 + a3's HAND_TRUTH_W6 + the content catalogue's evidence map. The strips' x ±68..76 stays avenue corridor (the roadways' own bands won).
+- THE GARDENS: PRK-LARKIN + PRK-CARROW park rows — lawn, gravel paths, 4 benches (colliders), 12 street trees on the shipped canopy instancing, the W2 parks kit (2 beds, shed, compost) — behind the pinned backdrop masses whose footprints never moved. The three W2 parks' status column repaired (built in W2, read planned).
+- NEIGHBORHOOD FABRIC (`src/world/neighborhoodFabric.ts`, the city-fabric pass's second volume — GeoPush/hash01 now exported and reused): FIRE-ESCAPE FABRIC 30 bays across 28 facades (the v1.40.0 report's red, executed — slop's dims, house grammar, the visible-brace law, raised drop ladders, goosenecks; ≥ 1.3 m over the walks, ≥ 2.0 m off every same-face door, zero colliders); TERRACE FACE FABRIC on VDN-DN1/DS1's exposed fronts (50 segment-window grids, 10 cornices, shopfront bands, 70 lit panes riding `skylineWinMat` — dusk dresses them, probe-verified); STREET PROP FABRIC (6 mailboxes, 8 bike hoops, 6 hydrants, 2 ConEd steam stacks + sawhorses, the terrace payphone — all ≥ 0.85 m off every lane line, unit-pinned).
+- THREE NEW INTERACTIONS (the one-day-slot law): terrace_stoop / terrace_payphone / terrace_flyer — anchors pinned (validate-registry 21/21), content.ts note packs day-keyed, freeRoam registration, catalogue-clean.
+- Probe: `scripts/probe-neighborhood.mjs` — the census (escapes 28, faces 2, props 27, panes 70 sharing the shipped material, masses/walks/benches read through the colliders the bake leaves behind), the rig draws (PLAZA 156 / LARKIN 104 / GARDEN 100 under the probe's own lighter methodology — the certified B13 instrument stays probe-w0-census, recorded red pre-wave), six evidence shots.
+- Docs: docs/production/terrace-buildout/{SOURCE-REUSE-REPORT, ASSET-CHANGES, PERFORMANCE-AND-COMPATIBILITY, LICENSES-AND-ATTRIBUTION}.md + evidence; THIRD-PARTY-NOTICES names the second module.
+
+Gates executed on the tree [all executed]:
+- validate-registry OK (140 IDs, 57 buildings, 7 parks — 17/17 masses, 21/21 anchors); tsc clean; vitest **1489/1489** (91 files on the merged tree — the suite grew the neighborhood-fabric laws 11 tests + the W6 pins); build OK.
+- probe-neighborhood OK (new); probe-city-fabric OK; probe-world-sim **15/15**; probe-nav **9/9**; probe-a3-flip complete; probe-chokepoints **5/5**; probe-integration **0 errors, 8/8 walks**; 4-day story E2E: **0 failures, 560 s, console clean** (the driver played all four days on the grown map).
+
+Not done, by law: the strips' x ±68..76 stays unpaved avenue corridor (the registry's own roadway bands — the avenues' z 48..64 pavement is a future W-phase); the B13 census budget stays the owner's call (recorded red pre-wave); C6 content, R13–R14, V-PH2-1/V-PH2-2 sign-offs remain the register's frontier.
+
+Stage Summary:
+- The district is no longer a two-block strip with painted edges: the walls stand at z ±64, Gable's brownstone row actually continues north to the garden, Marlow's shops actually continue south, thirty fire escapes zigzag down the rears, the backdrop masses grew real lit faces, and the sidewalks have the mailboxes, hydrants, bike hoops and steam stacks NYC streets carry. The player can sit on a terrace stoop, lift a working payphone's receiver, and read a flyer board nobody cleans. Everything through the registry, everything through the bake, everything deterministic and pinned.
 ## 2026-11-11 — Technical Architecture / World Systems Agent: WP-C6-LONG-WAY-BACK — §7 step 10 COMPLETE in one bulk pass: The Long Way Back is playable (register v1.40.0)
 
 Task ID: WP-C6-LONG-WAY-BACK
@@ -3428,7 +3452,7 @@ Work Log:
 
 Stage Summary:
 - The tree grew ~9.5k lines since the last audit pass and every gate is green again on the current build; the one real defect the growth had hidden (the wardrobe loop, on the first modal of every desktop first session) is fixed at the root with three independent breaks and pinned by law tests. The audit's open-hardening ledger is now empty except the two deliberately-documented owner gates (FS-AUDIT-003, B13) and the reference-machine E2E re-run. The game is harder to break, safer to run, and the first session no longer fights its own layout.
-## 2026-11-12 — Graphics/Rendering Agent: WP-GRAPHICS-WAVE — the 3d-game-shaders-for-beginners adaptation: the clock-driven day cycle, the post pipeline, the quality tiers (register v1.44.0)
+## 2026-11-12 — Graphics/Rendering Agent: WP-GRAPHICS-WAVE — the 3d-game-shaders-for-beginners adaptation: the clock-driven day cycle, the post pipeline, the quality tiers (register v1.44.0 → RENUMBERED v1.46.0 on the merged tree — the terrace wave owns v1.44.0 and the QA wave 2 + FS-QA2-003 own v1.44.0/v1.45.0 here; the ledger stays monotonic and unique, the C3-wave precedent)
 
 Task ID: WP-GRAPHICS-WAVE
 Agent: Graphics/Rendering Agent (Z.ai)
@@ -3461,3 +3485,25 @@ Not done, by law (evaluated, deliberately deferred — docs/rendering/02): full 
 
 Stage Summary:
 - The city now keeps the hours it always pretended to: dawn burns peach off the rooftops, midday pulls the horizon into haze, the golden hour keeps its canon numbers with new depth, dusk's first stars gate in over the plum sky, and night finally EXISTS — lamps and signals and storefront strips bloom over the threshold, windows answer from the cross streets, the grade lifts the shadows so the streets stay playable, and the skyline melts into the dark. The post pipeline is one chain, tiered, probed, disposes of itself, and its low setting is the road the game has always rendered on. Next: the owner's call on SSAO defaults per device class, and the parked deferred effects (SSR/DOF/volumetrics) if the simulation ever wants them.
+## 2026-11-11 — Lead Security / QA / Gameplay Tester / Bug-Fix Agent: THE QA WAVE 2 — full-spectrum security, pen-test, gameplay & performance pass on the merged tree (register v1.44.0 on the merged tree — the parallel QA wave 3 owns v1.43.0)
+
+Task ID: 523083
+Agent: Lead Security / QA / Gameplay Tester / Bug-Fix Agent (Z.ai)
+Task: the owner's recurring full-spectrum assignment — investigate, break, fix, verify on the whole existing project: security & pen-test, beginner first-session, abnormal/malicious play, feel & flow, stress & performance, automated tests, and the audit document (docs/qa-security/SECURITY-AND-GAMEPLAY-AUDIT.md, WAVE 2 sections A–I).
+
+Work Log:
+- Oriented on AGENTS.md, the wave-1 audit (base ebfb08a, v1.35.0), and the worklog; scoped the delta (v1.35.0→v1.42.0: the C3–C6 content waves, the driver-gate integration, the city-fabric pass, the SI wave — 137 files, +23.6k lines). Branch `fix/qa-full-spectrum-2`.
+- Baseline gates: tsc clean · vitest 1474/1474 (89 files) · build OK · probe-security-r1 31/31 · probe-security-r2 166/166 · probe-abnormal 14/14 on real dist/.
+- Security sweep: every innerHTML sink, every localStorage/sessionStorage site, all URL params (autotest/scenario/showcase/fx/worldclock/walklog/film/probe/pickcard/starter — worldclock's Number.isFinite+range gate verified), the driver gate, the story/world/album save parsers (caps, quarantine, integrity audit), the confirm-gate money law, the collision substeps (MAX_SUBSTEP 0.2 m XZ / 0.12 m fall) and the dt clamp (0.1 s). No new exploitable path.
+- FOUND B-1 (the open endgame's 163 wrong mornings): beginDay's stabilized-loop branch and rosaWeekWake showed the C0 week's day-7 note on every stationless post-C0 morning — the `Math.min(7, Math.max(5, n))` clamp outlived its honesty when the chapter waves extended the branch. Root-caused via the packs' own station/compression tables (a tsx census: the chapters have NO plain tails; the only victims were the open endgame's days 1017–1179).
+- FIXED B-1 at the source: `morningBeginNoteFor` / `weekWakeLineFor` (pure, in c0pack) + the authored PLAIN_MORNING_BEGIN/PLAIN_MORNING_WAKE (descended from the C0 day-6/day-7 lines, no invented facts); days 5–7 byte-identical; a station's wake always wins. Permanent guard: tests/plain-mornings.test.ts (7 tests — the census derived from the packs' tables, so a future tail cannot inherit the lie; the guard caught my own wrong hand-copied census mid-wave, which is what it is for).
+- FOUND B-2 (a dead gate): probe-w4-soak.mjs — the W4 30-sim-minute pedestrian acceptance — failing on main with 48 failures, unnoticed (orphaned from the gate battery). Root cause: stale harness, zero product defects — applyStreetPlan parks dusk-shift walkers HOME (visible=false, body y −999, documented law) and the probe counted them as eternal stuck stillness; the wall budget predates today's slower sandbox; the roadway check sampled home walkers. New diag script (diag-soak-stuck.mjs) produced the telemetry that pinned it.
+- FIXED B-2 (harness only): every check now runs on the OUT walkers; accelerator steps 8→12 (same worst-case dt); incidental cab.minZ typo fixed. Two consecutive full runs: 1832 sim-s (30.6 sim-min) soaked, PROBE-W4-SOAK OK — zero stuck walkers, zero NaN, roadway transients clean in the final sample.
+- Re-verified the whole battery on the final tree: tsc clean · vitest 1481/1481 (90 files) · build OK · probe-c6 60/0 · probe-c5 68/0 · probe-world-sim 15/15 · probe-nav 9/9 · probe-money-trace ALL PASSED · probe-first-session 8/8 · probe-abnormal 14/14 (one mid-wave A7 flake was self-inflicted contention from a concurrent E2E; the standalone re-run passes) · perf-peds 27.3 µs/frame, heap flat · 4-day E2E 0 failures (702 s, console clean, the harness's documented E2E_SCALE=0.5 affordance).
+- Wrote the deliverable: docs/qa-security/SECURITY-AND-GAMEPLAY-AUDIT.md WAVE 2 (sections A–I; wave 1 preserved below), evidence files (RESULTS-*-qa2.txt), the register row (v1.44.0 on the merged tree; the parallel wave 3 owns v1.43.0), this worklog entry.
+
+Stage Summary:
+- The game's newest frontier — the open endgame — now wakes honest every morning, with the law pinned in tests that derive their own census; the street's 30-minute pedestrian acceptance is a working gate again; the security surface re-proved clean on the final built output; the full battery green on the one tree.
+- Recommended next (recorded in the audit's §G): add probe-w4-soak to the standard gate battery (~6 wall minutes — B-2 happened because no wave ran it); the carried owner-gated items (FS-AUDIT-003, B13 (FS-AUDIT-008 and the sandflow DEV guard were CLOSED by the parallel QA wave 3 on origin/main)) unchanged.
+**Merge note (same wave):** origin/main moved during the wave — the parallel QA wave 3 (the wardrobe resize loop, the showcase DEV gate with its chunk eliminated, the CI pinning) landed as v1.43.0; the version law renumbers this wave **v1.44.0** (the C3-wave precedent). Both register/worklog sides preserved; the two waves touch disjoint src files (theirs: Wardrobe/main/CI; mine: c0pack/GameState/Game), so the merge is docs-side only.
+

@@ -1,0 +1,6 @@
+PED PERFORMANCE — node v24.22.2 (this machine)
+  roster: 12 armed commuters, 60 fps dt, near-tier player
+  peds.update:            27.3 µs/frame (budget 16600 µs → 0.16%)
+  routes walked:          38 in 300 s of street time
+  heap growth:            497 KB over 9000 frames (gc off)
+  loop walkers (unarmed): 18.2 µs/frame — the commute adds 9.1 µs/frame

@@ -108,7 +108,7 @@ export interface CityFabricDI {
  *  BufferGeometry out. The index matters: the district bake only fuses
  *  indexed geometry (World.bakeStatics's own law), so a non-indexed fabric
  *  mesh would survive the bake as its own draw call forever. */
-class GeoPush {
+export class GeoPush {
   pos: number[] = [];
   nrm: number[] = [];
   col: number[] = [];
@@ -198,7 +198,7 @@ function emit(scene: THREE.Scene, vc: CityFabricDI['vc'], fog: boolean, name: st
 }
 
 /** Deterministic per-id hash in [0,1) — slop's spatial hash, house-kept. */
-function hash01(s: string): number {
+export function hash01(s: string): number {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < s.length; i++) {
     h ^= s.charCodeAt(i);

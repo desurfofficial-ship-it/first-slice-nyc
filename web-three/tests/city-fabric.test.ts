@@ -118,7 +118,9 @@ describe('city fabric — the skyline rows', () => {
     let inCore = 0;
     for (let i = 0; i < attr.count; i++) {
       const x = attr.getX(i), z = attr.getZ(i);
-      if (Math.abs(x) < 84 && Math.abs(z) < 48) inCore++;
+      // W6: the playable core grew to z ±64 (the terrace build-out) — the
+      // skyline rows must still clear the bigger core
+      if (Math.abs(x) < 84 && Math.abs(z) < 64) inCore++;
     }
     expect(inCore).toBe(0);
   });
