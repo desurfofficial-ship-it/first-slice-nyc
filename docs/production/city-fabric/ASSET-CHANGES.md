@@ -1,6 +1,6 @@
 # ASSET CHANGES — the city-fabric pass
 
-Wave: v1.39.0 · module `web-three/src/world/cityFabric.ts` · wired by
+Wave: v1.40.0 · module `web-three/src/world/cityFabric.ts` · wired by
 `World.buildCityFabricPass()` (pre-bake). Zero colliders, zero nav-graph
 changes, zero registry-row changes. Deterministic (pinned by
 `tests/city-fabric.test.ts`).

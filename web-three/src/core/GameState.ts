@@ -95,6 +95,17 @@ import {
   villainEntry, questionEntry, missedEntry, f4Entry as c4F4Entry,
   f7Entry as c4F7Entry,
 } from './c4pack';
+// ---- the C5 content pack (narrative/14 §7 step 10 continued — doc 06 §C5) ----
+import {
+  C5_FIRST_DAY, C5_LAST_DAY, C5_CUT_DAY, C5_CUT_ID, C5_CUT_STAGE, C5_CUT_WALL,
+  C5_IDS, C5_POST_TITLE, C5_DENIZ_LINE, C5_PRIYA_LINE, C5_RACHEL_LINE,
+  C5_EDDIE_LINE, C5_ROSA_TERMINAL_LINE, C5_DAY1_LINE, C5_ADA_NOTE,
+  c5StationOf, c5RailFor, c5CompressionFrom, c5CutEntry, applyC5Pick,
+  funeralEntry, receiptsEntry, runEntry, lastNightEntry, handoverEntry,
+  dealEntry, exitsEntry, callHomeEntry, adaSendEntry, terminalEntry,
+  k5Entry as c5K5Record, f5Entry as c5F5Entry,
+  c5K2Correction, c5K5Correction, C5_FRAGMENT_IDS,
+} from './c5pack';
 import { dateOfCalendarDay } from './calendar';
 import { OBJECTIVES, DEFAULT_CART_NAME, itemPickNote, ITEM_STICKERS, D3_ORDERS, D4_ORDERS,
   D3_WAKE_NOTE, D3_KIDDOWN_NOTE, D3_KID_ARRIVED_NOTE, D3_POSTER_NOTE,
@@ -209,7 +220,7 @@ export type Effect =
   // ---- the C0 pack's diary picks (doc 11 §3 — the overlay packs). The
   // Game turns this into the NotebookPrompt overlay; a driver boot never
   // sees it (the pick-card law: drivers keep the shipped flow). ----
-  | { kind: 'diary-prompt'; pack: 'theory' | 'question' | 'choice'; node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d' }
+  | { kind: 'diary-prompt'; pack: 'theory' | 'question' | 'choice'; node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d' | 'N5a' | 'N5b' | 'N5c' }
   // ---- the C0 block layer's diary ink (narrative/14 §7 step 6, tranche 2
   // — core/c0Pack.ts): the state has already appended the entry; the
   // effect only tells the UI to wiggle (the map-note precedent)
@@ -446,6 +457,16 @@ export class GameState {
     return this.day >= C4_FIRST_DAY && this.day <= C4_LAST_DAY;
   }
 
+  /** C5's season (narrative/14 §7 step 10 continued — doc 06 §C5): the
+   *  station days ride the same WK_* loop with the C5 pack's voice. Same
+   *  law as C1–C4's — the chapter gate is the wide law (R8); the day
+   *  range is the loop's own — the cut plays at C5_LAST_DAY's linger and
+   *  the wall follows (the roll into C6's stations is the C6 wave's
+   *  law). */
+  get isC5(): boolean {
+    return this.day >= C5_FIRST_DAY && this.day <= C5_LAST_DAY;
+  }
+
   /** C3's season (narrative/14 §7 step 10 — doc 06 §C3): the station days
    *  ride the same WK_* loop with the C3 pack's voice. Same law as C1/C2's
    *  — the chapter gate is the wide law (R8); the day range is the loop's
@@ -461,6 +482,7 @@ export class GameState {
    *  one voice per day — the WK_* steps are the loop, the station is the
    *  day's mouth). */
   private seasonStation(day: number): { queue: readonly WeekOrder[]; wake: string; rushDone: string; storm?: boolean } | undefined {
+    if (this.isC5) return c5StationOf(day);
     if (this.isC4) return c4StationOf(day);
     if (this.isC3) return c3StationOf(day);
     if (this.isC2) return c2StationOf(day);
@@ -1191,6 +1213,11 @@ export class GameState {
       if (rail === 'cut') return this.c3SeasonCut();
       if (rail && typeof rail === 'object') return this.c3Compression(rail.compress);
     }
+    if (this.isC5) {
+      const rail = c5RailFor(this.day);
+      if (rail === 'cut') return this.c5SeasonCut();
+      if (rail && typeof rail === 'object') return this.c5Compression(rail.compress);
+    }
     return [{ kind: 'next-day' }];
   }
 
@@ -1476,11 +1503,26 @@ export class GameState {
    *  flag is the only witness, mirrored eagerly here and by the spine
    *  walk). */
   applyChoicePick(
-    nodeId: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d',
+    nodeId: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d' | 'N5a' | 'N5b' | 'N5c',
     optionId: string,
     held?: ReadonlySet<string>,
   ): Effect[] {
     const out: Effect[] = [];
+    if (nodeId === 'N5a' || nodeId === 'N5b' || nodeId === 'N5c') {
+      const apply = applyC5Pick(nodeId, optionId, this.calendarDay);
+      if (!apply.ok) return [];
+      if (apply.note) out.push({ kind: 'note', text: apply.note });
+      for (const draft of apply.ledger) {
+        this.logLedgerEntry(draft);
+      }
+      if (apply.diary) this.c0Write(out, apply.diary);
+      if (apply.flags.length > 0) {
+        for (const f of apply.flags) this.storyFlagMemo.add(f);
+        out.push({ kind: 'story-flags', flags: apply.flags });
+      }
+      out.push({ kind: 'persist' });
+      return out;
+    }
     if (nodeId === 'N4a' || nodeId === 'N4b' || nodeId === 'N4c' || nodeId === 'N4d') {
       const apply = applyC4Pick(nodeId, optionId, this.calendarDay);
       if (!apply.ok) return [];
@@ -2267,7 +2309,17 @@ export class GameState {
    *  C5's content is the next wave's — the wall holds (the honest
    *  pattern; the roll into C5's stations is the C5 wave's law). */
   c4SeasonCut(): Effect[] {
-    if (this.c0Has(C4_CUT_ID)) return [{ kind: 'note', text: C4_CUT_WALL }];
+    if (this.c0Has(C4_CUT_ID)) {
+      // the cut has played: the wall answers — and the C5 wave's own law
+      // (§7 step 10 continued brought the days the cut opens): the FIRST
+      // press after the latch rolls into C5's first station (day 663,
+      // July 3, Y3 — the loaded machine opens, doc 06 §C5's period
+      // start) — unless this is a replayed kept Jun 28, which gets the
+      // wall and holds, never a roll out of a replay.
+      const wall: Effect[] = [{ kind: 'note', text: C4_CUT_WALL }];
+      if (this.replayDay) return wall;
+      return [...wall, { kind: 'next-day', to: C5_FIRST_DAY }];
+    }
     const out: Effect[] = [];
     for (const line of seasonCutMontage(this.fieldDiary)) {
       out.push({ kind: 'note', text: line });
@@ -2502,6 +2554,243 @@ export class GameState {
       visibility: 'secret',
     });
     return out;
+  }
+
+  // ---- the C5 season's station methods (doc 06 §C5 / doc 12 §2) ----
+
+  /** Whether the pick has landed (the c4PickHeld's own shape — the
+   *  pick's ink rides `node` and the c5- prefix; the ledger act is the
+   *  second witness; silence's flag is the third). */
+  private c5PickHeld(nodeId: 'N5a' | 'N5b' | 'N5c'): boolean {
+    if (this.fieldDiary.some((e) => e.node === nodeId && e.id.startsWith(`c5-${nodeId.toLowerCase()}-`))) return true;
+    if (this.ledger.some((e) => e.node === nodeId)) return true;
+    if (nodeId === 'N5c' && this.storyFlagMemo.has('c6-standing=silence')) return true;
+    return false;
+  }
+
+  /** Doc 06 §C5 event 1 — Doris (the funeral porch, day 736): the
+   *  chair, the ledger on her lap, the last time the block is one
+   *  thing, Craig inheriting the pen. */
+  c5Funeral(): Effect[] {
+    if (this.day !== 736 || this.c0Has(C5_IDS.funeral)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'The porch is full and the block is one thing \u2014 the last time, and everybody feels it without saying it. Doris\u2019s chair is empty and her ledger went with her, kept to the last page.' },
+      { kind: 'note', text: 'The lawyer\u2019s arithmetic is small and final: the estate needs liquidity. Craig wears the suit like a costume he\u2019s already measured for resale and says \u201Ccontinued\u201D about the shop like a man reading his own footnote. The pen is his now. The row goes where pens go.' },
+    ];
+    this.c0Write(out, funeralEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C5 event 3 — the receipts (the newsbox, day 743): the
+   *  post's title verbatim, the annotations, the city's diary going
+   *  quiet. K2's strike rides the same scene (doc 03 §5.2's correction
+   *  verbatim — the ledger's C2 lie meets the block's arithmetic). */
+  c5Receipts(): Effect[] {
+    if (this.day !== 743 || this.c0Has(C5_IDS.receipts)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: `The stoops read before the bread comes out. The post is titled \u201C${C5_POST_TITLE}\u201D \u2014 the block\u2019s own irony, printed \u2014 and the annotations are Deniz\u2019s: the sign-in sheet with my withdrawal line, the stall-the-Oktays text, the 500-jobs math beside the deck\u2019s 340.` },
+      { kind: 'note', text: 'Kev kept the folder in case. The case arrived. The city\u2019s diary, for the first time, speaks about me to the block \u2014 and goes quiet to me.' },
+      { kind: 'note', text: 'Deniz finds me at the cart after \u2014 not gloating; bookkeeping: \u201C' + C5_DENIZ_LINE + '\u201D The notebook opens to K2 and the strikethrough is the day\u2019s only honest sentence.' },
+    ];
+    this.c0Write(out, receiptsEntry(this.day));
+    const k2 = c5K2Correction(this.calendarDay);
+    this.correctDiaryEntry('c2-k2-net-good', k2.day, k2.strike, k2.margin);
+    return out;
+  }
+
+  /** Doc 06 §C5 events 4 + 7's first half — the run and the sale (the
+   *  board, day 752): the crowd, the books in daylight, Craig closing
+   *  the row. */
+  c5Run(): Effect[] {
+    if (this.day !== 752 || this.c0Has(C5_IDS.run)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'The corkboard carries the Club\u2019s books this morning \u2014 somebody photographed the ledger and pinned it like weather. The books do not survive daylight. They never did. They just never had any.' },
+      { kind: 'note', text: 'Nineteen investors became a crowd, the crowd became a phone tree, and Craig closed the row\u2019s sale at nine sharp \u2014 the paper matured, the offer was suddenly fair, and my own room\u2019s landlord is now, technically, Corvus-adjacent. Facts, times, amounts.' },
+    ];
+    this.c0Write(out, runEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C5 event 7's second half — the shop's last night (the
+   *  shop's window, day 756): the last slice for nobody, the four
+   *  seconds. */
+  c5LastNight(): Effect[] {
+    if (this.day !== 756 || this.c0Has(C5_IDS.lastNight)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'The shop\u2019s last night. I close alone \u2014 Eddie\u2019s in Charlotte with a heart that finally outranked the ovens, and the lease died with Doris\u2019s handshake economy.' },
+      { kind: 'note', text: 'The last slice of the last pie goes on the counter for nobody. The lights go off. I stand in the dark four seconds longer than the scene needs. Facts, times, amounts: one slice, one counter, four seconds.' },
+    ];
+    this.c0Write(out, lastNightEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C5 event 5 — Priya's handover (the platform, day 760): her
+   *  pricing, owned, verbatim; the ledger changes desks. */
+  c5Handover(): Effect[] {
+    if (this.day !== 760 || this.c0Has(C5_IDS.handover)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'Kayla Fournier asked Priya what she knows about the Marsh situation. Priya gave them the Club ledger \u2014 the one she\u2019s been sitting on since spring, neutral the whole time. Her neutrality, priced at last.' },
+      { kind: 'note', text: `The 7:40 came and went with a woman on it who was not looking at me. On the platform, hers, owned: \u201C${C5_PRIYA_LINE}\u201D She\u2019s right twice.` },
+    ];
+    this.c0Write(out, handoverEntry(this.day));
+    return out;
+  }
+
+  /** Doc 06 §C5 event 6 — the deal (the lawyer's office, day 784): the
+   *  shape verbatim, the arithmetic, the system's mercy. K5's record is
+   *  written here (tagged FACT — the last lie the ledger carries).
+   *  R12's third trigger (the C5 investigation scenes) offers its note
+   *  here through the once-latch. Behind the scene: N5a. */
+  c5Deal(): Effect[] {
+    if (this.day !== 784) return [];
+    if (!this.c0Has(C5_IDS.deal)) {
+      const out: Effect[] = [
+        { kind: 'note', text: 'The lawyer is decent and priced. The agreement on her desk reads like a receipt for everything: misrepresentations in a private offering, books kept informally, Gino\u2019s favors surfaced as questions I can\u2019t answer well.' },
+        { kind: 'note', text: `The outcome is a deferred-prosecution-style agreement: restitution of $47,300 after settlements, and a bar from operating the hall\u2019s concession. No prison. The system\u2019s mercy, not the story\u2019s. The pen is the same weight it was in January.` },
+        { kind: 'note', text: 'The notebook writes the line I already know is a lie: I did what had to be done. The ledger takes it. The ledger takes everything. That\u2019s its job.' },
+      ];
+      this.c0Write(out, dealEntry(this.day));
+      this.c0Write(out, c5K5Record(this.day));
+      // R12's opt-in note — the C5 investigation scenes are the
+      // register's third trigger; a save that spent at F7 or the
+      // therapy session never sees it twice (the once-latch's law).
+      if (shouldOfferResourceNote(this.resourceNoteOffered, 'C5-investigation')) {
+        this.resourceNoteOffered = true;
+        out.push({ kind: 'note', text: RESOURCE_NOTE_TEXT });
+      }
+      return out;
+    }
+    // the deal has played: the answer is the pick (once — the pick's own
+    // ink is the latch; the overlay re-opens only until the pick lands)
+    if (!this.c5PickHeld('N5a')) {
+      return [{ kind: 'diary-prompt', pack: 'choice', node: 'N5a' }];
+    }
+    return [];
+  }
+
+  /** Doc 06 §C5 event 8 — the exits (the 1 a.m. call, day 795): Rachel's
+   *  sentence verbatim, Eddie's two truths verbatim, June's conditions
+   *  resolved door-neutral from the machine's own flags. Behind the
+   *  scene: N5b — the plan's shape. */
+  c5Exits(): Effect[] {
+    if (this.day !== 795) return [];
+    if (!this.c0Has(C5_IDS.exits)) {
+      const met = this.storyFlagMemo.has('june-conditions=full-disclosure')
+        && this.storyFlagMemo.has('c6-condition-handle=therapy');
+      const out: Effect[] = [
+        { kind: 'note', text: met
+          ? 'June\u2019s conditions were met \u2014 the year at Dr. Feld\u2019s, the condition named, the books shown \u2014 and she is gone from the daily map anyway, which is what conditions are: a floor to stand on, not a reason to stay. The window\u2019s light went dark at the hours it used to argue with me about.'
+          : 'June\u2019s conditions went unmet \u2014 the year at Dr. Feld\u2019s unstarted, the books unshown \u2014 and she is gone from the daily map, which is what unmet conditions are: a door closing at the speed of a window\u2019s light going dark at the hours it used to argue with me about.' },
+        { kind: 'note', text: `Rachel took his one 1 a.m. call \u2014 no preamble, no mercy, the sentence he never takes back: \u201C${C5_RACHEL_LINE}\u201D The dial tone after is a cousin of the payphone\u2019s.` },
+        { kind: 'note', text: `Eddie called from Charlotte, love without absolution: \u201C${C5_EDDIE_LINE}\u201D The floor is real. Real is the worst kind of offer.` },
+      ];
+      this.c0Write(out, exitsEntry(this.day));
+      return out;
+    }
+    // the exits have played: the answer is the pick (once)
+    if (!this.c5PickHeld('N5b')) {
+      return [{ kind: 'diary-prompt', pack: 'choice', node: 'N5b' }];
+    }
+    return [];
+  }
+
+  /** Doc 06 §C5 event 9 — the call home (the payphone, day 802): Ada,
+   *  the $8,000, zero questions; the R9 send through the dispatch's
+   *  sealed seam ('C5-ada' — the ONE send, once per save); F5 fires the
+   *  same week (the wobble style); K5's correction is struck here (doc
+   *  03 §5.2 — the settlements; Ada's $8,000 call). */
+  c5CallHome(): Effect[] {
+    if (this.day !== 802 || this.c0Has(C5_IDS.callHome)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'Ada, $8,000, zero questions \u2014 the money moves before the hello finishes, and this time I answer the question she doesn\u2019t ask. It is the shortest scene in the game and the only one the whole cast would applaud.' },
+      { kind: 'note', text: `The payphone eats its coins; the dial tone after is the longest sound there is. Bea\u2019s envelope finds the record: the schedule\u2019s first dollar, and Ada\u2019s note in a hand I\u2019d know anywhere \u2014 ${C5_ADA_NOTE}` },
+      { kind: 'note', text: 'The card keeps its stamp. One card, one address, one send \u2014 the only paper the whole story mails.' },
+      { kind: 'note', text: 'The notebook strikes K5 this morning \u2014 had to be done struck through, the margin signed. The ledger\u2019s last correction is the truest sentence in the book, and I signed it.' },
+    ];
+    this.c0Write(out, callHomeEntry(this.day));
+    // R9 — the ONE send, through the dispatch's own law (the sealed
+    // seam refuses any other scene key; once per save)
+    if (this.sendPostcardFromC5('C5-ada')) {
+      this.c0Write(out, adaSendEntry(this.day));
+    }
+    // F5 — the coins leaving, the dial tone after (the wobble style,
+    // once per save: the entry IS the latch)
+    if (!this.c0Has(C5_FRAGMENT_IDS.f5)) {
+      this.c0Write(out, c5F5Entry(this.day));
+    }
+    // K5's correction — the strike seam (doc 03 §5.2's row verbatim)
+    const k5c = c5K5Correction(this.calendarDay);
+    this.correctDiaryEntry(C5_IDS.k5, k5c.day, k5c.strike, k5c.margin);
+    return out;
+  }
+
+  /** N5c's venue (the garden, day 802's week): the reckoning's staging
+   *  — the pick rides the garden's own ground (doc 06 §C5: "a public
+   *  reckoning at the garden — available, brutal, the only path that
+   *  keeps Yoli's door ajar"). */
+  c5GardenReckoning(): Effect[] {
+    if (this.day !== 802) return [];
+    if (!this.c5PickHeld('N5c')) {
+      return [{ kind: 'diary-prompt', pack: 'choice', node: 'N5c' }];
+    }
+    return [];
+  }
+
+  /** Doc 06 §C5 events 10 + 11 — the terminal (the subway stairs, day
+   *  809): Rosa's line verbatim, the Inwood end state, the Map's new
+   *  borough-color pin, the Corvus-side pins going gray. */
+  c5Terminal(): Effect[] {
+    if (this.day !== 809 || this.c0Has(C5_IDS.terminal)) return [];
+    const out: Effect[] = [
+      { kind: 'note', text: 'Thanksgiving eve. The city eats; the diner glows; I come up the subway stairs with a duffel bag. From the bodega doorway, Rosa \u2014 to no one, and to everyone: \u201C' + C5_ROSA_TERMINAL_LINE + '\u201D' },
+      { kind: 'note', text: 'The Inwood basement: $1,212 in the account, stairs that announce guests, $1,150 a month. The diner job in Long Island City runs through Deshaun\u2019s cousin. The main story\u2019s end state fits on a phone card.' },
+      { kind: 'note', text: 'The Map: the Corvus-side pins go gray \u2014 his access, not the buildings \u2014 and a new pin sits alone in a borough-color the map has never used. The chapter\u2019s last diary line writes itself: ' + C5_DAY1_LINE },
+    ];
+    this.c0Write(out, terminalEntry(this.day));
+    this.collectNote('Inwood \u2014 the basement\u2019s pin, alone in a new borough-color');
+    this.collectNote('The Corvus-side pins go gray \u2014 his access, not the buildings');
+    return out;
+  }
+
+  /** The C5→C6 season cut (doc 06 §C5 handoff): the season's montage in
+   *  his hand, the handoff staged (snow on the Works' hoarding; the
+   *  hall's lights real; JMA's winter drive; the lost cat, still lost),
+   *  the cut's entry dated Dec 1, Y3 — and the chapter through
+   *  advanceChapter's own door at C6's window start. Plays once per save
+   *  (the latch is the entry); a replayed kept Nov 26 gets the wall.
+   *  C6's content is the next wave's — the wall holds (the honest
+   *  pattern; the roll into C6's stations is the C6 wave's law). */
+  c5SeasonCut(): Effect[] {
+    if (this.c0Has(C5_CUT_ID)) return [{ kind: 'note', text: C5_CUT_WALL }];
+    const out: Effect[] = [];
+    for (const line of seasonCutMontage(this.fieldDiary)) {
+      out.push({ kind: 'note', text: line });
+    }
+    out.push({ kind: 'note', text: C5_CUT_STAGE });
+    out.push({ kind: 'note', text: C5_CUT_WALL });
+    this.c0Write(out, c5CutEntry());
+    // C6's window opens — the machine's own door, the window-start law
+    const adv = advanceChapter(this.chapter, 'C6', {
+      day: C5_CUT_DAY,
+      triggerHeld: true, // the cut itself is the beat (doc 06 §C5's handoff)
+    });
+    if (adv.ok) this.chapter = adv.state;
+    else this.chapter = touchDay(this.chapter, C5_CUT_DAY);
+    out.push({ kind: 'persist' });
+    return out;
+  }
+
+  /** The C5 compressions (the c4Compression's own shape — the montage
+   *  arms, the next press rolls). */
+  c5Compression(to: number): Effect[] {
+    const comp = c5CompressionFrom(this.day);
+    if (!comp || comp.to !== to) return [];
+    this.pendingCompressionTo = to;
+    return [
+      { kind: 'note', text: comp.intro },
+      { kind: 'note', text: comp.city },
+      { kind: 'note', text: 'One more press, and the days pass.' },
+    ];
   }
 
   dismissPostcard(): Effect[] {

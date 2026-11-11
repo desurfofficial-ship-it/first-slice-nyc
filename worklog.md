@@ -3337,7 +3337,7 @@ Stage Summary:
 
 ---
 
-## 2026-11-11 — Production Director: THE CITY FABRIC PASS — slop-newyork's building craft adapted into the district bake (v1.39.0)
+## 2026-11-11 — Production Director: THE CITY FABRIC PASS — slop-newyork's building craft adapted into the district bake (v1.40.0)
 
 Task ID: CITY-FABRIC-2026-11-11
 Agent: Production Director (Z.ai)
@@ -3354,3 +3354,30 @@ Work Log:
 Stage Summary:
 - FIRST SLICE's horizon is no longer empty planes and a single tower row: four real city rows close every vanishing point, the roofscape carries the water tanks and chimney stacks the block always deserved, and the sidewalks have their meters, baskets, and street-name blades — all in the game's own palette, all through the game's own bake, all deterministic and pinned.
 - The reuse debt is now documented where the next agent will find it: what was taken, what was skipped and why, and the two reds (the census budget, the fire-escape ironwork) that remain the owner's frontier.
+
+## 2026-11-11 — Technical Architecture / World Systems Agent: WP-C5-NOTHING-HOLDS — §7 step 10 continued in one bulk pass: Nothing Holds is playable (register v1.39.0)
+
+Task ID: WP-C5-NOTHING-HOLDS
+Agent: Technical Architecture / World Systems Agent (Z.ai)
+Task: the owner's bulk directive, continued — the register's own frontier after v1.38.0 executed WHOLE: the C5 content wave (narrative/14 §7 step 10 continued, doc 06 §C5) in one branch, one gate battery, one push. The fall chapter Jul 3 – Nov 26, Y3 is playable end to end, R9's one send finally fires, the ledger's last correction lands, and the C4 cut now rolls into July's first morning while the C5→C6 cut lands December's.
+
+What landed (one branch `feat/c5-nothing-holds`, one commit series):
+- core/c5pack.ts (~1,430 lines): the C5 content pack in the c0–c4 packs' own shape — the canon constants machine-pinned (the raise $61,500 from nineteen; Corvus's nine releases $14,200; the restitution $47,300 / the fight's $53,300 = the register's own ±$6K; the money CLOSED — releases + restitution = the raise; Ada's $8,000; the Inwood end state $1,212 / $1,150); TEN stations on doc 12 §2's own canon dates through calendarDayOf (663 the loaded machine, 736 the chair, 743 the receipts, 752 the run, 756 the last slice, 760 the handover, 784 the deal, 795 the exits, 802 the call home, 809 the terminal); NINE compressions with ONE season cut the calendar proves (summer→autumn 663→736, crossedSeasonCut machine-checked); the rails (c5RailFor); the C5→C6 cut (the entry dated Dec 1, Y3 — snow on the Works' hoarding, the hall's lights real, JMA's winter drive, the lost cat still lost; the wall holds — C6's content is the next wave's law); F5 the payphone (doc 02 §6.2's row verbatim, the wobble style, once per save); K2's strike (the C2 lie meets the block's arithmetic — doc 03 §5.2's correction verbatim, seeded C2, landed HERE); K5 written FACT at the deal and struck at the call home ("I did what I wanted and called it necessary. — L" — the ledger's last correction); the three pick packs (N5a/N5b/N5c) dressed for the seam with applyC5Pick through resolveChoice — N5c's SILENCE posts NOTHING (the Silent class, the flags the only witness, machine-checked); validateC5Pack (the no-dead-content law: canon verbatim, values pinned, every option resolves, signatures pairwise unique, the restitution arithmetic pinned, no real-world years).
+- GameState: isC5 (the chapter gate), seasonStation's C5 voice, the linger's C5 rail (compression → cut), ten station methods (c5Funeral/c5Receipts/c5Run/c5LastNight/c5Handover/c5Deal/c5Exits/c5CallHome/c5Terminal + c5GardenReckoning), the R9 send through sendPostcardFromC5's sealed seam at the call home, R12's third trigger ('C5-investigation') spending through the once-latch at the deal, K2/K5's strikes through correctDiaryEntry, the C4 cut's latch branch grown the ROLL into C5's first station (day 663; a replayed kept Jun 28 still walls), the c5SeasonCut WITHOUT a roll (the honest pattern), applyChoicePick's union widened to the N5 nodes.
+- interactionDefs: six NEW one-day slots on existing ground (the census untouched — invisible triggers, zero meshes, zero colliders): funeral_porch (736, the garden's south edge), last_night (756, the shop's dark window), lawyer_office (784, the civic row), one_am_call (795, the bodega row's phone corner), phone_home (802, the station's phone), terminal_stairs (809, the subway stairs' mouth); plus C5 day-gated beats on the existing defs (newsbox → the receipts, board → the run, priya → the handover, garden → N5c's venue).
+- content.ts: composeCaption's precedence grew (c5 first — the C4 cards byte-identical, the composer's precedence grew nothing else); Save.ts: MAX_DAY 658 → 814 (the C5→C6 cut's morning).
+- tests/c5-nothing-holds.test.ts (39 tests): the station map, the rails (the ONE cut machine-checked), every beat's latch (the funeral, the receipts + K2's strike, the run, the last night, the handover, the deal + K5 + R12's once-latch, the exits + the flags' door-neutral weather, the call home + the sealed seam + F5 + K5's strike, the terminal + the Map's pins), the picks (the restitution arithmetic pinned, the Silent class machine-checked, the refused pick changes nothing), the C4 cut's roll witness, the C5→C6 cut + the wall holding, the saves (MAX_DAY 814, the sparse chapter legal), the captions (every station dated; C4's cards byte-identical), and the pack's self-check.
+- scripts/probe-c5-nothing-holds.mjs: the chapter playable in dist/ — 67 checks, 0 failures (per-boot isolated Chromium, the sandbox's own law).
+
+Staging judgments this wave owns (documented in the pack's header, per the §6.4 law): the exits land Nov 12 and the call home Nov 19 (doc 12 §2 names only "Nov" — the deal's Oct–Nov window keeps the deal at Nov 1; F5 fires the same week doc 06 §C5 event 9 requires; the terminal keeps its own Nov 26); N5b rides the exits' station (Eddie's floor offer is the option the node prices) and N5c rides the garden in the call-home week (doc 06 §C5's own venue); June's conditions resolve MET/UNMET door-neutral from the C4 machine's own two flags (june-conditions + c6-condition-handle) — the staging reads the flags, the text keeps both weathers.
+
+Gates executed on the branch tree [all executed]:
+- tsc clean; vitest **1416/1416** (86 files — the ceiling's move re-pinned across c0/c1/c2/c3/c4/state-day3/state-day4, the C4 suite's wall test grown to the roll witness); build OK (656 ms).
+- probe-c5-nothing-holds **67 checks, 0 failures**; probe-a3-flip exit 0 with the census **byte-identical across runs (10/10 files)**; probe-world-sim **15/15**; probe-nav **9/9**; probe-integration **0 errors, 8/8 walks, 71 GLB**.
+- 4-day story E2E: **0 failures** (the run's own log; the harness's --disable-dev-shm-usage standing).
+- Register v1.39.0 + this worklog in the same commit as the code (the §6.4 law).
+
+Not done, by law: the C6 content wave (§7 step 10's last content wave — the wall holds, its window OPEN at day 814), R13–R14 (Phase 7 stage 9), the owner-side variances (V-PH2-1/V-PH2-2 sign-offs, DEC-8 city expansion, B13 draw calls, the parked items).
+
+Stage Summary:
+- The game now plays its THIRD year's fall: the machine loads, fires, and the player lives every trigger week — the funeral's arithmetic, the receipts' verdict, the books in daylight, the four seconds in the dark, the tile sentence, the system's mercy, the two calls that end and the one that doesn't, and the terminal's duffel bag. The ledger learned its last correction (K5, signed), the postcard pipeline fired its only send, and the chapter machine walked through its own door twice this wave (in at Jul 3, out at Dec 1) while the epoch law never noticed. Next per §7: C6's content (The Long Way Back — the wall holds), then R13–R14.

@@ -1,6 +1,6 @@
 # PERFORMANCE AND COMPATIBILITY REPORT — the city-fabric pass
 
-Wave: v1.39.0 · all gates executed on the integrated tree, this sandbox,
+Wave: v1.40.0 · all gates executed on the integrated tree, this sandbox,
 sequential, against a fresh `npm run build` (`dist/`, 654 ms).
 
 ## 1. Draw-call accounting (the honest before/after)
