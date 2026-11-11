@@ -73,6 +73,16 @@ export interface CapabilityProbe {
   gpuString: string;
 }
 
+/** Own-property tier test — the QA-continuation guard (FS-QA2-004): `in`
+ *  walks the prototype chain, so `?gfx=__proto__` / `?gfx=constructor` /
+ *  `?gfx=toString` once resolved as KNOWN tiers and handed back a config
+ *  built from `{...Object.prototype}` (every flag undefined,
+ *  pixelRatioCap undefined → setPixelRatio(NaN) — a dead canvas — and
+ *  forced=true, which disarms the auto-degrade watchdog). A Set of the
+ *  own keys cannot be fooled by inherited members. */
+const TIER_KEYS: ReadonlySet<string> = new Set(Object.keys(TIER_FLAGS));
+const isKnownTier = (v: string | null): v is GfxTier => v !== null && TIER_KEYS.has(v);
+
 /** URL flag parser — '0'/'false' → false, '1'/'true'/present → true. */
 const flagOf = (params: { get(name: string): string | null }, name: string): boolean | null => {
   const v = params.get(name);
@@ -87,14 +97,14 @@ export function resolveGfxConfig(
   params: { get(name: string): string | null },
   probe: CapabilityProbe | null,
 ): GfxConfig {
-  const forcedTier = params.get('gfx') as GfxTier | null;
+  const forcedTier = params.get('gfx');
   const p = probe ?? {
     webgl2: true, maxTextureSize: 8192, hardwareConcurrency: 8,
     devicePixelRatio: 1.5, coarsePointer: false, gpuString: '',
   };
   const software = /swiftshader|llvmpipe|softpipe|software/i.test(p.gpuString);
   let tier: GfxTier;
-  if (forcedTier && forcedTier in TIER_FLAGS) {
+  if (isKnownTier(forcedTier)) {
     tier = forcedTier;
   } else if (!p.webgl2 || p.maxTextureSize < 4096 || software
     || (p.coarsePointer && p.devicePixelRatio >= 2)
@@ -150,7 +160,7 @@ export function resolveGfxConfig(
     pixelRatioCap: flags.pixelRatioCap,
     // only a KNOWN tier (or the fx=off affordance) counts as forced — an
     // unknown ?gfx value is a typo, and detection still governs
-    forced: (forcedTier !== null && forcedTier in TIER_FLAGS) || params.get('fx') === 'off',
+    forced: isKnownTier(forcedTier) || params.get('fx') === 'off',
   };
 }
 
