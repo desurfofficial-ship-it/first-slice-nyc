@@ -44,6 +44,7 @@ import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './pe
 import { buildSubwaySystem, STATION, ZONE_KEEP_RE, type SubwaySystem, type ColliderSpec } from './subway';
 import { buildTimesSquare, type TimesSquare } from './timesSquare';
 import { buildArrivalBus, BUS04_RECT, playerOccupiesBus04, type ArrivalBus } from './arrivalBus';
+import { buildCityFabric } from './cityFabric';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay,
   skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH,
   STREET_PLAN, PEDESTRIAN_ROLES, type StreetPlan } from './dressing';
@@ -1719,6 +1720,16 @@ export class World {
     // sills, AC units, roof clutter, street-floor life — ALL pre-bake so
     // the district tiles fuse every piece; zero colliders, zero nav changes
     this.buildWorldVisualQualityPass();
+
+    // the city-fabric pass (docs/production/city-fabric — the slop-newyork
+    // adaptation): rooftop water tanks + chimneys + bulkheads on the registry
+    // roofscape, the four documented-but-never-built skyline rows (SKY-W/E/S
+    // + the north depth row) as real varied buildings, and the sidewalk
+    // furniture (meters, DSNY baskets, cross-street name blades). All
+    // pre-bake so the tiles fuse the fabric; the skyline pair is NAMED_SKIP
+    // (always visible, never district-owned). Zero colliders, zero nav
+    // changes, deterministic (pinned by tests/city-fabric.test.ts).
+    this.buildCityFabricPass();
 
     // leaf drift, now over every tree on the block (shipped 12 + W1 rows)
     this.leaves = new LeafDrift(this.scene, [...leafSpots, ...this.extraLeafSpots], 4);
@@ -3536,6 +3547,37 @@ export class World {
   // roofs, or lies flat on the road at ≤ 5 cm proud. All names wear
   // the VQ_ prefix so the bake's skip sets and the probe never collide.
   // ================================================================
+  /** The city-fabric placement ledger (the vqLedger pattern): the bake
+   *  fuses the in-tile fabric meshes away, so probes read this. */
+  readonly fabricLedger: Array<{ name: string; x: number; y: number; z: number }> = [];
+  /** The city-fabric pass (docs/production/city-fabric — the slop-newyork
+   *  adaptation, MIT-attributed in THIRD-PARTY-NOTICES.md): the module owns
+   *  the geometry; World owns the seams — the registry shells (the
+   *  no-invention law), the shared vc materials, the shipped skyline window
+   *  material (the fabric's panes ride the dusk tween with the towers'), and
+   *  the pole-sign atlas for the cross-street blades. Called pre-bake so the
+   *  in-tile fabric fuses into the district batches; the skyline pair is
+   *  NAMED_SKIP. Zero colliders, zero nav changes, deterministic. */
+  private buildCityFabricPass(): void {
+    buildCityFabric({
+      ledger: this.fabricLedger,
+      scene: this.scene,
+      mat: (c, o) => this.mat(c, o),
+      vc: (fog) => this.vcMaterial(fog),
+      regShell: (id) => this.regShell(id),
+      buildings: loadRegistry().allBuildings(),
+      skylineWinMat: this.skylineWinMat,
+      poleSign: (text, x, z, ry) => {
+        const p = makePoleSign(this.bank, this.signMaterials.bind(this), text, { y: 4.9 });
+        p.position.set(x, 0, z);
+        p.rotation.y = ry;
+        p.name = `Fabric_Blade_${text.replace(/\s+/g, '_')}`;
+        this.scene.add(p);
+        this.vqLedger.push({ name: p.name, x, y: 0, z });
+      },
+    });
+  }
+
   private buildWorldVisualQualityPass(): void {
     const rng = seededRng(20261110); // the pass's own seed — never re-tunes a shipped row
     /** Add + record: the name and world position land in the ledger before
@@ -3849,7 +3891,11 @@ export class World {
       // underground (the dollhouse), and the zone groups manage their own
       // visibility — none of it may join a district tile (the street ring
       // would light the tunnel forever)
-      'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121']);
+      // + the city-fabric skyline pair (docs/production/city-fabric): the
+      // rows live OUTSIDE every district tile (x ±110 / z −88 / z +104) —
+      // a tile ring that drops them would blink the horizon out of view
+      'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121',
+      'SkylineFabric', 'SkylineFabricWindows']);
     const excluded = (o: THREE.Object3D): boolean => {
       for (let p: THREE.Object3D | null = o; p !== null; p = p.parent) {
         if (skip.has(p) || NAMED_SKIP.has(p.name)) return true;
