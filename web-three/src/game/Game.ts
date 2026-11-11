@@ -111,6 +111,9 @@ export class Game {
   private pipeline: PostPipeline | null = null;
   /** ?tod=HH:MM — pins the day cycle to a clock minute for validation rigs. */
   private todOverride: number | null = null;
+  /** The ?tod URL pin lands ONCE, on the first frame — after World's boot
+   *  golden-hour pin has landed (FS-QA2-005). */
+  private todApplied = false;
   /** Auto-degrade: a rolling frame-time average; one tier drop max. */
   private frameTimeAvg = 16;
   private degraded = false;
@@ -913,6 +916,18 @@ export class Game {
     // ---- the graphics wave: the clock-driven day cycle -----------------
     // ?tod pins (validation rigs); story beats pin (startDusk/toMorningLight
     // — see applySimPhase); everything else follows the sim clock minute.
+    // The ?tod URL contract (FS-QA2-005): the URL alone never unpinned the
+    // boot golden-hour pin — World.updateDayCycle samples only while the
+    // pin is null, so ?tod was inert in the shipped build (the visual rigs
+    // passed only because they call the setClockTime API directly, which
+    // clears the pin). Apply the URL pin once, on the first frame, after
+    // the boot pin has landed. A story page's authored beats (startDusk /
+    // toMorningLight) still own the cycle and re-pin over this by design —
+    // the affordance's use case is the fresh boot (the visual rigs).
+    if (this.todOverride !== null && !this.todApplied) {
+      this.todApplied = true;
+      this.world.setClockMinute(this.todOverride);
+    }
     const minute = this.todOverride ?? this.worldSim.brain.world.clock.minuteOfDay;
     this.world.updateDayCycle(minute, dt);
     // the auto-degrade watchdog (docs/rendering/03 §8): a sustained slow
@@ -3294,10 +3309,10 @@ export class Game {
     else if (this.duskStarted) this.toMorningLight();
   }
 
-  /** The roam/scenario clock band → day cycle (the graphics wave): every
-   *  phase change unpins the cycle so the lighting FOLLOWS the sim clock
-   *  continuously between bands (docs/rendering/03 §1). Story mode never
-   *  calls this — its beats pin explicit keyframes. */
+  /** The roam/scenario clock band → day cycle (the graphics wave): each
+   *  phase change pins that band's keyframe — the lighting rides the
+   *  authored states band to band (the shipped, certified look). Story
+   *  mode never calls this — its beats pin explicit keyframes. */
   setClockPhase(phase: string): void {
     const kf = phaseToKeyframe(phase);
     this.world.pinDayState(kf);
