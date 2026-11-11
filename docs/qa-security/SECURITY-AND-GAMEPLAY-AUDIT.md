@@ -20,7 +20,7 @@
 
 ## A. Executive summary
 
-**Overall game health: strong, and now verified one wave further than ever.** The tree that shipped six playable chapters and an open endgame re-certified green under this wave's full battery: TypeScript clean, **1,481/1,481 unit tests (90 files)**, production build OK, the two security probes **31/31** and **166/166** on real `dist/`, the 4-day story E2E **0 failures (702 s, console clean)**, and the chapter probes (C5 68/0, C6 60/0) plus the world-sim, nav, money-trace and first-session probes all passing on the fixed tree.
+**Overall game health: strong, and now verified one wave further than ever.** The tree that shipped six playable chapters and an open endgame re-certified green under this wave's full battery: TypeScript clean, **1,485/1,485 unit tests (91 files) on the final merged tree**, production build OK, the two security probes **31/31** and **166/166** on real `dist/`, the 4-day story E2E **0 failures (702 s, console clean)**, and the chapter probes (C5 68/0, C6 60/0) plus the world-sim, nav, money-trace and first-session probes all passing on the fixed tree.
 
 **Security posture: held.** This wave's fresh enumeration of the URL/storage/driver attack surface found **no new exploitable path**. The R1 driver gate, the sandboxed storage keys, the world-save validator (magic/version/worldId/whitelist/integrity-audit) and the story-save parser's bounds all re-proved against the built output. The wave's one security-relevant change is to the verification fleet itself: the W4 pedestrian soak — a 30-sim-minute acceptance probe — was failing on main with 48 "failures" and **nobody had noticed**, because it is not in any recent wave's gate list. Investigation (§B-2) showed the failures were a stale-harness artifact, not a game defect; the harness is repaired and the probe now passes its own acceptance for the first time since the street-plan wave.
 
@@ -103,13 +103,15 @@ All executed on this wave's final tree; browser-level gates against the real bui
 | Gate | Result | Evidence |
 |---|---|---|
 | TypeScript (`tsc --noEmit`) | **clean** | `evidence/RESULTS-typecheck-qa2.txt` |
-| Vitest suite | **1,481/1,481 (90 files)** — main's 1,474 + the 7 plain-morning guards | `evidence/RESULTS-vitest-qa2.txt` |
+| Vitest suite (wave tree) | **1,481/1,481 (90 files)** — main's 1,474 + the 7 plain-morning guards | `evidence/RESULTS-vitest-qa2.txt` |
+| **Merged tree re-certification** (origin/main moved mid-wave — the parallel QA wave 3 landed as v1.43.0; the merge is this wave's final tree) | tsc clean · build OK (611 ms) · vitest **1,485/1,485 (91 files)** · R1 **OK** · R2 **OK** · probe-c6 **60/0** · abnormal **OK** · the 4-day E2E re-run (below) | `evidence/RESULTS-*-merged.txt` |
 | Production build | **OK** | build log, this wave's commits |
 | R1 security probe | **31/31** | `evidence/RESULTS-probe-security-r1-qa2.txt` |
 | R2 security probe | **166/166** | `evidence/RESULTS-probe-security-r2-qa2.txt` |
 | Abnormal-player probe | **14/14** | `evidence/RESULTS-probe-abnormal-qa2.txt` |
 | W4 pedestrian soak (30.6 sim-min) | **OK — 0 failures** | `evidence/RESULTS-probe-w4-soak-qa2.txt` |
-| 4-day story E2E | **0 failures, 702 s, console clean** | `evidence/RESULTS-e2e-4day-qa2.txt` |
+| 4-day story E2E (wave tree) | **0 failures, 702 s, console clean** | `evidence/RESULTS-e2e-4day-qa2.txt` |
+| 4-day story E2E (merged tree) | **0 failures, 578 s, console clean — the wave’s final gate** | `evidence/RESULTS-e2e-4day-merged.txt` |
 | probe-world-sim / nav / money-trace | **15/15 · 9/9 · ALL CHECKS PASSED** | this wave's run log |
 | probe-first-session / C5 / C6 | **8/8 · 68/0 · 60/0** | this wave's run log |
 | perf-peds | 27.3 µs/frame, heap flat | `evidence/RESULTS-perf-qa2.txt` |
