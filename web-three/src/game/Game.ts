@@ -50,7 +50,8 @@ import { BENCH_SIT_NOTES, PARK_SIT_NOTES, FREE_WASH_NOTES, DIARY_NOTE_TEXT } fro
 import {
   C0_COLD_OPEN, C0_SYSTEM_LINE, C0_THEORY, C0_FIRST_QUESTION,
   applyColdOpen, theoryEntryDraft, questionEntryDraft, morningWhisper,
-  C0_WEEK_BEGIN, C0_WEEK_CLIMB_NOTE, C0_WEEK_GOLDEN_NOTE, C0_WEEK_ORDERS,
+  C0_WEEK_CLIMB_NOTE, C0_WEEK_GOLDEN_NOTE, C0_WEEK_ORDERS,
+  morningBeginNoteFor,
 } from '../core/c0pack';
 import { C1_FIRST_DAY, c1ChoicePackOf, c1StationOf } from '../core/c1pack';
 import { c2ChoicePackOf, c2StationOf } from '../core/c2pack';
@@ -3103,7 +3104,10 @@ export class Game {
       s.setStep(Step.WK_WAKE);
       this.ui.setObjective(s.objectiveText());
       this.ui.setBeatMarker(s.beatPlaceId());
-      this.ui.showNote(C0_WEEK_BEGIN[Math.min(7, Math.max(5, n)) as 5 | 6 | 7]);
+      // FS-QA2-001: the C0 week's day-keyed notes belong to days 5–7 only;
+      // the machine's plain mornings (post-C0 no-station days) speak the
+      // plain note — never "Day 7" again (tests/plain-mornings.test.ts).
+      this.ui.showNote(morningBeginNoteFor(n));
     } else if (n >= 4) {
       // the kid LIVES at the corner now — he takes his stool at sunrise
       if (s.stoolUp) {

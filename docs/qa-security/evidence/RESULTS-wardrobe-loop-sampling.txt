@@ -1,0 +1,14 @@
+t+0.0s {"card":"680x514.2","stage":"326.4x514.2","side":"353.6x514.2","canvas":"326.4x514.2","buf":"326x514","lineup":"325.6x212.6","pick":"325.6x83","controls":"325.6x32","wearY":557,"spilled":false}
+t+0.4s {"card":"680x514.2","stage":"326.4x514.2","side":"353.6x514.2","canvas":"326.4x514.2","buf":"326x514","lineup":"325.6x212.6","pick":"325.6x83","controls":"325.6x32","wearY":557,"spilled":false}
+t+0.8s {"card":"680x514.2","stage":"326.4x514.2","side":"353.6x514.2","canvas":"326.4x514.2","buf":"326x514","lineup":"325.6x212.6","pick":"325.6x83","controls":"325.6x32","wearY":557,"spilled":false}
+t+1.2s {"card":"680x514.2","stage":"326.4x514.2","side":"353.6x514.2","canvas":"326.4x514.2","buf":"326x514","lineup":"325.6x212.6","pick":"325.6x83","controls":"325.6x32","wearY":557,"spilled":false}
+t+1.6s {"card":"680x514.2","stage":"326.4x514.2","side":"353.6x514.2","canvas":"326.4x514.2","buf":"326x514","lineup":"325.6x212.6","pick":"325.6x83","controls":"325.6x32","wearY":557,"spilled":false}
+t+2.0s {"card":"680x514.2","stage":"326.4x514.2","side":"353.6x514.2","canvas":"326.4x514.2","buf":"326x514","lineup":"325.6x212.6","pick":"325.6x83","controls":"325.6x32","wearY":557,"spilled":false}
+t+2.4s {"card":"680x514.2","stage":"326.4x514.2","side":"353.6x514.2","canvas":"326.4x514.2","buf":"326x514","lineup":"325.6x212.6","pick":"325.6x83","controls":"325.6x32","wearY":557,"spilled":false}
+t+2.8s {"card":"680x514.2","stage":"326.4x514.2","side":"353.6x514.2","canvas":"326.4x514.2","buf":"326x514","lineup":"325.6x212.6","pick":"325.6x83","controls":"325.6x32","wearY":557,"spilled":false}
+t+3.2s {"card":"680x514.2","stage":"326.4x514.2","side":"353.6x514.2","canvas":"326.4x514.2","buf":"326x514","lineup":"325.6x212.6","pick":"325.6x83","controls":"325.6x32","wearY":557,"spilled":false}
+t+3.6s {"card":"680x514.2","stage":"326.4x514.2","side":"353.6x514.2","canvas":"326.4x514.2","buf":"326x514","lineup":"325.6x212.6","pick":"325.6x83","controls":"325.6x32","wearY":557,"spilled":false}
+t+4.0s {"card":"680x514.2","stage":"326.4x514.2","side":"353.6x514.2","canvas":"326.4x514.2","buf":"326x514","lineup":"325.6x212.6","pick":"325.6x83","controls":"325.6x32","wearY":557,"spilled":false}
+t+4.4s {"card":"680x514.2","stage":"326.4x514.2","side":"353.6x514.2","canvas":"326.4x514.2","buf":"326x514","lineup":"325.6x212.6","pick":"325.6x83","controls":"325.6x32","wearY":557,"spilled":false}
+t+4.8s {"card":"680x514.2","stage":"326.4x514.2","side":"353.6x514.2","canvas":"326.4x514.2","buf":"326x514","lineup":"325.6x212.6","pick":"325.6x83","controls":"325.6x32","wearY":557,"spilled":false}
+t+5.2s {"card":"680x514.2","stage":"326.4x514.2","side":"353.6x514.2","canvas":"326.4x514.2","buf":"326x514","lineup":"325.6x212.6","pick":"325.6x83","controls":"325.6x32","wearY":557,"spilled":false}

@@ -607,6 +607,48 @@ export const C0_WEEK_WAKE: Readonly<Record<5 | 6 | 7, string>> = Object.freeze({
   7: 'Rosa: \u201CSeven days.\u201D She looks at the corner like she\u2019s counting something bigger. \u201CThe usual at the usual time. That\u2019s how a block adopts you \u2014 quietly, on a Monday.\u201D',
 });
 
+// ---- the plain morning (QA wave 2, FS-QA2-001) ----------------------------
+// The chapter machine's plain mornings — post-C0 days with no station —
+// used to fall through to the C0 week's day-keyed notes via the
+// `Math.min(7, Math.max(5, n))` clamp. The clamp was honest when only days
+// 5–7 could reach it; the chapter waves extended the branch, and the open
+// endgame (days 1017–1179, every morning after the formal close) woke to
+// "Day 7. One week in this city." with Rosa adding "Seven days." — 163
+// wrong mornings, the whole open endgame long. (The chapters themselves
+// have NO plain tails — each last station IS its last day; the packs'
+// tables prove it and tests/plain-mornings.test.ts pins it, so a future
+// tail cannot inherit the lie.) The plain morning now speaks the loop
+// itself — the day-6 line's shape, no day number, no invented facts — and
+// the mapping is PURE so the suite pins it whole.
+
+/** The no-station morning note (post-C0 plain days). Descended from the
+ *  C0 day-6 line by dropping the day key. */
+export const PLAIN_MORNING_BEGIN =
+  'The cart, the corner, the city. Some mornings the loop is the point.';
+
+/** Rosa's no-station wake line. Descended from the C0 day-7 line by
+ *  dropping "Seven days." — the timeless half is the line's truth. */
+export const PLAIN_MORNING_WAKE =
+  'Rosa: \u201CThe usual at the usual time. That\u2019s how a block adopts you \u2014 quietly.\u201D';
+
+/** The morning note for a stabilized-loop day (`Game.beginDay`'s `n >= 5`
+ *  branch). Days 5–7 keep the C0 week's day-keyed notes byte-identical;
+ *  EVERY other day that reaches the loop — the machine's plain mornings —
+ *  gets the plain note, never a day-keyed line. */
+export function morningBeginNoteFor(day: number): string {
+  if (day >= 5 && day <= 7) return C0_WEEK_BEGIN[day as 5 | 6 | 7];
+  return PLAIN_MORNING_BEGIN;
+}
+
+/** Rosa's wake line for a stabilized-loop day. A station's own wake always
+ *  wins (the season speaks); otherwise days 5–7 keep their C0 lines and
+ *  every plain morning gets the plain wake. */
+export function weekWakeLineFor(day: number, stationWake: string | undefined): string {
+  if (stationWake !== undefined) return stationWake;
+  if (day >= 5 && day <= 7) return C0_WEEK_WAKE[day as 5 | 6 | 7];
+  return PLAIN_MORNING_WAKE;
+}
+
 /** One week-day rush order — same shape as content.ts's D3Order (who,
  *  bubble, pay, reaction). Authored, doc 13 voice; the regulars are the
  *  week's own texture (no canon quote is invented). */
