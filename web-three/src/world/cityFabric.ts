@@ -397,7 +397,11 @@ function skylineFabric(di: CityFabricDI): void {
       u += wOrD + rng() * 2.5; // the alley gap
     }
   }
-  emit(scene, vc, false, 'SkylineFabric', g.toGeometry(), false, false);
+  // the graphics wave (docs/rendering/03 §3): the far masses now RIDE the
+  // FogExp2 — aerial perspective melts the rows into the horizon color
+  // instead of hard-cutting them against the sky (the fog:false exemption
+  // predates the day cycle; the densities keep the silhouettes readable)
+  emit(scene, vc, true, 'SkylineFabric', g.toGeometry(), false, false);
   // the lit panes — one InstancedMesh sharing the shipped skyline material
   const winGeo = new THREE.PlaneGeometry(0.55, 0.8);
   const mesh = new THREE.InstancedMesh(winGeo, skylineWinMat, Math.max(1, litCells.length));

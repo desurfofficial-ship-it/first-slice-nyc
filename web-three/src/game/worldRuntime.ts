@@ -338,11 +338,12 @@ export class WorldRuntime {
   }
 
   /** Presentation flips keyed to the clock (active mode only): the
-   *  shipped dusk law (startDusk/toMorningLight — both idempotent) and,
-   *  through Game.frame's existing dusk flag, the M4 street plan. */
+   *  graphics wave's day cycle (docs/rendering/03 §1) — every band change
+   *  unpins the cycle so the lighting follows the sim clock continuously.
+   *  (The shipped boolean dusk law — applySimPhase — stays available to the
+   *  story paths and the probe harnesses.) */
   private applySimPhase(phase: string): void {
-    const duskNow = phase === 'dusk' || phase === 'night';
-    this.game.applySimPhase(duskNow);
+    this.game.setClockPhase(phase);
   }
 
   // ---- the executor --------------------------------------------------------
