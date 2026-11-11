@@ -226,9 +226,9 @@ describe('Day 3 — the save round-trip', () => {
     expect(parseSave(null)).toEqual(defaultSave());
   });
 
-  it('day is clamped to MAX_DAY = 658 (C4\u2019s season is playable — the ceiling moved to the frontier\u2019s canon end, doc 06 §C4)', () => {
+  it('day is clamped to MAX_DAY = 814 (C4\u2019s season is playable — the ceiling moved to the frontier\u2019s canon end, doc 06 §C4)', () => {
     const parsed = parseSave(JSON.stringify({ day: 999, money: 5 }));
-    expect(parsed.day).toBe(658);
+    expect(parsed.day).toBe(814);
   });
 
   it('the key is unchanged \u2014 existing players keep their corner', () => {
