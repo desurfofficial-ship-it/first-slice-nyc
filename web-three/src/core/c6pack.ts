@@ -951,6 +951,13 @@ export interface SelfPortraitInput {
   k4Unstruck: boolean;         // allowed; means something
   hallOpen: boolean;           // the calendar's own
   hearingWon: boolean;         // Yoli's win is the law, post-hearing
+  /** R14's row-level facts (optional, additive — core/amends.ts): the
+   *  amends table's own verdict, the debts paragraph's upgrade. Present
+   *  since the stage-9 wave (GameState derives it from the ledger's
+   *  amends acts); absent callers get the act-count line, byte-identical
+   *  to the shipped prose. The determinism law holds either way — the
+   *  same state passes the same facts. */
+  amendsFacts?: { rowsClosed: number; rowsTotal: number; scheduleRemaining: number };
 }
 
 export const C6_SELF_PORTRAIT_PREFIX = 'c6-self-portrait-';
@@ -988,7 +995,9 @@ export function composeSelfPortrait(input: SelfPortraitInput): { title: string; 
 
   // Paragraph three — the debts, the fragments, the standing
   // contradiction, the sentence.
-  const debts = input.amendsActs > 0
+  const debts = input.amendsFacts
+    ? `The debts: ${input.amendsFacts.rowsClosed} of ${input.amendsFacts.rowsTotal} closed, faces on each${input.amendsFacts.scheduleRemaining > 0 ? `; the schedule\u2019s $${input.amendsFacts.scheduleRemaining.toLocaleString('en-US')} still open` : ''}.`
+    : input.amendsActs > 0
     ? `The debts: ${input.amendsActs} row${input.amendsActs === 1 ? '' : 's'} closed, faces on each${input.amendsActs >= 5 ? '; the window kept its promise' : '; the window runs longer, honestly'}.`
     : 'The debts: the column waits \u2014 faces, not numbers.';
   const frags = input.fragmentsRecovered > 0
