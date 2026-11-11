@@ -112,7 +112,10 @@ export interface RegistryBuildingJson {
  *  that aged the moment another phase's statuses were repaired; the
  *  semantic form cannot.) */
 export function isShippedBuildingStatus(status: string | undefined): boolean {
-  return status === 'existing' || /^built \(W\d+\)$/.test(status ?? '');
+  // 'built (Wn)' — the W-phase bands; 'built (SI-1)' — the borough-character
+  // wave's Mallow-row rows (the SI union, 2026-11-11); 'existing' — the
+  // shipped originals. Never 'planned' (the no-render law).
+  return status === 'existing' || /^built \((W\d+|SI-\d+)\)$/.test(status ?? '');
 }
 
 const REGISTRY = registryJson as unknown as { buildings?: RegistryBuildingJson[] };
@@ -198,6 +201,18 @@ export const BUILDING_EVIDENCE: Record<string, { file: 'World.ts' | 'timesSquare
   'VDN-DE1d': { file: 'World.ts', tokens: ['VDN-DE1d'] },
   'VDN-DN1': { file: 'World.ts', tokens: ['VDN-DN1'] },
   'VDN-DS1': { file: 'World.ts', tokens: ['VDN-DS1'] },
+  // ---- the W6 terrace build-out (docs/production/terrace-buildout): the
+  // strips behind Gable and Marlow are real rows; the tokens are the
+  // terrace builder's own construction names
+  'GRB-06': { file: 'World.ts', tokens: ['GRB_06'] },
+  'GRB-07': { file: 'World.ts', tokens: ['GRB_07'] },
+  'TEN-02': { file: 'World.ts', tokens: ['TEN_02'] },
+  'KTS-04': { file: 'World.ts', tokens: ['KTS_04'] },
+  // the SI borough-character wave's Mallow-row rows (their construction
+  // names in World.ts's buildAlderHeightsSI)
+  'LMS-01': { file: 'World.ts', tokens: ['LMS_01_base'] },
+  'IND-01': { file: 'World.ts', tokens: ['IND_01'] },
+  'GLS-01': { file: 'World.ts', tokens: ['GLS_01'] },
 };
 
 /**

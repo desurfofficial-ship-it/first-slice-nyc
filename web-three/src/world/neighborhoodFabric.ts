@@ -1,0 +1,460 @@
+/**
+ * src/world/neighborhoodFabric.ts — THE NEIGHBORHOOD FABRIC PASS
+ * (docs/production/terrace-buildout — the W6 terrace build-out's fabric)
+ *
+ * The second slop-newyork adaptation wave (MIT, © 2026 Mr.doob), continuing
+ * cityFabric.ts's law set on a bigger canvas. What ships here:
+ *
+ *   1. FIRE-ESCAPE FABRIC — the zigzag ironwork on ~30 facades: landings at
+ *      each floor line, open guardrails (posts + top + mid rail), diagonal
+ *      braces that are actually visible (the makeFireEscapeDeco law), two
+ *      switchback flights per bay, the drop ladder and the gooseneck over
+ *      the parapet. Geometry ported from slop's fire-escapes.js (deck 3.2 m,
+ *      rails ~1.0 m, flights ~2.3 m run) into the house Lambert/vertex-color
+ *      grammar. Zero colliders — everything hangs at or above the second
+ *      floor line, clear of every door and stoop.
+ *   2. TERRACE FACE FABRIC — VDN-DN1/DS1's exposed street faces (the
+ *      footprint-pinned backdrop rows the W6 walls moved behind) gain real
+ *      fronts: window reveal grids per segment, segment cornices, and a lit
+ *      pane InstancedMesh sharing the shipped skyline window material so the
+ *      dusk tween dresses them with the towers'. Footprints untouched.
+ *   3. STREET PROP FABRIC — the missing sidewalk furniture: USPS collection
+ *      boxes, bike hoops, fire hydrants, one ConEd steam stack per avenue
+ *      with its sawhorse ring, and the terrace payphone. All flat Lambert vc,
+ *      all outside the walking lanes (the sidewalk law), all baked free.
+ *
+ * Everything rides the district bake: per-item indexed GeoPush meshes fuse
+ * into their tiles (the z-strips clamp to the edge rows — the same law the
+ * backdrop rows have always lived under). Deterministic: seeded PRNGs only,
+ * a rebuild is byte-identical (pinned by tests/neighborhood-fabric.test.ts).
+ *
+ * Palette law: colors come from PAL + WEAR + FABRIC plus the NEIGH set
+ * below — declared once, recorded in the register row.
+ */
+import * as THREE from 'three';
+import { PAL } from '../core/palette';
+import { WEAR } from './facadeKit';
+import { FABRIC, GeoPush, hash01 } from './cityFabric';
+
+/** The neighborhood fabric's own scene signatures (the awning row reads
+ *  slop-newyork's five-color storefront palette). */
+export const NEIGH = {
+  mailboxBlue: 0x183c7a,  // the USPS collection box
+  hydrantRed: 0xb8241e,   // the fire hydrant (slop-newyork's read)
+  steamOrange: 0xff5518,  // ConEd stack bands
+  steamWhite: 0xf4f6f8,
+  awningRed: 0x9e222e,
+  awningGreen: 0x1f593b,
+  awningNavy: 0x213d68,
+  awningGold: 0xd9912b,
+  awningChar: 0x2d2d32,
+  soil: 0x241c14,         // the tree-pit soil read (slop's street-details)
+} as const;
+
+/** Buildings whose facades never carry fabric ironwork — the gameplay
+ *  escapes (KTS-02's climb, TEN-01's shipped pair), the single-story and
+ *  service rows, the far world that dresses itself (exported for the
+ *  placement-law test). */
+export const ESCAPE_SKIP = new Set([
+  'KTS-02', 'TEN-01',       // gameplay escapes already on those faces
+  'ROS-01', 'SUB-01', 'SUB-02', 'ALY-01', 'ALY-02', 'VND-01', 'VND-02',
+  'SUB-TS', 'TSS-01', 'TSS-02', 'TSS-03', 'TSS-04', 'TSS-05',
+  'SND-01',                 // the diner keeps its crown/sign wall clean
+  'VDN-DW1a', 'VDN-DW1b', 'VDN-DW1c', 'VDN-DW1d',
+  'VDN-DE1a', 'VDN-DE1b', 'VDN-DE1c', 'VDN-DE1d', // far backdrops stay plain
+]);
+
+/** Which face of each row carries escapes, and how many bays. `axis` is the
+ *  facade's facing: 'S' looks down −z, 'N' looks down +z. The backdrop rows
+ *  DN1/DS1 are pinned class D — their exposed street faces are the one
+ *  sanctioned exception (the W6 walls made those faces public). */
+export interface EscapeJob { id: string; face: 'N' | 'S'; bays: Array<{ x: number; railMeters: number }> }
+
+export interface FabricBuildingRow {
+  id: string;
+  height?: number;
+  floors?: number;
+  status?: string;
+  footprint?: { x: number; z: number; w: number; d: number };
+  entrance?: Array<{ x: number; z: number; faces?: string }>;
+}
+
+export interface FabricLedgerEntry { name: string; x: number; y: number; z: number }
+
+export interface NeighborhoodDI {
+  ledger?: FabricLedgerEntry[];
+  scene: THREE.Scene;
+  mat: (color: number, opts?: { emissive?: number; emissiveIntensity?: number }) => THREE.MeshLambertMaterial;
+  vc: (fog: boolean) => THREE.MeshLambertMaterial;
+  regShell: (id: string) => { x: number; z: number; w: number; d: number; h: number };
+  buildings: readonly FabricBuildingRow[];
+  skylineWinMat: THREE.MeshLambertMaterial;
+}
+
+function emit(di: NeighborhoodDI, fog: boolean, name: string, geo: THREE.BufferGeometry,
+  cast: boolean, receive: boolean): THREE.Mesh {
+  const m = new THREE.Mesh(geo, di.vc(fog));
+  m.name = name;
+  m.castShadow = cast;
+  m.receiveShadow = receive;
+  di.scene.add(m);
+  return m;
+}
+
+// ------------------------------------------------------------- ironwork ----
+
+/** Box rotated about the Z axis (a flight's slope) — all six faces written
+ *  through the rotated frame, normals and winding derived in the rotated
+ *  local frame so nothing backface-culls. Only used for flights and braces
+ *  (thin dark iron). */
+function rotBoxZ(g: GeoPush, cx: number, cy: number, cz: number, sx: number, sy: number, sz: number,
+  angle: number, color: number): void {
+  const cos = Math.cos(angle), sin = Math.sin(angle);
+  const ux = cos, uy = sin;           // local +sx axis (xy)
+  const vx = -sin, vy = cos;          // local +sy axis (xy)
+  const hx = sx / 2, hy = sy / 2;
+  const z0 = cz - sz / 2, z1 = cz + sz / 2;
+  const p = (dx: number, dy: number, z: number): [number, number, number] => {
+    const x = cx + dx * ux + dy * vx;
+    const y = cy + dx * uy + dy * vy;
+    return [x, y, z];
+  };
+  const A1 = p(-hx, -hy, z1), A0 = p(-hx, -hy, z0);
+  const B1 = p(-hx, hy, z1), B0 = p(-hx, hy, z0);
+  const E1 = p(hx, hy, z1), E0 = p(hx, hy, z0);
+  const F1 = p(hx, -hy, z1), F0 = p(hx, -hy, z0);
+  // ±w faces (constant z) — straight up / down
+  g['quad'](A1[0], A1[1], z1, F1[0], F1[1], z1, E1[0], E1[1], z1, B1[0], B1[1], z1, 0, 0, 1, color);
+  g['quad'](B0[0], B0[1], z0, E0[0], E0[1], z0, F0[0], F0[1], z0, A0[0], A0[1], z0, 0, 0, -1, color);
+  // ±u end caps
+  g['quad'](F0[0], F0[1], z0, E0[0], E0[1], z0, E1[0], E1[1], z1, F1[0], F1[1], z1, ux, uy, 0, color);
+  g['quad'](A1[0], A1[1], z1, B1[0], B1[1], z1, B0[0], B0[1], z0, A0[0], A0[1], z0, -ux, -uy, 0, color);
+  // ±v long sides
+  g['quad'](B1[0], B1[1], z1, E1[0], E1[1], z1, E0[0], E0[1], z0, B0[0], B0[1], z0, vx, vy, 0, color);
+  g['quad'](A1[0], A1[1], z1, A0[0], A0[1], z0, F0[0], F0[1], z0, F1[0], F1[1], z1, -vx, -vy, 0, color);
+}
+
+/** One escape bay: landings at every floor line from `landY1` to the
+ *  parapet, switchback flights between, the drop ladder, the gooseneck.
+ *  Slop-newyork's dims, house grammar: deck 3.2 × 1.0, rail head 1.0 m,
+ *  flight run 2.3 m, offset 0.55 m off the wall. */
+function pushEscape(g: GeoPush, x: number, faceZ: number, dir: -1 | 1, roofY: number,
+  landYs: number[]): void {
+  const IRON = FABRIC.hoist;
+  const IRON_DARK = PAL.ink;
+  const W = 3.2;             // deck width along the facade
+  const DECK_D = 1.0;        // deck depth (out of the wall)
+  const off = dir * 0.55;    // deck center offset from the face plane
+  const deckZ = faceZ + off; // every deck hangs at the same offset
+  const zOut = faceZ + dir * (0.55 + DECK_D / 2);   // the rail line
+
+  const landing = (y: number): void => {
+    g.box(x, y + 0.045, deckZ, W, 0.09, DECK_D, IRON);
+    // open guardrail: 5 posts, top rail, mid rail (never a slab)
+    for (let i = 0; i <= 4; i++) {
+      const px = x - W / 2 + i * (W / 4);
+      g.box(px, y + 0.5, zOut, 0.045, 0.95, 0.045, IRON);
+    }
+    g.box(x, y + 0.97, zOut, W, 0.05, 0.05, IRON);
+    g.box(x, y + 0.52, zOut, W, 0.04, 0.04, IRON);
+    // side rails back to the wall
+    for (const sx of [x - W / 2, x + W / 2]) {
+      g.box(sx, y + 0.97, faceZ + dir * 0.15, 0.05, 0.05, DECK_D - 0.2, IRON);
+      g.box(sx, y + 0.5, zOut, 0.05, 0.95, 0.05, IRON);
+    }
+    // the visible diagonal braces (the makeFireEscapeDeco law — a support
+    // you can see is the support that works)
+    for (const bx of [x - W / 2 + 0.5, x, x + W / 2 - 0.5]) {
+      rotBoxZ(g, bx, y - 0.24, faceZ + dir * 0.42, 0.07, 0.98, 0.07,
+        Math.atan2(0.28, dir * 0.36), IRON_DARK);
+    }
+  };
+  for (const y of landYs) landing(y);
+
+  // switchback flights between landings (alternate direction each hop)
+  for (let i = 0; i < landYs.length - 1; i++) {
+    const y0 = landYs[i], y1 = landYs[i + 1];
+    const rise = y1 - y0;
+    const xFrom = i % 2 === 0 ? x - W / 2 + 0.4 : x + W / 2 - 0.4;
+    const xTo = i % 2 === 0 ? x + W / 2 - 1.0 : x - W / 2 + 1.0;
+    const ang = Math.atan2(rise, xTo - xFrom);
+    const len = Math.hypot(rise, xTo - xFrom) + 0.15;
+    rotBoxZ(g, (xFrom + xTo) / 2, (y0 + y1) / 2 + 0.04, faceZ + dir * 0.45, len, 0.06, 0.6, ang, IRON);
+    rotBoxZ(g, (xFrom + xTo) / 2, (y0 + y1) / 2 + 0.55, faceZ + dir * 0.72, len, 0.04, 0.04, ang, IRON);
+    // the mid landing the flight turns on
+    if (i < landYs.length - 2) {
+      g.box(xTo + (i % 2 === 0 ? 0.55 : -0.55), y1 - rise * 0.5, faceZ + dir * 0.38, 1.05, 0.07, 0.72, IRON);
+    }
+  }
+
+  // the drop ladder under the lowest landing — bottom 1.45 m above grade
+  const lowY = landYs[0];
+  const ladderX = x - W / 2 + 0.35;
+  const ladderBottom = 1.45, ladderTop = lowY - 0.1;
+  const lh = ladderTop - ladderBottom;
+  g.box(ladderX - 0.17, ladderBottom + lh / 2, faceZ + dir * 0.42, 0.05, lh, 0.05, IRON);
+  g.box(ladderX + 0.17, ladderBottom + lh / 2, faceZ + dir * 0.42, 0.05, lh, 0.05, IRON);
+  for (let ry = ladderBottom + 0.3; ry < ladderTop - 0.15; ry += 0.38) {
+    g.box(ladderX, ry, faceZ + dir * 0.42, 0.37, 0.035, 0.035, IRON);
+  }
+  // gooseneck over the parapet (the silhouette detail)
+  g.box(ladderX - 0.17, roofY - 0.35, faceZ + dir * 0.3, 0.05, 0.85, 0.05, IRON);
+  g.box(ladderX + 0.17, roofY - 0.35, faceZ + dir * 0.3, 0.05, 0.85, 0.05, IRON);
+  g.box(ladderX, roofY - 0.06, faceZ + dir * 0.12, 0.42, 0.05, 0.05, IRON);
+}
+
+// ------------------------------------------------- 1. fire-escape fabric ---
+
+/** Which buildings get escapes, on which face, how many bays and where.
+ *  Bay x positions are authored against the registry footprints; the door
+ *  clearance law (≥ 2.9 m from every entrance x) is asserted in the test. */
+const ESCAPE_JOBS: Array<{ id: string; face: 'N' | 'S'; bays: Array<{ dx: number; railMeters: number }> }> = [
+  // Kestrel N faces (z 8 walk side)
+  { id: 'KTN-00W', face: 'N', bays: [{ dx: +3.0, railMeters: 16 }] },
+  { id: 'KTN-02', face: 'N', bays: [{ dx: -3.6, railMeters: 18 }] },
+  { id: 'KTN-03', face: 'N', bays: [{ dx: +3.4, railMeters: 11 }] },
+  { id: 'KTN-04', face: 'N', bays: [{ dx: -3.4, railMeters: 16 }] },
+  { id: 'KTN-05', face: 'N', bays: [{ dx: +3.6, railMeters: 16 }] },
+  { id: 'KTN-06', face: 'N', bays: [{ dx: +3.0, railMeters: 16 }] },
+  // the south block's rear faces (z −20 yard side)
+  { id: 'KTS-01', face: 'S', bays: [{ dx: -10, railMeters: 16 }, { dx: +10, railMeters: 16 }] },
+  { id: 'KTS-03', face: 'S', bays: [{ dx: -6, railMeters: 18 }, { dx: +6, railMeters: 18 }] },
+  { id: 'PWK-01', face: 'N', bays: [{ dx: 0, railMeters: 15 }] },
+  { id: 'PWK-02', face: 'N', bays: [{ dx: 0, railMeters: 15 }] },
+  { id: 'PWK-03', face: 'N', bays: [{ dx: 0, railMeters: 15 }] },
+  { id: 'SMB-01', face: 'N', bays: [{ dx: 0, railMeters: 12 }] },
+  { id: 'SMB-02', face: 'N', bays: [{ dx: 0, railMeters: 12 }] },
+  { id: 'SMB-03', face: 'N', bays: [{ dx: 0, railMeters: 12 }] },
+  { id: 'SRC-01', face: 'N', bays: [{ dx: -3.2, railMeters: 17 }] },
+  { id: 'SRC-02', face: 'N', bays: [{ dx: +3.2, railMeters: 15 }] },
+  // the Gable row's rear faces (z 20 garden side)
+  { id: 'GRB-01', face: 'S', bays: [{ dx: 0, railMeters: 12.5 }] },
+  { id: 'GRB-02', face: 'S', bays: [{ dx: 0, railMeters: 12.5 }] },
+  { id: 'GRB-03', face: 'S', bays: [{ dx: 0, railMeters: 12.5 }] },
+  { id: 'GRB-04', face: 'S', bays: [{ dx: 0, railMeters: 12.5 }] },
+  { id: 'GRB-05', face: 'S', bays: [{ dx: 0, railMeters: 12.5 }] },
+  { id: 'KCM-01', face: 'S', bays: [{ dx: 0, railMeters: 15 }] },
+  { id: 'KTN-07', face: 'N', bays: [{ dx: -3.6, railMeters: 15 }] },
+  // the W6 terrace rows (the new walls made these faces public)
+  { id: 'GRB-06', face: 'S', bays: [{ dx: +1.6, railMeters: 12.5 }] },
+  { id: 'GRB-07', face: 'S', bays: [{ dx: +1.6, railMeters: 12.5 }] },
+  { id: 'TEN-02', face: 'N', bays: [{ dx: +1.8, railMeters: 16.5 }] },
+  { id: 'KTS-04', face: 'N', bays: [{ dx: +1.8, railMeters: 18 }] },
+  // the pinned backdrop rows' exposed street faces
+  { id: 'VDN-DN1', face: 'S', bays: [{ dx: -30, railMeters: 13 }, { dx: +30, railMeters: 13 }] },
+  { id: 'VDN-DS1', face: 'N', bays: [{ dx: -30, railMeters: 14 }, { dx: +30, railMeters: 14 }] },
+];
+
+function escapeFabric(di: NeighborhoodDI): void {
+  const byId = new Map(di.buildings.map((b) => [b.id, b]));
+  for (const job of ESCAPE_JOBS) {
+    if (ESCAPE_SKIP.has(job.id)) continue;
+    const row = byId.get(job.id);
+    if (!row?.footprint || !row.height) continue;
+    let s: { x: number; z: number; w: number; d: number; h: number };
+    try {
+      s = di.regShell(job.id);
+    } catch {
+      continue; // an unbuilt row never renders (the no-invention law)
+    }
+    const floors = Math.max(2, row.floors ?? Math.round(s.h / 3.3));
+    const floorH = s.h / floors;
+    const landYs: number[] = [];
+    for (let k = 1; k <= Math.min(floors - 1, 5); k++) {
+      const y = k * floorH;
+      if (y < s.h - 0.9) landYs.push(+y.toFixed(3));
+    }
+    if (landYs.length < 1) continue;
+    const faceZ = job.face === 'S' ? s.z - s.d / 2 : s.z + s.d / 2;
+    const dir: -1 | 1 = job.face === 'S' ? -1 : 1;
+    const g = new GeoPush();
+    for (const bay of job.bays) {
+      const bx = s.x + bay.dx;
+      if (Math.abs(bay.dx) > s.w / 2 - 1.8) continue; // a bay never leaves its wall
+      pushEscape(g, bx, faceZ, dir, s.h, landYs);
+    }
+    if (!g.idx.length) continue;
+    emit(di, true, `Nbhd_Escape_${job.id}`, g.toGeometry(), true, true);
+    di.ledger?.push({ name: `Nbhd_Escape_${job.id}`, x: s.x, y: landYs[0], z: faceZ + dir * 0.55 });
+  }
+}
+
+// ----------------------------------------------- 2. terrace face fabric ----
+
+/** The exposed street faces of the two pinned backdrop rows: window reveal
+ *  grids + segment cornices + lit panes. The footprints never move — the
+ *  fabric sits ON the face plane (windows proud by 5 cm, the W1 grammar). */
+function terraceFaceFabric(di: NeighborhoodDI): void {
+  const heightsN = [11, 13, 15, 12, 14, 13, 11, 15, 12, 14]; // buildBackdrops' own rhythm
+  const heightsS = [14, 12, 15, 13, 11, 14, 12, 15, 13, 11];
+  const jobs: Array<{ id: string; face: 'N' | 'S'; heights: number[] }> = [
+    { id: 'VDN-DN1', face: 'S', heights: heightsN },   // the Gable-terrace front (z 48.5, faces −z)
+    { id: 'VDN-DS1', face: 'N', heights: heightsS },   // the Carrow-terrace front (z −48.5, faces +z)
+  ];
+  const litCells: Array<{ x: number; y: number; z: number; ry: number }> = [];
+  for (const job of jobs) {
+    let s: { x: number; z: number; w: number; d: number; h: number };
+    try {
+      s = di.regShell(job.id);
+    } catch {
+      continue;
+    }
+    const faceZ = job.face === 'S' ? s.z - s.d / 2 : s.z + s.d / 2;
+    const dir: -1 | 1 = job.face === 'S' ? -1 : 1;
+    const g = new GeoPush();
+    const segW = s.w / job.heights.length;
+    for (let i = 0; i < job.heights.length; i++) {
+      const segH = job.heights[i];
+      const cx = s.x - s.w / 2 + segW * (i + 0.5);
+      // the segment cornice at its own roof line (the pre-war tell)
+      g.box(cx, segH - 0.16, faceZ + dir * 0.14, segW + 0.18, 0.32, 0.3, FABRIC.limestoneDark);
+      // window grid: 5 bays, floors every 3.0 m from y 2.2
+      const cols = 5;
+      const rows = Math.max(1, Math.floor((segH - 2.4) / 3.0));
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const wx = cx - segW / 2 + segW * ((c + 0.5) / cols);
+          const wy = 2.2 + r * 3.0;
+          if (wy + 0.75 > segH - 0.5) continue;
+          g.box(wx, wy, faceZ + dir * 0.05, 1.05, 1.5, 0.1, PAL.windowDim);
+          if (hash01(`${job.id}:${i}:${r}:${c}`) < 0.26) {
+            litCells.push({
+              x: wx, y: wy, z: faceZ + dir * 0.14,
+              ry: job.face === 'S' ? Math.PI : 0,
+            });
+          }
+        }
+      }
+      // the ground-floor shopfront band: bulkheads + a fascia line
+      g.box(cx, 0.9, faceZ + dir * 0.06, segW - 1.2, 1.4, 0.12, WEAR.bldgDark);
+      g.box(cx, 2.85, faceZ + dir * 0.07, segW - 0.6, 0.5, 0.14, FABRIC.limestoneDark);
+    }
+    emit(di, true, `Nbhd_TerraceFace_${job.id}`, g.toGeometry(), true, true);
+    di.ledger?.push({ name: `Nbhd_TerraceFace_${job.id}`, x: s.x, y: 0, z: faceZ });
+  }
+  // the lit panes — one InstancedMesh riding the shipped skyline material
+  if (litCells.length) {
+    const winGeo = new THREE.PlaneGeometry(0.85, 1.2);
+    const mesh = new THREE.InstancedMesh(winGeo, di.skylineWinMat, litCells.length);
+    const m4 = new THREE.Matrix4();
+    const rot = new THREE.Quaternion();
+    const one = new THREE.Vector3(1, 1, 1);
+    for (let k = 0; k < litCells.length; k++) {
+      const c = litCells[k];
+      rot.setFromAxisAngle(new THREE.Vector3(0, 1, 0), c.ry);
+      m4.compose(new THREE.Vector3(c.x, c.y, c.z), rot, one);
+      mesh.setMatrixAt(k, m4);
+    }
+    mesh.count = litCells.length;
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.frustumCulled = false;
+    mesh.name = 'Nbhd_TerraceWindows';
+    di.scene.add(mesh);
+    di.ledger?.push({ name: 'Nbhd_TerraceWindows', x: 0, y: 0, z: 0 });
+  }
+}
+
+// ------------------------------------------------ 3. street prop fabric ----
+
+function propFabric(di: NeighborhoodDI): void {
+
+  // USPS collection boxes — the corner blue (slop's dims: 0.65 × 1.25 × 0.65)
+  const mailbox = (x: number, z: number, tag: string): void => {
+    const g = new GeoPush();
+    g.box(x, 0.15 + 0.1, z, 0.72, 0.2, 0.72, PAL.ink);
+    g.box(x, 0.15 + 0.78, z, 0.65, 1.15, 0.62, NEIGH.mailboxBlue);
+    g.box(x, 0.15 + 1.44, z, 0.66, 0.16, 0.64, PAL.ink);
+    g.box(x + 0.2, 0.15 + 1.18, z + 0.32, 0.26, 0.035, 0.02, PAL.cream); // the slot face
+    emit(di, true, `Nbhd_Mailbox_${tag}`, g.toGeometry(), false, true);
+    di.ledger?.push({ name: `Nbhd_Mailbox_${tag}`, x, y: 0.15, z });
+  };
+  mailbox(-37.2, 7.62, 'a'); mailbox(26.4, -7.62, 'b');
+  mailbox(-60.6, -1.5, 'c'); mailbox(60.6, 9.5, 'd');
+  mailbox(-58.7, 47.5, 'e'); mailbox(58.7, -47.5, 'f');
+
+  // bike hoops — the inverted U (two legs + a top bar)
+  const bikeHoop = (x: number, z: number, tag: string): void => {
+    const g = new GeoPush();
+    for (const dx of [-0.32, 0.32]) {
+      g.cyl(x + dx, 0.15 + 0.35, z, 0.032, 0.032, 0.7, 6, FABRIC.hoist);
+    }
+    // the top bar lies across the hoop
+    g.box(x, 0.15 + 0.72, z, 0.72, 0.064, 0.064, FABRIC.hoist);
+    emit(di, true, `Nbhd_Bike_${tag}`, g.toGeometry(), false, true);
+    di.ledger?.push({ name: `Nbhd_Bike_${tag}`, x, y: 0.15, z });
+  };
+  bikeHoop(-44.5, 7.62, 'a'); bikeHoop(12.5, -7.62, 'b'); bikeHoop(40.5, -7.62, 'c');
+  bikeHoop(-20, 32.55, 'd'); bikeHoop(24, 32.55, 'e');
+  bikeHoop(20, -32.55, 'f'); bikeHoop(-60.6, 36, 'g'); bikeHoop(60.6, -36, 'h');
+
+  // fire hydrants (slop's read: tapered body, cap, two side nuts)
+  const hydrant = (x: number, z: number, tag: string): void => {
+    const g = new GeoPush();
+    g.cyl(x, 0.15 + 0.09, z, 0.19, 0.22, 0.18, 8, PAL.ink);
+    g.cyl(x, 0.15 + 0.52, z, 0.16, 0.2, 0.68, 8, NEIGH.hydrantRed);
+    g.cyl(x, 0.15 + 0.93, z, 0.11, 0.16, 0.12, 8, NEIGH.hydrantRed);
+    g.box(x - 0.19, 0.15 + 0.62, z, 0.1, 0.09, 0.1, NEIGH.hydrantRed);
+    g.box(x + 0.19, 0.15 + 0.62, z, 0.1, 0.09, 0.1, NEIGH.hydrantRed);
+    emit(di, true, `Nbhd_Hydrant_${tag}`, g.toGeometry(), false, true);
+    di.ledger?.push({ name: `Nbhd_Hydrant_${tag}`, x, y: 0.15, z });
+  };
+  hydrant(-24.4, 7.58, 'a'); hydrant(33.2, -7.58, 'b');
+  hydrant(-44.2, 32.52, 'c'); hydrant(36.4, 47.5, 'd');
+  hydrant(-48.2, -47.5, 'e'); hydrant(52.4, -32.52, 'f');
+
+  // the ConEd steam stack + its sawhorse ring (slop's bands: 5 × 0.56 m,
+  // r 0.36 → 0.235, alternating orange/white)
+  const steamStack = (x: number, z: number, tag: string): void => {
+    const g = new GeoPush();
+    for (let b = 0; b < 5; b++) {
+      const r = 0.36 - 0.025 * b;
+      g.cyl(x, 0.28 + 0.56 * b + 0.28, z, r, r, 0.56, 10, b % 2 === 0 ? NEIGH.steamOrange : NEIGH.steamWhite);
+    }
+    g.cyl(x, 0.28 + 5 * 0.56 + 0.34, z, 0.02, 0.2, 0.12, 8, PAL.ink);
+    emit(di, true, `Nbhd_Steam_${tag}`, g.toGeometry(), false, true);
+    di.ledger?.push({ name: `Nbhd_Steam_${tag}`, x, y: 0.28, z });
+    // the four sawhorses (legs + double rails, the slop ring at ±0.92)
+    const horse = (hx: number, hz: number, ry: number, htag: string): void => {
+      const hg = new GeoPush();
+      for (const dx of [-0.72, 0.72]) {
+        const lx = hx + Math.cos(ry) * dx, lz = hz + Math.sin(ry) * dx;
+        hg.box(lx, 0.15 + 0.48, lz, 0.08, 0.96, 0.08, PAL.ink);
+      }
+      for (const [ry2, y] of [[ry, 0.82], [ry, 0.46]] as const) {
+        const len = 1.44;
+        hg.box(hx, 0.15 + y, hz, Math.abs(Math.cos(ry2)) * len + 0.08, 0.16,
+          Math.abs(Math.sin(ry2)) * len + 0.08, NEIGH.steamOrange);
+      }
+      emit(di, true, `Nbhd_Sawhorse_${tag}${htag}`, hg.toGeometry(), false, true);
+      di.ledger?.push({ name: `Nbhd_Sawhorse_${tag}${htag}`, x: hx, y: 0.15, z: hz });
+    };
+    // the ring's N/S horses would cross the Kestrel lane (z 6.5) — the
+    // crews stage the pair that fits, and that is the honest read
+    horse(x - 0.92, z, 0, 'w'); horse(x + 0.92, z, 0, 'e');
+  };
+  // the hug line z ±7.62 (1.12 off the Kestrel lane), x ±66.5 — clear of
+  // the Sycamore/Juniper walk lanes (x ±61.5) and every doorway
+  steamStack(-66.5, 7.62, 'J'); steamStack(66.5, -7.62, 'Y');
+
+  // the terrace payphone (the wall pair: back panel, shelf, handset)
+  const payphone = (): void => {
+    const g = new GeoPush();
+    const x = 66.6, z = 47.72;
+    g.cyl(x - 0.3, 0.15 + 1.05, z, 0.045, 0.055, 2.1, 6, FABRIC.hoist);
+    g.box(x, 0.15 + 1.42, z - 0.06, 0.52, 0.62, 0.12, PAL.ink);
+    g.box(x, 0.15 + 1.42, z + 0.005, 0.44, 0.5, 0.02, NEIGH.awningNavy);
+    g.box(x, 0.15 + 1.02, z - 0.05, 0.4, 0.06, 0.16, FABRIC.hoist);
+    g.box(x + 0.16, 0.15 + 1.12, z - 0.02, 0.07, 0.24, 0.07, PAL.ink); // the handset
+    emit(di, true, 'Nbhd_Payphone_Terrace', g.toGeometry(), false, true);
+    di.ledger?.push({ name: 'Nbhd_Payphone_Terrace', x, y: 0.15, z });
+  };
+  payphone();
+}
+
+// ------------------------------------------------------------------ entry ---
+
+export function buildNeighborhoodFabric(di: NeighborhoodDI): void {
+  escapeFabric(di);
+  terraceFaceFabric(di);
+  propFabric(di);
+}

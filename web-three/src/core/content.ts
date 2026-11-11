@@ -979,6 +979,29 @@ export const HALL_WORKSHOP_NOTES: string[] = [
  *  note adopted in W5): one quiet look out the north window, the gold one
  *  across the street answering. Day-keyed, free, no state. NOT adopted:
  *  any sleep mechanic — days end at the rail, the way the story wrote it. */
+// ---------------------------------------------------- the W6 terraces ----
+// docs/production/terrace-buildout — the terrace build-out's three prompts
+// (the stoop, the payphone, the flyer board). Same law as the block diary:
+// day-keyed, deterministic, no save fields, the notebook never blocks.
+
+export const TERRACE_STOOP_NOTES: string[] = [
+  'The stoop is warm from the afternoon. Gable\u2019s whole afternoon passes at eye level from here \u2014 dogs, strollers, the school run.',
+  'Someone chalked a hopscotch grid on the bottom step. Nobody remembers teaching the kids the numbers.',
+  'From the third riser you can see the Larkin garden\u2019s trees move. The city paid for the paving; the residents paid for everything else.',
+];
+
+export const TERRACE_PAYPHONE_NOTES: string[] = [
+  'The receiver still has a dial tone. Somebody\u2019s bill got paid four months past the last call. You let it hum.',
+  'A strip of taped numbers beside the keypad: a dentist, a locksmith, someone\u2019s cousin in Queens. The card is sun-bleached to ghost colors.',
+  'You lift the receiver and the line is quiet the way old wire is quiet. The terrace keeps one phone that works, apparently.',
+];
+
+export const TERRACE_FLYER_NOTES: string[] = [
+  'LOST: gray cat, answers to Miso \u2014 and a potluck flyer with a date two summers old. Nobody takes anything down on this board.',
+  'The guitar-lessons flyer has real tear-off tabs, all gone. Someone should print more. Someone will.',
+  'A tenant-rights workshop flyer with this month\u2019s date on it \u2014 the good kind of news. You photograph it for the fridge.',
+];
+
 export const CECIL_GAZE_NOTES: string[] = [
   'The gold window across the street is lit. From here, on your side of the road, it looks like the block is keeping a light on for you.',
   'The street below does its evening arithmetic \u2014 cabs, headlights, the crosswalk\u2019s white bars. Yours is the only window that counts them.',
