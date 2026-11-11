@@ -3171,6 +3171,7 @@ Stage Summary:
 - The branch list is EMPTY of unmerged work: every line the fleet ever pushed is now in main's history, no force-push, nothing overwritten — the three superseded lines' CODE lives on their refs and in their merge commits, their ACCOUNTS live in this worklog, and main's evolved implementations stand as the one truth.
 - The SUB-01 re-pin closes the first push-red main has shipped; every future push runs the same battery before it leaves the sandbox.
 - Next: the §7 frontier stays the C3–C6 content waves; PH-3's A-1/A-2 and the living-population tranches per the plan.
+
 ---
 Task ID: SEC-REMEDIATION-R1-R2
 Agent: Security remediation agent (R1+R2 assignment)
@@ -3332,6 +3333,28 @@ Work Log:
 
 Stage Summary:
 - The game now plays its THIRD year's opening season: the face is winning and the ledger is bleeding, exactly as the bible wrote it — the pledge's round number is a tripwire with a date, Kev's fall files Leo's name on its spine, June's conditions are issued once and non-negotiable, the railing surfaces without its conclusion and the game's one out-of-world kindness spends there, a man reads his own record like evidence at 2 a.m. and the machine reports what the world remembers, and the season closes with every piece of the fall on the table. The chapter machine walked through its own door twice this wave (in at Jan 6, out at Jul 3) while the epoch law never noticed. Next per §7: C5's content (Nothing Holds), then R13–R14.
+
+
+---
+
+## 2026-11-11 — Production Director: THE CITY FABRIC PASS — slop-newyork's building craft adapted into the district bake (v1.40.0)
+
+Task ID: CITY-FABRIC-2026-11-11
+Agent: Production Director (Z.ai)
+Task: The owner's implementation assignment — study mrdoob/slop-newyork (all 47 js modules + tests + tools, checkout 536a907), extract and adapt its building/environmental craft into FIRST SLICE's own architecture, run the gates, and push. "Reuse what is good. Adapt what is incompatible. Do not turn FIRST SLICE into a clone."
+
+Work Log:
+- **The study:** two deep survey passes (source project; our own world systems). The portable gold: `mulberry32` + spatial-hash seeding, footprint→merged-chunk geometry, reserve-guarded detail placement, rooftop massing (tank/bulkhead/cornice/setback), instanced pools + chunked culling. The NOT-portable: TSL/WebGPU materials, the geographic datasets (NYC Open Data / OSM ODbL — none enters this repo), their traffic/ped systems (our own ship). Verdicts recorded per module in `docs/production/city-fabric/SOURCE-REUSE-REPORT.md`.
+- **The pass (`web-three/src/world/cityFabric.ts`, wired by `World.buildCityFabricPass()` pre-bake):** ROOF FABRIC — 34 items on the registry roofscape (8 water tanks with trestle+riser, 9 chimney roofs, 12 bulkhead+vent roofs, 5 antennae), every item's feet ON the roof line, eligibility by per-id hash, gameplay roofs (`KTS-02`, `SUB-01/02`, `ROS-01`, the TSS far world) skipped by a named law. SKYLINE FABRIC — the four documented-but-never-built skyline cards (SKY-W/E/S + a north depth row) as one merged fog-exempt indexed vc mesh (20,874 verts: five style families, cornice lips, setbacks, window bays, spandrel bands, industrial loading ribs) + one InstancedMesh of 142 lit panes sharing `skylineWinMat` (dusk dresses the fabric with the towers'). STREET FABRIC — 10 parking meters, 6 DSNY baskets, 4 cross-street name blades via the existing pole-sign atlas. Zero colliders, zero nav changes, zero registry rows, zero new dependencies.
+- **The indexed-geometry lesson:** the first build cost +75 draws — `bakeStatics` only fuses INDEXED geometry, and the non-indexed fabric survived the bake mesh-by-mesh (+ its shadow passes). Re-emitting indexed (4 verts + 6 indices per quad) folded the in-tile fabric into the district batches: the wave's own delta is +10 draws at PLAZA (652 → 662; measured with the fabric stashed vs live, `probe-w0-census`). Recorded in the register for the next agent.
+- **The pre-existing reds surfaced (each re-homed, each pin grown):** (1) the w0-census gate was already failing on main — 652 > 150, the fleet's interior/zone debt (SUB_Root 191, TSS_Group 105, Pedestrians 84, the W5 rooms), B13-adjacent, the owner's call; now it is VISIBLE in the register instead of silently dropped from the battery. (2) `validate-registry`'s own SUB-01 code pin still read −42 (the ebfb08a stair-shaft move never reached the validator) — re-homed to −47.2; validator green (129 IDs, 12/12 masses, 18/18 anchors). (3) A tank riser pipe that started 1.4 m INSIDE the roof — caught by the fabric suite's own feet-law pin before any push.
+- **Licensing:** MIT notice for the slop-newyork adaptation preserved verbatim in the new root `THIRD-PARTY-NOTICES.md`; the datasets' licensing (NYC Open Data / OSM ODbL) analyzed and documented — nothing dataset-derived ships, so no ODbL obligation attaches (`docs/production/city-fabric/LICENSES-AND-ATTRIBUTION.md`).
+- **Gates at close (the integrated tree, sequential):** validate-registry OK · tsc clean · vitest **1384/1384** (86 files — +7 `city-fabric.test.ts`: determinism, roof feet law, skip law, skyline-outside-the-core, panes' material identity, sidewalk law, palette law) · build OK (654 ms) · **probe-city-fabric OK** (census + 6 evidence shots, incl. the tank close-up and the south downtown cluster) · probe-world-sim **15/15** (91.2 s) · probe-a3-flip **complete** (census pair byte-identical) · probe-nav **9/9**.
+
+Stage Summary:
+- FIRST SLICE's horizon is no longer empty planes and a single tower row: four real city rows close every vanishing point, the roofscape carries the water tanks and chimney stacks the block always deserved, and the sidewalks have their meters, baskets, and street-name blades — all in the game's own palette, all through the game's own bake, all deterministic and pinned.
+- The reuse debt is now documented where the next agent will find it: what was taken, what was skipped and why, and the two reds (the census budget, the fire-escape ironwork) that remain the owner's frontier.
+
 ## 2026-11-11 — Technical Architecture / World Systems Agent: WP-C5-NOTHING-HOLDS — §7 step 10 continued in one bulk pass: Nothing Holds is playable (register v1.39.0)
 
 Task ID: WP-C5-NOTHING-HOLDS
@@ -3384,3 +3407,5 @@ Not done, by law: §7 step 10 is COMPLETE — the C0–C6 spine playable whole, 
 
 Stage Summary:
 - The game now plays its LAST chapter and its OPEN end: the player pays the debts in order through the doors the bible gave each row, loses and wins the council seat's arithmetic, sits the hearing's chair or leaves it empty, takes the floor that is also a home or keeps the city holding his place, writes the man he is now from the machine's own facts — or refuses, once, gently — and the window closes the way the bible said it would: nobody watching, somebody keeping the ritual, and no endscreen anywhere. The chapter machine walked through its own door twice this wave (in at Dec 1, out at Jun 21 — and out again into OPEN) while the epoch law never noticed. §7 step 10 is complete: six chapters, one arc, the long way back included. Next per the roadmap: R13–R14.
+
+**Integration addendum (same wave, 2026-11-11):** the parallel world lines landed on origin/main while the C6 wave was in flight (the city-fabric pass took v1.40.0 and the SI wave v1.41.0 on their own tree — the merge `af78c11` had already renumbered the fabric wave from its own v1.39.0 claim) — the version law re-numbers the C6 wave **v1.42.0** (the register's versions strictly monotonic and unique; the C3-wave precedent), the two lines became ONE tree (merge `deb8d3e`), and the INTEGRATED TREE's full battery re-certified: tsc clean · vitest **1474/1474** (89 files — the world lines' own suites joined) · build OK · probe-a3-flip exit 0 (the census re-certified on the merged bake) · **probe-c6-long-way-back 60 checks, 0 failures** · probe-world-sim **15/15** · probe-nav **9/9** · probe-integration **0 errors, 8/8 walks** · probe-c5-nothing-holds **68 checks, 0 failures** (the roll witness standing) · probe-world-visual-quality **OK** · 4-day E2E **0 failures (538 s, console clean)**. §7 step 10 is COMPLETE on the one tree: six chapters playable, the arc's window closed at Jun 21 Y4, the open endgame continuing.
