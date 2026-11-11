@@ -46,6 +46,8 @@ import {
   RECORD_LISTEN_NOTES,
   // W6 — the terraces (docs/production/terrace-buildout)
   TERRACE_STOOP_NOTES, TERRACE_PAYPHONE_NOTES, TERRACE_FLYER_NOTES,
+  // W7 — the gate rows (docs/production/westgate-eastgate)
+  WEST_STOOP_NOTES, EAST_MENU_NOTES,
 } from '../core/content';
 import { hallNoticeForDay } from '../world/dressing';
 import { EDDIE_COVENANT, EDDIE_LINES } from '../core/c0pack';
@@ -734,6 +736,29 @@ const terraceFlyer: Interaction = {
   perform: ({ state }) => [{ kind: 'note', text: byDay(TERRACE_FLYER_NOTES, state.day) }],
 };
 
+// ---------------------------------------- the W7 gate-row prompts ----
+// docs/production/westgate-eastgate: the strips' own two loops — the west
+// stoop (the Larkin band's west house) and the east chalk-menu A-frame.
+// Same one-day-slot law: existing ground, no save fields.
+
+const westStoop: Interaction = {
+  id: 'west_stoop',
+  pos: () => ({ x: -90.2, y: 1.2, z: 47.4 }),
+  radius: 2.2,
+  enabled: () => true,
+  prompt: () => 'Sit on the stoop',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(WEST_STOOP_NOTES, state.day) }],
+};
+
+const eastMenu: Interaction = {
+  id: 'east_menu',
+  pos: () => ({ x: 88, y: 1.1, z: -32.8 }),
+  radius: 2.0,
+  enabled: () => true,
+  prompt: () => 'Read the chalk menu',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(EAST_MENU_NOTES, state.day) }],
+};
+
 export function freeRoamInteractions(src: InteractionSources): Interaction[] {
   return [bench, parkBench, court, hotdog, barber, alley, washerFree, board, newsbox, subway,
     trainA, trainB, priya, busker, buskerCoin, usher, driver, duffel,
@@ -766,7 +791,7 @@ export function freeRoamInteractions(src: InteractionSources): Interaction[] {
     funeralPorch, lastNight, lawyerOffice, oneAmCall, phoneHome, terminalStairs,
     // the W6 terrace prompts (docs/production/terrace-buildout): the
     // stoop, the payphone, the flyer board — existing ground, one-day-slot law
-    terraceStoop, terracePayphone, terraceFlyer,
+    terraceStoop, terracePayphone, terraceFlyer, westStoop, eastMenu,
     // the C6 wave's own spots (narrative/14 §7 step 10's last content
     // wave — doc 06 §C6): the first dollar, the winter lights, Kev's
     // fork, the deposition, the hearing, the hall's opening, the late

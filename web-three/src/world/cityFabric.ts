@@ -298,8 +298,11 @@ interface SkyRow { key: string; axis: 'x' | 'z'; at: number; from: number; to: n
  *  player's world). Heights profile: canyon boost at the avenue sightlines,
  *  the downtown cluster south, the north depth row stays under the towers. */
 const SKY_ROWS: SkyRow[] = [
-  { key: 'W', axis: 'z', at: -110, from: -64, to: 64, faceSign: +1, seed: 0x51C9, glassBias: 0.22, boostMid: true },
-  { key: 'E', axis: 'z', at: +110, from: -64, to: 64, faceSign: -1, seed: 0x52C9, glassBias: 0.22, boostMid: true },
+  // W7: the rows moved ∓110 → ∓122 — the Westgate/Eastgate strips took the
+  // old ground (walls x ±84 → ±100) and the fabric keeps ≥ 10 m of clearance
+  // from the new wall line (registry bounds.skylineCards, same move).
+  { key: 'W', axis: 'z', at: -122, from: -64, to: 64, faceSign: +1, seed: 0x51C9, glassBias: 0.22, boostMid: true },
+  { key: 'E', axis: 'z', at: +122, from: -64, to: 64, faceSign: -1, seed: 0x52C9, glassBias: 0.22, boostMid: true },
   { key: 'S', axis: 'x', at: -88, from: -140, to: 96, faceSign: +1, seed: 0x53C9, glassBias: 0.45, boostMid: false },
   { key: 'N', axis: 'x', at: +104, from: -80, to: 80, faceSign: -1, seed: 0x54C9, glassBias: 0.3, boostMid: false },
 ];

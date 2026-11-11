@@ -52,8 +52,8 @@ const LANES: Record<string, Array<{ side: 'N' | 'S' | 'W' | 'E'; off: number }>>
   'STR-SYCAMORE': [{ side: 'W', off: 61.5 }, { side: 'E', off: 82.5 }],  // R-AVENUES
 };
 
-const X_SPAN: [number, number] = [-84, 84];  // EW lanes' extent (registry spanX)
-const Z_SPAN: [number, number] = [-48, 48];  // NS spines' extent (the district's content extent)
+const X_SPAN: [number, number] = [-100, 100]; // EW lanes' extent (registry spanX — W7 grew the E–W streets' ends ±84 → ±100)
+const Z_SPAN: [number, number] = [-48, 48];  // NS spines' extent (the district's content extent; the W6/W7 strips beyond ±48 stay player-only — the shipped law)
 const GRID_STEP = 6;          // spine node spacing (m)
 const WALKER_CLEAR = 0.55;    // lane-vs-footprint clearance (m)
 const WALK_WIDTH = 2.5;       // sidewalk corridor width
@@ -435,7 +435,11 @@ function assembleLane(
   type Run = { at: number; pts: Pt[] };
   const runs: Run[] = [];
   const [lo, hi] = work.axis === 'EW' ? X_SPAN : Z_SPAN;
-  for (let c = lo; c <= hi + 1e-9; c += GRID_STEP) {
+  // the grid anchors at the first multiple of GRID_STEP inside the span —
+  // W7 grew X_SPAN ±84 → ±100, and anchoring at −96/96 keeps EVERY shipped
+  // node (the old ±84 grid was multiples of 6; a bare `lo` start would have
+  // shifted the whole chain and stranded the pinned −42/-36/... set)
+  for (let c = Math.ceil(lo / GRID_STEP) * GRID_STEP; c <= hi + 1e-9; c += GRID_STEP) {
     const cc = round2(c);
     if (blocked.some((b) => cc > b.a0 - WALKER_CLEAR && cc < b.a1 + WALKER_CLEAR)) continue;
     // the gap law: no base point stands in a perpendicular roadway — the

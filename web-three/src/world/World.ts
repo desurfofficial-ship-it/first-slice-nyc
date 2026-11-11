@@ -57,7 +57,7 @@ import { buildSubwaySystem, STATION, ZONE_KEEP_RE, type SubwaySystem, type Colli
 import { buildTimesSquare, type TimesSquare } from './timesSquare';
 import { buildArrivalBus, BUS04_RECT, playerOccupiesBus04, type ArrivalBus } from './arrivalBus';
 import { buildCityFabric } from './cityFabric';
-import { buildNeighborhoodFabric } from './neighborhoodFabric';
+import { buildNeighborhoodFabric, NEIGH } from './neighborhoodFabric';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay,
   skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH,
   STREET_PLAN, PEDESTRIAN_ROLES, type StreetPlan } from './dressing';
@@ -76,6 +76,7 @@ import { COURT_BALL_REST } from '../game/interactionDefs';
 // the nav graph, the doors and the capacity gates; this extends the same
 // single truth to the render coordinates.
 import { loadRegistry } from '../sim/registry';
+import { PASSABLE_FOOTPRINTS } from '../sim/nav/build';
 
 export interface LadderInfo { area: AABB; top: number; }
 
@@ -365,7 +366,11 @@ export class World {
   private steamLife: Float32Array;
 
   // ---- district system (docs/45 W0 — the culling prerequisite) ----------
-  // The master world spans x ±84 / z ±48 (registry bounds.playableCore).
+  // The master world grew with the registry's playableCore (W6 z ±64, W7
+  // x ±100); the TILE GRID keeps its shipped 28 m × 32 m lattice over the
+  // W0 core — content beyond it (the terrace strips, the Westgate/Eastgate
+  // rows) CLAMPS into the edge tiles (districtKey's own law), so the edge
+  // tiles carry the new strips and nothing ever goes unlit or unculled.
   // Static geometry bakes per DISTRICT TILE — 28 m columns × 32 m rows — and
   // every tile plus registered dynamic groups belongs to a district. Each
   // frame the player's district lights a RING of districts and everything
@@ -373,11 +378,8 @@ export class World {
   // ring rule follows the registry's own law: a street is ONE sight line,
   // so the ring spans every column along it (STREET_RING = all) and 1 row
   // of depth each way (ROW_RING = 1 = the block behind each sidewalk).
-  // With the shipped single-street world every district sits inside the
-  // ring — zero visible change today; W1+ content lands district-tagged
-  // from birth, and far rows cull the moment they exist.
-  private static readonly DIST_COL_W = 28;   // x: −84..84 in 6 columns
-  private static readonly DIST_ROW_H = 32;   // z: −48..48 in 3 rows
+  private static readonly DIST_COL_W = 28;   // x: −84..84 in 6 columns (W7 strips clamp into c0/c5)
+  private static readonly DIST_ROW_H = 32;   // z: −48..48 in 3 rows (W6 strips clamp into r0/r2)
   private static readonly DIST_COLS = 6;
   private static readonly DIST_ROWS = 3;
   private static readonly STREET_RING = World.DIST_COLS; // one sight line, for now
@@ -1124,11 +1126,14 @@ export class World {
     // playable core: x ±84, z ±48. W6 (the terrace build-out, the owner's
     // 2026-11-11 expansion authorization — DEC-8 satisfied in the register):
     // the core grows to z ±64 and the strips behind Gable and Marlow become
-    // real rows — the z walls follow the registry's own bounds.
-    this.colliders.push(boxFromCenter(-84, 5, 0, 1, 20, 128));
-    this.colliders.push(boxFromCenter(84, 5, 0, 1, 20, 128));
-    this.colliders.push(boxFromCenter(0, 6, -64, 168, 24, 1)); // south wall behind the Carrow terrace
-    this.colliders.push(boxFromCenter(0, 6, 64, 168, 24, 1));  // north wall behind the Larkin terrace
+    // real rows — the z walls follow the registry's own bounds. W7 (the
+    // Westgate & Eastgate rows, same standing authorization): the core grows
+    // to x ±100 — the E–W streets grow their west and east ends, the strips
+    // beyond the avenues become real rows, and the x walls follow.
+    this.colliders.push(boxFromCenter(-100, 5, 0, 1, 20, 128));
+    this.colliders.push(boxFromCenter(100, 5, 0, 1, 20, 128));
+    this.colliders.push(boxFromCenter(0, 6, -64, 200, 24, 1)); // south wall behind the Carrow terrace
+    this.colliders.push(boxFromCenter(0, 6, 64, 200, 24, 1));  // north wall behind the Larkin terrace
 
     // zones
     this.crosswalkZone = boxFromCenter(-5, 1, 0, 3.4, 2, 7.5);
@@ -1722,6 +1727,13 @@ export class World {
     // neighborhood fabric (ironwork, terrace faces, street props) runs in
     // its own pass just before the bake.
     this.buildAlderHeightsW6Terrace();
+    // W7: the Westgate & Eastgate rows (docs/production/westgate-eastgate —
+    // the map's LAST two sides): the core grows x ±84 → ±100, the E–W
+    // streets grow their west and east ends (butt-jointed slabs, same
+    // levels), and 24 real masses continue the Gable / Kestrel / Marlow
+    // rows and both terrace bands into the strips (every mass via regShell
+    // — the no-invention law). All pre-bake.
+    this.buildAlderHeightsW7Gates();
     // W4 part 1: the district's static life — zone figures, parked cars,
     // the BUS-03 stop — all pre-bake so the W0 merge swallows them (the
     // perf law: the zones cost merges, not draw calls).
@@ -2084,15 +2096,27 @@ export class World {
       // W4: the district's five road rectangles — ground truth for every
       // walker's feet (registry streets, verbatim)
       [
-        { xMin: -84, xMax: 84, zMin: -4, zMax: 4 },    // Kestrel Street
-        { xMin: -84, xMax: 84, zMin: 36, zMax: 44 },   // Gable Street
-        { xMin: -84, xMax: 84, zMin: -44, zMax: -36 }, // Marlow Street
-        { xMin: -76, xMax: -68, zMin: -64, zMax: 64 }, // Juniper Avenue
-        { xMin: 68, xMax: 76, zMin: -64, zMax: 64 },   // Sycamore Avenue
+        { xMin: -100, xMax: 100, zMin: -4, zMax: 4 },    // Kestrel Street (W7: the ends grew ±84 → ±100)
+        { xMin: -100, xMax: 100, zMin: 36, zMax: 44 },   // Gable Street (W7)
+        { xMin: -100, xMax: 100, zMin: -44, zMax: -36 }, // Marlow Street (W7)
+        { xMin: -76, xMax: -68, zMin: -64, zMax: 64 },   // Juniper Avenue
+        { xMin: 68, xMax: 76, zMin: -64, zMax: 64 },     // Sycamore Avenue
       ] as RoadRect[],
       // M4: each walker's shift on the street schedule — the dusk shift
       // boots home (the game boots into the day phase)
       PEDESTRIAN_ROLES,
+      // W7: the registry's solid footprints (minus the passable set) — the
+      // walker↔facade depenetration law's ground truth. The blocks' own
+      // walls answer to the resolve now: a separation half-push at a
+      // curb-cut skirt depenetrates off the face instead of through it.
+      loadRegistry().allBuildings()
+        .filter((b) => b.footprint && !PASSABLE_FOOTPRINTS.has(b.id))
+        .map((b) => ({
+          minX: b.footprint!.x - b.footprint!.w / 2,
+          maxX: b.footprint!.x + b.footprint!.w / 2,
+          minZ: b.footprint!.z - b.footprint!.d / 2,
+          maxZ: b.footprint!.z + b.footprint!.d / 2,
+        })),
     );
     // the walkers carry real bodies for the player's collision stack — the
     // audit's "NPCs walking through the player" (doc 35 §1): one synced AABB
@@ -3643,6 +3667,7 @@ export class World {
       regShell: (id) => this.regShell(id),
       buildings: loadRegistry().allBuildings(),
       skylineWinMat: this.skylineWinMat,
+      collider: (x, y, z, w, h, d) => this.colliders.push(boxFromCenter(x, y, z, w, h, d)),
     });
   }
 
@@ -6597,6 +6622,167 @@ export class World {
     const board = makeBulletinBoard(this.bank, this.flyerMat);
     board.position.set(-58.9, 0.15, -47.55);
     this.scene.add(board);
+  }
+
+  /** W7 — the Westgate & Eastgate rows (docs/production/westgate-eastgate):
+   *  the map's LAST two sides. The E–W streets grow their west and east
+   *  ends (butt-jointed slabs at the W1 levels — the W1 law), and 24 real
+   *  masses continue the Gable / Kestrel / Marlow rows and both terrace
+   *  bands into the strips beyond the avenues. A-3 law: every mass reads
+   *  its registry row through regShell; the style constants stay code.
+   *  All pre-bake — the strip content clamps into the c0/c5 edge tiles
+   *  (the districtKey law, same as the W6 strips). */
+  private buildAlderHeightsW7Gates(): void {
+    const rng = seededRng(20261112); // the wave's own seed — never re-tunes a shipped row
+    const CURB = 0x8f8a82;
+
+    // ---- A. the E–W street slabs grow their ends (x ±84 → ±100) ----------
+    // Kestrel: the W1 runs (Road_W/E, 34 wide) end at ±84 — the strips
+    // butt-joint at the same levels (road top y 0.0, walks top 0.1).
+    this.solid('Road_W7_W', -92, -0.1, 0, 16, 0.2, 8, PAL.road, { receive: true, cast: false });
+    this.solid('Road_W7_E', 92, -0.1, 0, 16, 0.2, 8, PAL.road, { receive: true, cast: false });
+    for (const [sz, nm] of [[6, 'N'], [-6, 'S']] as const) {
+      this.solid(`Sidewalk_W7_${nm}_W`, -92, -0.05, sz, 16, 0.3, 4, PAL.walk, { receive: true, cast: false });
+      this.solid(`Sidewalk_W7_${nm}_E`, 92, -0.05, sz, 16, 0.3, 4, PAL.walk, { receive: true, cast: false });
+      for (const sgn of [-1, 1] as const) {
+        this.solid(`Curb_W7_${nm}_${sgn < 0 ? 'W' : 'E'}`, sgn * 92, 0.065, sz === 6 ? 4.08 : -4.08,
+          16, 0.13, 0.5, CURB, { collide: false });
+      }
+    }
+    // Gable / Marlow: the W1 runs (168 wide) end at ±84 — same butt-joint
+    for (const [cz, nm] of [[40, 'G'], [-40, 'M']] as const) {
+      this.solid(`Road_W7_${nm}_W`, -92, -0.105, cz, 16, 0.19, 8, PAL.road, { receive: true, cast: false });
+      this.solid(`Road_W7_${nm}_E`, 92, -0.105, cz, 16, 0.19, 8, PAL.road, { receive: true, cast: false });
+      for (const [wz, side] of [[cz + 6, 'N'], [cz - 6, 'S']] as const) {
+        this.solid(`Walk_W7_${nm}${side}_W`, -92, -0.05, wz, 16, 0.3, 4, PAL.walk, { receive: true, cast: false });
+        this.solid(`Walk_W7_${nm}${side}_E`, 92, -0.05, wz, 16, 0.3, 4, PAL.walk, { receive: true, cast: false });
+      }
+      for (const sgn of [-1, 1] as const) {
+        this.solid(`Curb_W7_${nm}_${sgn < 0 ? 'W' : 'E'}_N`, sgn * 92, 0.065, cz + 3.92, 16, 0.13, 0.5, CURB, { collide: false });
+        this.solid(`Curb_W7_${nm}_${sgn < 0 ? 'W' : 'E'}_S`, sgn * 92, 0.065, cz - 3.92, 16, 0.13, 0.5, CURB, { collide: false });
+      }
+    }
+    // the terrace walk slabs follow the bands to the wall line (the W6 law)
+    this.solid('Terrace_W7_N_Walk_W', -92, -0.05, 56, 16, 0.3, 16, PAL.walk, { receive: true, cast: false });
+    this.solid('Terrace_W7_N_Walk_E', 92, -0.05, 56, 16, 0.3, 16, PAL.walk, { receive: true, cast: false });
+    this.solid('Terrace_W7_S_Walk_W', -92, -0.05, -56, 16, 0.3, 16, PAL.walk, { receive: true, cast: false });
+    this.solid('Terrace_W7_S_Walk_E', 92, -0.05, -56, 16, 0.3, 16, PAL.walk, { receive: true, cast: false });
+
+    // ---- B. the 24 strip masses (A-3 law: every row via regShell) --------
+    // The registry's own entrance rows say which way each door faces: 'S'
+    // doors sit on the mass's south face (z − d/2), 'N' doors on its north
+    // face (z + d/2). Everything on the street side hangs at
+    // faceZ + faceSign * dist — the W6 terrace builder's law, generalized.
+    interface GateStyle { mass: number; door: number; shop?: string; awning?: number; tallStoop?: boolean }
+    const gateRows: Array<[string, GateStyle]> = [
+      // the Larkin terrace band — west then east (high stoops face S)
+      ['GRB_08', { mass: PAL.bldg2, door: PAL.teal, tallStoop: true }],
+      ['GRB_09', { mass: PAL.bldg2, door: 0x6d4c7d, tallStoop: true }],
+      ['GRB_10', { mass: PAL.bldg2, door: 0x9e222e, tallStoop: true }],
+      ['GRB_11', { mass: PAL.bldg2, door: PAL.coral, tallStoop: true }],
+      // the Carrow band — west then east (stoops face N, shopfront ends)
+      ['TEN_03', { mass: PAL.brick, door: 0x6d4c7d }],
+      ['KTS_05', { mass: PAL.brick, door: PAL.teal }],
+      ['TEN_04', { mass: PAL.brick, door: 0x6d4c7d }],
+      ['KTS_06', { mass: PAL.brick, door: PAL.coral }],
+      // Gable's south brownstone row — west then east (high stoops face N)
+      ['GRB_12', { mass: PAL.bldg, door: PAL.teal, tallStoop: true }],
+      ['GRB_13', { mass: PAL.bldg, door: 0x6d4c7d, tallStoop: true }],
+      ['GRB_14', { mass: PAL.bldg, door: 0x9e222e, tallStoop: true }],
+      ['GRB_15', { mass: PAL.bldg, door: PAL.coral, tallStoop: true }],
+      // Kestrel's walk-up row — west then east (shopfronts face S)
+      ['KTN_08', { mass: PAL.bldg, door: PAL.teal, shop: 'WESTGATE BOOKS', awning: NEIGH.awningGreen }],
+      ['KTN_09', { mass: PAL.bldg, door: PAL.coral, shop: 'GATE HARDWARE', awning: NEIGH.awningRed }],
+      ['KTN_10', { mass: PAL.bldg, door: PAL.teal, shop: 'EASTGATE NEWS', awning: NEIGH.awningGold }],
+      ['KTN_11', { mass: PAL.bldg, door: PAL.coral, shop: 'VERBENA BOOKS', awning: NEIGH.awningNavy }],
+      // Kestrel's tenement row — west then east (doors face N)
+      ['KTS_07', { mass: PAL.brick, door: 0x6d4c7d }],
+      ['KTS_08', { mass: PAL.brick, door: PAL.teal }],
+      ['KTS_09', { mass: PAL.brick, door: PAL.coral }],
+      ['KTS_10', { mass: PAL.brick, door: 0x6d4c7d }],
+      // Marlow's shop-and-walk-up row — west then east (shopfronts face S)
+      ['MRW_01', { mass: PAL.bldg2, door: PAL.teal, shop: 'CORNELIUS & CO.', awning: NEIGH.awningNavy }],
+      ['MRW_02', { mass: PAL.bldg2, door: PAL.coral, shop: 'WESTGATE NEWS', awning: NEIGH.awningRed }],
+      ['MRW_03', { mass: PAL.bldg2, door: PAL.teal, shop: 'LARKIN PROVISIONS', awning: NEIGH.awningGold }],
+      ['MRW_04', { mass: PAL.bldg2, door: 0x6d4c7d, shop: 'CARROW CHEESE', awning: NEIGH.awningGreen }],
+    ];
+    for (const [id, style] of gateRows) {
+      const regId = id.replace('_', '-');
+      const reg = this.regShell(regId);
+      const row = loadRegistry().building(regId);
+      const ent = row?.entrance?.[0];
+      const faceSign = ent?.faces === 'N' ? 1 : -1;
+      const faceZ = faceSign > 0 ? reg.z + reg.d / 2 : reg.z - reg.d / 2;
+      this.solid(id, reg.x, reg.h / 2, reg.z, reg.w, reg.h, reg.d, style.mass);
+      this.deco(`${id}_Cornice`, reg.x, reg.h - 0.25, reg.z, reg.w + 0.2, 0.5, reg.d + 0.2, PAL.stone, {});
+      // the window rhythm against the registry box (the W6 grammar)
+      const floors = Math.max(2, Math.round(reg.h / 3.3));
+      const cols = reg.w >= 7 ? 2 : 1;
+      for (let f = 0; f < floors; f++) {
+        for (let c = 0; c < cols; c++) {
+          const wx = reg.x - reg.w / 2 + (reg.w / (cols + 1)) * (c + 1);
+          const wy = 3.4 + f * ((reg.h - 1.2) / floors);
+          if (wy > reg.h - 1.0) continue;
+          this.decoMesh(`${id}_Win_${f}_${c}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
+            this.bank.get(PAL.windowDim), wx, wy, faceZ + faceSign * 0.05);
+        }
+      }
+      // the entrance craft — the registry's own row says which
+      const entX = ent?.x ?? reg.x;
+      if (style.shop) {
+        const shop = makeStorefront(this.bank, this.signMaterials.bind(this),
+          style.shop, style.awning ?? NEIGH.awningGreen, reg.w - 1);
+        shop.position.set(reg.x, 0.05, faceZ + faceSign * 0.04);
+        if (faceSign < 0) shop.rotation.y = Math.PI;
+        this.scene.add(shop);
+        const door = makeBrownstoneStoop(this.bank, style.door, false);
+        door.position.set(entX, 0, faceZ + faceSign * 0.6);
+        if (faceSign < 0) door.rotation.y = Math.PI;
+        this.scene.add(door);
+      } else {
+        const stoop = makeBrownstoneStoop(this.bank, style.door, style.tallStoop ?? false);
+        stoop.position.set(entX, 0, faceZ + faceSign * 0.6);
+        if (faceSign < 0) stoop.rotation.y = Math.PI;
+        this.scene.add(stoop);
+      }
+    }
+
+    // ---- C. the strip street trees (the shipped rows' own z law) ---------
+    // Kestrel fills at z ±7.48/-7.0, Gable/Marlow rows at 32.6/47.4/-32.6;
+    // every x chosen ≥ 1.4 m clear of the new stoops (the honest spacing).
+    for (const tx of [-93.5, -98.5]) this.buildSimpleTree(tx, 7.48, rng);
+    for (const tx of [93.5, 98.5]) this.buildSimpleTree(tx, 7.48, rng);
+    for (const tx of [-93.5, -98.5]) this.buildSimpleTree(tx, -7.0, rng);
+    for (const tx of [93.5, 98.5]) this.buildSimpleTree(tx, -7.0, rng);
+    for (const tx of [-92.5, -99.5]) this.buildSimpleTree(tx, 32.6, rng);
+    for (const tx of [92.5, 99.5]) this.buildSimpleTree(tx, 32.6, rng);
+    for (const tx of [-85.5, -94.5]) this.buildSimpleTree(tx, 47.4, rng);
+    for (const tx of [89.5, 98.5]) this.buildSimpleTree(tx, 47.4, rng);
+    for (const tx of [-92.5, -99.5]) this.buildSimpleTree(tx, -32.6, rng);
+    for (const tx of [92.5, 99.5]) this.buildSimpleTree(tx, -32.6, rng);
+    for (const tx of [-86.5, -94.5]) this.buildSimpleTree(tx, -47.4, rng);
+    for (const tx of [89.5, 98.5]) this.buildSimpleTree(tx, -47.4, rng);
+
+    // ---- D. the east chalk-menu A-frame (the east_menu anchor's prop) ----
+    // MRW-03's LARKIN PROVISIONS front — the classic sandwich-board on the
+    // walk, 0.8 m off the face plane, clear of the shed (x 84.4..91.6) and
+    // the walk lane (z −34.6). Two leaning chalk slabs + the hinge bar.
+    const chalk = this.bank.get(0x2f2f33);
+    const boardMat = this.bank.get(0x3a3a40);
+    const aFrame = new THREE.Group();
+    for (const s of [-1, 1] as const) {
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(0.72, 1.05, 0.05), s < 0 ? boardMat : chalk);
+      slab.position.set(0, 0.56, s * 0.14);
+      slab.rotation.x = s * 0.16;
+      slab.castShadow = true;
+      aFrame.add(slab);
+    }
+    const hinge = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.05, 0.05), this.bank.get(PAL.ink));
+    hinge.position.set(0, 1.1, 0);
+    aFrame.add(hinge);
+    aFrame.position.set(88, 0.1, -32.8);
+    aFrame.rotation.y = Math.PI; // the chalk face looks south, up the walk
+    this.scene.add(aFrame);
   }
 
   private buildInstancedTreeRows(): void {

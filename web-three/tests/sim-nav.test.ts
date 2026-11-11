@@ -81,7 +81,8 @@ describe('nav graph build (registry-seeded)', () => {
   it('validates clean — no edge through a footprint OR a road, no orphans, in bounds', () => {
     const issues = graph.validate({
       footprints: footprintsOf(registry.doc),
-      bounds: { xMin: -84, xMax: 84, zMin: -48, zMax: 48 },
+      // W7: the walked extent grew ±84 → ±100 with the registry's own spanX
+      bounds: { xMin: -100, xMax: 100, zMin: -48, zMax: 48 },
       exemptFootprintIds: PASSABLE_FOOTPRINTS,
       roads: roadRectsOf(registry.doc),
     });
@@ -117,7 +118,7 @@ describe('nav graph build (registry-seeded)', () => {
     for (const b of registry.doc.buildings ?? []) {
       const e = b.entrance?.[0];
       if (!e) continue;
-      if (e.x < -84 || e.x > 84 || e.z < -48 || e.z > 48) continue; // Times Sq row
+      if (e.x < -100 || e.x > 100 || e.z < -48 || e.z > 48) continue; // Times Sq row (x ±100: the W7 gate rows' doors count now)
       if (b.id === 'SUB-01') continue; // the landing is its door
       // a walled-in door (noted by the builder) may fall back to a later
       // entrance — the place must still resolve to SOME connected door

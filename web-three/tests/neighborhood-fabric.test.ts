@@ -20,6 +20,7 @@ interface Built {
   meshes: THREE.Mesh[];
   panes: THREE.InstancedMesh | null;
   ledger: Array<{ name: string; x: number; y: number; z: number }>;
+  colliders: Array<{ x: number; y: number; z: number; w: number; h: number; d: number }>;
 }
 
 function build(): Built {
@@ -29,6 +30,7 @@ function build(): Built {
   const rows = doc.allBuildings();
   const byId = new Map(rows.map((b) => [b.id, b]));
   const ledger: Array<{ name: string; x: number; y: number; z: number }> = [];
+  const colliders: Built['colliders'] = [];
   const di: NeighborhoodDI = {
     ledger,
     scene,
@@ -48,6 +50,7 @@ function build(): Built {
     },
     buildings: rows,
     skylineWinMat: new THREE.MeshLambertMaterial({ color: PAL.windowDim, emissive: PAL.gold }),
+    collider: (x, y, z, w, h, d) => colliders.push({ x, y, z, w, h, d }),
   };
   buildNeighborhoodFabric(di);
   const meshes: THREE.Mesh[] = [];
@@ -56,7 +59,7 @@ function build(): Built {
     if ((o as THREE.InstancedMesh).isInstancedMesh && o.name === 'Nbhd_TerraceWindows') panes = o as THREE.InstancedMesh;
     else if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
   });
-  return { scene, meshes, panes, ledger };
+  return { scene, meshes, panes, ledger, colliders };
 }
 
 const nbhdMeshes = (b: Built): THREE.Mesh[] => b.meshes.filter((m) => m.name.startsWith('Nbhd_'));
@@ -245,6 +248,128 @@ describe('neighborhood fabric — the registry law', () => {
     const doc = loadRegistry();
     const anchors: Array<[string, number, number]> = [
       ['terrace stoop', -66.2, 47.2], ['terrace payphone', 66.6, 47.6], ['terrace flyer', -58.9, -47.5],
+    ];
+    for (const [name, ax, az] of anchors) {
+      const hit = doc.allBuildings().some((r) => {
+        const f = r.footprint;
+        if (!f) return false;
+        const ex = Math.max(f.x - f.w / 2, Math.min(ax, f.x + f.w / 2));
+        const ez = Math.max(f.z - f.d / 2, Math.min(az, f.z + f.d / 2));
+        return Math.hypot(ax - ex, az - ez) < 4.5;
+      });
+      expect(hit, `${name} orphaned`).toBe(true);
+    }
+  });
+});
+
+describe('neighborhood fabric — the W7 gate-row fabric (docs/production/westgate-eastgate)', () => {
+  const LANE_Z = [6.5, -6.5, 35, 46.5, -34.6, -46.5];
+  const LANE_X = [-82.5, -61.5, 61.5, 82.5];
+
+  it('the W7 rows are built and the core grew x ±100 (the bookkeeping)', () => {
+    const doc = loadRegistry();
+    for (const id of ['GRB-08', 'GRB-09', 'GRB-10', 'GRB-11', 'GRB-12', 'GRB-13', 'GRB-14', 'GRB-15',
+      'KTN-08', 'KTN-09', 'KTN-10', 'KTN-11', 'KTS-05', 'KTS-06', 'KTS-07', 'KTS-08', 'KTS-09', 'KTS-10',
+      'TEN-03', 'TEN-04', 'MRW-01', 'MRW-02', 'MRW-03', 'MRW-04']) {
+      const b = doc.building(id);
+      expect(b, id).toBeTruthy();
+      expect(b!.status).toBe('built (W7)');
+      expect(b!.height).toBeGreaterThan(0);
+      expect(b!.entrance?.length ?? 0).toBeGreaterThan(0);
+    }
+    const bounds = (doc.doc.bounds ?? {}) as { playableCore?: { xMin: number; xMax: number; zMin: number; zMax: number } };
+    expect(bounds.playableCore?.xMin).toBe(-100);
+    expect(bounds.playableCore?.xMax).toBe(100);
+    expect(bounds.playableCore?.zMin).toBe(-64);
+    expect(bounds.playableCore?.zMax).toBe(64);
+  });
+
+  it('three sidewalk sheds hang where the source hangs them (deck ~3.8, spanning the walk band)', () => {
+    const b = build();
+    const sheds = nbhdMeshes(b).filter((m) => m.name.startsWith('Nbhd_Shed_'));
+    expect(sheds.length).toBe(3);
+    for (const m of sheds) {
+      const bb = bboxOf(m);
+      // the deck's top rides at the source's own height (y ≈ 4.25)
+      expect(bb.max.y).toBeGreaterThan(4.0);
+      expect(bb.max.y).toBeLessThan(4.5);
+      // the deck spans a walk band: 7.2 long, 3.6 wide (the post base
+      // plates overhang the deck edge by 0.05 — real sheds do too)
+      const spanX = bb.max.x - bb.min.x, spanZ = bb.max.z - bb.min.z;
+      expect(spanX).toBeGreaterThanOrEqual(7.19); // fp32 bbox jitter
+      expect(spanX).toBeLessThanOrEqual(7.35);
+      expect(spanZ).toBeGreaterThanOrEqual(3.59);
+      expect(spanZ).toBeLessThanOrEqual(3.75);
+      // the under-deck clearance law: the walk corridor under the deck (the
+      // middle 2.4 m) hangs ≥ 3.3 m clear — walkers pass under (the ply
+      // underside rides 3.31). Only the post columns and the deck's edge
+      // structure (rails, braces) may live below that line.
+      const pos = m.geometry.getAttribute('position') as THREE.BufferAttribute;
+      const cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2;
+      for (let vi = 0; vi < pos.count; vi++) {
+        const vx = pos.getX(vi), vy = pos.getY(vi), vz = pos.getZ(vi);
+        const dz = Math.abs(vz - cz), dx = Math.abs(vx - cx);
+        if (vy < 3.3 && dz < 1.2) {
+          const nearPost = [-3.4, 3.4].some((px) => Math.abs(vx - (cx + px)) < 0.3);
+          const nearEdge = dx > 3.3; // the deck's end bays carry the posts' braces
+          expect(nearPost || nearEdge, `${m.name} vertex at (${vx.toFixed(1)}, ${vy.toFixed(1)}, ${vz.toFixed(1)}) blocks the walk corridor`).toBe(true);
+        }
+      }
+    }
+    // the shed decks sit on the strip walks, clear of the core avenues
+    for (const m of sheds) {
+      const bb = bboxOf(m);
+      expect(Math.abs((bb.min.x + bb.max.x) / 2)).toBeGreaterThan(84);
+    }
+  });
+
+  it('the sheds hang exactly twelve post colliders, every post ≥ 0.85 off every lane', () => {
+    const b = build();
+    expect(b.colliders.length).toBe(12); // 4 posts × 3 sheds — the fabric's ONLY colliders
+    for (const c of b.colliders) {
+      expect(c.w).toBeCloseTo(0.12, 5);
+      expect(c.h).toBeCloseTo(3.4, 5);
+      for (const lz of LANE_Z) expect(Math.abs(c.z - lz), `post z ${c.z} in the z ${lz} lane`).toBeGreaterThanOrEqual(0.85);
+      for (const lx of LANE_X) expect(Math.abs(c.x - lx), `post x ${c.x} in the x ${lx} lane`).toBeGreaterThanOrEqual(0.85);
+    }
+  });
+
+  it('the shed work lights ride the shipped skyline material (the dusk tween lights them)', () => {
+    const b = build();
+    let lights: THREE.InstancedMesh | undefined;
+    b.scene.traverse((o) => {
+      if ((o as THREE.InstancedMesh).isInstancedMesh && o.name === 'Nbhd_ShedLights') lights = o as THREE.InstancedMesh;
+    });
+    expect(lights).toBeDefined();
+    expect(lights!.count).toBe(18); // 6 bulbs × 3 sheds
+    expect(lights!.material).toBeDefined();
+  });
+
+  it('the sheds\u2019 fronted rows carry no iron (the skip law grew with the port)', () => {
+    for (const id of ['KTN-08', 'MRW-03', 'KTS-09']) expect(ESCAPE_SKIP.has(id)).toBe(true);
+    const b = build();
+    for (const m of nbhdMeshes(b)) {
+      for (const skip of ['KTN_08', 'MRW_03', 'KTS_09']) {
+        expect(m.name.includes(skip), `${m.name} carries ${skip} iron`).toBe(false);
+      }
+    }
+  });
+
+  it('the strips\u2019 own props join the hug lines (the lane law, mirrored)', () => {
+    const b = build();
+    const props = b.ledger.filter((r) => r.name.startsWith('Nbhd_Mailbox_') || r.name.startsWith('Nbhd_Bike_')
+      || r.name.startsWith('Nbhd_Hydrant_') || r.name.startsWith('Nbhd_Steam_') || r.name.startsWith('Nbhd_Sawhorse_'));
+    expect(props.length).toBeGreaterThan(20); // the W6 set + the strip additions
+    for (const p of props) {
+      for (const lz of LANE_Z) expect(Math.abs(p.z - lz), `${p.name} at z ${p.z} sits in the z ${lz} lane`).toBeGreaterThanOrEqual(0.85);
+      for (const lx of LANE_X) expect(Math.abs(p.x - lx), `${p.name} at x ${p.x} sits in the x ${lx} lane`).toBeGreaterThanOrEqual(0.85);
+    }
+  });
+
+  it('the W7 anchors live on or near their masses (the validate law, mirrored)', () => {
+    const doc = loadRegistry();
+    const anchors: Array<[string, number, number]> = [
+      ['west stoop', -90.2, 47.4], ['east chalk menu', 88, -32.8],
     ];
     for (const [name, ax, az] of anchors) {
       const hit = doc.allBuildings().some((r) => {
