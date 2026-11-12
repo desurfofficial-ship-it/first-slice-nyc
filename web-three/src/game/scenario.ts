@@ -79,7 +79,7 @@ export async function runScenario(game: Game, params: URLSearchParams): Promise<
     console.warn('[driver] runScenario refused — debug drivers are gated in production builds (game/driverGate.ts)');
     return;
   }
-  if (params.get('scenario') === 'nav') return runNavScenario(game);
+  if (params.get('scenario') === 'nav') return runNavScenario(game, params);
   await runSchedulesScenario(game, params);
 }
 
@@ -89,8 +89,18 @@ export async function runScenario(game: Game, params: URLSearchParams): Promise<
  *  line across the road); Rosa routes INTO the deli through its door
  *  during her published windows; the Cecil's room is locked to routes;
  *  walking through a door RECORDS the transition; every route crosses a
- *  facade only at a door corridor (the player's own collision law). */
-async function runNavScenario(game: Game): Promise<void> {
+ *  facade only at a door corridor (the player's own collision law).
+ *
+ *  The worldclock affordance (the schedules scenario's own law, DEF-15's
+ *  repair): the scenario reads ?worldclock= like ?scenario=schedules does —
+ *  the probe's waitFor budgets are WALL-CLOCK budgets, and on a software-GL
+ *  sandbox the graphics pipeline's frame cost engages the dt clamp, which
+ *  dilates sim time (measured ~0.55 sim-min per real second at 120 on the
+ *  QA sandbox). A heavier worldclock raises the sim pace under the same
+ *  clamp — the schedules scenario's own worldclock=240 knob, the QA-2
+ *  wall-budget precedent. The reference machine runs the default 120
+ *  unchanged; slow machines pass the knob, the driver reads STATE. */
+async function runNavScenario(game: Game, params: URLSearchParams): Promise<void> {
   const started = performance.now();
   const steps: StepResult[] = [];
   const sim = game.worldSim;
@@ -123,7 +133,8 @@ async function runNavScenario(game: Game): Promise<void> {
   try {
     // ---- setup: a controlled run owns its world -------------------------
     try { localStorage.removeItem(sim.debug().saveKey); } catch { /* fresh */ }
-    sim.brain.timeScale = 120;
+    const clockQ = Number(params.get('worldclock'));
+    sim.brain.timeScale = Number.isFinite(clockQ) && clockQ > 0 ? clockQ : 120;
     const reload = sim.reloadFromSave();
     step('setup: fresh controlled world', reload.source === 'fresh', `source=${reload.source}`);
     if (!game.roam.active) game.toggleRoam();

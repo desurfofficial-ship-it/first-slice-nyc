@@ -58,13 +58,8 @@ const page = await browser.newPage({ viewport: { width: VW, height: VH }, device
 // ITSELF here, before any page script runs — the documented, non-URL path
 // (game/driverGate.ts). The driver's destructive steps also ride the
 // driver sandbox keys, so the player-save keys are unreachable either way.
-await page.addInitScript(() => sessionStorage.setItem('fs_driver_authorized', '1'));
-
-// R1 (FS-AUDIT-001): the production build gates the debug drivers behind a
-// session-storage handshake a URL can never carry. The harness authorizes
-// ITSELF here, before any page script runs — the documented, non-URL path
-// (game/driverGate.ts). The driver's destructive steps also ride the
-// driver sandbox keys, so the player-save keys are unreachable either way.
+// (The block was duplicated by an old two-sides merge — both copies rode
+// the tree; the redundant copy retired, the handshake is idempotent.)
 await page.addInitScript(() => sessionStorage.setItem('fs_driver_authorized', '1'));
 
 const consoleErrors = [];

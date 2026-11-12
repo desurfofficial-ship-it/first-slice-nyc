@@ -3,7 +3,18 @@
  * scenario's commute race: boot ?scenario=nav in dist/ and sample the
  * commuter's pos/claim + the world clock every 2 s. Prints the wall-time
  * series so the walker-vs-clock pace is visible. Harness-only.
- */
+ *
+ * REPAIR (the DEF-15 re-diagnosis, 2026-11-12): this diag originally
+ * booted WITHOUT the driver's session handshake — and ?scenario= is gated
+ * behind it in production builds (game/driverGate.ts, runScenario refuses
+ * at the door), so the scenario never started, worldSim.active stayed
+ * false, and the executor never ran: the sampled "the brain speaks, the
+ * body never hears" freeze was an ARTIFACT of the missing handshake, not
+ * a product defect. The handshake below reproduces the real probe boot
+ * (probe-nav's own addInitScript); the executor is healthy on the same
+ * tree — the real check-3 bind is wall-clock (the dt clamp dilates sim
+ * time under the graphics pipeline's frame cost on software GL; the
+ * scenario's ?worldclock= knob is the sanctioned relief). */
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';
@@ -31,6 +42,9 @@ await new Promise((r) => server.listen(PORT, r));
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage', '--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
 page.on('console', (m) => { if (m.type() === 'error') console.log('PAGEERR', m.text()); });
+// the driver handshake — probe-nav's own boot law; without it ?scenario= is
+// gated off in production builds and this diag samples a scenario-less boot
+await page.addInitScript(() => sessionStorage.setItem('fs_driver_authorized', '1'));
 await page.goto(`http://localhost:${PORT}/${PARAMS}`, { waitUntil: 'load' });
 await page.waitForFunction(() => !!window.__game, null, { timeout: 30000 });
 await page.waitForTimeout(4000);

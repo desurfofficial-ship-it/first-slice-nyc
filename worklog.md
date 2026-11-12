@@ -3592,3 +3592,33 @@ Work Log:
 
 Stage Summary:
 - The subway reads as the cutaway diorama it was designed to be: the dollhouse owns its roof again (the bake can never silently swallow a shell-collected mesh without the probe's name check failing), and the underground boom has its own framing law with the aboard exception pinned. The entering-and-entered report is fixed at both layers — world and camera — each with a guard that fails loudly if the class of mistake returns.
+
+## 2026-11-12 — Technical Architecture / World Systems Agent: WP-DEF15-REPAIR — probe-nav's 9/9 restored: the re-diagnosis supersedes the first record (register v1.51.0)
+
+Task ID: WP-DEF15-REPAIR
+Agent: Technical Architecture / World Systems Agent (Z.ai)
+Task: the re-integration merge's own follow-up — DEF-15 (probe-nav check 3 failing on the post-graphics tree, §E) was diagnosed by the stage-9 wave as "the brain speaks, the body never hears" and that diagnosis was WRONG. This wave re-diagnoses from capture, fixes the real mechanism, and restores the 9/9.
+
+The re-diagnosis (the honest arc, recorded in §E):
+- The committed diag (`diag-walk-race.mjs`) booted WITHOUT the driver's session handshake — and `?scenario=` is gated behind it in production builds (game/driverGate.ts; `runScenario` refuses at the door). The diag therefore sampled a scenario-less boot: `worldSim.active` stayed false (verified live: `debug().active === false` at T+5 s and T+10 s), the executor never ran, and the sampled freeze (the body parked at its build pose through four claim flips) was an ARTIFACT — the brain advances in `update()` unconditionally, only `applyDirectives` rides the active gate.
+- The handshake diag (probe-nav's own `addInitScript`): the executor is HEALTHY on the same tree — Idris stands the platform claim at (−46.7, 5.6), the claim flips on schedule at 07:53, the walk-cart leg runs ROUTED (`routed: true`, `bodyMode: 'enroute'`) with `routeLeft` falling every sample (62.4 m → 35.5 m across the sampled window), Rosa holds her door slot in the capacity table.
+- The REAL mechanism (the bisect's true meaning): the graphics pipeline's frame cost engages the dt clamp on software GL — sim time dilates to ~0.55 sim-min per real second at timeScale 120 (measured) — and the nav scenario's wall-clock waitFor budgets (60 s / 90 s) expire BEFORE the 07:52 walk-cart claim lands. Check 3 failed with the executor PERFECTLY FINE. The QA-2 wall-budget precedent's own class, exactly like probe-world-sim's 120-bind the stage-9 wave already recorded.
+- The flag A/B (four chromium arg sets — gl=swiftshader, angle=swiftshader, gl=angle+angle=swiftshader, angle=swiftshader-webgl) all plateau at ~10 fps on this sandbox: the ceiling is the CPU, not the GL backend — no flag wins, the knob is the lawful relief.
+
+What landed (one commit series, branch-less on main like the camera fix):
+- src/game/scenario.ts: `runNavScenario` now reads `?worldclock=` exactly like `?scenario=schedules` has all along (one line — the schedules scenario's law; the reference machine's default 120 unchanged; the dispatch passes params). The fleet's own affordance, not an invention.
+- scripts/diag-walk-race.mjs: the driver handshake + the re-diagnosis in the header — no future wave misdiagnoses from a scenario-less boot.
+- scripts/e2e.mjs: the duplicated driver-handshake block (an old two-sides merge artifact, both copies riding the tree verbatim) retired to one, with the note.
+- Evidence: `docs/qa-security/evidence/RESULTS-probe-nav-def15-fix.txt` (the 9/9's own log), `RESULTS-e2e-4day-def15-tree.txt` (the 4-day E2E run's own log — see the honest record below).
+
+Gates executed on the fix tree [all executed, sequential, same sandbox]:
+- tsc clean; vitest **1562/1562** (96 files); build OK.
+- probe-nav **9/9 (66.1 s at worldclock=240** — the schedules knob's own value, the QA-2 wall-budget precedent) — DEF-15's failing step green again.
+- probe-a3-flip exit 0 · probe-subway ALL PASS · probe-gfx-abuse 40/40 · probe-integration 0 errors, 8/8 walks · probe-c5 68/0 · probe-c6 60/0 · probe-world-sim 15/15 (worldclock=240) · probe-money-trace ALL PASSED (E2E_SCALE=0.5).
+- The E2E tail's own surfaces, green by their standing probes: probe-c0-week ALL PASSED · probe-ladder exit 0 · probe-kid2 kidAtCorner ✓ · probe-album ALL PASS.
+- The 4-day story E2E, recorded honestly: the run's own log shows **128 PASS / 0 FAIL across days 1–4 through the A-frame check** (585 s of driving), then THIS SESSION'S INSTRUMENT CAP (600 s per call; background processes reaped between calls — both verified twice with canaries) cut the tail's final 8 checks; the driver's own done-budget is 900 s and the sandbox's honest runtime here is ~660–700 s (two runs' logs agree). The tail's surfaces carry their own standing probes (above, green). The next instrument that can spend the driver's 900 s owns the complete re-run.
+
+Not done, by law: the complete 4-day E2E re-run on a 900 s-capable instrument (the only gate this session's tooling could not spend); the owner-side variances (V-PH2-1/V-PH2-2 sign-offs, DEC-8 city expansion, B13 draw calls) and the parked items — owner-gated, none blocking.
+
+Stage Summary:
+- The battery works in both directions: it caught the graphics wave's defect (DEF-15 recorded), and this wave's re-diagnosis caught the battery's OWN diagnostic lying (a harness boot without its handshake) — the probe fleet's machine-honesty law (capsule-polling, not naps; the driver reads STATE) now extends to the diagnostics themselves: a diag that boots a different game than the probe lies about the probe's defect. The freeze was never in the product; the product's walker walks.
