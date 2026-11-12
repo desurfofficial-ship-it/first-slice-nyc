@@ -97,10 +97,15 @@ const run = await page.evaluate(async () => {
   out.atB = g.world.subway.ride.at === 'B';
   out.swappedX = +p.x.toFixed(1);
 
-  // 5. climb out to the square; the sync breathes in portrait
-  tp(-335.6, -3.1, 7.4, Math.PI);
+  // 5. climb out to the square; the sync breathes in portrait.
+  // The REAL walk — pocket, through the station's own stair opening, up the
+  // treads (no mid-stair teleport: the shipped B-south-wall seal bug was
+  // invisible to a teleporting leg; the opening must be WALKABLE).
+  tp(-335.2, -3.1, 9.4, Math.PI);
   await sleep(400);
-  await walk(false, 2400);
+  await walk(false, 6000);
+  out.pastOpeningY = +p.y.toFixed(2);
+  await walk(false, 6000);
   out.surfaceY = +p.y.toFixed(2);
   out.tsLit = g.world.subway.lit.has('tsSurface');
   await sleep(400);
@@ -118,6 +123,7 @@ check(run.underground === true, 'the underground state flips on');
 check(run.ridePrompt === 'trainA', 'the ride spot prompts');
 check(run.atB === true, 'the ride lands at 42nd St');
 check(run.swappedX < -320, `the seam translated (x ${run.swappedX})`);
+check(run.pastOpeningY > -2.9, `the stair opening admits the walk (y ${run.pastOpeningY} after leg 1 — the seal law)`);
 check(Math.abs(run.surfaceY - 0.1) < 0.25, `the exit stair climbs (y ${run.surfaceY})`);
 check(run.tsLit === true, 'Times Square lights');
 check(run.syncFired, 'the sync beat fires in portrait');

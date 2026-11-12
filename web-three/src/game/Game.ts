@@ -628,9 +628,22 @@ export class Game {
       requestAnimationFrame(loop);
       if (!this.running) return;
       const now = performance.now();
-      const dt = Math.min(0.1, (now - this.lastTime) / 1000);
+      const elapsed = (now - this.lastTime) / 1000;
+      const dt = Math.min(0.1, elapsed); // the render-clamped dt (the sim
+      // dilation class: below 10 fps the world runs slow — that is its own
+      // documented tradeoff, the DEF-15 wall-budget law)
+      // TRUE elapsed (capped 1 s): feeds exactly one consumer — the subway
+      // ride machine, a WALL-CLOCK experience (22 s of doors-closed tunnel,
+      // four teach beats, one announcement). Starved by the clamp, a ride
+      // on a low-fps device stretched 5×+ and the field report read "ride
+      // to Times Square doesn't work": the doors shut, the tunnel crawled,
+      // no arrival ever came. The machine is pure (thresholds only, no
+      // integration), so real elapsed time is safe to feed it — the ride
+      // takes its 22 real seconds at ANY frame rate. Healthy devices
+      // (fps ≥ 10) see no change: trueDt ≤ dt there, bit-identical frames.
+      const trueDt = Math.min(1.0, elapsed);
       this.lastTime = now;
-      this.frame(dt);
+      this.frame(dt, trueDt);
     };
     requestAnimationFrame(loop);
 
@@ -668,7 +681,7 @@ export class Game {
 
   // ------------------------------------------------------------------ frame
 
-  private frame(dt: number): void {
+  private frame(dt: number, trueDt = dt): void {
     const s = this.state;
     this.ambientClock += dt;
 
@@ -835,7 +848,7 @@ export class Game {
     // around the fresh player position, trees breathe, pigeons worry about
     // your shoes. (Phase 1 — colliders + the cab + the M121, yielding to the
     // kid AND the stranger AND the familiar face — ran before the walker.)
-    this.world.updateAmbient(wdt, this.player.capsule, this.duskStarted);
+    this.world.updateAmbient(wdt, this.player.capsule, this.duskStarted, trueDt);
     this.syncGlows();
     this.maybeBuskerHorn(dt);
 
