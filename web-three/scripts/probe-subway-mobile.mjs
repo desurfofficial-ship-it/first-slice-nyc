@@ -72,7 +72,15 @@ const run = await page.evaluate(async () => {
   // 2. the stair descent works with portrait framing alive
   tp(-47.2, 0.1, 3.9, 0);
   await sleep(900);
-  await walk(true, 2400);
+  // walk to the PLATFORM, not to a wall-clock nap — software-GL covers less
+  // ground per second (the docs/51 machine-honesty law; the fixed nap left
+  // the walk one tread short on slow boxes, pre-existing)
+  const kDown = Math.cos(g.player.camYaw) > 0 ? 'KeyW' : 'KeyS';
+  g.input.injectKey(kDown, true);
+  const t0Stair = Date.now();
+  while (Date.now() - t0Stair < 20000 && p.y > -3.05) await sleep(100);
+  g.input.injectKey(kDown, false);
+  await sleep(150);
   out.stairY = +p.y.toFixed(2);
   out.underground = g.world.subway.underground;
 

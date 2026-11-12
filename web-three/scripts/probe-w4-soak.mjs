@@ -63,7 +63,10 @@ await page.evaluate(() => {
   const g = window.__game;
   const w = g.world;
   window.__soak = { simSeconds: 0, ticking: true };
-  const dt = 0.1, steps = 8;
+  // QA wave 2: 12 steps per tick (was 8). Same worst-case dt (0.1), more of
+  // them — the software-GL sandbox's frames throttle the interval, and the
+  // 1800 sim-s target has to land inside the wall budget.
+  const dt = 0.1, steps = 12;
   const timer = setInterval(() => {
     if (!window.__soak.ticking) { clearInterval(timer); return; }
     const peds = w.peds;
@@ -112,7 +115,12 @@ const sample = () => page.evaluate(() => {
     const inBus = inRect(p, { xMin: b.minX - 0.28, xMax: b.maxX + 0.28, zMin: b.minZ - 0.28, zMax: b.maxZ + 0.28 });
     const inCab = inRect(p, { xMin: cab.minX - 0.28, xMax: cab.maxX + 0.28, zMin: cab.minZ - 0.28, zMax: cab.maxZ + 0.28 });
     const inCart = near(p, cart, 1.2);
-    return { i, x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: +p.y.toFixed(2), finite, inRoad, inBus, inCab, inCart };
+    // QA wave 2 (FS-QA2-002): the street plan parks dusk-shift walkers HOME
+    // (visible=false, body pinned at y −999) — applyStreetPlan's documented
+    // law. A parked walker is not a living pedestrian: every check below
+    // runs on the OUT walkers only, or the soak fails on its own extras.
+    const out = !!grp.children[i].visible;
+    return { i, x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: +p.y.toFixed(2), finite, inRoad, inBus, inCab, inCart, out };
   });
   return { sim: window.__soak.simSeconds, rows };
 });
@@ -127,11 +135,11 @@ const t0 = Date.now();
 while (true) {
   const s = await sample();
   samples++;
-  const badFinite = s.rows.filter((r) => !r.finite);
-  const badRoad = s.rows.filter((r) => r.inRoad);
-  const badBus = s.rows.filter((r) => r.inBus);
-  const badCab = s.rows.filter((r) => r.inCab);
-  const badCart = s.rows.filter((r) => r.inCart);
+  const badFinite = s.rows.filter((r) => !r.finite && r.out);
+  const badRoad = s.rows.filter((r) => r.inRoad && r.out);
+  const badBus = s.rows.filter((r) => r.inBus && r.out);
+  const badCab = s.rows.filter((r) => r.inCab && r.out);
+  const badCart = s.rows.filter((r) => r.inCart && r.out);
   if (badFinite.length) { failures++; problems.push(`s${samples}: NaN ×${badFinite.length}`); }
   if (badRoad.length) problems.push(`s${samples}: roadway ×${badRoad.length} @ ${badRoad.slice(0, 3).map((r) => `(${r.x},${r.z})`).join(' ')}`);
   // footprint + cart law: a PERSISTENT hit across consecutive samples fails
@@ -146,6 +154,7 @@ while (true) {
   // routine dwell is 6 sim-s, so stillness that long is a stuck brain.
   if (prev) {
     for (const r of s.rows) {
+      if (!r.out) continue; // a parked (home) walker stands by law
       const q1 = prev.rows[r.i], q2 = prev.prevRows?.[r.i];
       if (!q1 || !q2 || !r.finite || !q1.finite || !q2.finite) continue;
       const d1 = Math.hypot(r.x - q1.x, r.z - q1.z);
@@ -176,7 +185,7 @@ check_end: {
     // roadway soft-fails are reported loudly but only fail the gate when
     // they persist in the LAST sample too (transients get pushed back)
     const last = await sample();
-    const persist = last.rows.filter((r) => r.inRoad).length;
+    const persist = last.rows.filter((r) => r.inRoad && r.out).length;
     if (persist > 0) { failures++; problems.push(`final: roadway violation persisting ×${persist}`); }
     else console.log(`roadway flags ${roadCount} (transient — clean in the final sample)`);
   }

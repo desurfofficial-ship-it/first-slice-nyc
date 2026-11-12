@@ -57,6 +57,9 @@ import { buildSubwaySystem, STATION, ZONE_KEEP_RE, type SubwaySystem, type Colli
 import { buildTimesSquare, type TimesSquare } from './timesSquare';
 import { buildArrivalBus, BUS04_RECT, playerOccupiesBus04, type ArrivalBus } from './arrivalBus';
 import { buildCityFabric } from './cityFabric';
+import { groundMaterial, metricBoxUVs } from './groundTex';
+import { EnvSky } from '../render/envsky';
+import { sampleDayCycle, keyframeState, freshDayState, CANON_MINUTES, type DayState, type DayPin } from '../render/daycycle';
 import { buildNeighborhoodFabric, NEIGH } from './neighborhoodFabric';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay,
   skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH,
@@ -121,7 +124,7 @@ export class World {
   readonly sun: THREE.DirectionalLight;
   readonly hemi: THREE.HemisphereLight;
   readonly skyUniforms: { topColor: THREE.Color; horizonColor: THREE.Color; groundColor: THREE.Color };
-  readonly fog: THREE.Fog;
+  readonly fog: THREE.FogExp2;
   readonly roof: THREE.Mesh;
   readonly goldWindowMat!: THREE.MeshLambertMaterial;
   readonly secondWindowMat!: THREE.MeshLambertMaterial;
@@ -536,14 +539,47 @@ export class World {
    *  from that call. Until then the street-seam loader loads plain GLBs. */
   private furnitureWired = false;
 
+  // ---------------- the graphics wave (docs/rendering/) ----------------
+  /** The sky dome's material (the applier writes its halo/nightK uniforms). */
+  private skyMat!: THREE.ShaderMaterial;
+  private skyDome!: THREE.Mesh;
+  /** The CURRENT interpolated day state — Game reads bloom/grade/exposure
+   *  from it each frame and feeds the post pipeline. */
+  readonly dayState: DayState = freshDayState();
+  /** The sampling scratch (the target state the current lerps toward). */
+  private dayScratch: DayState = freshDayState();
+  /** null = clock-driven (roam/scenario); a keyframe name = a story pin. */
+  private dayPin: DayPin | null = 'evening';
+  private dayMinute = -1;
+  /** The night emissive registry (docs/rendering/03 §5): streetlights,
+   *  traffic greens, storefront strips, warm interiors — base → night
+   *  intensity, driven by nightK. Story windows stay Game-owned. */
+  private nightEmissives: Array<{ mat: THREE.MeshLambertMaterial; base: number; night: number }> = [];
+  /** The PMREM sky environment (built when Game wires the renderer). */
+  private envSky: EnvSky | null = null;
+  private envDirty = true;
+  /** Glow sprites (billboards) — excluded from the AO normal prepass. */
+  private glowSprites: THREE.Sprite[] = [];
+  /** The AO prepass exclusion list (far world + movers + billboards). */
+  private aoExcludeList: THREE.Object3D[] = [];
+  /** Public read for the Game's PostPipeline (CityAOPass hides these). */
+  get aoExclude(): readonly THREE.Object3D[] { return this.aoExcludeList; }
+  /** The day-state scalar keys, computed once (no per-frame Object.keys). */
+  private static readonly DAY_KEYS = Object.keys(freshDayState()) as Array<keyof DayState>;
+
   constructor() {
     const scene = this.scene;
-    scene.fog = this.fog = new THREE.Fog(PAL.amber, 40, 170);
+    // FogExp2 (the graphics wave): squared-exponential aerial perspective —
+    // the far skyline melts into the horizon color instead of hard-cutting
+    // at the old linear near/far. Density is keyed per day state
+    // (applyDayState); ~0.0055 ≈ the shipped (40,170) linear feel at street
+    // ranges with a far tail the skyline rows now ride.
+    scene.fog = this.fog = new THREE.FogExp2(PAL.amber, 0.0055);
     // the material bank exists before anything is built — signs need its
     // shared plain materials (W0: sign edges bake-merge per district)
     this.bank = new MatBank((c) => this.mat(c));
 
-    // ---------------- sky (ProceduralSkyMaterial counterpart) ----------------
+    // ---------------- sky (the wave: sun halo + night stars) ----------------
     this.skyUniforms = {
       topColor: new THREE.Color(PAL.amber).setHex(0x7fa7c9),
       horizonColor: new THREE.Color(PAL.amber),
@@ -554,6 +590,10 @@ export class World {
         topColor: { value: this.skyUniforms.topColor },
         horizonColor: { value: this.skyUniforms.horizonColor },
         groundColor: { value: this.skyUniforms.groundColor },
+        sunDir: { value: this.sunOffset.clone().normalize() },
+        haloColor: { value: new THREE.Color(PAL.amber) },
+        haloStrength: { value: 0.65 },
+        nightK: { value: 0 },
       },
       vertexShader: `
         varying vec3 vDir;
@@ -563,21 +603,40 @@ export class World {
         }`,
       fragmentShader: `
         uniform vec3 topColor; uniform vec3 horizonColor; uniform vec3 groundColor;
+        uniform vec3 sunDir; uniform vec3 haloColor; uniform float haloStrength;
+        uniform float nightK;
         varying vec3 vDir;
+        float hash13(vec3 p) {
+          p = fract(p * 0.1031);
+          p += dot(p, p.zyx + 31.32);
+          return fract((p.x + p.y) * p.z);
+        }
         void main() {
           float h = vDir.y;
           vec3 col = h >= 0.0
             ? mix(horizonColor, topColor, pow(min(h, 1.0), 0.55))
             : mix(horizonColor, groundColor, pow(min(-h, 1.0), 0.5));
+          // the sun's halo — atmosphere scatters most toward the sun
+          // (docs/rendering/02, the sky chapter's core insight, adapted)
+          float sd = max(dot(normalize(vDir), sunDir), 0.0);
+          col += haloColor * (pow(sd, 14.0) * 0.45 + pow(sd, 60.0) * 0.7) * haloStrength;
+          // night stars — hash sparkle above the roofline, gated by nightK
+          if (nightK > 0.02 && h > 0.04) {
+            float star = step(0.9986, hash13(floor(vDir * 300.0)));
+            col += vec3(star) * nightK * 0.7 * smoothstep(0.04, 0.3, h);
+          }
           gl_FragColor = vec4(col, 1.0);
         }`,
       side: THREE.BackSide,
       depthWrite: false,
       fog: false,
     });
+    this.skyMat = skyMat;
     const sky = new THREE.Mesh(new THREE.SphereGeometry(380, 24, 16), skyMat);
     sky.frustumCulled = false;
+    sky.name = 'SkyDome';
     scene.add(sky);
+    this.skyDome = sky;
 
     // ---------------- lights (main.gd "--SETUP--") ----------------
     // three r155+ physical lights: intensities need the legacy π factor to
@@ -613,13 +672,16 @@ export class World {
     this.sunBasis.texel = (2 * World.SHADOW_HALF) / this.sun.shadow.mapSize.x;
 
     // ---------------- ground & street (street runs along X) ----------------
-    this.solid('Road', 0, -0.1, 0, 100, 0.2, 8, PAL.road, { receive: true, cast: false });
+    // The graphics wave: the road and walks wear procedural asphalt/concrete
+    // (groundTex) with metric UVs — they leave the vertex bake automatically
+    // (the bake skips mapped materials) and gain grain, joints and wear.
+    this.groundSolid('Road', 0, -0.1, 0, 100, 0.2, 8, 'asphalt');
     // Sidewalk_N is split around the subway stairwell slot (x -45.9..-43.3,
     // docs/50): same material, same top, two slabs — the descent opens the
     // walking lane exactly where the headhouse always stood beside it.
-    this.solid('Sidewalk_N_W', -49.25, -0.05, 6, 1.5, 0.3, 4, PAL.walk, { receive: true, cast: false });
-    this.solid('Sidewalk_N_E', 2.05, -0.05, 6, 95.9, 0.3, 4, PAL.walk, { receive: true, cast: false });
-    this.solid('Sidewalk_S', 0, -0.05, -6, 100, 0.3, 4, PAL.walk, { receive: true, cast: false });
+    this.groundSolid('Sidewalk_N_W', -49.25, -0.05, 6, 1.5, 0.3, 4, 'concrete');
+    this.groundSolid('Sidewalk_N_E', 2.05, -0.05, 6, 95.9, 0.3, 4, 'concrete');
+    this.groundSolid('Sidewalk_S', 0, -0.05, -6, 100, 0.3, 4, 'concrete');
     for (let i = 0; i < 6; i++) {
       // lifted clear of the road top (coplanar bottoms shimmered at grazing angles)
       this.deco('Crosswalk', -5, 0.03, -3.3 + i * 1.3, 3, 0.02, 0.6, PAL.cream);
@@ -708,7 +770,10 @@ export class World {
     this.decoMesh('Bodega_BladeBracket', new THREE.BoxGeometry(0.07, 0.5, 0.9), this.mat(PAL.ink), rosa.x + 1.1, h - 0.95, rosaFace - 0.45);
     this.signBoard('Bodega_BladeSign', "ROSA'S", 0.12, 0.95, 1.7, 384, 192, PAL.gold, PAL.ink, 74, 'x')
       .position.set(rosa.x + 1.1, 2.95, rosaFace - 0.9);
-    // The warm window (emission 0.55 — main.gd comment: "the warm window, actually warm")
+    // The warm window (emission 0.55 — main.gd comment: "the warm window, actually warm").
+    // Story-owned: the dusk beat TWEENS this intensity (Game goldenBeat —
+    // the E2E pins >1.5), so it stays OUT of the night registry — the
+    // applier would clobber the tween every frame (the E2E caught exactly that).
     this.rosaWindowMat = this.mat(PAL.amber, { emissive: PAL.amber, emissiveIntensity: 0.55 });
     this.decoMesh('Bodega_Window', new THREE.BoxGeometry(2.6, 1.6, 0.06), this.rosaWindowMat, rosa.x - rosa.w / 2 + 1.75, 1.8, rosaFace - 0.08);
     this.deco('Bodega_Awning', rosa.x, h - 1.3, rosaFace - 0.4, rosa.w, 0.15, 1.2, PAL.teal);
@@ -731,24 +796,28 @@ export class World {
     bb.position.set(0, 0.15, -4.6); // roof-local: near the front edge, over the sidewalk
     this.roof.add(bb);
     this.solid('Bodega_Counter', -19.6, 0.55, 13.5, 1.2, 1.1, 6, PAL.teal);
-    // Back-bar shelving: three sand3d gondola units wear the old blank box's
-    // span (x -19..-13, one collider — unchanged below, the shelf is visual
-    // only). Fallback boxes keep the bldg2 look if the files ever go missing.
-    for (let si = 0; si < 3; si++) {
-      const shelfPh = this.decoMesh(`Bodega_BackShelf_${si}`, new THREE.BoxGeometry(1.3, 1.64, 0.55), this.mat(PAL.bldg2), -17.5 + si * 1.5, 0.82, 19.3);
+    // Back-bar shelving: FOUR sand3d gondola units wear the old blank box's
+    // span (one visual-only collider below — the shelf never carried
+    // gameplay). Feet ride the floor top (0.11 — the placeholder center is
+    // half-height over it), so the GLB's kick plinth shows instead of
+    // sinking into the tiles. Fallback boxes keep the bldg2 look if the
+    // files ever go missing.
+    for (let si = 0; si < 4; si++) {
+      const shelfPh = this.decoMesh(`Bodega_BackShelf_${si}`, new THREE.BoxGeometry(1.3, 1.64, 0.55), this.mat(PAL.bldg2), -17.5 + si * 1.5, 0.93, 19.3);
       shelfPh.rotation.y = Math.PI; // goods face south, into the store
       shelfPh.castShadow = true;
       shelfPh.receiveShadow = true;
       this.registerGlbProp(`bodega_shelf_${si}`, shelfPh);
       void this.upgradePropWithGLB(`bodega_shelf_${si}`, 'models/bodega_shelf.glb');
     }
-    this.colliders.push(boxFromCenter(-16, 1.0, 19.3, 6, 2.0, 0.6));
+    // one collider covers the run plus the west backstock pile (below)
+    this.colliders.push(boxFromCenter(-16.35, 1.0, 19.3, 8.3, 2.0, 0.6));
     // Commercial reach-in fridge on the bodega's east wall — a sand3d ADD,
     // not a swap: no counterpart existed, and an empty wall read as missing
     // stock once the shelves landed. Collider matches its rotated box.
     const fridgePh = new THREE.Group();
     fridgePh.name = 'Fridge_Bodega';
-    fridgePh.position.set(-11.7, 0.92, 16.5);
+    fridgePh.position.set(-11.7, 1.03, 16.5); // feet on the floor top (0.11)
     fridgePh.rotation.y = -Math.PI / 2; // door west, into the room
     const fridgeBox = new THREE.Mesh(new THREE.BoxGeometry(0.76, 1.84, 1.22), this.mat(PAL.bldg2));
     fridgeBox.castShadow = true;
@@ -757,7 +826,7 @@ export class World {
     this.scene.add(fridgePh);
     this.registerGlbProp('fridge_bodega', fridgePh);
     void this.upgradePropWithGLB('fridge_bodega', 'models/refrigerator.glb');
-    this.colliders.push(boxFromCenter(-11.7, 0.92, 16.5, 1.22, 1.84, 0.76));
+    this.colliders.push(boxFromCenter(-11.7, 1.03, 16.5, 1.22, 1.84, 0.76));
     // the counter a real deli works from: register, coffee, microwave, and
     // the produce crates by the window (sand3d ADDs — the register and
     // coffee wear the washer-slot pattern, front east into the store; the
@@ -820,28 +889,84 @@ export class World {
       0.06, 0.9, 4.6, 640, 112, PAL.cream, PAL.ink, 30, 'x');
     menu.position.set(-20.53, 2.0, 13.0);
     bodegaDressing.add(menu);
-    // stacked product rows on the back wall, beside/between the gondolas —
-    // one merged mesh per color (the props law: the row is ONE draw)
-    const productColors = [0xb23a48, 0xf7b32b, 0x2a9d8f, 0xf3e2c2, 0x6a8a5a, 0xb3552f];
-    const productGeos: Array<THREE.BufferGeometry[]> = Array.from({ length: productColors.length }, () => []);
-    for (let row = 0; row < 3; row++) {
-      const y = 1.15 + row * 0.5;
-      for (let i = 0; i < 30; i++) {
-        const x = -20.35 + i * 0.23;
-        if (x > -14.0 && x < -13.9) continue; // the gondola gap line stays clean
-        const w = 0.16 + (i % 3) * 0.02, h = 0.3 + (i % 2) * 0.06;
-        const g2 = new THREE.BoxGeometry(w, h, 0.14).translate(x, y + h / 2, 19.22);
-        productGeos[i % productColors.length].push(g2);
+    // ---------------- the gondolas' stock (2026-11 restock pass) ----------
+    // The legacy loose-box wall grid (Bodega_ProductRow) is retired: its
+    // three floating rows ran straight THROUGH the gondola volumes and read
+    // as unfinished noise. The store stocks the four gondola units instead —
+    // shelf-aware runs seated on the boards' real tops (the GLB's millimetre
+    // levels × the upgrade's uniform scale 1.64/1.770, feet on the floor
+    // top 0.11), facings laid as color blocks like a real bodega wall. One
+    // merged mesh per color across all four units (the props law: the row
+    // is ONE draw). The three Day-1 stock spots (mango/coffee/bread) own
+    // their gaps on the middle shelves — sized/seeded to match.
+    const gondolaXs = [-17.5, -16, -14.5, -13];
+    const gondolaS = 1.64 / 1.770; // upgradePropWithGLB's scale for this file
+    const shelfTop = (mm: number): number => 0.11 + (mm / 1000) * gondolaS;
+    // base deck, then boards 1-4 (shelf_0..shelf_3)
+    const SHELF = [shelfTop(130), shelfTop(567), shelfTop(947), shelfTop(1327), shelfTop(1697)];
+    const stockGeos = new Map<number, THREE.BufferGeometry[]>();
+    const pushStock = (c: number, g: THREE.BufferGeometry): void => {
+      const arr = stockGeos.get(c);
+      if (arr) arr.push(g); else stockGeos.set(c, [g]);
+    };
+    const stockCan = (x: number, y: number, z: number, c: number): void =>
+      pushStock(c, new THREE.CylinderGeometry(0.032, 0.032, 0.105, 10).translate(x, y + 0.0525, z));
+    const stockBox = (x: number, y: number, z: number, w: number, h: number, d: number, c: number): void =>
+      pushStock(c, new THREE.BoxGeometry(w, h, d).translate(x, y + h / 2, z));
+    const stockBottle = (x: number, y: number, z: number, c: number): void => {
+      pushStock(c, new THREE.CylinderGeometry(0.03, 0.034, 0.16, 10).translate(x, y + 0.08, z));
+      pushStock(c, new THREE.CylinderGeometry(0.014, 0.018, 0.06, 8).translate(x, y + 0.19, z));
+    };
+    const stockJar = (x: number, y: number, z: number, c: number): void =>
+      pushStock(c, new THREE.CylinderGeometry(0.044, 0.04, 0.115, 10).translate(x, y + 0.0575, z));
+    const KRAFT = [0xb08d57, 0xc49a6c, 0x9c7a4a];
+    const stockCase = (x: number, y: number, z: number, w: number, h: number, d: number, c: number): void =>
+      stockBox(x, y, z, w, h, d, c);
+    const canCols = [PAL.coral, PAL.plum, PAL.teal, PAL.taxi];
+    for (let si = 0; si < gondolaXs.length; si++) {
+      const gx = gondolaXs[si];
+      // base deck: kraft cases, one stacked — backstock reads at sight line
+      stockCase(gx - 0.34, SHELF[0], 19.33, 0.30, 0.22, 0.26, KRAFT[0]);
+      stockCase(gx + 0.02, SHELF[0], 19.33, 0.32, 0.24, 0.28, KRAFT[1]);
+      stockCase(gx + 0.36, SHELF[0], 19.33, 0.28, 0.20, 0.26, KRAFT[2]);
+      stockCase(gx + 0.02, SHELF[0] + 0.24, 19.35, 0.26, 0.16, 0.22, KRAFT[0]);
+      // board 1: two can facings, front + back rows
+      for (let i = 0; i < 12; i++) {
+        const cx = gx - 0.45 + i * 0.082;
+        stockCan(cx, SHELF[1], 19.20, canCols[si % 4]);
+        stockCan(cx + 0.041, SHELF[1], 19.42, canCols[(si + 1) % 4]);
       }
+      // board 2: snack boxes — unit 0 leaves the bread's spot open (+0.02..+0.32)
+      const boxXs = si === 0 ? [-0.44, -0.30, -0.16, 0.36, 0.47] : [-0.375, -0.225, -0.075, 0.075, 0.225, 0.375];
+      for (let i = 0; i < boxXs.length; i++) {
+        stockBox(gx + boxXs[i], SHELF[2], 19.22, 0.11, i % 2 === 0 ? 0.16 : 0.23, 0.07, i % 2 === 0 ? PAL.teal : PAL.gold);
+      }
+      // board 3: jars front, bottles back — units 1/2 keep the coffee and
+      // mango spots open (local ±0.12)
+      const midTaken = si === 1 || si === 2;
+      const jarXs = midTaken ? [-0.45, -0.32, -0.19, 0.19, 0.32, 0.45] : [-0.45, -0.32, -0.19, -0.06, 0.07, 0.2, 0.33];
+      for (const jx of jarXs) stockJar(gx + jx, SHELF[3], 19.20, 0x6a8a5a);
+      const botXs = midTaken ? [-0.36, -0.22, 0.22, 0.36] : [-0.32, -0.16, 0, 0.16, 0.32];
+      for (const bx of botXs) stockBottle(gx + bx, SHELF[3], 19.42, 0xb3552f);
+      // board 4 (top): a can row over the rail line + three kraft cartons back
+      for (let i = 0; i < 9; i++) stockCan(gx - 0.40 + i * 0.10, SHELF[4], 19.20, canCols[(si + 2) % 4]);
+      for (const bx of [-0.38, -0.24, 0.30]) stockBox(gx + bx, SHELF[4], 19.42, 0.11, 0.14, 0.07, KRAFT[1]);
     }
-    for (let ci = 0; ci < productColors.length; ci++) {
-      if (!productGeos[ci].length) continue;
-      const m = new THREE.Mesh(mergeGeometries(productGeos[ci], false)!, this.bank.get(productColors[ci]));
-      m.name = 'Bodega_ProductRow';
+    // the west wall's backstock pile — the run's leftover never reads bare
+    stockCase(-20.25, 0.11, 19.38, 0.30, 0.26, 0.34, KRAFT[0]);
+    stockCase(-19.78, 0.11, 19.38, 0.34, 0.24, 0.32, KRAFT[1]);
+    stockCase(-19.78, 0.35, 19.40, 0.30, 0.20, 0.28, KRAFT[2]);
+    stockCase(-19.30, 0.11, 19.38, 0.32, 0.26, 0.32, KRAFT[0]);
+    for (const [color, geos] of stockGeos) {
+      if (!geos.length) continue;
+      const m = new THREE.Mesh(mergeGeometries(geos, false)!, this.bank.get(color));
+      m.name = 'Bodega_ShelfStock';
+      m.receiveShadow = true;
       bodegaDressing.add(m);
     }
     // chip bags hanging by the produce (east wall) — the classic deli door
-    // strip, bright foil colors, one merged draw
+    // strip, bright foil colors, one merged draw; a rail bar to hang from
+    // (they used to float off the bare wall)
     const bagColors = [0xd94f3d, 0xf7b32b, 0x3d8bd9, 0x4a9d5a];
     const bagGeos: Array<THREE.BufferGeometry[]> = Array.from({ length: bagColors.length }, () => []);
     for (let i = 0; i < 8; i++) {
@@ -855,12 +980,82 @@ export class World {
       m.name = 'Bodega_ChipBags';
       bodegaDressing.add(m);
     }
+    const bagRail = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.9, 8), this.bank.get(PAL.ink));
+    bagRail.name = 'Bodega_ChipBagRail';
+    bagRail.rotation.x = Math.PI / 2;
+    bagRail.position.set(-11.475, 1.96, 9.94);
+    bodegaDressing.add(bagRail);
     // the welcome mat inside the door gap (teal — the awning's color)
     const mat = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.02, 0.9), this.bank.get(PAL.teal));
     mat.name = 'Bodega_DoorMat';
     mat.position.set(-16, bodegaFloorY + 0.01, 8.95);
     mat.receiveShadow = true;
     bodegaDressing.add(mat);
+
+    // ---------------- the room's finish (2026-11 production pass) ---------
+    // The store used to show its construction masses: raw red brick inner
+    // faces on the front piers, open sky where a ceiling should be, a bare
+    // teal counter slab. Paint + ceiling + trim — additive dressing, no
+    // wall box moves, no collider changes.
+    const ceil = new THREE.Mesh(new THREE.BoxGeometry(9.2, 0.05, 11.2), this.bank.get(PAL.cream));
+    ceil.name = 'Bodega_Ceiling';
+    ceil.position.set(-16, 4.47, 14);
+    ceil.receiveShadow = true;
+    bodegaDressing.add(ceil);
+    const paintW = this.bank.get(PAL.stone);
+    const frontPanel = (name: string, cx: number): void => {
+      // full-height: pier top to ceiling — no raw brick line survives inside
+      const p = new THREE.Mesh(new THREE.BoxGeometry(3.1, 3.73, 0.03), paintW);
+      p.name = name;
+      p.position.set(cx, 2.585, 8.415);
+      p.receiveShadow = true;
+      bodegaDressing.add(p);
+    };
+    frontPanel('Bodega_FrontPaint_W', -19.05); // Front_L's inner face
+    frontPanel('Bodega_FrontPaint_E', -12.95); // Front_R's inner face
+    // the lintel's inner face — above the door it read as a raw red slab
+    // from across the store
+    const lintelPaint = new THREE.Mesh(new THREE.BoxGeometry(3.0, 1.42, 0.03), paintW);
+    lintelPaint.name = 'Bodega_LintelPaint';
+    lintelPaint.position.set(-16, 3.81, 8.415);
+    bodegaDressing.add(lintelPaint);
+    const jambLiner = (name: string, x: number): void => {
+      const j = new THREE.Mesh(new THREE.BoxGeometry(0.03, 2.99, 0.46), paintW);
+      j.name = name;
+      j.position.set(x, 1.605, 8.2);
+      bodegaDressing.add(j);
+    };
+    jambLiner('Bodega_DoorJamb_W', -17.485); // the door reveal stops reading raw brick
+    jambLiner('Bodega_DoorJamb_E', -14.515);
+    // counter finish: a dark kick and a gold top edge on the aisle face
+    const counterKick = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.12, 6.0), this.bank.get(PAL.manhole));
+    counterKick.name = 'Bodega_CounterKick';
+    counterKick.position.set(-18.985, 0.17, 13.5);
+    bodegaDressing.add(counterKick);
+    const counterTrim = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.06, 6.0), this.bank.get(PAL.gold));
+    counterTrim.name = 'Bodega_CounterTrim';
+    counterTrim.position.set(-18.985, 1.05, 13.5);
+    bodegaDressing.add(counterTrim);
+    // a wall clock over the gondola run — the deli's quiet heartbeat
+    // (y 2.8: clear of the Coffee label pill that rides the item below)
+    const clockRim = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.035, 20), this.bank.get(PAL.ink));
+    clockRim.name = 'Bodega_Clock';
+    clockRim.rotation.x = Math.PI / 2;
+    clockRim.position.set(-16, 2.8, 19.578);
+    bodegaDressing.add(clockRim);
+    const clockFace = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.037, 20), this.bank.get(PAL.cream));
+    clockFace.rotation.x = Math.PI / 2;
+    clockFace.position.set(-16, 2.8, 19.579);
+    bodegaDressing.add(clockFace);
+    const clockHand = (len: number, angle: number): void => {
+      const hand = new THREE.Mesh(new THREE.BoxGeometry(0.018, len, 0.01), this.bank.get(PAL.ink));
+      hand.geometry.translate(0, len / 2 - 0.02, 0);
+      hand.rotation.z = angle;
+      hand.position.set(-16, 2.8, 19.556);
+      bodegaDressing.add(hand);
+    };
+    clockHand(0.09, -Math.PI / 3);
+    clockHand(0.13, Math.PI / 5);
 
     // ---------------- props (Rule of Steam: something is always moving) ----
     this.deco('Manhole', -10, 0.025, 0.5, 0.95, 0.02, 0.95, PAL.manhole); // 0.95 m — a real manhole, not a patio
@@ -906,7 +1101,7 @@ export class World {
     // every frame — and a city-cab yield: it holds at the crosswalk stop line
     // while the crosswalk is occupied, and brakes for anyone in the road
     // ahead of it. A cab you can ghost through read as broken.
-    this.taxiBase = this.buildCar('taxi');
+    this.taxiBase = this.buildCar('taxi', true); // the hero cab wears PBR paint
     this.registerGlbProp('car_taxi', this.taxiBase); // generated mesh may wear it (public/models/car_taxi.glb)
     void this.upgradePropWithGLB('car_taxi');
     this.taxi.position.set(-45, 0, -2);
@@ -1354,7 +1549,7 @@ export class World {
     // The lamp faces are lit: the sun never leaves golden hour here, and
     // city lamps switch on before sundown — four dead heads read as props,
     // not as a block people walk home under. One shared emissive material.
-    const lampFace = this.mat(PAL.taxi, { emissive: PAL.taxi, emissiveIntensity: 0.35 });
+    const lampFace = this.nightGlow(PAL.taxi, 0.35, 2.4);
     // x-spots clear of the tree canopies: a pole sharing its block-face with
     // a tree spears the crown, and the gold lamp head pokes out the far side
     // as a floating yellow chip (Doc 31 read exactly that in two frames).
@@ -1551,7 +1746,7 @@ export class World {
     // lamps facing the oncoming cab. Deco only; the pole is a solid like
     // every other pole on the block.
     const signal = makeTrafficSignal(this.bank, {
-      greenLamp: this.mat(PAL.teal, { emissive: PAL.teal, emissiveIntensity: 0.55 }),
+      greenLamp: this.nightGlow(PAL.teal, 0.55, 2.2),
     });
     signal.position.set(-1.8, 0.05, -7.55);
     this.scene.add(signal);
@@ -2134,6 +2329,13 @@ export class World {
     // audit's "NPCs walking through the player" (doc 35 §1): one synced AABB
     // each, registered once, moved by Pedestrians.update every frame
     for (const box of this.peds.walkColliders) this.colliders.push(box);
+
+    // ---- the graphics wave: boot final --------------------------------
+    // Day state: the boot look IS the shipped golden hour (SKY.day = the
+    // 'evening' keyframe, canon verbatim) — written immediately, no lerp
+    // across black on frame one.
+    this.pinDayState('evening', true);
+    this.assembleAoExclude();
   }
 
   // ------------------------------------------------- static-geometry bake
@@ -2277,18 +2479,19 @@ export class World {
   private buildBus(): THREE.Group {
     const g = new THREE.Group();
     g.name = 'M121_Bus';
-    const merged = (geos: THREE.BufferGeometry[], color: number): THREE.Mesh => {
-      const m = new THREE.Mesh(mergeGeometries(geos, false)!, this.bank.get(color));
+    const merged = (geos: THREE.BufferGeometry[], color: number, useMat?: THREE.Material): THREE.Mesh => {
+      const m = new THREE.Mesh(mergeGeometries(geos, false)!, useMat ?? this.bank.get(color));
       m.castShadow = true;
       m.receiveShadow = true;
       g.add(m);
       return m;
     };
-    // body slab + roof cap (one cream batch)
+    // body slab + roof cap (one paint batch — the graphics wave: the M121
+    // wears PBR paint like the taxi, the sky reflects in its flank)
     merged([
       new THREE.BoxGeometry(9.6, 2.2, 2.3).translate(0, 1.45, 0),
       new THREE.BoxGeometry(9.6, 0.14, 2.3).translate(0, 2.62, 0),
-    ], PAL.cream);
+    ], PAL.cream, this.vehicleMat(PAL.cream, 0.35, 0.4));
     // the livery stripe
     merged([new THREE.BoxGeometry(9.64, 0.34, 2.32).translate(0, 1.05, 0)], PAL.teal);
     // window band + the curb-side door (the door rides local −z: the right
@@ -2706,7 +2909,7 @@ export class World {
     // for probe and code — the handle ids and group names disagree.
     const lamp = new THREE.Mesh(
       new THREE.BoxGeometry(Math.min((h.x1 - h.x0) * 0.42, 4.2), 0.07, 0.4),
-      this.mat(style.light, { emissive: style.light, emissiveIntensity: 0.75 }),
+      this.nightGlow(style.light, 0.75, 1.6),
     );
     lamp.name = `${h.group.name.slice(4)}_LightStrip`;
     lamp.position.set((h.x0 + h.x1) / 2, floorY + style.clear - 0.22, (h.z0 + h.z1) / 2);
@@ -2756,13 +2959,13 @@ export class World {
   /** W5 assembly — the eight rooms. Wall decompositions carry the shipped
    *  masses' outer envelopes exactly (the ghost gate re-verifies them). */
   private buildAlderHeightsW5(): void {
-    this.roomGlassMat = this.mat(0x3b3346, { emissive: 0xffb85c, emissiveIntensity: 0.22 });
+    this.roomGlassMat = this.nightGlow(0x3b3346, 0.22, 0.85, 0xffb85c);
     this.roomGlassMat.transparent = true;
     this.roomGlassMat.opacity = 0.42;
-    this.roomClearMat = this.mat(0x3b3346, { emissive: 0xffb85c, emissiveIntensity: 0.05 });
+    this.roomClearMat = this.nightGlow(0x3b3346, 0.05, 0.35, 0xffb85c);
     this.roomClearMat.transparent = true;
     this.roomClearMat.opacity = 0.16;
-    this.roomWarmMat = this.mat(PAL.interior, { emissive: PAL.amber, emissiveIntensity: 0.42 });
+    this.roomWarmMat = this.nightGlow(PAL.interior, 0.42, 1.6, PAL.amber);
 
     this.buildW5Laundry();
     this.buildW5Barber();
@@ -4274,7 +4477,7 @@ export class World {
     this.siAdd(blade, 'SI_Blade_Kestrel');
     // the second mast: the Juniper corner reads as an intersection now
     const signal = makeTrafficSignal(this.bank, {
-      greenLamp: this.mat(PAL.teal, { emissive: PAL.teal, emissiveIntensity: 0.55 }),
+      greenLamp: this.nightGlow(PAL.teal, 0.55, 2.2),
     });
     signal.position.set(-65.3, 0.05, -7.55);
     signal.rotation.y = -Math.PI / 2; // the arm reaches over Juniper's road
@@ -4381,10 +4584,18 @@ export class World {
       // underground (the dollhouse), and the zone groups manage their own
       // visibility — none of it may join a district tile (the street ring
       // would light the tunnel forever)
+      // + the north yard slab: it ROOFS the station box (x −60..60,
+      //   z 8..32), and collectTerminalShell lifts it BY NAME with the
+      //   dollhouse. Baked (found 2026-11-12, the entering-the-subway
+      //   fix), the name lookup found nothing, the lawn stayed up below
+      //   grade, and every above-grade sight line into the cutaway hit
+      //   grass — aboard the car the frame was solid lawn green, on the
+      //   platform the interior showed through a ~2° slit. One live draw
+      //   above grade is the fair price for the cutaway being cut.
       // + the city-fabric skyline pair (docs/production/city-fabric): the
       // rows live OUTSIDE every district tile (x ±110 / z −88 / z +104) —
       // a tile ring that drops them would blink the horizon out of view
-      'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121',
+      'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121', 'Yard_N',
       'SkylineFabric', 'SkylineFabricWindows']);
     const excluded = (o: THREE.Object3D): boolean => {
       for (let p: THREE.Object3D | null = o; p !== null; p = p.parent) {
@@ -4695,34 +4906,37 @@ export class World {
 
   // ------------------------------------------------------------------ helpers
 
-  /** The three bodega shelf items (mango / coffee / bread) — non-colliding deco. */
+  /** The three bodega shelf items (mango / coffee / bread) — non-colliding
+   *  deco. Built feet-at-zero; y IS the shelf board top they stand on
+   *  (board 3 of the gondola run — see the restock pass's SHELF levels). */
   readonly itemMeshes = new Map<string, THREE.Group>();
 
   addItem(id: string, x: number, y: number, z: number, _color: number): THREE.Group {
     void _color; // shape + label now carry the identity; palette stays on the item itself
     const g = new THREE.Group();
     g.name = `Item_${id}`;
-    g.position.set(x, y - 0.25, z); // anchor sits on the shelf top (y=2.0)
+    g.position.set(x, y, z); // feet on the named surface (a gondola board top)
     const add = (m: THREE.Mesh) => { m.castShadow = true; g.add(m); };
     if (id === 'mango') {
-      const body = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 10), this.mat(0xf7a83b, { emissive: 0xf7a83b, emissiveIntensity: 0.18 }));
-      body.scale.y = 0.88;
-      body.position.y = 0.24;
-      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.08, 6), this.mat(0x4a3a30));
-      stem.position.y = 0.5;
+      // shelf-scale fruit: the old half-kilo mango was bigger than the bay
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 10), this.mat(0xf7a83b, { emissive: 0xf7a83b, emissiveIntensity: 0.18 }));
+      body.scale.y = 0.9;
+      body.position.y = 0.077;
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.014, 0.04, 6), this.mat(0x4a3a30));
+      stem.position.y = 0.155;
       add(body); add(stem);
     } else if (id === 'coffee') {
-      const tin = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.42, 12), this.mat(PAL.teal, { emissive: PAL.teal, emissiveIntensity: 0.18 }));
-      tin.position.y = 0.21;
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.165, 0.165, 0.15, 12), this.mat(PAL.cream));
-      band.position.y = 0.21;
+      const tin = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.26, 12), this.mat(PAL.teal, { emissive: PAL.teal, emissiveIntensity: 0.18 }));
+      tin.position.y = 0.13;
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.088, 0.09, 12), this.mat(PAL.cream));
+      band.position.y = 0.13;
       add(tin); add(band);
     } else {
       // bread
-      const loaf = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.2, 0.26), this.mat(0xd9a05b, { emissive: 0xd9a05b, emissiveIntensity: 0.14 }));
-      loaf.position.y = 0.1;
-      const crust = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.07, 0.28), this.mat(0xb3773f));
-      crust.position.y = 0.21;
+      const loaf = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.13, 0.17), this.mat(0xd9a05b, { emissive: 0xd9a05b, emissiveIntensity: 0.14 }));
+      loaf.position.y = 0.065;
+      const crust = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.05, 0.19), this.mat(0xb3773f));
+      crust.position.y = 0.135;
       add(loaf); add(crust);
     }
     // the name floats above the shelf — nobody picks a mystery box
@@ -4756,8 +4970,149 @@ export class World {
   private vcMatFog: THREE.MeshLambertMaterial | null = null;
   private vcMatNoFog: THREE.MeshLambertMaterial | null = null;
   private vcMaterial(fog: boolean): THREE.MeshLambertMaterial {
-    if (fog) return (this.vcMatFog ??= new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true }));
-    return (this.vcMatNoFog ??= new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, fog: false }));
+    if (fog) return (this.vcMatFog ??= new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, envMapIntensity: 0.18 }));
+    return (this.vcMatNoFog ??= new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, fog: false, envMapIntensity: 0.18 }));
+  }
+
+  /** Hero-vehicle paint (the graphics wave): physically-based metal/rough
+   *  so the taxi and the M121 carry the sky's reflection (scene.environment)
+   *  and a real specular. Cached per color — one program, few materials. */
+  private vehBodyMat = new Map<number, THREE.MeshStandardMaterial>();
+  private vehicleMat(color: number, metalness = 0.45, roughness = 0.35): THREE.MeshStandardMaterial {
+    let m = this.vehBodyMat.get(color);
+    if (!m) {
+      m = new THREE.MeshStandardMaterial({ color, metalness, roughness });
+      m.envMapIntensity = 0.9;
+      this.vehBodyMat.set(color, m);
+    }
+    return m;
+  }
+
+  /** A ground slab wearing the procedural street textures (the graphics
+   *  wave) — same collider/receive law as solid(), mapped material so the
+   *  bake leaves it alone, metric UVs so texel density is right at any size. */
+  private groundSolid(name: string, cx: number, cy: number, cz: number, sx: number, sy: number, sz: number, kind: 'asphalt' | 'concrete'): THREE.Mesh {
+    const geo = new THREE.BoxGeometry(sx, sy, sz);
+    metricBoxUVs(geo, sx, sy, sz);
+    const m = new THREE.Mesh(geo, groundMaterial(kind));
+    m.name = name;
+    m.position.set(cx, cy, cz);
+    m.castShadow = false;
+    m.receiveShadow = true;
+    this.scene.add(m);
+    this.colliders.push(boxFromCenter(cx, cy, cz, sx, sy, sz));
+    return m;
+  }
+
+  // ------------------------------------------------ the day cycle (graphics wave)
+  // docs/rendering/03 §1 — the clock-driven lighting canon. Story beats PIN
+  // (startDusk/toMorningLight keep their contracts); roam/scenario follow
+  // the sim clock continuously; the approach is an exp lerp — the shipped
+  // 6 s dusk tween's feel, without per-frame tween allocations.
+
+  /** Pin a keyframe (story beats) or unpin (null — clock-driven). */
+  pinDayState(pin: DayPin | null, immediate = false): void {
+    this.dayPin = pin;
+    if (pin !== null) {
+      keyframeState(pin, this.dayScratch);
+    } else {
+      sampleDayCycle(this.dayMinute < 0 ? CANON_MINUTES.morning : this.dayMinute, this.dayScratch);
+    }
+    this.envDirty = true;
+    if (immediate) this.applyTargetDayState(1);
+  }
+
+  /** Per-frame drive (Game.frame, before the render): sample the clock when
+   *  unpinned, then approach the target. No allocations. */
+  updateDayCycle(minuteOfDay: number, dt: number): void {
+    const minute = ((Math.round(minuteOfDay) % 1440) + 1440) % 1440;
+    if (this.dayPin === null && minute !== this.dayMinute) {
+      this.dayMinute = minute;
+      sampleDayCycle(minute, this.dayScratch);
+      this.envDirty = true;
+    }
+    this.applyTargetDayState(Math.min(1, dt * 1.4));
+  }
+
+  /** Force a clock time (the probe/validation affordance — ?tod and the
+   *  visual rigs). Freezes the clock-driven sample there. */
+  setClockMinute(minute: number): void {
+    this.dayMinute = ((Math.round(minute) % 1440) + 1440) % 1440;
+    this.dayPin = null;
+    sampleDayCycle(this.dayMinute, this.dayScratch);
+    this.envDirty = true;
+    this.applyTargetDayState(1);
+  }
+
+  /** The settle test: the current state may be considered at its target
+   *  (the exp lerp's convergence band — where the env map may rebuild). */
+  private daySettled(): boolean {
+    return Math.abs(this.dayState.exposure - this.dayScratch.exposure) < 1e-3
+      && Math.abs(this.dayState.nightK - this.dayScratch.nightK) < 1e-3;
+  }
+
+  /** Lerp current → target and write the whole lighting stack: sky uniforms,
+   *  FogExp2, sun, hemisphere, night emissives, scene.environment. */
+  private applyTargetDayState(k: number): void {
+    const cur = this.dayState, tgt = this.dayScratch;
+    for (const key of World.DAY_KEYS) {
+      cur[key] = cur[key] + (tgt[key] - cur[key]) * k;
+    }
+    // sky dome
+    (this.skyUniforms.topColor as THREE.Color).setRGB(cur.skyTopR, cur.skyTopG, cur.skyTopB);
+    (this.skyUniforms.horizonColor as THREE.Color).setRGB(cur.skyHorizonR, cur.skyHorizonG, cur.skyHorizonB);
+    (this.skyUniforms.groundColor as THREE.Color).setRGB(cur.skyGroundR, cur.skyGroundG, cur.skyGroundB);
+    this.skyMat.uniforms.haloColor.value.setRGB(cur.haloR, cur.haloG, cur.haloB);
+    this.skyMat.uniforms.haloStrength.value = cur.haloStrength;
+    this.skyMat.uniforms.nightK.value = cur.nightK;
+    // fog
+    this.fog.color.setRGB(cur.fogR, cur.fogG, cur.fogB);
+    this.fog.density = cur.fogDensity;
+    // lights (sun energy rides the same legacy π factor the boot used)
+    this.sun.color.setRGB(cur.sunR, cur.sunG, cur.sunB);
+    this.sun.intensity = phys(cur.sunEnergy);
+    this.hemi.intensity = phys(cur.hemiEnergy);
+    (this.hemi.color as THREE.Color).setRGB(cur.hemiSkyR, cur.hemiSkyG, cur.hemiSkyB);
+    (this.hemi.groundColor as THREE.Color).setRGB(cur.hemiGroundR, cur.hemiGroundG, cur.hemiGroundB);
+    // night emissives — lamps, traffic greens, storefront strips, warm rooms
+    for (const e of this.nightEmissives) {
+      e.mat.emissiveIntensity = e.base + (e.night - e.base) * cur.nightK;
+    }
+    this.timesSquare.setNightBoost(cur.nightK);
+    // the sky-PMREM environment — rebuilt only when the target changed and
+    // the lerp has settled (a few rebuilds per in-game day, never per frame)
+    if (this.envSky) {
+      if (this.envDirty && this.daySettled()) {
+        this.scene.environment = this.envSky.rebuild({
+          top: this.skyUniforms.topColor,
+          horizon: this.skyUniforms.horizonColor,
+          ground: this.skyUniforms.groundColor,
+          halo: this.skyMat.uniforms.haloColor.value,
+          haloStrength: cur.haloStrength,
+        });
+        this.envDirty = false;
+      }
+      this.scene.environmentIntensity = cur.envIntensity;
+    }
+  }
+
+  /** The AO prepass exclusion list (docs/rendering/03 §6): the far-world
+   *  silhouettes the AO lens never sees (sky dome, skyline rows, landmarks,
+   *  Times Square, the movers) + billboards/points whose override-material
+   *  depth would print halos into the occlusion (glow sprites, steam,
+   *  leaves, birds). The dome itself is BackSide and auto-culled — it rides
+   *  along for belt-and-braces. */
+  private assembleAoExclude(): void {
+    const list = this.aoExcludeList;
+    list.length = 0;
+    list.push(this.skyDome, this.steamPoints, this.leaves.mesh,
+      this.pigeonFlock.group, this.pigeonFlockEast.group, this.squirrel.group,
+      this.busGroup, this.taxi, this.arrivalBus.group);
+    for (const s of this.glowSprites) list.push(s);
+    for (const name of ['SkylineFabric', 'SkylineFabricWindows', 'TSS_Group']) {
+      const o = this.scene.getObjectByName(name);
+      if (o) list.push(o);
+    }
   }
 
   private mat(color: number, opts: { emissive?: number; emissiveIntensity?: number } = {}): THREE.MeshLambertMaterial {
@@ -4766,6 +5121,20 @@ export class World {
       m.emissive = new THREE.Color(opts.emissive);
       m.emissiveIntensity = opts.emissiveIntensity ?? 1;
     }
+    // the sky-PMREM IBL fill (the graphics wave) — a soft ambient tint, not
+    // a mirror; scene.environment supplies the texture per day state
+    m.envMapIntensity = 0.22;
+    return m;
+  }
+
+  /** The night emissive registry's intake (docs/rendering/03 §5): creates
+   *  the material AND registers its base → night intensity (nightK-driven
+   *  by applyTargetDayState). The night numbers sit above the bloom
+   *  threshold (1.0 linear) so lamps/signs/interiors — and only those —
+   *  glow through UnrealBloom after dark. */
+  private nightGlow(color: number, base: number, night: number, emissive = color): THREE.MeshLambertMaterial {
+    const m = this.mat(color, { emissive, emissiveIntensity: base });
+    this.nightEmissives.push({ mat: m, base, night });
     return m;
   }
 
@@ -4990,6 +5359,10 @@ export class World {
   configureGltfDecoders(renderer: THREE.WebGLRenderer): void {
     if (this.furnitureWired) return;
     this.furnitureWired = true;
+    // the graphics wave: the sky-PMREM environment builds here (Game hands
+    // the renderer over exactly once); the applier rebuilds it on state change
+    this.envSky = new EnvSky(renderer);
+    this.envDirty = true;
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
     const ktx2 = new KTX2Loader()
@@ -7255,21 +7628,28 @@ export class World {
   }
 
   /** Lowpoly car — nose at +X, axle along Z. Mirrors tools3d/procedural_glb.py. */
-  buildCar(kind: 'taxi' | 'sedan'): THREE.Group {
+  buildCar(kind: 'taxi' | 'sedan', standard = false): THREE.Group {
     const bodyCol = kind === 'taxi' ? PAL.taxi : PAL.teal;
+    // the graphics wave: hero vehicles wear MeshStandardMaterial paint (the
+    // sky environment reflects in them); the parked fleet stays flat Lambert
+    // and keeps its vertex-bake economy. The windowDim glass switches to a
+    // metal/rough pane so cab windows read as glass, not as dark paint.
+    const body = standard ? this.vehicleMat(bodyCol, 0.45, 0.32) : this.mat(bodyCol);
+    const glass = standard ? this.vehicleMat(PAL.windowDim, 0.75, 0.14) : this.mat(PAL.windowDim);
     const g = new THREE.Group();
-    const mk = (geo: THREE.BufferGeometry, color: number, x: number, y: number, z: number) => {
-      const m = new THREE.Mesh(geo, this.mat(color));
+    const mk = (geo: THREE.BufferGeometry, color: number, x: number, y: number, z: number, useMat?: THREE.Material) => {
+      const m = new THREE.Mesh(geo, useMat ?? this.mat(color));
       m.position.set(x, y, z);
       m.castShadow = true;
       m.receiveShadow = true; // W4 p2 batch fold: cast+receive like the world's
       // own solids — the parked cars stopped opening cast-only batches in
       // every district tile they touch
       g.add(m);
+      return m;
     };
-    mk(new THREE.BoxGeometry(4.15, 0.52, 1.86), bodyCol, 0, 0.56, 0);
-    mk(new THREE.BoxGeometry(2.05, 0.52, 1.7), PAL.windowDim, -0.1, 1.08, 0);
-    mk(new THREE.BoxGeometry(2.25, 0.09, 1.76), bodyCol, -0.1, 1.38, 0);
+    mk(new THREE.BoxGeometry(4.15, 0.52, 1.86), bodyCol, 0, 0.56, 0, body);
+    mk(new THREE.BoxGeometry(2.05, 0.52, 1.7), PAL.windowDim, -0.1, 1.08, 0, glass);
+    mk(new THREE.BoxGeometry(2.25, 0.09, 1.76), bodyCol, -0.1, 1.38, 0, body);
     for (const sx of [-1.32, 1.32]) {
       for (const sz of [-0.85, 0.85]) {
         const w = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.22, 14), this.mat(PAL.manhole));
@@ -7404,6 +7784,7 @@ export class World {
       map: tex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending,
     }));
     sp.scale.setScalar(size);
+    this.glowSprites.push(sp); // the AO prepass never sees billboards
     return sp;
   }
 

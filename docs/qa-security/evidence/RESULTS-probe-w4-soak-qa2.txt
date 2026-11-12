@@ -1,0 +1,19 @@
+soak target reached: 1832 sim-s in 338 wall-s
+samples 38, sim-soaked 1834 s (30.6 sim-min), walkers 12
+problems (first 12):
+  - s3: roadway ×1 @ (-72.81,-35.49)
+  - s4: roadway ×1 @ (73.07,-35.49)
+  - s5: roadway ×2 @ (-68.48,5.41) (75.48,-35.67)
+  - s7: roadway ×1 @ (68.18,6.39)
+  - s12: roadway ×1 @ (68.3,-46.38)
+  - s13: roadway ×1 @ (69.71,-35.47)
+  - s15: roadway ×1 @ (70.52,-44.44)
+  - s16: roadway ×3 @ (-68.53,-39.87) (69.54,-35.5) (-68.68,-5.55)
+  - s18: roadway ×1 @ (68.47,-43.04)
+  - s23: roadway ×1 @ (-75.5,5.71)
+  - s31: roadway ×1 @ (68.67,-42.98)
+  - s35: roadway ×1 @ (-75.51,-45.95)
+roadway flags 12 (transient — clean in the final sample)
+shot: w4-soak-end.png
+page clean
+PROBE-W4-SOAK OK

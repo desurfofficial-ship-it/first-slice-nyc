@@ -38,6 +38,10 @@ export interface TimesSquare {
   /** Returns 'sync-start' once per day on first entry (World forwards to
    *  Game → note). Ticks the screens, banners, and movers. */
   update(dt: number, feet: { x: number; y: number; z: number }, day: number): 'sync-start' | null;
+  /** The graphics wave: the night emissive boost (0 day … 1 night) —
+   *  World writes it from the day cycle so the screens ride over the bloom
+   *  threshold after dark. A field write, not a per-frame param. */
+  setNightBoost(k: number): void;
   /** The machine truth the note only implies: the sync FIRED today. A
    *  latch, not a window — probes read this instead of racing the 2.6 s
    *  warm hold (the probe law: machine-honest checks). */
@@ -343,6 +347,7 @@ export function buildTimesSquare(
   let lastDay = 0;
   let syncT = -1; // <0 = not running
   let time = 0;
+  let nightBoost = 0; // the graphics wave: 0 day … 1 night (World's day cycle)
   const moverState = [
     { g: moverAGroup, x: -366, dir: 1, x0: -366, x1: -356, v: 1.15 },
     { g: moverBGroup, x: -300, dir: -1, x0: -306, x1: -296, v: 1.0 },
@@ -357,6 +362,7 @@ export function buildTimesSquare(
   const api: TimesSquare = {
     group, colliders,
     get syncedToday() { return syncDay > 0 && syncDay === lastDay; },
+    setNightBoost(k) { nightBoost = Math.max(0, Math.min(1, k)); },
     anchors: {
       usher: { x: -352.3, y: 0.1, z: 7.25 },
       steps: { x: -343, y: 1.75, z: 2.2 },
@@ -381,15 +387,19 @@ export function buildTimesSquare(
         else if (syncT < IN + HOLD) k = 1;
         else if (syncT < IN + HOLD + OUT) k = 1 - (syncT - IN - HOLD) / OUT;
         else { k = 0; syncT = -1; }
+        // the graphics wave: at night the screens ride over the bloom
+        // threshold (nightBoost 0..1 → ×1.9) so the square glows like the
+        // square — by day they stay under it and bloom stays quiet
+        const boost = 1 + nightBoost * 0.9;
         for (const m of screenMats) {
           m.emissive.copy(SYNC_BASE).lerp(SYNC_WARM, k);
-          m.emissiveIntensity = 0.55 + k * 1.05;
+          m.emissiveIntensity = (0.55 + k * 1.05) * boost;
         }
       }
       // the idle shimmer: screens are never still (the Rule of Steam)
       if (syncT < 0) {
         for (let i = 0; i < screenMats.length; i++) {
-          screenMats[i].emissiveIntensity = 0.5 + 0.12 * Math.sin(time * 1.1 + i * 1.7);
+          screenMats[i].emissiveIntensity = (0.5 + 0.12 * Math.sin(time * 1.1 + i * 1.7)) * (1 + nightBoost * 0.9);
         }
       }
       // banners lean with the same wind that moves the home block's leaves

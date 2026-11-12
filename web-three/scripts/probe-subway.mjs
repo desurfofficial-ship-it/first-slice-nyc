@@ -98,8 +98,12 @@ const run = await page.evaluate(async () => {
   tp(-47.2, -1.75, 6.1, 0);        // land mid-stair (a tread holds)
   await sleep(500);
   out.stairMidY2 = +p.y.toFixed(2);
+  // walk the descent to the PLATFORM, not to a wall-clock nap — software-GL
+  // boxes cover less ground per second (the docs/51 machine-honesty law;
+  // the fixed 1100 ms nap landed one tread short on slow boxes)
   g.input.injectKey(keyToward(true), true);
-  await sleep(1100);
+  const t0Stair = Date.now();
+  while (Date.now() - t0Stair < 15000 && p.y > -3.05) await sleep(100);
   g.input.injectKey(keyToward(true), false);
   await sleep(400);
   out.stairY = +p.y.toFixed(2);
@@ -121,6 +125,23 @@ const run = await page.evaluate(async () => {
   await sleep(400);
   out.platformY = +p.y.toFixed(2);
   out.stationLit = g.world.subway.groups.stationA.visible;
+  // the dollhouse lifts the yard roof: the north lawn must survive the
+  // static bake as a STANDALONE named mesh (baked, the name lookup finds
+  // nothing, the lawn stays up underground and the cutaway looks at grass
+  // — the entering-the-subway regression, fixed 2026-11-12) and hide now
+  let yard = null;
+  g.world.scene.traverse((o) => { if (o.name === 'Yard_N') yard = o; });
+  out.yardStandalone = !!yard;
+  out.yardHidden = !!yard && yard.visible === false;
+  // the settled platform lens: the sight line camera→focus must clear the
+  // station's south wall top (z 7.7 plane, top edge −0.25) with margin,
+  // and the lens must ride the dollhouse lift (focus + ~10, not ~6.7)
+  await sleep(1600);
+  const camPos = g.cam.camera.position;
+  const focus = { x: p.x, y: p.y + 1.2, z: p.z };
+  const tWall = (7.7 - camPos.z) / (focus.z - camPos.z);
+  out.lensY = +camPos.y.toFixed(2);
+  out.wallClear = +(camPos.y + tWall * (focus.y - camPos.y)).toFixed(2);
 
   // 4. Priya stands her post
   let priya = null;
@@ -154,6 +175,13 @@ const run = await page.evaluate(async () => {
   out.atB = g.world.subway.ride.at === 'B';
   out.swappedX = +p.x.toFixed(1);
   out.doorsOpenAtB = g.world.subway.doorsOpen;
+  // aboard the car the lift stands down: the lens keeps the car-scale
+  // street framing (focus + ~6.7), never the lifted diorama height. The
+  // read waits for the boom to settle — the seam's 288 m teleport and the
+  // batch ticks leave the lens mid-lerp otherwise
+  await sleep(1600);
+  out.aboardLensY = +g.cam.camera.position.y.toFixed(2);
+  out.aboardFocusY = +(p.y + 1.2).toFixed(2);
 
   // 7. the busker waits on the 42nd St platform
   let busker = null;
@@ -264,6 +292,10 @@ check(run.stairMidY2 < -0.5 && run.stairMidY2 > -2.7, `a mid-stair tread holds (
 check(Math.abs(run.stairY - (-3.2)) < 0.25, `the stair descends to the platform (y ${run.stairY})`);
 check(run.underground === true, 'the underground state flips on');
 check(run.terminalHidden, 'the terminal lifts off (the dollhouse)');
+check(run.yardStandalone, 'the yard roof survives the bake as a named mesh');
+check(run.yardHidden, 'the dollhouse lifts the yard roof underground');
+check(run.lensY > -1.9 + 9, `the underground boom lifts (cam y ${run.lensY})`);
+check(run.wallClear > 0.15, `the platform lens clears the south wall (y ${run.wallClear} at z 7.7)`);
 check(run.shadowHalfUnder === 18, `the underground shadow box shrinks (half ${run.shadowHalfUnder})`);
 check(run.shadowSymmetric, 'the shrunk box stays symmetric on its lattice');
 check(Math.abs(run.platformY - (-3.2)) < 0.05, `the platform floor holds (y ${run.platformY})`);
@@ -274,6 +306,7 @@ check(run.boarded === true, 'boarding closes the doors');
 check(run.atB === true, 'the seam lands the player at 42nd St');
 check(run.swappedX < -320, `the swap translated the player (x ${run.swappedX})`);
 check(run.doorsOpenAtB === true, 'the doors reopen on arrival');
+check(run.aboardLensY < run.aboardFocusY + 8, `the aboard lens keeps the car scale (cam y ${run.aboardLensY} vs focus ${run.aboardFocusY})`);
 check(run.leftBehindStarted === true, 'a left-behind player still starts the machine');
 check(run.leftBehindKeptX === true, 'the seam does NOT teleport a player on the platform');
 check(run.leftBehindStillRiding === true, 'the ride continues without the stowaway');

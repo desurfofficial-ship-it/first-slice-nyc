@@ -1,0 +1,7 @@
+npm warn exec The following package was not found and will be installed: tsx@4.23.15
+PED PERFORMANCE — node v24.22.2 (this machine)
+  roster: 12 armed commuters, 60 fps dt, near-tier player
+  peds.update:            58.7 µs/frame (budget 16600 µs → 0.35%)
+  routes walked:          35 in 300 s of street time
+  heap growth:            -272 KB over 9000 frames (gc off)
+  loop walkers (unarmed): 31.2 µs/frame — the commute adds 27.6 µs/frame

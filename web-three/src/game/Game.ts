@@ -29,7 +29,8 @@ import { MoneyBridge } from '../sim/moneyBridge';
 import { datelineOfStoryDay } from '../sim/epochMap';
 import { starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
 import { PAL } from '../core/palette';
-import { World, phys } from '../world/World';
+import { World } from '../world/World';
+import { aboardCar } from '../world/subway';
 import { Player, lerpAngle } from '../player/Player';
 import { GameCamera } from '../camera/GameCamera';
 import { InputManager } from '../engine/Input';
@@ -50,7 +51,8 @@ import { BENCH_SIT_NOTES, PARK_SIT_NOTES, FREE_WASH_NOTES, DIARY_NOTE_TEXT } fro
 import {
   C0_COLD_OPEN, C0_SYSTEM_LINE, C0_THEORY, C0_FIRST_QUESTION,
   applyColdOpen, theoryEntryDraft, questionEntryDraft, morningWhisper,
-  C0_WEEK_BEGIN, C0_WEEK_CLIMB_NOTE, C0_WEEK_GOLDEN_NOTE, C0_WEEK_ORDERS,
+  C0_WEEK_CLIMB_NOTE, C0_WEEK_GOLDEN_NOTE, C0_WEEK_ORDERS,
+  morningBeginNoteFor,
 } from '../core/c0pack';
 import { C1_FIRST_DAY, c1ChoicePackOf, c1StationOf } from '../core/c1pack';
 import { c2ChoicePackOf, c2StationOf } from '../core/c2pack';
@@ -67,6 +69,10 @@ import { gameAudio } from './audio';
 import { ArrivalCinematic } from './arrival';
 import { RIDE_BEAT_TEXT, TS_SYNC_NOTE } from '../core/content';
 import { CourtGame } from '../court/CourtGame';
+// ---- the graphics wave (docs/rendering/) ----
+import { resolveGfxConfig, probeCapabilities, type GfxConfig } from '../render/quality';
+import { PostPipeline } from '../render/postfx';
+import { phaseToKeyframe } from '../render/daycycle';
 
 /** One waypoint on the familiar face's daily walk. dwell = seconds she
  *  stands there (the nod, the word); sit/hide = what happens on arrival. */
@@ -79,11 +85,14 @@ const C0_LAUNDRY_X = -7.0;
 const C0_LAUNDRY_Z = 7.3;
 
 /** The bodega shelf's three stock spots — the Day-1 errand picks from these,
- *  and the morning restock puts them back (the shop is open every day). */
+ *  and the morning restock puts them back (the shop is open every day).
+ *  y IS the gondola board top each item stands on (World's restock pass
+ *  reserves their gaps: mango/coffee on unit 1/2's board 3, bread on
+ *  unit 0's board 2). */
 const SHELF_STOCK: Array<[id: string, x: number, y: number, z: number]> = [
-  ['mango', -18, 2.25, 19.2],
-  ['coffee', -16, 2.25, 19.2],
-  ['bread', -14, 2.25, 19.2],
+  ['mango', -14.5, 1.34, 19.18],
+  ['coffee', -16, 1.34, 19.18],
+  ['bread', -17.35, 0.987, 19.18],
 ];
 
 export class Game {
@@ -98,6 +107,22 @@ export class Game {
   readonly tweens = new Tweens();
 
   private renderer: THREE.WebGLRenderer;
+  // ---- the graphics wave (docs/rendering/) ----
+  /** The resolved quality config (capability probe + URL overrides).
+   *  Mutable only through applyGfxTier (the runtime quality knob). */
+  gfx: GfxConfig;
+  /** The post pipeline — null on the low tier / ?fx=off (today's direct path). */
+  private pipeline: PostPipeline | null = null;
+  /** ?tod=HH:MM — pins the day cycle to a clock minute for validation rigs. */
+  private todOverride: number | null = null;
+  /** The ?tod URL pin lands ONCE, on the first frame — after World's boot
+   *  golden-hour pin has landed (FS-QA2-005). */
+  private todApplied = false;
+  /** Auto-degrade: a rolling frame-time average; one tier drop max. */
+  private frameTimeAvg = 16;
+  private degraded = false;
+  /** The grade pass's grain clock (seconds, drives the animated noise). */
+  private ambientClock = 0;
   /** The player's articulated visual — public for the test harness. Reassigned
    *  by applyStarter (Doc 02 six starters): same boxes, a new face. */
   playerVisual: THREE.Group;
@@ -273,15 +298,32 @@ export class Game {
     // 21 → 46 fps), and a clamped dt stretches the four-day E2E driver past
     // every timeout. Shadows carry no gameplay state; the visual checks
     // (visual-check.mjs) keep full fx so screenshots stay faithful.
-    const fxOff = new URLSearchParams(location.search).get('fx') === 'off';
+    // The graphics wave: ?fx=off ALSO skips the composer (the low tier IS
+    // today's direct path — the E2E contract is unchanged).
+    const params = new URLSearchParams(location.search);
+    const fxOff = params.get('fx') === 'off';
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace; // explicit (was implicit-default)
+    // quality tiers: capability probe + URL overrides (docs/rendering/03 §8)
+    this.gfx = resolveGfxConfig(params, probeCapabilities(this.renderer));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.gfx.pixelRatioCap));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = !fxOff;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.NeutralToneMapping; // closest to the reference's filmic
     this.renderer.toneMappingExposure = 1.05;
+    // whole-frame draw-call accounting (probe parity between the direct
+    // path and the composer path — info.autoReset counts ONE render call;
+    // the frame resets it, so both paths report the full frame)
+    this.renderer.info.autoReset = false;
     container.appendChild(this.renderer.domElement);
+    // ?tod=HH:MM — the validation/probe affordance: pin the day cycle to a
+    // clock time (roam OR story) so the visual rigs can shoot any hour.
+    const tod = params.get('tod');
+    if (tod !== null) {
+      const [hh, mm] = tod.split(':').map((v) => Number.parseInt(v, 10) || 0);
+      this.todOverride = ((hh * 60 + (mm || 0)) % 1440 + 1440) % 1440;
+    }
 
     // ABO furniture (docs/57): the KTX2/meshopt decoders need the renderer
     // for the transcoder's format probe — wired here, once, and the
@@ -298,6 +340,14 @@ export class Game {
     // fades those canopies so the street never hides the player.
     // setCanopies re-binds if World ever grows more trees after boot (B6).
     this.world.canopyOcclusion = this.cam.setCanopies(this.world.canopySpheres());
+    // the post pipeline (the graphics wave) — built AFTER the camera exists;
+    // low tier / ?fx=off stays pipeline-null (today's direct render path)
+    if (this.gfx.composer) {
+      this.pipeline = new PostPipeline(this.renderer,
+        { scene: this.world.scene, camera: this.cam.camera }, this.gfx,
+        [...this.world.aoExclude]);
+      this.pipeline.setSize(window.innerWidth, window.innerHeight);
+    }
     this.ui = new UI();
     this.input = new InputManager({
       joyZone: document.getElementById('joy-zone')!,
@@ -393,9 +443,9 @@ export class Game {
       walker: (i) => this.world.walkerPos(i), // Phase 4 — live walker positions
       worldSimBody: (id) => this.worldSim.bodyPos(id) ?? NEVER_NEAR, // sim-driven bodies
     }));
-    this.world.addItem('mango', -18, 2.25, 19.2, PAL.amber);
-    this.world.addItem('coffee', -16, 2.25, 19.2, PAL.teal);
-    this.world.addItem('bread', -14, 2.25, 19.2, PAL.cream);
+    for (const [id, x, y, z] of SHELF_STOCK) {
+      this.world.addItem(id, x, y, z, 0);
+    }
 
     // ---------------- the half-court (docs/49) ----------------
     // The world built the visuals (paint, net, fence, tally); the court
@@ -614,6 +664,7 @@ export class Game {
 
   private frame(dt: number): void {
     const s = this.state;
+    this.ambientClock += dt;
 
     // Doc 02 §10:00–15:00 — the street performer's listen: once, on the way
     // back from the square, the city slows for four seconds and just plays.
@@ -698,6 +749,10 @@ export class Game {
     if (this.world.familiar.visible) peds.push({ x: this.world.familiar.position.x, z: this.world.familiar.position.z });
     this.world.updateDynamics(wdt, this.player.capsule, peds, this.duskStarted);
     this.cam.interiorMode = this.world.subway.underground;
+    // the lift stands down while the feet are in the car's z-band: aboard,
+    // the car is the room and the street boom scale is the honest one
+    // (the lift would press the lens into the car roof)
+    this.cam.interiorAboard = aboardCar(this.player.capsule.z);
     this.drainFarWorld(wdt);
     if (!this.dayFading && this.ui.nameBox.hidden && this.ui.orderCard.hidden && !this.mapOpen
       && this.ui.starterCard.hidden && !this.arrival.active && !this.wardrobe.isOpen) {
@@ -866,7 +921,55 @@ export class Game {
     // an offer you walked away from is an offer you declined
     if (s.buyConfirm !== null && near?.id !== s.buyConfirm) s.buyConfirm = null;
 
-    this.renderer.render(this.world.scene, this.cam.camera);
+    // ---- the graphics wave: the clock-driven day cycle -----------------
+    // ?tod pins (validation rigs); story beats pin (startDusk/toMorningLight
+    // — see applySimPhase); everything else follows the sim clock minute.
+    // The ?tod URL contract (FS-QA2-005): the URL alone never unpinned the
+    // boot golden-hour pin — World.updateDayCycle samples only while the
+    // pin is null, so ?tod was inert in the shipped build (the visual rigs
+    // passed only because they call the setClockTime API directly, which
+    // clears the pin). Apply the URL pin once, on the first frame, after
+    // the boot pin has landed. A story page's authored beats (startDusk /
+    // toMorningLight) still own the cycle and re-pin over this by design —
+    // the affordance's use case is the fresh boot (the visual rigs).
+    if (this.todOverride !== null && !this.todApplied) {
+      this.todApplied = true;
+      this.world.setClockMinute(this.todOverride);
+    }
+    const minute = this.todOverride ?? this.worldSim.brain.world.clock.minuteOfDay;
+    this.world.updateDayCycle(minute, dt);
+    // the auto-degrade watchdog (docs/rendering/03 §8): a sustained slow
+    // frame average drops ONE tier — never two, and only when no URL tier
+    // was forced (a forced tier is a statement, not a suggestion)
+    this.frameTimeAvg += (dt * 1000 - this.frameTimeAvg) * Math.min(1, dt * 2);
+    if (!this.degraded && !this.gfx.forced && this.frameTimeAvg > 42) {
+      this.degraded = true;
+      this.applyGfxTier(this.gfx.tier === 'high' ? 'medium' : 'low');
+      console.info(`[gfx] auto-degraded to ${this.gfx.tier} (avg frame ${Math.round(this.frameTimeAvg)} ms)`);
+    }
+
+    // the one render seam: the composer chain on medium+, the shipped
+    // direct render on low / ?fx=off
+    this.renderer.info.reset();
+    if (this.pipeline) {
+      const ds = this.world.dayState;
+      this.pipeline.render({
+        time: this.ambientClock,
+        bloomStrength: ds.bloomStrength,
+        grain: ds.gradeGrain,
+        vignette: ds.gradeVignette,
+        ca: ds.gradeCa,
+        sharpen: ds.gradeSharpen,
+        gainR: ds.gradeGainR,
+        gainG: ds.gradeGainG,
+        gainB: ds.gradeGainB,
+        lift: ds.gradeLift,
+        saturation: ds.gradeSaturation,
+        exposure: ds.exposure,
+      });
+    } else {
+      this.renderer.render(this.world.scene, this.cam.camera);
+    }
   }
 
   private syncGlows() {
@@ -2064,32 +2167,22 @@ export class Game {
     gameAudio.hornNote();
   }
 
+  /** The dusk law (graphics-wave retarget): the SAME story trigger, the
+   *  SAME duskStarted contract — but the transition rides the day cycle's
+   *  pinned-dusk keyframe (SKY.dusk canon verbatim) with the World's exp
+   *  approach (the shipped 6 s tween's feel, allocation-free). */
   private startDusk(): void {
     if (this.duskStarted) return;
     this.duskStarted = true;
-    const sky = this.world.skyUniforms;
-    const t = this.tweens;
-    t.parallel(
-      t.rgb(sky.topColor, { r: 0x3e / 255, g: 0x2f / 255, b: 0x5b / 255 }, 6),
-      t.rgb(sky.horizonColor, { r: 0x6d / 255, g: 0x4c / 255, b: 0x7d / 255 }, 6),
-      t.rgb(sky.groundColor, { r: 0x6d / 255, g: 0x4c / 255, b: 0x7d / 255 }, 6),
-      t.rgb(this.world.sun.color, { r: 0xc7 / 255, g: 0x7d / 255, b: 0x8e / 255 }, 6),
-      t.num(() => this.world.sun.intensity, (v) => { this.world.sun.intensity = v; }, phys(0.35), 6),
-      t.num(() => this.world.hemi.intensity, (v) => { this.world.hemi.intensity = v; }, phys(0.45), 6),
-      t.rgb(this.world.fog.color, { r: 0x6d / 255, g: 0x4c / 255, b: 0x7d / 255 }, 6),
-    );
+    this.world.pinDayState('dusk');
   }
 
+  /** The morning law — SKY.morning canon verbatim through the day cycle's
+   *  pinned-morning keyframe. The old sun-position write is gone: the
+   *  shadow law's light direction never changed (updateSunFollow overwrote
+   *  it), and the cycle keys color/intensity, not direction. */
   private toMorningLight(): void {
-    const sky = this.world.skyUniforms;
-    sky.topColor.setHex(0x8fb8cf);
-    sky.horizonColor.setHex(0xffd9a0);
-    sky.groundColor.setHex(0xe8c9a0);
-    this.world.sun.color.setHex(PAL.amber);
-    this.world.sun.intensity = phys(1.25);
-    this.world.sun.position.set(-32, 31, 23); // rotation (-38, -55) in the reference
-    this.world.hemi.intensity = phys(0.85);
-    this.world.fog.color.setHex(0xffd9a0);
+    this.world.pinDayState('morning');
     this.duskStarted = false;
   }
 
@@ -3103,7 +3196,10 @@ export class Game {
       s.setStep(Step.WK_WAKE);
       this.ui.setObjective(s.objectiveText());
       this.ui.setBeatMarker(s.beatPlaceId());
-      this.ui.showNote(C0_WEEK_BEGIN[Math.min(7, Math.max(5, n)) as 5 | 6 | 7]);
+      // FS-QA2-001: the C0 week's day-keyed notes belong to days 5–7 only;
+      // the machine's plain mornings (post-C0 no-station days) speak the
+      // plain note — never "Day 7" again (tests/plain-mornings.test.ts).
+      this.ui.showNote(morningBeginNoteFor(n));
     } else if (n >= 4) {
       // the kid LIVES at the corner now — he takes his stool at sunrise
       if (s.stoolUp) {
@@ -3221,6 +3317,46 @@ export class Game {
     else if (this.duskStarted) this.toMorningLight();
   }
 
+  /** The roam/scenario clock band → day cycle (the graphics wave): each
+   *  phase change pins that band's keyframe — the lighting rides the
+   *  authored states band to band (the shipped, certified look). Story
+   *  mode never calls this — its beats pin explicit keyframes. */
+  setClockPhase(phase: string): void {
+    const kf = phaseToKeyframe(phase);
+    this.world.pinDayState(kf);
+    this.duskStarted = kf === 'dusk' || kf === 'night';
+  }
+
+  /** The validation/probe affordance (?tod drives this at boot): pin the
+   *  day cycle to an explicit clock minute, frozen there. */
+  setClockTime(minuteOfDay: number, freezeTod = true): void {
+    if (freezeTod) this.todOverride = ((Math.round(minuteOfDay) % 1440) + 1440) % 1440;
+    this.world.setClockMinute(minuteOfDay);
+    this.duskStarted = false;
+  }
+
+  /** The quality knob (probe/quality menu): apply a tier at runtime —
+   *  rebuilds the pass chain when AO/bloom presence changes. */
+  applyGfxTier(tier: 'low' | 'medium' | 'high' | 'ultra'): void {
+    const params = new URLSearchParams(location.search);
+    params.set('gfx', tier);
+    const next = resolveGfxConfig(params, null);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, next.pixelRatioCap));
+    this.onResize();
+    if (next.composer && this.pipeline) {
+      this.pipeline.applyConfig(next);
+    } else if (next.composer && !this.pipeline) {
+      this.pipeline = new PostPipeline(this.renderer,
+        { scene: this.world.scene, camera: this.cam.camera }, next,
+        [...this.world.aoExclude]);
+      this.pipeline.setSize(window.innerWidth, window.innerHeight);
+    } else if (!next.composer && this.pipeline) {
+      this.pipeline.dispose();
+      this.pipeline = null;
+    }
+    Object.assign(this.gfx, next); // tier + flags + cap, one live shape
+  }
+
   /** The dusk flag, for the scenario/probe harnesses (the sim's D-2 flip
    *  is proven by the SAME flag the story's dusk law drives). */
   get worldDuskStarted(): boolean {
@@ -3247,6 +3383,7 @@ export class Game {
 
   private onResize(): void {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.pipeline?.setSize(window.innerWidth, window.innerHeight);
     this.cam.updateFov(window.innerWidth / window.innerHeight);
   }
 

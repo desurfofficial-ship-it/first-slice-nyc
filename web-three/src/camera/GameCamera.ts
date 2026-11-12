@@ -100,6 +100,17 @@ const FLIP_ANGLE = 1.6;
 /** When idle, settle behind the player's last heading if it disagrees with
  *  the street-side yaw by more than this (~103°) — "I turned around". */
 const TURNED_AROUND = 1.8;
+/** The dollhouse lift (docs/50 cutaway; the entering-the-subway fix,
+ *  2026-11-12): underground and NOT aboard the car, the boom rises this
+ *  much above the street framing so the lens looks DOWN into the opened
+ *  station box. Below grade the station's south wall (top edge y −0.25,
+ *  z 7.85) cuts a street-height lens off at the platform's south half —
+ *  playtest 2026-11-12: "entered the subway and I can't see inside"; the
+ *  measured interior window from the street boom was ~2° of frame. From
+ *  focus + ~10 the sight line clears the wall top with margin, the stair
+ *  mouth reads clean on the descent, and the opened box reads as the
+ *  diorama it is. Aboard the car the lift stands down (interiorAboard). */
+const UNDERGROUND_LIFT = 3.4;
 
 /** One tree's canopy as a bounding sphere (world space) — coarse on
  *  purpose: the camera only needs to know "a blob of leaves lives here". */
@@ -256,7 +267,8 @@ export class GameCamera {
     const fwdZ = Math.cos(this.camYaw);
     this.focusTarget.set(playerPos.x, playerPos.y + FOCUS_UP, playerPos.z);
     const dist = this.distFor(this.camera.aspect) * this.userDistMultiplier;
-    const camH = this.heightFor(this.camera.aspect) + this.pitchOffset * 4.0;
+    const lift = this.interiorMode && !this.interiorAboard ? UNDERGROUND_LIFT : 0;
+    const camH = this.heightFor(this.camera.aspect) + this.pitchOffset * 4.0 + lift;
     this.desired.set(
       this.focusTarget.x - fwdX * dist,
       this.focusTarget.y + camH,
@@ -361,6 +373,11 @@ export class GameCamera {
    *  only because its walls sit under the boom's height skip). World
    *  flips this from the subway's underground state. */
   interiorMode = false;
+  /** True while the feet stand inside the car's z-band (ride.ts aboardCar;
+   *  Game writes it every frame beside interiorMode). Aboard, the car is
+   *  the room — the street boom scale is the honest one, and the lift
+   *  would only press the lens into the car roof. */
+  interiorAboard = false;
 
   update(
     dt: number,
