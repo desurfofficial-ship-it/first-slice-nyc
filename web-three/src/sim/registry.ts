@@ -27,6 +27,12 @@
 
 import registryJson from '../../../docs/data/world-registry.json';
 import { isRegistryId } from './ids';
+// P1 of the interiors plan layer (docs/research/blueprint3d-integration-blueprint.md
+// §2.1, §7): the plan shapes live in the pure module; the registry only types the
+// optional row field and runs the plan's own validator at the gate. Type-only
+// runtime coupling — plan.ts imports nothing.
+import { validatePlan } from '../world/interiors/plan';
+import type { InteriorPlan } from '../world/interiors/plan';
 
 // ------------------------------------------------------------- doc shapes ----
 // Deliberately tolerant (fields optional): the registry is a living
@@ -89,6 +95,12 @@ export interface RegistryInterior {
   shell?: { xMin?: number; xMax?: number; zMin?: number; zMax?: number; clearH?: number; belowGrade?: boolean };
   anchors?: RegistryAnchor[];
   tags?: string[];
+  /** P1 interiors wall-plan (walls-as-data: corners/walls/openings). Named
+   *  `wallPlan` because the plain `plan` slot on interior rows is already
+   *  the authored PLACEMENT list (item rows — P3's data). Optional: hand-
+   *  built shells stay exactly as they are; when present, the gate
+   *  validates it with the plan module's own validator (PLAN_INVALID). */
+  wallPlan?: InteriorPlan;
 }
 
 export interface RegistryLandmark { id: string; name?: string; anchor?: string }
@@ -376,6 +388,14 @@ export function validateCrossRefsStatic(doc: RegistryDoc): RegistryIssue[] {
   const W = doc.bounds?.world;
 
   for (const it of doc.interiors ?? []) {
+    // P1: an interior's wall-plan (when the row carries one) is validated
+    // with the same validator deriveRooms stands on — one implementation,
+    // two gates. (The plain `plan` slot is the authored placement list.)
+    if (it.wallPlan) {
+      for (const d of validatePlan(it.wallPlan)) {
+        issues.push({ code: 'PLAN_INVALID', detail: `${it.id}: ${d}` });
+      }
+    }
     // below-grade rooms (station mezzanines) span/exceed their entry
     // buildings by design — the shipped gate's exemption, kept identical
     if (it.shell?.belowGrade) continue;
