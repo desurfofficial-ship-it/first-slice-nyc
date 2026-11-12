@@ -85,7 +85,7 @@
 
 ---
 
-# ROUND TWO — the cooler, the produce corner, the east wall (2026-11-12, v1.50.0)
+# ROUND TWO — the cooler, the produce corner, the east wall (2026-11-12, register v1.52.0 — renumbered on the merged tree; the parallel research line owns v1.50.0)
 
 The owner's verdict after v1.49.0: "the assets in the bodega is still not
 production ready." The re-audit (same rig, fresh run) named three offenders
