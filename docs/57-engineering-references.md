@@ -45,6 +45,16 @@ house style; stolen-silently is not (AGENTS.md §5.6).
 | What it is best at | **Runtime simulation**: streaming, procedural generation, peds, traffic (IDM), vehicles, spatial queries, workers, GPU perf | **Real New York**: genuine geography from open data, the Manhattan grid, buildings/landmarks on real lots, one map drawn from the same data as the city |
 | Local clone | `/home/z/my-project/refs/gen-city-auto` (shallow) | `/home/z/my-project/refs/slop-newyork` (shallow) |
 
+> **A third reference studied 2026-11-12 (interiors directive): Blueprint3D** —
+> https://github.com/furnishup/blueprint3d (original, MIT © 2015, last commit 2016-07-10) and
+> https://github.com/charmlinn/blueprint3d-modern (2026 TS/r181 rewrite, MIT, unlicensed CDN demo
+> assets). It is a **system-scoped** reference (floorplan data models, interiors, placement,
+> serialization), not a whole-world one, so it keeps its own ledger:
+> [docs/research/](docs/research/) — five dated audit docs (original audit, modern audit,
+> applications, integration blueprint, performance & risk). The §3 summary below (3.8) is the
+> short form; the research docs are the full form. Local clones:
+> `/home/z/my-project/repos/blueprint3d` and `/home/z/my-project/repos/blueprint3d-modern`.
+
 ## 2. Where the systems live (the no-re-study map)
 
 Studied areas carry a ✅ with findings below; the rest is a file index so the
@@ -61,6 +71,7 @@ next agent starts at the right door.
 | Scene culling / perf | `src/render/shadow-cull.ts`, `src/city/lod.ts` | `js/scene-culling.js` | district ring + bake (`World.ts`), `probe-scene-census.mjs` |
 | Workers | `src/workers/city-worker.ts` | — | none (nothing needs one yet) |
 | Building geometry from open data | — | `js/buildings.js`, `building-geodata.bin.gz`, `js/landmarks.js` | `world/props.ts` builders (authored lowpoly) |
+| Interiors / floorplan data / placement | — | — | hand builders (`World.ts` wallRun/roomBox) + ✅ Blueprint3D study (`docs/research/`, §3.8) |
 
 ## 3. Findings so far (2026-11-05 — studied for M2/M3 context, recorded for everyone)
 
@@ -220,6 +231,35 @@ remaining composition per class with this study attached; the references'
 answer to our plaza-rig regime is their WebGPU instancing/cascade pipeline,
 which docs/architecture/03 §4 rules out as an engine swap.
 
+### 3.8 Blueprint3D — interiors as data (studied 2026-11-12, for the interiors/floorplan directive)
+
+Studied both repos' actual source (original: 33 files / 5,716 LOC, three r69 + jQuery, frozen
+2016; modern: 44 files / 9,529 LOC, three r181, MIT code + unlicensed CDN demo assets). Full
+findings in `docs/research/blueprint3d-{original,modern}-audit.md`; applications, the phased
+integration blueprint, and the risk assessment in the sibling docs. The short form:
+
+- **Worth adapting — the data shape.** Corner/wall graph with self-healing merges and T-splits
+  (`model/corner.ts` `mergeWithIntersected`), rooms **derived** from topology via half-edge rings
+  (`Floorplan.findRooms` + `Room.updateWalls`) and never serialized, a six-way item placement
+  taxonomy (floor/wall/in-wall/… variants, `items/factory.ts`), openings as rectangular holes cut
+  in wall `Shape`s driven by the descriptor (`three/edge.ts`), and a corner-dict save format that
+  re-hydrates IDs by reference. All MIT, all portable as *patterns*.
+- **Worth adapting — the placement math.** Wall-glue via drag-proxy planes + `boundMove` clamping,
+  the modern repo's sticky wall-snap with release threshold and half-depth gating
+  (`FloorItem.moveToPosition`), `CornerItem` corner docking. Pure math, no physics, vitest-able.
+- **Not portable.** The code itself (r69/jQuery/ES5 or `animejs`-coupled src), the 2D editing
+  floorplanner (the player is not the architect), their loaders/lighting/controls (ours are
+  better), their serialization as-is (no version field — a non-starter under our save law),
+  their demo assets (unlicensed), and their implementation habits: rebuild-everything-on-edit,
+  zero `dispose()`, per-placement network fetches, ~9 dead event buses, item-item collision
+  commented out in BOTH repos.
+- **FIRST SLICE mapping:** a `src/world/interiors/` plan layer (pure data + build-time derivation
+  + placement math), registry-owned plans, Effect-mediated gameplay — the five-phase plan with
+  sizes, test requirements, and a complete files-touched map lives in
+  `docs/research/blueprint3d-integration-blueprint.md`; the risk/pricing in
+  `docs/research/blueprint3d-performance-and-risk-assessment.md`. Research wave only —
+  no implementation in this pass, per the directive.
+
 ## 4. What neither reference has (build independently, say so)
 
 - **A story spine.** Four days, beats, the objective line — neither repo has
@@ -319,6 +359,9 @@ append what you learned under §3 (dated, sourced, short). The clone lives at
 ```bash
 git clone --depth 1 https://github.com/greggman/gen-city-auto /home/z/my-project/refs/gen-city-auto
 git clone --depth 1 https://github.com/mrdoob/slop-newyork      /home/z/my-project/refs/slop-newyork
+# the interiors reference (system-scoped — see docs/research/):
+git clone https://github.com/furnishup/blueprint3d        /home/z/my-project/repos/blueprint3d
+git clone https://github.com/charmlinn/blueprint3d-modern /home/z/my-project/repos/blueprint3d-modern
 ```
 
 ### 3.7.1 WP-3v addendum — what the ambient commute took from the reference (2026-11-06)
@@ -341,3 +384,56 @@ patterns already credited above. What the living pedestrian runtime uses:
   solution** — destination movement here is our Phase 3 A* over the one
   registry-seeded graph, under the STREET gate (door edges never
   traversable) and the gap law (no mid-block road bridges).
+
+### 3.8 three-fenestra — interior-mapping windows (studied for the fenestra wave, 2026-11-12)
+
+**Repo:** https://github.com/codedgar/three-fenestra v0.3.0 — **MIT, © 2026
+Edgar Pérez** (LICENSE verified at the repo root; the `starter/` atlases ship
+inside the MIT package — we ship none of them, our atlases are generated
+originals). The technique's origin the repo itself credits: Joost van
+Dongen, *Interior Mapping* (2008). A third permanent-style reference, added
+here because the mission named it; the §1e clone convention applies
+(`/home/z/my-project/refs/three-fenestra`).
+
+**What it is.** A drop-in `InteriorMappingMaterial` (MeshStandardMaterial +
+onBeforeCompile) that ray-marches a virtual room box behind each window
+plane and paints one atlas cell — one-point-perspective interiors with
+per-window GPU variation from hash seeds whose constants are a documented
+public contract (lit 3.71, tone 9.27, bright 5.43, atlas 0.0, front 7.13).
+v0.3.0 adds instanced mode: `instanceWindowId` (vec3) + `instanceLod` +
+`instanceFade` attributes — thousands of windows, one draw call — and a
+`lod` uniform that collapses the march to a flat impostor for far facades.
+
+**What FIRST SLICE took** (the full analysis: `docs/production/fenestra/01-FENESTRA-INTEGRATION.md`,
+the implementation: `web-three/src/world/fenestraCore.ts` + `fenestraMaterial.ts`):
+
+- The GLSL core (hash / atlas pick / room-box march) — adapted with credit;
+  the seed contract preserved verbatim so the impostor and the near
+  material agree, exactly the property the reference documents.
+- The instanced-attribute schema; `instanceFade` repurposed as a glass-cue
+  weight (Lambert refuses the reference's transparent crossfade — a band
+  switch with ±3 m hysteresis is the house LOD grammar).
+- The compositing model: pre-lit room added after lighting (before tone
+  mapping — it rides tonemap + bloom + fog), front albedo+alpha atlas
+  driving diffuse/transmission, diffuse zeroed on glass.
+
+**What we adapted rather than adopted** — the transferable lesson of the
+study: the reference targets PBR showcases; a game with a CLOCK, a bake,
+and quality tiers needs different seams. MeshStandard → MeshLambert (the
+house family); static `litRatio` → the in-game-clock occupancy law with
+per-window hashed onset thresholds (never synchronized, deterministic —
+new seeds 6.42 onset / 11.31 grime documented beside the contract); full
+atlas pick → family RANGE halves (residential/commercial); per-material
+plane size → one shared unit plane scaled per instance; the transparent
+LOD crossfade → band attributes. Verified: the collector reads the shipped
+proud-window rows (no grid math duplicated, no competing builder), the
+story windows and the W5 real glass are excluded by name/material, the
+bake owns nothing new (+2 draws), and `?fenestra=0` returns the shipped
+look for A/B.
+
+**What the rig taught (the transferable gotcha):** atlas mips. The hardware
+`generateMipmap` and a hand-built per-cell chain BOTH sampled into 2–4 px
+facade speckle on the verification rig; level-0 sampling is clean at every
+distance the bands visit. The atlas ships `LinearFilter` + 8 px edge-
+extension gutters; the limitation and the re-audit plan are recorded in
+the integration doc (§7) — re-check on a real GPU before enabling a chain.

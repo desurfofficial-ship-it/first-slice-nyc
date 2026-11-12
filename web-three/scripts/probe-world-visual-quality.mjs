@@ -89,9 +89,11 @@ check('downspouts: 6 corner pipes', n('VQ_Downspout') === 6, `${n('VQ_Downspout'
 check('ghost signs: five painted panels', n('VQ_GhostSign') === 5, `${n('VQ_GhostSign')}`);
 
 // 4. SILL + LINTEL — the exact window census: GRB 30 + TEN 20 + corner
-// houses 18 + Marlow walk-ups 36 = 104 windows, one sill + one lintel each
-check('sills: 104 stone sills on the proud-window rows', n('VQ_Sill') === 104, `${n('VQ_Sill')}`);
-check('lintels: 104 stone lintels', n('VQ_Lintel') === 104, `${n('VQ_Lintel')}`);
+// houses 18 + Marlow walk-ups 36 = 104 windows, one sill + one lintel each;
+// W8 (2026-11-12) the W6 terrace rows + the W7 gate rows join the law
+// (28 rows sharing the window grammar) — 310 windows, one pair each
+check('sills: 310 stone sills on the proud-window rows', n('VQ_Sill') === 310, `${n('VQ_Sill')}`);
+check('lintels: 310 stone lintels', n('VQ_Lintel') === 310, `${n('VQ_Lintel')}`);
 
 // 5. AC UNITS
 check('AC units: ≥ 20 hanging under verified sills', n('VQ_AC') >= 20, `${n('VQ_AC')}`);

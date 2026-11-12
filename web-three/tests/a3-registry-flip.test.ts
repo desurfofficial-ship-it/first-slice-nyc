@@ -90,6 +90,35 @@ const HAND_TRUTH_W6: Record<string, { x: number; z: number; w: number; d: number
   'KTS-04': { x: 64, z: -56.2, w: 8, d: 15.4, h: 18 },
 };
 
+/** The W7 gate rows — the map's last two sides, verbatim from the plan the
+ *  validator pins (scripts/design/validate-registry.mjs §7-W7). */
+const HAND_TRUTH_W7: Record<string, { x: number; z: number; w: number; d: number; h: number }> = {
+  'GRB-08': { x: -88, z: 56.2, w: 8, d: 15.4, h: 12.5 },
+  'GRB-09': { x: -96, z: 56.2, w: 8, d: 15.4, h: 12.5 },
+  'GRB-10': { x: 88, z: 56.2, w: 8, d: 15.4, h: 12.5 },
+  'GRB-11': { x: 96, z: 56.2, w: 8, d: 15.4, h: 12.5 },
+  'TEN-03': { x: -88, z: -56.2, w: 8, d: 15.4, h: 16.5 },
+  'KTS-05': { x: -96, z: -56.2, w: 8, d: 15.4, h: 18 },
+  'TEN-04': { x: 88, z: -56.2, w: 8, d: 15.4, h: 16.5 },
+  'KTS-06': { x: 96, z: -56.2, w: 8, d: 15.4, h: 18 },
+  'GRB-12': { x: -88, z: 26, w: 8, d: 12, h: 12.5 },
+  'GRB-13': { x: -96, z: 26, w: 8, d: 12, h: 12.5 },
+  'GRB-14': { x: 88, z: 26, w: 8, d: 12, h: 12.5 },
+  'GRB-15': { x: 96, z: 26, w: 8, d: 12, h: 12.5 },
+  'KTN-08': { x: -88, z: 14, w: 8, d: 12, h: 15 },
+  'KTN-09': { x: -96, z: 14, w: 8, d: 12, h: 16 },
+  'KTN-10': { x: 88, z: 14, w: 8, d: 12, h: 15 },
+  'KTN-11': { x: 96, z: 14, w: 8, d: 12, h: 16 },
+  'KTS-07': { x: -88, z: -14, w: 8, d: 12, h: 16 },
+  'KTS-08': { x: -96, z: -14, w: 8, d: 12, h: 14 },
+  'KTS-09': { x: 88, z: -14, w: 8, d: 12, h: 14 },
+  'KTS-10': { x: 96, z: -14, w: 8, d: 12, h: 16 },
+  'MRW-01': { x: -88, z: -26, w: 8, d: 12, h: 15 },
+  'MRW-02': { x: -96, z: -26, w: 8, d: 12, h: 17 },
+  'MRW-03': { x: 88, z: -26, w: 8, d: 12, h: 17 },
+  'MRW-04': { x: 96, z: -26, w: 8, d: 12, h: 15 },
+};
+
 /** The retired hand truth, verbatim from the pre-flip World.ts rows —
  *  the numbers the fidelity gate's census pairs were filed against.
  *  (Pinned from unit 4 on for every band of the ledger, landed or not:
@@ -106,7 +135,7 @@ const HAND_TRUTH: Record<string, { x: number; z: number; w: number; d: number; h
   'SMB-01': { x: -34, z: -26, w: 8, d: 12, h: 12 },
   'SMB-02': { x: -25, z: -26, w: 6, d: 12, h: 12 },
   'SMB-03': { x: -17, z: -26, w: 6, d: 12, h: 12 },
-  'SUB-02': { x: -57, z: -6.25, w: 6, d: 3.5, h: 3.4 },
+  'SUB-02': { x: -57, z: -6.7, w: 6, d: 2.6, h: 3.4 },
   // unit 4 — the gable row
   'GRB-01': { x: -42.6, z: 26, w: 7.6, d: 12, h: 12.5 },
   'GRB-02': { x: -35, z: 26, w: 7.6, d: 12, h: 12.5 },
@@ -160,11 +189,11 @@ const HAND_TRUTH: Record<string, { x: number; z: number; w: number; d: number; h
   'KTN-05': { x: 41.25, z: 14, w: 15.5, d: 12, h: 16 },
   'ROS-01': { x: -16, z: 14, w: 10, d: 11.6, h: 4.5 },
   // SUB-01 re-pinned to the K-line STAIR_SLOT center (2026-11 consumer
-  // fix, ebfb08a): the headhouse frames the hole you can walk down into
-  // — the old (-42) spot stood on continuous sidewalk, five metres east
-  // of the real shaft. Both the world wave and the QA wave landed this
-  // repair; the QA line's wording is the surviving comment.
-  'SUB-01': { x: -47.2, z: 6.2, w: 2.6, d: 3.5, h: 3.2 },
+  // fix, ebfb08a), then W8 (2026-11-12): the slot holds the building line
+  // (z 5.55..8.0) so the headhouse stops sealing the Kestrel north walk —
+  // the row follows the slot exactly (z 6.775, d 2.45) and the entrance
+  // rides the new curb-side corridor (z 5.4).
+  'SUB-01': { x: -47.2, z: 6.775, w: 2.6, d: 2.45, h: 3.2 },
   'ALY-02': { x: 7.75, z: 14, w: 2.5, d: 12, h: 0 },
   // unit 10 — the far world (verbatim from timesSquare.ts's hand masses:
   // the Orpheum block's base+tower, the east tower, the south row's
@@ -235,7 +264,22 @@ describe('A-3 registry flip — the flipped bands answer to the registry', () =>
     for (const id of Object.keys(HAND_TRUTH_W6)) {
       expect(reg.building(id)!.status, id).toBe('built (W6)');
     }
+    for (const id of Object.keys(HAND_TRUTH_W7)) {
+      expect(reg.building(id)!.status, id).toBe('built (W7)');
+    }
     expect(reg.building('KTN-01')!.status).toBe('existing'); // the originals stay
+  });
+
+  it('the value-neutral law: the W7 gate rows carry the plan numbers verbatim', () => {
+    for (const [id, hand] of Object.entries(HAND_TRUTH_W7)) {
+      const b = reg.building(id)!;
+      expect(b.footprint!.x, `${id} x`).toBe(hand.x);
+      expect(b.footprint!.z, `${id} z`).toBe(hand.z);
+      expect(b.footprint!.w, `${id} w`).toBe(hand.w);
+      expect(b.footprint!.d, `${id} d`).toBe(hand.d);
+      expect(b.height, `${id} h`).toBe(hand.h);
+      expect(b.collider, `${id} solid`).toBe(true);
+    }
   });
 
   it('the value-neutral law: the registry rows carry the retired hand numbers verbatim', () => {

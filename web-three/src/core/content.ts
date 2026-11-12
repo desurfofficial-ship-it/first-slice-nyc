@@ -1002,6 +1002,24 @@ export const TERRACE_FLYER_NOTES: string[] = [
   'A tenant-rights workshop flyer with this month\u2019s date on it \u2014 the good kind of news. You photograph it for the fridge.',
 ];
 
+// ------------------------------------------------ the W7 gate rows ----
+// docs/production/westgate-eastgate — the strips' own two loops, the same
+// one-day-slot law as the terrace's three (day-keyed, no save fields).
+// The west stoop (GRB-08, the Larkin band's west house) and the east
+// chalk-menu A-frame (MRW-03's LARKIN PROVISIONS front).
+export const WEST_STOOP_NOTES: string[] = [
+  'The Westgate stoop faces the wrong way for the view and the right way for the sun. Nobody who lives here apologizes for either.',
+  'A kid\u2019s bike lies across the bottom step, kickstand up. You move it a respectful four inches and sit anyway.',
+  'From here the terrace band reads as one long stone sentence, west to east. The end house\u2019s windows catch the last of it.',
+];
+
+export const EAST_MENU_NOTES: string[] = [
+  'The chalk menu offers a sandwich named after the avenue and a soup named after the weather. Both are $6 and neither is a joke.',
+  'Yesterday\u2019s special is half-erased under today\u2019s. The rag hangs off the A-frame like it grew there.',
+  'Someone drew a small star beside LARKIN PROVISIONS on the board and wrote \u201cthe good bread.\u201d The endorsement carries weight on this walk.',
+];
+
+
 export const CECIL_GAZE_NOTES: string[] = [
   'The gold window across the street is lit. From here, on your side of the road, it looks like the block is keeping a light on for you.',
   'The street below does its evening arithmetic \u2014 cabs, headlights, the crosswalk\u2019s white bars. Yours is the only window that counts them.',

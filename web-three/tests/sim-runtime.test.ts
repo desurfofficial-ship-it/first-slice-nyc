@@ -136,13 +136,14 @@ describe('B-1: clock-keyed schedules drive arbitration all day', () => {
     const d = brain.directives.get(IDRIS)!;
     expect(d.body.mode).toBe('at');
     expect(d.body.target).not.toBeNull();
-    // SUB-01's stand point rides the stair-slot center (x = -47.2, the
-    // 2026-11 consumer fix — the entrance frames the real shaft) plus the
+    // SUB-01's stand point rides the stair's street door (x = -47.2, the
+    // 2026-11 consumer fix; W8 2026-11-12 moves the door line to z 5.4 —
+    // the curb-side corridor the skirted lane reaches) plus the
     // stand-point jitter (+/-0.72, runtime.ts standJitter). Both the world
     // wave and the QA wave landed the stair-shaft repair; the QA line's
     // tighter jitter-aware tolerance is the surviving pin.
     expect(Math.abs(d.body.target!.x - (-47.2))).toBeLessThan(1);
-    expect(Math.abs(d.body.target!.z - 6.2)).toBeLessThan(1);
+    expect(Math.abs(d.body.target!.z - 5.4)).toBeLessThan(1);
 
     // the cart corner is where the shipped cart stands
     brain.advanceMinutes(55); // past 07:52, into the walk

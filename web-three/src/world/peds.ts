@@ -47,7 +47,7 @@ import {
 import { buildArticulatedPerson, updatePersonAnim, type PersonLook } from './personRig';
 import { seededRng } from './ambient';
 import {
-  resolveCirclesXZ, pushCircleOutOfRectXZ, type AABB, type CirclePush,
+  resolveCirclesXZ, pushCircleOutOfRectXZ, type AABB, type CirclePush, type RectXZ,
 } from '../engine/collide';
 import type { StreetPlan, StreetRole } from './dressing';
 import {
@@ -105,7 +105,8 @@ const MAX_PUSH = 0.25;    // per-frame cap — nobody slingshots, ever
  */
 /** W4: a walker's own clamp band — the bbox of its loop, inflated 1.6 m
  *  laterally (curb-yield room) and 0.65 m in z, then held inside the
- *  playable core (x ±84; the shipped ±7.5 z-discipline). Per-walker on
+ *  playable core (the registry's own bounds; W7 grew it x ±84 → ±100 —
+ *  the shipped ±7.5 z-discipline). Per-walker on
  *  purpose: a district walker pushed off Gable can never be clamped into
  *  Juniper — the pre-W4 bug clamped every zone to the block's band, so
  *  off-block walkers teleported to the home street's corner every frame
@@ -132,7 +133,7 @@ export function bandOfLoop(
   // the ±7.5 line exactly, and every other street lane stays under it.
   // The ±64 net is the district's own extent — a typo net, not a wall.
   return {
-    minX: Math.max(-84, minX - 1.6), maxX: Math.min(84, maxX + 1.6),
+    minX: Math.max(-100, minX - 1.6), maxX: Math.min(100, maxX + 1.6),
     minZ: Math.max(-64, minZ - 0.65), maxZ: Math.min(64, maxZ + 0.65),
   };
 }
@@ -298,6 +299,7 @@ export class Pedestrians {
   private castObstacle: GameEntity;
   private time = 0;
   private roads: readonly RoadRect[];
+  private footprints: readonly RectXZ[] = [];
   /** Real bodies for the player's collision stack (World registers these).
    *  Parked underground until the first update puts each under its walker. */
   readonly walkColliders: AABB[];
@@ -311,6 +313,15 @@ export class Pedestrians {
   // The dwell/arrived detection radii (see stepCommutes).
   private static readonly ARRIVE_R = 0.75;
   private static readonly STUCK_ARRIVE = 3; // stuck windows before "close enough"
+  // W7: the commute follower tracks its route TIGHTLY. The shipped patrol
+  // radius (0.7) lets the vehicle cut a 90° weave corner by ~0.35 m — fine
+  // on the open patrol lanes, but the graph's curb-cut skirts ride 0.25 m
+  // off the road band (the SUB-02 squeeze), and a 0.35 m corner cut there
+  // samples the roadway the route legally avoids. The ped law's road rects
+  // are ground truth for every walker's feet, so the commute swap tightens
+  // the waypoint distance below the skirt margin. Patrol loops keep the
+  // shipped 0.7.
+  private static readonly COMMUTE_WAYPOINT_R = 0.3;
   // Reusable pin buffers — the pin pass allocates NOTHING per frame.
   private readonly pinPeds: Ped[] = [];
   private readonly pinX: number[] = [];
@@ -325,9 +336,18 @@ export class Pedestrians {
     routines: RoutineStop[][] = [],
     roads: readonly RoadRect[] = [],
     roles: readonly StreetRole[] = [],
+    // W7: the registry's own solid footprints (minus the passable set) —
+    // the depenetration law's ground truth. The shipped trio of hard
+    // guarantees kept bodies on the BLOCK (the band clamp) but nothing
+    // kept them out of a FACADE: a separation half-push at a curb-cut
+    // skirt squeeze could shove a walker through a control house's face.
+    // The strips' westbound traffic made that certainty, so the resolve
+    // now answers to the registry's buildings as well.
+    footprints: readonly RectXZ[] = [],
   ) {
     this.group.name = 'Pedestrians';
     this.roads = roads;
+    this.footprints = footprints;
     const rng = seededRng(seed);
     // the roster's shifts — an untagged roster is all-'street' (the shipped
     // behavior, and every pre-M4 test/probe constructs exactly that)
@@ -608,6 +628,7 @@ export class Pedestrians {
       for (let j = 0; j < pts.length - 1; j++) path.add(new Vector3(pts[j].x, 0, pts[j].z));
       path.add(new Vector3(stand.x, 0, stand.z));
       p.fpb.path = path;
+      p.fpb.nextWaypointDistance = Pedestrians.COMMUTE_WAYPOINT_R; // the skirt-margin law (W7)
       // the band follows the route (push containment, district-legal)
       p.band = bandOfLoop(pts.map((pt) => [pt.x, pt.z] as [number, number]));
       c.destId = destId;
@@ -767,6 +788,30 @@ export class Pedestrians {
       }
     }
 
+    // W7: a pedestrian slows for a corner. The graph's curb-cut skirts ride
+    // 0.25 m off the road band (the SUB-02 squeeze is the shipped tightest),
+    // and the seek force at a 90° corner is (desired − current) ≈ 1.56 m/s —
+    // it rotates the velocity at ~1.4 rad/s, so a cruise-speed turn overshoots
+    // ~0.8 m past the waypoint switch and samples roadway the route legally
+    // avoids. The overshoot scales with v², and a half-speed corner stays
+    // inside the walk band. The signal is the velocity-vs-target heading
+    // (the vehicle IS cornering), never the route's own geometry — straight
+    // walking and avoidance jostle read ≈1 and cruise on.
+    for (const pd of this.peds) {
+      if (pd.home) continue;
+      const vel = pd.vehicle.velocity;
+      const sp = Math.hypot(vel.x, vel.z);
+      if (sp > 0.15 && pd.dwellLeft <= 0) {
+        const target = pd.fpb.path.current();
+        const tx = target.x - pd.vehicle.position.x;
+        const tz = target.z - pd.vehicle.position.z;
+        const tl = Math.hypot(tx, tz) || 1;
+        const dot = (vel.x * tx + vel.z * tz) / (sp * tl);
+        pd.vehicle.maxSpeed = dot < 0.72 ? pd.speed * 0.45 : pd.speed;
+      } else {
+        pd.vehicle.maxSpeed = pd.speed;
+      }
+    }
     this.manager.update(Math.min(dt, MAX_DT));
 
     for (let i = 0; i < this.pinPeds.length; i++) {
@@ -861,6 +906,16 @@ export class Pedestrians {
       // so their loop's bounds are applied to their bodies directly
       pi.x = Math.max(pd.band.minX, Math.min(pd.band.maxX, pi.x));
       pi.z = Math.max(pd.band.minZ, Math.min(pd.band.maxZ, pi.z));
+      // 4. walker ↔ facades (W7): nobody stands inside a building. The band
+      //    clamp knows the block; this knows the walls. A separation
+      //    half-push at a curb-cut skirt (or any tight squeeze) depenetrates
+      //    back to the nearest face — the registry's own footprints, in
+      //    registry order, capped at the shipped push so nobody slingshots.
+      for (const fp of this.footprints) {
+        if (pushCircleOutOfRectXZ(pi.x, pi.z, PED_R, fp, MAX_PUSH, a)) {
+          pi.x += a.x; pi.z += a.z;
+        }
+      }
     }
 
     // the anti-stuck law (docs/51 B17): a walker that is not dwelling and

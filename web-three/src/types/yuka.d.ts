@@ -53,6 +53,7 @@ declare module 'yuka' {
 
   export class FollowPathBehavior extends SteeringBehavior {
     path: Path;
+    nextWaypointDistance: number;
     constructor(path: Path, nextWaypointDistance?: number, weight?: number);
   }
 
