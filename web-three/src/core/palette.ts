@@ -4,11 +4,15 @@ export const PAL = {
   brick: 0xb23a48,  // Brick Red — building faces, the heart color
   teal: 0x2a9d8f,   // Fire-Escape Green — awnings, shutters, calm note
   amber: 0xffb85c,  // Golden-Hour Amber — the light (forever 5:45 PM)
-  stone: 0xe8e4dc,  // Steam Grey — steam, receipts, morning haze
+  stone: 0xe8e4dc,  // Steam Grey / plaza paving — distinct from sidewalk
   plum: 0x6d4c7d,   // Dusk Plum — warm shadows, never pure black
   coral: 0xff6b6b,  // Bodega Neon — magic punctuation, used sparingly
   cream: 0xfff8f0,  // Pizza-Box White — paper, UI, postcards
   ink: 0x3a3440,    // rails, outlines, quiet darks
+  // Path types (keep these distinct and consistent):
+  //   road  = dark asphalt (groundTex 'asphalt')
+  //   walk  = cool concrete sidewalk (groundTex 'concrete')
+  //   plaza = stone (PAL.stone solids)
   road: 0x4a4552,
   walk: 0xb9b1a6,
   bldg: 0x8e6f66,
