@@ -12,6 +12,12 @@
  * is right on a 100 m road and a 1.5 m walk slab alike. No normal maps —
  * Lambert/Phong shading on 0.2 m slabs sells the joints; the budget goes to
  * albedo variety instead.
+ *
+ * Path colour law (2026-11):
+ *   asphalt  → dark road (cool charcoal)
+ *   concrete → sidewalk (cool stone gray — deliberately not warm so it does
+ *              not read gold under the permanent amber sun/fog)
+ *   plaza    → uses PAL.stone (separate solid, not this texture)
  */
 
 import * as THREE from 'three';
@@ -40,17 +46,18 @@ let concreteTex: THREE.CanvasTexture | null = null;
 
 const buildAsphalt = (): HTMLCanvasElement => paint((ctx) => {
   const r = rng(0x5eed);
-  ctx.fillStyle = '#3f3b47';
+  // Cool dark charcoal — stays road-like even under amber light
+  ctx.fillStyle = '#3a3742';
   ctx.fillRect(0, 0, TILE, TILE);
   // aggregate speckle — the asphalt read lives here
   for (let i = 0; i < 2600; i++) {
     const v = 0.5 + r() * 0.5;
-    ctx.fillStyle = `rgba(${Math.round(78 * v + 34)},${Math.round(74 * v + 32)},${Math.round(84 * v + 38)},${0.16 + r() * 0.2})`;
+    ctx.fillStyle = `rgba(${Math.round(70 * v + 30)},${Math.round(68 * v + 28)},${Math.round(80 * v + 36)},${0.16 + r() * 0.2})`;
     const s = 0.7 + r() * 1.9;
     ctx.fillRect(r() * TILE, r() * TILE, s, s);
   }
   // faint patch seams + tar snakes
-  ctx.strokeStyle = 'rgba(24,22,30,0.5)';
+  ctx.strokeStyle = 'rgba(22,20,28,0.5)';
   ctx.lineWidth = 2.2;
   for (let i = 0; i < 4; i++) {
     ctx.beginPath();
@@ -61,37 +68,39 @@ const buildAsphalt = (): HTMLCanvasElement => paint((ctx) => {
   }
   // worn wheel tracks — two soft darker bands
   const grad = ctx.createLinearGradient(0, 0, 0, TILE);
-  grad.addColorStop(0.0, 'rgba(30,28,36,0.12)');
-  grad.addColorStop(0.22, 'rgba(30,28,36,0.0)');
-  grad.addColorStop(0.5, 'rgba(30,28,36,0.10)');
-  grad.addColorStop(0.78, 'rgba(30,28,36,0.0)');
-  grad.addColorStop(1.0, 'rgba(30,28,36,0.12)');
+  grad.addColorStop(0.0, 'rgba(28,26,34,0.14)');
+  grad.addColorStop(0.22, 'rgba(28,26,34,0.0)');
+  grad.addColorStop(0.5, 'rgba(28,26,34,0.11)');
+  grad.addColorStop(0.78, 'rgba(28,26,34,0.0)');
+  grad.addColorStop(1.0, 'rgba(28,26,34,0.14)');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, TILE, TILE);
 });
 
 const buildConcrete = (): HTMLCanvasElement => paint((ctx) => {
   const r = rng(0xb0ca);
-  ctx.fillStyle = '#a9a294';
+  // Cool stone gray (was warm #a9a294) — stops reading gold under amber sun/fog
+  ctx.fillStyle = '#9a9892';
   ctx.fillRect(0, 0, TILE, TILE);
   for (let i = 0; i < 2200; i++) {
     const v = 0.5 + r() * 0.5;
-    ctx.fillStyle = `rgba(${Math.round(196 * v + 42)},${Math.round(188 * v + 40)},${Math.round(172 * v + 38)},${0.12 + r() * 0.16})`;
+    // Cooler aggregate — less yellow/orange channel
+    ctx.fillStyle = `rgba(${Math.round(168 * v + 38)},${Math.round(166 * v + 36)},${Math.round(162 * v + 40)},${0.12 + r() * 0.16})`;
     const s = 0.7 + r() * 1.7;
     ctx.fillRect(r() * TILE, r() * TILE, s, s);
   }
-  // stains — the city writes on its pavement
+  // stains — the city writes on its pavement (kept neutral)
   for (let i = 0; i < 7; i++) {
-    ctx.fillStyle = `rgba(94,86,74,${0.05 + r() * 0.07})`;
+    ctx.fillStyle = `rgba(78,76,72,${0.05 + r() * 0.07})`;
     ctx.beginPath();
     ctx.ellipse(r() * TILE, r() * TILE, 12 + r() * 34, 8 + r() * 22, r() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
   }
   // expansion joints — the slab grid (tile spans 2.5 m, joint every tile)
-  ctx.strokeStyle = 'rgba(66,62,58,0.62)';
+  ctx.strokeStyle = 'rgba(58,56,54,0.62)';
   ctx.lineWidth = 3;
   ctx.strokeRect(0, 0, TILE, TILE);
-  ctx.strokeStyle = 'rgba(66,62,58,0.3)';
+  ctx.strokeStyle = 'rgba(58,56,54,0.3)';
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(TILE / 2, 0);
