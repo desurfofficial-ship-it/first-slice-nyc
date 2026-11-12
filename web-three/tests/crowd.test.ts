@@ -168,10 +168,10 @@ describe('per-walker band (bandOfLoop — the W4 law, proved where it lives)', (
     expect(pulledX).toBeGreaterThan(0); // stays on its own block
   });
 
-  it('the band never escapes the playable core (x ±84, z ±64 — the world extent)', () => {
+  it('the band never escapes the playable core (x ±100, z ±64 — the W7 world extent)', () => {
     const far = bandOfLoop([[-200, -80], [200, 80]]);
-    expect(far.minX).toBe(-84);
-    expect(far.maxX).toBe(84);
+    expect(far.minX).toBe(-100); // W7: the core grew ±84 → ±100 (the registry's own bounds)
+    expect(far.maxX).toBe(100);
     expect(far.minZ).toBe(-64);
     expect(far.maxZ).toBe(64);
   });

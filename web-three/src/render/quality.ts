@@ -36,7 +36,7 @@ export interface GfxFlags {
   envMap: boolean;
   /** Full-resolution bloom mip chain (ultra only). */
   bloomFullRes: boolean;
-  /** Depth of field on the AUTHORED postcard captures only (v1.50.0,
+  /** Depth of field on the AUTHORED postcard captures only (v1.54.0,
    *  docs/rendering/05) — a one-shot offscreen cost at capture time, never
    *  a frame-loop pass; the gameplay frame is untouched on every tier. */
   postcardDof: boolean;

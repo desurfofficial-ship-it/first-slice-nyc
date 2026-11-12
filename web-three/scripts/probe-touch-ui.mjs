@@ -183,6 +183,53 @@ const expect = (cond, label) => {
     `album closed → touch UI restored (${JSON.stringify(s)})`);
 }
 
+// --- 6. two thumbs, two jobs (2026-11-12): the stick held AND a right-side
+//        camera drag at the same time. The old gate read `!joyId`, so while
+//        the left thumb walked, NO right-thumb drag ever registered — a
+//        walking player had no camera. Synthetic PointerEvents drive the
+//        real Input listeners (hasTouch page, pointerType 'touch').
+{
+  const before = await page.evaluate(() => {
+    const g = window.__game;
+    return { yaw: g.cam.camYaw, x: g.player.capsule.x, z: g.player.capsule.z };
+  });
+  const fire = (type, target, id, x, y) => page.evaluate(([t, el, id2, cx, cy]) => {
+    const elem = el === 'joy' ? document.getElementById('joy-zone') : document.body;
+    elem.dispatchEvent(new PointerEvent(t, {
+      pointerId: id2, pointerType: 'touch', isPrimary: el !== 'joy',
+      clientX: cx, clientY: cy, bubbles: true, cancelable: true,
+    }));
+  }, [type, target, id, x, y]);
+  // left thumb: the stick engages and walks
+  await fire('pointerdown', 'joy', 7, 60, 780);
+  await fire('pointermove', 'joy', 7, 104, 736);
+  await wait(120);
+  const walking = await page.evaluate(() => {
+    const s = window.__game.input.sample();
+    return Math.hypot(s.move.x, s.move.y);
+  });
+  expect(walking > 0.3, `the stick walks while held (move mag ${walking.toFixed(2)})`);
+  // right thumb: a second touch on the right half drags the camera
+  await fire('pointerdown', 'win', 8, 320, 400);
+  for (let i = 0; i < 6; i++) await fire('pointermove', 'win', 8, 320 - (i + 1) * 22, 400);
+  await wait(120);
+  const after = await page.evaluate(() => {
+    const g = window.__game;
+    const g2 = { yaw: g.cam.camYaw };
+    // release both pointers the way fingers lift
+    document.body.dispatchEvent(new PointerEvent('pointerup', {
+      pointerId: 8, pointerType: 'touch', clientX: 180, clientY: 400, bubbles: true,
+    }));
+    document.getElementById('joy-zone').dispatchEvent(new PointerEvent('pointerup', {
+      pointerId: 7, pointerType: 'touch', clientX: 104, clientY: 736, bubbles: true,
+    }));
+    return g2;
+  });
+  const dYaw = Math.abs(after.yaw - before.yaw);
+  expect(dYaw > 0.3, `the camera drags WHILE the stick is held (|Δyaw| ${dYaw.toFixed(2)})`);
+  await page.evaluate(() => window.__game.input.sample()); // flush the queues
+}
+
 console.log(errors.length ? 'ERRORS:\n' + errors.join('\n') : 'zero console/page errors');
 console.log(failed === 0 ? 'PROBE GREEN' : `PROBE RED — ${failed} failed`);
 await browser.close();

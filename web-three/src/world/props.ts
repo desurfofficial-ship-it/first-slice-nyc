@@ -272,10 +272,13 @@ export function makeSubwayEntrance(
   // the real descendable stairwell lives below (docs/50, the K-line slot west
   // of the headhouse); these two boxes interpenetrated its top steps. The
   // railings, posts, sign and F bullet are the entrance's identity and stay.
+  // W8 (2026-11-12): the slot shrank to z 5.55..8.0 (the headhouse no longer
+  // seals the sidewalk), so the railings follow — 2.4 m frames the 2.45 m slot
+  // with a hand's width of air; the cross rails slide in to match.
   // railings both sides + cross rails
   for (const sx of [-1.3, 1.3]) {
-    g.add(unitBox(iron, 0.07, 0.95, 3.4, sx, 0.48, 0));
-    for (let z = -1.2; z <= 1.2; z += 1.2) g.add(unitBox(iron, 1.35, 0.06, 0.06, 0, 0.72, z));
+    g.add(unitBox(iron, 0.07, 0.95, 2.4, sx, 0.48, 0));
+    for (let z = -1.0; z <= 1.0; z += 1.0) g.add(unitBox(iron, 1.35, 0.06, 0.06, 0, 0.72, z));
   }
   // posts + sign
   for (const sx of [-1.3, 1.3]) g.add(unitBox(iron, 0.09, 2.6, 0.09, sx, 1.3, -1.4));

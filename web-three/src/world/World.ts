@@ -60,7 +60,7 @@ import { buildCityFabric } from './cityFabric';
 import { groundMaterial, metricBoxUVs } from './groundTex';
 import { EnvSky } from '../render/envsky';
 import { sampleDayCycle, keyframeState, freshDayState, CANON_MINUTES, type DayState, type DayPin } from '../render/daycycle';
-import { buildNeighborhoodFabric } from './neighborhoodFabric';
+import { buildNeighborhoodFabric, NEIGH } from './neighborhoodFabric';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay,
   skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH,
   STREET_PLAN, PEDESTRIAN_ROLES, type StreetPlan } from './dressing';
@@ -79,6 +79,7 @@ import { COURT_BALL_REST } from '../game/interactionDefs';
 // the nav graph, the doors and the capacity gates; this extends the same
 // single truth to the render coordinates.
 import { loadRegistry } from '../sim/registry';
+import { PASSABLE_FOOTPRINTS } from '../sim/nav/build';
 
 export interface LadderInfo { area: AABB; top: number; }
 
@@ -368,7 +369,11 @@ export class World {
   private steamLife: Float32Array;
 
   // ---- district system (docs/45 W0 — the culling prerequisite) ----------
-  // The master world spans x ±84 / z ±48 (registry bounds.playableCore).
+  // The master world grew with the registry's playableCore (W6 z ±64, W7
+  // x ±100); the TILE GRID keeps its shipped 28 m × 32 m lattice over the
+  // W0 core — content beyond it (the terrace strips, the Westgate/Eastgate
+  // rows) CLAMPS into the edge tiles (districtKey's own law), so the edge
+  // tiles carry the new strips and nothing ever goes unlit or unculled.
   // Static geometry bakes per DISTRICT TILE — 28 m columns × 32 m rows — and
   // every tile plus registered dynamic groups belongs to a district. Each
   // frame the player's district lights a RING of districts and everything
@@ -376,11 +381,8 @@ export class World {
   // ring rule follows the registry's own law: a street is ONE sight line,
   // so the ring spans every column along it (STREET_RING = all) and 1 row
   // of depth each way (ROW_RING = 1 = the block behind each sidewalk).
-  // With the shipped single-street world every district sits inside the
-  // ring — zero visible change today; W1+ content lands district-tagged
-  // from birth, and far rows cull the moment they exist.
-  private static readonly DIST_COL_W = 28;   // x: −84..84 in 6 columns
-  private static readonly DIST_ROW_H = 32;   // z: −48..48 in 3 rows
+  private static readonly DIST_COL_W = 28;   // x: −84..84 in 6 columns (W7 strips clamp into c0/c5)
+  private static readonly DIST_ROW_H = 32;   // z: −48..48 in 3 rows (W6 strips clamp into r0/r2)
   private static readonly DIST_COLS = 6;
   private static readonly DIST_ROWS = 3;
   private static readonly STREET_RING = World.DIST_COLS; // one sight line, for now
@@ -810,21 +812,29 @@ export class World {
     }
     // one collider covers the run plus the west backstock pile (below)
     this.colliders.push(boxFromCenter(-16.35, 1.0, 19.3, 8.3, 2.0, 0.6));
-    // Commercial reach-in fridge on the bodega's east wall — a sand3d ADD,
-    // not a swap: no counterpart existed, and an empty wall read as missing
-    // stock once the shelves landed. Collider matches its rotated box.
+    // Commercial reach-in cooler on the bodega's east wall — the SAME
+    // stocked sand3d asset the pizza shop's slot wears
+    // (models/drink_cooler.glb: glass front, can rows on three shelves,
+    // brand stripes in the house palette). The 2026-11-12 round-two audit
+    // retired the two-door refrigerator.glb here: its door GLB buries its
+    // glass pane inside an opaque slab, so the "glass-front cooler" read as
+    // a blank white door on a bare wall — the owner's "still not production
+    // ready". The drink cooler's cans ARE the stock; no extra dressing.
+    // Orientation: the door faces local −x → rotation 0 points it west, into
+    // the room; the 3 m run lies along world z on the east wall.
     const fridgePh = new THREE.Group();
     fridgePh.name = 'Fridge_Bodega';
-    fridgePh.position.set(-11.7, 1.03, 16.5); // feet on the floor top (0.11)
-    fridgePh.rotation.y = -Math.PI / 2; // door west, into the room
-    const fridgeBox = new THREE.Mesh(new THREE.BoxGeometry(0.76, 1.84, 1.22), this.mat(PAL.bldg2));
+    fridgePh.position.set(-11.75, 1.03, 16.0); // feet on the floor top (0.11)
+    const fridgeBox = new THREE.Mesh(new THREE.BoxGeometry(0.59, 1.84, 3.17), this.bank.get(0x2b2730));
     fridgeBox.castShadow = true;
     fridgeBox.receiveShadow = true;
     fridgePh.add(fridgeBox);
     this.scene.add(fridgePh);
     this.registerGlbProp('fridge_bodega', fridgePh);
-    void this.upgradePropWithGLB('fridge_bodega', 'models/refrigerator.glb');
-    this.colliders.push(boxFromCenter(-11.7, 1.03, 16.5, 1.22, 1.84, 0.76));
+    void this.upgradePropWithGLB('fridge_bodega', 'models/drink_cooler.glb');
+    // the collider matches the upgrade's scaled footprint (h ratio 1.84/1.74
+    // scales the GLB's 0.555 × 3.0 m body to 0.587 × 3.17)
+    this.colliders.push(boxFromCenter(-11.75, 1.03, 16.0, 0.59, 1.84, 3.17));
     // the counter a real deli works from: register, coffee, microwave, and
     // the produce crates by the window (sand3d ADDs — the register and
     // coffee wear the washer-slot pattern, front east into the store; the
@@ -846,10 +856,48 @@ export class World {
     mkCounterSlot('Bodega_Register', 14.4, 0.4, 0.3, 0.36);
     mkCounterSlot('Bodega_Coffee', 11.6, 0.42, 0.45, 0.38);
     this.fixture(bodegaDressing, 'Bodega_Microwave', -19.6, 1.27, 15.8, 0.385, 0.34, 0.47, PAL.cream);
-    // the produce crate sits ON the floor (fixture center = half-height over
-    // the floor top 0.11 — the float fix carries the GLB to the same line)
-    this.fixture(bodegaDressing, 'Bodega_Produce', -18.5, 0.27, 9.3, 0.6, 0.315, 0.4, PAL.bldg);
-    this.colliders.push(boxFromCenter(-18.5, 0.16, 9.3, 0.6, 0.32, 0.4));
+    // the produce stand (2026-11-12 production pass, round two): the story
+    // crate used to float alone on the floor by the window — two boxes in a
+    // bare corner read as litter, not produce. It now rides a real deli
+    // table with two stocked crates flanking it (oranges, limes — one merged
+    // draw per fruit). The GLB crate seats feet-on-table via the seam's own
+    // AABB-min law (fixture center = table top + half height).
+    const produceTop = 0.66;
+    const produceTable = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 0.85), this.bank.get(0x9c7a4a));
+    produceTable.name = 'Bodega_ProduceTable';
+    produceTable.position.set(-18.35, 0.11 + 0.275, 9.3);
+    produceTable.castShadow = true;
+    produceTable.receiveShadow = true;
+    bodegaDressing.add(produceTable);
+    this.fixture(bodegaDressing, 'Bodega_Produce', -18.5, produceTop + 0.1575, 9.3, 0.6, 0.315, 0.4, PAL.bldg);
+    this.colliders.push(boxFromCenter(-18.35, 0.385, 9.3, 2.2, 0.55, 0.85));
+    const fruitGeos = new Map<number, THREE.BufferGeometry[]>();
+    const pushFruit = (c: number, g: THREE.BufferGeometry): void => {
+      const arr = fruitGeos.get(c);
+      if (arr) arr.push(g); else fruitGeos.set(c, [g]);
+    };
+    const fruitCrate = (cx: number, fruit: number): void => {
+      const shell = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.28, 0.42), this.bank.get(0xb08d57));
+      shell.name = 'Bodega_ProduceCrate';
+      shell.position.set(cx, produceTop + 0.14, 9.3);
+      shell.castShadow = true;
+      shell.receiveShadow = true;
+      bodegaDressing.add(shell);
+      for (let r = 0; r < 2; r++) {
+        for (let i = 0; i < 4; i++) {
+          pushFruit(fruit, new THREE.CylinderGeometry(0.06, 0.06, 0.09, 10)
+            .translate(cx - 0.165 + i * 0.11, produceTop + 0.26, 9.19 + r * 0.22));
+        }
+      }
+    };
+    fruitCrate(-19.15, 0xe8964a); // oranges, west crate
+    fruitCrate(-17.85, 0x8fbf4d); // limes, east crate
+    for (const [color, geos] of fruitGeos) {
+      const m = new THREE.Mesh(mergeGeometries(geos, false)!, this.bank.get(color));
+      m.name = 'Bodega_ProduceFruit';
+      m.castShadow = true;
+      bodegaDressing.add(m);
+    }
 
     // ---------------- the deli's own colors (2026-11 identity pass) --------
     // Cream walls are the shipped stone masses seen from inside; the room's
@@ -983,6 +1031,20 @@ export class World {
     bagRail.rotation.x = Math.PI / 2;
     bagRail.position.set(-11.475, 1.96, 9.94);
     bodegaDressing.add(bagRail);
+    // the east wall's posters (2026-11-12 production pass, round two): the
+    // wall around the cooler read as a bare plaster field. Two framed
+    // house-voice ads — the beverage cry beside the chip strip, the flat-top
+    // promise north of it — the same signBoard seam the menu rides.
+    const posterCold = this.signBoard('Bodega_Poster_Cold', 'ICE COLD\nsoda · seltzer · water — always',
+      0.05, 1.55, 1.15, 256, 384, 0xf7b32b, PAL.ink, 34, 'x');
+    posterCold.rotation.y = Math.PI; // the face reads west, into the store
+    posterCold.position.set(-11.42, 1.95, 11.8); // south of the cooler run
+    bodegaDressing.add(posterCold);
+    const posterFlat = this.signBoard('Bodega_Poster_FlatTop', 'BREAKFAST ALL DAY\nthe flat top never lies',
+      0.05, 1.55, 1.15, 256, 384, PAL.cream, PAL.ink, 34, 'x');
+    posterFlat.rotation.y = Math.PI;
+    posterFlat.position.set(-11.42, 1.95, 13.2);
+    bodegaDressing.add(posterFlat);
     // the welcome mat inside the door gap (teal — the awning's color)
     const mat = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.02, 0.9), this.bank.get(PAL.teal));
     mat.name = 'Bodega_DoorMat';
@@ -1319,11 +1381,14 @@ export class World {
     // playable core: x ±84, z ±48. W6 (the terrace build-out, the owner's
     // 2026-11-11 expansion authorization — DEC-8 satisfied in the register):
     // the core grows to z ±64 and the strips behind Gable and Marlow become
-    // real rows — the z walls follow the registry's own bounds.
-    this.colliders.push(boxFromCenter(-84, 5, 0, 1, 20, 128));
-    this.colliders.push(boxFromCenter(84, 5, 0, 1, 20, 128));
-    this.colliders.push(boxFromCenter(0, 6, -64, 168, 24, 1)); // south wall behind the Carrow terrace
-    this.colliders.push(boxFromCenter(0, 6, 64, 168, 24, 1));  // north wall behind the Larkin terrace
+    // real rows — the z walls follow the registry's own bounds. W7 (the
+    // Westgate & Eastgate rows, same standing authorization): the core grows
+    // to x ±100 — the E–W streets grow their west and east ends, the strips
+    // beyond the avenues become real rows, and the x walls follow.
+    this.colliders.push(boxFromCenter(-100, 5, 0, 1, 20, 128));
+    this.colliders.push(boxFromCenter(100, 5, 0, 1, 20, 128));
+    this.colliders.push(boxFromCenter(0, 6, -64, 200, 24, 1)); // south wall behind the Carrow terrace
+    this.colliders.push(boxFromCenter(0, 6, 64, 200, 24, 1));  // north wall behind the Larkin terrace
 
     // zones
     this.crosswalkZone = boxFromCenter(-5, 1, 0, 3.4, 2, 7.5);
@@ -1626,7 +1691,11 @@ export class World {
       // solid reaching below z 7.28 grazes that lane and stalls the driver
       // on a wall it cannot round in one sidestep window (5 fps).
       [-44, -7.0], [-30, -7.0], [-16, -7.0], [28, -7.0], [38, -7.0],      // south
-      [-45, 4.7], [-38.6, 4.5],                                            // plaza park trees
+      // W8 (2026-11-12): the west plaza park tree slides (−45 → −43.9) —
+      // its trunk stood in the new station corridor's east exit (z 4.52..4.88
+      // inside the z 4..5.55 through-path; the walk-ability probe's own
+      // forensics). The plaza keeps its tree; the corridor keeps its width.
+      [-43.9, 4.7], [-38.6, 4.5],                                          // plaza park trees
     ];
     // Four of the twelve are turning — the two plaza park trees (you meet
     // them first, off the subway stairs) plus one tree each side of the
@@ -1745,13 +1814,17 @@ export class World {
 
     // ---- planters (the plaza one; the east planter moved to the park,
     // docs/38 — the barbershop needed its storefront, and the planter's
-    // PED bow-around entry moved with it, doc 35 §3's ghost-prop lesson)
+    // PED bow-around entry moved with it, doc 35 §3's ghost-prop lesson).
+    // W8 (2026-11-12): the plaza planter slides east (−46.6 → −44.9) —
+    // its old spot stood IN the new station corridor (z 4..5.55, the walk-
+    // ability probe's forensics: a 0.55 m pinch between planter and slot
+    // face that no capsule fits through) and sealed the through-path.
     const planterPlaza = makePlanter(this.bank, rng);
-    planterPlaza.position.set(-46.6, 0.05, 4.4);
+    planterPlaza.position.set(-44.3, 0.05, 4.4);
     planterPlaza.rotation.y = Math.PI / 2;
     this.scene.add(planterPlaza);
     // the plaza one is yawed π/2 so its long axis runs z
-    this.colliders.push(boxFromCenter(-46.6, 0.25, 4.4, 0.55, 0.55, 1.1));
+    this.colliders.push(boxFromCenter(-44.3, 0.25, 4.4, 0.55, 0.55, 1.1));
     // the bulletin board is furniture too (its flyer face is the Day-3 beat)
     this.colliders.push(boxFromCenter(-37.6, 0.975, 7.5, 1.75, 1.95, 0.3));
 
@@ -1917,6 +1990,13 @@ export class World {
     // neighborhood fabric (ironwork, terrace faces, street props) runs in
     // its own pass just before the bake.
     this.buildAlderHeightsW6Terrace();
+    // W7: the Westgate & Eastgate rows (docs/production/westgate-eastgate —
+    // the map's LAST two sides): the core grows x ±84 → ±100, the E–W
+    // streets grow their west and east ends (butt-jointed slabs, same
+    // levels), and 24 real masses continue the Gable / Kestrel / Marlow
+    // rows and both terrace bands into the strips (every mass via regShell
+    // — the no-invention law). All pre-bake.
+    this.buildAlderHeightsW7Gates();
     // W4 part 1: the district's static life — zone figures, parked cars,
     // the BUS-03 stop — all pre-bake so the W0 merge swallows them (the
     // perf law: the zones cost merges, not draw calls).
@@ -1934,6 +2014,10 @@ export class World {
     this.upgradeInteriorPropsWithGLB();
     // the rooms' palette (after the handles exist; dressRoom reads them)
     this.dressW5Rooms();
+    // the W8 strip-row room rides the same identity pass (its handle
+    // exists by now — the dress law reads handles, not build order)
+    this.dressRoom('FRUIT-INT', { wainscot: 0x4a7a52, trim: 0xf3e2c2, light: 0xfff2d8, clear: 3.2,
+      skips: { z1: [[-66.8, -65.6]] } });
 
     // the world-visual-quality pass (docs/3d-assets): crowns, gable walls,
     // sills, AC units, roof clutter, street-floor life — ALL pre-bake so
@@ -2238,7 +2322,7 @@ export class World {
         { x: 44.5, z: -7.35, r: 0.3 },
         { x: 13.5, z: -5.9, r: 0.3 },  // streetlamp
         { x: 29.8, z: -4.55, r: 0.9 }, // dirty-water dog cart (docs/38)
-        { x: -46.6, z: 4.4, r: 0.6 },  // planter plaza (missing)
+        { x: -44.3, z: 4.4, r: 0.6 },  // planter plaza (W8: slid east of the station corridor)
         { x: -8.55, z: 7.55, r: 0.5 }, // shirt rack (missing)
         { x: -4.0, z: 5.8, r: 0.5 },   // permit A-frame — it stands IN the
                                        // north walk lane; walkers bow around it
@@ -2252,7 +2336,7 @@ export class World {
         { x: -16, z: -7.0, r: 0.35 },
         { x: 28, z: -7.0, r: 0.35 },
         { x: 38, z: -7.0, r: 0.35 },
-        { x: -45, z: 4.7, r: 0.35 },
+        { x: -43.9, z: 4.7, r: 0.35 },
         { x: -38.6, z: 4.5, r: 0.35 },
         // W1: the Kestrel fill trees + the south control house + the new
         // south lamp — everything the ambient walkers can meet on the lane
@@ -2279,15 +2363,27 @@ export class World {
       // W4: the district's five road rectangles — ground truth for every
       // walker's feet (registry streets, verbatim)
       [
-        { xMin: -84, xMax: 84, zMin: -4, zMax: 4 },    // Kestrel Street
-        { xMin: -84, xMax: 84, zMin: 36, zMax: 44 },   // Gable Street
-        { xMin: -84, xMax: 84, zMin: -44, zMax: -36 }, // Marlow Street
-        { xMin: -76, xMax: -68, zMin: -64, zMax: 64 }, // Juniper Avenue
-        { xMin: 68, xMax: 76, zMin: -64, zMax: 64 },   // Sycamore Avenue
+        { xMin: -100, xMax: 100, zMin: -4, zMax: 4 },    // Kestrel Street (W7: the ends grew ±84 → ±100)
+        { xMin: -100, xMax: 100, zMin: 36, zMax: 44 },   // Gable Street (W7)
+        { xMin: -100, xMax: 100, zMin: -44, zMax: -36 }, // Marlow Street (W7)
+        { xMin: -76, xMax: -68, zMin: -64, zMax: 64 },   // Juniper Avenue
+        { xMin: 68, xMax: 76, zMin: -64, zMax: 64 },     // Sycamore Avenue
       ] as RoadRect[],
       // M4: each walker's shift on the street schedule — the dusk shift
       // boots home (the game boots into the day phase)
       PEDESTRIAN_ROLES,
+      // W7: the registry's solid footprints (minus the passable set) — the
+      // walker↔facade depenetration law's ground truth. The blocks' own
+      // walls answer to the resolve now: a separation half-push at a
+      // curb-cut skirt depenetrates off the face instead of through it.
+      loadRegistry().allBuildings()
+        .filter((b) => b.footprint && !PASSABLE_FOOTPRINTS.has(b.id))
+        .map((b) => ({
+          minX: b.footprint!.x - b.footprint!.w / 2,
+          maxX: b.footprint!.x + b.footprint!.w / 2,
+          minZ: b.footprint!.z - b.footprint!.d / 2,
+          maxZ: b.footprint!.z + b.footprint!.d / 2,
+        })),
     );
     // the walkers carry real bodies for the player's collision stack — the
     // audit's "NPCs walking through the player" (doc 35 §1): one synced AABB
@@ -2939,6 +3035,74 @@ export class World {
     this.buildW5Hall();
     this.buildW5Diner();
     this.buildW5CecilRoom();
+    this.buildW5Fruit();
+  }
+
+  /** FRUIT-INT (TEN-02: full-width cavity, x −67.6..−60.4, z −63.7..−48.7,
+   *  clear 3.2). The W5 pattern's first strip-row room (W8, 2026-11-12):
+   *  the Carrow row's working shopfront becomes a real ground floor — the
+   *  mass ducks above y 3.2, the terrace-walk facade carries the door gap
+   *  (the registry entrance's own x, −66.2) plus two windows, the fruit
+   *  crates read through the glass from the walk, and the counter + scale
+   *  and the cold case line the west wall. */
+  private buildW5Fruit(): void {
+    this.retireMass('TEN_02');
+    this.retireCollider(-68, -60, -63.9, -48.5);
+    this.duckBox('TEN02_Upper', -68, -60, 3.2, 16.5, -63.9, -48.5, PAL.brick);
+    const duckUpper = this.scene.children[this.scene.children.length - 1];
+    this.roomBox('TEN02_Wall_S', -68, -60, 0, 3.2, -63.9, -63.7, PAL.brick);
+    this.roomBox('TEN02_Wall_W', -68, -67.6, 0, 3.2, -63.9, -48.5, PAL.brick);
+    this.roomBox('TEN02_Wall_E', -60.4, -60, 0, 3.2, -63.9, -48.5, PAL.brick);
+    this.wallRun('TEN02_Facade', 'x', -48.6, -67.6, -60.4, 0, 3.2, 0.2, PAL.brick, [
+      { from: -66.8, to: -65.6, y1: 2.8 },           // the door (the registry's own entrance x)
+      { from: -64.9, to: -62.5, y0: 0.5, y1: 2.6 },  // the shop window
+      { from: -61.9, to: -60.7, y0: 0.5, y1: 2.6 },  // window E
+    ]);
+
+    const g = this.roomKit('FRUIT');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 15.0), this.bank.get(0xd8cbb2));
+    floor.name = 'Fruit_Floor';
+    floor.position.set(-64, 0.13, -56.2);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // counter + scale (west wall, just inside the door line)
+    this.fixture(g, 'Fruit_Counter', -66.9, 0.55, -51.5, 0.8, 1.1, 2.6, 0x4a7a52);
+    this.fixture(g, 'Fruit_Scale', -66.8, 1.25, -50.9, 0.3, 0.3, 0.3, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-66.9, 0.55, -51.5, 0.8, 1.1, 2.6));
+    // the cold case (west wall, rear)
+    this.fixture(g, 'Fruit_ColdCase', -66.9, 0.9, -55.2, 0.8, 1.8, 2.2, 0x3b3346);
+    this.colliders.push(boxFromCenter(-66.9, 0.9, -55.2, 0.8, 1.8, 2.2));
+    // the fruit crates — three rows under the shop window, the glass read
+    const crateRows: Array<[number, number, number]> = [[-63.7, -50.2, 0xd9772f], [-63.7, -51.4, 0xb23a48], [-63.7, -52.6, 0x2a9d8f]];
+    for (const [cx, cz, cc] of crateRows) {
+      this.fixture(g, `Fruit_Crate_${cz}`, cx, 0.35, cz, 2.2, 0.5, 0.9, cc);
+      this.colliders.push(boxFromCenter(cx, 0.35, cz, 2.2, 0.7, 0.9));
+    }
+    // the crate stacks (rear, south wall)
+    this.fixture(g, 'Fruit_Stacks', -64, 0.75, -62.9, 4.6, 1.3, 1.1, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-64, 0.75, -62.9, 4.6, 1.5, 1.1));
+
+    // the facade's own sign — the W6 storefront's identity, kept (canvas
+    // materials stay out of the bake by themselves)
+    const fascia = this.signBoard('Fruit_Fascia', 'CARROW FRUITS', 0.14, 0.7, 5.2, 5.2 * 72, 0.7 * 72, 0x2a9d8f, PAL.cream, 44);
+    fascia.position.set(-64, 3.05, -48.52);
+    this.scene.add(fascia);
+
+    const farParts: THREE.Object3D[] = [];
+    this.registerInterior({
+      id: 'FRUIT-INT', x0: -67.6, x1: -60.4, z0: -63.7, z1: -48.7,
+      glass: [
+        { axis: 'z', side: 'max', at: -48.63, a0: -64.85, a1: -62.55 },
+        { axis: 'z', side: 'max', at: -48.63, a0: -61.85, a1: -60.75 },
+      ],
+      group: g,
+      nearParts: [
+        this.facadePane('Fruit_Clear_W', 'x', -48.63, -64.85, -62.55, 0.55, 2.55, this.roomClearMat),
+        this.facadePane('Fruit_Clear_E', 'x', -48.63, -61.85, -60.75, 0.55, 2.55, this.roomClearMat),
+      ],
+      farParts, duck: [duckUpper],
+    });
+    for (const p of (this.interiorHandles[this.interiorHandles.length - 1].nearParts)) this.scene.add(p);
   }
 
   /** LAUNDRY-INT (registry: KTN-02, x −11..1, z 8.2..19, clear 3.2). The
@@ -3846,6 +4010,7 @@ export class World {
       regShell: (id) => this.regShell(id),
       buildings: loadRegistry().allBuildings(),
       skylineWinMat: this.skylineWinMat,
+      collider: (x, y, z, w, h, d) => this.colliders.push(boxFromCenter(x, y, z, w, h, d)),
     });
   }
 
@@ -4000,6 +4165,39 @@ export class World {
         const wx = s.x - s.w / 2 + 1.5 + c * ((s.w - 3) / 2), wy = 3.4 + f * 2.9;
         vqAdd(makeSill(this.bank, 1.1, wx, wy - 0.85 - 0.05, faceZ), 'VQ_Sill');
         vqAdd(makeLintel(this.bank, 1.1, wx, wy + 0.85 + 0.07, faceZ), 'VQ_Lintel');
+      }
+    }
+
+    // W8 (2026-11-12): the W6 terrace rows and the W7 gate rows join the
+    // sill+lintel law — the honest ledger's variety item. Their window
+    // grammar is the shared one (floors = max(2, round(h/3.3)), cols =
+    // w>=7?2:1, wy = 3.4 + f*((h-1.2)/floors), skip wy > h-1), mirrored
+    // from the owning builders; every shipped window gets its stone sill
+    // (under) and lintel (over), seated 0.14 proud of the row's own face
+    // (the entrance's `faces` value is the face law).
+    const W6W7_ROWS = [
+      'GRB-06', 'GRB-07', 'TEN-02', 'KTS-04',
+      'GRB-08', 'GRB-09', 'GRB-10', 'GRB-11', 'GRB-12', 'GRB-13', 'GRB-14', 'GRB-15',
+      'KTN-08', 'KTN-09', 'KTN-10', 'KTN-11',
+      'KTS-05', 'KTS-06', 'KTS-07', 'KTS-08', 'KTS-09', 'KTS-10',
+      'TEN-03', 'TEN-04', 'MRW-01', 'MRW-02', 'MRW-03', 'MRW-04',
+    ] as const;
+    for (const regId of W6W7_ROWS) {
+      const reg = this.regShell(regId);
+      const row = loadRegistry().building(regId);
+      const ent = row?.entrance?.[0];
+      const faceSign = ent?.faces === 'N' ? 1 : -1;
+      const faceZ = (ent?.faces === 'N' ? reg.z + reg.d / 2 : reg.z - reg.d / 2) + faceSign * 0.14;
+      const floors = Math.max(2, Math.round(reg.h / 3.3));
+      const cols = reg.w >= 7 ? 2 : 1;
+      for (let f = 0; f < floors; f++) {
+        for (let c = 0; c < cols; c++) {
+          const wx = reg.x - reg.w / 2 + (reg.w / (cols + 1)) * (c + 1);
+          const wy = 3.4 + f * ((reg.h - 1.2) / floors);
+          if (wy > reg.h - 1.0) continue;
+          vqAdd(makeSill(this.bank, 1.15, wx, wy - 0.8 - 0.05, faceZ), 'VQ_Sill');
+          vqAdd(makeLintel(this.bank, 1.15, wx, wy + 0.8 + 0.07, faceZ), 'VQ_Lintel');
+        }
       }
     }
 
@@ -4345,13 +4543,16 @@ export class World {
     signal.rotation.y = -Math.PI / 2; // the arm reaches over Juniper's road
     this.scene.add(signal);
     this.colliders.push(boxFromCenter(-65.3, 2.75, -7.55, 0.3, 5.5, 0.3));
-    // the globes flank the station headhouse (both stair corners)
-    const globeW = makeSubwayGlobePost(this.bank, -48.75, 4.2);
+    // the globes flank the station headhouse (both stair corners). W8:
+    // they ride the slot's shrink — z 4.2 stood IN the new curb-side
+    // corridor (the walk-ability probe's own forensics); z 5.85 puts the
+    // pair beside the entrance rim again, clear of the corridor.
+    const globeW = makeSubwayGlobePost(this.bank, -48.75, 5.85);
     this.siAdd(globeW, 'SI_Globe_SUB01_W');
-    this.colliders.push(boxFromCenter(-48.75, 0.95, 4.2, 0.28, 1.9, 0.28));
-    const globeE = makeSubwayGlobePost(this.bank, -45.65, 4.2);
+    this.colliders.push(boxFromCenter(-48.75, 0.95, 5.85, 0.28, 1.9, 0.28));
+    const globeE = makeSubwayGlobePost(this.bank, -45.65, 5.85);
     this.siAdd(globeE, 'SI_Globe_SUB01_E');
-    this.colliders.push(boxFromCenter(-45.65, 0.95, 4.2, 0.28, 1.9, 0.28));
+    this.colliders.push(boxFromCenter(-45.65, 0.95, 5.85, 0.28, 1.9, 0.28));
   }
 
   /** SI, section F — the far-skyline landmark silhouettes: the ported
@@ -5693,7 +5894,7 @@ export class World {
    *  merge. New trees do NOT join the fade pass (their camera guard is the
    *  sidestep + z-clamp; docs/47 W1 records the tradeoff). */
   private simpleTrees: Array<{ x: number; z: number; h: number; phase: number; top: number;
-    blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 }> }> = [];
+    blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 | 4 | 5 }> }> = [];
   private extraLeafSpots: Array<{ x: number; z: number; r: number; top: number; tints: number[] }> = [];
   /** The instanced canopy: ONE system for every tree on the block. Slots:
    *  0 leafA (0x5d7d4a) · 1 leafB (0x516e42) · 2 goldA (0xf7b32b) ·
@@ -5702,10 +5903,10 @@ export class World {
    *  the autumn golds land in 2/3. Four draw calls for every canopy on the
    *  block, main pass and shadow pass alike — the recorded Doc 07 lever
    *  (docs/47: 63 blob meshes × 2 passes → 4 × 2). */
-  private canopyMeshes: Array<THREE.InstancedMesh | null> = [null, null, null, null];
+  private canopyMeshes: Array<THREE.InstancedMesh | null> = [null, null, null, null, null, null];
   /** Per-instance fade alpha (the fade-on-occlude law: ONE tree dissolves,
    *  never the street). Simple rows stay at 1 forever (docs/47 W1 tradeoff). */
-  private canopyFade: Array<THREE.InstancedBufferAttribute | null> = [null, null, null, null];
+  private canopyFade: Array<THREE.InstancedBufferAttribute | null> = [null, null, null, null, null, null];
   private canopyBuilt = false;
   private readonly mSway = new THREE.Matrix4();
   private readonly mBlob = new THREE.Matrix4();
@@ -5749,14 +5950,19 @@ export class World {
     pit.position.set(x, 0.07, z);
     this.scene.add(pit);
     this.treePits.push({ x, z });
-    const blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 }> = [];
+    // the species roll (W8): a position hash picks the tone — locust green
+    // (0/1, the shipped pair), a copper elm (4, ~1 in 7 trees), a dark pine
+    // (5, ~1 in 11). NO rng draws: the seeded rows' shapes stay identical.
+    const roll = Math.abs(Math.round(x * 13.7 + z * 7.3)) % 18;
+    const species: 0 | 1 | 4 | 5 = roll < 12 ? 0 : roll < 14 ? 1 : roll < 16 ? 4 : 5;
+    const blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 | 4 | 5 }> = [];
     let top = h;
     for (let i = 0; i < 3; i++) {
       const r = 0.85 + rng() * 0.55;
       const cy = r * 0.45 + rng() * 0.5;
       const ox = (rng() - 0.5) * 0.9;
       const oz = (rng() - 0.5) * 0.9;
-      blobs.push({ ox, oy: cy, oz, r, mat: i === 0 ? 0 : (rng() < 0.5 ? 0 : 1) });
+      blobs.push({ ox, oy: cy, oz, r, mat: i === 0 ? species : (rng() < 0.5 ? species : (species === 0 ? 1 : species)) });
       top = Math.max(top, h + cy + r * 0.9);
     }
     this.simpleTrees.push({ x, z, h, phase: rng() * Math.PI * 2, top, blobs });
@@ -6060,7 +6266,12 @@ export class World {
       this.scene.add(lamp);
       this.colliders.push(boxFromCenter(lx, 2.6, lz, 0.24, 5.2, 0.24));
     });
-    for (const [hx, hz] of [[-60, -4.55], [-10, 43.45], [10, -35.25], [-30, 4.55]] as const) {
+    // W8 (2026-11-12): the west hydrant slides (−60 → −61.6) — its old
+    // curb spot pinched the new station corridor's west exit against the
+    // control house face (0.63 m — no capsule fits; the walk-ability
+    // probe's corridor sweep caught it). Still a curb hydrant, off the
+    // through-path.
+    for (const [hx, hz] of [[-61.6, -4.55], [-10, 43.45], [10, -35.25], [-30, 4.55]] as const) {
       const hyd = makeHydrant(this.bank);
       hyd.position.set(hx, 0.05, hz);
       this.scene.add(hyd);
@@ -6910,7 +7121,12 @@ export class World {
       // the entrance craft — the registry's own row says which
       const ent = row?.entrance?.[0];
       const entX = ent?.x ?? reg.x;
-      if (style.storefront) {
+      if (regId === 'TEN-02') {
+        // W8 (2026-11-12): FRUIT-INT owns this ground floor — the W5
+        // pattern's facade decomposition (buildW5Fruit) retires this mass
+        // and carries the door gap + windows + fascia itself; the W6
+        // storefront deco and stoop would double the front.
+      } else if (style.storefront) {
         // the shopfront faces the walk (north, +z, for the Carrow rows)
         const shop = makeStorefront(this.bank, this.signMaterials.bind(this),
           style.storefront, style.awning ?? PAL.teal, reg.w - 1);
@@ -6972,14 +7188,180 @@ export class World {
     this.scene.add(board);
   }
 
+  /** W7 — the Westgate & Eastgate rows (docs/production/westgate-eastgate):
+   *  the map's LAST two sides. The E–W streets grow their west and east
+   *  ends (butt-jointed slabs at the W1 levels — the W1 law), and 24 real
+   *  masses continue the Gable / Kestrel / Marlow rows and both terrace
+   *  bands into the strips beyond the avenues. A-3 law: every mass reads
+   *  its registry row through regShell; the style constants stay code.
+   *  All pre-bake — the strip content clamps into the c0/c5 edge tiles
+   *  (the districtKey law, same as the W6 strips). */
+  private buildAlderHeightsW7Gates(): void {
+    const rng = seededRng(20261112); // the wave's own seed — never re-tunes a shipped row
+    const CURB = 0x8f8a82;
+
+    // ---- A. the E–W street slabs grow their ends (x ±84 → ±100) ----------
+    // Kestrel: the W1 runs (Road_W/E, 34 wide) end at ±84 — the strips
+    // butt-joint at the same levels (road top y 0.0, walks top 0.1).
+    this.solid('Road_W7_W', -92, -0.1, 0, 16, 0.2, 8, PAL.road, { receive: true, cast: false });
+    this.solid('Road_W7_E', 92, -0.1, 0, 16, 0.2, 8, PAL.road, { receive: true, cast: false });
+    for (const [sz, nm] of [[6, 'N'], [-6, 'S']] as const) {
+      this.solid(`Sidewalk_W7_${nm}_W`, -92, -0.05, sz, 16, 0.3, 4, PAL.walk, { receive: true, cast: false });
+      this.solid(`Sidewalk_W7_${nm}_E`, 92, -0.05, sz, 16, 0.3, 4, PAL.walk, { receive: true, cast: false });
+      for (const sgn of [-1, 1] as const) {
+        this.solid(`Curb_W7_${nm}_${sgn < 0 ? 'W' : 'E'}`, sgn * 92, 0.065, sz === 6 ? 4.08 : -4.08,
+          16, 0.13, 0.5, CURB, { collide: false });
+      }
+    }
+    // Gable / Marlow: the W1 runs (168 wide) end at ±84 — same butt-joint
+    for (const [cz, nm] of [[40, 'G'], [-40, 'M']] as const) {
+      this.solid(`Road_W7_${nm}_W`, -92, -0.105, cz, 16, 0.19, 8, PAL.road, { receive: true, cast: false });
+      this.solid(`Road_W7_${nm}_E`, 92, -0.105, cz, 16, 0.19, 8, PAL.road, { receive: true, cast: false });
+      for (const [wz, side] of [[cz + 6, 'N'], [cz - 6, 'S']] as const) {
+        this.solid(`Walk_W7_${nm}${side}_W`, -92, -0.05, wz, 16, 0.3, 4, PAL.walk, { receive: true, cast: false });
+        this.solid(`Walk_W7_${nm}${side}_E`, 92, -0.05, wz, 16, 0.3, 4, PAL.walk, { receive: true, cast: false });
+      }
+      for (const sgn of [-1, 1] as const) {
+        this.solid(`Curb_W7_${nm}_${sgn < 0 ? 'W' : 'E'}_N`, sgn * 92, 0.065, cz + 3.92, 16, 0.13, 0.5, CURB, { collide: false });
+        this.solid(`Curb_W7_${nm}_${sgn < 0 ? 'W' : 'E'}_S`, sgn * 92, 0.065, cz - 3.92, 16, 0.13, 0.5, CURB, { collide: false });
+      }
+    }
+    // the terrace walk slabs follow the bands to the wall line (the W6 law)
+    this.solid('Terrace_W7_N_Walk_W', -92, -0.05, 56, 16, 0.3, 16, PAL.walk, { receive: true, cast: false });
+    this.solid('Terrace_W7_N_Walk_E', 92, -0.05, 56, 16, 0.3, 16, PAL.walk, { receive: true, cast: false });
+    this.solid('Terrace_W7_S_Walk_W', -92, -0.05, -56, 16, 0.3, 16, PAL.walk, { receive: true, cast: false });
+    this.solid('Terrace_W7_S_Walk_E', 92, -0.05, -56, 16, 0.3, 16, PAL.walk, { receive: true, cast: false });
+
+    // ---- B. the 24 strip masses (A-3 law: every row via regShell) --------
+    // The registry's own entrance rows say which way each door faces: 'S'
+    // doors sit on the mass's south face (z − d/2), 'N' doors on its north
+    // face (z + d/2). Everything on the street side hangs at
+    // faceZ + faceSign * dist — the W6 terrace builder's law, generalized.
+    interface GateStyle { mass: number; door: number; shop?: string; awning?: number; tallStoop?: boolean }
+    const gateRows: Array<[string, GateStyle]> = [
+      // the Larkin terrace band — west then east (high stoops face S)
+      ['GRB_08', { mass: PAL.bldg2, door: PAL.teal, tallStoop: true }],
+      ['GRB_09', { mass: PAL.bldg2, door: 0x6d4c7d, tallStoop: true }],
+      ['GRB_10', { mass: PAL.bldg2, door: 0x9e222e, tallStoop: true }],
+      ['GRB_11', { mass: PAL.bldg2, door: PAL.coral, tallStoop: true }],
+      // the Carrow band — west then east (stoops face N, shopfront ends)
+      ['TEN_03', { mass: PAL.brick, door: 0x6d4c7d }],
+      ['KTS_05', { mass: PAL.brick, door: PAL.teal }],
+      ['TEN_04', { mass: PAL.brick, door: 0x6d4c7d }],
+      ['KTS_06', { mass: PAL.brick, door: PAL.coral }],
+      // Gable's south brownstone row — west then east (high stoops face N)
+      ['GRB_12', { mass: PAL.bldg, door: PAL.teal, tallStoop: true }],
+      ['GRB_13', { mass: PAL.bldg, door: 0x6d4c7d, tallStoop: true }],
+      ['GRB_14', { mass: PAL.bldg, door: 0x9e222e, tallStoop: true }],
+      ['GRB_15', { mass: PAL.bldg, door: PAL.coral, tallStoop: true }],
+      // Kestrel's walk-up row — west then east (shopfronts face S)
+      ['KTN_08', { mass: PAL.bldg, door: PAL.teal, shop: 'WESTGATE BOOKS', awning: NEIGH.awningGreen }],
+      ['KTN_09', { mass: PAL.bldg, door: PAL.coral, shop: 'GATE HARDWARE', awning: NEIGH.awningRed }],
+      ['KTN_10', { mass: PAL.bldg, door: PAL.teal, shop: 'EASTGATE NEWS', awning: NEIGH.awningGold }],
+      ['KTN_11', { mass: PAL.bldg, door: PAL.coral, shop: 'VERBENA BOOKS', awning: NEIGH.awningNavy }],
+      // Kestrel's tenement row — west then east (doors face N)
+      ['KTS_07', { mass: PAL.brick, door: 0x6d4c7d }],
+      ['KTS_08', { mass: PAL.brick, door: PAL.teal }],
+      ['KTS_09', { mass: PAL.brick, door: PAL.coral }],
+      ['KTS_10', { mass: PAL.brick, door: 0x6d4c7d }],
+      // Marlow's shop-and-walk-up row — west then east (shopfronts face S)
+      ['MRW_01', { mass: PAL.bldg2, door: PAL.teal, shop: 'CORNELIUS & CO.', awning: NEIGH.awningNavy }],
+      ['MRW_02', { mass: PAL.bldg2, door: PAL.coral, shop: 'WESTGATE NEWS', awning: NEIGH.awningRed }],
+      ['MRW_03', { mass: PAL.bldg2, door: PAL.teal, shop: 'LARKIN PROVISIONS', awning: NEIGH.awningGold }],
+      ['MRW_04', { mass: PAL.bldg2, door: 0x6d4c7d, shop: 'CARROW CHEESE', awning: NEIGH.awningGreen }],
+    ];
+    for (const [id, style] of gateRows) {
+      const regId = id.replace('_', '-');
+      const reg = this.regShell(regId);
+      const row = loadRegistry().building(regId);
+      const ent = row?.entrance?.[0];
+      const faceSign = ent?.faces === 'N' ? 1 : -1;
+      const faceZ = faceSign > 0 ? reg.z + reg.d / 2 : reg.z - reg.d / 2;
+      this.solid(id, reg.x, reg.h / 2, reg.z, reg.w, reg.h, reg.d, style.mass);
+      this.deco(`${id}_Cornice`, reg.x, reg.h - 0.25, reg.z, reg.w + 0.2, 0.5, reg.d + 0.2, PAL.stone, {});
+      // the window rhythm against the registry box (the W6 grammar)
+      const floors = Math.max(2, Math.round(reg.h / 3.3));
+      const cols = reg.w >= 7 ? 2 : 1;
+      for (let f = 0; f < floors; f++) {
+        for (let c = 0; c < cols; c++) {
+          const wx = reg.x - reg.w / 2 + (reg.w / (cols + 1)) * (c + 1);
+          const wy = 3.4 + f * ((reg.h - 1.2) / floors);
+          if (wy > reg.h - 1.0) continue;
+          this.decoMesh(`${id}_Win_${f}_${c}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
+            this.bank.get(PAL.windowDim), wx, wy, faceZ + faceSign * 0.05);
+        }
+      }
+      // the entrance craft — the registry's own row says which
+      const entX = ent?.x ?? reg.x;
+      if (style.shop) {
+        const shop = makeStorefront(this.bank, this.signMaterials.bind(this),
+          style.shop, style.awning ?? NEIGH.awningGreen, reg.w - 1);
+        shop.position.set(reg.x, 0.05, faceZ + faceSign * 0.04);
+        if (faceSign < 0) shop.rotation.y = Math.PI;
+        this.scene.add(shop);
+        const door = makeBrownstoneStoop(this.bank, style.door, false);
+        door.position.set(entX, 0, faceZ + faceSign * 0.6);
+        if (faceSign < 0) door.rotation.y = Math.PI;
+        this.scene.add(door);
+      } else {
+        const stoop = makeBrownstoneStoop(this.bank, style.door, style.tallStoop ?? false);
+        stoop.position.set(entX, 0, faceZ + faceSign * 0.6);
+        if (faceSign < 0) stoop.rotation.y = Math.PI;
+        this.scene.add(stoop);
+      }
+    }
+
+    // ---- C. the strip street trees (the shipped rows' own z law) ---------
+    // Kestrel fills at z ±7.48/-7.0, Gable/Marlow rows at 32.6/47.4/-32.6;
+    // every x chosen ≥ 1.4 m clear of the new stoops (the honest spacing).
+    for (const tx of [-93.5, -98.5]) this.buildSimpleTree(tx, 7.48, rng);
+    for (const tx of [93.5, 98.5]) this.buildSimpleTree(tx, 7.48, rng);
+    for (const tx of [-93.5, -98.5]) this.buildSimpleTree(tx, -7.0, rng);
+    for (const tx of [93.5, 98.5]) this.buildSimpleTree(tx, -7.0, rng);
+    for (const tx of [-92.5, -99.5]) this.buildSimpleTree(tx, 32.6, rng);
+    for (const tx of [92.5, 99.5]) this.buildSimpleTree(tx, 32.6, rng);
+    for (const tx of [-85.5, -94.5]) this.buildSimpleTree(tx, 47.4, rng);
+    for (const tx of [89.5, 98.5]) this.buildSimpleTree(tx, 47.4, rng);
+    for (const tx of [-92.5, -99.5]) this.buildSimpleTree(tx, -32.6, rng);
+    for (const tx of [92.5, 99.5]) this.buildSimpleTree(tx, -32.6, rng);
+    for (const tx of [-86.5, -94.5]) this.buildSimpleTree(tx, -47.4, rng);
+    for (const tx of [89.5, 98.5]) this.buildSimpleTree(tx, -47.4, rng);
+
+    // ---- D. the east chalk-menu A-frame (the east_menu anchor's prop) ----
+    // MRW-03's LARKIN PROVISIONS front — the classic sandwich-board on the
+    // walk, 0.8 m off the face plane, clear of the shed (x 84.4..91.6) and
+    // the walk lane (z −34.6). Two leaning chalk slabs + the hinge bar.
+    const chalk = this.bank.get(0x2f2f33);
+    const boardMat = this.bank.get(0x3a3a40);
+    const aFrame = new THREE.Group();
+    for (const s of [-1, 1] as const) {
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(0.72, 1.05, 0.05), s < 0 ? boardMat : chalk);
+      slab.position.set(0, 0.56, s * 0.14);
+      slab.rotation.x = s * 0.16;
+      slab.castShadow = true;
+      aFrame.add(slab);
+    }
+    const hinge = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.05, 0.05), this.bank.get(PAL.ink));
+    hinge.position.set(0, 1.1, 0);
+    aFrame.add(hinge);
+    aFrame.position.set(88, 0.1, -32.8);
+    aFrame.rotation.y = Math.PI; // the chalk face looks south, up the walk
+    this.scene.add(aFrame);
+  }
+
   private buildInstancedTreeRows(): void {
     if (this.canopyBuilt) return;
-    const count = [0, 0, 0, 0];
+    const count = [0, 0, 0, 0, 0, 0];
     for (const t of this.simpleTrees) for (const b of t.blobs) count[b.mat]++;
     for (const t of this.trees) for (const b of t.blobs) count[b.key]++;
-    if (!count[0] && !count[1] && !count[2] && !count[3]) return;
-    const HEXES = [0x5d7d4a, 0x516e42, 0xf7b32b, 0xffb85c] as const;
-    for (let k = 0; k < 4; k++) {
+    if (!count.some((c) => c > 0)) return;
+    // W8 tree-species variety (2026-11-12): the honest ledger's variety
+    // item. The four shipped tones (two honey-locust greens, two ginkgo
+    // golds) gain a copper elm (0xb06038) and a dark pine (0x3e5d3e); the
+    // simple rows roll species per tree by a position hash (deterministic,
+    // NO rng-stream draws — the seeded rows' shapes stay byte-identical).
+    const HEXES = [0x5d7d4a, 0x516e42, 0xf7b32b, 0xffb85c, 0xb06038, 0x3e5d3e] as const;
+    for (let k = 0; k < HEXES.length; k++) {
       if (!count[k]) continue;
       const m = this.bank.get(HEXES[k]).clone();
       m.transparent = true; // fade-on-occlude ready; aFade 1 renders as opaque
@@ -7000,7 +7382,7 @@ export class World {
       const im = new THREE.InstancedMesh(geo, m, count[k]);
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.castShadow = true;
-      im.name = ['TreeCanopy_LeafA', 'TreeCanopy_LeafB', 'TreeCanopy_GoldA', 'TreeCanopy_GoldB'][k];
+      im.name = ['TreeCanopy_LeafA', 'TreeCanopy_LeafB', 'TreeCanopy_GoldA', 'TreeCanopy_GoldB', 'TreeCanopy_Copper', 'TreeCanopy_Pine'][k];
       this.canopyMeshes[k] = im;
       this.canopyFade[k] = fade;
       this.scene.add(im);
@@ -7008,11 +7390,8 @@ export class World {
     // instance slots: the W1 simple rows own the first countSimple slots of
     // meshes 0/1 (updateTreeRows writes them positionally, same order every
     // frame); the makeTree trees claim the slots after, stored per blob.
-    const cursor = [
-      this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === 0).length, 0),
-      this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === 1).length, 0),
-      0, 0,
-    ];
+    const cursor = [0, 1, 2, 3, 4, 5].map((k) =>
+      this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === k).length, 0));
     for (const t of this.trees) {
       for (const b of t.blobs) b.idx = cursor[b.key]++;
     }
@@ -7030,7 +7409,7 @@ export class World {
    *  blob), so the silhouette and the sway are pixel-identical. */
   private updateTreeRows(time: number): void {
     if (!this.canopyBuilt) return;
-    let ia = 0, ib = 0;
+    const cursors = [0, 0, 0, 0, 0, 0];
     for (const t of this.simpleTrees) {
       const sz = Math.sin(time * 0.9 + t.phase) * 0.022;
       const sx = Math.cos(time * 0.7 + t.phase) * 0.016;
@@ -7041,8 +7420,7 @@ export class World {
       for (const b of t.blobs) {
         this.mBlob.compose(this.tV.set(b.ox, b.oy, b.oz), this.tQ.identity(), this.tS.setScalar(b.r));
         this.mCanopy.multiplyMatrices(this.mSway, this.mBlob);
-        if (b.mat === 0) this.canopyMeshes[0]!.setMatrixAt(ia++, this.mCanopy);
-        else this.canopyMeshes[1]!.setMatrixAt(ib++, this.mCanopy);
+        this.canopyMeshes[b.mat]!.setMatrixAt(cursors[b.mat]++, this.mCanopy);
       }
     }
     for (const t of this.trees) {

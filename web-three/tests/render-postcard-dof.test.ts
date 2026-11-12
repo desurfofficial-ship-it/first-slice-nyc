@@ -1,5 +1,5 @@
 /**
- * The authored postcard capture's depth of field (v1.50.0, docs/rendering/05)
+ * The authored postcard capture's depth of field (v1.54.0, docs/rendering/05)
  * — the pure laws: the clamp on the authored focus, the tuned constants,
  * and the resolver's ?dof= / ?fx=off contract.
  *

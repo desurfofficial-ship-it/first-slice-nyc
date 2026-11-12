@@ -754,6 +754,13 @@ export class Game {
     // the car is the room and the street boom scale is the honest one
     // (the lift would press the lens into the car roof)
     this.cam.interiorAboard = aboardCar(this.player.capsule.z);
+    // the ride's seam: the boom inherits the swap's ±288 m jump (see
+    // SubwaySystem.seamDx) in the same frame the player does — the framing
+    // survives bit-exact instead of lerping 288 m through the tunnel wall
+    if (this.world.subway.seamDx !== 0) {
+      this.cam.camera.position.x += this.world.subway.seamDx;
+      this.world.subway.seamDx = 0;
+    }
     this.drainFarWorld(wdt);
     if (!this.dayFading && this.ui.nameBox.hidden && this.ui.orderCard.hidden && !this.mapOpen
       && this.ui.starterCard.hidden && !this.arrival.active && !this.wardrobe.isOpen) {
@@ -2435,7 +2442,7 @@ export class Game {
       const capCam = new THREE.PerspectiveCamera(55, 768 / 1160, 0.1, 400);
       capCam.position.set(this.rigPos.x, this.rigPos.y, this.rigPos.z);
       capCam.lookAt(this.rigLook.x, this.rigLook.y, this.rigLook.z);
-      // v1.50.0: the authored rig's look-at IS the subject — the capture's
+      // v1.54.0: the authored rig's look-at IS the subject — the capture's
       // focal plane rides it (the DOF chapter, authored poses only:
       // docs/rendering/05). ?fx=off / ?dof=0 never pass it (the resolver).
       const dof = this.gfx.postcardDof
@@ -2486,7 +2493,7 @@ export class Game {
     const capCam = new THREE.PerspectiveCamera(55, 768 / 1160, 0.1, 400);
     // the arrival view, held: from the square's mid-north the stacked south
     // tower fills the portrait frame — screens in the top two-thirds, the
-    // warm plaza (stair, benches, walkers) below. v1.50.0 re-pose: the
+    // warm plaza (stair, benches, walkers) below. v1.54.0 re-pose: the
     // shipped spot (z 10.5, look y 13.5) tilted up 32°, so the plaza was
     // mathematically out of frame (the bottom edge ray stayed above the
     // horizon) and the card read as a flat facade close-up — found by this

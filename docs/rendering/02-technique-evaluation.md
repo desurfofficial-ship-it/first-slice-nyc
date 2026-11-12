@@ -92,7 +92,7 @@ vertex-bake, draw-call-budgeted WebGL2 city.
 - **Depth of field**: CoC from depth → blurred composite. **Defer** — the
   city is a wide-stage game; focus hunting fights gameplay readability.
   The postcard rig could adopt it later (authored poses only). — **PAID
-  v1.50.0**: the authored capture rig adopted exactly that carve-out
+  v1.54.0**: the authored capture rig adopted exactly that carve-out
   (docs/rendering/05); the gameplay frame stays DOF-free.
 - **SSR**: ray-march the color+depth buffer against the depth buffer.
   **Defer for glass** — a full SSR pass is the most expensive effect in the

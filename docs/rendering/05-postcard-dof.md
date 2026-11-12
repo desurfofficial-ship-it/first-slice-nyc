@@ -1,4 +1,4 @@
-# The authored postcard's depth of field — the v1.50.0 wave
+# The authored postcard's depth of field — the v1.54.0 wave
 
 Companion to 01 (audit) · 02 (technique evaluation) · 03 (plan) · 04 (the
 graphics wave's results). This wave pays the evaluation's own carve-out:

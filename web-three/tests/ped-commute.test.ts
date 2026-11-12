@@ -227,6 +227,16 @@ describe('the armed roster (headless, real graph, real walkers)', () => {
       ],
       [],
       [],
+      [],
+      [],
+      // W7: the game's walker↔facade depenetration ground truth — the
+      // resolve answers to the registry's own walls (mirrors World.ts)
+      footprintsOf(registry.doc)
+        .filter((f) => !PASSABLE_FOOTPRINTS.has(f.id))
+        .map((f) => ({
+          minX: f.fp.x - f.fp.w / 2, maxX: f.fp.x + f.fp.w / 2,
+          minZ: f.fp.z - f.fp.d / 2, maxZ: f.fp.z + f.fp.d / 2,
+        })),
     );
     const nav = new Navigation(registry);
     const ctx = makeCtx(nav);

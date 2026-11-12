@@ -1,5 +1,5 @@
 /**
- * The AUTHORED postcard capture's depth of field (v1.50.0, docs/rendering/05)
+ * The AUTHORED postcard capture's depth of field (v1.54.0, docs/rendering/05)
  * — the technique evaluation's own carve-out paid: "the postcard rig could
  * adopt it later (authored poses only)".
  *
