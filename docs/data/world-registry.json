@@ -9,7 +9,8 @@
   "statusNote": "Construction ordered by the lead 2026-11-01; phases W0-W5 per docs/45, per-phase ledger in docs/47.",
   "corrections": [
    "W1: Marlow/Gable-row entrance markers moved to their street-facing faces (11 buildings) - the build followed docs/40 §5.2, the registry now says the same.",
-   "W6 (2026-11-11): the terrace build-out — playable core z ±48 → ±64 by owner authorization (DEC-8); four rows appended (GRB-06/07, TEN-02/KTS-04, all built (W6); the strips’ x ±67..74 stays avenue corridor); two garden parks appended (PRK-LARKIN/PRK-CARROW); the three W2 parks’ status column repaired (built in W2, read planned — the E-1-era defect pattern; geometry untouched)."
+   "W6 (2026-11-11): the terrace build-out — playable core z ±48 → ±64 by owner authorization (DEC-8); four rows appended (GRB-06/07, TEN-02/KTS-04, all built (W6); the strips’ x ±67..74 stays avenue corridor); two garden parks appended (PRK-LARKIN/PRK-CARROW); the three W2 parks’ status column repaired (built in W2, read planned — the E-1-era defect pattern; geometry untouched).",
+   "W11 (2026-11-13): the registry-truth repair — the eight W5 rooms' statuses flip 'planned' → 'built (W5)'; they shipped in W5 (World.ts buildW5*), were dressed by the sand3d batch (2026-11-07), and docs/production/interiors/00-INVENTORY.md records all nine as enterable in play — the statuses never flipped. The pizza openDecision closes (shipped as a full W5 room), the MEZZ/CORNERHOUSE decision rewords to current truth, and the shipped W8/W9 phase rows join the ledger. No id, footprint, shell, plan or anchor value moved."
   ],
   "coordSystem": {
    "axes": "x = east(+)/west(−), z = north(+)/south(−), y = up. Identical to the live web-three world; the origin does not move.",
@@ -3472,7 +3473,7 @@
   {
    "id": "LAUNDRY-INT",
    "building": "KTN-02",
-   "status": "planned (bay exists)",
+   "status": "built (W5)",
    "shell": {
     "xMin": -11,
     "xMax": 1,
@@ -3565,12 +3566,13 @@
      "y": 0.9,
      "note": "dry-and-fold, the wash's second beat (W5)"
     }
-   ]
+   ],
+   "note": "Built in W5 (buildW5Laundry: the shipped open bay, the mass hollowed behind it — six washers, four dryers, Sal's counter, the alcove); dressed by the sand3d interiors batch (2026-11-07, interiorAssets.ts). W11 (2026-11-13): status repaired from 'planned (bay exists)' — the room has been enterable since it shipped (probe-w5-interiors walk-in)."
   },
   {
    "id": "BARBER-INT",
    "building": "KTN-05",
-   "status": "planned",
+   "status": "built (W5)",
    "shell": {
     "xMin": 34.2,
     "xMax": 39,
@@ -3629,12 +3631,13 @@
      "y": 0.9,
      "note": "the trim moves from a facade prompt to a chair you sit in (W5)"
     }
-   ]
+   ],
+   "note": "Built in W5 (buildW5Barber: the door gap, two chairs facing the mirror wall, counters, waiting bench, powder room); dressed by the sand3d interiors batch (2026-11-07). W11 (2026-11-13): status repaired from 'planned' — enterable since it shipped (Deon's chair, Tue–Sat 9:00–19:00)."
   },
   {
    "id": "PIZZA-INT",
    "building": "KTN-04",
-   "status": "planned",
+   "status": "built (W5)",
    "shell": {
     "xMin": 24.1,
     "xMax": 29.9,
@@ -3683,12 +3686,13 @@
      "y": 1.1,
      "note": "the dollar slice, a standing order (W5)"
     }
-   ]
+   ],
+   "note": "Built in W5 (buildW5Pizza: the slice counter at the S window, the deck oven NE, two booths W, the drink wall E); dressed by the sand3d interiors batch (2026-11-07). W11 (2026-11-13): status repaired from 'planned' — the scope call the openDecision asked about was answered by shipping (Eddie/Kev, 11:00–23:00)."
   },
   {
    "id": "CECIL-ROOM",
    "building": "KTS-02",
-   "status": "planned",
+   "status": "built (W5)",
    "shell": {
     "xMin": 10.2,
     "xMax": 15.8,
@@ -3765,7 +3769,7 @@
   {
    "id": "DINER-INT",
    "building": "SND-01",
-   "status": "planned",
+   "status": "built (W5)",
    "shell": {
     "xMin": 50.2,
     "xMax": 59.8,
@@ -3843,12 +3847,13 @@
      "y": 1,
      "note": "order like a local — the teach"
     }
-   ]
+   ],
+   "note": "Built in W5 (buildW5Diner: the corner entrance, the 8-stool counter bar, the kitchen line behind it, four booths W, register + pie case); dressed by the sand3d interiors batch (2026-11-07). W11 (2026-11-13): status repaired from 'planned' — enterable since it shipped (two doors, both open gaps)."
   },
   {
    "id": "HALL-INT",
    "building": "KCM-01",
-   "status": "planned",
+   "status": "built (W5)",
    "shell": {
     "xMin": -59.8,
     "xMax": -48.2,
@@ -3916,12 +3921,13 @@
      "y": 1,
      "note": "the workshop table, craft beats"
     }
-   ]
+   ],
+   "note": "Built in W5 (buildW5Hall: the Juniper W-face entrance and the Gable secondary door, both open gaps; the folding-chair main hall, the workshop room N, the kitchenette NE, the notice wall S); dressed by the sand3d interiors batch (2026-11-07). W11 (2026-11-13): status repaired from 'planned' — enterable since it shipped."
   },
   {
    "id": "BAKERY-INT",
    "building": "SMB-01",
-   "status": "planned",
+   "status": "built (W5)",
    "shell": {
     "xMin": -37.8,
     "xMax": -30.2,
@@ -3960,7 +3966,7 @@
      "z": -27.4
     }
    ],
-   "note": "W5 orientation fix per docs/41 §1 law 2: the shipped storefront (the bagel-silhouette window, the MARLOW BAKERY sign) faces SOUTH (z −32, Marlow walk); the first draft's plan put the entrance on the yard side. Mirrored to the street.",
+   "note": "Built in W5 (buildW5Bakery: the S Marlow-storefront entrance per the docs/41 §1 law 2 mirror, counter + case just inside, deck oven + racks rear, two two-tops); dressed by the sand3d interiors batch (2026-11-07). W11 (2026-11-13): status repaired from 'planned' — enterable through the Marlow storefront door.",
    "anchors": [
     {
      "id": "bakery_counter",
@@ -3974,7 +3980,7 @@
   {
    "id": "RECORD-INT",
    "building": "SMB-02",
-   "status": "planned",
+   "status": "built (W5)",
    "shell": {
     "xMin": -27.8,
     "xMax": -22.2,
@@ -4016,7 +4022,7 @@
      "d": 0.7
     }
    ],
-   "note": "W5 entrance fix per docs/41 §1 law 2: the shipped B-SIDE RECORDS storefront faces SOUTH (z −32); the counter and listening corner already sat at the south end — only the entrance moved to meet them.",
+   "note": "Built in W5 (buildW5Records: the S B-SIDE RECORDS entrance, three crate rows, the listening corner, the counter); dressed by the sand3d interiors batch (2026-11-07). W11 (2026-11-13): status repaired from 'planned' — enterable since it shipped (the Week-3 'back soon' sign room).",
    "anchors": [
     {
      "id": "listening",
@@ -4946,6 +4952,18 @@
    "unlocks": "the map grows its LAST two sides (walls x ±84 → ±100, owner authorization standing) — the core is a full four-sided neighborhood; the sky cards move ∓110 → ∓122 to keep their clearance"
   },
   {
+   "id": "W8",
+   "name": "The walkability wave",
+   "content": "The two Kestrel walks open end to end (SUB-01 stair slot re-faced z 4.45→5.55, SUB-02 held to the building line, three corridor props moved honestly aside); FRUIT-INT — the W5 pattern's first strip-row room (TEN-02's ground floor, a real cavity); the honest ledger: sills + lintels on all 28 W6/W7 rows (104 → 310 pairs), tree-species variety (copper elm + dark pine, position-hash rolled), the alpha-tested shed canvas filigree.",
+   "unlocks": "the Kestrel sidewalks carry a capsule; the strip rows begin to open"
+  },
+  {
+   "id": "W9",
+   "name": "The strip rows' interiors",
+   "content": "The W6 Carrow pair's second shop (WINE-INT) and the eight W7 Westgate/Eastgate shopfronts (BOOKS, HARDWARE, NEWS ×2, VERBENA, CORNELIUS, WESTGATE, PROVISIONS, CHEESE) carved enterable by the shared carveStripRow decomposition — the mass ducks above the 3.2 clear height, three blind sides wall, the street facade opens on the registry door gap; footprints never move (the nav lanes, door nodes and bake districts read them unchanged).",
+   "unlocks": "every shipped shopfront is a walk-in room"
+  },
+  {
    "id": "W10",
    "name": "The park-gate law",
    "content": "The pocket scan (web-three/scripts/diag-pocket-scan.mjs — full-map flood fill at the real capsule clearance) proved PRK-LARKIN/PRK-CARROW unreachable: the VDN-DN1/DS1 backdrop rows are contiguous 12 m solids x -60..60. Fix: two 3.2 m gate mouths per row (N x -30/x 33, S x -19/x 42) — jamb+lintel solids with the 2.6 m head (buildBackdrops strip), facade band split per jamb + limestone lintel fascia + open iron gate leaves (terraceFaceFabric), one shared TERRACE_GATES table. probe-walkability grows the four gate lanes + six live legs (garden walk-ins, the Gable Garden gate chain, FRUIT-INT walk-in + west bulk, the GRB-06/07 stoop landings). Honest census: the remaining sealed pockets are visible-furniture staff sides in the W5/W8/W9 rooms, the two W2 courtyards (private light wells), and the PLY-MARLOW equipment nook — none is a registered public space.",
@@ -4954,8 +4972,7 @@
  ],
  "openDecisions": [
   "Street/neighbourhood names are NEW CANON pending lead approval (neighbourhood.canon note) — signage is the point of no return (phase W1).",
-  "Whether the pizza interior (PIZZA-INT) ships in W5 or stays a dressed bay is a scope call for the lead.",
   "Bus M121 body: reuse the existing car-builder family scaled up, or a dedicated low-poly bus — W4 decision.",
-  "MEZZ-INT and CORNERHOUSE-INT are optional slices; confirm before W5 scheduling."
+  "CORNERHOUSE-INT remains an optional slice (MEZZ-INT shipped in docs/50) — confirm before scheduling a wave that would build it."
  ]
 }

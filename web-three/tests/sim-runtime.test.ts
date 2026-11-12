@@ -188,7 +188,7 @@ describe('B-1: clock-keyed schedules drive arbitration all day', () => {
     const brain = freshBrain({ minute: 10 * 60 + 30 }); // Eddie prepping
     brain.advanceMinutes(2);
     const eddie = brain.world.npcs.find((n) => n.id === EDDIE)!;
-    expect(eddie.location.placeId).toBe('PIZZA-INT'); // the planned interior, honestly
+    expect(eddie.location.placeId).toBe('PIZZA-INT'); // the W5 room Eddie works (built (W5) since the W11 registry-truth repair)
     // Kev's Sunday: the dominoes table's youngest chair — a WEEKDAY window,
     // five days after the Tuesday boot, resolved by the same machinery
     brain.advanceMinutes((1440 - 10 * 60 - 32) + 4 * 1440 + 14 * 60); // Tue 10:32 → Sun 14:00
