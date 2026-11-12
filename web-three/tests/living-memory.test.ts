@@ -19,9 +19,9 @@ import { WALKER_CHAT, MEMORY_LINES, SHELF_GOODS, HOT_DOG_LINES } from '../src/co
 import type { Game } from '../src/game/Game';
 
 const SHELF_SPOTS: Record<string, { x: number; y: number; z: number }> = {
-  mango: { x: -18, y: 2.0, z: 19.2 },
-  coffee: { x: -16, y: 2.0, z: 19.2 },
-  bread: { x: -14, y: 2.0, z: 19.2 },
+  mango: { x: -14.5, y: 1.34, z: 19.18 },
+  coffee: { x: -16, y: 1.34, z: 19.18 },
+  bread: { x: -17.35, y: 0.987, z: 19.18 },
 };
 
 const FAR = { x: 0, y: -100, z: 0 };

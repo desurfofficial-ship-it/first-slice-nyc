@@ -25,7 +25,7 @@ import {
 } from './stationKit';
 import { buildTrainPair, buildTunnel } from './trainKit';
 
-export { STAIR_SLOT, STATION, RIDE_SWAP_DX, ZONE_KEEP_RE };
+export { STAIR_SLOT, STATION, RIDE_SWAP_DX, ZONE_KEEP_RE, aboardCar };
 export type { ColliderSpec };
 
 const TRAIN_DOOR_A_X = -41.1; // the aligned car's interactive door, station A

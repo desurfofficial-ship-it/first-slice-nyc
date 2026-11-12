@@ -10,7 +10,7 @@
 
 | # | Interior | Registry shell | Where | Fit-out state | Accessible in play |
 |---|---|---|---|---|---|
-| 1 | ROSA'S BODEGA (BODEGA-INT) | ROS-01, x −20.8..−11.2, z 8.2..19.8 | `World.ts` bodega block | Sandflow shelves ×3 + reach-in fridge + teal counter; rest bare: no register, no coffee station, no produce, no microwave | YES — Rosa works 6:00–22:00, the `biz:rosas_deli` counter |
+| 1 | ROSA'S BODEGA (BODEGA-INT) | ROS-01, x −20.8..−11.2, z 8.2..19.8 | `World.ts` bodega block | Full fit-out (2026-11 quality pass, [02-BODEGA-QUALITY-PASS.md](02-BODEGA-QUALITY-PASS.md)): gondola run ×4 stocked shelf-aware + reach-in fridge + dressed counter (register, coffee, microwave) + produce crate + ceiling/paint/trim/clock | YES — Rosa works 6:00–22:00, the `biz:rosas_deli` counter |
 | 2 | LAUNDRY-INT | KTN-02, x −11..1, z 8.2..19 | `buildW5Laundry` | 6 washers wear the sand3d front-loader; 4 dryers are gray boxes; folding tables = floating top+leg boxes; cart/shelf/linen bins are plain boxes | YES — the shipped bay walk-in (probe §2) |
 | 3 | BARBER-INT | KTN-05, x 34.2..39, z 8.2..19.6 | `buildW5Barber` | Two chairs are seat+back boxes; counter is a bare teal run; waiting bench + mirrors wear ABO models | YES — Deon's chair, Tue–Sat 9:00–19:00 |
 | 4 | PIZZA-INT | KTN-04, x 24.1..29.9, z 8.2..19.6 | `buildW5Pizza` | Slice counter bare; deck oven is a gray box; drink fridge is a dark box; booth tables wear ABO drop-leaf | YES — Eddie/Kev, 11:00–23:00 |

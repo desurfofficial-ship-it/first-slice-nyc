@@ -99,6 +99,59 @@ describe('tier shape — the flags matrix', () => {
   });
 });
 
+describe('tier resolution — prototype-member injection (FS-QA2-004)', () => {
+  // `in` walks the prototype chain: every Object.prototype member name once
+  // resolved as a KNOWN tier and produced a config built from
+  // {...Object.prototype} — flags undefined, pixelRatioCap undefined
+  // (→ setPixelRatio(NaN), a dead canvas), forced=true (→ the auto-degrade
+  // watchdog disarmed). The own-key Set closes the chain; these pins keep it
+  // closed.
+  const PROTO_MEMBERS = ['__proto__', 'constructor', 'toString', 'hasOwnProperty',
+    'valueOf', 'isPrototypeOf', 'propertyIsEnumerable', 'toLocaleString'];
+
+  it('every Object.prototype member name falls through to detection', () => {
+    for (const k of PROTO_MEMBERS) {
+      const cfg = resolveGfxConfig(params(`?gfx=${k}`), probe());
+      expect(cfg.tier).toBe('high'); // the strong probe's detection answer
+      expect(cfg.forced).toBe(false);
+    }
+  });
+
+  it('any unknown value — not just prototype members — stays unforced', () => {
+    for (const k of ['ULTRA', 'cray', '', 'High', ' ultra', '0', '-1']) {
+      const cfg = resolveGfxConfig(params(`?gfx=${encodeURIComponent(k)}`), probe());
+      expect(cfg.forced).toBe(false);
+      expect(Number.isFinite(cfg.pixelRatioCap)).toBe(true);
+    }
+  });
+
+  it('a hostile gfx value can never produce an undefined flag or cap', () => {
+    const hostile = [...PROTO_MEMBERS, 'cray', '', '0', '-1', 'high#', 'high;alert(1)',
+      'high%00', '<script>alert(1)</script>', 'ultra extra'];
+    for (const k of hostile) {
+      const cfg = resolveGfxConfig(params(`?gfx=${encodeURIComponent(k)}`), probe());
+      expect(Number.isFinite(cfg.pixelRatioCap)).toBe(true);
+      expect(typeof cfg.composer).toBe('boolean');
+      expect(typeof cfg.bloom).toBe('boolean');
+      expect(typeof cfg.ssao).toBe('boolean');
+      expect(typeof cfg.grain).toBe('boolean');
+      expect(typeof cfg.ca).toBe('boolean');
+      expect(typeof cfg.sharpen).toBe('boolean');
+      expect(typeof cfg.envMap).toBe('boolean');
+      expect(typeof cfg.bloomFullRes).toBe('boolean');
+      expect(typeof cfg.forced).toBe('boolean');
+    }
+  });
+
+  it('the known tiers still force (the guard does not over-block)', () => {
+    for (const k of ['low', 'medium', 'high', 'ultra']) {
+      const cfg = resolveGfxConfig(params(`?gfx=${k}`), probe());
+      expect(cfg.tier).toBe(k);
+      expect(cfg.forced).toBe(true);
+    }
+  });
+});
+
 describe('the pipeline chain contract', () => {
   it('the pass order is render → [ssao] → bloom → grade → output', () => {
     expect(PASS_CHAIN).toEqual(['render', 'ssao?', 'bloom', 'grade', 'output']);

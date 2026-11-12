@@ -30,6 +30,7 @@ import { datelineOfStoryDay } from '../sim/epochMap';
 import { starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
 import { PAL } from '../core/palette';
 import { World } from '../world/World';
+import { aboardCar } from '../world/subway';
 import { Player, lerpAngle } from '../player/Player';
 import { GameCamera } from '../camera/GameCamera';
 import { InputManager } from '../engine/Input';
@@ -84,11 +85,14 @@ const C0_LAUNDRY_X = -7.0;
 const C0_LAUNDRY_Z = 7.3;
 
 /** The bodega shelf's three stock spots — the Day-1 errand picks from these,
- *  and the morning restock puts them back (the shop is open every day). */
+ *  and the morning restock puts them back (the shop is open every day).
+ *  y IS the gondola board top each item stands on (World's restock pass
+ *  reserves their gaps: mango/coffee on unit 1/2's board 3, bread on
+ *  unit 0's board 2). */
 const SHELF_STOCK: Array<[id: string, x: number, y: number, z: number]> = [
-  ['mango', -18, 2.25, 19.2],
-  ['coffee', -16, 2.25, 19.2],
-  ['bread', -14, 2.25, 19.2],
+  ['mango', -14.5, 1.34, 19.18],
+  ['coffee', -16, 1.34, 19.18],
+  ['bread', -17.35, 0.987, 19.18],
 ];
 
 export class Game {
@@ -111,6 +115,9 @@ export class Game {
   private pipeline: PostPipeline | null = null;
   /** ?tod=HH:MM — pins the day cycle to a clock minute for validation rigs. */
   private todOverride: number | null = null;
+  /** The ?tod URL pin lands ONCE, on the first frame — after World's boot
+   *  golden-hour pin has landed (FS-QA2-005). */
+  private todApplied = false;
   /** Auto-degrade: a rolling frame-time average; one tier drop max. */
   private frameTimeAvg = 16;
   private degraded = false;
@@ -436,9 +443,9 @@ export class Game {
       walker: (i) => this.world.walkerPos(i), // Phase 4 — live walker positions
       worldSimBody: (id) => this.worldSim.bodyPos(id) ?? NEVER_NEAR, // sim-driven bodies
     }));
-    this.world.addItem('mango', -18, 2.25, 19.2, PAL.amber);
-    this.world.addItem('coffee', -16, 2.25, 19.2, PAL.teal);
-    this.world.addItem('bread', -14, 2.25, 19.2, PAL.cream);
+    for (const [id, x, y, z] of SHELF_STOCK) {
+      this.world.addItem(id, x, y, z, 0);
+    }
 
     // ---------------- the half-court (docs/49) ----------------
     // The world built the visuals (paint, net, fence, tally); the court
@@ -742,6 +749,10 @@ export class Game {
     if (this.world.familiar.visible) peds.push({ x: this.world.familiar.position.x, z: this.world.familiar.position.z });
     this.world.updateDynamics(wdt, this.player.capsule, peds, this.duskStarted);
     this.cam.interiorMode = this.world.subway.underground;
+    // the lift stands down while the feet are in the car's z-band: aboard,
+    // the car is the room and the street boom scale is the honest one
+    // (the lift would press the lens into the car roof)
+    this.cam.interiorAboard = aboardCar(this.player.capsule.z);
     this.drainFarWorld(wdt);
     if (!this.dayFading && this.ui.nameBox.hidden && this.ui.orderCard.hidden && !this.mapOpen
       && this.ui.starterCard.hidden && !this.arrival.active && !this.wardrobe.isOpen) {
@@ -913,6 +924,18 @@ export class Game {
     // ---- the graphics wave: the clock-driven day cycle -----------------
     // ?tod pins (validation rigs); story beats pin (startDusk/toMorningLight
     // — see applySimPhase); everything else follows the sim clock minute.
+    // The ?tod URL contract (FS-QA2-005): the URL alone never unpinned the
+    // boot golden-hour pin — World.updateDayCycle samples only while the
+    // pin is null, so ?tod was inert in the shipped build (the visual rigs
+    // passed only because they call the setClockTime API directly, which
+    // clears the pin). Apply the URL pin once, on the first frame, after
+    // the boot pin has landed. A story page's authored beats (startDusk /
+    // toMorningLight) still own the cycle and re-pin over this by design —
+    // the affordance's use case is the fresh boot (the visual rigs).
+    if (this.todOverride !== null && !this.todApplied) {
+      this.todApplied = true;
+      this.world.setClockMinute(this.todOverride);
+    }
     const minute = this.todOverride ?? this.worldSim.brain.world.clock.minuteOfDay;
     this.world.updateDayCycle(minute, dt);
     // the auto-degrade watchdog (docs/rendering/03 §8): a sustained slow
@@ -3294,10 +3317,10 @@ export class Game {
     else if (this.duskStarted) this.toMorningLight();
   }
 
-  /** The roam/scenario clock band → day cycle (the graphics wave): every
-   *  phase change unpins the cycle so the lighting FOLLOWS the sim clock
-   *  continuously between bands (docs/rendering/03 §1). Story mode never
-   *  calls this — its beats pin explicit keyframes. */
+  /** The roam/scenario clock band → day cycle (the graphics wave): each
+   *  phase change pins that band's keyframe — the lighting rides the
+   *  authored states band to band (the shipped, certified look). Story
+   *  mode never calls this — its beats pin explicit keyframes. */
   setClockPhase(phase: string): void {
     const kf = phaseToKeyframe(phase);
     this.world.pinDayState(kf);

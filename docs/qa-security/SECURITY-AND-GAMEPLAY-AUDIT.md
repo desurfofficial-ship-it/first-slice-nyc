@@ -20,7 +20,7 @@
 
 ## A. Executive summary
 
-**Overall game health: strong, and now verified one wave further than ever.** The tree that shipped six playable chapters and an open endgame re-certified green under this wave's full battery: TypeScript clean, **1,485/1,485 unit tests (91 files) on the final merged tree**, production build OK, the two security probes **31/31** and **166/166** on real `dist/`, the 4-day story E2E **0 failures (702 s, console clean)**, and the chapter probes (C5 68/0, C6 60/0) plus the world-sim, nav, money-trace and first-session probes all passing on the fixed tree.
+**Overall game health: strong, and now verified one wave further than ever.** The tree that shipped six playable chapters and an open endgame re-certified green under this wave's full battery: TypeScript clean, **1,485/1,485 unit tests (91 files) on the final merged tree**, production build OK, the two security probes **31/31** and **166/166** on real `dist/`, the 4-day story E2E **0 failures (702 s, console clean)**, and the chapter probes (C5 68/0, C6 60/0) plus the world-sim, nav, money-trace and first-session probes all passing on the fixed tree. **(QA continuation, after the graphics wave joined):** the wave's brand-new URL surface (`?gfx=` / `?tod=` / `?fx=`) had zero malformed-input coverage — the new `probe-gfx-abuse` (40 hostile boots) found two real defects, both fixed and guarded: an injection-class tier resolution (`?gfx=__proto__` resolved as a known tier, §B-3c) and a dead `?tod=` contract (§B-3d). The continuation tree re-certifies: tsc clean, vitest **1,528/1,528 (95 files)**, build OK, probe-gfx-abuse **40/40**.
 
 **Security posture: held.** This wave's fresh enumeration of the URL/storage/driver attack surface found **no new exploitable path**. The R1 driver gate, the sandboxed storage keys, the world-save validator (magic/version/worldId/whitelist/integrity-audit) and the story-save parser's bounds all re-proved against the built output. The wave's one security-relevant change is to the verification fleet itself: the W4 pedestrian soak — a 30-sim-minute acceptance probe — was failing on main with 48 "failures" and **nobody had noticed**, because it is not in any recent wave's gate list. Investigation (§B-2) showed the failures were a stale-harness artifact, not a game defect; the harness is repaired and the probe now passes its own acceptance for the first time since the street-plan wave.
 
@@ -67,6 +67,27 @@
 | **Fix** | The gate now asserts the real invariant — the frame loop advanced at all (never zero), the sim clock advanced while idle, zero page errors — and the frame rate is RECORDED in the detail line, not gated (frame rate is probe-perf/perf-peds' measurement, not a liveness gate) |
 | **Verification** | `probe-abnormal` **14/14** on the final tree (tick +10, 90 frames recorded) |
 
+### B-3c — FS-QA2-004: `?gfx=__proto__` resolved as a KNOWN tier (prototype-member injection through the URL)
+
+| Field | Value |
+|---|---|
+| **Severity** | MEDIUM (client-side, injection-class, reachable from a crafted link: dead canvas + the auto-degrade watchdog disarmed; no data exposure, no persistence, no cross-user effect) |
+| **Discovered** | The QA continuation's new input-abuse probe (`probe-gfx-abuse.mjs`) — the graphics wave's `?gfx=` surface had zero malformed-input coverage (R1/R2 predate it) |
+| **Repro** | open `?gfx=__proto__` (likewise `?gfx=constructor`, `?gfx=toString`, …) — the config came back `tier:"__proto__"`, every flag `undefined`, `pixelRatioCap: undefined` |
+| **Root cause** | `forcedTier in TIER_FLAGS` walks the PROTOTYPE CHAIN: every `Object.prototype` member name passes the membership test, and `TIER_FLAGS['__proto__']` returns `Object.prototype` itself — `{...TIER_FLAGS[tier]}` then spreads it into an all-undefined flag set; `setPixelRatio(min(dpr, undefined))` = `NaN` (dead canvas), and `forced: true` disarms the auto-degrade watchdog (the one runtime recovery path) |
+| **Fix** | an own-key `Set` (`TIER_KEYS` + `isKnownTier`) replaces both `in` checks — `Set.has` cannot be fooled by inherited members; the unknown-value contract ("a typo, detection governs") now actually holds for every input |
+| **Verification** | unit pins: 8 prototype members fall through to detection, a hostile sweep (18 values) can never produce an undefined flag or a non-finite cap, the four known tiers still force (19 quality tests, suite **1,528/1,528, 95 files**); browser-level: probe P8 **4/4** (`tier=low cap=1.25` under software GL), full probe **40/40** |
+
+### B-3d — FS-QA2-005: the `?tod=` URL contract was dead (the boot pin gated the clock follow forever)
+
+| Field | Value |
+|---|---|
+| **Severity** | LOW (a dead validation affordance — the documented URL contract silently did nothing; no player-facing harm) |
+| **Discovered** | The same probe's D2 boundary pins: `?tod=00:00` and `?tod=23:59` both read `nightK≈0.11` — the unpinned boot value — instead of night |
+| **Root cause** | `World.dayPin` boots pinned to `'evening'` and NOTHING in shipped flows ever calls `pinDayState(null)`; `World.updateDayCycle` samples the clock minute only while the pin is null — so `Game.todOverride` (set by `?tod=` at boot) was consumed by a sampler that never ran. The visual rigs passed only because they call the `setClockTime` API directly (which clears the pin via `setClockMinute`); the `setClockPhase` comment also claimed it "unpinned" when it re-pins per band |
+| **Fix** | the `?tod` URL pin lands ONCE, on the first frame — after World's boot golden-hour pin has landed — via `world.setClockMinute(this.todOverride)` (the exact `setClockTime` semantics: clears the pin, samples the minute, applies immediately); the lying comment corrected to the shipped, certified band-pin behavior |
+| **Verification** | probe D2 **5/5**: `00:00→nightK 1.0`, `04:30→1.0`, `05:30→dawn 0.7`, `12:00→midday band`, `23:59→wraps into night`; the plain path untouched (no `?tod` → `todApplied` never flips) |
+
 ## C. Security Findings
 
 **No new exploitable findings this wave.** The wave's attacks, all re-run on the final built `dist/`:
@@ -79,6 +100,7 @@
 | DOM/XSS | every `innerHTML` sink re-swept (`UI.ts`, `diary.ts`, `Wardrobe.ts`, `sandflowShowcase.ts`) | all player-reachable interpolations pass `escapeHtml` or `textContent`; the wardrobe swatch still proves plain hex before touching a style attribute; the showcase hatch remains dev-only data (constants, no storage) |
 | Abnormal session | interaction spam, boundary grind, corner tunneling attempts, mid-boot reload spam, interrupted sessions | **14/14** — no escapes, no NaN, no wiped saves, no crashes; max grind step 1.26 m per ~250 ms sample (sample-rate artifact of SwiftShader frame jitter; the collision layer's 0.2 m substeps bound the real per-probe step — re-read and confirmed sound this wave) |
 | Input abuse | key-repeat, Map/Wardrobe toggle edges, confirm-gate spam (awning/stool/permit/shelf two-press law) | gates hold; `buyConfirm` is bound to its own interaction id and cleared on walk-away; replay-day `earn` stays a no-op |
+| **(continuation)** the graphics wave's URL surface | `?gfx=` (11 malformed values + 4 prototype members), `?tod=` (13 malformed), `?fx=` (unknown/off-cased), per-effect flag spam, `__proto__`-style keys, `worldclock × gfx × tod` combos — 40 hostile boots against real `dist/` | probe-gfx-abuse **40/40 after the fixes**; pre-fix it caught **FS-QA2-004** (§B-3c, injection-class, client-only) and **FS-QA2-005** (§B-3d, dead affordance); the `?tod=` parser itself was already safe (integer parse with a zero fallback + double modulo — always finite 0–1439), the save key survives every hostile boot with its day intact |
 
 Carried open from wave 1 (unchanged, owner-gated): **FS-AUDIT-003** (structural economics re-audit — the WP-4 precondition is merged, the gate remains the owner's order), **FS-AUDIT-008** (CI action pinning — needs verified upstream SHAs at patch time), the sandflow DEV guard, the gated driver chunks in the production bundle (inert without the handshake).
 
@@ -126,6 +148,7 @@ All executed on this wave's final tree; browser-level gates against the real bui
 | probe-world-sim / nav / money-trace | **15/15 · 9/9 · ALL CHECKS PASSED** | this wave's run log |
 | probe-first-session / C5 / C6 | **8/8 · 68/0 · 60/0** | this wave's run log |
 | perf-peds | 27.3 µs/frame, heap flat | `evidence/RESULTS-perf-qa2.txt` |
+| **QA continuation re-certification** (the graphics wave (v1.46.0) joined after this audit shipped; its new URL surface attacked per §C, two product fixes: FS-QA2-004/005) | tsc clean · vitest **1,528/1,528 (95 files)** · build OK — the final source's bundle **byte-identical** (md5) to the artifact the probe attacked and the E2E drove · probe-gfx-abuse **40/40** · 4-day story E2E on the fixed tree **0 failures, 973 s, console clean** | `evidence/RESULTS-probe-gfx-abuse.txt`, `evidence/RESULTS-vitest-cont.txt`, `evidence/RESULTS-e2e-4day-cont.txt` |
 
 **Honesty notes.** The environment's SwiftShader renderer remains the slow, occasionally flaky machine it was in wave 1; the E2E ran on the harness's own documented `E2E_SCALE=0.5` affordance and took 702 s (the register's last read: 538 s — this sandbox is slower today; the driver reads state, so the affordance does not weaken the check). One abnormal-probe run failed its A7 timing check under deliberate self-inflicted contention (a concurrent E2E); the standalone re-run passes. No test is reported passed that was not executed.
 
@@ -153,6 +176,12 @@ All executed on this wave's final tree; browser-level gates against the real bui
 **Docs:**
 - this document (wave 2 + wave 1 preserved below), `evidence/RESULTS-*-qa2.txt`, the production register row (v1.43.0), the worklog entry.
 
+**QA continuation (the graphics-wave re-attack, FS-QA2-004/005):**
+- `web-three/src/render/quality.ts` — the own-key `TIER_KEYS`/`isKnownTier` guard replacing both prototype-walking `in` checks (B-3c).
+- `web-three/src/game/Game.ts` — the `?tod` URL pin lands once on the first frame via `setClockMinute` (B-3d); the `setClockPhase` comment corrected to the shipped band-pin behavior.
+- `web-three/scripts/probe-gfx-abuse.mjs` (new) — 40 hostile boots over the graphics URL surface (the fleet's first malformed-input coverage for `?gfx=`/`?tod=`/`?fx=`).
+- `web-three/tests/render-quality.test.ts` (+4) — the prototype-member pins, the hostile-shape sweep, the known-tier non-over-block check.
+
 ## I. Final Assessment
 
 **What is now working better.** The game's newest and most fragile frontier — the 163-day open endgame the C6 wave just shipped — now wakes honest every morning, with the law pinned in seven tests that derive their census from the packs' own tables rather than copied numbers (the guard caught this auditor's own wrong assumption mid-wave; that is what it is for). The street's 30-minute pedestrian acceptance is a working gate again instead of a silently red orphan, and the verification fleet now runs with one stale assumption fewer.
@@ -160,6 +189,8 @@ All executed on this wave's final tree; browser-level gates against the real bui
 **What was attacked and held.** The whole URL/storage/driver/DOM surface re-enumerated on the final built output: no new path. The two security probes, the save parsers' bounds, the confirm-gate money law and the collision substeps all re-proved. The abnormal player still cannot escape, NaN, or wipe anything.
 
 **What still needs attention.** The soak probe's place in the standard battery (G-1), the carried owner-gated items (G-2), and the paint-list/street-wave pairing note (G-4). The wave stops here: one gameplay defect root-caused and guarded, one verification blind spot closed, everything re-verified on the one tree — ready for the owner's review.
+
+**QA continuation (the graphics-wave re-attack).** The assignment's mandate — attack every new surface — was re-run when the graphics wave landed: its URL contract gained the fleet's first malformed-input probe, two defects were root-caused and fixed at the source (one injection-class, one dead contract), and the fixed tree re-certifies end to end. The game is harder to break by exactly the two holes a hostile link would have used.
 
 ---
 
