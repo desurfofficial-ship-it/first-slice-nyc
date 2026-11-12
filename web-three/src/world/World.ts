@@ -794,24 +794,28 @@ export class World {
     bb.position.set(0, 0.15, -4.6); // roof-local: near the front edge, over the sidewalk
     this.roof.add(bb);
     this.solid('Bodega_Counter', -19.6, 0.55, 13.5, 1.2, 1.1, 6, PAL.teal);
-    // Back-bar shelving: three sand3d gondola units wear the old blank box's
-    // span (x -19..-13, one collider — unchanged below, the shelf is visual
-    // only). Fallback boxes keep the bldg2 look if the files ever go missing.
-    for (let si = 0; si < 3; si++) {
-      const shelfPh = this.decoMesh(`Bodega_BackShelf_${si}`, new THREE.BoxGeometry(1.3, 1.64, 0.55), this.mat(PAL.bldg2), -17.5 + si * 1.5, 0.82, 19.3);
+    // Back-bar shelving: FOUR sand3d gondola units wear the old blank box's
+    // span (one visual-only collider below — the shelf never carried
+    // gameplay). Feet ride the floor top (0.11 — the placeholder center is
+    // half-height over it), so the GLB's kick plinth shows instead of
+    // sinking into the tiles. Fallback boxes keep the bldg2 look if the
+    // files ever go missing.
+    for (let si = 0; si < 4; si++) {
+      const shelfPh = this.decoMesh(`Bodega_BackShelf_${si}`, new THREE.BoxGeometry(1.3, 1.64, 0.55), this.mat(PAL.bldg2), -17.5 + si * 1.5, 0.93, 19.3);
       shelfPh.rotation.y = Math.PI; // goods face south, into the store
       shelfPh.castShadow = true;
       shelfPh.receiveShadow = true;
       this.registerGlbProp(`bodega_shelf_${si}`, shelfPh);
       void this.upgradePropWithGLB(`bodega_shelf_${si}`, 'models/bodega_shelf.glb');
     }
-    this.colliders.push(boxFromCenter(-16, 1.0, 19.3, 6, 2.0, 0.6));
+    // one collider covers the run plus the west backstock pile (below)
+    this.colliders.push(boxFromCenter(-16.35, 1.0, 19.3, 8.3, 2.0, 0.6));
     // Commercial reach-in fridge on the bodega's east wall — a sand3d ADD,
     // not a swap: no counterpart existed, and an empty wall read as missing
     // stock once the shelves landed. Collider matches its rotated box.
     const fridgePh = new THREE.Group();
     fridgePh.name = 'Fridge_Bodega';
-    fridgePh.position.set(-11.7, 0.92, 16.5);
+    fridgePh.position.set(-11.7, 1.03, 16.5); // feet on the floor top (0.11)
     fridgePh.rotation.y = -Math.PI / 2; // door west, into the room
     const fridgeBox = new THREE.Mesh(new THREE.BoxGeometry(0.76, 1.84, 1.22), this.mat(PAL.bldg2));
     fridgeBox.castShadow = true;
@@ -820,7 +824,7 @@ export class World {
     this.scene.add(fridgePh);
     this.registerGlbProp('fridge_bodega', fridgePh);
     void this.upgradePropWithGLB('fridge_bodega', 'models/refrigerator.glb');
-    this.colliders.push(boxFromCenter(-11.7, 0.92, 16.5, 1.22, 1.84, 0.76));
+    this.colliders.push(boxFromCenter(-11.7, 1.03, 16.5, 1.22, 1.84, 0.76));
     // the counter a real deli works from: register, coffee, microwave, and
     // the produce crates by the window (sand3d ADDs — the register and
     // coffee wear the washer-slot pattern, front east into the store; the
@@ -883,28 +887,84 @@ export class World {
       0.06, 0.9, 4.6, 640, 112, PAL.cream, PAL.ink, 30, 'x');
     menu.position.set(-20.53, 2.0, 13.0);
     bodegaDressing.add(menu);
-    // stacked product rows on the back wall, beside/between the gondolas —
-    // one merged mesh per color (the props law: the row is ONE draw)
-    const productColors = [0xb23a48, 0xf7b32b, 0x2a9d8f, 0xf3e2c2, 0x6a8a5a, 0xb3552f];
-    const productGeos: Array<THREE.BufferGeometry[]> = Array.from({ length: productColors.length }, () => []);
-    for (let row = 0; row < 3; row++) {
-      const y = 1.15 + row * 0.5;
-      for (let i = 0; i < 30; i++) {
-        const x = -20.35 + i * 0.23;
-        if (x > -14.0 && x < -13.9) continue; // the gondola gap line stays clean
-        const w = 0.16 + (i % 3) * 0.02, h = 0.3 + (i % 2) * 0.06;
-        const g2 = new THREE.BoxGeometry(w, h, 0.14).translate(x, y + h / 2, 19.22);
-        productGeos[i % productColors.length].push(g2);
+    // ---------------- the gondolas' stock (2026-11 restock pass) ----------
+    // The legacy loose-box wall grid (Bodega_ProductRow) is retired: its
+    // three floating rows ran straight THROUGH the gondola volumes and read
+    // as unfinished noise. The store stocks the four gondola units instead —
+    // shelf-aware runs seated on the boards' real tops (the GLB's millimetre
+    // levels × the upgrade's uniform scale 1.64/1.770, feet on the floor
+    // top 0.11), facings laid as color blocks like a real bodega wall. One
+    // merged mesh per color across all four units (the props law: the row
+    // is ONE draw). The three Day-1 stock spots (mango/coffee/bread) own
+    // their gaps on the middle shelves — sized/seeded to match.
+    const gondolaXs = [-17.5, -16, -14.5, -13];
+    const gondolaS = 1.64 / 1.770; // upgradePropWithGLB's scale for this file
+    const shelfTop = (mm: number): number => 0.11 + (mm / 1000) * gondolaS;
+    // base deck, then boards 1-4 (shelf_0..shelf_3)
+    const SHELF = [shelfTop(130), shelfTop(567), shelfTop(947), shelfTop(1327), shelfTop(1697)];
+    const stockGeos = new Map<number, THREE.BufferGeometry[]>();
+    const pushStock = (c: number, g: THREE.BufferGeometry): void => {
+      const arr = stockGeos.get(c);
+      if (arr) arr.push(g); else stockGeos.set(c, [g]);
+    };
+    const stockCan = (x: number, y: number, z: number, c: number): void =>
+      pushStock(c, new THREE.CylinderGeometry(0.032, 0.032, 0.105, 10).translate(x, y + 0.0525, z));
+    const stockBox = (x: number, y: number, z: number, w: number, h: number, d: number, c: number): void =>
+      pushStock(c, new THREE.BoxGeometry(w, h, d).translate(x, y + h / 2, z));
+    const stockBottle = (x: number, y: number, z: number, c: number): void => {
+      pushStock(c, new THREE.CylinderGeometry(0.03, 0.034, 0.16, 10).translate(x, y + 0.08, z));
+      pushStock(c, new THREE.CylinderGeometry(0.014, 0.018, 0.06, 8).translate(x, y + 0.19, z));
+    };
+    const stockJar = (x: number, y: number, z: number, c: number): void =>
+      pushStock(c, new THREE.CylinderGeometry(0.044, 0.04, 0.115, 10).translate(x, y + 0.0575, z));
+    const KRAFT = [0xb08d57, 0xc49a6c, 0x9c7a4a];
+    const stockCase = (x: number, y: number, z: number, w: number, h: number, d: number, c: number): void =>
+      stockBox(x, y, z, w, h, d, c);
+    const canCols = [PAL.coral, PAL.plum, PAL.teal, PAL.taxi];
+    for (let si = 0; si < gondolaXs.length; si++) {
+      const gx = gondolaXs[si];
+      // base deck: kraft cases, one stacked — backstock reads at sight line
+      stockCase(gx - 0.34, SHELF[0], 19.33, 0.30, 0.22, 0.26, KRAFT[0]);
+      stockCase(gx + 0.02, SHELF[0], 19.33, 0.32, 0.24, 0.28, KRAFT[1]);
+      stockCase(gx + 0.36, SHELF[0], 19.33, 0.28, 0.20, 0.26, KRAFT[2]);
+      stockCase(gx + 0.02, SHELF[0] + 0.24, 19.35, 0.26, 0.16, 0.22, KRAFT[0]);
+      // board 1: two can facings, front + back rows
+      for (let i = 0; i < 12; i++) {
+        const cx = gx - 0.45 + i * 0.082;
+        stockCan(cx, SHELF[1], 19.20, canCols[si % 4]);
+        stockCan(cx + 0.041, SHELF[1], 19.42, canCols[(si + 1) % 4]);
       }
+      // board 2: snack boxes — unit 0 leaves the bread's spot open (+0.02..+0.32)
+      const boxXs = si === 0 ? [-0.44, -0.30, -0.16, 0.36, 0.47] : [-0.375, -0.225, -0.075, 0.075, 0.225, 0.375];
+      for (let i = 0; i < boxXs.length; i++) {
+        stockBox(gx + boxXs[i], SHELF[2], 19.22, 0.11, i % 2 === 0 ? 0.16 : 0.23, 0.07, i % 2 === 0 ? PAL.teal : PAL.gold);
+      }
+      // board 3: jars front, bottles back — units 1/2 keep the coffee and
+      // mango spots open (local ±0.12)
+      const midTaken = si === 1 || si === 2;
+      const jarXs = midTaken ? [-0.45, -0.32, -0.19, 0.19, 0.32, 0.45] : [-0.45, -0.32, -0.19, -0.06, 0.07, 0.2, 0.33];
+      for (const jx of jarXs) stockJar(gx + jx, SHELF[3], 19.20, 0x6a8a5a);
+      const botXs = midTaken ? [-0.36, -0.22, 0.22, 0.36] : [-0.32, -0.16, 0, 0.16, 0.32];
+      for (const bx of botXs) stockBottle(gx + bx, SHELF[3], 19.42, 0xb3552f);
+      // board 4 (top): a can row over the rail line + three kraft cartons back
+      for (let i = 0; i < 9; i++) stockCan(gx - 0.40 + i * 0.10, SHELF[4], 19.20, canCols[(si + 2) % 4]);
+      for (const bx of [-0.38, -0.24, 0.30]) stockBox(gx + bx, SHELF[4], 19.42, 0.11, 0.14, 0.07, KRAFT[1]);
     }
-    for (let ci = 0; ci < productColors.length; ci++) {
-      if (!productGeos[ci].length) continue;
-      const m = new THREE.Mesh(mergeGeometries(productGeos[ci], false)!, this.bank.get(productColors[ci]));
-      m.name = 'Bodega_ProductRow';
+    // the west wall's backstock pile — the run's leftover never reads bare
+    stockCase(-20.25, 0.11, 19.38, 0.30, 0.26, 0.34, KRAFT[0]);
+    stockCase(-19.78, 0.11, 19.38, 0.34, 0.24, 0.32, KRAFT[1]);
+    stockCase(-19.78, 0.35, 19.40, 0.30, 0.20, 0.28, KRAFT[2]);
+    stockCase(-19.30, 0.11, 19.38, 0.32, 0.26, 0.32, KRAFT[0]);
+    for (const [color, geos] of stockGeos) {
+      if (!geos.length) continue;
+      const m = new THREE.Mesh(mergeGeometries(geos, false)!, this.bank.get(color));
+      m.name = 'Bodega_ShelfStock';
+      m.receiveShadow = true;
       bodegaDressing.add(m);
     }
     // chip bags hanging by the produce (east wall) — the classic deli door
-    // strip, bright foil colors, one merged draw
+    // strip, bright foil colors, one merged draw; a rail bar to hang from
+    // (they used to float off the bare wall)
     const bagColors = [0xd94f3d, 0xf7b32b, 0x3d8bd9, 0x4a9d5a];
     const bagGeos: Array<THREE.BufferGeometry[]> = Array.from({ length: bagColors.length }, () => []);
     for (let i = 0; i < 8; i++) {
@@ -918,12 +978,82 @@ export class World {
       m.name = 'Bodega_ChipBags';
       bodegaDressing.add(m);
     }
+    const bagRail = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.9, 8), this.bank.get(PAL.ink));
+    bagRail.name = 'Bodega_ChipBagRail';
+    bagRail.rotation.x = Math.PI / 2;
+    bagRail.position.set(-11.475, 1.96, 9.94);
+    bodegaDressing.add(bagRail);
     // the welcome mat inside the door gap (teal — the awning's color)
     const mat = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.02, 0.9), this.bank.get(PAL.teal));
     mat.name = 'Bodega_DoorMat';
     mat.position.set(-16, bodegaFloorY + 0.01, 8.95);
     mat.receiveShadow = true;
     bodegaDressing.add(mat);
+
+    // ---------------- the room's finish (2026-11 production pass) ---------
+    // The store used to show its construction masses: raw red brick inner
+    // faces on the front piers, open sky where a ceiling should be, a bare
+    // teal counter slab. Paint + ceiling + trim — additive dressing, no
+    // wall box moves, no collider changes.
+    const ceil = new THREE.Mesh(new THREE.BoxGeometry(9.2, 0.05, 11.2), this.bank.get(PAL.cream));
+    ceil.name = 'Bodega_Ceiling';
+    ceil.position.set(-16, 4.47, 14);
+    ceil.receiveShadow = true;
+    bodegaDressing.add(ceil);
+    const paintW = this.bank.get(PAL.stone);
+    const frontPanel = (name: string, cx: number): void => {
+      // full-height: pier top to ceiling — no raw brick line survives inside
+      const p = new THREE.Mesh(new THREE.BoxGeometry(3.1, 3.73, 0.03), paintW);
+      p.name = name;
+      p.position.set(cx, 2.585, 8.415);
+      p.receiveShadow = true;
+      bodegaDressing.add(p);
+    };
+    frontPanel('Bodega_FrontPaint_W', -19.05); // Front_L's inner face
+    frontPanel('Bodega_FrontPaint_E', -12.95); // Front_R's inner face
+    // the lintel's inner face — above the door it read as a raw red slab
+    // from across the store
+    const lintelPaint = new THREE.Mesh(new THREE.BoxGeometry(3.0, 1.42, 0.03), paintW);
+    lintelPaint.name = 'Bodega_LintelPaint';
+    lintelPaint.position.set(-16, 3.81, 8.415);
+    bodegaDressing.add(lintelPaint);
+    const jambLiner = (name: string, x: number): void => {
+      const j = new THREE.Mesh(new THREE.BoxGeometry(0.03, 2.99, 0.46), paintW);
+      j.name = name;
+      j.position.set(x, 1.605, 8.2);
+      bodegaDressing.add(j);
+    };
+    jambLiner('Bodega_DoorJamb_W', -17.485); // the door reveal stops reading raw brick
+    jambLiner('Bodega_DoorJamb_E', -14.515);
+    // counter finish: a dark kick and a gold top edge on the aisle face
+    const counterKick = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.12, 6.0), this.bank.get(PAL.manhole));
+    counterKick.name = 'Bodega_CounterKick';
+    counterKick.position.set(-18.985, 0.17, 13.5);
+    bodegaDressing.add(counterKick);
+    const counterTrim = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.06, 6.0), this.bank.get(PAL.gold));
+    counterTrim.name = 'Bodega_CounterTrim';
+    counterTrim.position.set(-18.985, 1.05, 13.5);
+    bodegaDressing.add(counterTrim);
+    // a wall clock over the gondola run — the deli's quiet heartbeat
+    // (y 2.8: clear of the Coffee label pill that rides the item below)
+    const clockRim = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.035, 20), this.bank.get(PAL.ink));
+    clockRim.name = 'Bodega_Clock';
+    clockRim.rotation.x = Math.PI / 2;
+    clockRim.position.set(-16, 2.8, 19.578);
+    bodegaDressing.add(clockRim);
+    const clockFace = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.037, 20), this.bank.get(PAL.cream));
+    clockFace.rotation.x = Math.PI / 2;
+    clockFace.position.set(-16, 2.8, 19.579);
+    bodegaDressing.add(clockFace);
+    const clockHand = (len: number, angle: number): void => {
+      const hand = new THREE.Mesh(new THREE.BoxGeometry(0.018, len, 0.01), this.bank.get(PAL.ink));
+      hand.geometry.translate(0, len / 2 - 0.02, 0);
+      hand.rotation.z = angle;
+      hand.position.set(-16, 2.8, 19.556);
+      bodegaDressing.add(hand);
+    };
+    clockHand(0.09, -Math.PI / 3);
+    clockHand(0.13, Math.PI / 5);
 
     // ---------------- props (Rule of Steam: something is always moving) ----
     this.deco('Manhole', -10, 0.025, 0.5, 0.95, 0.02, 0.95, PAL.manhole); // 0.95 m — a real manhole, not a patio
@@ -4635,34 +4765,37 @@ export class World {
 
   // ------------------------------------------------------------------ helpers
 
-  /** The three bodega shelf items (mango / coffee / bread) — non-colliding deco. */
+  /** The three bodega shelf items (mango / coffee / bread) — non-colliding
+   *  deco. Built feet-at-zero; y IS the shelf board top they stand on
+   *  (board 3 of the gondola run — see the restock pass's SHELF levels). */
   readonly itemMeshes = new Map<string, THREE.Group>();
 
   addItem(id: string, x: number, y: number, z: number, _color: number): THREE.Group {
     void _color; // shape + label now carry the identity; palette stays on the item itself
     const g = new THREE.Group();
     g.name = `Item_${id}`;
-    g.position.set(x, y - 0.25, z); // anchor sits on the shelf top (y=2.0)
+    g.position.set(x, y, z); // feet on the named surface (a gondola board top)
     const add = (m: THREE.Mesh) => { m.castShadow = true; g.add(m); };
     if (id === 'mango') {
-      const body = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 10), this.mat(0xf7a83b, { emissive: 0xf7a83b, emissiveIntensity: 0.18 }));
-      body.scale.y = 0.88;
-      body.position.y = 0.24;
-      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.08, 6), this.mat(0x4a3a30));
-      stem.position.y = 0.5;
+      // shelf-scale fruit: the old half-kilo mango was bigger than the bay
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 10), this.mat(0xf7a83b, { emissive: 0xf7a83b, emissiveIntensity: 0.18 }));
+      body.scale.y = 0.9;
+      body.position.y = 0.077;
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.014, 0.04, 6), this.mat(0x4a3a30));
+      stem.position.y = 0.155;
       add(body); add(stem);
     } else if (id === 'coffee') {
-      const tin = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.42, 12), this.mat(PAL.teal, { emissive: PAL.teal, emissiveIntensity: 0.18 }));
-      tin.position.y = 0.21;
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.165, 0.165, 0.15, 12), this.mat(PAL.cream));
-      band.position.y = 0.21;
+      const tin = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.26, 12), this.mat(PAL.teal, { emissive: PAL.teal, emissiveIntensity: 0.18 }));
+      tin.position.y = 0.13;
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.088, 0.09, 12), this.mat(PAL.cream));
+      band.position.y = 0.13;
       add(tin); add(band);
     } else {
       // bread
-      const loaf = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.2, 0.26), this.mat(0xd9a05b, { emissive: 0xd9a05b, emissiveIntensity: 0.14 }));
-      loaf.position.y = 0.1;
-      const crust = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.07, 0.28), this.mat(0xb3773f));
-      crust.position.y = 0.21;
+      const loaf = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.13, 0.17), this.mat(0xd9a05b, { emissive: 0xd9a05b, emissiveIntensity: 0.14 }));
+      loaf.position.y = 0.065;
+      const crust = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.05, 0.19), this.mat(0xb3773f));
+      crust.position.y = 0.135;
       add(loaf); add(crust);
     }
     // the name floats above the shelf — nobody picks a mystery box

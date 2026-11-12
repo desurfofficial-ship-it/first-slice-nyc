@@ -85,11 +85,14 @@ const C0_LAUNDRY_X = -7.0;
 const C0_LAUNDRY_Z = 7.3;
 
 /** The bodega shelf's three stock spots — the Day-1 errand picks from these,
- *  and the morning restock puts them back (the shop is open every day). */
+ *  and the morning restock puts them back (the shop is open every day).
+ *  y IS the gondola board top each item stands on (World's restock pass
+ *  reserves their gaps: mango/coffee on unit 1/2's board 3, bread on
+ *  unit 0's board 2). */
 const SHELF_STOCK: Array<[id: string, x: number, y: number, z: number]> = [
-  ['mango', -18, 2.25, 19.2],
-  ['coffee', -16, 2.25, 19.2],
-  ['bread', -14, 2.25, 19.2],
+  ['mango', -14.5, 1.34, 19.18],
+  ['coffee', -16, 1.34, 19.18],
+  ['bread', -17.35, 0.987, 19.18],
 ];
 
 export class Game {
@@ -440,9 +443,9 @@ export class Game {
       walker: (i) => this.world.walkerPos(i), // Phase 4 — live walker positions
       worldSimBody: (id) => this.worldSim.bodyPos(id) ?? NEVER_NEAR, // sim-driven bodies
     }));
-    this.world.addItem('mango', -18, 2.25, 19.2, PAL.amber);
-    this.world.addItem('coffee', -16, 2.25, 19.2, PAL.teal);
-    this.world.addItem('bread', -14, 2.25, 19.2, PAL.cream);
+    for (const [id, x, y, z] of SHELF_STOCK) {
+      this.world.addItem(id, x, y, z, 0);
+    }
 
     // ---------------- the half-court (docs/49) ----------------
     // The world built the visuals (paint, net, fence, tally); the court
