@@ -341,3 +341,56 @@ patterns already credited above. What the living pedestrian runtime uses:
   solution** — destination movement here is our Phase 3 A* over the one
   registry-seeded graph, under the STREET gate (door edges never
   traversable) and the gap law (no mid-block road bridges).
+
+### 3.8 three-fenestra — interior-mapping windows (studied for the fenestra wave, 2026-11-12)
+
+**Repo:** https://github.com/codedgar/three-fenestra v0.3.0 — **MIT, © 2026
+Edgar Pérez** (LICENSE verified at the repo root; the `starter/` atlases ship
+inside the MIT package — we ship none of them, our atlases are generated
+originals). The technique's origin the repo itself credits: Joost van
+Dongen, *Interior Mapping* (2008). A third permanent-style reference, added
+here because the mission named it; the §1e clone convention applies
+(`/home/z/my-project/refs/three-fenestra`).
+
+**What it is.** A drop-in `InteriorMappingMaterial` (MeshStandardMaterial +
+onBeforeCompile) that ray-marches a virtual room box behind each window
+plane and paints one atlas cell — one-point-perspective interiors with
+per-window GPU variation from hash seeds whose constants are a documented
+public contract (lit 3.71, tone 9.27, bright 5.43, atlas 0.0, front 7.13).
+v0.3.0 adds instanced mode: `instanceWindowId` (vec3) + `instanceLod` +
+`instanceFade` attributes — thousands of windows, one draw call — and a
+`lod` uniform that collapses the march to a flat impostor for far facades.
+
+**What FIRST SLICE took** (the full analysis: `docs/production/fenestra/01-FENESTRA-INTEGRATION.md`,
+the implementation: `web-three/src/world/fenestraCore.ts` + `fenestraMaterial.ts`):
+
+- The GLSL core (hash / atlas pick / room-box march) — adapted with credit;
+  the seed contract preserved verbatim so the impostor and the near
+  material agree, exactly the property the reference documents.
+- The instanced-attribute schema; `instanceFade` repurposed as a glass-cue
+  weight (Lambert refuses the reference's transparent crossfade — a band
+  switch with ±3 m hysteresis is the house LOD grammar).
+- The compositing model: pre-lit room added after lighting (before tone
+  mapping — it rides tonemap + bloom + fog), front albedo+alpha atlas
+  driving diffuse/transmission, diffuse zeroed on glass.
+
+**What we adapted rather than adopted** — the transferable lesson of the
+study: the reference targets PBR showcases; a game with a CLOCK, a bake,
+and quality tiers needs different seams. MeshStandard → MeshLambert (the
+house family); static `litRatio` → the in-game-clock occupancy law with
+per-window hashed onset thresholds (never synchronized, deterministic —
+new seeds 6.42 onset / 11.31 grime documented beside the contract); full
+atlas pick → family RANGE halves (residential/commercial); per-material
+plane size → one shared unit plane scaled per instance; the transparent
+LOD crossfade → band attributes. Verified: the collector reads the shipped
+proud-window rows (no grid math duplicated, no competing builder), the
+story windows and the W5 real glass are excluded by name/material, the
+bake owns nothing new (+2 draws), and `?fenestra=0` returns the shipped
+look for A/B.
+
+**What the rig taught (the transferable gotcha):** atlas mips. The hardware
+`generateMipmap` and a hand-built per-cell chain BOTH sampled into 2–4 px
+facade speckle on the verification rig; level-0 sampling is clean at every
+distance the bands visit. The atlas ships `LinearFilter` + 8 px edge-
+extension gutters; the limitation and the re-audit plan are recorded in
+the integration doc (§7) — re-check on a real GPU before enabling a chain.
