@@ -103,6 +103,11 @@ Design decisions inherited (with the reason):
 - **Openings as first-class data** — Blueprint3D models openings as *items embedded in walls*; we
   promote them to wall properties (a door is not furniture), and the SAME descriptor later feeds the
   nav-graph door edges (§1.4 of the applications doc).
+- **P1 naming note (2026-11-12, discovered when the gate was wired):** the registry's interior rows
+  already use the plain `plan` slot for the authored PLACEMENT list (item rows — P3's data), so the
+  wall-plan rides `wallPlan?: InteriorPlan`. The P1 module landed as
+  `web-three/src/world/interiors/plan.ts` with its oracle battery
+  (`tests/interiors-plan.test.ts`); `sim/registry.ts` validates it at the gate (`PLAN_INVALID`).
 
 ### 2.2 `src/world/interiors/build.ts` — geometry (port of `three/{edge,floor}.ts`, reduced)
 

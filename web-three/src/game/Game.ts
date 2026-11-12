@@ -753,6 +753,13 @@ export class Game {
     // the car is the room and the street boom scale is the honest one
     // (the lift would press the lens into the car roof)
     this.cam.interiorAboard = aboardCar(this.player.capsule.z);
+    // the ride's seam: the boom inherits the swap's ±288 m jump (see
+    // SubwaySystem.seamDx) in the same frame the player does — the framing
+    // survives bit-exact instead of lerping 288 m through the tunnel wall
+    if (this.world.subway.seamDx !== 0) {
+      this.cam.camera.position.x += this.world.subway.seamDx;
+      this.world.subway.seamDx = 0;
+    }
     this.drainFarWorld(wdt);
     if (!this.dayFading && this.ui.nameBox.hidden && this.ui.orderCard.hidden && !this.mapOpen
       && this.ui.starterCard.hidden && !this.arrival.active && !this.wardrobe.isOpen) {
