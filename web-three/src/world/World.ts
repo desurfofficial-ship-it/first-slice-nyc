@@ -68,7 +68,7 @@ import { FenestraMaterial, fenestraMeshFromPlan, loadFenestraAtlas,
   applyAtlasMaxLod, type FenestraMesh } from './fenestraMaterial';
 import { EnvSky } from '../render/envsky';
 import { sampleDayCycle, keyframeState, freshDayState, CANON_MINUTES, type DayState, type DayPin } from '../render/daycycle';
-import { buildNeighborhoodFabric, NEIGH } from './neighborhoodFabric';
+import { buildNeighborhoodFabric, NEIGH, TERRACE_GATES } from './neighborhoodFabric';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay,
   skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH,
   STREET_PLAN, PEDESTRIAN_ROLES, type StreetPlan } from './dressing';
@@ -7507,9 +7507,28 @@ export class World {
       const reg = this.regShell(regId);
       const id = regId.replace(/-/g, '_');
       const w = reg.w / hs.length;
+      // The park-gate law (W10, 2026-11-13): these rows sealed the registered
+      // parks behind them — the pocket scan (diag-pocket-scan.mjs) found
+      // PRK-LARKIN / PRK-CARROW as unreachable free-space components while
+      // the owner stood at the band blocked. A gated segment builds two
+      // jambs + a lintel (head 2.6 m); the 3.2 m mouth is the park walk-in.
+      // terraceFaceFabric reads the same TERRACE_GATES table and skips its
+      // ground band across the mouth — mass and facade stay in lockstep.
+      const gates = TERRACE_GATES[regId];
       for (let i = 0; i < hs.length; i++) {
         const cx = reg.x - reg.w / 2 + w * (i + 0.5);
-        this.solid(`${id}_${i}`, cx, hs[i] / 2, reg.z, w, hs[i], reg.d, i % 2 ? PAL.bldg2 : PAL.bldg);
+        const x0 = cx - w / 2, x1 = cx + w / 2;
+        const tone = i % 2 ? PAL.bldg2 : PAL.bldg;
+        const gate = gates?.find((g) => g.x0 < x1 - 0.05 && g.x1 > x0 + 0.05);
+        if (!gate) {
+          this.solid(`${id}_${i}`, cx, hs[i] / 2, reg.z, w, hs[i], reg.d, tone);
+          continue;
+        }
+        const gL = Math.max(x0, gate.x0), gR = Math.min(x1, gate.x1);
+        if (gL - x0 > 0.3) this.solid(`${id}_${i}a`, (x0 + gL) / 2, hs[i] / 2, reg.z, gL - x0, hs[i], reg.d, tone);
+        if (x1 - gR > 0.3) this.solid(`${id}_${i}b`, (gR + x1) / 2, hs[i] / 2, reg.z, x1 - gR, hs[i], reg.d, tone);
+        const lintelH = hs[i] - 2.6;
+        if (lintelH > 0.2) this.solid(`${id}_${i}L`, (gL + gR) / 2, 2.6 + lintelH / 2, reg.z, gR - gL, lintelH, reg.d, tone);
       }
     };
     strip('VDN-DN1', heightsN);

@@ -55,14 +55,15 @@
  * (loc:the_cart → the shipped cart corner). Off-map is honest: away.
  */
 
-import { GameClock } from './clock';
+import { GameClock, weekdayOf } from './clock';
 import {
   complete, escalateForLateness, newArbitration, propose, tickArbitration,
   PRIORITY,
   type ActivityClaim, type ArbitrationEvent, type ArbitrationWorld, type NpcArbitration, type Priority,
 } from './arbitration';
 import { activityAt, type NpcSchedule, type ResolvedActivity, type ScheduleActivityKind } from './schedule';
-import { REFERENCE_NPCS, REFERENCE_SCHEDULES, REFERENCE_ALIASES, referenceRelationships } from './reference';
+import { REFERENCE_BUSINESSES, REFERENCE_NPCS, REFERENCE_SCHEDULES, REFERENCE_ALIASES, referenceRelationships } from './reference';
+import { businessTransitionsForTick, type BusinessTransition } from './businessOps';
 import { simId } from './ids';
 import { parseWorldSave, snapshotWorld, activeWorldSaveKey, type WorldSaveDocument, type WorldState } from './state';
 import type { WorldRegistry } from './registry';
@@ -276,7 +277,8 @@ export type BrainEvent =
   | { kind: 'dayBoundary'; day: number }
   | { kind: 'phaseChange'; phase: string; minuteOfDay: number }
   | { kind: 'arbitration'; event: ArbitrationEvent }
-  | { kind: 'bodyNote'; npcId: string; text: string };
+  | { kind: 'bodyNote'; npcId: string; text: string }
+  | { kind: 'business'; transitions: readonly BusinessTransition[] };
 
 // ----------------------------------------------------------------- brain ----
 
@@ -377,12 +379,26 @@ export class WorldSimBrain {
   }
 
   /** Advance the whole world one in-game minute. Deterministic order:
-   *  clock → per-NPC arbitration → state sync → directives. */
+   *  clock → business hours → per-NPC arbitration → state sync →
+   *  directives. */
   advanceTick(): BrainEvent[] {
     const events: BrainEvent[] = [];
     const crossed = this.world.clock.advance(1);
     events.push({ kind: 'tick', tick: this.world.clock.tick });
     if (crossed > 0) events.push({ kind: 'dayBoundary', day: this.world.clock.day });
+    // wc-17 Phase 4: the businesses operate — the open/closed crossings
+    // of the authored hours are the brain's own observation (the open
+    // state itself stays `businessIsOpen`, the one law, no double truth).
+    if (this.world.businesses.length > 0) {
+      const nowMinute = this.world.clock.minuteOfDay;
+      const prevMinute = (nowMinute + 1439) % 1440;
+      const nowWeekday = this.world.clock.weekday;
+      const prevWeekday = crossed > 0 ? weekdayOf(this.world.clock.day - 1) : nowWeekday;
+      const transitions = businessTransitionsForTick(
+        this.world.businesses, prevMinute, prevWeekday, nowMinute, nowWeekday,
+      );
+      if (transitions.length > 0) events.push({ kind: 'business', transitions });
+    }
     const phase = this.world.clock.phase;
     if (phase !== this.lastPhase) {
       events.push({ kind: 'phaseChange', phase, minuteOfDay: this.world.clock.minuteOfDay });
@@ -651,6 +667,16 @@ export function bootWorldBrain(opts: {
     parsed = parseWorldSave(null).world;
     source = 'fresh';
     notes = [`world save parse threw (${String(err)}) → fresh world`];
+  }
+  // wc-17 Phase 4: the world opens with its businesses (the reference
+  // manifest's own hours) — fresh boots and restored saves alike. A
+  // restored save predating this wave heals forward HERE (its businesses
+  // array was empty by construction); a save that already carries
+  // businesses is left byte-identical.
+  if (parsed.businesses.length === 0) {
+    parsed.businesses = REFERENCE_BUSINESSES.map((b) => ({
+      ...b, days: [...b.days], staffNpcIds: [...b.staffNpcIds], tags: [...b.tags],
+    }));
   }
   if (source === 'fresh') {
     // fresh worlds open with the reference cast — the sim has people from

@@ -35,7 +35,11 @@ import { bootWorldBrain, buildReferencePlaceResolver, DEFAULT_TIMESCALE,
   type BrainEvent, type SimDirective, type WorldSimBrain } from '../sim/runtime';
 import { simTickOfStoryDay } from '../sim/epochMap';
 import { loadRegistry } from '../sim/registry';
-import { MAJOR_IDS, tickLife } from '../sim/life';
+import { calendarOf } from '../sim/clock';
+import { MAJOR_IDS, tickLife, type Mood } from '../sim/life';
+import { tickDrift } from '../sim/drift';
+import { MONTH_ROLL_KIND, monthRollDetail } from '../sim/businessOps';
+import { simId } from '../sim/ids';
 import { CHAPTER_ORDER, chapterAtDay, chapterSpan, type ChapterId } from '../core/chapters';
 import { MISSABLE_SPECS, resolveMissableSpecs, freshMissableWindows, tickMissables, dayEndTickOf } from '../sim/missable';
 import { Navigation } from '../sim/nav';
@@ -146,6 +150,10 @@ export class WorldRuntime {
     // re-derive at boot too — a restored save learns what it missed
     // while it was away, with the records dated to the expiries.
     this.syncMissablesToDay(this.brain.world.clock.day);
+    // wc-17 Phase 4 (register v1.58.0): B-3's drift + the month roll
+    // catch up at boot too — the block remembers the days the save
+    // was away, exactly once, deterministically.
+    this.syncBlockMemoryToDay(this.brain.world.clock.day);
   }
 
   /** R5 — the majors' off-screen lives (sim/life.ts): tick to the given
@@ -153,8 +161,10 @@ export class WorldRuntime {
    *  (durable, save-carried) and the world's chapter container (mapped
    *  through core/chapters' `chapterAtDay`; the machine itself stays
    *  core-free). Deterministic from save; the result replaces the world's
-   *  life section wholesale (the tick is pure). */
-  private syncLifeToDay(day: number): void {
+   *  life section wholesale (the tick is pure). Returns the tick's own
+   *  events (the fired calendar/mood/decision lines) for the B-3
+   *  consumer. */
+  private syncLifeToDay(day: number) {
     const w = this.brain.world;
     const greetedTicks: Record<string, number | undefined> = {};
     for (const id of MAJOR_IDS) {
@@ -166,6 +176,62 @@ export class WorldRuntime {
       greetedTicks,
     });
     w.life = result.life;
+    return result.events;
+  }
+
+  /** B-3 + the month roll (wc-17 Phase 4, sim/drift.ts + sim/
+   *  businessOps.ts — register v1.58.0): the block remembers. Runs at
+   *  boot AND at every day boundary (the R5/R6 heal-forward law: a
+   *  restored save catches up exactly once, deterministically).
+   *
+   *  The drift reads the life machine's OWN moods and the greeted
+   *  flags; the day cursor rides the saved environment section, so a
+   *  re-run never double-applies and a rewind is a no-op. The month
+   *  roll journals ONE record per observed story-month crossing, its
+   *  detail derived from the ledger's evidence only (the P&L law —
+   *  nothing invented). A multi-month absence rolls the just-ended
+   *  month; the ledger itself remains the queryable truth for the
+   *  months in between (the reports are views, the events are the
+   *  diary). */
+  private syncBlockMemoryToDay(day: number): void {
+    const w = this.brain.world;
+    // B-3: the player's edges drift with the majors' documented moods.
+    const moodOf = (local: string): Mood | undefined => w.life.majors[local]?.mood;
+    const greetedTickOf = (local: string): number | undefined =>
+      w.flags.map.get(`flag:${local}_greeted`);
+    const drift = tickDrift(w.relationships, {
+      environment: w.environment,
+      toDay: day,
+      moodOf,
+      greetedTickOf,
+    });
+    w.relationships = drift.relationships;
+    w.environment = drift.environment;
+    for (const e of drift.events) {
+      w.events.push({
+        id: e.id,
+        tick: dayEndTickOf(e.day),
+        kind: 'relationship_drift',
+        npcIds: [e.a, e.b],
+        detail: e.detail,
+      });
+    }
+    // the month roll: one record per observed story-month crossing.
+    const cal = calendarOf(day);
+    const lastMonth = w.environment['b3_month'];
+    if (typeof lastMonth !== 'number' || lastMonth !== cal.month) {
+      if (typeof lastMonth === 'number') {
+        const fromDay = day - (cal.dayOfMonth - 1);
+        const toDay = day - 1;
+        w.events.push({
+          id: simId('evt', `month_${cal.year}_${cal.month}`),
+          tick: dayEndTickOf(day - 1),
+          kind: MONTH_ROLL_KIND,
+          detail: monthRollDetail(w.ledger, w.businesses, fromDay, toDay, `${cal.monthName} Y${cal.year}`),
+        });
+      }
+      w.environment['b3_month'] = cal.month;
+    }
   }
 
   /** R6 — the missable-event scheduler (sim/missable.ts): seed the
@@ -332,6 +398,9 @@ export class WorldRuntime {
         // R6: the missable windows re-derive on the same law — an
         // expiry crossed today becomes tonight's save's world change.
         this.syncMissablesToDay(this.brain.world.clock.day);
+        // wc-17 Phase 4: B-3's drift + the month roll run on the same
+        // law (the block remembers, exactly once, before the flush).
+        this.syncBlockMemoryToDay(this.brain.world.clock.day);
         if (this.active) this.flushWorldSave();
       }
     }
