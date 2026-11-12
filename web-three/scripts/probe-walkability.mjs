@@ -98,6 +98,13 @@ const sweep = await page.evaluate((doorList) => {
   // VDN backdrop rows (z ±61 — the rows own z 48.5..58.5 by design; the
   // live garden-strip legs prove the weave end to end)
   for (const z of [61, -61]) lanes.push({ name: `Terrace garden z=${z}`, axis: 'x', from: -40, to: 40, at: z });
+  // W10 park-gate law: the four gate mouths through the backdrop rows
+  // (TERRACE_GATES — N x −30/33, S x −19/42) — the approach lines that
+  // used to dead-end on the band's face are lanes now
+  lanes.push({ name: 'Larkin gate x=-30', axis: 'z', from: 46.5, to: 60.2, at: -30 });
+  lanes.push({ name: 'Larkin gate x=33', axis: 'z', from: 46.5, to: 60.2, at: 33 });
+  lanes.push({ name: 'Carrow gate x=-19', axis: 'z', from: -60.2, to: -46.5, at: -19 });
+  lanes.push({ name: 'Carrow gate x=42', axis: 'z', from: -60.2, to: -46.5, at: 42 });
   // the W8 station corridors (the through-paths the two housing skirts
   // weave): z 5.0 north of the SUB-01 slot face, z −4.85 north of SUB-02
   lanes.push({ name: 'SUB-01 corridor z=5.0', axis: 'x', from: -49.2, to: -45.2, at: 5.0 });
@@ -238,6 +245,16 @@ const LEGS = [
   // shop) and stand inside the fit-out
   { name: 'walk into WESTGATE BOOKS (KTN-08)', from: [-88, 6.3], to: [-88, 8.6] },
   { name: 'walk into TERRACE WINE (KTS-04)', from: [61.8, -46.3], to: [61.8, -49.2] },
+  // W10: the parks are reachable — the gate walk-ins from the avenues,
+  // the Gable Garden's gate chain from the Green, the FRUIT-INT walk-in
+  // (the one W8 room with no live leg) into its west bulk, and the two
+  // W6 stoop landings (the high-stoop treads ride the 0.12 riser law)
+  { name: 'walk into the LARKIN garden (gate x=-30)', from: [-30, 44], to: [-30, 60.2] },
+  { name: 'walk into the CARROW garden (gate x=42)', from: [42, -44], to: [42, -60.2] },
+  { name: 'the GABLE GARDEN gate chain (Green → gate → beds)', from: [10, 24], to: [-4, 24.4] },
+  { name: 'walk into FRUIT-INT (TEN-02) to its west bulk', from: [-66.2, -45.5], to: [-64.5, -59.5], via: [[-66.2, -48.6], [-66.0, -52.5]] },
+  { name: 'the GRB-06 stoop landing', from: [-66.2, 45.8], to: [-66.2, 47.85] },
+  { name: 'the GRB-07 stoop landing', from: [61.8, 45.8], to: [61.8, 47.85] },
 ];
 
 const legResults = await page.evaluate((legs) => {

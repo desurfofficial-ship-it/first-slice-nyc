@@ -316,6 +316,20 @@ function escapeFabric(di: NeighborhoodDI): void {
 /** The exposed street faces of the two pinned backdrop rows: window reveal
  *  grids + segment cornices + lit panes. The footprints never move — the
  *  fabric sits ON the face plane (windows proud by 5 cm, the W1 grammar). */
+/** The park-gate law (W10, 2026-11-13): the backdrop rows VDN-DN1/DS1
+ *  sealed the registered parks behind them (PRK-LARKIN / PRK-CARROW — the
+ *  pocket scan found both strips as unreachable components while the owner
+ *  stood at the band asking "why can't I go those sides"). Each row cuts
+ *  two 3.2 m gate mouths; the mass side (World.ts buildBackdrops `strip`)
+ *  reads this same table and builds jamb+lintel solids, the fabric side
+ *  (terraceFaceFabric) skips its ground band across the mouth and hangs
+ *  the iron gate craft — the two sides stay in lockstep. Mouths sit clear
+ *  of every stoop, street tree, bench and bed on both faces (measured). */
+export const TERRACE_GATES: Record<string, Array<{ x0: number; x1: number }>> = {
+  'VDN-DN1': [{ x0: -31.6, x1: -28.4 }, { x0: 31.4, x1: 34.6 }],
+  'VDN-DS1': [{ x0: -20.6, x1: -17.4 }, { x0: 40.4, x1: 43.6 }],
+};
+
 function terraceFaceFabric(di: NeighborhoodDI): void {
   const heightsN = [11, 13, 15, 12, 14, 13, 11, 15, 12, 14]; // buildBackdrops' own rhythm
   const heightsS = [14, 12, 15, 13, 11, 14, 12, 15, 13, 11];
@@ -338,9 +352,13 @@ function terraceFaceFabric(di: NeighborhoodDI): void {
     for (let i = 0; i < job.heights.length; i++) {
       const segH = job.heights[i];
       const cx = s.x - s.w / 2 + segW * (i + 0.5);
-      // the segment cornice at its own roof line (the pre-war tell)
+      const sx0 = cx - segW / 2, sx1 = cx + segW / 2;
+      const gate = TERRACE_GATES[job.id]?.find((g) => g.x0 < sx1 - 0.05 && g.x1 > sx0 + 0.05);
+      // the segment cornice at its own roof line (the pre-war tell) — full
+      // width, it caps the jambs and reads as the gate lintel's crown
       g.box(cx, segH - 0.16, faceZ + dir * 0.14, segW + 0.18, 0.32, 0.3, FABRIC.limestoneDark);
-      // window grid: 5 bays, floors every 3.0 m from y 2.2
+      // window grid: 5 bays, floors every 3.0 m from y 2.2 (gated segments
+      // skip the columns inside the mouth — the gate face carries the iron)
       const cols = 5;
       const rows = Math.max(1, Math.floor((segH - 2.4) / 3.0));
       for (let r = 0; r < rows; r++) {
@@ -348,6 +366,7 @@ function terraceFaceFabric(di: NeighborhoodDI): void {
           const wx = cx - segW / 2 + segW * ((c + 0.5) / cols);
           const wy = 2.2 + r * 3.0;
           if (wy + 0.75 > segH - 0.5) continue;
+          if (gate && wx > gate.x0 - 0.35 && wx < gate.x1 + 0.35) continue;
           g.box(wx, wy, faceZ + dir * 0.05, 1.05, 1.5, 0.1, PAL.windowDim);
           if (hash01(`${job.id}:${i}:${r}:${c}`) < 0.26) {
             litCells.push({
@@ -357,9 +376,30 @@ function terraceFaceFabric(di: NeighborhoodDI): void {
           }
         }
       }
-      // the ground-floor shopfront band: bulkheads + a fascia line
-      g.box(cx, 0.9, faceZ + dir * 0.06, segW - 1.2, 1.4, 0.12, WEAR.bldgDark);
-      g.box(cx, 2.85, faceZ + dir * 0.07, segW - 0.6, 0.5, 0.14, FABRIC.limestoneDark);
+      // the ground-floor shopfront band: bulkheads + a fascia line. A gated
+      // segment splits the band per jamb and the mouth carries the park
+      // gate's own craft — limestone lintel fascia + the open iron leaves
+      // (the PRK-CORNER gate grammar, pinned open so the walk-in reads).
+      if (!gate) {
+        g.box(cx, 0.9, faceZ + dir * 0.06, segW - 1.2, 1.4, 0.12, WEAR.bldgDark);
+        g.box(cx, 2.85, faceZ + dir * 0.07, segW - 0.6, 0.5, 0.14, FABRIC.limestoneDark);
+      } else {
+        for (const [j0, j1] of [[sx0, gate.x0], [gate.x1, sx1]] as const) {
+          const bw = j1 - j0 - 0.9;
+          if (bw > 0.4) {
+            const jc = (j0 + j1) / 2;
+            g.box(jc, 0.9, faceZ + dir * 0.06, bw, 1.4, 0.12, WEAR.bldgDark);
+            g.box(jc, 2.85, faceZ + dir * 0.07, bw + 0.3, 0.5, 0.14, FABRIC.limestoneDark);
+          }
+        }
+        const mw = gate.x1 - gate.x0;
+        const mc = (gate.x0 + gate.x1) / 2;
+        g.box(mc, 2.85, faceZ + dir * 0.07, mw, 0.5, 0.14, FABRIC.limestoneDark);
+        g.box(gate.x0 + 0.14, 1.05, faceZ + dir * 0.1, 0.08, 2.1, 0.08, PAL.ink);
+        g.box(gate.x1 - 0.14, 1.05, faceZ + dir * 0.1, 0.08, 2.1, 0.08, PAL.ink);
+        g.box(mc, 2.12, faceZ + dir * 0.1, mw - 0.2, 0.07, 0.07, PAL.ink);
+        g.box(mc, 1.1, faceZ + dir * 0.1, mw - 0.2, 0.06, 0.06, PAL.ink);
+      }
     }
     emit(di, true, `Nbhd_TerraceFace_${job.id}`, g.toGeometry(), true, true);
     di.ledger?.push({ name: `Nbhd_TerraceFace_${job.id}`, x: s.x, y: 0, z: faceZ });

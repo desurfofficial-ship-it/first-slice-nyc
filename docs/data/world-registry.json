@@ -2951,10 +2951,24 @@
       "z": 61.6
      }
     ],
-    "note": "behind the pinned VDN-DN1 mass (footprint untouched) — W6 opened the strip, the garden keeps it green"
+    "note": "behind the pinned VDN-DN1 mass (footprint untouched) — W6 opened the strip, the garden keeps it green",
+    "gateSpans": {
+     "through": "VDN-DN1",
+     "spans": [
+      {
+       "x0": -31.6,
+       "x1": -28.4
+      },
+      {
+       "x0": 31.4,
+       "x1": 34.6
+      }
+     ],
+     "note": "W10 park-gate law (2026-11-13): the pinned backdrop row sealed this registered park (the pocket scan found the whole strip an unreachable component — the owner reported the block live). Two 3.2 m gate mouths cut through the row: jamb+lintel masses in buildBackdrops, the matching facade craft + open iron leaves in terraceFaceFabric (one shared TERRACE_GATES table). Mouths measured clear of every stoop, tree, bench, bed."
+    }
    },
    "npcZones": [],
-   "notes": "W6 terrace garden — deco-built (World.ts), no gates (open lawn both ends)"
+   "notes": "W6 terrace garden — deco-built (World.ts), W10 cut two gate mouths through the row (the ends were sealed by GRB-06/07, not open)"
   },
   {
    "id": "PRK-CARROW",
@@ -3022,7 +3036,21 @@
       "z": -61.6
      }
     ],
-    "note": "behind the pinned VDN-DS1 mass (footprint untouched)"
+    "note": "behind the pinned VDN-DS1 mass (footprint untouched)",
+    "gateSpans": {
+     "through": "VDN-DS1",
+     "spans": [
+      {
+       "x0": -20.6,
+       "x1": -17.4
+      },
+      {
+       "x0": 40.4,
+       "x1": 43.6
+      }
+     ],
+     "note": "W10 park-gate law (2026-11-13): the pinned backdrop row sealed this registered park (the pocket scan found the whole strip an unreachable component — the owner reported the block live). Two 3.2 m gate mouths cut through the row: jamb+lintel masses in buildBackdrops, the matching facade craft + open iron leaves in terraceFaceFabric (one shared TERRACE_GATES table). Mouths measured clear of every stoop, tree, bench, bed."
+    }
    },
    "npcZones": [],
    "notes": "W6 terrace garden — the flyer board stands at its NW corner"
@@ -4916,6 +4944,12 @@
    "name": "The Westgate & Eastgate rows",
    "content": "24 class-C masses (GRB-08..15, KTN-08..11, KTS-05..10, TEN-03/04, MRW-01..04) — the Gable/Kestrel/Marlow rows and both terrace bands continue west and east to the wall line; the E–W street slabs/walks/curbs extend x ±84 → ±100 (butt-jointed, same levels); the terrace walk slabs follow; the sidewalk-shed port (three green construction canopies over the new walks), fire-escape ironwork and street props ride the neighborhood fabric",
    "unlocks": "the map grows its LAST two sides (walls x ±84 → ±100, owner authorization standing) — the core is a full four-sided neighborhood; the sky cards move ∓110 → ∓122 to keep their clearance"
+  },
+  {
+   "id": "W10",
+   "name": "The park-gate law",
+   "content": "The pocket scan (web-three/scripts/diag-pocket-scan.mjs — full-map flood fill at the real capsule clearance) proved PRK-LARKIN/PRK-CARROW unreachable: the VDN-DN1/DS1 backdrop rows are contiguous 12 m solids x -60..60. Fix: two 3.2 m gate mouths per row (N x -30/x 33, S x -19/x 42) — jamb+lintel solids with the 2.6 m head (buildBackdrops strip), facade band split per jamb + limestone lintel fascia + open iron gate leaves (terraceFaceFabric), one shared TERRACE_GATES table. probe-walkability grows the four gate lanes + six live legs (garden walk-ins, the Gable Garden gate chain, FRUIT-INT walk-in + west bulk, the GRB-06/07 stoop landings). Honest census: the remaining sealed pockets are visible-furniture staff sides in the W5/W8/W9 rooms, the two W2 courtyards (private light wells), and the PLY-MARLOW equipment nook — none is a registered public space.",
+   "unlocks": "the Larkin and Carrow gardens are walkable neighborhood — the path, the benches, the community beds, the shed and all twelve street trees are reachable from both avenues; the walk-in legs pin the class shut"
   }
  ],
  "openDecisions": [
