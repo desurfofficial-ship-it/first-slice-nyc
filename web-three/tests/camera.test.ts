@@ -12,6 +12,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { GameCamera } from '../src/camera/GameCamera';
+import { STATION } from '../src/world/subway/stationKit';
 
 const DT = 1 / 60;
 const SPEED = 4.2;
@@ -191,6 +192,81 @@ describe('snapBehind obeys the interiorMode law (docs/50 cutaway)', () => {
     // the boom reaches its full desired length: the yard slab (the wall
     // here) must not drag the lens onto its face and fill the frame
     expect(cam.camera.position.z).toBeLessThan(-3.2);
+  });
+});
+
+// The dollhouse lift — the entering-the-subway fix (2026-11-12, playtest:
+// "entered the subway and I can't see inside"). Underground and NOT aboard,
+// the boom rises UNDERGROUND_LIFT above the street framing so the lens
+// looks DOWN into the opened station box: the station's south wall (top
+// edge y −0.25 at z 7.85, stationKit) otherwise cuts a street-height lens
+// off at the platform's south half. These tests use the station's REAL
+// numbers — the sight line is measured where it crosses the wall plane.
+describe('the underground dollhouse lift (the entering-the-subway fix)', () => {
+  // The south wall's outer face (the one the lens sees): stationKit centers
+  // the wall at zSouth − 0.15 with 0.3 depth, so the face sits at zSouth − 0.3.
+  const WALL_FACE_Z = STATION.zSouth - 0.3; // 7.7 — the outer face plane
+  const WALL_TOP_Y = STATION.ceilingBottom; // −0.25 — the wall's top edge
+  /** The sight line camera→focus, measured at the wall plane. */
+  const yAtWall = (cam: GameCamera, focus: { x: number; y: number; z: number }): number => {
+    const c = cam.camera.position;
+    const t = (WALL_FACE_Z - c.z) / (focus.z - c.z);
+    return c.y + t * (focus.y - c.y);
+  };
+
+  it('on the platform the lens looks down over the south wall into the box', () => {
+    // The stair-landing approach: the player just walked south onto the
+    // platform (the worst case — everything south of ~z 9.2 was wall-cut).
+    const cam = new GameCamera(1.6);
+    cam.camYaw = 0; // the auto street-side yaw: the lens parks due south
+    cam.interiorMode = true;
+    cam.interiorAboard = false;
+    const pos = { x: -46.95, y: -3.2, z: 9.7 };
+    cam.snapBehind(pos);
+    const focus = { x: pos.x, y: pos.y + 1.2, z: pos.z };
+    // the lift applied: the lens sits ~10 above the focus, not ~6.7
+    expect(cam.camera.position.y).toBeGreaterThan(focus.y + 9);
+    // the sight line clears the wall's top edge with real margin
+    expect(yAtWall(cam, focus)).toBeGreaterThan(WALL_TOP_Y + 0.4);
+  });
+
+  it('aboard the car the lift stands down — the car is the room', () => {
+    // The ride spot stands in the car's z-band (ride.ts aboardCar): the
+    // street boom scale is the honest framing there — a lifted lens would
+    // only press into the car roof.
+    const cam = new GameCamera(1.6);
+    cam.camYaw = 0;
+    cam.interiorMode = true;
+    cam.interiorAboard = true;
+    const pos = { x: -41.1, y: -3.2, z: 15.4 };
+    cam.snapBehind(pos);
+    const focusY = pos.y + 1.2;
+    // no lift: the boom keeps the street framing height
+    expect(cam.camera.position.y).toBeLessThan(focusY + 8);
+  });
+
+  it('above grade nothing lifts (the street framing is untouched)', () => {
+    const cam = new GameCamera(1.6);
+    cam.camYaw = 0;
+    cam.interiorMode = false;
+    const pos = { x: -47.2, y: 0.1, z: 6.0 };
+    cam.snapBehind(pos);
+    expect(cam.camera.position.y).toBeLessThan(pos.y + 1.2 + 8);
+  });
+
+  it('the lift rides the frame update too, not just the snap', () => {
+    const cam = new GameCamera(1.6);
+    cam.camYaw = 0;
+    cam.interiorMode = true;
+    cam.interiorAboard = false;
+    const pos = { x: -44.6, y: -3.2, z: 9.0 };
+    cam.camera.position.set(-44.6, 7.0, 3.5); // the pre-fix street boom height
+    for (let i = 0; i < 240; i++) cam.update(DT, pos, 0, { x: 0, y: 0 }, 0);
+    // settled: the lens rose to the lifted desired, and the walk-line to
+    // the focus clears the wall — the player reads head to toe
+    const focus = { x: pos.x, y: pos.y + 1.2, z: pos.z };
+    expect(cam.camera.position.y).toBeGreaterThan(focus.y + 9);
+    expect(yAtWall(cam, focus)).toBeGreaterThan(WALL_TOP_Y + 0.4);
   });
 });
 

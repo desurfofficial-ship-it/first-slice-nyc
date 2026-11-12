@@ -30,6 +30,7 @@ import { datelineOfStoryDay } from '../sim/epochMap';
 import { starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
 import { PAL } from '../core/palette';
 import { World } from '../world/World';
+import { aboardCar } from '../world/subway';
 import { Player, lerpAngle } from '../player/Player';
 import { GameCamera } from '../camera/GameCamera';
 import { InputManager } from '../engine/Input';
@@ -745,6 +746,10 @@ export class Game {
     if (this.world.familiar.visible) peds.push({ x: this.world.familiar.position.x, z: this.world.familiar.position.z });
     this.world.updateDynamics(wdt, this.player.capsule, peds, this.duskStarted);
     this.cam.interiorMode = this.world.subway.underground;
+    // the lift stands down while the feet are in the car's z-band: aboard,
+    // the car is the room and the street boom scale is the honest one
+    // (the lift would press the lens into the car roof)
+    this.cam.interiorAboard = aboardCar(this.player.capsule.z);
     this.drainFarWorld(wdt);
     if (!this.dayFading && this.ui.nameBox.hidden && this.ui.orderCard.hidden && !this.mapOpen
       && this.ui.starterCard.hidden && !this.arrival.active && !this.wardrobe.isOpen) {

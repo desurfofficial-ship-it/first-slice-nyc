@@ -4313,10 +4313,18 @@ export class World {
       // underground (the dollhouse), and the zone groups manage their own
       // visibility — none of it may join a district tile (the street ring
       // would light the tunnel forever)
+      // + the north yard slab: it ROOFS the station box (x −60..60,
+      //   z 8..32), and collectTerminalShell lifts it BY NAME with the
+      //   dollhouse. Baked (found 2026-11-12, the entering-the-subway
+      //   fix), the name lookup found nothing, the lawn stayed up below
+      //   grade, and every above-grade sight line into the cutaway hit
+      //   grass — aboard the car the frame was solid lawn green, on the
+      //   platform the interior showed through a ~2° slit. One live draw
+      //   above grade is the fair price for the cutaway being cut.
       // + the city-fabric skyline pair (docs/production/city-fabric): the
       // rows live OUTSIDE every district tile (x ±110 / z −88 / z +104) —
       // a tile ring that drops them would blink the horizon out of view
-      'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121',
+      'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121', 'Yard_N',
       'SkylineFabric', 'SkylineFabricWindows']);
     const excluded = (o: THREE.Object3D): boolean => {
       for (let p: THREE.Object3D | null = o; p !== null; p = p.parent) {
