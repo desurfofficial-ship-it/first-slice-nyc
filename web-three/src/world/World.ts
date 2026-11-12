@@ -65,7 +65,7 @@ import { groundMaterial, metricBoxUVs } from './groundTex';
 import { collectWindowPlan, FEN_BANDS_BY_TIER, fenBandOf, bandValues,
   type FenestraInstance } from './fenestraCore';
 import { FenestraMaterial, fenestraMeshFromPlan, loadFenestraAtlas,
-  type FenestraMesh } from './fenestraMaterial';
+  applyAtlasMaxLod, type FenestraMesh } from './fenestraMaterial';
 import { EnvSky } from '../render/envsky';
 import { sampleDayCycle, keyframeState, freshDayState, CANON_MINUTES, type DayState, type DayPin } from '../render/daycycle';
 import { buildNeighborhoodFabric, NEIGH } from './neighborhoodFabric';
@@ -560,6 +560,9 @@ export class World {
    *  configured once the Game owns its renderer; furniture upgrades fire
    *  from that call. Until then the street-seam loader loads plain GLBs. */
   private furnitureWired = false;
+  /** The renderer handle (Game hands it over once, with the GLB decoders);
+   *  the fenestra atlas LOD clamp needs the GL context at upload time. */
+  private rendererRef: THREE.WebGLRenderer | null = null;
 
   // ---------------- the graphics wave (docs/rendering/) ----------------
   /** The sky dome's material (the applier writes its halo/nightK uniforms). */
@@ -5249,10 +5252,21 @@ export class World {
       }
     }
     this.fenestraBands = new Uint8Array(this.fenestraPlan.length);
+    // aniso 4 — grazing-angle facades are the common street view; three
+    // clamps the value to the device max (WebGLTextures.texParameterf).
     void Promise.all([
-      loadFenestraAtlas('textures/fenestra_rooms.png', 'rooms'),
-      loadFenestraAtlas('textures/fenestra_fronts.png', 'fronts'),
+      loadFenestraAtlas('textures/fenestra_rooms.png', 'rooms', 4),
+      loadFenestraAtlas('textures/fenestra_fronts.png', 'fronts', 4),
     ]).then(([rooms, fronts]) => {
+      // the FEN-GLITCH deep-mip clamp: TEXTURE_MAX_LOD 3 pins sampling
+      // inside the gutters' safe range — set once, right after the upload
+      // (onUpdate fires inside WebGLTextures.uploadTexture; the renderer
+      // handle may land later than this promise — it is read at fire time)
+      for (const t of [rooms, fronts]) {
+        t.onUpdate = () => {
+          if (this.rendererRef) applyAtlasMaxLod(this.rendererRef, t);
+        };
+      }
       for (const m of this.fenestraMats) m.setAtlases(rooms, fronts);
     });
   }
@@ -5565,6 +5579,7 @@ export class World {
   configureGltfDecoders(renderer: THREE.WebGLRenderer): void {
     if (this.furnitureWired) return;
     this.furnitureWired = true;
+    this.rendererRef = renderer;
     // the graphics wave: the sky-PMREM environment builds here (Game hands
     // the renderer over exactly once); the applier rebuilds it on state change
     this.envSky = new EnvSky(renderer);

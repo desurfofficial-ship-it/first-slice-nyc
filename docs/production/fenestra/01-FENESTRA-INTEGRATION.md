@@ -121,11 +121,42 @@ mulberry32 seeds, rebuild is pixel-identical):
   replicated outward) so filtering never pulls a neighbor's colors into a
   window.
 
-Atlas sampling ships **without mipmaps** — a deliberate, verified tradeoff
-(§7, limitations): the verification rig sampled every mip path (hardware
-`generateMipmap` AND a hand-built per-cell chain) into 2–4 px facade
-speckle, while level-0 sampling is clean at every rig. The distance story
-is covered by the LOD bands; revisit with a real-GPU pass before enabling.
+Atlas sampling rides the **mip chain** (FEN-GLITCH REPAIR, register
+v1.58.0, 2026-11-12): the original wave shipped level-0-only sampling
+believing "every mip path speckled on the rig; level-0 verified clean" —
+and that verification was wrong twice over. (1) Level-0 sampling of a
+256-texel room cell into a 60–90 px window aliases into per-pixel RGB
+static — the wave's own `fenestra-day-street` evidence shot shows it.
+(2) The field report (a phone, tier low, register v1.55.0's known debt
+re-audit) rendered the windows as blocks of colored noise. The isolation
+diag (`scripts/diag-fenestra-mip.mjs`) traced TWO compounding mechanisms:
+
+- **The cell-pick scramble** — the per-window hash ran per PIXEL in the
+  fragment stage on the interpolated `vFenId` varying, and a
+  perspective-correct interpolation of even a CONSTANT varying wobbles
+  ±1e-7 in fp32; `imHash`'s product (`fract(p.x·p.y·p.z·(p.x+p.y+p.z))`,
+  ≈250 000) amplifies that wobble into full [0,1) jumps — the atlas cell
+  pick changed per pixel and every window sampled the whole atlas as
+  confetti. In-page probes proved it: the same hash evaluated in the
+  VERTEX stage (exact-constant inputs) is flat; in the fragment it is
+  chaos. **Fix: every per-window hash/pick now runs in the vertex stage
+  and reaches the fragment as (flat) varyings** — `vFenHash` (the four
+  occupancy seeds), `vFenRoomOrigin` / `vFenFrontOrigin` (the cell picks),
+  `vFenGrime`. Seven per-pixel hash calls per fragment became seven
+  per-vertex calls per window (a fragment-cost win on mobile).
+- **Deep-mip cross-cell bleed** — the room UV is smooth in value but its
+  screen-space derivative blows up on grazing room walls; an
+  implicit-derivative fetch sampled mip 4+ where the 8 px gutters are
+  exhausted and neighbor rooms' averages bled in. **Fix: the room fetch
+  is explicit (`textureLod`) at the window PLANE's own footprint
+  (`fwidth` of the plane-local coords), capped at the gutter-safe depth
+  3.0; the sampler's `TEXTURE_MAX_LOD` is pinned to 3.0 on upload (the
+  atlas loader's `onUpdate`), and the atlases carry mips + anisotropy 4
+  (three clamps to the device max).**
+
+Post-repair evidence: the same three watched window regions read 4.4–7.2
+mean neighbor-delta (the pre-fix tree read 38–48); the probe asserts the
+mip-chain wiring AND runs a static detector with a wall-canary (§6).
 
 ## 5. Architecture (files, data flow, cost)
 
@@ -166,7 +197,9 @@ flickers at the boundary):
 
 - `npx tsc --noEmit` — clean.
 - `npx vitest run` — **1,562/1,562 across 96 files** (the shipped 1,532 +
-  this system's 30).
+  this system's 30). Post-repair (v1.58.0): **1,669/1,669 across 99 files**
+  (+7: the atlas-filter law ×4, the vertex-stage hash guard, the
+  seed-contract relocation, the explicit-LOD pin).
 - `npm run build` — OK (the two atlases ride `public/`).
 - `scripts/probe-fenestra.mjs` — **ALL PASS (22 checks)**: two family
   meshes with the collected counts, atlas-range split, atlases loaded
@@ -188,13 +221,15 @@ flickers at the boundary):
 
 ## 7. Limitations (the honest list)
 
-1. **No mipmap filtering on the atlases** (§4). Close and mid windows are
-   verified clean; a real-GPU pass should re-audit whether a per-cell mip
-   chain (the generator once emitted one) can ship without the speckle.
+1. ~~No mipmap filtering on the atlases~~ **REPAIRED v1.58.0** (§4): mips
+   + anisotropy + the vertex-side hash migration + the explicit-LOD fetch;
+   the probe's static detector pins it (§6).
 2. **Grazing-angle compression**: at steep angles the room's projected
    sliver compresses; Schlick darkening (the glass turns mirror at
-   grazing — physically true) mutes it, but a sliver can still shimmer.
-   The next lever would be a per-pixel LOD clamp (needs a real-GPU audit).
+   grazing — physically true) mutes it, and the explicit-LOD cap (3.0)
+   keeps the sliver own-colored. A deeper graze could sample a softer
+   mip than the plane's footprint strictly implies — accepted, the
+   alternative is the scramble the cap exists to prevent.
 3. **Room box is window-relative**: a 3.4 m storefront band and a 1.1 m
    sash both read as "one room wide" — the reference's own model. It reads
    correct at street distance; nobody has measured a bodega window.
