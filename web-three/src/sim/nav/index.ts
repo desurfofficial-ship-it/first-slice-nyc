@@ -28,8 +28,11 @@ import { BuildingAccess, rosaDeliHours, type Reachability, type AccessTransition
 import { ChokepointGate, capacityForEdge, type CapacityCounters } from './capacity';
 
 /** The walked extent — the graph's validation bounds (the district's
- *  content extent; the Times Square ride lives outside pedestrian space). */
-const NAV_BOUNDS = { xMin: -84, xMax: 84, zMin: -48, zMax: 48 };
+ *  content extent; the Times Square ride lives outside pedestrian space).
+ *  W7: the E–W streets grew their ends ±84 → ±100 (the Westgate/Eastgate
+ *  strips are real rows now), so the walked extent follows the registry's
+ *  own spanX; z stays ±48 (the strips beyond it are player-only walks). */
+const NAV_BOUNDS = { xMin: -100, xMax: 100, zMin: -48, zMax: 48 };
 
 export class Navigation {
   readonly graph: NavGraph;

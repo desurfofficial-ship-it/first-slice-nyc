@@ -9,6 +9,9 @@
  * URL contract (additive — nothing existing changes):
  *   ?gfx=low|medium|high|ultra   force a tier
  *   ?bloom=0|1 ?ssao=0|1 ?grain=0|1 ?ca=0|1 ?sharpen=0|1 ?envmap=0|1
+ *   ?dof=0|1                     the AUTHORED postcard capture's depth of
+ *                                field (one-shot at capture time; ?fx=off
+ *                                still wins — the card stays today's render)
  *   ?fx=off                      the shipped slow-machine affordance — now
  *                                ALSO skips the whole composer (low tier,
  *                                shadows off, exactly today's direct path)
@@ -33,6 +36,10 @@ export interface GfxFlags {
   envMap: boolean;
   /** Full-resolution bloom mip chain (ultra only). */
   bloomFullRes: boolean;
+  /** Depth of field on the AUTHORED postcard captures only (v1.54.0,
+   *  docs/rendering/05) — a one-shot offscreen cost at capture time, never
+   *  a frame-loop pass; the gameplay frame is untouched on every tier. */
+  postcardDof: boolean;
 }
 
 export interface GfxConfig extends GfxFlags {
@@ -46,19 +53,23 @@ export interface GfxConfig extends GfxFlags {
 export const TIER_FLAGS: Record<GfxTier, GfxFlags & { pixelRatioCap: number }> = {
   low: {
     composer: false, bloom: false, ssao: false, grain: false, ca: false,
-    sharpen: false, envMap: true, bloomFullRes: false, pixelRatioCap: 1.25,
+    sharpen: false, envMap: true, bloomFullRes: false, postcardDof: true,
+    pixelRatioCap: 1.25,
   },
   medium: {
     composer: true, bloom: true, ssao: false, grain: true, ca: false,
-    sharpen: true, envMap: true, bloomFullRes: false, pixelRatioCap: 1.5,
+    sharpen: true, envMap: true, bloomFullRes: false, postcardDof: true,
+    pixelRatioCap: 1.5,
   },
   high: {
     composer: true, bloom: true, ssao: true, grain: true, ca: true,
-    sharpen: true, envMap: true, bloomFullRes: false, pixelRatioCap: 2,
+    sharpen: true, envMap: true, bloomFullRes: false, postcardDof: true,
+    pixelRatioCap: 2,
   },
   ultra: {
     composer: true, bloom: true, ssao: true, grain: true, ca: true,
-    sharpen: true, envMap: true, bloomFullRes: true, pixelRatioCap: 2,
+    sharpen: true, envMap: true, bloomFullRes: true, postcardDof: true,
+    pixelRatioCap: 2,
   },
 };
 
@@ -130,6 +141,7 @@ export function resolveGfxConfig(
     ca: flagOf(params, 'ca'),
     sharpen: flagOf(params, 'sharpen'),
     envMap: flagOf(params, 'envmap'),
+    dof: flagOf(params, 'dof'),
   };
   if (o.bloom !== null) flags.bloom = o.bloom;
   if (o.ssao !== null) flags.ssao = o.ssao;
@@ -137,6 +149,7 @@ export function resolveGfxConfig(
   if (o.ca !== null) flags.ca = o.ca;
   if (o.sharpen !== null) flags.sharpen = o.sharpen;
   if (o.envMap !== null) flags.envMap = o.envMap;
+  if (o.dof !== null) flags.postcardDof = o.dof;
   if (!flags.composer) {
     // a direct render cannot carry passes — keep the flags honest
     flags.bloom = false;
@@ -147,6 +160,9 @@ export function resolveGfxConfig(
   } else if (!flags.bloom) {
     flags.bloomFullRes = false;
   }
+  // ?fx=off is the shipped slow-machine affordance and wins over everything:
+  // the capture stays today's bit-for-bit direct render there.
+  if (params.get('fx') === 'off') flags.postcardDof = false;
   return {
     tier,
     composer: flags.composer,
@@ -157,6 +173,7 @@ export function resolveGfxConfig(
     sharpen: flags.sharpen,
     envMap: flags.envMap,
     bloomFullRes: flags.bloomFullRes,
+    postcardDof: flags.postcardDof,
     pixelRatioCap: flags.pixelRatioCap,
     // only a KNOWN tier (or the fx=off affordance) counts as forced — an
     // unknown ?gfx value is a typo, and detection still governs

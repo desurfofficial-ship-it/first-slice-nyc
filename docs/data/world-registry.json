@@ -40,17 +40,17 @@
  "bounds": {
   "world": {
    "xMin": -450,
-   "xMax": 96,
+   "xMax": 136,
    "zMin": -64,
    "zMax": 64,
-   "note": "xMin extended for the far world (docs/50): the K tunnel, 42 St-Times Square, and the Times Square canyon sit one ride west of Alder Heights."
+   "note": "xMin extended for the far world (docs/50): the K tunnel, 42 St-Times Square, and the Times Square canyon sit one ride west of Alder Heights. xMax extended in W7: the Eastgate strip and the SKY-E skyline fabric row live east of the old ±96 edge."
   },
   "playableCore": {
-   "xMin": -84,
-   "xMax": 84,
+   "xMin": -100,
+   "xMax": 100,
    "zMin": -64,
    "zMax": 64,
-   "note": "W6 (2026-11-11): grown from z ±48 by owner authorization (\"expand the game map is not a problem here\") — DEC-8 satisfied in the register. The strips behind Gable and Marlow are real rows now."
+   "note": "W7 (2026-11-12): grown from x ±84 under the standing owner authorization (\"expand the game map is not a problem here\", 2026-11-11 — DEC-8, in-register). The strips beyond the Juniper/Sycamore avenues are real rows now — the E–W streets grow their west and east ends and the terrace bands continue to the wall line. Sky cards SKY-W/E move ∓110 → ∓122 so the new walls keep ≥ 10 m from the skyline fabric."
   },
   "currentShippedWalls": {
    "xMin": -48,
@@ -67,13 +67,13 @@
    },
    {
     "id": "SKY-W",
-    "line": "x = −110 card plane",
-    "role": "Juniper Avenue vanishing point"
+    "line": "x = −122 card row",
+    "role": "Juniper Avenue vanishing point (moved ∓110 → ∓122 in W7 — the Westgate rows took the old ground, the skyline fabric keeps its clearance)"
    },
    {
     "id": "SKY-E",
-    "line": "x = +110 card plane",
-    "role": "Sycamore Avenue vanishing point"
+    "line": "x = +122 card row",
+    "role": "Sycamore Avenue vanishing point (moved ±110 → ±122 in W7 — the Eastgate rows took the old ground, the skyline fabric keeps its clearance)"
    },
    {
     "id": "SKY-S",
@@ -100,8 +100,8 @@
    "axis": "EW",
    "centerline": 0,
    "spanX": [
-    -84,
-    84
+    -100,
+    100
    ],
    "road": {
     "zMin": -4,
@@ -119,7 +119,7 @@
    "totalWidth": 16,
    "ways": "two-way, one 4 m lane each direction (evidence: cab drives eastbound in the south lane z = −2, right-hand traffic; the GOLDEN ORCHARD van parks nose-west on the north curb against the westbound lane)",
    "character": "the story street — mixed-use row, awnings, the cart corner",
-   "notes": "Existing geometry is canon: road/sidewalk slabs span x −50..50 today and extend to ±84 in phase W1 with identical materials and y-levels."
+   "notes": "Existing geometry is canon: road/sidewalk slabs span x −50..50 today and extend to ±84 in phase W1 with identical materials and y-levels. W7: spanX ±84 → ±100 — the street continues into the Westgate/Eastgate strips (butt-jointed slabs, same levels)."
   },
   {
    "id": "STR-JUNIPER",
@@ -179,8 +179,8 @@
    "axis": "EW",
    "centerline": 40,
    "spanX": [
-    -84,
-    84
+    -100,
+    100
    ],
    "road": {
     "zMin": 36,
@@ -197,7 +197,8 @@
    },
    "totalWidth": 16,
    "ways": "two-way, narrow residential",
-   "character": "the brownstone street — stoops, tree pits, quiet"
+   "character": "the brownstone street — stoops, tree pits, quiet",
+   "notes": "W7: spanX ±84 → ±100 — the street continues into the Westgate/Eastgate strips; the terrace bands ride its north walk to the wall line."
   },
   {
    "id": "STR-MARLOW",
@@ -205,8 +206,8 @@
    "axis": "EW",
    "centerline": -40,
    "spanX": [
-    -84,
-    84
+    -100,
+    100
    ],
    "road": {
     "zMin": -44,
@@ -223,7 +224,8 @@
    },
    "totalWidth": 16,
    "ways": "two-way, narrow residential/commercial edge",
-   "character": "bakery-and-record-shop street with the playground gate"
+   "character": "bakery-and-record-shop street with the playground gate",
+   "notes": "W7: spanX ±84 → ±100 — the street continues into the Westgate/Eastgate strips; the Carrow band rides its south walk to the wall line."
   }
  ],
  "intersections": [
@@ -395,23 +397,67 @@
    "id": "BLK-N2",
    "name": "Larkin Terrace block",
    "bbox": {
-    "xMin": -84,
-    "xMax": 84,
+    "xMin": -100,
+    "xMax": 100,
     "zMin": 48,
     "zMax": 64
    },
-   "identity": "Gable's brownstone row continues north (GRB-06/07) with the Larkin garden behind the VDN-DN1 mass"
+   "identity": "Gable's brownstone row continues north (GRB-06..11) with the Larkin garden behind the VDN-DN1 mass — W7 took the band west and east to the wall line"
   },
   {
    "id": "BLK-S2",
    "name": "Carrow Terrace block",
    "bbox": {
-    "xMin": -84,
-    "xMax": 84,
+    "xMin": -100,
+    "xMax": 100,
     "zMin": -64,
     "zMax": -48
    },
-   "identity": "Marlow's shop-and-walk-up row continues south (TEN-02/KTS-04) with the Carrow garden behind the VDN-DS1 mass"
+   "identity": "Marlow's shop-and-walk-up row continues south (TEN-02..04, KTS-04..06) with the Carrow garden behind the VDN-DS1 mass — W7 took the band west and east to the wall line"
+  },
+  {
+   "id": "BLK-W1",
+   "name": "Westgate block (Gable–Kestrel)",
+   "bbox": {
+    "xMin": -100,
+    "xMax": -84,
+    "zMin": 8,
+    "zMax": 32
+   },
+   "identity": "Gable's brownstone row and Kestrel's walk-up row continue west (GRB-12/13, KTN-08/09) — party walls meet at z 20 like the core block's edges"
+  },
+  {
+   "id": "BLK-W2",
+   "name": "Westgate block (Kestrel–Marlow)",
+   "bbox": {
+    "xMin": -100,
+    "xMax": -84,
+    "zMin": -32,
+    "zMax": -8
+   },
+   "identity": "Kestrel's tenement row and Marlow's shop-and-walk-up row continue west (KTS-07/08, MRW-01/02) — the strip reads edge to edge, no yard"
+  },
+  {
+   "id": "BLK-E1",
+   "name": "Eastgate block (Gable–Kestrel)",
+   "bbox": {
+    "xMin": 84,
+    "xMax": 100,
+    "zMin": 8,
+    "zMax": 32
+   },
+   "identity": "Gable's brownstone row and Kestrel's walk-up row continue east (GRB-14/15, KTN-10/11) — the Eastgate mirror"
+  },
+  {
+   "id": "BLK-E2",
+   "name": "Eastgate block (Kestrel–Marlow)",
+   "bbox": {
+    "xMin": 84,
+    "xMax": 100,
+    "zMin": -32,
+    "zMax": -8
+   },
+   "identity": "Kestrel's tenement row and Marlow's shop-and-walk-up row continue east (KTS-09/10, MRW-03/04) — the Eastgate mirror"
   }
  ],
  "buildings": [
@@ -1293,21 +1339,21 @@
    "class": "B",
    "face": "Kestrel N / plaza",
    "block": null,
-   "sitsOn": "plaza sidewalk (street furniture by NYC law: sidewalk control structures)",
+   "sitsOn": "plaza sidewalk (street furniture by NYC law: sidewalk control structures); W8: holds to the building line so the north walk stays open",
    "footprint": {
     "x": -47.2,
-    "z": 6.2,
+    "z": 6.775,
     "w": 2.6,
-    "d": 3.5
+    "d": 2.45
    },
    "height": 3.2,
    "floors": 0,
-   "style": "cast-iron stair housing with twin globes (code: makeSubwayEntrance at (−47.2, 6.2) over the K-line STAIR_SLOT; no solid collider — the shaft is the hole)",
-   "exterior": "Existing: plaza decks W (−44.3, 6.55) & E (−39.3, 6.45), bulletin board (−37.6, 7.5), plaza bench (−40.5, 4.55), newsboxes (−44.6, 6.6), planter (−46.6, 4.4).",
+   "style": "cast-iron stair housing with twin globes (code: makeSubwayEntrance at (−47.2, 6.775) over the K-line STAIR_SLOT; no solid collider — the shaft is the hole). W8 (2026-11-12): the slot holds the building line (z 5.55..8.0, STAIR_SLOT.minZ 5.55) — the headhouse no longer seals the Kestrel north walk; the curb-side corridor z 4..5.55 is the through-path (1.55 m, handshake-wide) and the nav skirt weaves it at z 5.0.",
+   "exterior": "Existing: plaza decks W (−44.3, 6.55) & E (−39.3, 6.45), bulletin board (−37.6, 7.5), plaza bench (−40.5, 4.55), newsboxes (−44.6, 6.6), planter (−44.3, 4.4 — W8: slid east of the through-corridor), west plaza tree (−43.9, 4.7 — W8: slid east with it). W8: twin globes ride the entrance rim (±x of the slot, z 5.85).",
    "entrance": [
     {
      "x": -47.2,
-     "z": 6.2,
+     "z": 5.4,
      "faces": "S",
      "type": "subway stair"
     }
@@ -1323,17 +1369,17 @@
    "class": "B",
    "face": "Kestrel S / Juniper",
    "block": null,
-   "sitsOn": "SW corner sidewalk (z −8..−4.5 zone) — NYC control houses legally occupy sidewalk corners",
+   "sitsOn": "SW corner sidewalk (holds the building line z −8..−5.4) — NYC control houses legally occupy sidewalk corners. W8 (2026-11-12): the old z −8..−4.5 plot left a 0.5 m sliver to the roadway; the house now holds the building line and the Kestrel south walk keeps a 1.4 m corridor (z −5.4..−4); the nav skirt weaves it at z −4.85.",
    "footprint": {
     "x": -57,
-    "z": -6.25,
+    "z": -6.7,
     "w": 6,
-    "d": 3.5
+    "d": 2.6
    },
    "height": 3.4,
    "floors": 0,
    "style": "NYC control house: cream metal-and-glass pavilion ON the SW corner sidewalk (real type: sidewalk control house), green globes",
-   "exterior": "Sits in the corner sidewalk zone z −8..−4.5 (control houses legally occupy sidewalk corners); keeps 1.2 m clear of TEN-01's face.",
+   "exterior": "Holds the building line z −8..−5.4 (control houses legally occupy sidewalk corners); keeps 1.2 m clear of TEN-01's face.",
    "entrance": [
     {
      "x": -57,
@@ -1665,7 +1711,7 @@
     "w": 16.6,
     "d": 12.2
    },
-   "height": 0.0,
+   "height": 0,
    "floors": 1,
    "style": "subway station",
    "exterior": "open-cut platform under the station block; headhouse stair at x −335.6",
@@ -1878,7 +1924,7 @@
      "type": "stoop"
     }
    ],
-   "interior": null,
+   "interior": "FRUIT-INT (built W8): the fruit-shop ground floor behind the Carrow walk facade",
    "storyRole": "The Carrow row’s working shopfront; the crates go out at dawn.",
    "collider": true
   },
@@ -1908,6 +1954,666 @@
    ],
    "interior": null,
    "storyRole": "The east terrace’s shop; the awning is the deep red the block knows.",
+   "collider": true
+  },
+  {
+   "id": "GRB-08",
+   "name": "Westgate Terrace 1",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Gable N (terrace)",
+   "block": "BLK-N2",
+   "footprint": {
+    "x": -88,
+    "z": 56.2,
+    "w": 8,
+    "d": 15.4
+   },
+   "height": 12.5,
+   "floors": 3,
+   "style": "terrace brownstone pair reading as one band: high stoops, tall parlor windows, cornice (W7 — the terrace band continues to the wall line)",
+   "entrance": [
+    {
+     "x": -90.2,
+     "z": 47.7,
+     "faces": "S",
+     "type": "stoop"
+    }
+   ],
+   "interior": null,
+   "storyRole": "The terrace band’s west house; its stoop faces Gable’s north walk.",
+   "collider": true
+  },
+  {
+   "id": "GRB-09",
+   "name": "Westgate Terrace 2",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Gable N (terrace)",
+   "block": "BLK-N2",
+   "footprint": {
+    "x": -96,
+    "z": 56.2,
+    "w": 8,
+    "d": 15.4
+   },
+   "height": 12.5,
+   "floors": 3,
+   "style": "terrace brownstone pair reading as one band: high stoops, tall parlor windows, cornice (W7 — the terrace band continues to the wall line)",
+   "entrance": [
+    {
+     "x": -98.2,
+     "z": 47.7,
+     "faces": "S",
+     "type": "stoop"
+    }
+   ],
+   "interior": null,
+   "storyRole": "The terrace band’s end house — its west face IS the wall line’s masonry.",
+   "collider": true
+  },
+  {
+   "id": "GRB-10",
+   "name": "Eastgate Terrace 1",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Gable N (terrace)",
+   "block": "BLK-N2",
+   "footprint": {
+    "x": 88,
+    "z": 56.2,
+    "w": 8,
+    "d": 15.4
+   },
+   "height": 12.5,
+   "floors": 3,
+   "style": "terrace brownstone pair reading as one band: high stoops, tall parlor windows, cornice (W7 — the terrace band continues to the wall line)",
+   "entrance": [
+    {
+     "x": 85.8,
+     "z": 47.7,
+     "faces": "S",
+     "type": "stoop"
+    }
+   ],
+   "interior": null,
+   "storyRole": "The terrace band’s east house; its stoop faces Gable’s north walk.",
+   "collider": true
+  },
+  {
+   "id": "GRB-11",
+   "name": "Eastgate Terrace 2",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Gable N (terrace)",
+   "block": "BLK-N2",
+   "footprint": {
+    "x": 96,
+    "z": 56.2,
+    "w": 8,
+    "d": 15.4
+   },
+   "height": 12.5,
+   "floors": 3,
+   "style": "terrace brownstone pair reading as one band: high stoops, tall parlor windows, cornice (W7 — the terrace band continues to the wall line)",
+   "entrance": [
+    {
+     "x": 93.8,
+     "z": 47.7,
+     "faces": "S",
+     "type": "stoop"
+    }
+   ],
+   "interior": null,
+   "storyRole": "The terrace band’s end house — its east face IS the wall line’s masonry.",
+   "collider": true
+  },
+  {
+   "id": "GRB-12",
+   "name": "Westgate Brownstone 1",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Gable S (row)",
+   "block": "BLK-W1",
+   "footprint": {
+    "x": -88,
+    "z": 26,
+    "w": 8,
+    "d": 12
+   },
+   "height": 12.5,
+   "floors": 3,
+   "style": "brownstone: high stoop, tall parlor windows, cornice (W7 — the Gable row continues to the wall line)",
+   "entrance": [
+    {
+     "x": -88,
+     "z": 32,
+     "faces": "N",
+     "type": "stoop"
+    }
+   ],
+   "interior": null,
+   "storyRole": "A quiet brownstone house; its stoop faces Gable’s south walk.",
+   "collider": true
+  },
+  {
+   "id": "GRB-13",
+   "name": "Westgate Brownstone 2",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Gable S (row)",
+   "block": "BLK-W1",
+   "footprint": {
+    "x": -96,
+    "z": 26,
+    "w": 8,
+    "d": 12
+   },
+   "height": 12.5,
+   "floors": 3,
+   "style": "brownstone: high stoop, tall parlor windows, cornice (W7 — the Gable row continues to the wall line)",
+   "entrance": [
+    {
+     "x": -96,
+     "z": 32,
+     "faces": "N",
+     "type": "stoop"
+    }
+   ],
+   "interior": null,
+   "storyRole": "A quiet brownstone house; its stoop faces Gable’s south walk.",
+   "collider": true
+  },
+  {
+   "id": "GRB-14",
+   "name": "Eastgate Brownstone 1",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Gable S (row)",
+   "block": "BLK-E1",
+   "footprint": {
+    "x": 88,
+    "z": 26,
+    "w": 8,
+    "d": 12
+   },
+   "height": 12.5,
+   "floors": 3,
+   "style": "brownstone: high stoop, tall parlor windows, cornice (W7 — the Gable row continues to the wall line)",
+   "entrance": [
+    {
+     "x": 88,
+     "z": 32,
+     "faces": "N",
+     "type": "stoop"
+    }
+   ],
+   "interior": null,
+   "storyRole": "A quiet brownstone house; its stoop faces Gable’s south walk.",
+   "collider": true
+  },
+  {
+   "id": "GRB-15",
+   "name": "Eastgate Brownstone 2",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Gable S (row)",
+   "block": "BLK-E1",
+   "footprint": {
+    "x": 96,
+    "z": 26,
+    "w": 8,
+    "d": 12
+   },
+   "height": 12.5,
+   "floors": 3,
+   "style": "brownstone: high stoop, tall parlor windows, cornice (W7 — the Gable row continues to the wall line)",
+   "entrance": [
+    {
+     "x": 96,
+     "z": 32,
+     "faces": "N",
+     "type": "stoop"
+    }
+   ],
+   "interior": null,
+   "storyRole": "A quiet brownstone house; its stoop faces Gable’s south walk.",
+   "collider": true
+  },
+  {
+   "id": "KTN-08",
+   "name": "Westgate Walk-Up 1",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Kestrel N (row)",
+   "block": "BLK-W1",
+   "footprint": {
+    "x": -88,
+    "z": 14,
+    "w": 8,
+    "d": 12
+   },
+   "height": 15,
+   "floors": 5,
+   "style": "mixed-use walk-up: shopfront band under a brick walk-up (W7 — the Kestrel row continues to the wall line)",
+   "entrance": [
+    {
+     "x": -88,
+     "z": 8,
+     "faces": "S"
+    }
+   ],
+   "interior": null,
+   "storyRole": "Corner-shop walk-up; the ground floor reads WESTGATE BOOKS behind a striped awning.",
+   "collider": true
+  },
+  {
+   "id": "KTN-09",
+   "name": "Westgate Walk-Up 2",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Kestrel N (row)",
+   "block": "BLK-W1",
+   "footprint": {
+    "x": -96,
+    "z": 14,
+    "w": 8,
+    "d": 12
+   },
+   "height": 16,
+   "floors": 5,
+   "style": "mixed-use walk-up: shopfront band under a brick walk-up (W7 — the Kestrel row continues to the wall line)",
+   "entrance": [
+    {
+     "x": -96,
+     "z": 8,
+     "faces": "S"
+    }
+   ],
+   "interior": null,
+   "storyRole": "Corner-shop walk-up; the ground floor reads GATE HARDWARE behind a striped awning.",
+   "collider": true
+  },
+  {
+   "id": "KTN-10",
+   "name": "Eastgate Walk-Up 1",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Kestrel N (row)",
+   "block": "BLK-E1",
+   "footprint": {
+    "x": 88,
+    "z": 14,
+    "w": 8,
+    "d": 12
+   },
+   "height": 15,
+   "floors": 5,
+   "style": "mixed-use walk-up: shopfront band under a brick walk-up (W7 — the Kestrel row continues to the wall line)",
+   "entrance": [
+    {
+     "x": 88,
+     "z": 8,
+     "faces": "S"
+    }
+   ],
+   "interior": null,
+   "storyRole": "Corner-shop walk-up; the ground floor reads EASTGATE NEWS behind a striped awning.",
+   "collider": true
+  },
+  {
+   "id": "KTN-11",
+   "name": "Eastgate Walk-Up 2",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Kestrel N (row)",
+   "block": "BLK-E1",
+   "footprint": {
+    "x": 96,
+    "z": 14,
+    "w": 8,
+    "d": 12
+   },
+   "height": 16,
+   "floors": 5,
+   "style": "mixed-use walk-up: shopfront band under a brick walk-up (W7 — the Kestrel row continues to the wall line)",
+   "entrance": [
+    {
+     "x": 96,
+     "z": 8,
+     "faces": "S"
+    }
+   ],
+   "interior": null,
+   "storyRole": "Corner-shop walk-up; the ground floor reads VERBENA BOOKS behind a striped awning.",
+   "collider": true
+  },
+  {
+   "id": "KTS-07",
+   "name": "Westgate Tenement 1",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Kestrel S (row)",
+   "block": "BLK-W2",
+   "footprint": {
+    "x": -88,
+    "z": -14,
+    "w": 8,
+    "d": 12
+   },
+   "height": 16,
+   "floors": 5,
+   "style": "tenement mass (W7 — the Kestrel south row continues to the wall line)",
+   "entrance": [
+    {
+     "x": -88,
+     "z": -8,
+     "faces": "N"
+    }
+   ],
+   "interior": null,
+   "storyRole": "A working tenement; its door faces Kestrel’s south walk.",
+   "collider": true
+  },
+  {
+   "id": "KTS-08",
+   "name": "Westgate Tenement 2",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Kestrel S (row)",
+   "block": "BLK-W2",
+   "footprint": {
+    "x": -96,
+    "z": -14,
+    "w": 8,
+    "d": 12
+   },
+   "height": 14,
+   "floors": 4,
+   "style": "tenement mass (W7 — the Kestrel south row continues to the wall line)",
+   "entrance": [
+    {
+     "x": -96,
+     "z": -8,
+     "faces": "N"
+    }
+   ],
+   "interior": null,
+   "storyRole": "A working tenement; its door faces Kestrel’s south walk.",
+   "collider": true
+  },
+  {
+   "id": "KTS-09",
+   "name": "Eastgate Tenement 1",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Kestrel S (row)",
+   "block": "BLK-E2",
+   "footprint": {
+    "x": 88,
+    "z": -14,
+    "w": 8,
+    "d": 12
+   },
+   "height": 14,
+   "floors": 4,
+   "style": "tenement mass (W7 — the Kestrel south row continues to the wall line)",
+   "entrance": [
+    {
+     "x": 88,
+     "z": -8,
+     "faces": "N"
+    }
+   ],
+   "interior": null,
+   "storyRole": "A working tenement; its door faces Kestrel’s south walk.",
+   "collider": true
+  },
+  {
+   "id": "KTS-10",
+   "name": "Eastgate Tenement 2",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Kestrel S (row)",
+   "block": "BLK-E2",
+   "footprint": {
+    "x": 96,
+    "z": -14,
+    "w": 8,
+    "d": 12
+   },
+   "height": 16,
+   "floors": 5,
+   "style": "tenement mass (W7 — the Kestrel south row continues to the wall line)",
+   "entrance": [
+    {
+     "x": 96,
+     "z": -8,
+     "faces": "N"
+    }
+   ],
+   "interior": null,
+   "storyRole": "A working tenement; its door faces Kestrel’s south walk.",
+   "collider": true
+  },
+  {
+   "id": "MRW-01",
+   "name": "Marlow West Shop 1",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Marlow N (row)",
+   "block": "BLK-W2",
+   "footprint": {
+    "x": -88,
+    "z": -26,
+    "w": 8,
+    "d": 12
+   },
+   "height": 15,
+   "floors": 5,
+   "style": "shop-and-walk-up: awning shopfront under pre-war brick (W7 — the Marlow row continues to the wall line)",
+   "entrance": [
+    {
+     "x": -88,
+     "z": -32,
+     "faces": "S"
+    }
+   ],
+   "interior": null,
+   "storyRole": "Shop-and-walk-up; the ground floor reads CORNELIUS & CO. behind a striped awning.",
+   "collider": true
+  },
+  {
+   "id": "MRW-02",
+   "name": "Marlow West Shop 2",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Marlow N (row)",
+   "block": "BLK-W2",
+   "footprint": {
+    "x": -96,
+    "z": -26,
+    "w": 8,
+    "d": 12
+   },
+   "height": 17,
+   "floors": 5,
+   "style": "shop-and-walk-up: awning shopfront under pre-war brick (W7 — the Marlow row continues to the wall line)",
+   "entrance": [
+    {
+     "x": -96,
+     "z": -32,
+     "faces": "S"
+    }
+   ],
+   "interior": null,
+   "storyRole": "Shop-and-walk-up; the ground floor reads WESTGATE NEWS behind a striped awning.",
+   "collider": true
+  },
+  {
+   "id": "MRW-03",
+   "name": "Marlow East Shop 1",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Marlow N (row)",
+   "block": "BLK-E2",
+   "footprint": {
+    "x": 88,
+    "z": -26,
+    "w": 8,
+    "d": 12
+   },
+   "height": 17,
+   "floors": 5,
+   "style": "shop-and-walk-up: awning shopfront under pre-war brick (W7 — the Marlow row continues to the wall line)",
+   "entrance": [
+    {
+     "x": 88,
+     "z": -32,
+     "faces": "S"
+    }
+   ],
+   "interior": null,
+   "storyRole": "Shop-and-walk-up; the ground floor reads LARKIN PROVISIONS behind a striped awning.",
+   "collider": true
+  },
+  {
+   "id": "MRW-04",
+   "name": "Marlow East Shop 2",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Marlow N (row)",
+   "block": "BLK-E2",
+   "footprint": {
+    "x": 96,
+    "z": -26,
+    "w": 8,
+    "d": 12
+   },
+   "height": 15,
+   "floors": 5,
+   "style": "shop-and-walk-up: awning shopfront under pre-war brick (W7 — the Marlow row continues to the wall line)",
+   "entrance": [
+    {
+     "x": 96,
+     "z": -32,
+     "faces": "S"
+    }
+   ],
+   "interior": null,
+   "storyRole": "Shop-and-walk-up; the ground floor reads CARROW CHEESE behind a striped awning.",
+   "collider": true
+  },
+  {
+   "id": "TEN-03",
+   "name": "Carrow Terrace West",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Marlow S (terrace)",
+   "block": "BLK-S2",
+   "footprint": {
+    "x": -88,
+    "z": -56.2,
+    "w": 8,
+    "d": 15.4
+   },
+   "height": 16.5,
+   "floors": 5,
+   "style": "terrace tenement: shopfront + stoop pair reading as one band (W7 — the Carrow band continues to the wall line)",
+   "entrance": [
+    {
+     "x": -90.2,
+     "z": -47.7,
+     "faces": "N",
+     "type": "stoop"
+    }
+   ],
+   "interior": null,
+   "storyRole": "The Carrow band’s west/east house; its stoop faces Marlow’s south walk.",
+   "collider": true
+  },
+  {
+   "id": "KTS-05",
+   "name": "Carrow Walk-Up West",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Marlow S (terrace)",
+   "block": "BLK-S2",
+   "footprint": {
+    "x": -96,
+    "z": -56.2,
+    "w": 8,
+    "d": 15.4
+   },
+   "height": 18,
+   "floors": 5,
+   "style": "terrace tenement: shopfront + stoop pair reading as one band (W7 — the Carrow band continues to the wall line)",
+   "entrance": [
+    {
+     "x": -98.2,
+     "z": -47.7,
+     "faces": "N",
+     "type": "stoop"
+    }
+   ],
+   "interior": null,
+   "storyRole": "The Carrow band’s west/east house; its stoop faces Marlow’s south walk.",
+   "collider": true
+  },
+  {
+   "id": "TEN-04",
+   "name": "Carrow Terrace East",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Marlow S (terrace)",
+   "block": "BLK-S2",
+   "footprint": {
+    "x": 88,
+    "z": -56.2,
+    "w": 8,
+    "d": 15.4
+   },
+   "height": 16.5,
+   "floors": 5,
+   "style": "terrace tenement: shopfront + stoop pair reading as one band (W7 — the Carrow band continues to the wall line)",
+   "entrance": [
+    {
+     "x": 85.8,
+     "z": -47.7,
+     "faces": "N",
+     "type": "stoop"
+    }
+   ],
+   "interior": null,
+   "storyRole": "The Carrow band’s west/east house; its stoop faces Marlow’s south walk.",
+   "collider": true
+  },
+  {
+   "id": "KTS-06",
+   "name": "Carrow Walk-Up East",
+   "status": "built (W7)",
+   "class": "C",
+   "face": "Marlow S (terrace)",
+   "block": "BLK-S2",
+   "footprint": {
+    "x": 96,
+    "z": -56.2,
+    "w": 8,
+    "d": 15.4
+   },
+   "height": 18,
+   "floors": 5,
+   "style": "terrace tenement: shopfront + stoop pair reading as one band (W7 — the Carrow band continues to the wall line)",
+   "entrance": [
+    {
+     "x": 93.8,
+     "z": -47.7,
+     "faces": "N",
+     "type": "stoop"
+    }
+   ],
+   "interior": null,
+   "storyRole": "The Carrow band’s west/east house; its stoop faces Marlow’s south walk.",
    "collider": true
   }
  ],
@@ -2435,7 +3141,7 @@
     "status": "existing",
     "bay": {
      "x": -32.15,
-     "z": 2.0,
+     "z": 2,
      "len": 11,
      "width": 2.5,
      "floorTop": 0.55
@@ -2446,7 +3152,7 @@
      "xMax": -26.65,
      "zMin": 0.75,
      "zMax": 3.25,
-     "clearH": 2.0
+     "clearH": 2
     }
    }
   },
@@ -2818,7 +3524,7 @@
    "anchors": [
     {
      "id": "sal",
-     "x": -7.0,
+     "x": -7,
      "z": 7.3,
      "y": 1.05,
      "facade": true,
@@ -2891,7 +3597,7 @@
     {
      "id": "chair",
      "x": 35.9,
-     "z": 11.0,
+     "z": 11,
      "y": 0.9,
      "note": "the trim moves from a facade prompt to a chair you sit in (W5)"
     }
@@ -2944,7 +3650,7 @@
    "anchors": [
     {
      "id": "slice_counter",
-     "x": 27.0,
+     "x": 27,
      "z": 9.7,
      "y": 1.1,
      "note": "the dollar slice, a standing order (W5)"
@@ -2966,7 +3672,7 @@
    "plan": [
     {
      "item": "fire-escape door (N wall, opens onto Landing_2)",
-     "x": 13.0,
+     "x": 13,
      "z": -8.55,
      "w": 0.9,
      "d": 1.1
@@ -2993,7 +3699,7 @@
     },
     {
      "item": "bath (SE, 1.6×2)",
-     "x": 15.0,
+     "x": 15,
      "z": -13.1,
      "w": 1.6,
      "d": 2
@@ -3001,7 +3707,7 @@
     {
      "item": "roof hatch (reserved, stage-5 rooftop)",
      "x": 12.2,
-     "z": -12.0,
+     "z": -12,
      "w": 0.9,
      "d": 0.9
     },
@@ -3091,22 +3797,22 @@
     {
      "id": "counter_seat",
      "x": 58.2,
-     "z": -11.0,
+     "z": -11,
      "y": 0.65,
      "note": "counter coffee, regulars' dialogue (W5)"
     },
     {
      "id": "booth",
      "x": 52.6,
-     "z": -14.0,
+     "z": -14,
      "y": 0.5,
      "note": "sit a while, the group beats"
     },
     {
      "id": "pie_case",
-     "x": 57.0,
+     "x": 57,
      "z": -18.4,
-     "y": 1.0,
+     "y": 1,
      "note": "order like a local — the teach"
     }
    ]
@@ -3170,16 +3876,16 @@
    "anchors": [
     {
      "id": "notice_wall",
-     "x": -55.0,
+     "x": -55,
      "z": 20.9,
      "y": 1.5,
      "note": "the bulletin board's big sibling — day-keyed (W5)"
     },
     {
      "id": "workshop",
-     "x": -54.0,
+     "x": -54,
      "z": 29.5,
-     "y": 1.0,
+     "y": 1,
      "note": "the workshop table, craft beats"
     }
    ]
@@ -3230,7 +3936,7 @@
    "anchors": [
     {
      "id": "bakery_counter",
-     "x": -34.0,
+     "x": -34,
      "z": -29.9,
      "y": 1.05,
      "note": "the morning anchor (W5)"
@@ -3287,7 +3993,7 @@
     {
      "id": "listening",
      "x": -26.4,
-     "z": -30.0,
+     "z": -30,
      "y": 0.5,
      "note": "the Happy-Accident shop — getting lost is finding somewhere (W5)"
     },
@@ -3295,7 +4001,7 @@
      "id": "record_counter",
      "x": -23.4,
      "z": -30.1,
-     "y": 1.0,
+     "y": 1,
      "note": "the used bin"
     }
    ]
@@ -3352,6 +4058,91 @@
     "belowGrade": true
    },
    "plan": []
+  },
+  {
+   "id": "FRUIT-INT",
+   "building": "TEN-02",
+   "status": "built (W8)",
+   "shell": {
+    "xMin": -67.6,
+    "xMax": -60.4,
+    "zMin": -63.7,
+    "zMax": -48.7,
+    "clearH": 3.2
+   },
+   "plan": [
+    {
+     "item": "entrance (N, Carrow walk facade)",
+     "x": -66.2,
+     "z": -48.6,
+     "w": 1.2,
+     "d": 0.5
+    },
+    {
+     "item": "shop window (N, E of the door)",
+     "x": -63.7,
+     "z": -48.6,
+     "w": 2.4,
+     "d": 0.5
+    },
+    {
+     "item": "fruit crates (3 rows, under the window)",
+     "x": -63.7,
+     "z": [
+      -50.2,
+      -51.4,
+      -52.6
+     ],
+     "w": 2.2,
+     "d": 0.9
+    },
+    {
+     "item": "counter + scale (W wall)",
+     "x": -66.9,
+     "z": -51.5,
+     "w": 0.8,
+     "d": 2.6
+    },
+    {
+     "item": "cold case (W wall, rear)",
+     "x": -66.9,
+     "z": -55.2,
+     "w": 0.8,
+     "d": 2.2
+    },
+    {
+     "item": "crate stacks (S wall)",
+     "x": -64,
+     "z": -62.9,
+     "w": 4.6,
+     "d": 1.1
+    },
+    {
+     "item": "aisle",
+     "x": -64,
+     "z": -55,
+     "w": 3.6,
+     "d": 8,
+     "type": "clear zone"
+    }
+   ],
+   "anchors": [
+    {
+     "id": "fruit_counter",
+     "x": -66.9,
+     "z": -50.6,
+     "y": 1.0,
+     "note": "the dawn crates, the Carrow row's working front (W8)"
+    },
+    {
+     "id": "crate_window",
+     "x": -63.7,
+     "z": -50.2,
+     "y": 0.7,
+     "note": "the crates read through the glass from the terrace walk (W8)"
+    }
+   ],
+   "note": "W8 (2026-11-12): the W5 pattern's first strip-row room — TEN-02's ground floor is a real cavity now (the mass ducks above y 3.2), the Carrow walk facade carries the door gap + two windows, and the fruit crates read through the glass from the terrace walk. The registry interior row joins the nav lobby law automatically."
   }
  ],
  "furnitureStandards": {
@@ -3446,6 +4237,12 @@
    "name": "The terrace build-out",
    "content": "GRB-06/GRB-07, TEN-02/KTS-04 (the clean terrace lots x −68..−60 / 60..68 — the avenue roadways keep their corridors), the terrace walk slabs, PRK-LARKIN/PRK-CARROW gardens (lawn, path, benches, street trees), the neighborhood fabric pass (fire-escape ironwork across the facades, the exposed VDN-DN1/DS1 street faces, mailboxes, bike hoops, hydrants, ConEd steam stacks, the terrace payphone)",
    "unlocks": "the district's fourth sides are places (the walls moved z ±48 → ±64 by owner authorization, DEC-8)"
+  },
+  {
+   "id": "W7",
+   "name": "The Westgate & Eastgate rows",
+   "content": "24 class-C masses (GRB-08..15, KTN-08..11, KTS-05..10, TEN-03/04, MRW-01..04) — the Gable/Kestrel/Marlow rows and both terrace bands continue west and east to the wall line; the E–W street slabs/walks/curbs extend x ±84 → ±100 (butt-jointed, same levels); the terrace walk slabs follow; the sidewalk-shed port (three green construction canopies over the new walks), fire-escape ironwork and street props ride the neighborhood fabric",
+   "unlocks": "the map grows its LAST two sides (walls x ±84 → ±100, owner authorization standing) — the core is a full four-sided neighborhood; the sky cards move ∓110 → ∓122 to keep their clearance"
   }
  ],
  "openDecisions": [

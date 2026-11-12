@@ -39,6 +39,7 @@ import { capsuleInBox, moveAxisX, moveAxisZ, type Capsule } from '../engine/coll
 import { UI } from '../ui/UI';
 import { Wardrobe, wardrobeDecision } from '../ui/Wardrobe';
 import { capturePostcard, downloadPostcard, canShareFiles, sharePostcard } from '../postcard/PostcardCapture';
+import { focusDistance } from '../render/postcardDof';
 import { addToAlbum, entryId, loadAlbum, makeThumb, storeAlbum, type AlbumEntry } from '../postcard/Album';
 import { updatePersonAnim, buildStarterSkateboard, type PersonRig } from '../world/personRig';
 import { FAMILIAR_SPEED, familiarBeatForDay } from '../world/dressing';
@@ -758,6 +759,13 @@ export class Game {
     // the car is the room and the street boom scale is the honest one
     // (the lift would press the lens into the car roof)
     this.cam.interiorAboard = aboardCar(this.player.capsule.z);
+    // the ride's seam: the boom inherits the swap's ±288 m jump (see
+    // SubwaySystem.seamDx) in the same frame the player does — the framing
+    // survives bit-exact instead of lerping 288 m through the tunnel wall
+    if (this.world.subway.seamDx !== 0) {
+      this.cam.camera.position.x += this.world.subway.seamDx;
+      this.world.subway.seamDx = 0;
+    }
     this.drainFarWorld(wdt);
     if (!this.dayFading && this.ui.nameBox.hidden && this.ui.orderCard.hidden && !this.mapOpen
       && this.ui.starterCard.hidden && !this.arrival.active && !this.wardrobe.isOpen) {
@@ -2439,9 +2447,17 @@ export class Game {
       const capCam = new THREE.PerspectiveCamera(55, 768 / 1160, 0.1, 400);
       capCam.position.set(this.rigPos.x, this.rigPos.y, this.rigPos.z);
       capCam.lookAt(this.rigLook.x, this.rigLook.y, this.rigLook.z);
+      // v1.54.0: the authored rig's look-at IS the subject — the capture's
+      // focal plane rides it (the DOF chapter, authored poses only:
+      // docs/rendering/05). ?fx=off / ?dof=0 never pass it (the resolver).
+      const dof = this.gfx.postcardDof
+        ? { focus: focusDistance(capCam.position.x, capCam.position.y, capCam.position.z,
+            this.rigLook.x, this.rigLook.y, this.rigLook.z) }
+        : undefined;
       const result = capturePostcard(
         this.renderer, this.world.scene, capCam, caption, s.cartName || 'First Slice', s.day,
         'october', // days 1–4 are one golden October week — the stamp knows it
+        { dof, exclude: this.world.aoExclude },
       );
       url = result.dataUrl;
       this.lastPostcardUrl = url;
@@ -2480,16 +2496,27 @@ export class Game {
     this.lastPostcardKind = 'wow';
     this.lastPostcardTag = 'THE SQUARE';
     const capCam = new THREE.PerspectiveCamera(55, 768 / 1160, 0.1, 400);
-    // the arrival view, held: from mid-plaza the stacked south tower fills
-    // the portrait frame — screens top-two-thirds, warm plaza below (the
-    // first pose hugged the facade; the vista lives one block back)
-    capCam.position.set(-326, 1.9, 10.5);
-    capCam.lookAt(-326, 13.5, -7.9); // the stacked south screens straight-on — the tower, warm, owns the frame
+    // the arrival view, held: from the square's mid-north the stacked south
+    // tower fills the portrait frame — screens in the top two-thirds, the
+    // warm plaza (stair, benches, walkers) below. v1.54.0 re-pose: the
+    // shipped spot (z 10.5, look y 13.5) tilted up 32°, so the plaza was
+    // mathematically out of frame (the bottom edge ray stayed above the
+    // horizon) and the card read as a flat facade close-up — found by this
+    // wave's capture evidence, candidates judged in-engine
+    // (scripts/diag-wow-pose.mjs, docs/rendering/05 §6).
+    capCam.position.set(-326, 2.4, 20);
+    capCam.lookAt(-326, 8.0, -7.9); // the stacked south screens straight-on — the tower, warm, owns the frame
+    const wowLook = { x: -326, y: 8.0, z: -7.9 };
+    const dof = this.gfx.postcardDof
+      ? { focus: focusDistance(capCam.position.x, capCam.position.y, capCam.position.z,
+          wowLook.x, wowLook.y, wowLook.z) }
+      : undefined;
     try {
       const result = capturePostcard(
         this.renderer, this.world.scene, capCam, caption,
         s.cartName || 'First Slice', s.day,
         'october', // days 1–4 are one golden October week — the stamp knows it
+        { dof, exclude: this.world.aoExclude },
       );
       this.lastPostcardUrl = result.dataUrl;
       this.wowPostcard = true;
@@ -2535,15 +2562,20 @@ export class Game {
       : kind === 'fold' ? MOMENT_FOLD_CAPTION
       : momentCornerCaption(cartName);
     const capCam = new THREE.PerspectiveCamera(55, 768 / 1160, 0.1, 400);
+    // each authored pose names its subject with the look-at — the DOF focal
+    // plane rides it (docs/rendering/05)
+    let look = { x: 0, y: 0, z: 0 };
     if (kind === 'towers') {
       // up-west from the escape's height: the tank clears the south
       // roofline against the dusk sky (the corner's own first clear view)
       capCam.position.set(7, 15.5, -3.5);
       capCam.lookAt(-14, 17.5, -12.5);
+      look = { x: -14, y: 17.5, z: -12.5 };
     } else if (kind === 'corner') {
       // across the corner from the cart — the frame the name now owns
       capCam.position.set(0.6, 1.8, -2.0);
       capCam.lookAt(4, 1.2, -6.6);
+      look = { x: 4, y: 1.2, z: -6.6 };
     } else {
       // inside Rosa's: the fold frames the counter from the aisle (the top
       // runs diagonally to the door light); the rush frames the storefront
@@ -2555,15 +2587,22 @@ export class Game {
         // back so the piers frame the world; the awning closes the top)
         capCam.position.set(-16.0, 1.7, 14.2);
         capCam.lookAt(-16.0, 1.45, 8.4);
+        look = { x: -16.0, y: 1.45, z: 8.4 };
       } else {
         capCam.position.set(-12.6, 2.0, 5.0);
         capCam.lookAt(-17.4, 2.1, 8.4);
+        look = { x: -17.4, y: 2.1, z: 8.4 };
       }
     }
+    const dof = this.gfx.postcardDof
+      ? { focus: focusDistance(capCam.position.x, capCam.position.y, capCam.position.z,
+          look.x, look.y, look.z) }
+      : undefined;
     try {
       const result = capturePostcard(
         this.renderer, this.world.scene, capCam, caption,
         cartName, s.day, 'october',
+        { dof, exclude: this.world.aoExclude },
       );
       const id = entryId(s.day, 'wow', caption);
       this.sessionFull.set(id, result.dataUrl); // this session re-prints full-size

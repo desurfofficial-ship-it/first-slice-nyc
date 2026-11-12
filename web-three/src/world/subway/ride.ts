@@ -157,8 +157,14 @@ export function swapFeet(x: number, from: RideEnd): number {
  *  for the capsule radius — "aboard" for the seam swap. A player who
  *  stepped back onto the platform during closing must NOT be translated
  *  at the seam (they'd teleport 288 m without a train); the ride continues
- *  without them and the arrival's own doors-open event lets them go. */
-export const CAR_Z_MIN = 14.55;
+ *  without them and the arrival's own doors-open event lets them go.
+ *  CAR_Z_MIN sits at 14.45: the doorway stand (the bench face at 14.845
+ *  minus a 0.35 capsule reaches z 14.494) must count as aboard — someone
+ *  pressing ride while stepping through the open door IS boarding, and
+ *  the 2026-11-12 playtest's "ride doesn't work" was exactly a player the
+ *  band left behind 6 cm short. The platform proper (z ≤ 14.2) stays
+ *  outside the band — the left-behind law keeps its subject. */
+export const CAR_Z_MIN = 14.45;
 export const CAR_Z_MAX = 17.35;
 export function aboardCar(z: number): boolean {
   return z > CAR_Z_MIN && z < CAR_Z_MAX;

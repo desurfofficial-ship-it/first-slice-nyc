@@ -148,9 +148,38 @@ const run = await page.evaluate(async () => {
   g.world.subway.groups.stationA.traverse((o) => { if (o.name === 'Priya') priya = o; });
   out.priya = !!priya && priya.visible;
 
-  // 5. board: the ride spot is enabled and performs
-  tp(-41.1, -3.1, 15.3);
+  // 5. board — the 2026-11-12 law: WALK in, no teleports. The old leg
+  // teleported into the car and the probe passed while every real player
+  // was left on the platform: the south bench ran across the doorway and
+  // the walk-in stopped 6 cm short of the aboard band. Now: stand on the
+  // platform, walk north through the open door until the band says aboard.
+  tp(-41.1, -3.1, 12.6, 0);
+  await sleep(500);
+  // the aligned car's shell still reads as a train from the platform (the
+  // read happens BEFORE the walk — aboard, roof + south face stand down).
+  // Exact names: the pair's shuttered east car wears its own shell and
+  // keeps it — only the car the player rides stands its shell down.
+  const alignedShellVisible = () => {
+    let roof = null, body = null;
+    g.world.subway.groups.trainA.traverse((o) => {
+      if (o.name === 'SUB_CarRoof_-44.2') roof = o.visible;
+      if (o.name === 'SUB_CarBodyS_-44.2_1') body = o.visible;
+    });
+    return roof === true && body === true;
+  };
+  out.roofOnAtPlatform = alignedShellVisible();
+  // ride.ts's aboard band (CAR_Z_MIN 14.45 / CAR_Z_MAX 17.35) — inlined here
+  // because the page scope has no module imports (the probe's positions are
+  // canon coordinates anyway; the unit test pins the band itself)
+  const aboard = (z) => z > 14.45 && z < 17.35;
+  g.input.injectKey('KeyW', true);
+  const t0Board = Date.now();
+  while (Date.now() - t0Board < 8000 && !aboard(p.z)) await sleep(80);
+  g.input.injectKey('KeyW', false);
   await sleep(300);
+  out.walkInZ = +p.z.toFixed(3);
+  out.walkInY = +p.y.toFixed(3);
+  out.walkInAboard = aboard(p.z);
   const near = g.registry.nearest(p, g.state, { state: g.state, game: g });
   out.ridePrompt = near ? near.id : null;
   if (near && near.id === 'trainA') {
@@ -170,7 +199,26 @@ const run = await page.evaluate(async () => {
   censusDiagram(g.world.subway.groups.trainB);
   out.diagramMeshes = diagramTotal;
   out.diagramUpAtBeat = diagramTotal > 0 && diagramUp === diagramTotal;
+  // aboard, the car is the room: roof AND platform-side face stand down
+  // for the dollhouse lens (the 2026-11-12 fix — a roofed car read as a
+  // closed metal tube; with the face on, the shut door still hid the rider)
+  const alignedShellHidden = () => {
+    let roof = null, body = null, leaf = null;
+    g.world.subway.groups.trainA.traverse((o) => {
+      if (o.name === 'SUB_CarRoof_-44.2') roof = o.visible;
+      if (o.name === 'SUB_CarBodyS_-44.2_1') body = o.visible;
+      if (o.name === 'SUB_DoorLeaf_-44.2_a') leaf = o.visible;
+    });
+    return roof === false && body === false && leaf === false;
+  };
+  out.roofOffAboard = alignedShellHidden();
+  // the seam snap: the boom inherits the swap's ±288 m in the same frame
+  // (SubwaySystem.seamDx → Game.frame) — no 288 m lerp through the tunnel
+  const camXBeforeSeam = g.cam.camera.position.x;
   batch(15);
+  await sleep(250); // the rAF frame consumes the seam debt after the batch
+  const camXAfterSeam = g.cam.camera.position.x;
+  out.seamCamJump = +Math.abs(camXAfterSeam - camXBeforeSeam).toFixed(1);
   out.ridePhase = g.world.subway.ride.phase;
   out.atB = g.world.subway.ride.at === 'B';
   out.swappedX = +p.x.toFixed(1);
@@ -301,8 +349,13 @@ check(run.shadowSymmetric, 'the shrunk box stays symmetric on its lattice');
 check(Math.abs(run.platformY - (-3.2)) < 0.05, `the platform floor holds (y ${run.platformY})`);
 check(run.stationLit === true, 'station A lights its zone');
 check(run.priya === true, 'Priya stands her post at the fare bank');
+check(run.walkInAboard === true, `the walk-in reaches the aisle (z ${run.walkInZ})`);
+check(Math.abs(run.walkInY - (-3.2)) < 0.15, `the car floor holds the walk-in (y ${run.walkInY})`);
 check(run.ridePrompt === 'trainA', 'the ride spot prompts (trainA)');
+check(run.roofOnAtPlatform === true, 'the car reads as a train from the platform (roof on)');
 check(run.boarded === true, 'boarding closes the doors');
+check(run.roofOffAboard === true, 'the aboard lens sees into the car (roof off)');
+check(run.seamCamJump > 250, `the seam snaps the camera with the player (${run.seamCamJump} m)`);
 check(run.atB === true, 'the seam lands the player at 42nd St');
 check(run.swappedX < -320, `the swap translated the player (x ${run.swappedX})`);
 check(run.doorsOpenAtB === true, 'the doors reopen on arrival');

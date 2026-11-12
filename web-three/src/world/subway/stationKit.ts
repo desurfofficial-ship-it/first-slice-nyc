@@ -38,11 +38,33 @@ export const STATION = {
  *  South edge open to the walking lane; W/E/N railed. Sits just west of
  *  the existing SUB-01 headhouse (x -43.3..-40.7) — the ped loop's west
  *  terminus (x -42) and the familiar-face bench (x -41.4..-39.6) both
- *  stay clear of it by design. */
-export const STAIR_SLOT = { minX: -48.5, maxX: -45.9, minZ: 4.45, maxZ: 7.95 } as const;
+ *  stay clear of it by design.
+ *
+ *  W8 walkability fix (2026-11-12): the slot's south face moves 4.45 →
+ *  5.55. The old plot spanned z 4.45..7.95 — the ENTIRE sidewalk depth —
+ *  and its W/E/N railings sealed the Kestrel north walk: the only
+ *  through-path was a 0.35 m ledge-walk against the road edge (the walk-
+ *  ability probe's own leg died on the west railing face, x −48.85). The
+ *  slot now holds to the building line (maxZ 8.0 flush) and the treads
+ *  steepen their run 0.30 → 0.18 to fit the shorter descent (the RISE law
+ *  is untouched: 10 × 0.33 = 3.3; every rise stays ≤ the 0.35 STEP_UP and
+ *  every drop ≤ the 0.45 ground snap). The curb-side corridor z 4..5.55
+ *  is a real 1.55 m walking lane — wide enough for a pedestrian handshake
+ *  (the probe's 1.15 m draft squeezed the player onto the stair treads
+ *  between two walkers) — the same corridor the nav builder's skirt law
+ *  weaves (z 5.0), and the registry's SUB-01 row follows the slot
+ *  exactly. */
+export const STAIR_SLOT = { minX: -48.5, maxX: -45.9, minZ: 5.55, maxZ: 8.0 } as const;
 
 export const STAIR_STEPS = 10;
 export const STAIR_RISE = 0.33; // 10 × 0.33 = 3.3 = sidewalk top (0.1) - platform (-3.2)
+/** The tread run (the z-depth each step eats). The W8 slot shrink stole
+ *  0.7 m of run from the stair; the treads give it back — 9 × 0.18 + the
+ *  0.55 last tread = 2.17 from z0 5.7 lands flush on the 7.85 bridge,
+ *  exactly where the old 0.30 run put it. 0.18 still out-runs nothing it
+ *  shouldn't: the descent's 0.12 substeps and the 0.45 ground snap both
+ *  catch a tread every frame. */
+export const STAIR_RUN = 0.18;
 
 export type ColliderSpec = { x: number; y: number; z: number; w: number; h: number; d: number };
 
@@ -219,8 +241,8 @@ export function buildStair(ctx: KitCtx, cx: number): void {
   const z0 = STAIR_SLOT.minZ + 0.15;
   for (let i = 0; i < STAIR_STEPS; i++) {
     const top = 0.1 - STAIR_RISE * (i + 1);
-    const depth = i === STAIR_STEPS - 1 ? 0.55 : 0.3;
-    const zc = z0 + 0.3 * i + depth / 2;
+    const depth = i === STAIR_STEPS - 1 ? 0.55 : STAIR_RUN;
+    const zc = z0 + STAIR_RUN * i + depth / 2;
     const h = top - (STATION.floorTop - 0.2);
     box(ctx, `SUB_Stair_${tag}_${i}`, cx, top - h / 2, zc, w, h, depth, 0x8f8a82);
   }

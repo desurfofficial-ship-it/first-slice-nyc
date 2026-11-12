@@ -52,8 +52,8 @@ const LANES: Record<string, Array<{ side: 'N' | 'S' | 'W' | 'E'; off: number }>>
   'STR-SYCAMORE': [{ side: 'W', off: 61.5 }, { side: 'E', off: 82.5 }],  // R-AVENUES
 };
 
-const X_SPAN: [number, number] = [-84, 84];  // EW lanes' extent (registry spanX)
-const Z_SPAN: [number, number] = [-48, 48];  // NS spines' extent (the district's content extent)
+const X_SPAN: [number, number] = [-100, 100]; // EW lanes' extent (registry spanX — W7 grew the E–W streets' ends ±84 → ±100)
+const Z_SPAN: [number, number] = [-48, 48];  // NS spines' extent (the district's content extent; the W6/W7 strips beyond ±48 stay player-only — the shipped law)
 const GRID_STEP = 6;          // spine node spacing (m)
 const WALKER_CLEAR = 0.55;    // lane-vs-footprint clearance (m)
 const WALK_WIDTH = 2.5;       // sidewalk corridor width
@@ -63,9 +63,12 @@ const CONNECT_RADIUS = 10;    // door/park approach reach (m)
 
 /** Passable footprints — the registry declares them as footprints, but
  *  pedestrians legitimately cross them: ALY-01/ALY-02 are the alley slots
- *  (R-ALLEY/R-GARDEN are real shortcuts), and SUB-01's footprint is the
- *  globe-stair housing whose south face IS the public entrance. */
-export const PASSABLE_FOOTPRINTS = new Set(['ALY-01', 'ALY-02', 'SUB-01']);
+ *  (R-ALLEY/R-GARDEN are real shortcuts). W8 (2026-11-12): SUB-01 leaves
+ *  the set — its stairwell is a 3.2 m hole the walkers were floating
+ *  across (the walk-ability probe's forensics caught bodies INSIDE the
+ *  housing); the lane now takes the curb-cut skirt (z 5.0) around the
+ *  slot like it already does for SUB-02. */
+export const PASSABLE_FOOTPRINTS = new Set(['ALY-01', 'ALY-02']);
 
 export interface NavBuildResult {
   graph: NavGraph;
@@ -280,11 +283,12 @@ export function buildNavGraph(registry: WorldRegistry): NavBuildResult {
   }
 
   // ---- 6. building doors (the contract's seed set) ------------------------
-  // The landing sits on SUB-01's registry row (−47.2, 6.2) — the K-line
-  // STAIR_SLOT center the 2026-11 consumer fix moved the headhouse onto.
-  // The old (−42, 6.2) landing sent routed bodies to open sidewalk five
-  // metres east of the actual descendable shaft.
-  const landing: NavNode = { id: 'nav:landing:SUB-01', x: -47.2, z: 6.2, kind: 'landing', surface: 'grade', places: ['SUB-01'] };
+  // The landing sits at SUB-01's registry entrance (−47.2, 5.4) — the K-line
+  // stair's street door, on the W8 curb-side corridor just south of the slot
+  // face (z 5.55). The 2026-11 consumer fix moved it off the dead (−42, 6.2)
+  // spot onto the slot center; W8 keeps it on the door line so the skirted
+  // lane can still reach it.
+  const landing: NavNode = { id: 'nav:landing:SUB-01', x: -47.2, z: 5.4, kind: 'landing', surface: 'grade', places: ['SUB-01'] };
   graph.addNode(landing);
   placeNode.set('SUB-01', landing.id);
   doorNode.set('door:SUB-01', landing.id);
@@ -324,8 +328,24 @@ export function buildNavGraph(registry: WorldRegistry): NavBuildResult {
     const s = it.shell;
     if (!s || s.xMin === undefined || s.xMax === undefined || s.zMin === undefined || s.zMax === undefined) continue;
     const sz0 = Math.min(s.zMin, s.zMax), sz1 = Math.max(s.zMin, s.zMax);
-    const cx = (s.xMin + s.xMax) / 2, cz = (sz0 + sz1) / 2;
-    if (cx < X_SPAN[0] || cx > X_SPAN[1] || cz < Z_SPAN[0] || cz > Z_SPAN[1]) {
+    const cx = (s.xMin + s.xMax) / 2;
+    let cz = (sz0 + sz1) / 2;
+    // W8 (2026-11-12): a strip-row room's shell center can sit OUTSIDE the
+    // walked extent (the terrace bands are player-only by the shipped law)
+    // while its DOOR sits inside — FRUIT-INT's shell spans z −63.7..−48.7
+    // and its entrance fronts the Marlow walk at z −47.7. Such a lobby
+    // seats on the door's sidewalk side (the z clamps to the extent line)
+    // so the door edge stays lawful and the route can stand at the door.
+    if (cz < Z_SPAN[0] || cz > Z_SPAN[1]) {
+      const doorN = doorNode.get(`door:${it.building}`);
+      const dn = doorN ? graph.node(doorN) : null;
+      if (!dn) {
+        notes.push(`interior ${it.id}: outside the walked extent — no lobby (a transit ride, not pedestrian space)`);
+        continue;
+      }
+      cz = Math.min(Math.max(cz, Z_SPAN[0]), Z_SPAN[1]);
+    }
+    if (cx < X_SPAN[0] || cx > X_SPAN[1]) {
       notes.push(`interior ${it.id}: outside the walked extent — no lobby (a transit ride, not pedestrian space)`);
       continue;
     }
@@ -435,7 +455,11 @@ function assembleLane(
   type Run = { at: number; pts: Pt[] };
   const runs: Run[] = [];
   const [lo, hi] = work.axis === 'EW' ? X_SPAN : Z_SPAN;
-  for (let c = lo; c <= hi + 1e-9; c += GRID_STEP) {
+  // the grid anchors at the first multiple of GRID_STEP inside the span —
+  // W7 grew X_SPAN ±84 → ±100, and anchoring at −96/96 keeps EVERY shipped
+  // node (the old ±84 grid was multiples of 6; a bare `lo` start would have
+  // shifted the whole chain and stranded the pinned −42/-36/... set)
+  for (let c = Math.ceil(lo / GRID_STEP) * GRID_STEP; c <= hi + 1e-9; c += GRID_STEP) {
     const cc = round2(c);
     if (blocked.some((b) => cc > b.a0 - WALKER_CLEAR && cc < b.a1 + WALKER_CLEAR)) continue;
     // the gap law: no base point stands in a perpendicular roadway — the

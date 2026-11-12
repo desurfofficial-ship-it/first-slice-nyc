@@ -37,7 +37,8 @@ import { WEAR } from './facadeKit';
 import { FABRIC, GeoPush, hash01 } from './cityFabric';
 
 /** The neighborhood fabric's own scene signatures (the awning row reads
- *  slop-newyork's five-color storefront palette). */
+ *  slop-newyork's five-color storefront palette; the shed green is the
+ *  source's own sidewalk-shed tone, js/buildings.js 650). */
 export const NEIGH = {
   mailboxBlue: 0x183c7a,  // the USPS collection box
   hydrantRed: 0xb8241e,   // the fire hydrant (slop-newyork's read)
@@ -49,6 +50,8 @@ export const NEIGH = {
   awningGold: 0xd9912b,
   awningChar: 0x2d2d32,
   soil: 0x241c14,         // the tree-pit soil read (slop's street-details)
+  shedGreen: 0x214f37,    // the sidewalk construction shed (W7 port — the source's own green)
+  shedPly: 0x8a6f4d,      // the shed deck's ply underside tone (W7)
 } as const;
 
 /** Buildings whose facades never carry fabric ironwork — the gameplay
@@ -62,6 +65,7 @@ export const ESCAPE_SKIP = new Set([
   'SND-01',                 // the diner keeps its crown/sign wall clean
   'VDN-DW1a', 'VDN-DW1b', 'VDN-DW1c', 'VDN-DW1d',
   'VDN-DE1a', 'VDN-DE1b', 'VDN-DE1c', 'VDN-DE1d', // far backdrops stay plain
+  'KTN-08', 'MRW-03', 'KTS-09', // W7: their fronts carry the sidewalk sheds — iron over green canvas reads wrong
 ]);
 
 /** Which face of each row carries escapes, and how many bays. `axis` is the
@@ -89,6 +93,10 @@ export interface NeighborhoodDI {
   regShell: (id: string) => { x: number; z: number; w: number; d: number; h: number };
   buildings: readonly FabricBuildingRow[];
   skylineWinMat: THREE.MeshLambertMaterial;
+  /** W7: the fabric's one collider hook — the sidewalk sheds' steel posts
+   *  are the only solid things it hangs (the escapes and props stay
+   *  zero-collider, the shipped law). */
+  collider?: (x: number, y: number, z: number, w: number, h: number, d: number) => void;
 }
 
 function emit(di: NeighborhoodDI, fog: boolean, name: string, geo: THREE.BufferGeometry,
@@ -243,6 +251,30 @@ const ESCAPE_JOBS: Array<{ id: string; face: 'N' | 'S'; bays: Array<{ dx: number
   // the pinned backdrop rows' exposed street faces
   { id: 'VDN-DN1', face: 'S', bays: [{ dx: -30, railMeters: 13 }, { dx: +30, railMeters: 13 }] },
   { id: 'VDN-DS1', face: 'N', bays: [{ dx: -30, railMeters: 14 }, { dx: +30, railMeters: 14 }] },
+  // the W7 gate rows (the strips' street faces; every bay ≥ 2.0 m clear of
+  // its row's door — the terrace rows keep the W6 +1.6/+1.8 offset law, the
+  // mid rows take +2.2, the bay guard's own limit on an 8 m wall)
+  { id: 'GRB-08', face: 'S', bays: [{ dx: +1.6, railMeters: 12.5 }] },
+  { id: 'GRB-09', face: 'S', bays: [{ dx: +1.6, railMeters: 12.5 }] },
+  { id: 'GRB-10', face: 'S', bays: [{ dx: +1.6, railMeters: 12.5 }] },
+  { id: 'GRB-11', face: 'S', bays: [{ dx: +1.6, railMeters: 12.5 }] },
+  { id: 'TEN-03', face: 'N', bays: [{ dx: +1.8, railMeters: 16.5 }] },
+  { id: 'KTS-05', face: 'N', bays: [{ dx: +1.8, railMeters: 18 }] },
+  { id: 'TEN-04', face: 'N', bays: [{ dx: +1.8, railMeters: 16.5 }] },
+  { id: 'KTS-06', face: 'N', bays: [{ dx: +1.8, railMeters: 18 }] },
+  { id: 'GRB-12', face: 'N', bays: [{ dx: +2.2, railMeters: 12.5 }] },
+  { id: 'GRB-13', face: 'N', bays: [{ dx: +2.2, railMeters: 12.5 }] },
+  { id: 'GRB-14', face: 'N', bays: [{ dx: +2.2, railMeters: 12.5 }] },
+  { id: 'GRB-15', face: 'N', bays: [{ dx: +2.2, railMeters: 12.5 }] },
+  { id: 'KTN-09', face: 'S', bays: [{ dx: +2.2, railMeters: 16 }] },
+  { id: 'KTN-10', face: 'S', bays: [{ dx: +2.2, railMeters: 15 }] },
+  { id: 'KTN-11', face: 'S', bays: [{ dx: +2.2, railMeters: 16 }] },
+  { id: 'KTS-07', face: 'N', bays: [{ dx: +2.2, railMeters: 16 }] },
+  { id: 'KTS-08', face: 'N', bays: [{ dx: +2.2, railMeters: 14 }] },
+  { id: 'KTS-10', face: 'N', bays: [{ dx: +2.2, railMeters: 16 }] },
+  { id: 'MRW-01', face: 'S', bays: [{ dx: +2.2, railMeters: 15 }] },
+  { id: 'MRW-02', face: 'S', bays: [{ dx: +2.2, railMeters: 17 }] },
+  { id: 'MRW-04', face: 'S', bays: [{ dx: +2.2, railMeters: 15 }] },
 ];
 
 function escapeFabric(di: NeighborhoodDI): void {
@@ -371,6 +403,8 @@ function propFabric(di: NeighborhoodDI): void {
   mailbox(-37.2, 7.62, 'a'); mailbox(26.4, -7.62, 'b');
   mailbox(-60.6, -1.5, 'c'); mailbox(60.6, 9.5, 'd');
   mailbox(-58.7, 47.5, 'e'); mailbox(58.7, -47.5, 'f');
+  // W7: the strips' corner blues (clear of the sheds and every new stoop)
+  mailbox(-93.4, 7.62, 'g'); mailbox(93.4, -7.62, 'h');
 
   // bike hoops — the inverted U (two legs + a top bar)
   const bikeHoop = (x: number, z: number, tag: string): void => {
@@ -386,6 +420,8 @@ function propFabric(di: NeighborhoodDI): void {
   bikeHoop(-44.5, 7.62, 'a'); bikeHoop(12.5, -7.62, 'b'); bikeHoop(40.5, -7.62, 'c');
   bikeHoop(-20, 32.55, 'd'); bikeHoop(24, 32.55, 'e');
   bikeHoop(20, -32.55, 'f'); bikeHoop(-60.6, 36, 'g'); bikeHoop(60.6, -36, 'h');
+  // W7: the strips' hoops (clear of the shed posts and every new stoop)
+  bikeHoop(-96.5, 32.55, 'i'); bikeHoop(94.0, 32.55, 'j');
 
   // fire hydrants (slop's read: tapered body, cap, two side nuts)
   const hydrant = (x: number, z: number, tag: string): void => {
@@ -401,6 +437,8 @@ function propFabric(di: NeighborhoodDI): void {
   hydrant(-24.4, 7.58, 'a'); hydrant(33.2, -7.58, 'b');
   hydrant(-44.2, 32.52, 'c'); hydrant(36.4, 47.5, 'd');
   hydrant(-48.2, -47.5, 'e'); hydrant(52.4, -32.52, 'f');
+  // W7: the strips' plugs (clear of the sheds and every new stoop)
+  hydrant(-91.0, 32.52, 'g'); hydrant(91.0, 32.52, 'h');
 
   // the ConEd steam stack + its sawhorse ring (slop's bands: 5 × 0.56 m,
   // r 0.36 → 0.235, alternating orange/white)
@@ -435,6 +473,9 @@ function propFabric(di: NeighborhoodDI): void {
   // the hug line z ±7.62 (1.12 off the Kestrel lane), x ±66.5 — clear of
   // the Sycamore/Juniper walk lanes (x ±61.5) and every doorway
   steamStack(-66.5, 7.62, 'J'); steamStack(66.5, -7.62, 'Y');
+  // W7: the Westgate plug (the Gable N walk's hug line, 1.12 off the lane;
+  // its sawhorse pair fits between the GRB-08 stoop and the strip trees)
+  steamStack(-87.5, 47.62, 'G');
 
   // the terrace payphone (the wall pair: back panel, shelf, handset)
   const payphone = (): void => {
@@ -451,10 +492,125 @@ function propFabric(di: NeighborhoodDI): void {
   payphone();
 }
 
+// ------------------------------------------------ 4. sidewalk shed fabric ----
+
+/** The sidewalk construction shed — W7's port of slop-newyork's green
+ *  canopies (js/buildings.js 649–654: one green box ~3.8 wide × 0.85 thick
+ *  riding y ≈ 3.8 over the walk; js/building-details.js 102: at most one
+ *  per facade). Rebuilt in the house grammar: the green deck over a ply
+ *  underside tone, four steel posts (the fabric's ONLY colliders), knee
+ *  braces that are actually visible, and a work-light string that rides
+ *  the shipped skyline window material so the dusk tween lights it with
+ *  the towers. Deck spans the walk band (walkers pass under, 3.4 m clear);
+ *  posts stand ≥ 0.85 m off every lane (the prop law); the row's stoop
+ *  passes under like it does on any real block. Three sheds — one per
+ *  strip walk that has no ironwork above it (KTN-08/MRW-03/KTS-09, the
+ *  ESCAPE_SKIP reads). */
+interface ShedSpec { cx: number; cz: number; len: number; wid: number; tag: string }
+const SHEDS: ReadonlyArray<ShedSpec> = [
+  { cx: -88, cz: 6.15, len: 7.2, wid: 3.6, tag: 'W1' },  // KTN-08's front, Kestrel N walk
+  { cx: 88, cz: -34, len: 7.2, wid: 3.6, tag: 'E1' },    // MRW-03's front, Marlow N walk
+  { cx: 88, cz: -6, len: 7.2, wid: 3.6, tag: 'E2' },     // KTS-09's front, Kestrel S walk
+];
+
+function shedFabric(di: NeighborhoodDI): void {
+  const bulbCells: Array<{ x: number; y: number; z: number; ry: number }> = [];
+  for (const s of SHEDS) {
+    const g = new GeoPush();
+    // the green deck (the source's own proportions, y center 3.82)
+    g.box(s.cx, 3.82, s.cz, s.len, 0.85, s.wid, NEIGH.shedGreen);
+    // the ply underside band (the deck's working face)
+    g.box(s.cx, 3.36, s.cz, s.len - 0.2, 0.1, s.wid - 0.2, NEIGH.shedPly);
+    // the deck's steel edge rails
+    for (const dz of [-1, 1]) {
+      g.box(s.cx, 3.42, s.cz + dz * (s.wid / 2 - 0.09), s.len, 0.09, 0.09, FABRIC.hoist);
+    }
+    // four steel posts — the only colliders the fabric hangs
+    for (const dx of [-1, 1]) for (const dz of [-1, 1]) {
+      const px = s.cx + dx * (s.len / 2 - 0.2);
+      const pz = s.cz + dz * (s.wid / 2 - 0.1);
+      g.box(px, 1.7, pz, 0.12, 3.4, 0.12, FABRIC.hoist);
+      g.box(px, 0.22, pz, 0.3, 0.14, 0.3, PAL.ink); // the base plate
+      di.collider?.(px, 1.7, pz, 0.12, 3.4, 0.12);
+    }
+    // knee braces that are actually visible (post → deck underside)
+    for (const dx of [-1, 1]) for (const dz of [-1, 1]) {
+      rotBoxZ(g, s.cx + dx * (s.len / 2 - 0.95), 2.62, s.cz + dz * (s.wid / 2 - 0.3),
+        1.7, 0.07, 0.07, dx > 0 ? -0.72 : 0.72, FABRIC.hoist);
+    }
+    emit(di, true, `Nbhd_Shed_${s.tag}`, g.toGeometry(), true, true);
+    di.ledger?.push({ name: `Nbhd_Shed_${s.tag}`, x: s.cx, y: 3.82, z: s.cz });
+    // the work-light string under the deck's street edge (6 bulbs)
+    for (let k = 0; k < 6; k++) {
+      bulbCells.push({ x: s.cx - 2.4 + k * 0.96, y: 3.28, z: s.cz + s.wid / 2 - 0.3, ry: 0 });
+    }
+
+    // W8 canvas filigree (2026-11-12): a striped canvas valance hangs from
+    // the deck's street edge — the slop read's own cloth tell (the source's
+    // canopies wear printed canvas skirts; js/building-details.js 102).
+    // One alpha-tested plane per shed: the canvas texture carries the
+    // scallop cut-outs (alphaTest 0.5, doubleSide, no transparency sort),
+    // the tone is the shed green one step darker, and the board rides
+    // 3.30 (the bulbs at 3.28 read in front of it).
+    // the fabric must also build headless (the vitest law): the ledger
+    // entry is unconditional, the canvas texture only when DOM exists
+    di.ledger?.push({ name: `Nbhd_ShedValance_${s.tag}`, x: s.cx, y: 3.3, z: s.cz + s.wid / 2 - 0.12 });
+    if (typeof document === 'undefined') continue;
+    const canvas = document.createElement('canvas');
+    canvas.width = 512; canvas.height = 128;
+    const g2d = canvas.getContext('2d')!;
+    g2d.fillStyle = '#2a5b3a';
+    g2d.fillRect(0, 0, 512, 128);
+    for (let x = 0; x < 512; x += 32) {
+      g2d.fillStyle = (x / 32) % 2 === 0 ? '#255233' : '#2f6442';
+      g2d.fillRect(x, 0, 32, 96);
+    }
+    // the scallop: 8 arcs cut to alpha 0 along the bottom edge
+    g2d.globalCompositeOperation = 'destination-out';
+    for (let k = 0; k < 8; k++) {
+      g2d.beginPath();
+      g2d.arc(32 + k * 64, 96, 30, 0, Math.PI * 2);
+      g2d.fill();
+    }
+    g2d.globalCompositeOperation = 'source-over';
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    const valanceMat = new THREE.MeshLambertMaterial({
+      map: tex, alphaTest: 0.5, side: THREE.DoubleSide,
+    });
+    const valance = new THREE.Mesh(
+      new THREE.PlaneGeometry(s.len - 0.1, 0.5), valanceMat);
+    valance.name = `Nbhd_ShedValance_${s.tag}`;
+    valance.position.set(s.cx, 3.3, s.cz + s.wid / 2 - 0.12);
+    di.scene.add(valance);
+  }
+  if (bulbCells.length) {
+    const bulbGeo = new THREE.PlaneGeometry(0.14, 0.14);
+    const mesh = new THREE.InstancedMesh(bulbGeo, di.skylineWinMat, bulbCells.length);
+    const m4 = new THREE.Matrix4();
+    const rot = new THREE.Quaternion();
+    const one = new THREE.Vector3(1, 1, 1);
+    for (let k = 0; k < bulbCells.length; k++) {
+      const c = bulbCells[k];
+      rot.setFromAxisAngle(new THREE.Vector3(0, 1, 0), c.ry);
+      m4.compose(new THREE.Vector3(c.x, c.y, c.z), rot, one);
+      mesh.setMatrixAt(k, m4);
+    }
+    mesh.count = bulbCells.length;
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.frustumCulled = false;
+    mesh.name = 'Nbhd_ShedLights';
+    di.scene.add(mesh);
+    di.ledger?.push({ name: 'Nbhd_ShedLights', x: 0, y: 0, z: 0 });
+  }
+}
+
 // ------------------------------------------------------------------ entry ---
 
 export function buildNeighborhoodFabric(di: NeighborhoodDI): void {
   escapeFabric(di);
   terraceFaceFabric(di);
   propFabric(di);
+  shedFabric(di);
 }

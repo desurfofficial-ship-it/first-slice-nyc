@@ -81,7 +81,8 @@ describe('nav graph build (registry-seeded)', () => {
   it('validates clean — no edge through a footprint OR a road, no orphans, in bounds', () => {
     const issues = graph.validate({
       footprints: footprintsOf(registry.doc),
-      bounds: { xMin: -84, xMax: 84, zMin: -48, zMax: 48 },
+      // W7: the walked extent grew ±84 → ±100 with the registry's own spanX
+      bounds: { xMin: -100, xMax: 100, zMin: -48, zMax: 48 },
       exemptFootprintIds: PASSABLE_FOOTPRINTS,
       roads: roadRectsOf(registry.doc),
     });
@@ -117,7 +118,7 @@ describe('nav graph build (registry-seeded)', () => {
     for (const b of registry.doc.buildings ?? []) {
       const e = b.entrance?.[0];
       if (!e) continue;
-      if (e.x < -84 || e.x > 84 || e.z < -48 || e.z > 48) continue; // Times Sq row
+      if (e.x < -100 || e.x > 100 || e.z < -48 || e.z > 48) continue; // Times Sq row (x ±100: the W7 gate rows' doors count now)
       if (b.id === 'SUB-01') continue; // the landing is its door
       // a walled-in door (noted by the builder) may fall back to a later
       // entrance — the place must still resolve to SOME connected door
@@ -158,20 +159,26 @@ describe('nav graph build (registry-seeded)', () => {
     expect(edges.every((e) => e.resourceRef === 'xw:XW-CANON')).toBe(true);
   });
 
-  it('walks the SUB-01 headhouse plot (the shipped no-blocker law) but skirts SUB-02', () => {
-    // SHIPPED TRUTH (World.ts, the reconciliation comment): the SUB-01
-    // headhouse has NO blocker — the placeholder stair-cut boxes were
-    // retired because they "pinched the north walk shut". The Kestrel
-    // north lane passes the plot straight; the registry footprint is
-    // passable there by law.
-    expect(graph.hasNode('nav:sp:STR-KESTREL:N:-42')).toBe(true);
-    expect(graph.edgeBetween('nav:sp:STR-KESTREL:N:-42', 'nav:sp:STR-KESTREL:N:-36')).not.toBeNull();
-    // SUB-02 (the south control house) DOES carry a collider — the south
-    // lane takes the curb-cut skirt on the road side (z −4.25)
-    const skirt = [...graph.nodes.values()].find((n) => n.kind === 'sidewalk'
-      && Math.abs(n.z - -4.25) < 0.05 && n.x < -53 && n.x > -62);
-    expect(skirt, 'SUB-02 curb-cut skirt node').toBeDefined();
-    // and no walk edge may sample inside the control house
+  it('skirts BOTH station houses on the curb-cut line (the W8 walkability law)', () => {
+    // W8 TRUTH (2026-11-12, the walk-ability probe's forensics): the SUB-01
+    // headhouse plot used to span the ENTIRE sidewalk depth (z 4.45..7.95)
+    // and was nav-passable — pedestrians floated straight across the 3.2 m
+    // stairwell hole while the player was walled out by the railings. The
+    // slot now holds the building line (z 5.55..8.0), SUB-01 is NOT
+    // passable, and BOTH houses take the curb-cut skirt their player
+    // corridors can actually walk:
+    //   SUB-01 skirt z 5.0  (the player corridor is z 4..5.55)
+    //   SUB-02 skirt z −4.85 (the player corridor is z −5.4..−4)
+    const skirtN = [...graph.nodes.values()].find((n) => n.kind === 'sidewalk'
+      && Math.abs(n.z - 5.0) < 0.05 && n.x < -45 && n.x > -50);
+    expect(skirtN, 'SUB-01 curb-cut skirt node').toBeDefined();
+    const skirtS = [...graph.nodes.values()].find((n) => n.kind === 'sidewalk'
+      && Math.abs(n.z - -4.85) < 0.05 && n.x < -53 && n.x > -62);
+    expect(skirtS, 'SUB-02 curb-cut skirt node').toBeDefined();
+    // and no walk edge may sample inside either housing
+    const inHouse = (x: number, z: number) =>
+      (x > -48.45 && x < -45.95 && z > 5.6 && z < 7.95)
+      || (x > -59.95 && x < -54.05 && z > -7.95 && z < -5.45);
     for (const e of graph.edges.values()) {
       if (e.kind === 'door') continue;
       const a = graph.node(e.a)!, b = graph.node(e.b)!;
@@ -179,8 +186,7 @@ describe('nav graph build (registry-seeded)', () => {
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
         const x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t;
-        const inSub02 = x > -59.95 && x < -54.05 && z > -7.95 && z < -4.55;
-        expect(inSub02, `edge ${e.a}|${e.b} through SUB-02 at (${x.toFixed(1)}, ${z.toFixed(1)})`).toBe(false);
+        expect(inHouse(x, z), `edge ${e.a}|${e.b} through a station house at (${x.toFixed(1)}, ${z.toFixed(1)})`).toBe(false);
       }
     }
   });

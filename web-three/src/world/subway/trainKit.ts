@@ -27,6 +27,19 @@ const CAR = {
   doorRel: 3.1,      // door centers at cx ∓ 3.1
 } as const;
 
+/** The car body's numbers, exported for the boarding-law test — the test
+ *  derives the walk-in corridor from THESE, not from its own copies (the
+ *  no-double-truth law at the geometry boundary). */
+export const CAR_BODY = {
+  zSouth: STATION.trackZ - CAR.halfW,
+  zNorth: STATION.trackZ + CAR.halfW,
+  benchZSouth: STATION.trackZ - CAR.halfW + 0.42,
+  benchDepth: 0.55,
+  doorW: CAR.doorW,
+  doorRel: CAR.doorRel,
+  playerRadius: 0.35,
+} as const;
+
 export interface TrainDoors {
   /** The sliding leaves of the interactive door (world animates these). */
   leaves: [THREE.Mesh, THREE.Mesh];
@@ -34,6 +47,46 @@ export interface TrainDoors {
   closedX: [number, number];
   /** The collider spec while the door is shut (world adds/removes it). */
   collider: { x: number; y: number; z: number; w: number; h: number; d: number };
+  /** The car's roof slab — the world hides it while the player is aboard
+   *  (the dollhouse lens looks DOWN into the car; a roofed car reads as a
+   *  closed metal tube and swallows the rider whole — playtest 2026-11-12,
+   *  "entered the subway I can't see inside", round two). */
+  roof: THREE.Mesh;
+  /** The whole platform-side face (body segments, door leaves, shutters).
+   *  The roof alone was not enough: the lens sits south-above and the shut
+   *  door + south wall cut the sight line at y ≈ −1.5, BELOW the wall's
+   *  −1.2 top — the rider still vanished behind their own train. Aboard,
+   *  the face stands down with the roof: the car reads as the open
+   *  cutaway diorama the station already is. On the platform it returns —
+   *  a train again. */
+  southFace: THREE.Mesh[];
+}
+
+/**
+ * The south bench's x-spans for one car. The interactive door's doorway
+ * must open onto the AISLE — a bench across it stops the walk-in 6 cm
+ * short of the seam's aboard band (ride.ts CAR_Z_MIN 14.55), the player
+ * presses "Ride to Times Square" from the doorway and the ride leaves
+ * without them (probe diag-ride-walkin: max z 14.494 < 14.55). Real cars
+ * hang a short seat east of the door and the long run west of it; the
+ * nub east of the doorway here would be 0.55 m of orphan — it is simply
+ * not built. Pure so tests/subway.test.ts can pin the boarding law.
+ * @param cx car center x
+ * @param doorRel interactive door x relative to cx (null = no interactive
+ *               door — the shuttered car keeps its full-length bench)
+ */
+export function southBenchSpans(
+  cx: number, doorRel: number | null,
+): Array<{ a: number; b: number }> {
+  const west = cx - 4.4, east = cx + 4.4; // the full bench's run
+  if (doorRel === null) return [{ a: west, b: east }];
+  const dx = cx + doorRel;
+  const gapL = dx - 1.3 / 2 - 0.1; // doorW + a hand's margin each side
+  const gapR = dx + 1.3 / 2 + 0.1;
+  const spans: Array<{ a: number; b: number }> = [];
+  if (gapL - west > 0.3) spans.push({ a: west, b: gapL });
+  if (east - gapR > 0.3) spans.push({ a: gapR, b: east });
+  return spans;
 }
 
 function box(
@@ -61,22 +114,30 @@ function buildCar(
   const wallY = (C.floorTop + C.roofBottom) / 2;   // -2.2
   const wallH = C.roofBottom - C.floorTop;         // 2.0
 
-  // floor, roof
-  box(ctx, `SUB_CarFloor_${cx}`, cx, floorY, STATION.trackZ, C.len, 0.15, C.halfW * 2, 0x4a4550, { collide: false });
-  box(ctx, `SUB_CarRoof_${cx}`, cx, (C.roofTop + C.roofBottom) / 2, STATION.trackZ, C.len, C.roofTop - C.roofBottom, C.halfW * 2, shell, { collide: false });
+  // floor, roof (the roof is the world's to hide while the rider is aboard).
+  // The floor is SOLID: it is the last 0.5 m of the boarding walk (platform
+  // lip top -3.2 → car floor top -3.2, flush) — collide:false left the car
+  // interior a hole over the trench, and a passenger who stepped through the
+  // open door fell into the pit mid-board (the 2026-11-12 walk-in probe
+  // caught it the moment the doorway aisle opened).
+  box(ctx, `SUB_CarFloor_${cx}`, cx, floorY, STATION.trackZ, C.len, 0.15, C.halfW * 2, 0x4a4550);
+  const roof = box(ctx, `SUB_CarRoof_${cx}`, cx, (C.roofTop + C.roofBottom) / 2, STATION.trackZ, C.len, C.roofTop - C.roofBottom, C.halfW * 2, shell, { collide: false });
   // the yellow stripe that says K line
   box(ctx, `SUB_CarStripe_${cx}`, cx, -1.35, STATION.trackZ, C.len, 0.16, C.halfW * 2 + 0.04, stripe, { collide: false });
 
   // body segments along the south face (platform side, z -), north face (+z)
   const zS = STATION.trackZ - C.halfW;
   const zN = STATION.trackZ + C.halfW;
+  // the platform-side face the world stands down while the rider is aboard
+  const southFace: THREE.Mesh[] = [];
 
   // south face: two door openings at ∓3.1, windows between and beyond.
   // Segments (rel): [-6.2..-3.75] wall · [-3.75..-2.45] DOOR · [-2.45..2.45]
   // wall-with-2-windows · [2.45..3.75] DOOR · [3.75..6.2] wall.
   const segs: Array<[number, number]> = [[-6.2, -3.75], [-2.45, 2.45], [3.75, 6.2]];
   segs.forEach(([a, b], i) => {
-    box(ctx, `SUB_CarBodyS_${cx}_${i}`, cx + (a + b) / 2, wallY, zS, b - a, wallH, 0.12, shell);
+    const m = box(ctx, `SUB_CarBodyS_${cx}_${i}`, cx + (a + b) / 2, wallY, zS, b - a, wallH, 0.12, shell);
+    southFace.push(m);
   });
   // north face: solid wall with 3 window insets (dark glass reads fine)
   box(ctx, `SUB_CarBodyN_${cx}`, cx, wallY, zN, C.len, wallH, 0.12, shell);
@@ -118,10 +179,15 @@ function buildCar(
   }
 
   // interior: lengthwise benches both sides (solid — the aisle is the walk),
-  // poles, handrail
-  for (const bz of [zS + 0.42, zN - 0.42]) {
-    box(ctx, `SUB_CarBench_${cx}_${bz < STATION.trackZ ? 's' : 'n'}`, cx, C.floorTop + 0.25, bz, 8.8, 0.5, 0.55, 0x8a5a3a);
+  // poles, handrail. The SOUTH bench splits around the interactive door —
+  // the doorway must open onto the aisle, or the ride leaves without its
+  // passenger (southBenchSpans; the boarding-law test pins the gap).
+  const zB = zS + 0.42;
+  for (const seg of southBenchSpans(cx, interactiveDoorRel)) {
+    box(ctx, `SUB_CarBench_${cx}_s_${seg.a.toFixed(1)}`, (seg.a + seg.b) / 2, C.floorTop + 0.25, zB,
+      seg.b - seg.a, 0.5, 0.55, 0x8a5a3a);
   }
+  box(ctx, `SUB_CarBench_${cx}_n`, cx, C.floorTop + 0.25, zN - 0.42, 8.8, 0.5, 0.55, 0x8a5a3a);
   for (const px of [cx - 3.9, cx - 1.9, cx + 1.9, cx + 3.9]) {
     box(ctx, `SUB_CarPole_${cx}_${px.toFixed(1)}`, px, C.floorTop + 1.0, STATION.trackZ, 0.06, 2.0, 0.06, 0x9aa0a6, { collide: false });
   }
@@ -136,13 +202,17 @@ function buildCar(
       const leafY = C.floorTop + C.doorH / 2;
       const l1 = box(ctx, `SUB_DoorLeaf_${cx}_a`, dx - C.doorW / 4, leafY, zS + 0.02, C.doorW / 2, C.doorH, 0.08, 0xB23A48, { collide: false });
       const l2 = box(ctx, `SUB_DoorLeaf_${cx}_b`, dx + C.doorW / 4, leafY, zS + 0.02, C.doorW / 2, C.doorH, 0.08, 0xB23A48, { collide: false });
+      southFace.push(l1, l2);
       doors = {
         leaves: [l1, l2],
         closedX: [dx - C.doorW / 4, dx + C.doorW / 4],
         collider: { x: dx, y: leafY, z: zS + 0.02, w: C.doorW, h: C.doorH, d: 0.1 },
+        roof,
+        southFace,
       };
     } else {
-      box(ctx, `SUB_DoorShut_${cx}_${rel2 > 0 ? 'e' : 'w'}`, dx, C.floorTop + C.doorH / 2, zS + 0.02, C.doorW, C.doorH, 0.08, 0xB23A48);
+      const shut = box(ctx, `SUB_DoorShut_${cx}_${rel2 > 0 ? 'e' : 'w'}`, dx, C.floorTop + C.doorH / 2, zS + 0.02, C.doorW, C.doorH, 0.08, 0xB23A48);
+      southFace.push(shut);
     }
   }
 
