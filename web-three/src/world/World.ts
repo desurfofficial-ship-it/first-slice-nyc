@@ -556,6 +556,21 @@ export class World {
   /** The PMREM sky environment (built when Game wires the renderer). */
   private envSky: EnvSky | null = null;
   private envDirty = true;
+  /** The sim-minute of the last environment rebuild — the clock-driven
+   *  rebuild throttle (the stage-9 wave's repair of the graphics wave's
+   *  env-churn defect): under a continuously advancing clock the settle
+   *  gate alone re-armed the PMREM rebuild every few frames, and each
+   *  rebuild's cost on software GL collapsed the frame wall-throughput
+   *  the validation scenarios' wall-clock budgets assume. The sky's own
+   *  lerp carries the between-rebuild look; the env map (the PBR heroes'
+   *  reflections) may lag the clock by up to this granularity — the six
+   *  keyframe bands are ~240 sim-min wide, so a 20 sim-min floor keeps
+   *  the reflections honest while the rebuilds stay "a few per in-game
+   *  day", which is what this throttle's own comment always promised.
+   *  The explicit pins (?tod, the story beats' pinDayState) bypass the
+   *  floor — a rig's rebuild is a statement, not a clock tick. */
+  private lastEnvRebuildMinute = -1;
+  private static readonly ENV_REBUILD_MIN_SIM_MIN = 20;
   /** Glow sprites (billboards) — excluded from the AO normal prepass. */
   private glowSprites: THREE.Sprite[] = [];
   /** The AO prepass exclusion list (far world + movers + billboards). */
@@ -4800,7 +4815,9 @@ export class World {
     // the sky-PMREM environment — rebuilt only when the target changed and
     // the lerp has settled (a few rebuilds per in-game day, never per frame)
     if (this.envSky) {
-      if (this.envDirty && this.daySettled()) {
+      const pinned = this.dayPin !== null
+        || Math.abs(this.dayMinute - this.lastEnvRebuildMinute) >= World.ENV_REBUILD_MIN_SIM_MIN;
+      if (this.envDirty && this.daySettled() && pinned) {
         this.scene.environment = this.envSky.rebuild({
           top: this.skyUniforms.topColor,
           horizon: this.skyUniforms.horizonColor,
@@ -4809,6 +4826,7 @@ export class World {
           haloStrength: cur.haloStrength,
         });
         this.envDirty = false;
+        this.lastEnvRebuildMinute = this.dayMinute;
       }
       this.scene.environmentIntensity = cur.envIntensity;
     }

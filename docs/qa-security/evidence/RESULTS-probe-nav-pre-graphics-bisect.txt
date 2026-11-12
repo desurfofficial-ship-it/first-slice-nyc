@@ -1,0 +1,12 @@
+PASS  setup: fresh controlled world
+PASS  1: the registry-seeded graph boots clean
+PASS  2: Rosa stands her shipped post at the deli door (open since 06:00)
+PASS  3: the commute is routed and crosses at the canon zebra
+PASS  4: the Cecil’s room is locked to routes (canon privacy)
+PASS  5: the deli door is a routed, hour-gated corridor (A-2)
+PASS  6: the facade is crossed only at the door corridor
+PASS  7: exiting reads the same door in reverse
+PASS  8: routes derive on destination change only (no recalc storm)
+
+scenario: nav — 60.0s real — steps 9/9
+NAV PROBE OK

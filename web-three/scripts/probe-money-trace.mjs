@@ -36,10 +36,19 @@ const server = createServer((req, res) => {
 });
 await new Promise((r) => server.listen(PORT, r));
 
-const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+// --disable-dev-shm-usage: this container's /dev/shm is 64 MB — under the
+// graphics wave's heavier render pipeline the shared-memory buffer
+// overflows and Chromium dies silently mid-run (the e2e.mjs harness's
+// own standing fix, harness-only; the game's config is untouched).
+const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage', '--no-sandbox'] });
 // The E2E's viewport law: small enough that the dt clamp never halves
 // game-time on software GL — the driver is viewport-agnostic.
-const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
+// E2E_SCALE — the render buffer's scale (deviceScaleFactor): the e2e.mjs
+// harness's own affordance for slow machines (the driver reads STATE, not
+// pixels; the viewport stays honest so the pointer geometry keeps).
+// Default 1 — the reference machine runs the probe unchanged.
+const SCALE = Number.parseFloat(process.env.E2E_SCALE ?? '1');
+const page = await browser.newPage({ viewport: { width: 900, height: 700 }, deviceScaleFactor: SCALE });
 const errors = [];
 page.on('pageerror', (e) => errors.push(`PAGEERROR: ${e.message}`));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
