@@ -506,11 +506,11 @@ function propFabric(di: NeighborhoodDI): void {
  *  passes under like it does on any real block. Three sheds — one per
  *  strip walk that has no ironwork above it (KTN-08/MRW-03/KTS-09, the
  *  ESCAPE_SKIP reads). */
-interface ShedSpec { cx: number; cz: number; len: number; wid: number; tag: string }
+interface ShedSpec { cx: number; cz: number; len: number; wid: number; tag: string; street: 1 | -1 }
 const SHEDS: ReadonlyArray<ShedSpec> = [
-  { cx: -88, cz: 6.15, len: 7.2, wid: 3.6, tag: 'W1' },  // KTN-08's front, Kestrel N walk
-  { cx: 88, cz: -34, len: 7.2, wid: 3.6, tag: 'E1' },    // MRW-03's front, Marlow N walk
-  { cx: 88, cz: -6, len: 7.2, wid: 3.6, tag: 'E2' },     // KTS-09's front, Kestrel S walk
+  { cx: -88, cz: 6.15, len: 7.2, wid: 3.6, tag: 'W1', street: -1 },  // KTN-08's front, Kestrel N walk — the street is south
+  { cx: 88, cz: -34, len: 7.2, wid: 3.6, tag: 'E1', street: -1 },    // MRW-03's front, Marlow N walk — the street is south
+  { cx: 88, cz: -6, len: 7.2, wid: 3.6, tag: 'E2', street: 1 },      // KTS-09's front, Kestrel S walk — the street is north
 ];
 
 function shedFabric(di: NeighborhoodDI): void {
@@ -540,9 +540,12 @@ function shedFabric(di: NeighborhoodDI): void {
     }
     emit(di, true, `Nbhd_Shed_${s.tag}`, g.toGeometry(), true, true);
     di.ledger?.push({ name: `Nbhd_Shed_${s.tag}`, x: s.cx, y: 3.82, z: s.cz });
-    // the work-light string under the deck's street edge (6 bulbs)
+    // the work-light string under the deck's street edge (6 bulbs) — the
+    // W9 law: the string rides the SHED's street side (the W8 draft hung
+    // every string on +z, which for the W1/E1 sheds is the BUILDING side —
+    // the carved rows' facades own that band now)
     for (let k = 0; k < 6; k++) {
-      bulbCells.push({ x: s.cx - 2.4 + k * 0.96, y: 3.28, z: s.cz + s.wid / 2 - 0.3, ry: 0 });
+      bulbCells.push({ x: s.cx - 2.4 + k * 0.96, y: 3.28, z: s.cz + s.street * (s.wid / 2 - 0.3), ry: 0 });
     }
 
     // W8 canvas filigree (2026-11-12): a striped canvas valance hangs from
@@ -552,9 +555,13 @@ function shedFabric(di: NeighborhoodDI): void {
     // scallop cut-outs (alphaTest 0.5, doubleSide, no transparency sort),
     // the tone is the shed green one step darker, and the board rides
     // 3.30 (the bulbs at 3.28 read in front of it).
+    // W9 (2026-11-12): the valance hangs on the shed's TRUE street side —
+    // the W8 draft hung all three on +z (the building side for W1/E1),
+    // where the carved rows' fascias own the band now. The canvas skirt
+    // faces the street like a real shed's does.
     // the fabric must also build headless (the vitest law): the ledger
     // entry is unconditional, the canvas texture only when DOM exists
-    di.ledger?.push({ name: `Nbhd_ShedValance_${s.tag}`, x: s.cx, y: 3.3, z: s.cz + s.wid / 2 - 0.12 });
+    di.ledger?.push({ name: `Nbhd_ShedValance_${s.tag}`, x: s.cx, y: 3.3, z: s.cz + s.street * (s.wid / 2 - 0.12) });
     if (typeof document === 'undefined') continue;
     const canvas = document.createElement('canvas');
     canvas.width = 512; canvas.height = 128;
@@ -582,7 +589,7 @@ function shedFabric(di: NeighborhoodDI): void {
     const valance = new THREE.Mesh(
       new THREE.PlaneGeometry(s.len - 0.1, 0.5), valanceMat);
     valance.name = `Nbhd_ShedValance_${s.tag}`;
-    valance.position.set(s.cx, 3.3, s.cz + s.wid / 2 - 0.12);
+    valance.position.set(s.cx, 3.3, s.cz + s.street * (s.wid / 2 - 0.12));
     di.scene.add(valance);
   }
   if (bulbCells.length) {

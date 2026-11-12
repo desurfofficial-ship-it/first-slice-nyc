@@ -85,11 +85,15 @@ async function census(page) {
       if (o.name && o.name.startsWith('FenestraWindows_')) {
         meshes.push({ name: o.name, count: o.count });
         const m = o.material;
+        // three's filter constants: LinearFilter=1006, LinearMipmapLinearFilter=1008
         mats.push({
           range: m.uniforms.uFenRange.value.toArray(),
           nightK: m.uniforms.uFenNightK.value,
           roomsTex: m.uniforms.uFenRooms.value?.image?.width ?? null,
           frontsTex: m.uniforms.uFenFronts.value?.image?.width ?? null,
+          roomsMinFilter: m.uniforms.uFenRooms.value?.minFilter ?? null,
+          roomsMips: m.uniforms.uFenRooms.value?.generateMipmaps ?? null,
+          roomsAniso: m.uniforms.uFenRooms.value?.anisotropy ?? null,
         });
         if (m.uniforms.uFenRooms.value?.image) rooms = m.uniforms.uFenRooms.value.image.width;
         if (m.uniforms.uFenFronts.value?.image) fronts = m.uniforms.uFenFronts.value.image.width;
@@ -100,10 +104,47 @@ async function census(page) {
   });
 }
 
+/** The FEN-GLITCH static detector: decode a screenshot PNG in-page, then
+ *  measure the mean absolute neighbor delta over a region. Aliased atlas
+ *  sampling reads ~40+ per pixel pair; clean texture reads < 8; the flat
+ *  facade wall ~0.3. The wall canary guards the framing — if the camera
+ *  composition ever moves, the region numbers are void and the check
+ *  reports the canary, not a lie. */
+async function regionNoise(page, pngBuf, regions) {
+  const b64 = pngBuf.toString('base64');
+  return page.evaluate(async ({ b64, regions }) => {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'image/png' });
+    const bmp = await createImageBitmap(blob);
+    const c = document.createElement('canvas');
+    c.width = bmp.width; c.height = bmp.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(bmp, 0, 0);
+    const out = {};
+    for (const [label, x, y, w, h] of regions) {
+      const d = ctx.getImageData(x, y, w, h).data;
+      let sum = 0, n = 0;
+      const lum = (i) => (d[i] + d[i + 1] + d[i + 2]) / 3;
+      for (let py = 0; py < h; py++) {
+        for (let px = 0; px < w; px++) {
+          const i = (py * w + px) * 4;
+          if (px + 1 < w) { sum += Math.abs(lum(i) - lum(i + 4)); n++; }
+          if (py + 1 < h) { sum += Math.abs(lum(i) - lum(i + w * 4)); n++; }
+        }
+      }
+      out[label] = sum / n;
+    }
+    return out;
+  }, { b64, regions });
+}
+
 async function shoot(page, name) {
   const path = `shots/fenestra-${name}.png`;
-  await page.screenshot({ path });
+  const buf = await page.screenshot({ path });
   console.log('shot', path);
+  return buf;
 }
 
 // ---- 1. midday: census + street + A/B + close + far ------------------------
@@ -119,10 +160,36 @@ async function shoot(page, name) {
     JSON.stringify(c.mats.map((m) => m.range)));
   check('rooms atlas loaded (2048px)', c.rooms === 2048, `rooms=${c.rooms}`);
   check('fronts atlas loaded (1024px)', c.fronts === 1024, `fronts=${c.fronts}`);
+  check('atlases carry the mip chain (the FEN-GLITCH law: v1.58.0)',
+    c.mats.length > 0 && c.mats.every((m) => m.roomsMips === true && m.roomsMinFilter === 1008),
+    `mips=${c.mats.map((m) => m.roomsMips).join(',')} minFilter=${c.mats.map((m) => m.roomsMinFilter).join(',')}`);
   check('midday nightK pinned at 0', c.mats.every((m) => m.nightK < 0.05));
 
   await park(page, 4, -2, [2, 4.2, -6], [14, 7, 14]);
-  await shoot(page, 'day-street');
+  const dayBuf = await shoot(page, 'day-street');
+  // the FEN-GLITCH static detector: the pre-fix tree read 38-48 mean
+  // neighbor-delta on these windows (the per-pixel cell-pick scramble +
+  // unclamped deep-mip sampling) against 0.3 on the plain wall. The
+  // repaired tree (vertex-side hashes + explicit LOD) reads 4-8 — clean
+  // texture class. Wall canary guards the framing.
+  {
+    const noise = await regionNoise(page, dayBuf, [
+      ['wall', 700, 300, 120, 180],
+      ['blindsWindow', 442, 372, 56, 95],
+      ['row3Window', 596, 558, 70, 105],
+      ['purpleWindow', 312, 380, 52, 88],
+    ]);
+    const wallOk = noise.wall < 2.5;
+    check('static canary: framing held (plain wall stays flat)', wallOk, `wall=${noise.wall?.toFixed(2)}`);
+    if (wallOk) {
+      check('static detector: blinds window reads clean texture', noise.blindsWindow < 14,
+        `grad=${noise.blindsWindow?.toFixed(2)} (broken build read 47.9)`);
+      check('static detector: row3 window reads clean texture', noise.row3Window < 14,
+        `grad=${noise.row3Window?.toFixed(2)} (broken build read 46.4)`);
+      check('static detector: purple-curtain window reads clean', noise.purpleWindow < 14,
+        `grad=${noise.purpleWindow?.toFixed(2)} (broken build read 8.8)`);
+    }
+  }
   const callsOn = (await census(page)).calls;
   await page.evaluate(() => window.__game.world.setFenestraEnabled(false));
   await page.waitForTimeout(300);
@@ -195,6 +262,41 @@ async function shoot(page, name) {
   });
   check('composer path boots with the windows live', c.n > 80, `${c.n} windows`);
   check('composer path console clean', errs.length === 0, errs[0] ?? '');
+  await page.close();
+}
+
+// ---- 6. the phone condition (the FEN-GLITCH field report's class) ----------
+// The field defect came in on a phone: coarse pointer + DPR >= 2 → the
+// resolver's 'low' tier (pixelRatioCap 1.25, bands 10/24). This boot is its
+// SwiftShader analog — narrow viewport, forced low tier — and the same
+// street park. The mips are the fix at every tier; this shot is the proof
+// the low tier did not quietly keep the aliased path.
+{
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const errs = [];
+  page.on('pageerror', (e) => errs.push('PAGEERROR: ' + (e.stack ?? e.message)));
+  page.on('console', (m) => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()); });
+  await page.goto(`http://localhost:${PORT}/?gfx=low&fx=off&tod=13:00`, { waitUntil: 'load' });
+  await page.waitForFunction(() => window.__game !== undefined, null, { timeout: 30000 });
+  await page.waitForTimeout(2500);
+  const c = await page.evaluate(() => {
+    const g = window.__game;
+    const mats = [];
+    g.world.scene.traverse((o) => {
+      if (o.name && o.name.startsWith('FenestraWindows_')) {
+        const m = o.material.uniforms.uFenRooms.value;
+        mats.push({ mips: m?.generateMipmaps ?? null, minFilter: m?.minFilter ?? null });
+      }
+    });
+    return { n: g.world.fenestraSummary().total, mats };
+  });
+  check('phone-condition boot keeps the window plan', c.n > 80, `${c.n} windows`);
+  check('phone-condition atlases still ride the mip chain',
+    c.mats.length > 0 && c.mats.every((m) => m.mips === true && m.minFilter === 1008),
+    JSON.stringify(c.mats));
+  await park(page, 4, -2, [2, 4.2, -6], [14, 7, 14]);
+  await shoot(page, 'day-phone-lowtier');
+  check('phone-condition console clean', errs.length === 0, errs[0] ?? '');
   await page.close();
 }
 

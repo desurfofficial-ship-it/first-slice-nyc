@@ -28,7 +28,7 @@ import {
   familyOf, RESIDENTIAL_IDS, collectWindowPlan, fenBandOf, bandValues,
   FEN_BANDS_BY_TIER, FEN_HYST, FEN_SEEDS, type FenestraInstance, type Shell,
 } from '../src/world/fenestraCore';
-import { fenestraMeshFromPlan, FenestraMaterial, glslFenCore, glslFenFragment, glslFenEmissive } from '../src/world/fenestraMaterial';
+import { fenestraMeshFromPlan, FenestraMaterial, glslFenCore, glslFenFragment, glslFenVertex, glslFenMap, configureAtlas } from '../src/world/fenestraMaterial';
 
 // ------------------------------------------------------------- hash contract
 
@@ -389,19 +389,87 @@ describe('fenestra LOD bands (the no-pop law)', () => {
 
 describe('fenestra shader payload', () => {
   it('keeps the seed contract and the guards inside the GLSL', () => {
-    // the TS↔GLSL mirror depends on the same seeds appearing in the chunk
-    expect(glslFenFragment).toContain('3.71');
-    expect(glslFenFragment).toContain('9.27');
-    expect(glslFenFragment).toContain('5.43');
-    expect(glslFenFragment).toContain('6.42');
-    expect(glslFenEmissive).toContain('11.31');
+    // the TS↔GLSL mirror depends on the same seeds appearing in the chunk;
+    // since the FEN-GLITCH repair the seeds live in the VERTEX chunk (the
+    // hashes run there, on exact-constant attribute inputs)
+    expect(glslFenVertex).toContain('3.71');
+    expect(glslFenVertex).toContain('9.27');
+    expect(glslFenVertex).toContain('5.43');
+    expect(glslFenVertex).toContain('6.42');
+    expect(glslFenVertex).toContain('11.31');
+    expect(glslFenVertex).toContain('7.13');
     // the room-box division guards its degenerate direction (no NaN path)
     expect(glslFenCore).toContain('max(1.0 - backScale, 0.001)');
+  });
+
+  it('computes the per-window hashes in the VERTEX stage (the FEN-GLITCH guard)', () => {
+    // the fragment must never re-run imHash on an interpolated varying: a
+    // perspective-correct interpolation of even a CONSTANT wobbles ±1e-7 in
+    // fp32 and imHash's ~250k product amplifies that into full [0,1) jumps —
+    // the per-pixel cell scramble that rendered the windows as static
+    expect(glslFenVertex).toContain('imHash(instanceWindowId');
+    expect(glslFenVertex).toContain('imCellOrigin(instanceWindowId');
+    expect(glslFenVertex).toContain('vFenHash');
+    expect(glslFenVertex).toContain('vFenRoomOrigin');
+    expect(glslFenVertex).toContain('vFenFrontOrigin');
+    expect(glslFenVertex).toContain('vFenGrime');
+    expect(glslFenFragment).not.toContain('imHash(');
+    expect(glslFenFragment).toContain('vFenHash');
+    expect(glslFenFragment).toContain('vFenRoomOrigin');
+    // the room fetch samples at an explicit, gutter-safe LOD
+    expect(glslFenMap).toContain('textureLod');
+    expect(glslFenMap).toContain('fwidth(vFenLocalXY.x)');
   });
 
   it('exposes the instanced attributes the vertex stage reads', () => {
     // the attribute names are the v0.3.0 schema (plus the glass weight)
     const src = (FenestraMaterial as unknown as { name: string }).name;
     expect(src).toBe('FenestraMaterial');
+  });
+});
+
+// ------------------------------------------------------- atlas filter law
+// The FEN-GLITCH repair (register v1.58.0): the wave shipped the atlases
+// level-0-only ("LinearFilter + generateMipmaps=false") and the field
+// rendered them as per-pixel RGB static under minification — a 256-texel
+// room cell landing in ~90 render pixels picks effectively random texels
+// per pixel without a mip chain. These pins keep the class of mistake
+// from returning quietly: an atlas configured without mips fails here,
+// before any rig or phone ever sees it.
+
+describe('fenestra atlas sampling law (the FEN-GLITCH guard)', () => {
+  it('configures both atlases WITH the mip chain on (the static-kill law)', () => {
+    const rooms = new THREE.Texture();
+    const fronts = new THREE.Texture();
+    configureAtlas(rooms, 4);
+    configureAtlas(fronts, 4);
+    for (const t of [rooms, fronts]) {
+      expect(t.generateMipmaps).toBe(true);
+      expect(t.minFilter).toBe(THREE.LinearMipmapLinearFilter);
+      expect(t.magFilter).toBe(THREE.LinearFilter);
+    }
+  });
+
+  it('keeps the cell-safe wrapping and the sRGB color space', () => {
+    const t = new THREE.Texture();
+    configureAtlas(t, 4);
+    expect(t.wrapS).toBe(THREE.ClampToEdgeWrapping);
+    expect(t.wrapT).toBe(THREE.ClampToEdgeWrapping);
+    expect(t.colorSpace).toBe(THREE.SRGBColorSpace);
+    // needsUpdate is setter-only in three (version bump) — assert the
+    // upload version advanced instead
+    expect(t.version).toBeGreaterThan(0);
+  });
+
+  it('requests anisotropic filtering (grazing-angle facades stay on mip)', () => {
+    const t = new THREE.Texture();
+    configureAtlas(t, 4);
+    expect(t.anisotropy).toBeGreaterThanOrEqual(4);
+  });
+
+  it('floors a zero anisotropy request to 1 (never unfiltered sampling)', () => {
+    const t = new THREE.Texture();
+    configureAtlas(t, 0);
+    expect(t.anisotropy).toBe(1);
   });
 });

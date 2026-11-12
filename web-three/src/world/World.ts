@@ -65,7 +65,7 @@ import { groundMaterial, metricBoxUVs } from './groundTex';
 import { collectWindowPlan, FEN_BANDS_BY_TIER, fenBandOf, bandValues,
   type FenestraInstance } from './fenestraCore';
 import { FenestraMaterial, fenestraMeshFromPlan, loadFenestraAtlas,
-  type FenestraMesh } from './fenestraMaterial';
+  applyAtlasMaxLod, type FenestraMesh } from './fenestraMaterial';
 import { EnvSky } from '../render/envsky';
 import { sampleDayCycle, keyframeState, freshDayState, CANON_MINUTES, type DayState, type DayPin } from '../render/daycycle';
 import { buildNeighborhoodFabric, NEIGH } from './neighborhoodFabric';
@@ -560,6 +560,9 @@ export class World {
    *  configured once the Game owns its renderer; furniture upgrades fire
    *  from that call. Until then the street-seam loader loads plain GLBs. */
   private furnitureWired = false;
+  /** The renderer handle (Game hands it over once, with the GLB decoders);
+   *  the fenestra atlas LOD clamp needs the GL context at upload time. */
+  private rendererRef: THREE.WebGLRenderer | null = null;
 
   // ---------------- the graphics wave (docs/rendering/) ----------------
   /** The sky dome's material (the applier writes its halo/nightK uniforms). */
@@ -2055,6 +2058,26 @@ export class World {
     // exists by now — the dress law reads handles, not build order)
     this.dressRoom('FRUIT-INT', { wainscot: 0x4a7a52, trim: 0xf3e2c2, light: 0xfff2d8, clear: 3.2,
       skips: { z1: [[-66.8, -65.6]] } });
+    // the W9 strip rooms ride the same identity pass (their handles exist
+    // by now — the dress law reads handles, not build order)
+    this.dressRoom('WINE-INT', { wainscot: 0x5a2a2e, trim: 0xf3e2c2, light: 0xffe2c8, clear: 3.2,
+      skips: { z1: [[61.2, 62.4]] } });
+    this.dressRoom('BOOKS-INT', { wainscot: 0x6a5a3a, trim: 0xf3e2c2, light: 0xfff2d8, clear: 3.2,
+      skips: { z0: [[-88.6, -87.4]] } });
+    this.dressRoom('HARDWARE-INT', { wainscot: 0x6a6a72, trim: 0xf3e2c2, light: 0xfff2d8, clear: 3.2,
+      skips: { z0: [[-96.6, -95.4]] } });
+    this.dressRoom('NEWS-INT', { wainscot: 0x5a4a52, trim: 0xf3e2c2, light: 0xfff2d8, clear: 3.2,
+      skips: { z0: [[87.4, 88.6]] } });
+    this.dressRoom('VERBENA-INT', { wainscot: 0x3f5a44, trim: 0xf3e2c2, light: 0xfff2d8, clear: 3.2,
+      skips: { z0: [[95.4, 96.6]] } });
+    this.dressRoom('CORNELIUS-INT', { wainscot: 0x5f4a3a, trim: 0xf3e2c2, light: 0xffe8cc, clear: 3.2,
+      skips: { z0: [[-88.6, -87.4]] } });
+    this.dressRoom('WESTGATE-INT', { wainscot: 0x54454e, trim: 0xf3e2c2, light: 0xfff2d8, clear: 3.2,
+      skips: { z0: [[-96.6, -95.4]] } });
+    this.dressRoom('PROVISIONS-INT', { wainscot: 0x6a5a3a, trim: 0xf3e2c2, light: 0xffe8cc, clear: 3.2,
+      skips: { z0: [[87.4, 88.6]] } });
+    this.dressRoom('CHEESE-INT', { wainscot: 0x8a6a3a, trim: 0xf3e2c2, light: 0xffe2c8, clear: 3.2,
+      skips: { z0: [[95.4, 96.6]] } });
 
     // the world-visual-quality pass (docs/3d-assets): crowns, gable walls,
     // sills, AC units, roof clutter, street-floor life — ALL pre-bake so
@@ -3086,6 +3109,400 @@ export class World {
     this.buildW5Diner();
     this.buildW5CecilRoom();
     this.buildW5Fruit();
+    // W9 (2026-11-12): the strip rows' interiors complete — the W6 Carrow
+    // pair's second shop and the eight W7 Westgate/Eastgate shopfronts join
+    // FRUIT-INT. Every carved row keeps its registry footprint (the door
+    // nodes, the lanes and the bake law untouched); the mass decomposes
+    // into duck + walls + an opened facade, and the fit-out rides the
+    // near/far interior law.
+    this.buildW5Wine();
+    this.buildW5Books();
+    this.buildW5Hardware();
+    this.buildW5NewsEast();
+    this.buildW5Verbena();
+    this.buildW5Cornelius();
+    this.buildW5NewsWest();
+    this.buildW5Provisions();
+    this.buildW5Cheese();
+  }
+
+  /** The W9 strip-row carve — the shared decomposition behind FRUIT-INT
+   *  (buildW5Fruit) applied to the remaining shopfront rows. Retires the
+   *  W6/W7 mass + its collider (exact bounds match), stands the duck tower
+   *  above the 3.2 clear height, walls the three blind sides, and opens
+   *  the street facade with the registry door gap (centered on the
+   *  entrance's own x) plus the room's windows. Footprints never move —
+   *  the nav lanes, door nodes and bake districts read them unchanged. */
+  private carveStripRow(o: {
+    id: string;                 // the mesh stem ('KTS04')
+    regId: string;              // the registry row ('KTS-04')
+    massColor: number;
+    h: number;                  // the mass's registry height (the duck's top)
+    x0: number; x1: number; z0: number; z1: number;  // the full footprint
+    face: 'min' | 'max';        // which z side the street door faces
+    door: { from: number; to: number };
+    windows: Array<{ from: number; to: number; y0?: number; y1?: number }>;
+  }): THREE.Mesh {
+    this.retireMass(o.regId.replace('-', '_'));
+    this.retireCollider(o.x0, o.x1, o.z0, o.z1);
+    const duck = this.duckBox(`${o.id}_Upper`, o.x0, o.x1, 3.2, o.h, o.z0, o.z1, o.massColor);
+    // the blind sides: W/E skins run the full depth, the back wall caps
+    // the far end (the 0.4 / 0.2 thickness law FRUIT-INT shipped)
+    this.roomBox(`${o.id}_Wall_W`, o.x0, o.x0 + 0.4, 0, 3.2, o.z0, o.z1, o.massColor);
+    this.roomBox(`${o.id}_Wall_E`, o.x1 - 0.4, o.x1, 0, 3.2, o.z0, o.z1, o.massColor);
+    if (o.face === 'max') {
+      this.roomBox(`${o.id}_Wall_S`, o.x0, o.x1, 0, 3.2, o.z0, o.z0 + 0.2, o.massColor);
+      this.wallRun(`${o.id}_Facade`, 'x', o.z1 - 0.1, o.x0 + 0.4, o.x1 - 0.4, 0, 3.2, 0.2, o.massColor,
+        [...o.windows, { from: o.door.from, to: o.door.to, y1: 2.8 }]);
+    } else {
+      this.roomBox(`${o.id}_Wall_N`, o.x0, o.x1, 0, 3.2, o.z1 - 0.2, o.z1, o.massColor);
+      this.wallRun(`${o.id}_Facade`, 'x', o.z0 + 0.1, o.x0 + 0.4, o.x1 - 0.4, 0, 3.2, 0.2, o.massColor,
+        [...o.windows, { from: o.door.from, to: o.door.to, y1: 2.8 }]);
+    }
+    return duck;
+  }
+
+  /** The W9 strip-room finisher — glass runs + clear panes + the interior
+   *  registration for a carved row's windows (the FRUIT-INT convention:
+   *  glass sits 0.07 inside the wall's room-side face, panes ride 0.55..2.55
+   *  inside the 0.5..2.6 openings, spans inset 0.05). */
+  private finishStripRoom(o: {
+    id: string;                 // the interior handle id ('WINE-INT')
+    shell: { x0: number; x1: number; z0: number; z1: number };
+    face: 'min' | 'max';
+    duck: THREE.Object3D;
+    group: THREE.Group;
+    windows: Array<{ from: number; to: number }>;
+  }): void {
+    const at = o.face === 'max' ? o.shell.z1 + 0.07 : o.shell.z0 - 0.07;
+    const glass: GlassFace[] = [];
+    const nearParts: THREE.Object3D[] = [];
+    for (const w of o.windows) {
+      glass.push({ axis: 'z', side: o.face, at, a0: w.from + 0.05, a1: w.to - 0.05 });
+      const pane = this.facadePane(`${o.id}_Clear_${w.from}`, 'x', at, w.from + 0.05, w.to - 0.05, 0.55, 2.55, this.roomClearMat);
+      nearParts.push(pane);
+    }
+    this.registerInterior({
+      id: o.id, x0: o.shell.x0, x1: o.shell.x1, z0: o.shell.z0, z1: o.shell.z1,
+      glass, group: o.group, nearParts, farParts: [], duck: [o.duck],
+    });
+    for (const p of this.interiorHandles[this.interiorHandles.length - 1].nearParts) this.scene.add(p);
+  }
+
+  /** A strip room's fascia — the wide board over the windows (the W6
+   *  storefront's identity, kept). Faces 'z', long axis x, proud of the
+   *  face plane. (W9 also repairs FRUIT-INT's own fascia, which shipped
+   *  with the x/z dims swapped — a 0.14 m text sliver buried in the wall.) */
+  private stripFascia(name: string, text: string, cx: number, faceZ: number, face: 'min' | 'max',
+    bg: number, fg: number): void {
+    const fascia = this.signBoard(name, text, 5.2, 0.7, 0.14, 5.2 * 72, 0.7 * 72, bg, fg, 44);
+    fascia.position.set(cx, 3.05, face === 'max' ? faceZ + 0.08 : faceZ - 0.08);
+  }
+
+  /** WINE-INT (KTS-04: full-width cavity, x 60.4..67.6, z −63.7..−48.7,
+   *  clear 3.2). The W6 Carrow pair's east shop becomes a real ground
+   *  floor (W9, 2026-11-12): the TERRACE WINE front keeps its deep-red
+   *  identity — the bottle wall on the west skin, the cold case and the
+   *  tasting table mid-room, the barrel stacks against the back wall. */
+  private buildW5Wine(): void {
+    const duck = this.carveStripRow({
+      id: 'KTS04', regId: 'KTS-04', massColor: PAL.brick, h: 18,
+      x0: 60, x1: 68, z0: -63.9, z1: -48.5, face: 'max',
+      door: { from: 61.2, to: 62.4 },
+      windows: [{ from: 62.9, to: 65.3 }, { from: 65.9, to: 67.1 }],
+    });
+    const g = this.roomKit('WINE');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 15.0), this.bank.get(0x6b4636));
+    floor.name = 'Wine_Floor';
+    floor.position.set(64, 0.13, -56.2);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // counter + register (east skin, just inside the door line)
+    this.fixture(g, 'Wine_Counter', 66.85, 0.55, -51.3, 0.7, 1.1, 2.6, 0x4a3a52);
+    this.fixture(g, 'Wine_Register', 66.85, 1.25, -50.6, 0.3, 0.3, 0.4, 0x2b2730);
+    this.colliders.push(boxFromCenter(66.85, 0.55, -51.3, 0.7, 1.1, 2.6));
+    // the bottle wall (west skin) + the cold case behind it
+    this.fixture(g, 'Wine_BottleWall', 60.85, 1.1, -52.8, 0.5, 2.2, 5.2, 0x5a3a2e);
+    this.colliders.push(boxFromCenter(60.85, 1.1, -52.8, 0.5, 2.2, 5.2));
+    this.fixture(g, 'Wine_ColdCase', 60.85, 0.9, -57.6, 0.5, 1.8, 2.2, 0x3b3346);
+    this.colliders.push(boxFromCenter(60.85, 0.9, -57.6, 0.5, 1.8, 2.2));
+    // the tasting table (mid-room, aisle keeps both sides)
+    this.fixture(g, 'Wine_Tasting', 64.2, 0.55, -53.4, 2.2, 1.1, 0.9, 0x6b4636);
+    this.colliders.push(boxFromCenter(64.2, 0.55, -53.4, 2.2, 1.1, 0.9));
+    // the barrel stacks (back wall)
+    this.fixture(g, 'Wine_Barrels', 64, 0.75, -62.8, 4.2, 1.5, 1.2, 0x7a5a3a);
+    this.colliders.push(boxFromCenter(64, 0.75, -62.8, 4.2, 1.5, 1.2));
+    this.stripFascia('Wine_Fascia', 'TERRACE WINE', 64, -48.5, 'max', 0x9e222e, PAL.cream);
+    this.finishStripRoom({
+      id: 'WINE-INT', shell: { x0: 60.4, x1: 67.6, z0: -63.7, z1: -48.7 }, face: 'max',
+      duck, group: g, windows: [{ from: 62.9, to: 65.3 }, { from: 65.9, to: 67.1 }],
+    });
+  }
+
+  /** BOOKS-INT (KTN-08 "WESTGATE BOOKS": x −91.6..−84.4, z 8.2..19.8,
+   *  clear 3.2). The Westgate row's west bookshop — shelf runs down both
+   *  skins, two center islands, the counter by the door and the reading
+   *  table at the back wall. */
+  private buildW5Books(): void {
+    const duck = this.carveStripRow({
+      id: 'KTN08', regId: 'KTN-08', massColor: PAL.bldg, h: 15,
+      x0: -92, x1: -84, z0: 8, z1: 20, face: 'min',
+      door: { from: -88.6, to: -87.4 },
+      windows: [{ from: -91.0, to: -89.2 }, { from: -87.0, to: -85.2 }],
+    });
+    const g = this.roomKit('BOOKS');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 11.6), this.bank.get(0x9a7a54));
+    floor.name = 'Books_Floor';
+    floor.position.set(-88, 0.13, 14);
+    floor.receiveShadow = true;
+    g.add(floor);
+    this.fixture(g, 'Books_Shelf_W', -91.25, 1.1, 13.9, 0.5, 2.2, 9.0, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-91.25, 1.1, 13.9, 0.5, 2.2, 9.0));
+    this.fixture(g, 'Books_Shelf_E', -84.75, 1.1, 13.9, 0.5, 2.2, 9.0, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-84.75, 1.1, 13.9, 0.5, 2.2, 9.0));
+    this.fixture(g, 'Books_Island_A', -88.9, 1.05, 12.2, 2.6, 2.1, 0.45, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-88.9, 1.05, 12.2, 2.6, 2.1, 0.45));
+    this.fixture(g, 'Books_Island_B', -87.1, 1.05, 15.6, 2.6, 2.1, 0.45, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-87.1, 1.05, 15.6, 2.6, 2.1, 0.45));
+    this.fixture(g, 'Books_Counter', -85.6, 0.55, 9.6, 1.6, 1.1, 0.8, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-85.6, 0.55, 9.6, 1.6, 1.1, 0.8));
+    this.fixture(g, 'Books_Table', -88.3, 0.5, 18.6, 1.4, 1.0, 0.9, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-88.3, 0.5, 18.6, 1.4, 1.0, 0.9));
+    this.stripFascia('Books_Fascia', 'WESTGATE BOOKS', -88, 8, 'min', 0x2a5a3a, PAL.cream);
+    this.finishStripRoom({
+      id: 'BOOKS-INT', shell: { x0: -91.6, x1: -84.4, z0: 8.2, z1: 19.8 }, face: 'min',
+      duck, group: g, windows: [{ from: -91.0, to: -89.2 }, { from: -87.0, to: -85.2 }],
+    });
+  }
+
+  /** HARDWARE-INT (KTN-09 "GATE HARDWARE": x −99.6..−92.4, z 8.2..19.8,
+   *  clear 3.2). The west corner hardware store — the tool wall at the
+   *  back, the workbench under it, shelf runs down both skins and the
+   *  paint-drum row by the door. */
+  private buildW5Hardware(): void {
+    const duck = this.carveStripRow({
+      id: 'KTN09', regId: 'KTN-09', massColor: PAL.bldg, h: 16,
+      x0: -100, x1: -92, z0: 8, z1: 20, face: 'min',
+      door: { from: -96.6, to: -95.4 },
+      windows: [{ from: -99.2, to: -97.4 }, { from: -95.0, to: -93.2 }],
+    });
+    const g = this.roomKit('HARDWARE');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 11.6), this.bank.get(0x8a8276));
+    floor.name = 'Hardware_Floor';
+    floor.position.set(-96, 0.13, 14);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // the tool wall (back wall, hung — no collider) + the workbench
+    this.fixture(g, 'Hardware_ToolWall', -96, 1.4, 19.55, 6.0, 2.2, 0.1, 0x6a5a3a);
+    this.fixture(g, 'Hardware_Bench', -96, 0.55, 17.6, 3.2, 1.1, 1.0, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-96, 0.55, 17.6, 3.2, 1.1, 1.0));
+    this.fixture(g, 'Hardware_Shelf_W', -99.15, 1.1, 13.0, 0.5, 2.2, 6.0, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-99.15, 1.1, 13.0, 0.5, 2.2, 6.0));
+    this.fixture(g, 'Hardware_Shelf_E', -92.85, 1.1, 13.0, 0.5, 2.2, 6.0, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-92.85, 1.1, 13.0, 0.5, 2.2, 6.0));
+    this.fixture(g, 'Hardware_Drums', -93.6, 0.55, 9.6, 1.4, 1.1, 1.4, 0x3b3346);
+    this.colliders.push(boxFromCenter(-93.6, 0.55, 9.6, 1.4, 1.1, 1.4));
+    this.fixture(g, 'Hardware_Counter', -95.0, 0.55, 10.0, 1.6, 1.1, 0.8, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-95.0, 0.55, 10.0, 1.6, 1.1, 0.8));
+    this.stripFascia('Hardware_Fascia', 'GATE HARDWARE', -96, 8, 'min', 0xb23a48, PAL.cream);
+    this.finishStripRoom({
+      id: 'HARDWARE-INT', shell: { x0: -99.6, x1: -92.4, z0: 8.2, z1: 19.8 }, face: 'min',
+      duck, group: g, windows: [{ from: -99.2, to: -97.4 }, { from: -95.0, to: -93.2 }],
+    });
+  }
+
+  /** NEWS-INT (KTN-10 "EASTGATE NEWS": x 84.4..91.6, z 8.2..19.8,
+   *  clear 3.2). The east corner newsstand — the magazine wall at the
+   *  back, the counter west of the door, the paper stacks and the center
+   *  rack. */
+  private buildW5NewsEast(): void {
+    const duck = this.carveStripRow({
+      id: 'KTN10', regId: 'KTN-10', massColor: PAL.bldg, h: 15,
+      x0: 84, x1: 92, z0: 8, z1: 20, face: 'min',
+      door: { from: 87.4, to: 88.6 },
+      windows: [{ from: 85.2, to: 87.0 }, { from: 89.0, to: 90.8 }],
+    });
+    const g = this.roomKit('EASTNEWS');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 11.6), this.bank.get(0xc9c2b4));
+    floor.name = 'EastNews_Floor';
+    floor.position.set(88, 0.13, 14);
+    floor.receiveShadow = true;
+    g.add(floor);
+    this.fixture(g, 'EastNews_MagWall', 88, 1.1, 19.5, 5.6, 2.2, 0.35, 0x8e6f66);
+    this.colliders.push(boxFromCenter(88, 1.1, 19.5, 5.6, 2.2, 0.35));
+    this.fixture(g, 'EastNews_Papers', 90.6, 0.55, 10.4, 1.4, 1.1, 1.2, 0xe8e4dc);
+    this.colliders.push(boxFromCenter(90.6, 0.55, 10.4, 1.4, 1.1, 1.2));
+    this.fixture(g, 'EastNews_Counter', 85.8, 0.55, 9.8, 1.8, 1.1, 0.8, 0x4a3a52);
+    this.colliders.push(boxFromCenter(85.8, 0.55, 9.8, 1.8, 1.1, 0.8));
+    this.fixture(g, 'EastNews_Rack', 88.4, 1.05, 13.2, 2.4, 2.1, 0.5, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(88.4, 1.05, 13.2, 2.4, 2.1, 0.5));
+    this.stripFascia('EastNews_Fascia', 'EASTGATE NEWS', 88, 8, 'min', 0xb98a2e, PAL.cream);
+    this.finishStripRoom({
+      id: 'NEWS-INT', shell: { x0: 84.4, x1: 91.6, z0: 8.2, z1: 19.8 }, face: 'min',
+      duck, group: g, windows: [{ from: 85.2, to: 87.0 }, { from: 89.0, to: 90.8 }],
+    });
+  }
+
+  /** VERBENA-INT (KTN-11 "VERBENA BOOKS": x 92.4..99.6, z 8.2..19.8,
+   *  clear 3.2). The east corner bookshop with the herbalist's corner —
+   *  shelf runs down both skins, the planter pair at the back wall, the
+   *  counter by the door. */
+  private buildW5Verbena(): void {
+    const duck = this.carveStripRow({
+      id: 'KTN11', regId: 'KTN-11', massColor: PAL.bldg, h: 16,
+      x0: 92, x1: 100, z0: 8, z1: 20, face: 'min',
+      door: { from: 95.4, to: 96.6 },
+      windows: [{ from: 93.2, to: 95.0 }, { from: 97.0, to: 98.8 }],
+    });
+    const g = this.roomKit('VERBENA');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 11.6), this.bank.get(0x9a7a54));
+    floor.name = 'Verbena_Floor';
+    floor.position.set(96, 0.13, 14);
+    floor.receiveShadow = true;
+    g.add(floor);
+    this.fixture(g, 'Verbena_Shelf_W', 92.85, 1.1, 13.9, 0.5, 2.2, 9.0, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(92.85, 1.1, 13.9, 0.5, 2.2, 9.0));
+    this.fixture(g, 'Verbena_Shelf_E', 99.15, 1.1, 13.9, 0.5, 2.2, 9.0, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(99.15, 1.1, 13.9, 0.5, 2.2, 9.0));
+    this.fixture(g, 'Verbena_Planter_A', 94.0, 0.45, 19.0, 1.2, 0.9, 0.9, 0x4a7a52);
+    this.colliders.push(boxFromCenter(94.0, 0.45, 19.0, 1.2, 0.9, 0.9));
+    this.fixture(g, 'Verbena_Planter_B', 98.0, 0.45, 19.0, 1.2, 0.9, 0.9, 0x4a7a52);
+    this.colliders.push(boxFromCenter(98.0, 0.45, 19.0, 1.2, 0.9, 0.9));
+    this.fixture(g, 'Verbena_Counter', 93.6, 0.55, 10.2, 1.6, 1.1, 0.8, 0x8e6f66);
+    this.colliders.push(boxFromCenter(93.6, 0.55, 10.2, 1.6, 1.1, 0.8));
+    this.stripFascia('Verbena_Fascia', 'VERBENA BOOKS', 96, 8, 'min', 0x2f4858, PAL.cream);
+    this.finishStripRoom({
+      id: 'VERBENA-INT', shell: { x0: 92.4, x1: 99.6, z0: 8.2, z1: 19.8 }, face: 'min',
+      duck, group: g, windows: [{ from: 93.2, to: 95.0 }, { from: 97.0, to: 98.8 }],
+    });
+  }
+
+  /** CORNELIUS-INT (MRW-01 "CORNELIUS & CO.": x −91.6..−84.4,
+   *  z −31.8..−20.2, clear 3.2). Marlow's west general store — the crate
+   *  stacks down the west skin, the shelf run at the back, the counter
+   *  east of the door and the barrel pair at the front corner. */
+  private buildW5Cornelius(): void {
+    const duck = this.carveStripRow({
+      id: 'MRW01', regId: 'MRW-01', massColor: PAL.bldg2, h: 15,
+      x0: -92, x1: -84, z0: -32, z1: -20, face: 'min',
+      door: { from: -88.6, to: -87.4 },
+      windows: [{ from: -91.0, to: -89.2 }, { from: -87.0, to: -85.2 }],
+    });
+    const g = this.roomKit('CORNELIUS');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 11.6), this.bank.get(0xa08a6a));
+    floor.name = 'Cornelius_Floor';
+    floor.position.set(-88, 0.13, -26);
+    floor.receiveShadow = true;
+    g.add(floor);
+    this.fixture(g, 'Cornelius_Crates', -91.1, 0.75, -24.0, 0.9, 1.5, 3.6, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-91.1, 0.75, -24.0, 0.9, 1.5, 3.6));
+    this.fixture(g, 'Cornelius_Shelf', -88, 1.1, -20.85, 5.6, 2.2, 0.5, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-88, 1.1, -20.85, 5.6, 2.2, 0.5));
+    this.fixture(g, 'Cornelius_Counter', -85.4, 0.55, -22.6, 1.8, 1.1, 0.8, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-85.4, 0.55, -22.6, 1.8, 1.1, 0.8));
+    this.fixture(g, 'Cornelius_Barrels', -90.6, 0.7, -29.6, 1.3, 1.4, 1.3, 0x7a5a3a);
+    this.colliders.push(boxFromCenter(-90.6, 0.7, -29.6, 1.3, 1.4, 1.3));
+    this.stripFascia('Cornelius_Fascia', 'CORNELIUS & CO.', -88, -32, 'min', 0x2f4858, PAL.cream);
+    this.finishStripRoom({
+      id: 'CORNELIUS-INT', shell: { x0: -91.6, x1: -84.4, z0: -31.8, z1: -20.2 }, face: 'min',
+      duck, group: g, windows: [{ from: -91.0, to: -89.2 }, { from: -87.0, to: -85.2 }],
+    });
+  }
+
+  /** WESTGATE-INT (MRW-02 "WESTGATE NEWS": x −99.6..−92.4,
+   *  z −31.8..−20.2, clear 3.2). The west corner newsstand — the magazine
+   *  wall at the back, the counter east of the door, the paper stacks and
+   *  the center rack. */
+  private buildW5NewsWest(): void {
+    const duck = this.carveStripRow({
+      id: 'MRW02', regId: 'MRW-02', massColor: PAL.bldg2, h: 17,
+      x0: -100, x1: -92, z0: -32, z1: -20, face: 'min',
+      door: { from: -96.6, to: -95.4 },
+      windows: [{ from: -99.2, to: -97.4 }, { from: -95.0, to: -93.2 }],
+    });
+    const g = this.roomKit('WESTNEWS');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 11.6), this.bank.get(0xc9c2b4));
+    floor.name = 'WestNews_Floor';
+    floor.position.set(-96, 0.13, -26);
+    floor.receiveShadow = true;
+    g.add(floor);
+    this.fixture(g, 'WestNews_MagWall', -96, 1.1, -20.85, 5.6, 2.2, 0.35, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-96, 1.1, -20.85, 5.6, 2.2, 0.35));
+    this.fixture(g, 'WestNews_Counter', -93.4, 0.55, -23.0, 1.8, 1.1, 0.8, 0x4a3a52);
+    this.colliders.push(boxFromCenter(-93.4, 0.55, -23.0, 1.8, 1.1, 0.8));
+    this.fixture(g, 'WestNews_Papers', -98.4, 0.55, -22.2, 1.4, 1.1, 1.2, 0xe8e4dc);
+    this.colliders.push(boxFromCenter(-98.4, 0.55, -22.2, 1.4, 1.1, 1.2));
+    this.fixture(g, 'WestNews_Rack', -96.4, 1.05, -27.4, 2.4, 2.1, 0.5, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-96.4, 1.05, -27.4, 2.4, 2.1, 0.5));
+    this.stripFascia('WestNews_Fascia', 'WESTGATE NEWS', -96, -32, 'min', 0x9e222e, PAL.cream);
+    this.finishStripRoom({
+      id: 'WESTGATE-INT', shell: { x0: -99.6, x1: -92.4, z0: -31.8, z1: -20.2 }, face: 'min',
+      duck, group: g, windows: [{ from: -99.2, to: -97.4 }, { from: -95.0, to: -93.2 }],
+    });
+  }
+
+  /** PROVISIONS-INT (MRW-03 "LARKIN PROVISIONS": x 84.4..91.6,
+   *  z −31.8..−20.2, clear 3.2). The east general store — the counter
+   *  west of the door, the sack-and-barrel row down the east skin, the
+   *  back shelf run and the crate stack by the cold corner. */
+  private buildW5Provisions(): void {
+    const duck = this.carveStripRow({
+      id: 'MRW03', regId: 'MRW-03', massColor: PAL.bldg2, h: 17,
+      x0: 84, x1: 92, z0: -32, z1: -20, face: 'min',
+      door: { from: 87.4, to: 88.6 },
+      windows: [{ from: 85.2, to: 87.0 }, { from: 89.0, to: 90.8 }],
+    });
+    const g = this.roomKit('PROVISIONS');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 11.6), this.bank.get(0xa08a6a));
+    floor.name = 'Provisions_Floor';
+    floor.position.set(88, 0.13, -26);
+    floor.receiveShadow = true;
+    g.add(floor);
+    this.fixture(g, 'Provisions_Counter', 85.6, 0.55, -23.0, 1.8, 1.1, 0.8, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(85.6, 0.55, -23.0, 1.8, 1.1, 0.8));
+    this.fixture(g, 'Provisions_Sacks', 90.7, 0.75, -25.0, 0.9, 1.5, 4.0, 0x8e6f66);
+    this.colliders.push(boxFromCenter(90.7, 0.75, -25.0, 0.9, 1.5, 4.0));
+    this.fixture(g, 'Provisions_Shelf', 88, 1.1, -20.85, 5.6, 2.2, 0.5, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(88, 1.1, -20.85, 5.6, 2.2, 0.5));
+    this.fixture(g, 'Provisions_Crates', 90.4, 0.6, -30.2, 2.0, 1.2, 1.0, 0x8e6f66);
+    this.colliders.push(boxFromCenter(90.4, 0.6, -30.2, 2.0, 1.2, 1.0));
+    this.stripFascia('Provisions_Fascia', 'LARKIN PROVISIONS', 88, -32, 'min', 0xb98a2e, PAL.cream);
+    this.finishStripRoom({
+      id: 'PROVISIONS-INT', shell: { x0: 84.4, x1: 91.6, z0: -31.8, z1: -20.2 }, face: 'min',
+      duck, group: g, windows: [{ from: 85.2, to: 87.0 }, { from: 89.0, to: 90.8 }],
+    });
+  }
+
+  /** CHEESE-INT (MRW-04 "CARROW CHEESE": x 92.4..99.6, z −31.8..−20.2,
+   *  clear 3.2). The east corner cheese shop — the wheel shelf at the
+   *  back, the counter west of the door, the cold case down the east
+   *  skin and the crate at the cold corner. */
+  private buildW5Cheese(): void {
+    const duck = this.carveStripRow({
+      id: 'MRW04', regId: 'MRW-04', massColor: PAL.bldg2, h: 15,
+      x0: 92, x1: 100, z0: -32, z1: -20, face: 'min',
+      door: { from: 95.4, to: 96.6 },
+      windows: [{ from: 93.2, to: 95.0 }, { from: 97.0, to: 98.8 }],
+    });
+    const g = this.roomKit('CHEESE');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 11.6), this.bank.get(0xd8cbb2));
+    floor.name = 'Cheese_Floor';
+    floor.position.set(96, 0.13, -26);
+    floor.receiveShadow = true;
+    g.add(floor);
+    this.fixture(g, 'Cheese_WheelShelf', 96, 1.1, -20.85, 5.6, 2.2, 0.5, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(96, 1.1, -20.85, 5.6, 2.2, 0.5));
+    this.fixture(g, 'Cheese_Counter', 93.6, 0.55, -23.0, 1.8, 1.1, 0.8, 0x4a3a52);
+    this.colliders.push(boxFromCenter(93.6, 0.55, -23.0, 1.8, 1.1, 0.8));
+    this.fixture(g, 'Cheese_ColdCase', 99.15, 0.9, -25.4, 0.5, 1.8, 3.0, 0x3b3346);
+    this.colliders.push(boxFromCenter(99.15, 0.9, -25.4, 0.5, 1.8, 3.0));
+    this.fixture(g, 'Cheese_Crate', 98.2, 0.6, -30.0, 1.4, 1.2, 1.0, 0x8e6f66);
+    this.colliders.push(boxFromCenter(98.2, 0.6, -30.0, 1.4, 1.2, 1.0));
+    this.stripFascia('Cheese_Fascia', 'CARROW CHEESE', 96, -32, 'min', 0x2a5a3a, PAL.cream);
+    this.finishStripRoom({
+      id: 'CHEESE-INT', shell: { x0: 92.4, x1: 99.6, z0: -31.8, z1: -20.2 }, face: 'min',
+      duck, group: g, windows: [{ from: 93.2, to: 95.0 }, { from: 97.0, to: 98.8 }],
+    });
   }
 
   /** FRUIT-INT (TEN-02: full-width cavity, x −67.6..−60.4, z −63.7..−48.7,
@@ -3133,10 +3550,10 @@ export class World {
     this.colliders.push(boxFromCenter(-64, 0.75, -62.9, 4.6, 1.5, 1.1));
 
     // the facade's own sign — the W6 storefront's identity, kept (canvas
-    // materials stay out of the bake by themselves)
-    const fascia = this.signBoard('Fruit_Fascia', 'CARROW FRUITS', 0.14, 0.7, 5.2, 5.2 * 72, 0.7 * 72, 0x2a9d8f, PAL.cream, 44);
-    fascia.position.set(-64, 3.05, -48.52);
-    this.scene.add(fascia);
+    // materials stay out of the bake by themselves). W9: the dims were
+    // shipped swapped (0.14 wide × 5.2 deep — the text planes buried in
+    // the wall); the wide board faces the walk now, via stripFascia.
+    this.stripFascia('Fruit_Fascia', 'CARROW FRUITS', -64, -48.5, 'max', 0x2a9d8f, PAL.cream);
 
     const farParts: THREE.Object3D[] = [];
     this.registerInterior({
@@ -5249,10 +5666,21 @@ export class World {
       }
     }
     this.fenestraBands = new Uint8Array(this.fenestraPlan.length);
+    // aniso 4 — grazing-angle facades are the common street view; three
+    // clamps the value to the device max (WebGLTextures.texParameterf).
     void Promise.all([
-      loadFenestraAtlas('textures/fenestra_rooms.png', 'rooms'),
-      loadFenestraAtlas('textures/fenestra_fronts.png', 'fronts'),
+      loadFenestraAtlas('textures/fenestra_rooms.png', 'rooms', 4),
+      loadFenestraAtlas('textures/fenestra_fronts.png', 'fronts', 4),
     ]).then(([rooms, fronts]) => {
+      // the FEN-GLITCH deep-mip clamp: TEXTURE_MAX_LOD 3 pins sampling
+      // inside the gutters' safe range — set once, right after the upload
+      // (onUpdate fires inside WebGLTextures.uploadTexture; the renderer
+      // handle may land later than this promise — it is read at fire time)
+      for (const t of [rooms, fronts]) {
+        t.onUpdate = () => {
+          if (this.rendererRef) applyAtlasMaxLod(this.rendererRef, t);
+        };
+      }
       for (const m of this.fenestraMats) m.setAtlases(rooms, fronts);
     });
   }
@@ -5565,6 +5993,7 @@ export class World {
   configureGltfDecoders(renderer: THREE.WebGLRenderer): void {
     if (this.furnitureWired) return;
     this.furnitureWired = true;
+    this.rendererRef = renderer;
     // the graphics wave: the sky-PMREM environment builds here (Game hands
     // the renderer over exactly once); the applier rebuilds it on state change
     this.envSky = new EnvSky(renderer);
@@ -7267,11 +7696,12 @@ export class World {
       // the entrance craft — the registry's own row says which
       const ent = row?.entrance?.[0];
       const entX = ent?.x ?? reg.x;
-      if (regId === 'TEN-02') {
-        // W8 (2026-11-12): FRUIT-INT owns this ground floor — the W5
-        // pattern's facade decomposition (buildW5Fruit) retires this mass
-        // and carries the door gap + windows + fascia itself; the W6
-        // storefront deco and stoop would double the front.
+      if (regId === 'TEN-02' || regId === 'KTS-04') {
+        // W8 (2026-11-12): FRUIT-INT owns TEN-02's ground floor; W9
+        // (2026-11-12) gives KTS-04 the same carve (WINE-INT) — the W5
+        // pattern's facade decomposition retires these masses and carries
+        // the door gap + windows + fascia themselves; the W6 storefront
+        // deco and stoops would double the front.
       } else if (style.storefront) {
         // the shopfront faces the walk (north, +z, for the Carrow rows)
         const shop = makeStorefront(this.bank, this.signMaterials.bind(this),
@@ -7383,6 +7813,10 @@ export class World {
     // doors sit on the mass's south face (z − d/2), 'N' doors on its north
     // face (z + d/2). Everything on the street side hangs at
     // faceZ + faceSign * dist — the W6 terrace builder's law, generalized.
+    // W9 (2026-11-12): the eight shopfront rows carve into W5 rooms —
+    // their storefront/stoop deco retires with the mass (the rooms' own
+    // facades carry the front).
+    const CARVED_STRIP_ROWS = new Set(['KTN-08', 'KTN-09', 'KTN-10', 'KTN-11', 'MRW-01', 'MRW-02', 'MRW-03', 'MRW-04']);
     interface GateStyle { mass: number; door: number; shop?: string; awning?: number; tallStoop?: boolean }
     const gateRows: Array<[string, GateStyle]> = [
       // the Larkin terrace band — west then east (high stoops face S)
@@ -7437,23 +7871,27 @@ export class World {
             this.bank.get(PAL.windowDim), wx, wy, faceZ + faceSign * 0.05);
         }
       }
-      // the entrance craft — the registry's own row says which
+      // the entrance craft — the registry's own row says which. The
+      // carved rows' fronts are the rooms' own facades (door gap + windows
+      // + fascia, buildW5Books et al) — NO storefront, NO stoop.
       const entX = ent?.x ?? reg.x;
-      if (style.shop) {
-        const shop = makeStorefront(this.bank, this.signMaterials.bind(this),
-          style.shop, style.awning ?? NEIGH.awningGreen, reg.w - 1);
-        shop.position.set(reg.x, 0.05, faceZ + faceSign * 0.04);
-        if (faceSign < 0) shop.rotation.y = Math.PI;
-        this.scene.add(shop);
-        const door = makeBrownstoneStoop(this.bank, style.door, false);
-        door.position.set(entX, 0, faceZ + faceSign * 0.6);
-        if (faceSign < 0) door.rotation.y = Math.PI;
-        this.scene.add(door);
-      } else {
-        const stoop = makeBrownstoneStoop(this.bank, style.door, style.tallStoop ?? false);
-        stoop.position.set(entX, 0, faceZ + faceSign * 0.6);
-        if (faceSign < 0) stoop.rotation.y = Math.PI;
-        this.scene.add(stoop);
+      if (!CARVED_STRIP_ROWS.has(regId)) {
+        if (style.shop) {
+          const shop = makeStorefront(this.bank, this.signMaterials.bind(this),
+            style.shop, style.awning ?? NEIGH.awningGreen, reg.w - 1);
+          shop.position.set(reg.x, 0.05, faceZ + faceSign * 0.04);
+          if (faceSign < 0) shop.rotation.y = Math.PI;
+          this.scene.add(shop);
+          const door = makeBrownstoneStoop(this.bank, style.door, false);
+          door.position.set(entX, 0, faceZ + faceSign * 0.6);
+          if (faceSign < 0) door.rotation.y = Math.PI;
+          this.scene.add(door);
+        } else {
+          const stoop = makeBrownstoneStoop(this.bank, style.door, style.tallStoop ?? false);
+          stoop.position.set(entX, 0, faceZ + faceSign * 0.6);
+          if (faceSign < 0) stoop.rotation.y = Math.PI;
+          this.scene.add(stoop);
+        }
       }
     }
 

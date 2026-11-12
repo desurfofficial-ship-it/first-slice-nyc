@@ -37,7 +37,8 @@ import { FEN_SEEDS, type WindowFamily, type OccupancyParams, OCCUPANCY,
 
 /** The public hash/atlas/room-box core — adapted from three-fenestra's
  *  glslCore (MIT, © 2026 Edgar Perez; technique after J. van Dongen 2008).
- *  Differences: `imAtlasUVRange` adds the family-range pick; everything
+ *  Differences: the pick is split into `imCellOrigin` (per-window, computed
+ *  in the VERTEX stage — see the FEN-GLITCH note on vertexBody); everything
  *  else keeps the reference's math and its seed contract bit-for-bit. */
 export const glslFenCore = /* glsl */ `
   float imHash(vec3 p, float seed) {
@@ -46,9 +47,9 @@ export const glslFenCore = /* glsl */ `
     return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
   }
 
+  // the picked cell's origin (atlas UV space), inset included — the
   // range pick: cells [range.x, range.y) of the atlas — the family's half
-  vec2 imAtlasUVRange(vec2 cellUV, vec3 windowId, float cols, float rows,
-                      float seed, vec2 range) {
+  vec2 imCellOrigin(vec3 windowId, float seed, float cols, float rows, vec2 range) {
     float h    = imHash(windowId, seed);
     float span = max(range.y - range.x, 1.0);
     float idx  = floor(range.x + h * span);
@@ -57,8 +58,7 @@ export const glslFenCore = /* glsl */ `
     float row = floor(idx / cols);
     vec2 cellSize   = vec2(1.0 / cols, 1.0 / rows);
     vec2 inset      = cellSize * 0.001;
-    vec2 cellOrigin = vec2(col * cellSize.x, 1.0 - (row + 1.0) * cellSize.y) + inset;
-    return cellOrigin + clamp(cellUV, 0.0, 1.0) * (cellSize - 2.0 * inset);
+    return vec2(col * cellSize.x, 1.0 - (row + 1.0) * cellSize.y) + inset;
   }
 
   // the room-box ray exit, re-projected onto the window plane (the view
@@ -81,33 +81,69 @@ export const glslFenCore = /* glsl */ `
 const vertexCommon = /* glsl */ `
   varying vec2 vFenLocalXY;
   varying vec3 vFenCamLocal;
-  varying vec3 vFenId;
   varying float vFenLod;
   varying float vFenGlass;
+  // the FEN-GLITCH varyings: every per-window hash/pick result, computed
+  // HERE in the vertex stage on exact-constant attribute inputs. The
+  // fragment used to re-run imHash per pixel on the interpolated id —
+  // and a perspective-correct interpolation of even a CONSTANT varying
+  // wobbles ±1e-7 in fp32, which imHash's ~250k product amplifies into
+  // full [0,1) jumps — the cell pick scrambled per pixel and the windows
+  // rendered as colored static on every GPU (register v1.59.0).
+  varying vec4 vFenHash;       // lit / tone / bright / onset
+  varying vec2 vFenRoomOrigin; // the picked room cell's atlas origin
+  varying vec2 vFenFrontOrigin; // the picked front cell's atlas origin
+  varying float vFenGrime;
   // the per-window identity/band attributes (the reference v0.3.0 schema;
   // instanceGlass is this system's glass-cue weight)
   attribute vec3 instanceWindowId;
   attribute float instanceLod;
   attribute float instanceGlass;
+  // the atlas shape — shared with the fragment stage (same-name uniforms)
+  uniform float uFenCols;
+  uniform float uFenRows;
+  uniform vec2  uFenRange;
+  uniform float uFenFrontCols;
+  uniform float uFenFrontRows;
 `;
 
 const vertexBody = /* glsl */ `
   // per-instance plane size (the shared unit plane is scaled per window)
   vec2 _fenPS = vec2(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz));
   vFenLocalXY = position.xy / _fenPS;
-  vFenId = instanceWindowId;
   vFenLod = instanceLod;
   vFenGlass = instanceGlass;
   vec3 _fenCamLocal = (inverse(modelMatrix * instanceMatrix) * vec4(cameraPosition, 1.0)).xyz;
   vFenCamLocal = vec3(_fenCamLocal.xy / _fenPS, _fenCamLocal.z / max(_fenPS.x, _fenPS.y));
+  // the window's stable identity: the occupancy hashes (the TS oracle
+  // fenestraCore.windowLightOf mirrors these seeds), the grime weight, and
+  // the two atlas cell picks — all computed ONCE per vertex, never per pixel
+  vFenHash = vec4(imHash(instanceWindowId, ${FEN_SEEDS.lit.toFixed(2)}),
+    imHash(instanceWindowId, ${FEN_SEEDS.tone.toFixed(2)}),
+    imHash(instanceWindowId, ${FEN_SEEDS.bright.toFixed(2)}),
+    imHash(instanceWindowId, ${FEN_SEEDS.onset.toFixed(2)}));
+  vFenGrime = imHash(instanceWindowId, ${FEN_SEEDS.grime.toFixed(2)});
+  vFenRoomOrigin = imCellOrigin(instanceWindowId, ${FEN_SEEDS.cell.toFixed(2)},
+    uFenCols, uFenRows, uFenRange);
+  vFenFrontOrigin = imCellOrigin(instanceWindowId, ${FEN_SEEDS.front.toFixed(2)},
+    uFenFrontCols, uFenFrontRows, vec2(0.0, 16.0));
 `;
+
+/** The vertex chunk the seed-contract test pins (the TS↔GLSL mirror's
+ *  seeds live here since the FEN-GLITCH repair). */
+export const glslFenVertex = vertexCommon + vertexBody;
 
 const fragmentCommon = /* glsl */ `
   varying vec2 vFenLocalXY;
   varying vec3 vFenCamLocal;
-  varying vec3 vFenId;
   varying float vFenLod;
   varying float vFenGlass;
+  // the FEN-GLITCH varyings (vertex-computed, stable per window — see
+  // vertexCommon for the mechanism note)
+  varying vec4 vFenHash;        // lit / tone / bright / onset
+  varying vec2 vFenRoomOrigin;  // the picked room cell's atlas origin
+  varying vec2 vFenFrontOrigin; // the picked front cell's atlas origin
+  varying float vFenGrime;
 
   uniform sampler2D uFenRooms;
   uniform float uFenCols;
@@ -137,27 +173,24 @@ const fragmentCommon = /* glsl */ `
   uniform vec3  uFenFresnelColor;
 
   // the occupancy law — TS oracle: fenestraCore.windowLightOf (same seeds,
-  // same math; the test suite pins the two together)
-  vec3 _fenLightK(vec3 id) {
-    float hLit    = imHash(id, ${FEN_SEEDS.lit});
-    float hTone   = imHash(id, ${FEN_SEEDS.tone});
-    float hBright = imHash(id, ${FEN_SEEDS.bright});
-    float hOnset  = imHash(id, ${FEN_SEEDS.onset});
-    float onset = uFenOnsetStart + hOnset * uFenOnsetSpan;
+  // same math; the seeds ride the vertex-computed vFenHash since the
+  // FEN-GLITCH repair — the test suite pins the two together)
+  vec3 _fenLightK(vec4 h) {
+    float onset = uFenOnsetStart + h.w * uFenOnsetSpan;
     float eveningK = clamp((uFenNightK - onset) / 0.07, 0.0, 1.0);
-    float nightLit = hLit < uFenNightLit
+    float nightLit = h.x < uFenNightLit
       ? eveningK * eveningK * (3.0 - 2.0 * eveningK) : 0.0;
-    float dayLit = hLit < uFenDayLit ? 1.0 : 0.0;
+    float dayLit = h.x < uFenDayLit ? 1.0 : 0.0;
     float lit = max(dayLit, nightLit);
     float dim = mix(uFenDimDay, uFenDimNight, clamp(uFenNightK * 1.25, 0.0, 1.0));
-    vec3 tone = mix(uFenWarm, uFenCool, step(1.0 - uFenCoolChance, hTone));
-    vec3 litRoom = tone * ((0.62 + 0.38 * hBright) * uFenBoost);
+    vec3 tone = mix(uFenWarm, uFenCool, step(1.0 - uFenCoolChance, h.y));
+    vec3 litRoom = tone * ((0.62 + 0.38 * h.z) * uFenBoost);
     return mix(vec3(dim), litRoom, lit);
   }
 
   vec2 _fenFrontUVAt(vec2 localXY) {
-    return imAtlasUVRange(localXY + 0.5, vFenId, uFenFrontCols, uFenFrontRows,
-      ${FEN_SEEDS.front.toFixed(1)}, vec2(0.0, 16.0));
+    vec2 cellSize = vec2(1.0 / uFenFrontCols, 1.0 / uFenFrontRows);
+    return vFenFrontOrigin + clamp(localXY + 0.5, 0.0, 1.0) * (cellSize - cellSize * 0.002);
   }
 `;
 
@@ -168,13 +201,27 @@ export const glslFenFragment = fragmentCommon;
 /** Replaces <map_fragment>: computes the interior color + light state,
  *  samples the front overlay, drives diffuseColor. Stashes the lit-room
  *  color for the emissive injection (the reference's own pattern). */
-const fragmentMapReplacement = /* glsl */ `
-  // the room this window opens into (ray-marched, LOD-collapsible)
+export const glslFenMap = /* glsl */ `
+  // the room this window opens into (ray-marched, LOD-collapsible); the
+  // atlas pick rides the vertex-computed vFenRoomOrigin (stable per window)
   vec2 _fenCell = imRoomBoxUV(vFenCamLocal, vFenLocalXY, uFenDepth, uFenBackScale);
   _fenCell = mix(vFenLocalXY + 0.5, _fenCell, vFenLod);
-  vec2 _fenUV = imAtlasUVRange(_fenCell, vFenId, uFenCols, uFenRows,
-    ${FEN_SEEDS.cell.toFixed(1)}, uFenRange);
-  vec3 _fenInterior = texture2D(uFenRooms, _fenUV).rgb;
+  vec2 _fenRoomCell = vec2(1.0 / uFenCols, 1.0 / uFenRows);
+  vec2 _fenUV = vFenRoomOrigin + clamp(_fenCell, 0.0, 1.0) * (_fenRoomCell - _fenRoomCell * 0.002);
+  // THE FEN-GLITCH FIX (register v1.59.0): the room UV is smooth in VALUE,
+  // but its screen-space derivative blows up on grazing room walls (every
+  // street-level oblique view). An implicit-derivative fetch samples the
+  // mip the derivative demands — deep levels where the atlas's 8 px cell
+  // gutters are exhausted — and the NEIGHBOR rooms' average colors bleed
+  // into the fetch: per-pixel colored static, on the field phone and on
+  // the rig alike. The fetch is EXPLICIT here instead, at the window
+  // PLANE's own footprint (fwidth of the plane's local coords — smooth by
+  // construction), scaled by the box projection's near-wall magnification
+  // (1/backScale) and capped at the gutter-safe depth: the room reads
+  // soft-but-own-colored at every distance, on every GPU, and the plane's
+  // crisp level-0 read survives for the hero close view.
+  float _fenLod = clamp(log2(256.0 * fwidth(vFenLocalXY.x) * 1.5), 0.0, 3.0);
+  vec3 _fenInterior = textureLod(uFenRooms, _fenUV, _fenLod).rgb;
   // the pane sits between the room and the street: glass tints what is
   // behind it (a real window never shows the room at full strength),
   // relaxing toward clear as night falls and the lamps take over
@@ -183,7 +230,7 @@ const fragmentMapReplacement = /* glsl */ `
   // it transmits darkens exactly where its projected sliver would alias
   float _fenNdotV = clamp(normalize(vFenCamLocal - vec3(vFenLocalXY, 0.0)).z, 0.0, 1.0);
   _fenInterior *= mix(1.0, 0.5, pow(1.0 - _fenNdotV, 3.0));
-  vec3 _fenLitRoom = _fenInterior * _fenLightK(vFenId);
+  vec3 _fenLitRoom = _fenInterior * _fenLightK(vFenHash);
 
   // the front layer (curtains / blinds / AC / tints), alpha-driven
   vec4 _fenFront = texture2D(uFenFronts, _fenFrontUVAt(vFenLocalXY));
@@ -205,10 +252,10 @@ const fragmentEmissiveReplacement = /* glsl */ `
   totalEmissiveRadiance += _fenInteriorEmissive;
 
   // the pane: Schlick fresnel sheen, gated by the per-window glass weight
-  // (LOD band) and modulated by a per-window grime hash (seed 11.31) so
-  // panes do not all sheen alike — zero extra texture fetches (_fenNdotV
-  // was computed in the map stage above)
-  float _fenGrime = 0.7 + 0.6 * imHash(vFenId, ${FEN_SEEDS.grime});
+  // (LOD band) and modulated by the per-window grime hash (seed 11.31 —
+  // vertex-computed, stable per window) so panes do not all sheen alike —
+  // zero extra texture fetches (_fenNdotV was computed in the map stage)
+  float _fenGrime = 0.7 + 0.6 * vFenGrime;
   float _fenF = pow(1.0 - _fenNdotV, 5.0) * vFenGlass * vFenLod;
   totalEmissiveRadiance += uFenFresnelColor * (uFenFresnel * _fenGrime) * _fenF
     * (1.0 - _fenA);
@@ -267,21 +314,67 @@ function fallbackFrontsTexture(): THREE.Texture {
 
 const cache = new Map<string, THREE.Texture>();
 
-function configureAtlas(t: THREE.Texture, anisotropy: number): void {
+/** The atlas sampling law — the FEN-GLITCH class guard. Exported so the
+ *  test suite can pin the behavior on a real texture (mips can never
+ *  silently go off again — the field defect's exact class). */
+export function configureAtlas(t: THREE.Texture, anisotropy: number): void {
   t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
-  // NO mipmaps — a deliberate, verified tradeoff (docs/production/fenestra
-  // §limitations): the sandbox verification rig sampled every mip path
-  // (hardware generateMipmap AND a per-cell hand-built chain) into 2-4 px
-  // facade speckle, while level-0 sampling is clean at every probe rig.
-  // The distance story is covered by the LOD bands: past 44 m (medium) the
-  // windows ride the flat impostor at fog-muted sizes, where the shipped
-  // skyline panes prove flat reads hold. Revisit with a real-GPU pass.
-  t.minFilter = THREE.LinearFilter;
+  // MIPMAPS ON — the FEN-GLITCH repair (register v1.59.0): the wave shipped
+  // level-0-only sampling ("every mip path speckled on the rig; level-0
+  // verified clean") and that verification was wrong — the wave's own
+  // day-street evidence shot and the field report (mobile, tier low) both
+  // show the atlases aliasing into per-pixel RGB static under minification:
+  // a 256-texel room cell landing in ~90 render pixels picks effectively
+  // random texels per pixel with a linear filter and no mip chain. The
+  // gutters the atlas ships (8 px edge extension per cell, tools3d/
+  // fenestra_atlas.py `with_gutter`) make the hardware chain safe through
+  // the levels where minification actually happens (a ≤15 px window reads
+  // mip ≤3), and deeper levels average cells into their own tone — the
+  // flat-impostor read the LOD law already ships. Anisotropy keeps the
+  // grazing-angle facades (the common street view) on their best mip;
+  // three clamps it to the device max (WebGLTextures.texParameterf).
+  t.minFilter = THREE.LinearMipmapLinearFilter;
   t.magFilter = THREE.LinearFilter;
-  t.generateMipmaps = false;
+  t.generateMipmaps = true;
   t.anisotropy = Math.max(1, anisotropy);
   t.needsUpdate = true;
+}
+
+/**
+ * The gutter-safe sampling depth (the FEN-GLITCH repair, part 2): the
+ * atlases pad every cell with an 8 px edge extension (tools3d/
+ * fenestra_atlas.py `with_gutter`), so hardware mip levels 0-3 hold the
+ * cell's OWN texels — level 4 (16 px averages) starts blending the
+ * neighbor rooms. TEXTURE_MAX_LOD pins the sampler inside that safe range.
+ * Without it, a grazing-angle room wall (every street-level oblique view)
+ * has a UV footprint that exceeds the whole cell, and the unclamped chain
+ * answers with the NEIGHBORS' average colors: the colored static the field
+ * report caught on mobile. Applied once per atlas, on upload —
+ * WebGLTextures fires `texture.onUpdate` right after `generateMipmap`.
+ */
+export const FEN_MAX_LOD = 3.0;
+
+export function applyAtlasMaxLod(
+  renderer: THREE.WebGLRenderer, tex: THREE.Texture,
+): void {
+  try {
+    const props = renderer.properties.get(tex) as { __webglTexture?: WebGLTexture } | undefined;
+    const glTex = props?.__webglTexture;
+    if (!glTex) return; // not uploaded yet — onUpdate retries after the upload
+    const gl = renderer.getContext() as WebGL2RenderingContext;
+    // the bind goes through three's OWN state-aware path (WebGLState keeps
+    // a per-slot cache — a raw gl.bindTexture here would desync it and the
+    // next draw would sample the wrong texture, the exact bug the first
+    // cut of this clamp shipped for one build); the last unit is the slot
+    // three itself uses for one-off binds, and every sampler rebinds at
+    // draw time, so leaving the atlas parked there is the house convention
+    const slot = gl.TEXTURE0 + renderer.capabilities.maxTextures - 1;
+    renderer.state.bindTexture(gl.TEXTURE_2D, glTex, slot);
+    gl.texParameterf(gl.TEXTURE_2D, 0x813b /* TEXTURE_MAX_LOD */, FEN_MAX_LOD);
+  } catch {
+    // a clamp that cannot apply is the pre-fix state — never break the frame
+  }
 }
 
 /**
@@ -358,12 +451,15 @@ export class FenestraMaterial extends THREE.MeshLambertMaterial {
 
   override onBeforeCompile = (shader: THREE.WebGLProgramParametersWithUniforms): void => {
     Object.assign(shader.uniforms, this.uniforms);
+    // the FEN-GLITCH repair: glslFenCore rides BOTH stages — the vertex
+    // computes the per-window hashes/picks (stable constants there); the
+    // fragment only consumes the varyings (see vertexCommon's note)
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', `#include <common>\n${vertexCommon}`)
+      .replace('#include <common>', `#include <common>\n${glslFenCore}\n${vertexCommon}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>\n${vertexBody}`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${glslFenCore}\n${fragmentCommon}`)
-      .replace('#include <map_fragment>', fragmentMapReplacement)
+      .replace('#include <map_fragment>', glslFenMap)
       .replace('#include <emissivemap_fragment>', fragmentEmissiveReplacement);
   };
 }
