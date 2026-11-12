@@ -3561,3 +3561,23 @@ Work Log:
 
 Stage Summary:
 - The subway reads as the cutaway diorama it was designed to be: the dollhouse owns its roof again (the bake can never silently swallow a shell-collected mesh without the probe's name check failing), and the underground boom has its own framing law with the aboard exception pinned. The entering-and-entered report is fixed at both layers — world and camera — each with a guard that fails loudly if the class of mistake returns.
+
+## 2026-11-12 — Z Agent: the fenestra windows — three-fenestra's interior mapping becomes FIRST SLICE's block (register v1.50.0)
+
+Task ID: fenestra-integration (the FIRST SLICE mission brief: study three-fenestra, audit the existing building pipeline, integrate interior-mapped windows at production quality, verify in-engine, push to main)
+Agent: Z Agent (Z.ai)
+Task: make the block's buildings read as occupied New York — real interiors behind the windows, lit by the in-game clock — without replacing any shipped system.
+
+Work Log:
+- Studied the reference at source (not the README): `src/InteriorMappingMaterial.ts` + `src/shader/chunks.ts` + the instanced example — the ray-march core, the seed contract (lit 3.71 / tone 9.27 / bright 5.43 / atlas 0.0 / front 7.13), the instanced-attribute schema, the LOD impostor equivalence; verified the LICENSE (MIT, © 2026 Edgar Pérez) and that the starter atlases live inside the package (none ship here — originals generated instead). Findings recorded in docs/57 §3.8.
+- Audited the shipped pipeline first: the proud-window rows (census of every `decoMesh` thin-box window across W1–W6, the VQ pass, the SI pass), `bakeStatics`' skip/merge laws, the night-emissive registry + `nightK`, the quality-tier URL surface, the story windows' Game ownership, the W5 real-glass law. The integration is a COLLECTOR of the shipped rows, not a second builder.
+- Built `fenestraCore.ts` (pure): the hash/cell oracles, the occupancy law (per-window onset hashes across dusk — the tide, never synchronized, deterministic per day), family classification from the registry ids, the collector (name+size grammar → registry shell match → outward normal → proud plane 0.062), the LOD band law with ±3 m hysteresis.
+- Built `fenestraMaterial.ts`: the GLSL core adapted with the seed contract verbatim, injected into MeshLambertMaterial (map_fragment → interior + front compositing; emissivemap_fragment → interior emissive + Schlick sheen + day sky tint); per-instance scale on one shared unit plane; the atlas loader with the seam-law fallback.
+- Generated the original atlases (`tools3d/fenestra_atlas.py`): 32 one-point-perspective rooms in the Doc 04 palette (projection matched to the shader's math — back wall = the center 0.66), 16 front cells (curtains, blinds, the AC unit, night tint, grime), 8 px edge-extension gutters, deterministic seeds.
+- Wired World + Game: collect pre-bake → build post-bake; `uFenNightK` in `applyTargetDayState`; the 4 Hz band pass in `updateDynamics`; tier wiring through `applyGfxTier`; `?fenestra=0`.
+- Debugged the render defects the probes caught, in order: the missing instanced-attribute declarations + an int-literal seed (shader compile), a GLSL constructor arity bug in the temp debug branch, the atlas mip paths (hardware AND a hand-built per-cell chain) sampling into facade speckle on the rig → shipped LinearFilter + gutters with the limitation recorded, and the glancing-angle sliver → Schlick grazing darkening (the physical cue that is also the fix).
+- Verified in-engine: `probe-fenestra.mjs` 22 checks ALL PASS with evidence shots at three times of day × three ranges + the A/B before-frame; the perf A/B (+9.6 ms avg on swiftshader, +2 draws, +542 tris); the full gates (tsc clean, vitest 1,562/1,562 across 96 files, build OK); the 4-day E2E's `grabbed ladder 2` failure proven pre-existing on the unmodified tree via stash (slow-box timing — recorded, not hidden).
+- Docs: `docs/production/fenestra/01-FENESTRA-INTEGRATION.md` (analysis, audit, architecture, assets, verification, limitations), THIRD-PARTY-NOTICES.md + the three-fenestra MIT notice, docs/57 §3.8, register row v1.50.0.
+
+Stage Summary:
+- 271 windows on 30 buildings now open into deterministic, family-appropriate, palette-true rooms; the district lights up through dusk window by window on the sim clock; +2 draw calls and no new colliders; the story windows, the W5 real rooms, the bake and every gameplay system untouched; `?fenestra=0` returns the shipped look bit-for-bit for A/B. The guards that keep it honest: 30 unit laws + a 22-check in-engine probe.

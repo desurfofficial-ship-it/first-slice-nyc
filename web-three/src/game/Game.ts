@@ -324,6 +324,11 @@ export class Game {
       const [hh, mm] = tod.split(':').map((v) => Number.parseInt(v, 10) || 0);
       this.todOverride = ((hh * 60 + (mm || 0)) % 1440 + 1440) % 1440;
     }
+    // the fenestra windows (docs/production/fenestra): the quality tier sets
+    // the LOD band distances; ?fenestra=0 is the A/B affordance — the world
+    // returns to the shipped dim-box look, everything else untouched.
+    this.world.setFenestraTier(this.gfx.tier);
+    if (params.get('fenestra') === '0') this.world.setFenestraEnabled(false);
 
     // ABO furniture (docs/57): the KTX2/meshopt decoders need the renderer
     // for the transcoder's format probe — wired here, once, and the
@@ -3355,6 +3360,7 @@ export class Game {
       this.pipeline = null;
     }
     Object.assign(this.gfx, next); // tier + flags + cap, one live shape
+    this.world.setFenestraTier(tier); // the windows' LOD bands follow the tier
   }
 
   /** The dusk flag, for the scenario/probe harnesses (the sim's D-2 flip

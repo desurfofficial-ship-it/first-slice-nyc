@@ -58,6 +58,14 @@ import { buildTimesSquare, type TimesSquare } from './timesSquare';
 import { buildArrivalBus, BUS04_RECT, playerOccupiesBus04, type ArrivalBus } from './arrivalBus';
 import { buildCityFabric } from './cityFabric';
 import { groundMaterial, metricBoxUVs } from './groundTex';
+// the fenestra windows (docs/production/fenestra/): interior-mapping after
+// J. van Dongen 2008, adapted from codedgar/three-fenestra (MIT) — the
+// technique study lives in docs/57 §3.8. Core = the pure laws + collector;
+// Material = the Lambert injections + instanced mesh builder.
+import { collectWindowPlan, FEN_BANDS_BY_TIER, fenBandOf, bandValues,
+  type FenestraInstance } from './fenestraCore';
+import { FenestraMaterial, fenestraMeshFromPlan, loadFenestraAtlas,
+  type FenestraMesh } from './fenestraMaterial';
 import { EnvSky } from '../render/envsky';
 import { sampleDayCycle, keyframeState, freshDayState, CANON_MINUTES, type DayState, type DayPin } from '../render/daycycle';
 import { buildNeighborhoodFabric } from './neighborhoodFabric';
@@ -237,6 +245,20 @@ export class World {
   readonly ambientWindowMatRiser!: THREE.MeshLambertMaterial;  // the early riser, Day 4
   readonly skylineWinMat!: THREE.MeshLambertMaterial;          // the far city, always on at dusk
   readonly skylineWinDiaryMat!: THREE.MeshLambertMaterial;     // two windows across the avenue, day-keyed
+
+  // ---- fenestra: the interior-mapping windows (docs/production/fenestra) --
+  // The plan collects BEFORE the bake (the named proud-window rows must
+  // exist); the planes build AFTER it (instanced draws own themselves, but
+  // the collector needs the source boxes alive). Two instanced meshes —
+  // one per family — ride the whole block (the shipped skyline-pane
+  // precedent: frustumCulled false, depth-tested, fogged).
+  private fenestraPlan: FenestraInstance[] = [];
+  private fenestraMeshes: FenestraMesh[] = [];
+  private fenestraMats: FenestraMaterial[] = [];
+  private fenestraBands: Uint8Array = new Uint8Array(0);
+  private fenestraBandDist: { full: number; far: number } = FEN_BANDS_BY_TIER.high;
+  private fenestraEnabled = true;
+  private fenestraBandTimer = 0;
   /** The half-court ball (docs/38): rests by the key, flies when shot.
    *  Excluded from the static bake — it moves. (Assigned by buildCourt.) */
   ball!: THREE.Mesh;
@@ -1970,7 +1992,20 @@ export class World {
     // leaf drift, now over every tree on the block (shipped 12 + W1 rows)
     this.leaves = new LeafDrift(this.scene, [...leafSpots, ...this.extraLeafSpots], 4);
 
+    // the fenestra plan: every proud window the builders shipped, matched
+    // to its registry shell (the no-invention law) — collected BEFORE the
+    // bake so the named source meshes are alive
+    this.fenestraPlan = collectWindowPlan({
+      scene: this.scene,
+      regShell: (id) => this.regShell(id),
+      buildings: loadRegistry().allBuildings(),
+    });
+
     this.bakeStatics();
+
+    // the planes build after the bake (an InstancedMesh is its own draw;
+    // the bake never touches it — the skyline-pane law)
+    this.buildFenestra();
 
     // instanced canopies for the new tree rows go up AFTER the bake — an
     // InstancedMesh is a Mesh, and the bake must never swallow it
@@ -4937,6 +4972,9 @@ export class World {
     for (const e of this.nightEmissives) {
       e.mat.emissiveIntensity = e.base + (e.night - e.base) * cur.nightK;
     }
+    // the fenestra windows ride the same clock: one uniform write per
+    // family material — per-window onsets live in the shader's hashes
+    for (const m of this.fenestraMats) m.setNightK(cur.nightK);
     this.timesSquare.setNightBoost(cur.nightK);
     // the sky-PMREM environment — rebuilt only when the target changed and
     // the lerp has settled (a few rebuilds per in-game day, never per frame)
@@ -4972,6 +5010,96 @@ export class World {
       const o = this.scene.getObjectByName(name);
       if (o) list.push(o);
     }
+  }
+
+  // ------------------------------------------------------------------ fenestra
+  // The interior-mapping windows (docs/production/fenestra/). Build once;
+  // per-frame work is one uniform write per family (the clock) + a throttled
+  // distance-band pass (hot path cold, AGENTS §1c.3).
+
+  /** Build the two family instanced meshes + load the atlases (the seam
+   *  law: a missing file degrades to the dim-room fallback, never breaks). */
+  private buildFenestra(): void {
+    for (const family of ['residential', 'commercial'] as const) {
+      const mat = new FenestraMaterial({ family });
+      this.fenestraMats.push(mat);
+      const fm = fenestraMeshFromPlan(this.fenestraPlan, family, mat);
+      if (fm) {
+        this.fenestraMeshes.push(fm);
+        this.scene.add(fm.mesh);
+      }
+    }
+    this.fenestraBands = new Uint8Array(this.fenestraPlan.length);
+    void Promise.all([
+      loadFenestraAtlas('textures/fenestra_rooms.png', 'rooms'),
+      loadFenestraAtlas('textures/fenestra_fronts.png', 'fronts'),
+    ]).then(([rooms, fronts]) => {
+      for (const m of this.fenestraMats) m.setAtlases(rooms, fronts);
+    });
+  }
+
+  /** The distance-band pass (throttled 4 Hz): each window's LOD attribute
+ *  demotes with hysteresis — FULL near, MID (glass off), FLAT (the
+ *  impostor) far. Writes only changed instances. */
+  private updateFenestraBands(dt: number, px: number, py: number, pz: number): void {
+    if (!this.fenestraEnabled || this.fenestraMeshes.length === 0) return;
+    this.fenestraBandTimer += dt;
+    if (this.fenestraBandTimer < 0.25) return;
+    this.fenestraBandTimer = 0;
+    const { full, far } = this.fenestraBandDist;
+    for (const fm of this.fenestraMeshes) {
+      let lodDirty = false;
+      let glassDirty = false;
+      for (let i = 0; i < fm.planIdx.length; i++) {
+        const inst = this.fenestraPlan[fm.planIdx[i]];
+        const dx = inst.x - px, dy = inst.y - py, dz = inst.z - pz;
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const band = fenBandOf(d, full, far, this.fenestraBands[fm.planIdx[i]] as 0 | 1 | 2);
+        if (band !== this.fenestraBands[fm.planIdx[i]]) {
+          this.fenestraBands[fm.planIdx[i]] = band;
+          const v = bandValues(band);
+          if (fm.lodArray[i] !== v.lod) { fm.lodArray[i] = v.lod; lodDirty = true; }
+          if (fm.glassArray[i] !== v.glass) { fm.glassArray[i] = v.glass; glassDirty = true; }
+        }
+      }
+      if (lodDirty) fm.lod.needsUpdate = true;
+      if (glassDirty) fm.glass.needsUpdate = true;
+    }
+  }
+
+  /** The quality tier's band distances (Game.applyGfxTier wires it; low
+   *  hardware flattens sooner — the mission's distance ladder). */
+  setFenestraTier(tier: string): void {
+    this.fenestraBandDist = FEN_BANDS_BY_TIER[tier] ?? FEN_BANDS_BY_TIER.high;
+  }
+
+  /** The ?fenestra=0 affordance (and the probe's A/B seam): the planes
+   *  hide and the system goes inert — the shipped dim-box look returns. */
+  setFenestraEnabled(on: boolean): void {
+    this.fenestraEnabled = on;
+    for (const fm of this.fenestraMeshes) fm.mesh.visible = on;
+  }
+
+  /** Probe/diagnostics: the plan summary (windows per building). */
+  fenestraSummary(): { total: number; byBldg: Record<string, number> } {
+    const byBldg: Record<string, number> = {};
+    for (const inst of this.fenestraPlan) {
+      byBldg[inst.buildingId] = (byBldg[inst.buildingId] ?? 0) + 1;
+    }
+    return { total: this.fenestraPlan.length, byBldg };
+  }
+
+  /** Full resource release (probes/rebuilds; the page owns the usual
+   *  lifetime). Textures ride the module cache (the groundTex pattern). */
+  disposeFenestra(): void {
+    for (const fm of this.fenestraMeshes) {
+      this.scene.remove(fm.mesh);
+      fm.dispose();
+    }
+    this.fenestraMeshes.length = 0;
+    for (const m of this.fenestraMats) m.dispose();
+    this.fenestraMats.length = 0;
+    this.fenestraBands = new Uint8Array(0);
   }
 
   private mat(color: number, opts: { emissive?: number; emissiveIntensity?: number } = {}): THREE.MeshLambertMaterial {
@@ -7769,6 +7897,7 @@ export class World {
       this.updateDistricts(player.x, player.z);
       this.updateInteriors(player.x, player.y, player.z);
       this.updateSunFollow(player.x, player.z);
+      this.updateFenestraBands(dt, player.x, player.y, player.z);
     }
     this.updateTaxi(dt, player, extra);
     // the M121 runs AFTER the cab: its pool reads the cab's fresh rect, and
