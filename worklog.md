@@ -70,7 +70,7 @@ Stage Summary:
   subway entrance reads as a storefront-scale headhouse with a real
   through-corridor; pedestrians stop crossing the stairwell hole; TEN-02
   gains the W5 pattern's first strip-row room; the ledger's variety items
-  land. Register v1.51.0 (renumbered from v1.46.0 on the merged tree — the remote line reached v1.50.0 while W8 flew; the ledger stays strictly monotonic and unique).
+  land. Register v1.53.0 (renumbered twice on the merged trees — the remote line reached v1.50.0, then interiors P1/bulky-2 took v1.51.0/v1.52.0 while W8 flew; the ledger stays strictly monotonic and unique).
 ---
 
 ---
