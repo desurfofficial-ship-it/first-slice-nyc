@@ -10,6 +10,7 @@
  */
 
 import * as THREE from 'three';
+import { captureDofParams, renderDofPixels } from '../render/postcardDof';
 
 export interface CaptureResult {
   dataUrl: string;
@@ -212,7 +213,23 @@ export function composePostcard(
   return canvas.toDataURL('image/png');
 }
 
-/** Full pipeline: scene → pixels → variance check → composed postcard data URL. */
+/** Full pipeline: scene → pixels → variance check → composed postcard data URL.
+ *
+ *  `opts.dof` — the authored capture's depth of field (v1.50.0):
+ *  `{ focus }` in world units (camera → the pose's look-at target). The
+ *  caller gates it on the gfx config (?fx=off / ?dof=0 never pass it).
+ *  A DOF capture that fails for any reason falls back SILENTLY to today's
+ *  direct render — the card must exist; the effect must never wedge the
+ *  beat (the wow card's law). */
+export interface CaptureOptions {
+  /** Authored focus distance (camera → look-at target); aperture/maxblur
+   *  are the module's tuned constants, clamped by captureDofParams. */
+  dof?: { focus: number };
+  /** The AO prepass's exclusion list (glow sprites, steam, leaves, birds,
+   *  far-world silhouettes, movers) — hidden around the DOF depth bake. */
+  exclude?: readonly THREE.Object3D[];
+}
+
 export function capturePostcard(
   renderer: THREE.WebGLRenderer,
   scene: THREE.Scene,
@@ -221,8 +238,19 @@ export function capturePostcard(
   cartName: string,
   day: number,
   season?: PostcardSeason,
+  opts?: CaptureOptions,
 ): CaptureResult {
-  const img = renderPixels(renderer, scene, camera);
+  let img: ImageData;
+  const dofParams = opts?.dof ? captureDofParams(opts.dof.focus) : null;
+  if (dofParams) {
+    try {
+      img = renderDofPixels(renderer, scene, camera, dofParams, opts?.exclude ?? [], IMG_W, IMG_H);
+    } catch {
+      img = renderPixels(renderer, scene, camera); // the card must exist
+    }
+  } else {
+    img = renderPixels(renderer, scene, camera);
+  }
   if (!hasVariance(img)) {
     throw new Error('postcard capture came back uniform (render target empty)');
   }

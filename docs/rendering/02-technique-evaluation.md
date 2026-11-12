@@ -91,7 +91,9 @@ vertex-bake, draw-call-budgeted WebGL2 city.
   gameplay payoff is negative (readability law, §1b AGENTS).
 - **Depth of field**: CoC from depth → blurred composite. **Defer** — the
   city is a wide-stage game; focus hunting fights gameplay readability.
-  The postcard rig could adopt it later (authored poses only).
+  The postcard rig could adopt it later (authored poses only). — **PAID
+  v1.50.0**: the authored capture rig adopted exactly that carve-out
+  (docs/rendering/05); the gameplay frame stays DOF-free.
 - **SSR**: ray-march the color+depth buffer against the depth buffer.
   **Defer for glass** — a full SSR pass is the most expensive effect in the
   reference for a scene that is 90 % matte masonry; the sky-PMREM
