@@ -810,21 +810,29 @@ export class World {
     }
     // one collider covers the run plus the west backstock pile (below)
     this.colliders.push(boxFromCenter(-16.35, 1.0, 19.3, 8.3, 2.0, 0.6));
-    // Commercial reach-in fridge on the bodega's east wall — a sand3d ADD,
-    // not a swap: no counterpart existed, and an empty wall read as missing
-    // stock once the shelves landed. Collider matches its rotated box.
+    // Commercial reach-in cooler on the bodega's east wall — the SAME
+    // stocked sand3d asset the pizza shop's slot wears
+    // (models/drink_cooler.glb: glass front, can rows on three shelves,
+    // brand stripes in the house palette). The 2026-11-12 round-two audit
+    // retired the two-door refrigerator.glb here: its door GLB buries its
+    // glass pane inside an opaque slab, so the "glass-front cooler" read as
+    // a blank white door on a bare wall — the owner's "still not production
+    // ready". The drink cooler's cans ARE the stock; no extra dressing.
+    // Orientation: the door faces local −x → rotation 0 points it west, into
+    // the room; the 3 m run lies along world z on the east wall.
     const fridgePh = new THREE.Group();
     fridgePh.name = 'Fridge_Bodega';
-    fridgePh.position.set(-11.7, 1.03, 16.5); // feet on the floor top (0.11)
-    fridgePh.rotation.y = -Math.PI / 2; // door west, into the room
-    const fridgeBox = new THREE.Mesh(new THREE.BoxGeometry(0.76, 1.84, 1.22), this.mat(PAL.bldg2));
+    fridgePh.position.set(-11.75, 1.03, 16.0); // feet on the floor top (0.11)
+    const fridgeBox = new THREE.Mesh(new THREE.BoxGeometry(0.59, 1.84, 3.17), this.bank.get(0x2b2730));
     fridgeBox.castShadow = true;
     fridgeBox.receiveShadow = true;
     fridgePh.add(fridgeBox);
     this.scene.add(fridgePh);
     this.registerGlbProp('fridge_bodega', fridgePh);
-    void this.upgradePropWithGLB('fridge_bodega', 'models/refrigerator.glb');
-    this.colliders.push(boxFromCenter(-11.7, 1.03, 16.5, 1.22, 1.84, 0.76));
+    void this.upgradePropWithGLB('fridge_bodega', 'models/drink_cooler.glb');
+    // the collider matches the upgrade's scaled footprint (h ratio 1.84/1.74
+    // scales the GLB's 0.555 × 3.0 m body to 0.587 × 3.17)
+    this.colliders.push(boxFromCenter(-11.75, 1.03, 16.0, 0.59, 1.84, 3.17));
     // the counter a real deli works from: register, coffee, microwave, and
     // the produce crates by the window (sand3d ADDs — the register and
     // coffee wear the washer-slot pattern, front east into the store; the
@@ -846,10 +854,48 @@ export class World {
     mkCounterSlot('Bodega_Register', 14.4, 0.4, 0.3, 0.36);
     mkCounterSlot('Bodega_Coffee', 11.6, 0.42, 0.45, 0.38);
     this.fixture(bodegaDressing, 'Bodega_Microwave', -19.6, 1.27, 15.8, 0.385, 0.34, 0.47, PAL.cream);
-    // the produce crate sits ON the floor (fixture center = half-height over
-    // the floor top 0.11 — the float fix carries the GLB to the same line)
-    this.fixture(bodegaDressing, 'Bodega_Produce', -18.5, 0.27, 9.3, 0.6, 0.315, 0.4, PAL.bldg);
-    this.colliders.push(boxFromCenter(-18.5, 0.16, 9.3, 0.6, 0.32, 0.4));
+    // the produce stand (2026-11-12 production pass, round two): the story
+    // crate used to float alone on the floor by the window — two boxes in a
+    // bare corner read as litter, not produce. It now rides a real deli
+    // table with two stocked crates flanking it (oranges, limes — one merged
+    // draw per fruit). The GLB crate seats feet-on-table via the seam's own
+    // AABB-min law (fixture center = table top + half height).
+    const produceTop = 0.66;
+    const produceTable = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 0.85), this.bank.get(0x9c7a4a));
+    produceTable.name = 'Bodega_ProduceTable';
+    produceTable.position.set(-18.35, 0.11 + 0.275, 9.3);
+    produceTable.castShadow = true;
+    produceTable.receiveShadow = true;
+    bodegaDressing.add(produceTable);
+    this.fixture(bodegaDressing, 'Bodega_Produce', -18.5, produceTop + 0.1575, 9.3, 0.6, 0.315, 0.4, PAL.bldg);
+    this.colliders.push(boxFromCenter(-18.35, 0.385, 9.3, 2.2, 0.55, 0.85));
+    const fruitGeos = new Map<number, THREE.BufferGeometry[]>();
+    const pushFruit = (c: number, g: THREE.BufferGeometry): void => {
+      const arr = fruitGeos.get(c);
+      if (arr) arr.push(g); else fruitGeos.set(c, [g]);
+    };
+    const fruitCrate = (cx: number, fruit: number): void => {
+      const shell = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.28, 0.42), this.bank.get(0xb08d57));
+      shell.name = 'Bodega_ProduceCrate';
+      shell.position.set(cx, produceTop + 0.14, 9.3);
+      shell.castShadow = true;
+      shell.receiveShadow = true;
+      bodegaDressing.add(shell);
+      for (let r = 0; r < 2; r++) {
+        for (let i = 0; i < 4; i++) {
+          pushFruit(fruit, new THREE.CylinderGeometry(0.06, 0.06, 0.09, 10)
+            .translate(cx - 0.165 + i * 0.11, produceTop + 0.26, 9.19 + r * 0.22));
+        }
+      }
+    };
+    fruitCrate(-19.15, 0xe8964a); // oranges, west crate
+    fruitCrate(-17.85, 0x8fbf4d); // limes, east crate
+    for (const [color, geos] of fruitGeos) {
+      const m = new THREE.Mesh(mergeGeometries(geos, false)!, this.bank.get(color));
+      m.name = 'Bodega_ProduceFruit';
+      m.castShadow = true;
+      bodegaDressing.add(m);
+    }
 
     // ---------------- the deli's own colors (2026-11 identity pass) --------
     // Cream walls are the shipped stone masses seen from inside; the room's
@@ -983,6 +1029,20 @@ export class World {
     bagRail.rotation.x = Math.PI / 2;
     bagRail.position.set(-11.475, 1.96, 9.94);
     bodegaDressing.add(bagRail);
+    // the east wall's posters (2026-11-12 production pass, round two): the
+    // wall around the cooler read as a bare plaster field. Two framed
+    // house-voice ads — the beverage cry beside the chip strip, the flat-top
+    // promise north of it — the same signBoard seam the menu rides.
+    const posterCold = this.signBoard('Bodega_Poster_Cold', 'ICE COLD\nsoda · seltzer · water — always',
+      0.05, 1.55, 1.15, 256, 384, 0xf7b32b, PAL.ink, 34, 'x');
+    posterCold.rotation.y = Math.PI; // the face reads west, into the store
+    posterCold.position.set(-11.42, 1.95, 11.8); // south of the cooler run
+    bodegaDressing.add(posterCold);
+    const posterFlat = this.signBoard('Bodega_Poster_FlatTop', 'BREAKFAST ALL DAY\nthe flat top never lies',
+      0.05, 1.55, 1.15, 256, 384, PAL.cream, PAL.ink, 34, 'x');
+    posterFlat.rotation.y = Math.PI;
+    posterFlat.position.set(-11.42, 1.95, 13.2);
+    bodegaDressing.add(posterFlat);
     // the welcome mat inside the door gap (teal — the awning's color)
     const mat = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.02, 0.9), this.bank.get(PAL.teal));
     mat.name = 'Bodega_DoorMat';

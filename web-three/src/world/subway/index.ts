@@ -31,7 +31,6 @@ export type { ColliderSpec };
 const TRAIN_DOOR_A_X = -41.1; // the aligned car's interactive door, station A
 const STAIR_A_CX = (STAIR_SLOT.minX + STAIR_SLOT.maxX) / 2; // −44.6
 const STAIR_B_CX = STAIR_A_CX + RIDE_SWAP_DX;              // −332.6
-
 export interface SubwayAnchors {
   /** Inside the aligned car at each station — the "press to ride" spot. */
   rideSpotA: { x: number; y: number; z: number };
@@ -59,6 +58,13 @@ export interface SubwaySystem {
   doorsOpen: boolean;
   /** True while the player is below grade (the dollhouse key). */
   underground: boolean;
+  /** The seam's camera debt (metres on x, signed). The swap translates the
+   *  player ±288 m in one frame; the boom must inherit the SAME jump or it
+   *  lerps 288 m through the tunnel wall (~1.3 s of whoosh, playtest:
+   *  "camera freaks out when the train moves"). Game.frame adds this to
+   *  cam.camera.position.x once and zeroes it — the framing is preserved
+   *  bit-exact, the seam stays invisible. */
+  seamDx: number;
   requestRide(from: RideEnd): boolean;
   update(dt: number, feet: { x: number; y: number; z: number }, onBeat: (key: string) => void): void;
 }
@@ -124,6 +130,14 @@ export function buildSubwaySystem(
   const doorA = buildTrainPair(ctx(groups.trainA), -44.2, TRAIN_DOOR_A_X - (-44.2));
   const doorB = buildTrainPair(ctx(groups.trainB), -44.2 + RIDE_SWAP_DX, TRAIN_DOOR_A_X - (-44.2));
   buildTunnel(ctx(groups.tunnel), groups.scenery);
+  // the aligned cars' ride shells — roof + platform-side face stand down
+  // while the rider is aboard so the dollhouse lens reads the car as the
+  // open room it is (trainKit TrainDoors.roof / .southFace); from the
+  // platform the shell returns and the pair reads as a train again
+  const carShells = [
+    [doorA.roof, ...doorA.southFace],
+    [doorB.roof, ...doorB.southFace],
+  ];
 
   // Priya's window diagram (docs/51 B11): the chalk strokes the 'priya-lines'
   // beat reveals. Collected by name from both aligned cars — the twins carry
@@ -183,6 +197,7 @@ export function buildSubwaySystem(
     ride: createRide(),
     doorsOpen: true,
     underground: false,
+    seamDx: 0,
 
     requestRide(from) {
       const events = beginRide(sys.ride, from);
@@ -204,7 +219,11 @@ export function buildSubwaySystem(
           // Aboard only: a player who stepped back onto the platform during
           // closing stays behind (the ride continues; the arrival's
           // doors-open event sets them free — no 288 m teleport on foot).
-          if (aboardCar(feet.z)) feet.x = swapFeet(feet.x, e.end === 'B' ? 'A' : 'B');
+          if (aboardCar(feet.z)) {
+            feet.x = swapFeet(feet.x, e.end === 'B' ? 'A' : 'B');
+            // the camera inherits the same jump (see seamDx on the interface)
+            sys.seamDx += e.end === 'B' ? RIDE_SWAP_DX : -RIDE_SWAP_DX;
+          }
         }
         // 'arrived' carries no world work — the doors event said it all
       }
@@ -295,6 +314,12 @@ export function buildSubwaySystem(
       groups.trainB.visible = lit.has('trainB');
       stationA.ceiling.visible = !under;
       stationB.ceiling.visible = !under;
+      // the aboard car is the room: its shell (roof + platform-side face)
+      // stands down for the dollhouse lens the same frames the station's
+      // ceiling does (the group's own zone visibility gates the pair — only
+      // the lit car renders)
+      const aboard = aboardCar(feet.z);
+      for (const shell of carShells) for (const m of shell) m.visible = !aboard;
     },
   };
   return sys;

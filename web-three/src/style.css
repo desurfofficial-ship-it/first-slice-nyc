@@ -921,6 +921,13 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   left: 0; bottom: 0;
   width: 46%; height: 44%;
   pointer-events: auto;
+  /* the stick owns its gestures: html/body carry touch-action: none, but
+     touch-action does NOT inherit — an overlay without it can still hand
+     the gesture to the browser's pan/zoom recognizer, which fires
+     pointercancel and kills the stick mid-drag */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 #joy-base {
@@ -949,6 +956,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   bottom: calc(20px + env(safe-area-inset-bottom));
   display: flex; flex-direction: column; align-items: flex-end; gap: 14px;
   pointer-events: auto;
+  touch-action: none; /* same law as #joy-zone — the buttons own their touches */
 }
 
 #turn-btns { display: flex; gap: 10px; }

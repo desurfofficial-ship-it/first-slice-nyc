@@ -82,3 +82,50 @@
 `bodega-restock-counter.png` (menu, counter trim, no red slab) ·
 `bodega-restock-door-inside.png` (painted jambs, the street beyond) ·
 `bodega-restock-bread.png` (the bread's reserved bay).
+
+---
+
+# ROUND TWO — the cooler, the produce corner, the east wall (2026-11-12, v1.50.0)
+
+The owner's verdict after v1.49.0: "the assets in the bodega is still not
+production ready." The re-audit (same rig, fresh run) named three offenders
+the first pass had not touched:
+
+1. **The cooler read as a blank white door.** `fridge_bodega` wore
+   `models/refrigerator.glb` — a well-built frame (glass pane, gasket,
+   shelves, casters) whose door GLB buries its glass INSIDE an opaque slab
+   (`door_slab` 0.7 × 1.74 × 0.045 encloses `door_glass` z ±0.01): the
+   "glass-front cooler" showed a flat cream panel. An empty cavity behind a
+   buried pane can never read as stock.
+   **Fix:** the slot now wears `models/drink_cooler.glb` — the SAME stocked
+   asset the pizza shop's `pizza_cooler` slot ships with (glass front, can
+   rows on three shelves, brand stripes in the house palette). The
+   placeholder re-seats for its 3 m run: body (0.59 × 1.84 × 3.17 — the
+   upgrade's height ratio 1.84/1.74 scales the GLB's 0.555 × 3.0 body to
+   exactly this), rotation 0 (the door faces local −x → west, into the
+   room), centered z 16.0 on the east wall; the collider matches the scaled
+   footprint. The look is byte-consistent with the shipped pizza interior —
+   one cooler identity across both stores.
+2. **The produce corner was two floating crates on a bare floor.**
+   **Fix:** a real deli produce table (2.2 × 0.85, kraft wood, top 0.66,
+   one collider) under the story crate — `Bodega_Produce` now seats feet-on-
+   table via the seam's own AABB-min law — flanked by two procedural crates
+   with fruit mounding above the rim (oranges west, limes east; one merged
+   draw per fruit).
+3. **The east wall was a bare plaster field.** **Fix:** two framed
+   house-voice posters on the signBoard seam the menu rides — "ICE COLD /
+   soda · seltzer · water — always" (gold) and "BREAKFAST ALL DAY / the
+   flat top never lies" (cream) — placed south of the cooler run (z 11.8 /
+   13.2, clear of its 14.42..17.58 span).
+
+**No gameplay contract touched:** the GLB slot id stays `fridge_bodega`
+(probe-interior-dressing's EXPECT unchanged and green), the story crate
+keeps its fixture name and GLB, interactions/restock/save untouched; one
+collider resized to the cooler's true footprint.
+
+**Round-two gate:** tsc clean · vitest **1,542/1,542** (95 files, +10 — the
+boarding-law + touch-routing guards landed in the same run) · build OK ·
+probe-interior-dressing BODEGA + PIZZA PASS (70 GLB props + 40 ABO slots,
+0 page errors) · 4-day story E2E re-run green (evidence
+`docs/qa-security/evidence/RESULTS-e2e-4day-run2.txt`). Fresh audit
+screenshots on the shipping build live in `web-three/shots/audit-bodega-*.png`.

@@ -7,9 +7,10 @@
 import { describe, expect, it } from 'vitest';
 import { updateZones, type ZoneDef } from '../src/world/subway/zone';
 import { turnstileHubAt, ZONE_KEEP_RE } from '../src/world/subway/stationKit';
+import { CAR_BODY, southBenchSpans } from '../src/world/subway/trainKit';
 import {
-  aboardCar, beginRide, createRide, endRide, RIDE_BEATS, RIDE_SWAP_DX, RIDE_T,
-  swapFeet, tickRide, type RideEvent,
+  aboardCar, beginRide, createRide, endRide, CAR_Z_MAX, CAR_Z_MIN,
+  RIDE_BEATS, RIDE_SWAP_DX, RIDE_T, swapFeet, tickRide, type RideEvent,
 } from '../src/world/subway/ride';
 
 // ---------------------------------------------------------------- zones
@@ -214,6 +215,51 @@ describe('aboardCar — the seam swap only carries passengers (left-behind law)'
     expect(aboardCar(14.2)).toBe(false); // the platform edge
     expect(aboardCar(17.45)).toBe(false);// the trench's far wall
   });
+  it('a player standing IN the open doorway counts as aboard (the boarding law, 2026-11-12)', () => {
+    // The playtest's "ride to Times Square doesn't work": the doorway stand
+    // (bench face minus a capsule) landed 6 cm short of the old band, the
+    // seam left the presser behind, the doors reopened on a player who
+    // never went anywhere. Stepping through the open door IS boarding.
+    const doorwayStand = CAR_BODY.benchZSouth + CAR_BODY.benchDepth / 2 - CAR_BODY.playerRadius - 0.001;
+    expect(aboardCar(doorwayStand)).toBe(true);
+  });
+});
+
+describe('the boarding law — the doorway opens onto the aisle (2026-11-12)', () => {
+  // The aligned car's south bench used to run straight across the
+  // interactive door: the walk-in stopped at the bench face, the press
+  // started a ride the player was never aboard of. southBenchSpans is the
+  // pure shape of the split; these pins make the class of bug — furniture
+  // across a boarding path — fail here before any probe has to catch it.
+  const door = CAR_BODY.doorRel;
+  const doorSpan = { a: door - CAR_BODY.doorW / 2, b: door + CAR_BODY.doorW / 2 };
+
+  it('no bench segment crosses the interactive door\u2019s span (with a hand\u2019s margin)', () => {
+    for (const seg of southBenchSpans(-44.2, door)) {
+      const clears = seg.b <= doorSpan.a - 0.1 || seg.a >= doorSpan.b + 0.1;
+      expect(clears).toBe(true);
+    }
+  });
+
+  it('the split leaves a walkable aisle: a capsule through the door reaches the north bench face', () => {
+    // With the doorway clear, the deepest blocked stand is the NORTH bench
+    // face minus the capsule; the seam's aboard band must cover it whole —
+    // every stand position from the doorway to the aisle's far end rides.
+    const benchZN = CAR_BODY.benchZSouth + (CAR_BODY.zNorth - CAR_BODY.zSouth) - 0.84;
+    const aisleStand = benchZN - CAR_BODY.benchDepth / 2 - CAR_BODY.playerRadius - 0.001;
+    expect(CAR_Z_MIN).toBeLessThanOrEqual(doorwayStandZ());
+    expect(CAR_Z_MAX).toBeGreaterThanOrEqual(aisleStand);
+  });
+
+  it('the shuttered car keeps its full-length bench (no interactive door, no gap)', () => {
+    const spans = southBenchSpans(-31.2, null);
+    expect(spans).toHaveLength(1);
+    expect(spans[0].b - spans[0].a).toBeCloseTo(8.8, 5);
+  });
+
+  function doorwayStandZ(): number {
+    return CAR_BODY.benchZSouth + CAR_BODY.benchDepth / 2 - CAR_BODY.playerRadius - 0.001;
+  }
 });
 
 describe('Priya\u2019s window diagram (docs/51 B11 — the teach draws itself)', () => {

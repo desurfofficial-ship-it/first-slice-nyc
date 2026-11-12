@@ -19,6 +19,21 @@ export interface InputState {
   zoomDelta: number;
 }
 
+/** Pure routing law for the camera-drag pointer (tests/touch-law pins it):
+ *  the mouse drags anywhere; a TOUCH drags the camera only when it is NOT
+ *  the joystick's pointer and it landed on the right 65% of the screen.
+ *  The old gate read `!this.joyId` — while the left thumb held the stick,
+ *  NO right-thumb drag could ever register, so walking players had no
+ *  camera at all (playtest 2026-11-12: "fix camera and joystick"). The
+ *  joystick pointer and the camera pointer are independent now: steer the
+ *  walk with the left thumb, aim the boom with the right, at the same time. */
+export function isCameraDragPointer(
+  pointerType: string, isJoyPointer: boolean, clientX: number, innerWidth: number,
+): boolean {
+  if (pointerType === 'mouse') return true;
+  return !isJoyPointer && clientX > innerWidth * 0.35;
+}
+
 export class InputManager {
   private keys = new Set<string>();
   private joyVec = { x: 0, y: 0 };
@@ -158,7 +173,7 @@ export class InputManager {
       return;
     }
     // Mouse drag anywhere on screen, or touch swipe on the right half of the screen
-    if (e.pointerType === 'mouse' || (!this.joyId && e.clientX > window.innerWidth * 0.35)) {
+    if (isCameraDragPointer(e.pointerType, e.pointerId === this.joyId, e.clientX, window.innerWidth)) {
       this.pointerDragId = e.pointerId;
       this.pointerLastX = e.clientX;
       this.pointerLastY = e.clientY;

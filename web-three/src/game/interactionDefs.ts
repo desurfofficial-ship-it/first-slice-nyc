@@ -379,11 +379,16 @@ const subway: Interaction = {
 // Positions come from the builders' own static spots (single source of
 // truth); enables read the ride machine through the orchestrator.
 
-/** Inside the aligned car at Alder Heights: press to ride downtown. */
+/** Inside the aligned car at Alder Heights: press to ride downtown.
+ *  Radius 1.05: the prompt must mean "you are at this car" — the doorway
+ *  or the aisle — not "near it on the platform". The old 1.7 let a player
+ *  standing at the platform edge press it, the doors closed in front of
+ *  them, and the ride ran without them (the left-behind law is honest,
+ *  but the PROMPT invited the mistake). */
 const trainA: Interaction = {
   id: 'trainA',
   pos: () => ({ ...SUBWAY_SPOTS.rideA }),
-  radius: 1.7,
+  radius: 1.05,
   yBand: 2.2,
   enabled: (_s, ctx) => {
     const sub = farSubway(ctx);
@@ -396,11 +401,11 @@ const trainA: Interaction = {
   },
 };
 
-/** Inside the aligned car at 42nd St: press to ride home. */
+/** Inside the aligned car at 42nd St: press to ride home (same 1.05 law). */
 const trainB: Interaction = {
   id: 'trainB',
   pos: () => ({ ...SUBWAY_SPOTS.rideB }),
-  radius: 1.7,
+  radius: 1.05,
   yBand: 2.2,
   enabled: (_s, ctx) => {
     const sub = farSubway(ctx);
