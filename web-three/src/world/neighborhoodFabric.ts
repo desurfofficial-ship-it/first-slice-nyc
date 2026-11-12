@@ -544,6 +544,46 @@ function shedFabric(di: NeighborhoodDI): void {
     for (let k = 0; k < 6; k++) {
       bulbCells.push({ x: s.cx - 2.4 + k * 0.96, y: 3.28, z: s.cz + s.wid / 2 - 0.3, ry: 0 });
     }
+
+    // W8 canvas filigree (2026-11-12): a striped canvas valance hangs from
+    // the deck's street edge — the slop read's own cloth tell (the source's
+    // canopies wear printed canvas skirts; js/building-details.js 102).
+    // One alpha-tested plane per shed: the canvas texture carries the
+    // scallop cut-outs (alphaTest 0.5, doubleSide, no transparency sort),
+    // the tone is the shed green one step darker, and the board rides
+    // 3.30 (the bulbs at 3.28 read in front of it).
+    // the fabric must also build headless (the vitest law): the ledger
+    // entry is unconditional, the canvas texture only when DOM exists
+    di.ledger?.push({ name: `Nbhd_ShedValance_${s.tag}`, x: s.cx, y: 3.3, z: s.cz + s.wid / 2 - 0.12 });
+    if (typeof document === 'undefined') continue;
+    const canvas = document.createElement('canvas');
+    canvas.width = 512; canvas.height = 128;
+    const g2d = canvas.getContext('2d')!;
+    g2d.fillStyle = '#2a5b3a';
+    g2d.fillRect(0, 0, 512, 128);
+    for (let x = 0; x < 512; x += 32) {
+      g2d.fillStyle = (x / 32) % 2 === 0 ? '#255233' : '#2f6442';
+      g2d.fillRect(x, 0, 32, 96);
+    }
+    // the scallop: 8 arcs cut to alpha 0 along the bottom edge
+    g2d.globalCompositeOperation = 'destination-out';
+    for (let k = 0; k < 8; k++) {
+      g2d.beginPath();
+      g2d.arc(32 + k * 64, 96, 30, 0, Math.PI * 2);
+      g2d.fill();
+    }
+    g2d.globalCompositeOperation = 'source-over';
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    const valanceMat = new THREE.MeshLambertMaterial({
+      map: tex, alphaTest: 0.5, side: THREE.DoubleSide,
+    });
+    const valance = new THREE.Mesh(
+      new THREE.PlaneGeometry(s.len - 0.1, 0.5), valanceMat);
+    valance.name = `Nbhd_ShedValance_${s.tag}`;
+    valance.position.set(s.cx, 3.3, s.cz + s.wid / 2 - 0.12);
+    di.scene.add(valance);
   }
   if (bulbCells.length) {
     const bulbGeo = new THREE.PlaneGeometry(0.14, 0.14);

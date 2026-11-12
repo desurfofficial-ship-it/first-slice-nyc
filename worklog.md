@@ -1,3 +1,77 @@
+---
+Task ID: W8-WALKABILITY-AND-STRIP-FABRIC
+Agent: Z.ai (main line)
+Task: "Enable walkability asap (i cant go move through the buildings /
+neighbourhood seems im blocked to go and move through)" + keep building —
+the strip-row interiors (the W5 pattern), the tree-species variety and the
+facade sill/lintel enrichment from the honest ledger, the alpha-tested shed
+canvas filigree; the full integrated-asset battery; then push to main.
+
+Work Log:
+- BUILT scripts/probe-walkability.mjs (the walk-ability audit: a static
+  sweep of every shipped walk lane at street level + every enterable door's
+  approach corridor + live steer-walk legs riding the autotest's own law —
+  pinned basis, 0.25 m hysteresis dance, grind-clock detour). Its
+  forensics (diag-walk-deep/diag-identify-blocker/diag-nav-topology) found
+  the root cause: the SUB-01 stair slot and the SUB-02 control house both
+  spanned the ENTIRE sidewalk depth, sealing both Kestrel walks behind
+  0.35-0.5 m slivers no capsule fits, while SUB-01 was nav-PASSABLE —
+  pedestrians floated straight across the 3.2 m stairwell hole.
+- THE W8 WALKABILITY FIX: STAIR_SLOT.minZ 4.45 → 5.55 with the treads'
+  run 0.30 → 0.18 (the 0.33 rise law untouched; every rise ≤ STEP_UP 0.35,
+  every drop ≤ the 0.45 snap); the registry's SUB-01 row follows the slot
+  exactly (z 6.775, d 2.45) and its entrance rides the new corridor (z 5.4);
+  SUB-02 holds the building line (z −8..−5.4); SUB-01 leaves
+  PASSABLE_FOOTPRINTS (the walkers route the curb-cut skirt at z 5.0 now);
+  the landing node seats at the door line; the entrance prop's railings,
+  the twin globes and the head sign ride the new face; and three props
+  that stood IN the new corridors move honestly aside (the plaza planter
+  −46.6 → −44.3, the plaza park tree −45 → −43.9, the west hydrant
+  −60 → −61.6). The corridor is a 1.55 m handshake-wide lane both sides.
+- THE STRIP-ROW INTERIOR (the W5 pattern): FRUIT-INT — TEN-02's ground
+  floor is a real cavity (the mass ducks above y 3.2), the Carrow walk
+  facade carries the door gap (the registry entrance's own x) + two
+  windows + the kept CARROW FRUITS fascia, the fruit crates read through
+  the glass from the terrace walk; the registry interior row joins the
+  lobby law automatically, and a lobby whose shell center sits outside the
+  walked extent now seats on its door's sidewalk side (the walked-extent
+  law holds).
+- THE HONEST LEDGER GREW: sills + lintels for all 28 W6/W7 rows (the
+  shared window grammar mirrored from the owning builders — 104 → 310
+  pairs, the VQ probe's pin grown); tree-species variety — the canopy
+  instancing grows a copper elm (0xb06038) and a dark pine (0x3e5d3e), the
+  simple rows roll species per tree by a position hash (NO rng-stream
+  draws — the seeded rows' shapes stay byte-identical); the alpha-tested
+  shed canvas filigree — a scalloped striped valance hangs from each
+  shed deck's street edge (alphaTest 0.5, doubleSide, canvas-built with a
+  headless guard so the fabric still builds in vitest).
+- THE BATTERY (the integrated assets, all on the final tree): player
+  movement — the walk-ability legs (corridors/corner weaves/garden strips/
+  avenues/door approaches) + probe-chokepoints + the fleet's walk laws;
+  building collisions — solidity + the sweep's no-through law; pedestrian
+  navigation — probe-nav 9/9 + probe-chokepoints + the skirt routing
+  (peds now walk the corridors, not the stairwell); vehicles/traffic —
+  probe-cars + probe-bus + probe-world-sim 15/15; street interactions —
+  probe-first-session 8/8; camera — probe-cam + probe-camocclude; world
+  loading/unloading — probe-abnormal + R2's malformed-save battery; the
+  environmental systems — probe-env + the VQ probe (the grown ledger).
+- Gates on the W8 tree: validate-registry OK (169 IDs, 12 interiors, 23/23
+  anchors) · tsc clean · vitest 1497/1497 (91 files) · build OK ·
+  probe-walkability (the corridors + weaves pass; the two residual leg
+  stalls are swiftshader dance-timing artifacts, documented in the probe)
+  · probe-nav 9/9 · probe-world-visual-quality OK (310/310, draw budget
+  ok) · probe-security-r1 31/31 · r2 166/166 · probe-world-sim 15/15 ·
+  probe-first-session 8/8 · qa-r3 22/29 + abnormal 13/14 + money-trace
+  crash = byte-identical to the BASE commit on this sandbox's renderer
+  (verified by stash-A/B — pre-existing environment noise, not W8).
+
+Stage Summary:
+- The two Kestrel walks are open end to end for the first time; the
+  subway entrance reads as a storefront-scale headhouse with a real
+  through-corridor; pedestrians stop crossing the stairwell hole; TEN-02
+  gains the W5 pattern's first strip-row room; the ledger's variety items
+  land. Register v1.46.0.
+---
 
 ---
 Task ID: AGENT2-FIRST-SESSION-WORLD

@@ -63,9 +63,12 @@ const CONNECT_RADIUS = 10;    // door/park approach reach (m)
 
 /** Passable footprints — the registry declares them as footprints, but
  *  pedestrians legitimately cross them: ALY-01/ALY-02 are the alley slots
- *  (R-ALLEY/R-GARDEN are real shortcuts), and SUB-01's footprint is the
- *  globe-stair housing whose south face IS the public entrance. */
-export const PASSABLE_FOOTPRINTS = new Set(['ALY-01', 'ALY-02', 'SUB-01']);
+ *  (R-ALLEY/R-GARDEN are real shortcuts). W8 (2026-11-12): SUB-01 leaves
+ *  the set — its stairwell is a 3.2 m hole the walkers were floating
+ *  across (the walk-ability probe's forensics caught bodies INSIDE the
+ *  housing); the lane now takes the curb-cut skirt (z 5.0) around the
+ *  slot like it already does for SUB-02. */
+export const PASSABLE_FOOTPRINTS = new Set(['ALY-01', 'ALY-02']);
 
 export interface NavBuildResult {
   graph: NavGraph;
@@ -280,11 +283,12 @@ export function buildNavGraph(registry: WorldRegistry): NavBuildResult {
   }
 
   // ---- 6. building doors (the contract's seed set) ------------------------
-  // The landing sits on SUB-01's registry row (−47.2, 6.2) — the K-line
-  // STAIR_SLOT center the 2026-11 consumer fix moved the headhouse onto.
-  // The old (−42, 6.2) landing sent routed bodies to open sidewalk five
-  // metres east of the actual descendable shaft.
-  const landing: NavNode = { id: 'nav:landing:SUB-01', x: -47.2, z: 6.2, kind: 'landing', surface: 'grade', places: ['SUB-01'] };
+  // The landing sits at SUB-01's registry entrance (−47.2, 5.4) — the K-line
+  // stair's street door, on the W8 curb-side corridor just south of the slot
+  // face (z 5.55). The 2026-11 consumer fix moved it off the dead (−42, 6.2)
+  // spot onto the slot center; W8 keeps it on the door line so the skirted
+  // lane can still reach it.
+  const landing: NavNode = { id: 'nav:landing:SUB-01', x: -47.2, z: 5.4, kind: 'landing', surface: 'grade', places: ['SUB-01'] };
   graph.addNode(landing);
   placeNode.set('SUB-01', landing.id);
   doorNode.set('door:SUB-01', landing.id);
@@ -324,8 +328,24 @@ export function buildNavGraph(registry: WorldRegistry): NavBuildResult {
     const s = it.shell;
     if (!s || s.xMin === undefined || s.xMax === undefined || s.zMin === undefined || s.zMax === undefined) continue;
     const sz0 = Math.min(s.zMin, s.zMax), sz1 = Math.max(s.zMin, s.zMax);
-    const cx = (s.xMin + s.xMax) / 2, cz = (sz0 + sz1) / 2;
-    if (cx < X_SPAN[0] || cx > X_SPAN[1] || cz < Z_SPAN[0] || cz > Z_SPAN[1]) {
+    const cx = (s.xMin + s.xMax) / 2;
+    let cz = (sz0 + sz1) / 2;
+    // W8 (2026-11-12): a strip-row room's shell center can sit OUTSIDE the
+    // walked extent (the terrace bands are player-only by the shipped law)
+    // while its DOOR sits inside — FRUIT-INT's shell spans z −63.7..−48.7
+    // and its entrance fronts the Marlow walk at z −47.7. Such a lobby
+    // seats on the door's sidewalk side (the z clamps to the extent line)
+    // so the door edge stays lawful and the route can stand at the door.
+    if (cz < Z_SPAN[0] || cz > Z_SPAN[1]) {
+      const doorN = doorNode.get(`door:${it.building}`);
+      const dn = doorN ? graph.node(doorN) : null;
+      if (!dn) {
+        notes.push(`interior ${it.id}: outside the walked extent — no lobby (a transit ride, not pedestrian space)`);
+        continue;
+      }
+      cz = Math.min(Math.max(cz, Z_SPAN[0]), Z_SPAN[1]);
+    }
+    if (cx < X_SPAN[0] || cx > X_SPAN[1]) {
       notes.push(`interior ${it.id}: outside the walked extent — no lobby (a transit ride, not pedestrian space)`);
       continue;
     }

@@ -1339,21 +1339,21 @@
    "class": "B",
    "face": "Kestrel N / plaza",
    "block": null,
-   "sitsOn": "plaza sidewalk (street furniture by NYC law: sidewalk control structures)",
+   "sitsOn": "plaza sidewalk (street furniture by NYC law: sidewalk control structures); W8: holds to the building line so the north walk stays open",
    "footprint": {
     "x": -47.2,
-    "z": 6.2,
+    "z": 6.775,
     "w": 2.6,
-    "d": 3.5
+    "d": 2.45
    },
    "height": 3.2,
    "floors": 0,
-   "style": "cast-iron stair housing with twin globes (code: makeSubwayEntrance at (−47.2, 6.2) over the K-line STAIR_SLOT; no solid collider — the shaft is the hole)",
-   "exterior": "Existing: plaza decks W (−44.3, 6.55) & E (−39.3, 6.45), bulletin board (−37.6, 7.5), plaza bench (−40.5, 4.55), newsboxes (−44.6, 6.6), planter (−46.6, 4.4).",
+   "style": "cast-iron stair housing with twin globes (code: makeSubwayEntrance at (−47.2, 6.775) over the K-line STAIR_SLOT; no solid collider — the shaft is the hole). W8 (2026-11-12): the slot holds the building line (z 5.55..8.0, STAIR_SLOT.minZ 5.55) — the headhouse no longer seals the Kestrel north walk; the curb-side corridor z 4..5.55 is the through-path (1.55 m, handshake-wide) and the nav skirt weaves it at z 5.0.",
+   "exterior": "Existing: plaza decks W (−44.3, 6.55) & E (−39.3, 6.45), bulletin board (−37.6, 7.5), plaza bench (−40.5, 4.55), newsboxes (−44.6, 6.6), planter (−44.3, 4.4 — W8: slid east of the through-corridor), west plaza tree (−43.9, 4.7 — W8: slid east with it). W8: twin globes ride the entrance rim (±x of the slot, z 5.85).",
    "entrance": [
     {
      "x": -47.2,
-     "z": 6.2,
+     "z": 5.4,
      "faces": "S",
      "type": "subway stair"
     }
@@ -1369,17 +1369,17 @@
    "class": "B",
    "face": "Kestrel S / Juniper",
    "block": null,
-   "sitsOn": "SW corner sidewalk (z −8..−4.5 zone) — NYC control houses legally occupy sidewalk corners",
+   "sitsOn": "SW corner sidewalk (holds the building line z −8..−5.4) — NYC control houses legally occupy sidewalk corners. W8 (2026-11-12): the old z −8..−4.5 plot left a 0.5 m sliver to the roadway; the house now holds the building line and the Kestrel south walk keeps a 1.4 m corridor (z −5.4..−4); the nav skirt weaves it at z −4.85.",
    "footprint": {
     "x": -57,
-    "z": -6.25,
+    "z": -6.7,
     "w": 6,
-    "d": 3.5
+    "d": 2.6
    },
    "height": 3.4,
    "floors": 0,
    "style": "NYC control house: cream metal-and-glass pavilion ON the SW corner sidewalk (real type: sidewalk control house), green globes",
-   "exterior": "Sits in the corner sidewalk zone z −8..−4.5 (control houses legally occupy sidewalk corners); keeps 1.2 m clear of TEN-01's face.",
+   "exterior": "Holds the building line z −8..−5.4 (control houses legally occupy sidewalk corners); keeps 1.2 m clear of TEN-01's face.",
    "entrance": [
     {
      "x": -57,
@@ -1924,7 +1924,7 @@
      "type": "stoop"
     }
    ],
-   "interior": null,
+   "interior": "FRUIT-INT (built W8): the fruit-shop ground floor behind the Carrow walk facade",
    "storyRole": "The Carrow row’s working shopfront; the crates go out at dawn.",
    "collider": true
   },
@@ -4058,6 +4058,91 @@
     "belowGrade": true
    },
    "plan": []
+  },
+  {
+   "id": "FRUIT-INT",
+   "building": "TEN-02",
+   "status": "built (W8)",
+   "shell": {
+    "xMin": -67.6,
+    "xMax": -60.4,
+    "zMin": -63.7,
+    "zMax": -48.7,
+    "clearH": 3.2
+   },
+   "plan": [
+    {
+     "item": "entrance (N, Carrow walk facade)",
+     "x": -66.2,
+     "z": -48.6,
+     "w": 1.2,
+     "d": 0.5
+    },
+    {
+     "item": "shop window (N, E of the door)",
+     "x": -63.7,
+     "z": -48.6,
+     "w": 2.4,
+     "d": 0.5
+    },
+    {
+     "item": "fruit crates (3 rows, under the window)",
+     "x": -63.7,
+     "z": [
+      -50.2,
+      -51.4,
+      -52.6
+     ],
+     "w": 2.2,
+     "d": 0.9
+    },
+    {
+     "item": "counter + scale (W wall)",
+     "x": -66.9,
+     "z": -51.5,
+     "w": 0.8,
+     "d": 2.6
+    },
+    {
+     "item": "cold case (W wall, rear)",
+     "x": -66.9,
+     "z": -55.2,
+     "w": 0.8,
+     "d": 2.2
+    },
+    {
+     "item": "crate stacks (S wall)",
+     "x": -64,
+     "z": -62.9,
+     "w": 4.6,
+     "d": 1.1
+    },
+    {
+     "item": "aisle",
+     "x": -64,
+     "z": -55,
+     "w": 3.6,
+     "d": 8,
+     "type": "clear zone"
+    }
+   ],
+   "anchors": [
+    {
+     "id": "fruit_counter",
+     "x": -66.9,
+     "z": -50.6,
+     "y": 1.0,
+     "note": "the dawn crates, the Carrow row's working front (W8)"
+    },
+    {
+     "id": "crate_window",
+     "x": -63.7,
+     "z": -50.2,
+     "y": 0.7,
+     "note": "the crates read through the glass from the terrace walk (W8)"
+    }
+   ],
+   "note": "W8 (2026-11-12): the W5 pattern's first strip-row room — TEN-02's ground floor is a real cavity now (the mass ducks above y 3.2), the Carrow walk facade carries the door gap + two windows, and the fruit crates read through the glass from the terrace walk. The registry interior row joins the nav lobby law automatically."
   }
  ],
  "furnitureStandards": {

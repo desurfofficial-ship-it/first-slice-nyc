@@ -135,7 +135,7 @@ const HAND_TRUTH: Record<string, { x: number; z: number; w: number; d: number; h
   'SMB-01': { x: -34, z: -26, w: 8, d: 12, h: 12 },
   'SMB-02': { x: -25, z: -26, w: 6, d: 12, h: 12 },
   'SMB-03': { x: -17, z: -26, w: 6, d: 12, h: 12 },
-  'SUB-02': { x: -57, z: -6.25, w: 6, d: 3.5, h: 3.4 },
+  'SUB-02': { x: -57, z: -6.7, w: 6, d: 2.6, h: 3.4 },
   // unit 4 — the gable row
   'GRB-01': { x: -42.6, z: 26, w: 7.6, d: 12, h: 12.5 },
   'GRB-02': { x: -35, z: 26, w: 7.6, d: 12, h: 12.5 },
@@ -189,11 +189,11 @@ const HAND_TRUTH: Record<string, { x: number; z: number; w: number; d: number; h
   'KTN-05': { x: 41.25, z: 14, w: 15.5, d: 12, h: 16 },
   'ROS-01': { x: -16, z: 14, w: 10, d: 11.6, h: 4.5 },
   // SUB-01 re-pinned to the K-line STAIR_SLOT center (2026-11 consumer
-  // fix, ebfb08a): the headhouse frames the hole you can walk down into
-  // — the old (-42) spot stood on continuous sidewalk, five metres east
-  // of the real shaft. Both the world wave and the QA wave landed this
-  // repair; the QA line's wording is the surviving comment.
-  'SUB-01': { x: -47.2, z: 6.2, w: 2.6, d: 3.5, h: 3.2 },
+  // fix, ebfb08a), then W8 (2026-11-12): the slot holds the building line
+  // (z 5.55..8.0) so the headhouse stops sealing the Kestrel north walk —
+  // the row follows the slot exactly (z 6.775, d 2.45) and the entrance
+  // rides the new curb-side corridor (z 5.4).
+  'SUB-01': { x: -47.2, z: 6.775, w: 2.6, d: 2.45, h: 3.2 },
   'ALY-02': { x: 7.75, z: 14, w: 2.5, d: 12, h: 0 },
   // unit 10 — the far world (verbatim from timesSquare.ts's hand masses:
   // the Orpheum block's base+tower, the east tower, the south row's

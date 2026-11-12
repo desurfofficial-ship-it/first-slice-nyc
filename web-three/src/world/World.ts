@@ -1436,7 +1436,11 @@ export class World {
       // solid reaching below z 7.28 grazes that lane and stalls the driver
       // on a wall it cannot round in one sidestep window (5 fps).
       [-44, -7.0], [-30, -7.0], [-16, -7.0], [28, -7.0], [38, -7.0],      // south
-      [-45, 4.7], [-38.6, 4.5],                                            // plaza park trees
+      // W8 (2026-11-12): the west plaza park tree slides (−45 → −43.9) —
+      // its trunk stood in the new station corridor's east exit (z 4.52..4.88
+      // inside the z 4..5.55 through-path; the walk-ability probe's own
+      // forensics). The plaza keeps its tree; the corridor keeps its width.
+      [-43.9, 4.7], [-38.6, 4.5],                                          // plaza park trees
     ];
     // Four of the twelve are turning — the two plaza park trees (you meet
     // them first, off the subway stairs) plus one tree each side of the
@@ -1555,13 +1559,17 @@ export class World {
 
     // ---- planters (the plaza one; the east planter moved to the park,
     // docs/38 — the barbershop needed its storefront, and the planter's
-    // PED bow-around entry moved with it, doc 35 §3's ghost-prop lesson)
+    // PED bow-around entry moved with it, doc 35 §3's ghost-prop lesson).
+    // W8 (2026-11-12): the plaza planter slides east (−46.6 → −44.9) —
+    // its old spot stood IN the new station corridor (z 4..5.55, the walk-
+    // ability probe's forensics: a 0.55 m pinch between planter and slot
+    // face that no capsule fits through) and sealed the through-path.
     const planterPlaza = makePlanter(this.bank, rng);
-    planterPlaza.position.set(-46.6, 0.05, 4.4);
+    planterPlaza.position.set(-44.3, 0.05, 4.4);
     planterPlaza.rotation.y = Math.PI / 2;
     this.scene.add(planterPlaza);
     // the plaza one is yawed π/2 so its long axis runs z
-    this.colliders.push(boxFromCenter(-46.6, 0.25, 4.4, 0.55, 0.55, 1.1));
+    this.colliders.push(boxFromCenter(-44.3, 0.25, 4.4, 0.55, 0.55, 1.1));
     // the bulletin board is furniture too (its flyer face is the Day-3 beat)
     this.colliders.push(boxFromCenter(-37.6, 0.975, 7.5, 1.75, 1.95, 0.3));
 
@@ -1751,6 +1759,10 @@ export class World {
     this.upgradeInteriorPropsWithGLB();
     // the rooms' palette (after the handles exist; dressRoom reads them)
     this.dressW5Rooms();
+    // the W8 strip-row room rides the same identity pass (its handle
+    // exists by now — the dress law reads handles, not build order)
+    this.dressRoom('FRUIT-INT', { wainscot: 0x4a7a52, trim: 0xf3e2c2, light: 0xfff2d8, clear: 3.2,
+      skips: { z1: [[-66.8, -65.6]] } });
 
     // the world-visual-quality pass (docs/3d-assets): crowns, gable walls,
     // sills, AC units, roof clutter, street-floor life — ALL pre-bake so
@@ -2055,7 +2067,7 @@ export class World {
         { x: 44.5, z: -7.35, r: 0.3 },
         { x: 13.5, z: -5.9, r: 0.3 },  // streetlamp
         { x: 29.8, z: -4.55, r: 0.9 }, // dirty-water dog cart (docs/38)
-        { x: -46.6, z: 4.4, r: 0.6 },  // planter plaza (missing)
+        { x: -44.3, z: 4.4, r: 0.6 },  // planter plaza (W8: slid east of the station corridor)
         { x: -8.55, z: 7.55, r: 0.5 }, // shirt rack (missing)
         { x: -4.0, z: 5.8, r: 0.5 },   // permit A-frame — it stands IN the
                                        // north walk lane; walkers bow around it
@@ -2069,7 +2081,7 @@ export class World {
         { x: -16, z: -7.0, r: 0.35 },
         { x: 28, z: -7.0, r: 0.35 },
         { x: 38, z: -7.0, r: 0.35 },
-        { x: -45, z: 4.7, r: 0.35 },
+        { x: -43.9, z: 4.7, r: 0.35 },
         { x: -38.6, z: 4.5, r: 0.35 },
         // W1: the Kestrel fill trees + the south control house + the new
         // south lamp — everything the ambient walkers can meet on the lane
@@ -2760,6 +2772,74 @@ export class World {
     this.buildW5Hall();
     this.buildW5Diner();
     this.buildW5CecilRoom();
+    this.buildW5Fruit();
+  }
+
+  /** FRUIT-INT (TEN-02: full-width cavity, x −67.6..−60.4, z −63.7..−48.7,
+   *  clear 3.2). The W5 pattern's first strip-row room (W8, 2026-11-12):
+   *  the Carrow row's working shopfront becomes a real ground floor — the
+   *  mass ducks above y 3.2, the terrace-walk facade carries the door gap
+   *  (the registry entrance's own x, −66.2) plus two windows, the fruit
+   *  crates read through the glass from the walk, and the counter + scale
+   *  and the cold case line the west wall. */
+  private buildW5Fruit(): void {
+    this.retireMass('TEN_02');
+    this.retireCollider(-68, -60, -63.9, -48.5);
+    this.duckBox('TEN02_Upper', -68, -60, 3.2, 16.5, -63.9, -48.5, PAL.brick);
+    const duckUpper = this.scene.children[this.scene.children.length - 1];
+    this.roomBox('TEN02_Wall_S', -68, -60, 0, 3.2, -63.9, -63.7, PAL.brick);
+    this.roomBox('TEN02_Wall_W', -68, -67.6, 0, 3.2, -63.9, -48.5, PAL.brick);
+    this.roomBox('TEN02_Wall_E', -60.4, -60, 0, 3.2, -63.9, -48.5, PAL.brick);
+    this.wallRun('TEN02_Facade', 'x', -48.6, -67.6, -60.4, 0, 3.2, 0.2, PAL.brick, [
+      { from: -66.8, to: -65.6, y1: 2.8 },           // the door (the registry's own entrance x)
+      { from: -64.9, to: -62.5, y0: 0.5, y1: 2.6 },  // the shop window
+      { from: -61.9, to: -60.7, y0: 0.5, y1: 2.6 },  // window E
+    ]);
+
+    const g = this.roomKit('FRUIT');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 15.0), this.bank.get(0xd8cbb2));
+    floor.name = 'Fruit_Floor';
+    floor.position.set(-64, 0.13, -56.2);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // counter + scale (west wall, just inside the door line)
+    this.fixture(g, 'Fruit_Counter', -66.9, 0.55, -51.5, 0.8, 1.1, 2.6, 0x4a7a52);
+    this.fixture(g, 'Fruit_Scale', -66.8, 1.25, -50.9, 0.3, 0.3, 0.3, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-66.9, 0.55, -51.5, 0.8, 1.1, 2.6));
+    // the cold case (west wall, rear)
+    this.fixture(g, 'Fruit_ColdCase', -66.9, 0.9, -55.2, 0.8, 1.8, 2.2, 0x3b3346);
+    this.colliders.push(boxFromCenter(-66.9, 0.9, -55.2, 0.8, 1.8, 2.2));
+    // the fruit crates — three rows under the shop window, the glass read
+    const crateRows: Array<[number, number, number]> = [[-63.7, -50.2, 0xd9772f], [-63.7, -51.4, 0xb23a48], [-63.7, -52.6, 0x2a9d8f]];
+    for (const [cx, cz, cc] of crateRows) {
+      this.fixture(g, `Fruit_Crate_${cz}`, cx, 0.35, cz, 2.2, 0.5, 0.9, cc);
+      this.colliders.push(boxFromCenter(cx, 0.35, cz, 2.2, 0.7, 0.9));
+    }
+    // the crate stacks (rear, south wall)
+    this.fixture(g, 'Fruit_Stacks', -64, 0.75, -62.9, 4.6, 1.3, 1.1, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-64, 0.75, -62.9, 4.6, 1.5, 1.1));
+
+    // the facade's own sign — the W6 storefront's identity, kept (canvas
+    // materials stay out of the bake by themselves)
+    const fascia = this.signBoard('Fruit_Fascia', 'CARROW FRUITS', 0.14, 0.7, 5.2, 5.2 * 72, 0.7 * 72, 0x2a9d8f, PAL.cream, 44);
+    fascia.position.set(-64, 3.05, -48.52);
+    this.scene.add(fascia);
+
+    const farParts: THREE.Object3D[] = [];
+    this.registerInterior({
+      id: 'FRUIT-INT', x0: -67.6, x1: -60.4, z0: -63.7, z1: -48.7,
+      glass: [
+        { axis: 'z', side: 'max', at: -48.63, a0: -64.85, a1: -62.55 },
+        { axis: 'z', side: 'max', at: -48.63, a0: -61.85, a1: -60.75 },
+      ],
+      group: g,
+      nearParts: [
+        this.facadePane('Fruit_Clear_W', 'x', -48.63, -64.85, -62.55, 0.55, 2.55, this.roomClearMat),
+        this.facadePane('Fruit_Clear_E', 'x', -48.63, -61.85, -60.75, 0.55, 2.55, this.roomClearMat),
+      ],
+      farParts, duck: [duckUpper],
+    });
+    for (const p of (this.interiorHandles[this.interiorHandles.length - 1].nearParts)) this.scene.add(p);
   }
 
   /** LAUNDRY-INT (registry: KTN-02, x −11..1, z 8.2..19, clear 3.2). The
@@ -3825,6 +3905,39 @@ export class World {
       }
     }
 
+    // W8 (2026-11-12): the W6 terrace rows and the W7 gate rows join the
+    // sill+lintel law — the honest ledger's variety item. Their window
+    // grammar is the shared one (floors = max(2, round(h/3.3)), cols =
+    // w>=7?2:1, wy = 3.4 + f*((h-1.2)/floors), skip wy > h-1), mirrored
+    // from the owning builders; every shipped window gets its stone sill
+    // (under) and lintel (over), seated 0.14 proud of the row's own face
+    // (the entrance's `faces` value is the face law).
+    const W6W7_ROWS = [
+      'GRB-06', 'GRB-07', 'TEN-02', 'KTS-04',
+      'GRB-08', 'GRB-09', 'GRB-10', 'GRB-11', 'GRB-12', 'GRB-13', 'GRB-14', 'GRB-15',
+      'KTN-08', 'KTN-09', 'KTN-10', 'KTN-11',
+      'KTS-05', 'KTS-06', 'KTS-07', 'KTS-08', 'KTS-09', 'KTS-10',
+      'TEN-03', 'TEN-04', 'MRW-01', 'MRW-02', 'MRW-03', 'MRW-04',
+    ] as const;
+    for (const regId of W6W7_ROWS) {
+      const reg = this.regShell(regId);
+      const row = loadRegistry().building(regId);
+      const ent = row?.entrance?.[0];
+      const faceSign = ent?.faces === 'N' ? 1 : -1;
+      const faceZ = (ent?.faces === 'N' ? reg.z + reg.d / 2 : reg.z - reg.d / 2) + faceSign * 0.14;
+      const floors = Math.max(2, Math.round(reg.h / 3.3));
+      const cols = reg.w >= 7 ? 2 : 1;
+      for (let f = 0; f < floors; f++) {
+        for (let c = 0; c < cols; c++) {
+          const wx = reg.x - reg.w / 2 + (reg.w / (cols + 1)) * (c + 1);
+          const wy = 3.4 + f * ((reg.h - 1.2) / floors);
+          if (wy > reg.h - 1.0) continue;
+          vqAdd(makeSill(this.bank, 1.15, wx, wy - 0.8 - 0.05, faceZ), 'VQ_Sill');
+          vqAdd(makeLintel(this.bank, 1.15, wx, wy + 0.8 + 0.07, faceZ), 'VQ_Lintel');
+        }
+      }
+    }
+
     // ---- 5. WINDOW AC UNITS — the summer-now tell ------------------------
     // Hung under verified sills (window bottom − 0.26): GRB upper floors,
     // the TEN pair's avenue face, the corner houses, the walk-ups. The
@@ -4167,13 +4280,16 @@ export class World {
     signal.rotation.y = -Math.PI / 2; // the arm reaches over Juniper's road
     this.scene.add(signal);
     this.colliders.push(boxFromCenter(-65.3, 2.75, -7.55, 0.3, 5.5, 0.3));
-    // the globes flank the station headhouse (both stair corners)
-    const globeW = makeSubwayGlobePost(this.bank, -48.75, 4.2);
+    // the globes flank the station headhouse (both stair corners). W8:
+    // they ride the slot's shrink — z 4.2 stood IN the new curb-side
+    // corridor (the walk-ability probe's own forensics); z 5.85 puts the
+    // pair beside the entrance rim again, clear of the corridor.
+    const globeW = makeSubwayGlobePost(this.bank, -48.75, 5.85);
     this.siAdd(globeW, 'SI_Globe_SUB01_W');
-    this.colliders.push(boxFromCenter(-48.75, 0.95, 4.2, 0.28, 1.9, 0.28));
-    const globeE = makeSubwayGlobePost(this.bank, -45.65, 4.2);
+    this.colliders.push(boxFromCenter(-48.75, 0.95, 5.85, 0.28, 1.9, 0.28));
+    const globeE = makeSubwayGlobePost(this.bank, -45.65, 5.85);
     this.siAdd(globeE, 'SI_Globe_SUB01_E');
-    this.colliders.push(boxFromCenter(-45.65, 0.95, 4.2, 0.28, 1.9, 0.28));
+    this.colliders.push(boxFromCenter(-45.65, 0.95, 5.85, 0.28, 1.9, 0.28));
   }
 
   /** SI, section F — the far-skyline landmark silhouettes: the ported
@@ -5345,7 +5461,7 @@ export class World {
    *  merge. New trees do NOT join the fade pass (their camera guard is the
    *  sidestep + z-clamp; docs/47 W1 records the tradeoff). */
   private simpleTrees: Array<{ x: number; z: number; h: number; phase: number; top: number;
-    blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 }> }> = [];
+    blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 | 4 | 5 }> }> = [];
   private extraLeafSpots: Array<{ x: number; z: number; r: number; top: number; tints: number[] }> = [];
   /** The instanced canopy: ONE system for every tree on the block. Slots:
    *  0 leafA (0x5d7d4a) · 1 leafB (0x516e42) · 2 goldA (0xf7b32b) ·
@@ -5354,10 +5470,10 @@ export class World {
    *  the autumn golds land in 2/3. Four draw calls for every canopy on the
    *  block, main pass and shadow pass alike — the recorded Doc 07 lever
    *  (docs/47: 63 blob meshes × 2 passes → 4 × 2). */
-  private canopyMeshes: Array<THREE.InstancedMesh | null> = [null, null, null, null];
+  private canopyMeshes: Array<THREE.InstancedMesh | null> = [null, null, null, null, null, null];
   /** Per-instance fade alpha (the fade-on-occlude law: ONE tree dissolves,
    *  never the street). Simple rows stay at 1 forever (docs/47 W1 tradeoff). */
-  private canopyFade: Array<THREE.InstancedBufferAttribute | null> = [null, null, null, null];
+  private canopyFade: Array<THREE.InstancedBufferAttribute | null> = [null, null, null, null, null, null];
   private canopyBuilt = false;
   private readonly mSway = new THREE.Matrix4();
   private readonly mBlob = new THREE.Matrix4();
@@ -5401,14 +5517,19 @@ export class World {
     pit.position.set(x, 0.07, z);
     this.scene.add(pit);
     this.treePits.push({ x, z });
-    const blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 }> = [];
+    // the species roll (W8): a position hash picks the tone — locust green
+    // (0/1, the shipped pair), a copper elm (4, ~1 in 7 trees), a dark pine
+    // (5, ~1 in 11). NO rng draws: the seeded rows' shapes stay identical.
+    const roll = Math.abs(Math.round(x * 13.7 + z * 7.3)) % 18;
+    const species: 0 | 1 | 4 | 5 = roll < 12 ? 0 : roll < 14 ? 1 : roll < 16 ? 4 : 5;
+    const blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 | 4 | 5 }> = [];
     let top = h;
     for (let i = 0; i < 3; i++) {
       const r = 0.85 + rng() * 0.55;
       const cy = r * 0.45 + rng() * 0.5;
       const ox = (rng() - 0.5) * 0.9;
       const oz = (rng() - 0.5) * 0.9;
-      blobs.push({ ox, oy: cy, oz, r, mat: i === 0 ? 0 : (rng() < 0.5 ? 0 : 1) });
+      blobs.push({ ox, oy: cy, oz, r, mat: i === 0 ? species : (rng() < 0.5 ? species : (species === 0 ? 1 : species)) });
       top = Math.max(top, h + cy + r * 0.9);
     }
     this.simpleTrees.push({ x, z, h, phase: rng() * Math.PI * 2, top, blobs });
@@ -5712,7 +5833,12 @@ export class World {
       this.scene.add(lamp);
       this.colliders.push(boxFromCenter(lx, 2.6, lz, 0.24, 5.2, 0.24));
     });
-    for (const [hx, hz] of [[-60, -4.55], [-10, 43.45], [10, -35.25], [-30, 4.55]] as const) {
+    // W8 (2026-11-12): the west hydrant slides (−60 → −61.6) — its old
+    // curb spot pinched the new station corridor's west exit against the
+    // control house face (0.63 m — no capsule fits; the walk-ability
+    // probe's corridor sweep caught it). Still a curb hydrant, off the
+    // through-path.
+    for (const [hx, hz] of [[-61.6, -4.55], [-10, 43.45], [10, -35.25], [-30, 4.55]] as const) {
       const hyd = makeHydrant(this.bank);
       hyd.position.set(hx, 0.05, hz);
       this.scene.add(hyd);
@@ -6562,7 +6688,12 @@ export class World {
       // the entrance craft — the registry's own row says which
       const ent = row?.entrance?.[0];
       const entX = ent?.x ?? reg.x;
-      if (style.storefront) {
+      if (regId === 'TEN-02') {
+        // W8 (2026-11-12): FRUIT-INT owns this ground floor — the W5
+        // pattern's facade decomposition (buildW5Fruit) retires this mass
+        // and carries the door gap + windows + fascia itself; the W6
+        // storefront deco and stoop would double the front.
+      } else if (style.storefront) {
         // the shopfront faces the walk (north, +z, for the Carrow rows)
         const shop = makeStorefront(this.bank, this.signMaterials.bind(this),
           style.storefront, style.awning ?? PAL.teal, reg.w - 1);
@@ -6787,12 +6918,17 @@ export class World {
 
   private buildInstancedTreeRows(): void {
     if (this.canopyBuilt) return;
-    const count = [0, 0, 0, 0];
+    const count = [0, 0, 0, 0, 0, 0];
     for (const t of this.simpleTrees) for (const b of t.blobs) count[b.mat]++;
     for (const t of this.trees) for (const b of t.blobs) count[b.key]++;
-    if (!count[0] && !count[1] && !count[2] && !count[3]) return;
-    const HEXES = [0x5d7d4a, 0x516e42, 0xf7b32b, 0xffb85c] as const;
-    for (let k = 0; k < 4; k++) {
+    if (!count.some((c) => c > 0)) return;
+    // W8 tree-species variety (2026-11-12): the honest ledger's variety
+    // item. The four shipped tones (two honey-locust greens, two ginkgo
+    // golds) gain a copper elm (0xb06038) and a dark pine (0x3e5d3e); the
+    // simple rows roll species per tree by a position hash (deterministic,
+    // NO rng-stream draws — the seeded rows' shapes stay byte-identical).
+    const HEXES = [0x5d7d4a, 0x516e42, 0xf7b32b, 0xffb85c, 0xb06038, 0x3e5d3e] as const;
+    for (let k = 0; k < HEXES.length; k++) {
       if (!count[k]) continue;
       const m = this.bank.get(HEXES[k]).clone();
       m.transparent = true; // fade-on-occlude ready; aFade 1 renders as opaque
@@ -6813,7 +6949,7 @@ export class World {
       const im = new THREE.InstancedMesh(geo, m, count[k]);
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.castShadow = true;
-      im.name = ['TreeCanopy_LeafA', 'TreeCanopy_LeafB', 'TreeCanopy_GoldA', 'TreeCanopy_GoldB'][k];
+      im.name = ['TreeCanopy_LeafA', 'TreeCanopy_LeafB', 'TreeCanopy_GoldA', 'TreeCanopy_GoldB', 'TreeCanopy_Copper', 'TreeCanopy_Pine'][k];
       this.canopyMeshes[k] = im;
       this.canopyFade[k] = fade;
       this.scene.add(im);
@@ -6821,11 +6957,8 @@ export class World {
     // instance slots: the W1 simple rows own the first countSimple slots of
     // meshes 0/1 (updateTreeRows writes them positionally, same order every
     // frame); the makeTree trees claim the slots after, stored per blob.
-    const cursor = [
-      this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === 0).length, 0),
-      this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === 1).length, 0),
-      0, 0,
-    ];
+    const cursor = [0, 1, 2, 3, 4, 5].map((k) =>
+      this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === k).length, 0));
     for (const t of this.trees) {
       for (const b of t.blobs) b.idx = cursor[b.key]++;
     }
@@ -6843,7 +6976,7 @@ export class World {
    *  blob), so the silhouette and the sway are pixel-identical. */
   private updateTreeRows(time: number): void {
     if (!this.canopyBuilt) return;
-    let ia = 0, ib = 0;
+    const cursors = [0, 0, 0, 0, 0, 0];
     for (const t of this.simpleTrees) {
       const sz = Math.sin(time * 0.9 + t.phase) * 0.022;
       const sx = Math.cos(time * 0.7 + t.phase) * 0.016;
@@ -6854,8 +6987,7 @@ export class World {
       for (const b of t.blobs) {
         this.mBlob.compose(this.tV.set(b.ox, b.oy, b.oz), this.tQ.identity(), this.tS.setScalar(b.r));
         this.mCanopy.multiplyMatrices(this.mSway, this.mBlob);
-        if (b.mat === 0) this.canopyMeshes[0]!.setMatrixAt(ia++, this.mCanopy);
-        else this.canopyMeshes[1]!.setMatrixAt(ib++, this.mCanopy);
+        this.canopyMeshes[b.mat]!.setMatrixAt(cursors[b.mat]++, this.mCanopy);
       }
     }
     for (const t of this.trees) {

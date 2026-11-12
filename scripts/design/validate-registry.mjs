@@ -115,8 +115,10 @@ const shipped = [
   ['KTS-02', 13, -14, 26, 12, 14],     // Bldg_S_FireEscape
   ['KTS-03', 38, -14, 24, 12, 18],     // Bldg_S_East
   // SUB-01 re-homed to the K-line STAIR_SLOT center (2026-11 consumer
-  // fix, ebfb08a): the headhouse frames the hole you can walk down into
-  ['SUB-01', -47.2, 6.2, 2.6, 3.5, 3.2], // subway entrance + collider
+  // fix, ebfb08a), then W8 (2026-11-12): the slot holds the building line
+  // (z 5.15..7.95) so the headhouse stops sealing the Kestrel north walk;
+  // the row follows STAIR_SLOT exactly (stationKit.ts)
+  ['SUB-01', -47.2, 6.775, 2.6, 2.45, 3.2], // subway entrance + collider
   ['VND-01', 29.8, -4.55, 1.7, 0.9, 2.2] // dog cart
 ];
 // W6 — the terrace build-out (2026-11-11): the strips behind Gable and
