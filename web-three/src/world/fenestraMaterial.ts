@@ -89,7 +89,7 @@ const vertexCommon = /* glsl */ `
   // and a perspective-correct interpolation of even a CONSTANT varying
   // wobbles ±1e-7 in fp32, which imHash's ~250k product amplifies into
   // full [0,1) jumps — the cell pick scrambled per pixel and the windows
-  // rendered as colored static on every GPU (register v1.58.0).
+  // rendered as colored static on every GPU (register v1.59.0).
   varying vec4 vFenHash;       // lit / tone / bright / onset
   varying vec2 vFenRoomOrigin; // the picked room cell's atlas origin
   varying vec2 vFenFrontOrigin; // the picked front cell's atlas origin
@@ -208,7 +208,7 @@ export const glslFenMap = /* glsl */ `
   _fenCell = mix(vFenLocalXY + 0.5, _fenCell, vFenLod);
   vec2 _fenRoomCell = vec2(1.0 / uFenCols, 1.0 / uFenRows);
   vec2 _fenUV = vFenRoomOrigin + clamp(_fenCell, 0.0, 1.0) * (_fenRoomCell - _fenRoomCell * 0.002);
-  // THE FEN-GLITCH FIX (register v1.58.0): the room UV is smooth in VALUE,
+  // THE FEN-GLITCH FIX (register v1.59.0): the room UV is smooth in VALUE,
   // but its screen-space derivative blows up on grazing room walls (every
   // street-level oblique view). An implicit-derivative fetch samples the
   // mip the derivative demands — deep levels where the atlas's 8 px cell
@@ -320,7 +320,7 @@ const cache = new Map<string, THREE.Texture>();
 export function configureAtlas(t: THREE.Texture, anisotropy: number): void {
   t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
-  // MIPMAPS ON — the FEN-GLITCH repair (register v1.58.0): the wave shipped
+  // MIPMAPS ON — the FEN-GLITCH repair (register v1.59.0): the wave shipped
   // level-0-only sampling ("every mip path speckled on the rig; level-0
   // verified clean") and that verification was wrong — the wave's own
   // day-street evidence shot and the field report (mobile, tier low) both
