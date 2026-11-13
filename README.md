@@ -5,7 +5,7 @@
 
 **"Fall in love with New York, one slice at a time."**
 
-*A cozy lowpoly life-simulation game for the billions of people who have never set foot in New York City — but have dreamed about it their whole lives. A life sim **on an open block**: follow the story beat by beat, or tap **Roam** and let the city run on your clock.*
+*A cozy lowpoly **open-world New York life simulation**, delivered chapter by chapter, for the billions of people who have never set foot in New York City — but have dreamed about it their whole lives. Today you arrive on one deeply simulated block, Alder Heights — the game's first district: follow the story beat by beat, or tap **Roam** and let the city run on your clock. The city grows by chapters.*
 
 [Narrative Bible](docs/narrative/00-README.md) · [World Contract](docs/architecture/world-contract/) · [Production System](docs/production/README.md) · [AGENTS.md](AGENTS.md)
 

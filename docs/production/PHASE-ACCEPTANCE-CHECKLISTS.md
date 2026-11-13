@@ -140,7 +140,7 @@ Standing gates for **every** phase, before any phase-specific box is checked (th
 
 ## Phase 6 — Living neighborhood and world simulation
 
-**Entry requirements.** Phases 2 and 4 accepted; DEC-6 (seasonal pass scope) ruled; seasonal art dependency budgeted as its own wave (narrative/14 §4).
+**Entry requirements.** Phases 2 and 4 accepted; ~~DEC-6 (seasonal pass scope) ruled~~ **DEC-6 RULED 2026-11-13 (owner sign-off — MET: [DEC-6-SEASONAL-PASS-SCOPE-DECISION.md](DEC-6-SEASONAL-PASS-SCOPE-DECISION.md), the minimal scope rules)**; seasonal art dependency budgeted as its own wave (narrative/14 §4 — **the wave is executable under the ruling's terms**).
 
 **Exit checklist.**
 - [ ] Businesses operate: hours → open/close transitions → P&L **derived from ledger evidence** (never hard-coded; the sums test proves derivation)
