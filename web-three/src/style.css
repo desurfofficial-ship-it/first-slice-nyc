@@ -1192,9 +1192,14 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
    the turntable, the side holds the lineup. Looking is free; wearing a
    different face asks for a new game first (the lock law).
 
-   Phone law (iPhone 11 Pro / 375×812 and kin): the stage is CAP'd so the
-   side can scroll; the card goes edge-to-edge under the notch; view chips
-   and the close button are separated so nothing wraps into a muddle. */
+   Viewer law (2026-11 — the full-body redesign): the CHARACTER is the
+   star. On a phone the stage flex-fills the card and takes roughly 60–70%
+   of the wardrobe's height — the whole figure, head to soles, no scroll
+   needed to reach it — while the side compacts to a one-row lineup strip,
+   the view chips and the close/pick rows. The name plate and the zoom
+   cluster ride the stage itself; the camera fits the body from its own
+   bounding box, so the stage's exact share flexes with the device
+   (667 px SE ≈ 60%, tall 844 px phones ≈ 70%) without ever cropping. */
 
 #wardrobe-panel {
   position: fixed;
@@ -1222,14 +1227,18 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   min-height: 0;
 }
 @media (min-width: 720px) {
-  #wardrobe-card { flex-direction: row; max-height: calc(100dvh - 48px); }
+  #wardrobe-card { flex-direction: row; max-height: calc(100dvh - 48px); width: min(760px, calc(100vw - 32px)); }
 }
 
 #wardrobe-stage {
   position: relative;
-  flex: 0 0 auto;
-  /* The face is the product — real height so the chosen look reads in one glance. */
-  height: clamp(240px, 38dvh, 360px);
+  /* The character is the star: the stage FLEX-FILLS the card — on a phone
+     it lands at roughly 60–70% of the wardrobe's height (the side is
+     content-sized below it), and the camera fits the full figure to
+     whatever room the stage gets. min-height keeps the figure presentable
+     even when pick mode's name row asks for extra side space. */
+  flex: 1 1 auto;
+  min-height: 250px;
   background:
     radial-gradient(120% 90% at 50% 8%, rgba(247, 179, 43, 0.16), rgba(247, 179, 43, 0) 60%),
     linear-gradient(180deg, #2E2637 0%, #1A1420 100%);
@@ -1238,9 +1247,8 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 }
 @media (min-width: 720px) {
   #wardrobe-stage {
-    flex: 0 0 48%;
-    height: auto;
-    min-height: 340px;
+    flex: 0 0 50%;
+    min-height: 380px;
   }
 }
 #wardrobe-canvas {
@@ -1256,6 +1264,44 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   cursor: grab;
 }
 #wardrobe-canvas:active { cursor: grabbing; }
+/* The name plate — the identity rides the STAGE now (game-style): the
+   previewed look's name, role and vibe as a translucent card over the
+   corner of the viewer. pointer-events:none so a drag that starts on it
+   still spins the character underneath. */
+#wardrobe-meta {
+  position: absolute;
+  top: 10px; left: 10px;
+  max-width: min(72%, 300px);
+  background: rgba(26, 20, 32, 0.66);
+  border: 1px solid rgba(255, 248, 240, 0.14);
+  border-radius: 10px;
+  padding: 7px 11px 8px;
+  display: flex; flex-direction: column; gap: 1px;
+  color: #fff8f0;
+  pointer-events: none;
+}
+#wardrobe-meta-name { font-weight: 800; font-size: 14px; line-height: 1.25; }
+#wardrobe-meta-role { font-size: 11px; color: var(--gold); font-weight: 700; }
+#wardrobe-meta-vibe { font-size: 11px; line-height: 1.35; color: rgba(255, 248, 240, 0.75); }
+/* The zoom cluster — plus / minus / fit, stacked inside the stage's right
+   edge: one thumb's reach on a phone, a glance on desktop. */
+#wardrobe-zoom {
+  position: absolute;
+  right: 10px; bottom: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+#wardrobe-zoom button {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  background: rgba(26, 20, 32, 0.66);
+  border: 1px solid rgba(255, 248, 240, 0.2);
+  color: #fff8f0;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+#wardrobe-zoom button:hover { border-color: var(--gold); color: var(--gold); }
 #wardrobe-hint {
   position: absolute;
   bottom: 8px; left: 50%;
@@ -1269,11 +1315,17 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   pointer-events: none;
   transition: color 0.2s ease;
   white-space: nowrap;
+  max-width: calc(100% - 128px); /* never under the zoom cluster */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 #wardrobe-hint.flash { color: var(--gold); }
 
 #wardrobe-side {
-  flex: 1 1 auto;
+  /* Content-sized on the column layout: the stage flex-fills and the side
+     takes exactly what its rows need — the 60–70% viewer share falls out
+     of this (a growing side would claw the height back from the figure). */
+  flex: 0 0 auto;
   min-height: 0; /* lets the flex child scroll inside the capped card */
   display: flex; flex-direction: column;
   gap: 10px;
@@ -1282,6 +1334,23 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+}
+@media (min-width: 720px) {
+  #wardrobe-side {
+    flex: 1 1 auto; /* row layout: the side owns the right half */
+    overflow-y: auto;
+  }
+}
+/* Short landscape phones (375×667 and kin turned sideways): the column
+   layout would squeeze the figure into a letterbox — go side-by-side
+   regardless of width, the stage keeps the full card height. */
+@media (orientation: landscape) and (max-height: 500px) {
+  #wardrobe-card { flex-direction: row; }
+  #wardrobe-stage {
+    flex: 0 0 46%;
+    min-height: 0;
+  }
+  #wardrobe-side { flex: 1 1 auto; }
 }
 #wardrobe-side label {
   font-weight: 800;
@@ -1297,21 +1366,38 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 }
 
 #wardrobe-lineup {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  /* Phone: ONE scrollable row of compact tiles — the lineup costs one
+     strip of height, the stage keeps the rest (the viewer law). */
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 @media (min-width: 560px) {
-  #wardrobe-lineup { grid-template-columns: 1fr 1fr 1fr; }
+  #wardrobe-lineup {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    overflow: visible;
+  }
 }
 .wardrobe-tile {
   position: relative;
+  flex: 0 0 auto;
+  min-width: 104px;
   padding: 10px 11px 9px;
   min-height: 44px; /* phone tap target */
 }
 .wardrobe-tile.wearing {
   border-color: var(--teal);
   background: rgba(42, 157, 143, 0.1);
+}
+/* The tile whose look is on the stage RIGHT NOW — a gold ring distinct
+   from the teal "You" (worn) mark, so preview ≠ wearing is readable. */
+.wardrobe-tile.previewing {
+  border-color: var(--gold);
+  box-shadow: inset 0 0 0 1px var(--gold);
 }
 .wardrobe-tile .starter-name { font-size: 14px; }
 .wardrobe-tile .starter-blurb { font-size: 11px; line-height: 1.3; }
@@ -1338,14 +1424,8 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   padding: 2px 7px;
 }
 
-#wardrobe-meta {
-  border-top: 1px dashed rgba(58, 52, 64, 0.25);
-  padding-top: 8px;
-  display: flex; flex-direction: column; gap: 2px;
-}
-#wardrobe-meta-name { font-weight: 800; font-size: 14px; }
-#wardrobe-meta-role { font-size: 11.5px; color: var(--plum); font-weight: 700; }
-#wardrobe-meta-vibe { font-size: 11.5px; line-height: 1.4; color: rgba(58, 52, 64, 0.78); }
+/* (the old in-side #wardrobe-meta block retired 2026-11 — the name plate
+   now rides the stage itself, see the overlay styles above) */
 
 /* View chips (Front / 3/4 / Back / Spin) + close.
    Phone: 4 equal chips on one row, close full-width under them.
@@ -1448,9 +1528,10 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     box-shadow: none;
   }
   #wardrobe-stage {
-    /* ~40% of the phone — the consumer is choosing a FACE, not a chip */
-    height: clamp(260px, 42dvh, 380px);
-    flex-shrink: 0;
+    /* the stage flex-fills (the viewer law) — no fixed cap: the figure
+       gets the majority of the phone, the side sits below content-sized */
+    flex: 1 1 auto;
+    min-height: 240px;
   }
   #wardrobe-side {
     padding: 12px 14px calc(14px + env(safe-area-inset-bottom));

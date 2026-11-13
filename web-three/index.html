@@ -110,22 +110,32 @@
   <!-- Wardrobe — the 3D fitting room (ui/Wardrobe.ts). Looking is free;
        wearing a different face asks for a new game first (the lock law).
        PICK MODE (2026-11): the same room is the film's "who got off the
-       bus?" beat — first pick is free, the name rides in with the face. -->
+       bus?" beat — first pick is free, the name rides in with the face.
+       VIEWER (2026-11): the stage is a real character-inspection camera —
+       full-body framing from the rig's own bounding box, drag to orbit,
+       pinch/scroll/buttons to zoom. The name plate rides the stage (the
+       character is the star; the side is just the lineup) and the zoom
+       cluster sits inside the stage, one thumb's reach on a phone. -->
   <div id="wardrobe-panel" hidden role="dialog" aria-modal="true" aria-label="Wardrobe — the fitting room">
     <div id="wardrobe-card">
       <div id="wardrobe-stage">
         <canvas id="wardrobe-canvas" aria-label="3D preview of the selected look"></canvas>
-        <div id="wardrobe-hint">Drag to spin</div>
-      </div>
-      <div id="wardrobe-side">
-        <label id="wardrobe-title">Wardrobe — the fitting room</label>
-        <div id="wardrobe-sub">Six ways onto the block. The pick is for keeps.</div>
-        <div id="wardrobe-lineup"></div>
         <div id="wardrobe-meta" hidden>
           <div id="wardrobe-meta-name"></div>
           <div id="wardrobe-meta-role"></div>
           <div id="wardrobe-meta-vibe"></div>
         </div>
+        <div id="wardrobe-zoom">
+          <button id="wardrobe-zoom-in" type="button" aria-label="Zoom in" title="Zoom in">+</button>
+          <button id="wardrobe-zoom-out" type="button" aria-label="Zoom out" title="Zoom out">−</button>
+          <button id="wardrobe-zoom-fit" type="button" aria-label="Fit the whole character" title="Fit the whole character">⤢</button>
+        </div>
+        <div id="wardrobe-hint">Drag to spin · pinch or scroll to zoom</div>
+      </div>
+      <div id="wardrobe-side">
+        <label id="wardrobe-title">Wardrobe — the fitting room</label>
+        <div id="wardrobe-sub">Six ways onto the block. The pick is for keeps.</div>
+        <div id="wardrobe-lineup"></div>
         <div id="wardrobe-controls">
           <button id="wardrobe-front" type="button">Front</button>
           <button id="wardrobe-quarter" type="button">3/4</button>
