@@ -141,7 +141,9 @@ if (!walk.glassBack) fails.push('cornerhouse: far pane did not return');
 if (!walk.upperBack) fails.push('cornerhouse: tower did not return after leaving');
 console.log(`WALK-IN: px=${walk.px.toFixed(1)} pz=${walk.pz.toFixed(1)} y=${walk.groundY.toFixed(2)} steps=${walk.steps} near=${walk.doorNear} duck=${walk.upperDucked} restore=${walk.farAgain}/${walk.glassBack}/${walk.upperBack} exit=(${walk.exitX.toFixed(1)},${walk.exitZ.toFixed(1)})`);
 
-// ---- 5. the dressing: the five GLB slots landed --------------------------
+// ---- 5. the dressing: the five GLB slots landed (the W14b restock pass
+// rebuilds the island and the walls procedurally — the slots are the
+// shipped batch) ------------------------------------------------------------
 const dressing = await page.evaluate(() => {
   const w = window.__game.world;
   const upgrades = {};
@@ -153,7 +155,7 @@ const dressing = await page.evaluate(() => {
 for (const id of dressing.want) {
   if (!(id in dressing.upgrades)) fails.push(`cornerhouse: slot ${id} did not land (glbUpgrades missing)`);
 }
-console.log(`DRESSING: ${dressing.want.filter((id) => id in dressing.upgrades).length}/5 slots landed — ${dressing.calls} draw calls`);
+console.log(`DRESSING: ${dressing.want.filter((id) => id in dressing.upgrades).length}/${dressing.want.length} slots landed — ${dressing.calls} draw calls`);
 
 // ---- 6. the portrait evidence: the dry-goods floor from inside -----------
 await page.evaluate(() => {

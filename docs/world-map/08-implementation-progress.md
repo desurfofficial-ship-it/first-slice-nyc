@@ -79,6 +79,18 @@ registry's last openDecision:
   door line, the counter + register, the seasonal crates at the corner pier,
   the detergent shelf, the soda cooler), the named far pane, the duck tower.
   `buildW14CornerHouse` + `probe-w14-cornerhouse.mjs` + the walkability leg.
+- **The W14b restock pass (2026-11-13, register v1.72.0)**: the owner's
+  "doesn't look finished nor production ready" verdict answered — the survey
+  frames (diag-ch-survey.mjs) read the shipped floor honestly (a featureless
+  gondola slab down the door's sight line, blank wall shelves, one flat mud
+  tone, zero goods), and the bodega's own production playbook rebuilt it with
+  the store's identity: the double-sided stocked island (boards both sides at
+  the batch's shelf-height law), rebuilt stocked wall units, the brick-red
+  counter with cream top + gold trim + impulse rack + bag stack, the goods
+  board + poster, the warm cream floor, the entrance mat, backstock on the
+  cooler. Stock merged one mesh per color; architecture merged three meshes;
+  colliders byte-identical; probe-city-fabric 191 byte-equal (the street
+  ledger pays nothing); five batch GLB slots unchanged; all gates green.
 
 ## 5. Systems already integrated
 
