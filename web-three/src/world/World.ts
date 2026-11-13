@@ -56,6 +56,7 @@ import { SEASON_DRESSING, seasonForCalendarDay, type Season } from './seasonDres
 import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
 import { buildSubwaySystem, STATION, ZONE_KEEP_RE, type SubwaySystem, type ColliderSpec } from './subway';
 import { buildTimesSquare, type TimesSquare } from './timesSquare';
+import { buildCatalpaJunction, type CatalpaJunction } from './catalpaJunction';
 import { buildArrivalBus, BUS04_RECT, playerOccupiesBus04, type ArrivalBus } from './arrivalBus';
 import { buildCityFabric } from './cityFabric';
 import { groundMaterial, metricBoxUVs } from './groundTex';
@@ -268,6 +269,7 @@ export class World {
   readonly subwayRoot = new THREE.Group();
   subway!: SubwaySystem;
   timesSquare!: TimesSquare;
+  catalpa!: CatalpaJunction;
   arrivalBus!: ArrivalBus;
   /** The named street-dressing groups (the vendor cart, the fruit stand)
    *  the curb bake may merge WITHIN — never across groups. They are
@@ -673,7 +675,10 @@ export class World {
       fog: false,
     });
     this.skyMat = skyMat;
-    const sky = new THREE.Mesh(new THREE.SphereGeometry(380, 24, 16), skyMat);
+    // radius 560 (WC1): the dome must carry the second district — the
+    // spur stands at x −410, the west rim at −478 (the old 380 left the
+    // Junction reading a black sky past Alder Heights' horizon)
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(560, 24, 16), skyMat);
     sky.frustumCulled = false;
     sky.name = 'SkyDome';
     scene.add(sky);
@@ -2182,6 +2187,33 @@ export class World {
     // fuses it like every other TS mesh (zone visibility owns the far world;
     // the district tiles never reach here).
     this.dressFarWorldSI(tsRoot);
+    // ---- W-C1: Catalpa Junction, the second district's first priced slice
+    // (DEC-13: the design package APPROVED as filed, scenario S1 governing).
+    // The district lives west of Times Square (x −450..−378, the registry's
+    // free band), zone-owned like every far-world root: CJN_Group lights
+    // only inside its catalpaSurface/catalpaPlatform zones, never joins a
+    // district tile (NAMED_SKIP), never takes city-fabric roofs (ROOF_SKIP).
+    // The masses READ their registry rows — the flip never invents geometry.
+    const cjnRoot = new THREE.Group();
+    cjnRoot.name = 'CJN_Group';
+    this.scene.add(cjnRoot);
+    this.catalpa = buildCatalpaJunction(cjnRoot, (c, opts) => this.mat(c, opts), {
+      'CJN-01': this.regShell('CJN-01'),
+      'CJN-02': this.regShell('CJN-02'),
+      'CJN-03': this.regShell('CJN-03'),
+      'CJN-04': this.regShell('CJN-04'),
+      'CJN-05': this.regShell('CJN-05'),
+      'CJN-06': this.regShell('CJN-06'),
+      'CJN-07': this.regShell('CJN-07'),
+      'CJN-08': this.regShell('CJN-08'),
+      'CJN-09': this.regShell('CJN-09'),
+      // the h-0 slot row rides regFootprint (the ALY-02/SUB-TS law —
+      // regShell's height floor would refuse it)
+      'CJN-SUB': this.regFootprint('CJN-SUB'),
+    });
+    for (const c of this.catalpa.colliders) {
+      this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d));
+    }
     this.arrivalBus = buildArrivalBus((c, opts) => this.mat(c, opts));
     this.scene.add(this.arrivalBus.group);
     for (const c of this.arrivalBus.colliders) {
@@ -5315,7 +5347,7 @@ export class World {
       // rows live OUTSIDE every district tile (x ±110 / z −88 / z +104) —
       // a tile ring that drops them would blink the horizon out of view
       'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121', 'Yard_N',
-      'SkylineFabric', 'SkylineFabricWindows']);
+      'SkylineFabric', 'SkylineFabricWindows', 'CJN_Group']);
     const excluded = (o: THREE.Object3D): boolean => {
       for (let p: THREE.Object3D | null = o; p !== null; p = p.parent) {
         if (skip.has(p) || NAMED_SKIP.has(p.name)) return true;
@@ -5544,7 +5576,7 @@ export class World {
   private bakeZoneStatics(groups: THREE.Group[] = [
     this.subway.groups.stationA, this.subway.groups.stationB,
     this.subway.groups.tunnel, this.subway.groups.scenery,
-    this.timesSquare.group,
+    this.timesSquare.group, this.catalpa.group,
   ]): void {
     const ANIMATED = /priya|busker|usher|crowd|mover|rider|sub_wait|sub_sax|tss_screen_\d+$|tss_banner|bus_driver/i;
     const animated = (o: THREE.Object3D, g: THREE.Group): boolean => {
@@ -9074,7 +9106,13 @@ export class World {
           this.colliders.push(this.terminalCollider);
         }
       }
-      this.timesSquare.group.visible = this.subway.lit.has('tsSurface');
+      this.timesSquare.group.visible = this.subway.lit.has('tsSurface')
+        || this.subway.lit.has('catalpaSurface'); // the shared-sky law (W-C1): the Junction reads the same city — the square's towers east, the west rim behind its own rooflines
+      // the district's own zones (the tsSurface law one line up): the
+      // Junction lights only when the player stands inside it — the shipped
+      // Alder Heights rigs never see it, +0 standing by construction
+      this.catalpa.group.visible =
+        this.subway.lit.has('catalpaSurface') || this.subway.lit.has('catalpaPlatform');
       const tsBeat = this.timesSquare.update(dt, feet, this.worldDay);
       if (tsBeat) this.tsBeats.push(tsBeat);
       this.arrivalBus.update(dt);

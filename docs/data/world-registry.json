@@ -11,7 +11,8 @@
    "W1: Marlow/Gable-row entrance markers moved to their street-facing faces (11 buildings) - the build followed docs/40 §5.2, the registry now says the same.",
    "W6 (2026-11-11): the terrace build-out — playable core z ±48 → ±64 by owner authorization (DEC-8); four rows appended (GRB-06/07, TEN-02/KTS-04, all built (W6); the strips’ x ±67..74 stays avenue corridor); two garden parks appended (PRK-LARKIN/PRK-CARROW); the three W2 parks’ status column repaired (built in W2, read planned — the E-1-era defect pattern; geometry untouched).",
    "W11 (2026-11-13): the registry-truth repair — the eight W5 rooms' statuses flip 'planned' → 'built (W5)'; they shipped in W5 (World.ts buildW5*), were dressed by the sand3d batch (2026-11-07), and docs/production/interiors/00-INVENTORY.md records all nine as enterable in play — the statuses never flipped. The pizza openDecision closes (shipped as a full W5 room), the MEZZ/CORNERHOUSE decision rewords to current truth, and the shipped W8/W9 phase rows join the ledger. No id, footprint, shell, plan or anchor value moved.",
-   "W14 (2026-11-13): the Corner House interior ships — the openDecision \"CORNERHOUSE-INT remains an optional slice\" closes on the owner’s confirmation (\"build corner house\"). CORNERHOUSE-INT joins interiors (built (W14), shell x −59.6..−50.4 / z 8.2..19.8, clear 3.2) and W14 joins constructionPhases. KTN-00W’s interior field flips to built. No id, footprint, entrance, shell position or anchor value moved — append-only discipline held."
+   "W14 (2026-11-13): the Corner House interior ships — the openDecision \"CORNERHOUSE-INT remains an optional slice\" closes on the owner’s confirmation (\"build corner house\"). CORNERHOUSE-INT joins interiors (built (W14), shell x −59.6..−50.4 / z 8.2..19.8, clear 3.2) and W14 joins constructionPhases. KTN-00W’s interior field flips to built. No id, footprint, entrance, shell position or anchor value moved — append-only discipline held.",
+   "WC1: SKY-TS-W card row moved x −428 → −476 (timesSquare.ts rim + this line) — the Catalpa Junction rows took the old ground; no canon building row touched (the W7 SKY-W/E move precedent)"
   ],
   "coordSystem": {
    "axes": "x = east(+)/west(−), z = north(+)/south(−), y = up. Identical to the live web-three world; the origin does not move.",
@@ -84,8 +85,8 @@
    },
    {
     "id": "SKY-TS-W",
-    "line": "x −428 card row + spire",
-    "role": "Times Square’s west rim (the reveal through the M121’s windshield)"
+    "line": "x −476 card row + spire",
+    "role": "Times Square's west rim (the reveal through the M121's windshield) — moved x −428 → −476 in WC1: the Catalpa Junction rows took the old ground (W-C1's approved footprints overlap the rim's old columns); the Times Sq west vista keeps its closure 48 m further out, and from the Junction the rim reads as the district's own west backdrop"
    }
   ]
  },
@@ -2617,6 +2618,296 @@
    "interior": null,
    "storyRole": "The Carrow band’s west/east house; its stoop faces Marlow’s south walk.",
    "collider": true
+  },
+  {
+   "id": "CJN-01",
+   "name": "Catalpa Terminal Warehouse",
+   "status": "built (WC1)",
+   "class": "B",
+   "face": "the Junction spur",
+   "block": "",
+   "footprint": {
+    "x": -429,
+    "z": 40,
+    "w": 14,
+    "d": 16
+   },
+   "height": 13,
+   "floors": 4,
+   "style": "warehouse loft conversion: painted-brick shell, freight cornice, dock canopy on the spur face",
+   "exterior": "rail-freight loading dock converted to lofts; the terminal wall keeps its painted ghost courses",
+   "entrance": [
+    {
+     "x": -422,
+     "z": 40,
+     "faces": "E",
+     "type": "dock door"
+    }
+   ],
+   "interior": null,
+   "storyRole": "the endgame district's north anchor — the first roof the ride reveals past the bridge",
+   "collider": true
+  },
+  {
+   "id": "CJN-02",
+   "name": "Corbin & Sons Wholesale",
+   "status": "built (WC1)",
+   "class": "C",
+   "face": "the Junction spur",
+   "block": "",
+   "footprint": {
+    "x": -429,
+    "z": 20,
+    "w": 14,
+    "d": 14
+   },
+   "height": 12,
+   "floors": 3,
+   "style": "working wholesaler: brick shell, steel dock door, hand-painted fascia",
+   "exterior": "CORBIN & SONS fascia over the dock door; pallet stack by the spur",
+   "entrance": [
+    {
+     "x": -422,
+     "z": 20,
+     "faces": "E",
+     "type": "dock door"
+    }
+   ],
+   "interior": null,
+   "storyRole": "a working door — the district reads open for business the moment its zone lights",
+   "collider": true
+  },
+  {
+   "id": "CJN-03",
+   "name": "Catalpa Iron Works",
+   "status": "built (WC1)",
+   "class": "B",
+   "face": "the Junction spur",
+   "block": "",
+   "footprint": {
+    "x": -429,
+    "z": -4,
+    "w": 14,
+    "d": 20
+   },
+   "height": 15,
+   "floors": 4,
+   "style": "the spur's landmark shell: dark brick, iron lintels, smoke stack, the district's biggest ghost sign",
+   "exterior": "CATALPA IRON WORKS — STRUCTURAL · ORNAMENTAL · EST. 1911 painted across the spur face",
+   "entrance": [
+    {
+     "x": -422,
+     "z": -4,
+     "faces": "E",
+     "type": "dock door"
+    }
+   ],
+   "interior": null,
+   "storyRole": "the Junction's ghost-sign heart — the industry the district grew from",
+   "collider": true
+  },
+  {
+   "id": "CJN-04",
+   "name": "Starlawn Fork & Tool",
+   "status": "built (WC1)",
+   "class": "C",
+   "face": "the Junction spur",
+   "block": "",
+   "footprint": {
+    "x": -429,
+    "z": -24,
+    "w": 14,
+    "d": 14
+   },
+   "height": 11,
+   "floors": 3,
+   "style": "small wholesaler shell: brick, dock canopy, painted band",
+   "exterior": "STARLAWN band over the dock; the spur's quietest door",
+   "entrance": [
+    {
+     "x": -422,
+     "z": -24,
+     "faces": "E",
+     "type": "dock door"
+    }
+   ],
+   "interior": null,
+   "storyRole": "the working row's middle beat",
+   "collider": true
+  },
+  {
+   "id": "CJN-05",
+   "name": "The Docksman",
+   "status": "built (WC1)",
+   "class": "B",
+   "face": "the Junction spur",
+   "block": "",
+   "footprint": {
+    "x": -429,
+    "z": -46,
+    "w": 14,
+    "d": 14
+   },
+   "height": 14,
+   "floors": 4,
+   "style": "warehouse loft conversion: brick shell, painted tank wall, dock canopy",
+   "exterior": "THE DOCKSMAN — WAREHOUSE row lettering kept from the freight years",
+   "entrance": [
+    {
+     "x": -422,
+     "z": -46,
+     "faces": "E",
+     "type": "dock door"
+    }
+   ],
+   "interior": null,
+   "storyRole": "the spur's south gate — the walk turns here toward the market blocks",
+   "collider": true
+  },
+  {
+   "id": "CJN-06",
+   "name": "Meridian Lumber",
+   "status": "built (WC1)",
+   "class": "C",
+   "face": "the Junction spur",
+   "block": "",
+   "footprint": {
+    "x": -394,
+    "z": 42,
+    "w": 12,
+    "d": 14
+   },
+   "height": 12,
+   "floors": 3,
+   "style": "timber wholesaler: brick shell, high dock door, lumber-mark fascia",
+   "exterior": "MERIDIAN LUMBER fascia; the dock sill worn hollow by a century of carts",
+   "entrance": [
+    {
+     "x": -400,
+     "z": 42,
+     "faces": "W",
+     "type": "dock door"
+    }
+   ],
+   "interior": null,
+   "storyRole": "the east row's north anchor",
+   "collider": true
+  },
+  {
+   "id": "CJN-07",
+   "name": "Halstead Lofts",
+   "status": "built (WC1)",
+   "class": "B",
+   "face": "the Junction spur",
+   "block": "",
+   "footprint": {
+    "x": -394,
+    "z": 26,
+    "w": 12,
+    "d": 12
+   },
+   "height": 18,
+   "floors": 5,
+   "style": "loft row, the district's tallest: brick shell, tall studio windows, cornice",
+   "exterior": "HALSTEAD LOFTS painted under the cornice; five floors of studio glass over the spur",
+   "entrance": [
+    {
+     "x": -400,
+     "z": 26,
+     "faces": "W",
+     "type": "dock door"
+    }
+   ],
+   "interior": null,
+   "storyRole": "the Junction's roofline — the wider sky the package promised, measured here",
+   "collider": true
+  },
+  {
+   "id": "CJN-08",
+   "name": "United Cotton Duck",
+   "status": "built (WC1)",
+   "class": "C",
+   "face": "the Junction spur",
+   "block": "",
+   "footprint": {
+    "x": -394,
+    "z": 8,
+    "w": 12,
+    "d": 16
+   },
+   "height": 11,
+   "floors": 3,
+   "style": "textile wholesaler: brick shell, wide dock door, painted band",
+   "exterior": "UNITED COTTON DUCK fascia; bales stenciled on the pier",
+   "entrance": [
+    {
+     "x": -400,
+     "z": 8,
+     "faces": "W",
+     "type": "dock door"
+    }
+   ],
+   "interior": null,
+   "storyRole": "the spur's mid-dock — the market stalls will face its wall (W-C2+)",
+   "collider": true
+  },
+  {
+   "id": "CJN-09",
+   "name": "The Junction Depot",
+   "status": "built (WC1)",
+   "class": "B",
+   "face": "the Junction spur",
+   "block": "",
+   "footprint": {
+    "x": -394,
+    "z": -16,
+    "w": 12,
+    "d": 14
+   },
+   "height": 13,
+   "floors": 4,
+   "style": "the old freight depot: brick shell, iron freight doors, depot sign band",
+   "exterior": "JUNCTION FREIGHT DEPOT band; two iron doors sealed on the spur face",
+   "entrance": [
+    {
+     "x": -400,
+     "z": -16,
+     "faces": "W",
+     "type": "dock door"
+    }
+   ],
+   "interior": null,
+   "storyRole": "the depot that named the Junction — the district's reason, standing",
+   "collider": true
+  },
+  {
+   "id": "CJN-SUB",
+   "name": "Catalpa Junction station (K)",
+   "status": "built (WC1)",
+   "class": "A",
+   "face": "the Junction spur",
+   "block": "",
+   "footprint": {
+    "x": -410,
+    "z": 15.95,
+    "w": 12,
+    "d": 13
+   },
+   "height": 0,
+   "floors": 1,
+   "style": "subway station slot: below-grade platform on the K line's west reach (the SUB-TS precedent)",
+   "exterior": "open-cut platform under the Junction; headhouse stair at the spur crossing, x −410",
+   "entrance": [
+    {
+     "x": -410,
+     "z": 8,
+     "faces": "S",
+     "type": "subway stair"
+    }
+   ],
+   "interior": null,
+   "storyRole": "the line's west terminus — the ride seam's future Catalpa side; the stub prices the platform, the machine rides later (DEC-13 §2.3)",
+   "collider": true
   }
  ],
  "parks": [
@@ -5074,6 +5365,12 @@
    "name": "The Corner House interior",
    "content": "CORNERHOUSE-INT — the registry’s last openDecision, built on the owner’s confirmation (\"build corner house\"). The FRUIT-INT full-cavity carve applied to the block’s corner store (KTN-00W): the W1 mass retires and decomposes into the duck tower (y 3.2..16) + three blind walls (the Juniper skin, the KTN-01 party wall, the hall’s shared north wall) + the opened south facade (the registry door gap at x −55, two shop windows y 0.5..2.6), the shipped storefront glass becomes the named far pane, the chamfer pier gains its collider, and the dry-goods floor ships (goods walls, center gondola, counter + register, seasonal crates, display table, detergent shelf, soda cooler — 5 GLB slots riding the batch’s own files). Footprints, door nodes and entrance rows never move.",
    "unlocks": "the corner reads as a place through its own glass — the Kestrel×Juniper intersection’s anchor storefront is a walk-in room; the registry’s openDecisions ledger closes (the street-canon and bus-body decisions are the lead’s, not construction)"
+  },
+  {
+   "id": "WC1",
+   "name": "The Junction docks — Catalpa Junction's first priced slice",
+   "content": "The owner-approved district's first wave (DEC-13: the design package APPROVED as filed, scenario S1 transit-gated, W-C1 authorized; the Narrative Director's reconciliation rode first — the hall stays on the Alder Works parcel, Catalpa Junction is the open endgame's district). Nine registry rows on the K line's west reach past 42 ST (x −450..−378, the registry's free band — the district the freight industry built): the spur's two dock rows (CJN-01..05 west doors east, CJN-06..09 east doors west), the Iron Works ghost-sign shell, the loft row's roofline, and CJN-SUB the K-line platform stub (the SUB-TS slot-row precedent, h 0). All zone-owned: CJN_Group lights only inside its catalpaSurface/catalpaPlatform zones (the tsSurface law), NAMED_SKIP keeps it out of every district tile, ROOF_SKIP keeps the fabric off the far world's roofs — the shipped Alder Heights rigs stay byte-identical (+0 standing), and the district's own census prices in the wave's probe. No ride-seam machine change (the ride stays A↔B); no interiors, businesses, residents, or story content (each its own priced wave).",
+   "unlocks": "the second district's first slice, priced: the spur walk, the dock rows, the platform stub — visible when the ride seam wave opens the zone"
   }
  ],
  "openDecisions": [

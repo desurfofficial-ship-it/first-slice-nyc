@@ -166,6 +166,30 @@ for (const [id, x, z, w, d, h] of w7) {
     ok(b.status === 'built (W7)', `${id} must be status 'built (W7)'`);
   }
 }
+
+// ---- 7c. the WC1 band — Catalpa Junction's first priced slice (DEC-13).
+// The far band's own pin block (the w7 precedent): every row's footprint
+// and height pinned, every status 'built (WC1)', every id inside the free
+// band west of Times Square (x −450..−378 — bounds.world's west reach).
+const wc1 = [
+  ['CJN-01', -429, 40, 14, 16, 13], ['CJN-02', -429, 20, 14, 14, 12],
+  ['CJN-03', -429, -4, 14, 20, 15], ['CJN-04', -429, -24, 14, 14, 11],
+  ['CJN-05', -429, -46, 14, 14, 14], ['CJN-06', -394, 42, 12, 14, 12],
+  ['CJN-07', -394, 26, 12, 12, 18], ['CJN-08', -394, 8, 12, 16, 11],
+  ['CJN-09', -394, -16, 12, 14, 13], ['CJN-SUB', -410, 15.95, 12, 13, 0],
+];
+for (const [id, x, z, w, d, h] of wc1) {
+  const b = R.buildings.find((y) => y.id === id);
+  ok(b, `MISSING WC1 ${id}`);
+  if (b) {
+    const f = b.footprint;
+    ok(f.x === x && f.z === z && f.w === w && f.d === d && b.height === h,
+      `WC1 DRIFT ${id}: registry (${f.x},${f.z},${f.w},${f.d},h${b.height}) != plan (${x},${z},${w},${d},h${h})`);
+    ok(b.status === 'built (WC1)', `${id} must be status 'built (WC1)'`);
+    ok(id === 'CJN-SUB' || b.height > 0, `${id} — only the platform slot row may ride h 0`);
+    ok(!b.interior, `WC1 ${id} carries no interior — shells only this wave (W-C1's own scope law)`);
+  }
+}
 for (const [id, x, z, w, d, h] of shipped) {
   const b = R.buildings.find((y) => y.id === id);
   ok(b, `MISSING EXISTING ${id} — the registry must carry every shipped mass`);

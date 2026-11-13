@@ -113,9 +113,10 @@ export interface RegistryBuildingJson {
  *  semantic form cannot.) */
 export function isShippedBuildingStatus(status: string | undefined): boolean {
   // 'built (Wn)' — the W-phase bands; 'built (SI-1)' — the borough-character
-  // wave's Mallow-row rows (the SI union, 2026-11-11); 'existing' — the
-  // shipped originals. Never 'planned' (the no-render law).
-  return status === 'existing' || /^built \((W\d+|SI-\d+)\)$/.test(status ?? '');
+  // wave's Mallow-row rows (the SI union, 2026-11-11); 'built (WC1)' — the
+  // Catalpa Junction construction line (W-C1, 2026-11-13, DEC-13);
+  // 'existing' — the shipped originals. Never 'planned' (the no-render law).
+  return status === 'existing' || /^built \((WC\d+|W\d+|SI-\d+)\)$/.test(status ?? '');
 }
 
 const REGISTRY = registryJson as unknown as { buildings?: RegistryBuildingJson[] };
@@ -145,6 +146,7 @@ function builderOf(b: RegistryBuildingJson): string {
       return 'World.ts (the DIRTY WATER DOGS cart)';
     default:
       if (b.id?.startsWith('TSS')) return 'world/timesSquare (authored block)';
+      if (b.id?.startsWith('CJN')) return 'world/catalpaJunction (authored block)';
       return 'World.ts (authored mass)';
   }
 }
@@ -155,7 +157,7 @@ function builderOf(b: RegistryBuildingJson): string {
  * building without an entry here must carry a `code ref` in its registry
  * style note (the builderOf path) — anything else fails the test.
  */
-export const BUILDING_EVIDENCE: Record<string, { file: 'World.ts' | 'timesSquare.ts' | 'subway/stationKit.ts'; tokens: string[] }> = {
+export const BUILDING_EVIDENCE: Record<string, { file: 'World.ts' | 'timesSquare.ts' | 'subway/stationKit.ts' | 'catalpaJunction.ts'; tokens: string[] }> = {
   'ALY-01': { file: 'World.ts', tokens: ['Bldg_N_East_B'] },
   'ALY-02': { file: 'World.ts', tokens: ['Bldg_N_East_A', 'Bldg_N_GoldWindow'] },
   'VND-01': { file: 'World.ts', tokens: ['DIRTY WATER DOGS'] },
@@ -239,6 +241,20 @@ export const BUILDING_EVIDENCE: Record<string, { file: 'World.ts' | 'timesSquare
   'LMS-01': { file: 'World.ts', tokens: ['LMS_01_base'] },
   'IND-01': { file: 'World.ts', tokens: ['IND_01'] },
   'GLS-01': { file: 'World.ts', tokens: ['GLS_01'] },
+  // ---- the W-C1 Catalpa Junction band (DEC-13, 2026-11-13): the second
+  // district's first priced slice — the construction names in
+  // world/catalpaJunction.ts (the zone-owned far band; the A-3 law holds —
+  // every mass reads its registry row via World.ts's regShell)
+  'CJN-01': { file: 'catalpaJunction.ts', tokens: ['CJN_01'] },
+  'CJN-02': { file: 'catalpaJunction.ts', tokens: ['CJN_02'] },
+  'CJN-03': { file: 'catalpaJunction.ts', tokens: ['CJN_03'] },
+  'CJN-04': { file: 'catalpaJunction.ts', tokens: ['CJN_04'] },
+  'CJN-05': { file: 'catalpaJunction.ts', tokens: ['CJN_05'] },
+  'CJN-06': { file: 'catalpaJunction.ts', tokens: ['CJN_06'] },
+  'CJN-07': { file: 'catalpaJunction.ts', tokens: ['CJN_07'] },
+  'CJN-08': { file: 'catalpaJunction.ts', tokens: ['CJN_08'] },
+  'CJN-09': { file: 'catalpaJunction.ts', tokens: ['CJN_09'] },
+  'CJN-SUB': { file: 'catalpaJunction.ts', tokens: ['CJN_Station_Slab'] },
 };
 
 /**

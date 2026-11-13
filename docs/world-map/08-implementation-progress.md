@@ -445,3 +445,80 @@ reconciliation, documents only:
   Heights bar, same-commit law).
 
 — Z.ai agent, 2026-11-13
+
+---
+
+## 16. Session addendum — W-C1, the Junction docks (2026-11-13, later)
+
+The second district's first priced slice, built under DEC-13's approval and
+the design package's own §5 gates:
+
+- **The registry slice** (append-only, `CJN-*` only): nine dock rows on the
+  K line's west reach past 42 ST (x −450..−378, the registry's free band) —
+  the spur's west row (CJN-01..05, dock doors east) and east row
+  (CJN-06..09, dock doors west), the Iron Works ghost-sign shell, the loft
+  row's roofline — plus **CJN-SUB**, the K-line platform stub (the SUB-TS
+  slot-row precedent, h 0, class A). Statuses `built (WC1)`; shells only (no
+  interiors/businesses/residents/story — each its own priced wave). The mjs
+  validator gains the WC1 pin block (footprints + heights + statuses pinned,
+  the w7 precedent); the registry carries the WC1 construction phase.
+- **The builder** (`web-three/src/world/catalpaJunction.ts`, new — World.ts
+  grows by the wiring only, the R-NEW-3 discipline): the A-3 law holds (every
+  mass READS its registry row via `regShell`; the h-0 slot row rides
+  `regFootprint`, the ALY-02/SUB-TS law); canvas facades on the spur faces
+  (brick courses, window grids, dock bands, the rows' lettering, the Iron
+  Works ghost sign); the spur itself (paving, curbs, the dead rails, bollards,
+  lamps, the FREIGHT SPUR stencil); two iron footbridges; the station stub
+  (platform slab, cut walls opening around the stair and the track throat,
+  columns, the CATALPA JUNCTION name band, the headhouse kiosk with the K
+  bullet). `CJN_Group` is zone-owned: two new ZoneDefs (catalpaSurface,
+  catalpaPlatform) in the subway's table; the group lights only inside them;
+  NAMED_SKIP keeps it out of every district tile; the zone bake fuses its
+  untextured statics in-group (2 batches); cityFabric's ROOF_SKIP keeps the
+  fabric off the far band. The builder never touches the scene.
+- **The shared-sky law**: World ORs the TSS group's visibility with
+  catalpaSurface — the Junction reads the same city (the square's towers
+  east, the west rim behind its own rooflines). The sky dome's radius grows
+  380 → 560: the old dome ended inside the district's band and the Junction
+  read a black sky past Alder Heights' horizon.
+- **The SKY-TS-W reconciliation** (DEC-13 §2.3's item, forced early by the
+  overlap): the Times Square west rim (spire + 7 rim towers) moved
+  x −428 → −476 — W-C1's approved footprints overlap the rim's old columns;
+  the registry's SKY-TS-W line + the meta corrections entry carry the move
+  (the W7 SKY-W/E precedent; no canon building row touched). From 42 ST the
+  vista keeps its closure 48 m further out; from the Junction the rim reads
+  as the district's own west backdrop.
+- **THE LEDGER ROW (measured, probe-wc1-catalpa.mjs — the diag-tss-census
+  method, the game's own composed frames)**: shipped spawn frame **191 draws
+  with the district resident and dark — +0 standing** (probe-city-fabric
+  byte-identical ✓); the spur lit **60 draws**; the platform lit **25 draws**
+  — Catalpa's own census inside the same < 200 probe budget (S1's district
+  law). Return-to-spawn re-darkens (the renderer guarantee: invisible
+  subtrees cost zero).
+- **The battery**: validate-registry OK (189 IDs, 91 buildings, 23/23
+  anchors) · tsc clean · vitest **1,734/1,734 (104 files, +15: the catalpa
+  suite)** · build OK · probe-wc1-catalpa OK (the ledger above; two
+  portraits: shots/world-map/wc1-spur-portrait.png,
+  wc1-platform-portrait.png) · probe-city-fabric DRAWS 191 byte-identical ·
+  probe-integration 0 errors 8/8 walks (191 draws) · probe-world-sim **15/15
+  at worldclock=240** · probe-a3-flip PASS (console clean) · probe-fenestra
+  ALL PASS · probe-chokepoints OK · diag-pocket-scan deterministic ×2
+  (spawn-comp **42,436 unchanged**, traps **18 unchanged**, colliders
+  977 → **1018** — the CJN colliders' honest +41, all outside the playable
+  extent; the walkable map untouched).
+- **The honest carries**: probe-walkability's static sweep PASS (37/37 lanes
+  bypassed, 24 door approaches walkable — the registry-facing half); its
+  live-leg half cannot finish at this box's ~2 fps (the documented dilation
+  class, the W14 skirt-corridor precedent — probe-integration's 8/8 live
+  walks stand as the live evidence). **probe-subway's Wow-card check fails
+  on the BASELINE tree too** (the A/B worktree at e792abd, built and run on
+  this box — the same 1 FAIL both sides: the wall-budget class, a day-end
+  card owning the panel at the sync on this box's clock; not the wave's
+  regression). The full-scale 4-day E2E stays the faster-box follow-up (the
+  W16 record's own standing item).
+- **Next**: W-C2+ ride the package's gates — the ride seam (the third
+  station machine, the SKY-TS-W corridor's remaining reconciliation), the
+  spur's businesses opening with books, the district's own census growth —
+  each priced first, the Alder Heights bar throughout.
+
+— Z.ai agent, 2026-11-13

@@ -34,10 +34,12 @@ const INTERACTION_DEFS = read('web-three/src/game/interactionDefs.ts');
 const WORLD_TS = read('web-three/src/world/World.ts');
 const TIMES_SQUARE = read('web-three/src/world/timesSquare.ts');
 const STATION_KIT = read('web-three/src/world/subway/stationKit.ts');
+const CATALPA = read('web-three/src/world/catalpaJunction.ts');
 const EVIDENCE_FILE: Record<string, string> = {
   'World.ts': WORLD_TS,
   'timesSquare.ts': TIMES_SQUARE,
   'subway/stationKit.ts': STATION_KIT,
+  'catalpaJunction.ts': CATALPA,
 };
 const REGISTRY = JSON.parse(read('docs/data/world-registry.json')) as {
   buildings: { id: string; name?: string; class?: string; block?: string; status?: string; style?: string }[];
@@ -98,7 +100,7 @@ describe('sim/contentCatalogue — the first building-variant pack', () => {
 
   it('is exactly the registry\'s shipped buildings, under their registry ids', () => {
     expect(pack.length).toBe(shipped.length);
-    expect(pack.length).toBe(81); // ALL 81 ship — grows only as buildings are built (53 fleet + 4 W6 terrace rows + 24 W7 gate rows)
+    expect(pack.length).toBe(91); // ALL 91 ship — grows only as buildings are built (53 fleet + 4 W6 terrace rows + 24 W7 gate rows + 10 W-C1 Catalpa rows)
     const shippedIds = new Set(shipped.map((b) => b.id));
     for (const e of pack) {
       expect(shippedIds.has(e.id)).toBe(true);
@@ -138,7 +140,7 @@ describe('sim/contentCatalogue — the whole catalogue', () => {
   const all = shippedContentCatalogue(SHELF_GOODS);
 
   it('is one valid manifest — anchors + buildings, globally unique ids', () => {
-    expect(all.length).toBe(3 + SHELF_GOODS.length + 81); // 53 fleet + 4 W6 terrace rows + 24 W7 gate rows
+    expect(all.length).toBe(3 + SHELF_GOODS.length + 91); // 53 fleet + 4 W6 terrace rows + 24 W7 gate rows + 10 W-C1 Catalpa rows
     expect(validateManifest(all)).toEqual([]);
     expect(new Set(all.map((e) => e.id)).size).toBe(all.length);
   });
