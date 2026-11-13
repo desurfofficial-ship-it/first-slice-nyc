@@ -72,4 +72,4 @@ Registry-driven construction (the A-3 flip is complete: rows render from the reg
 
 ## 7. The decision frame handed back to the owner
 
-Approve this package + the first priced wave (scenario S1 default), amend it, or hold it. **Until the fresh §8 gate opens: Alder Heights is the whole playable world, and the roadmap continues inside it** — the W16 seasonal pass (register v1.69.0) already made the calendar's seasons real in the shipped district, which is exactly the machinery Catalpa's winter-lights chapter will ride.
+Approve this package + the first priced wave (scenario S1 default), amend it, or hold it. **Until the fresh §8 gate opens: Alder Heights is the whole playable world, and the roadmap continues inside it** — the W16 seasonal pass (register v1.70.0) already made the calendar's seasons real in the shipped district, which is exactly the machinery Catalpa's winter-lights chapter will ride.

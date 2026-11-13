@@ -1,7 +1,7 @@
 /**
  * The season dressing law — W16, the DEC-6 minimal seasonal pass
  * (docs/production/DEC-6-SEASONAL-PASS-SCOPE-DECISION.md; register
- * v1.69.0). The permanent guards, per AGENTS.md §1c.1: every law the
+ * v1.70.0). The permanent guards, per AGENTS.md §1c.1: every law the
  * module states is pinned here, so the class of mistake cannot return
  * quietly.
  *

@@ -1,6 +1,6 @@
 /**
  * The season dressing law — W16, the DEC-6 minimal seasonal pass
- * (docs/production/DEC-6-SEASONAL-PASS-SCOPE-DECISION.md; register v1.69.0).
+ * (docs/production/DEC-6-SEASONAL-PASS-SCOPE-DECISION.md; register v1.70.0).
  *
  * One law above all: **the season comes from the R4 calendar** —
  * `core/calendar.ts`'s own `seasonOf` over the calendar date of the

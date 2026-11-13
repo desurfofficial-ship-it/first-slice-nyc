@@ -37,7 +37,7 @@ describe('interior dressing manifest (docs/production/interiors/)', () => {
   it('every slot is well-formed and names a shipped interior', () => {
     for (const s of INTERIOR_SLOTS) {
       expect(
-        ['BODEGA', 'LAUNDRY', 'BARBER', 'PIZZA', 'BAKERY', 'RECORDS', 'HALL', 'DINER', 'CECIL'],
+        ['BODEGA', 'LAUNDRY', 'BARBER', 'PIZZA', 'BAKERY', 'RECORDS', 'HALL', 'DINER', 'CECIL', 'CORNERHOUSE'],
         s.id,
       ).toContain(s.room);
       expect(s.fixture.length, `${s.id} fixture name`).toBeGreaterThan(0);
@@ -89,7 +89,7 @@ describe('interior dressing manifest (docs/production/interiors/)', () => {
     const rooms = new Set(INTERIOR_SLOTS.map((s) => s.room));
     type Room = typeof INTERIOR_SLOTS[number]['room'];
     const expected: readonly Room[] =
-      ['BODEGA', 'LAUNDRY', 'BARBER', 'PIZZA', 'BAKERY', 'RECORDS', 'HALL', 'DINER', 'CECIL'];
+      ['BODEGA', 'LAUNDRY', 'BARBER', 'PIZZA', 'BAKERY', 'RECORDS', 'HALL', 'DINER', 'CECIL', 'CORNERHOUSE'];
     for (const room of expected) {
       expect(rooms.has(room), `${room} wears sand3d dressing`).toBe(true);
     }

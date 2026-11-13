@@ -10,7 +10,8 @@
   "corrections": [
    "W1: Marlow/Gable-row entrance markers moved to their street-facing faces (11 buildings) - the build followed docs/40 §5.2, the registry now says the same.",
    "W6 (2026-11-11): the terrace build-out — playable core z ±48 → ±64 by owner authorization (DEC-8); four rows appended (GRB-06/07, TEN-02/KTS-04, all built (W6); the strips’ x ±67..74 stays avenue corridor); two garden parks appended (PRK-LARKIN/PRK-CARROW); the three W2 parks’ status column repaired (built in W2, read planned — the E-1-era defect pattern; geometry untouched).",
-   "W11 (2026-11-13): the registry-truth repair — the eight W5 rooms' statuses flip 'planned' → 'built (W5)'; they shipped in W5 (World.ts buildW5*), were dressed by the sand3d batch (2026-11-07), and docs/production/interiors/00-INVENTORY.md records all nine as enterable in play — the statuses never flipped. The pizza openDecision closes (shipped as a full W5 room), the MEZZ/CORNERHOUSE decision rewords to current truth, and the shipped W8/W9 phase rows join the ledger. No id, footprint, shell, plan or anchor value moved."
+   "W11 (2026-11-13): the registry-truth repair — the eight W5 rooms' statuses flip 'planned' → 'built (W5)'; they shipped in W5 (World.ts buildW5*), were dressed by the sand3d batch (2026-11-07), and docs/production/interiors/00-INVENTORY.md records all nine as enterable in play — the statuses never flipped. The pizza openDecision closes (shipped as a full W5 room), the MEZZ/CORNERHOUSE decision rewords to current truth, and the shipped W8/W9 phase rows join the ledger. No id, footprint, shell, plan or anchor value moved.",
+   "W14 (2026-11-13): the Corner House interior ships — the openDecision \"CORNERHOUSE-INT remains an optional slice\" closes on the owner’s confirmation (\"build corner house\"). CORNERHOUSE-INT joins interiors (built (W14), shell x −59.6..−50.4 / z 8.2..19.8, clear 3.2) and W14 joins constructionPhases. KTN-00W’s interior field flips to built. No id, footprint, entrance, shell position or anchor value moved — append-only discipline held."
   ],
   "coordSystem": {
    "axes": "x = east(+)/west(−), z = north(+)/south(−), y = up. Identical to the live web-three world; the origin does not move.",
@@ -815,7 +816,7 @@
      "faces": "S"
     }
    ],
-   "interior": "CORNERHOUSE-INT (phase W5, optional): a dry-goods storefront the world can dress per season",
+   "interior": "CORNERHOUSE-INT (built W14): a dry-goods storefront the world can dress per season — the goods walls, the center gondola, the counter + register by the door, the seasonal crates at the corner pier",
    "storyRole": "Anchors the avenue corner so the subway plaza reads as a place, not an edge.",
    "collider": true
   },
@@ -4850,6 +4851,105 @@
     }
    ],
    "note": "W9 (2026-11-12): CARROW CHEESE's ground floor — the wheel shelf, the cold case, the counter."
+  },
+  {
+   "id": "CORNERHOUSE-INT",
+   "building": "KTN-00W",
+   "status": "built (W14)",
+   "shell": {
+    "xMin": -59.6,
+    "xMax": -50.4,
+    "zMin": 8.2,
+    "zMax": 19.8,
+    "clearH": 3.2
+   },
+   "plan": [
+    {
+     "item": "entrance (S, the open corner-grocery band — 2.4 m door flush between the shop windows, on the registry entrance’s own x −55)",
+     "x": -55.0,
+     "z": 8.2,
+     "w": 2.4,
+     "d": 0.5
+    },
+    {
+     "item": "shop window W (the Juniper corner run)",
+     "x": -57.3,
+     "z": 8.2,
+     "w": 2.2,
+     "d": 0.5
+    },
+    {
+     "item": "shop window E",
+     "x": -52.7,
+     "z": 8.2,
+     "w": 2.2,
+     "d": 0.5
+    },
+    {
+     "item": "goods shelves (2, W skin)",
+     "x": -59.375,
+     "z": [
+      12.2,
+      16.2
+     ],
+     "w": 0.45,
+     "d": 4.0
+    },
+    {
+     "item": "goods shelves (2, E skin)",
+     "x": -50.625,
+     "z": [
+      12.2,
+      16.2
+     ],
+     "w": 0.45,
+     "d": 4.0
+    },
+    {
+     "item": "center gondola (double-sided island, west of the door line)",
+     "x": -56.0,
+     "z": 14.4,
+     "w": 1.6,
+     "d": 3.6
+    },
+    {
+     "item": "counter + register (under window E, by the door)",
+     "x": -52.4,
+     "z": 8.62,
+     "w": 2.8,
+     "d": 0.7
+    },
+    {
+     "item": "seasonal crates (2, stacked at the corner pier)",
+     "x": -58.7,
+     "z": 8.9,
+     "w": 0.8,
+     "d": 0.8
+    },
+    {
+     "item": "display table (under window W)",
+     "x": -57.3,
+     "z": 8.85,
+     "w": 1.8,
+     "d": 0.75
+    },
+    {
+     "item": "back wall: detergent shelf + two units + the soda cooler",
+     "x": -55.5,
+     "z": 19.55,
+     "w": 4.0,
+     "d": 0.45
+    },
+    {
+     "item": "circulation",
+     "x": -55.0,
+     "z": 11.5,
+     "w": 4.6,
+     "d": 3.4,
+     "type": "clear zone"
+    }
+   ],
+   "note": "W14 (2026-11-13): the registry’s last openDecision closes on the owner’s confirmation — the optional slice ships as a real ground floor. The FRUIT-INT full-cavity carve: the mass ducks above y 3.2, the south facade opens on the registry entrance’s own x flanked by two shop windows, the shipped CORNER HOUSE storefront glass becomes the far pane (the docs/47 named-glass law), and the fit-out is the dry-goods floor the canon dresses per season. Footprint, entrance row and facade dressing never moved (the W9 law)."
   }
  ],
  "furnitureStandards": {
@@ -4968,11 +5068,16 @@
    "name": "The park-gate law",
    "content": "The pocket scan (web-three/scripts/diag-pocket-scan.mjs — full-map flood fill at the real capsule clearance) proved PRK-LARKIN/PRK-CARROW unreachable: the VDN-DN1/DS1 backdrop rows are contiguous 12 m solids x -60..60. Fix: two 3.2 m gate mouths per row (N x -30/x 33, S x -19/x 42) — jamb+lintel solids with the 2.6 m head (buildBackdrops strip), facade band split per jamb + limestone lintel fascia + open iron gate leaves (terraceFaceFabric), one shared TERRACE_GATES table. probe-walkability grows the four gate lanes + six live legs (garden walk-ins, the Gable Garden gate chain, FRUIT-INT walk-in + west bulk, the GRB-06/07 stoop landings). Honest census: the remaining sealed pockets are visible-furniture staff sides in the W5/W8/W9 rooms, the two W2 courtyards (private light wells), and the PLY-MARLOW equipment nook — none is a registered public space.",
    "unlocks": "the Larkin and Carrow gardens are walkable neighborhood — the path, the benches, the community beds, the shed and all twelve street trees are reachable from both avenues; the walk-in legs pin the class shut"
+  },
+  {
+   "id": "W14",
+   "name": "The Corner House interior",
+   "content": "CORNERHOUSE-INT — the registry’s last openDecision, built on the owner’s confirmation (\"build corner house\"). The FRUIT-INT full-cavity carve applied to the block’s corner store (KTN-00W): the W1 mass retires and decomposes into the duck tower (y 3.2..16) + three blind walls (the Juniper skin, the KTN-01 party wall, the hall’s shared north wall) + the opened south facade (the registry door gap at x −55, two shop windows y 0.5..2.6), the shipped storefront glass becomes the named far pane, the chamfer pier gains its collider, and the dry-goods floor ships (goods walls, center gondola, counter + register, seasonal crates, display table, detergent shelf, soda cooler — 5 GLB slots riding the batch’s own files). Footprints, door nodes and entrance rows never move.",
+   "unlocks": "the corner reads as a place through its own glass — the Kestrel×Juniper intersection’s anchor storefront is a walk-in room; the registry’s openDecisions ledger closes (the street-canon and bus-body decisions are the lead’s, not construction)"
   }
  ],
  "openDecisions": [
   "Street/neighbourhood names are NEW CANON pending lead approval (neighbourhood.canon note) — signage is the point of no return (phase W1).",
-  "Bus M121 body: reuse the existing car-builder family scaled up, or a dedicated low-poly bus — W4 decision.",
-  "CORNERHOUSE-INT remains an optional slice (MEZZ-INT shipped in docs/50) — confirm before scheduling a wave that would build it."
+  "Bus M121 body: reuse the existing car-builder family scaled up, or a dedicated low-poly bus — W4 decision."
  ]
 }

@@ -14,13 +14,13 @@
 
 | | |
 |---|---|
-| **Milestone** | World-map construction (W0–W13) + the evidence package (the shot list, the labelled top-down, the 3D overview) |
+| **Milestone** | World-map construction (W0–W14) + the evidence package (the shot list, the labelled top-down, the 3D overview) |
 | **Phase** | Vertical Slice production — narrative reboot canon (v1.0, 2026-11-06) |
-| **Registry version** | v1.65.0 (the W13 band-course + soot wave, 2026-11-13) |
-| **Implementation phase** | **Complete for the vertical slice.** All 178 registry IDs built. All 21 interiors shipped. All 7 parks built. All 23 anchors placed. The walkability scanner reads clean and deterministic. The evidence package (the §6 shot list, the labelled top-down map, the golden-hour overview) is captured from the real built game. |
+| **Registry version** | v1.68.0 (the W14 Corner House interior wave, 2026-11-13 — renumbered past the parallel line's DEC-8 v1.66.0 + the splice-fix v1.67.0, the monotonic-ledger law) |
+| **Implementation phase** | **Complete for the vertical slice.** All 179 registry IDs built. All 22 interiors shipped (the Corner House's CORNERHOUSE-INT closed the last openDecision in W14). All 7 parks built. All 23 anchors placed. The walkability scanner reads clean and deterministic. The evidence package (the §6 shot list, the labelled top-down map, the golden-hour overview) is captured from the real built game. |
 | **Branch (local clone)** | `main` |
-| **Latest commit hash** | the WORLDMAP-EVIDENCE commit on top of the merged line `ae6a927` (the W13 merge) ← `6b58870` (the 240-commit merge) |
-| **Commit subject** | `feat(world-map): the evidence tranche — the §6 shot list captured from the real game (one boot, the honest ride, zero page errors), the labelled top-down map, the golden-hour overview; 07/08 ticked to the new truth` |
+| **Latest commit hash** | `bcebb6e` (PUSHED — verified `git ls-remote` == HEAD) — the W14 Corner House wave `98d87a9` + the merge `bcebb6e` (the concurrent DEC-8 line joined; the register renumbered v1.68.0 per the monotonic-ledger law) |
+| **Commit subject** | `feat(world-map): W14 — the Corner House interior (register v1.68.0): the registry's last openDecision closes on the owner's confirmation` |
 | **Commit date** | 2026-11-13 (UTC) |
 | **Remote** | `https://github.com/desurfofficial-ship-it/first-slice-nyc.git` (public; read-only clone needs no credentials; the push rides the owner's fine-grained PAT — it needs the repo's Contents:write grant) |
 
@@ -60,7 +60,9 @@ All five are built:
 ## 4. Completed interiors
 
 **21 interiors, all shipped** (the W11 registry-truth repair flipped the last
-eight 'planned' rows to 'built (W5)', 2026-11-13):
+eight 'planned' rows to 'built (W5)', 2026-11-13) — **plus the Corner House
+(CORNERHOUSE-INT), built W14 (2026-11-13)** on the owner's confirmation, the
+registry's last openDecision:
 
 - LAUNDRY-INT, BARBER-INT, PIZZA-INT, DINER-INT, BAKERY-INT, RECORD-INT,
   HALL-INT, CECIL-ROOM, MEZZ-INT — all built (W5).
@@ -70,8 +72,13 @@ eight 'planned' rows to 'built (W5)', 2026-11-13):
 - The seam: `web-three/src/world/furniture.ts` (the load seam) +
   `world/interiorAssets.ts` (the dressing manifest) + `world/interiors/plan.ts`
   (the plan layer).
-- The optional slice: CORNERHOUSE-INT (registry openDecision reworded in W11 to
-  "stays an optional slice" — not a gap, a documented option).
+- The optional slice: CORNERHOUSE-INT — **CLOSED W14 (2026-11-13)**: built on
+  the owner's confirmation ("build corner house"). The open corner-grocery
+  band (a 2.4 m door flush between the shop windows, the classic NYC open
+  storefront), the dry-goods fit-out (goods walls, the center gondola off the
+  door line, the counter + register, the seasonal crates at the corner pier,
+  the detergent shelf, the soda cooler), the named far pane, the duck tower.
+  `buildW14CornerHouse` + `probe-w14-cornerhouse.mjs` + the walkability leg.
 
 ## 5. Systems already integrated
 
@@ -180,8 +187,10 @@ ledger:
    v1.65.0):** the real band courses + soot plumes shipped through the
    compliant route (469 pieces, zero colliders, +0 draw calls — the census
    stays 190).
-5. **The optional slice: CORNERHOUSE-INT.** Documented as "stays an optional
-   slice" in W11 — not a bug, a deferred option.
+5. ~~**The optional slice: CORNERHOUSE-INT.**~~ — **CLOSED (W14, register
+   v1.68.0):** built on the owner's confirmation; the openDecision ledger is
+   now empty of construction decisions (the street-canon and bus-body
+   decisions are the lead's, not construction).
 6. ~~**The live screenshot set for the world-map audit**~~ — **CLOSED
    2026-11-13:** all twelve frames captured from the real built game by
    `web-three/scripts/probe-world-map-evidence.mjs`, dropped under
@@ -332,3 +341,60 @@ fine-grained PAT authenticated but lacks this repo's Contents:write grant,
 so the owner must grant it (or push manually); nothing is stored on disk.
 
 — Z.ai agent, 2026-11-13
+
+---
+
+## 14. Session addendum — the W14 Corner House interior (2026-11-13, later)
+
+The registry's last openDecision closed on the owner's confirmation ("build
+corner house"). CORNERHOUSE-INT ships as a real ground floor in KTN-00W, the
+block's corner store at the Kestrel×Juniper intersection:
+
+- **The carve** (`buildW14CornerHouse`, the FRUIT-INT full-cavity pattern):
+  the W1 mass retires; the decomposition is the duck tower (y 3.2..16, the
+  hideable-while-inside law) + three blind walls (the Juniper skin, the
+  KTN-01 party wall, the hall's shared north wall) + the opened south facade
+  — ONE open corner-grocery band (the 2.4 m door flush between the two 2.2 m
+  shop windows, no door/window piers — the classic NYC open storefront under
+  the shipped fascia), the shipped CORNER HOUSE storefront glass becoming the
+  named far pane (`CornerHouse_Glass` — the docs/47 swap law), and the W1
+  chamfer pier gaining its collider.
+- **The fit-out**: the dry-goods floor — goods shelves down both skins, the
+  center gondola seated WEST of the door line (a real corner store keeps its
+  island off the door), the counter + register under window E, the stacked
+  seasonal crates at the corner pier (the canon's "dress per season" table),
+  the display under window W, the detergent shelf + two units + the soda
+  cooler at the back wall. 5 GLB slots riding the batch's OWN files (no new
+  programs — the provenance law holds). The ochre wainscot identity pass +
+  the light strip ride `dressRoom` like every room.
+- **The pocket-scan law held the wave honest**: the first cut (silled
+  windows + a 1.4 m door) read the room a 180-cell trap — the scanner's
+  0.5 grid + capsule dilation zeroes every shipped door width (the W5
+  rooms' 1.2 m doors are the same grid-alias traps, documented in the W13
+  census) and the room's own fixtures sealed the window lines. The fix is
+  the authentic one (the open storefront band + the W9 no-sill convention +
+  the gondola off the door line): the room connects through its own front —
+  spawn-comp 42,241 → **42,436** (+195, the floor joins the map), traps stay
+  **18**, cramped **13**, the scan byte-identical across runs.
+- **The draw ledger (priced)**: probe-city-fabric DRAWS 190 → **191** (+1 —
+  the carve's tile-split/live far-pane price; the cheapest carve price the
+  W5/W9 rooms predate; the bodega-hero precedent prices live draws when the
+  store earns them).
+- **Files**: `web-three/src/world/World.ts` (the builder + the named glass +
+  the dressRoom row), `web-three/src/world/interiorAssets.ts` (the
+  CORNERHOUSE slots + the room union), `web-three/tests/interior-assets.test.ts`
+  (the room lists), `web-three/scripts/probe-w14-cornerhouse.mjs` (new),
+  `web-three/scripts/probe-interior-dressing.mjs` (the CORNERHOUSE frame +
+  EXPECT row), `web-three/scripts/probe-walkability.mjs` (the new leg),
+  `web-three/scripts/diag-w14-skirt-only.mjs` (the flakiness A/B forensic),
+  `docs/data/world-registry.json` (the interior row + W14 phase + the
+  openDecision closed + the corrections entry).
+- **Tests**: validate-registry OK (179 IDs, 22 interiors, 23/23 anchors) ·
+  tsc clean · vitest 1709/1709 (102 files) · build OK · probe-w14 PASS ·
+  probe-w5-interiors PASS · probe-interior-dressing PASS (75 GLB + 40 ABO) ·
+  probe-walkability's corner-house leg PASS (closed 2.5 m) ·
+  probe-integration 0 errors 8/8 walks · pocket-scan deterministic ×2.
+- **Known items carried**: the skirt-corridor leg's run-to-run flip is the
+  documented mover-nondeterminism class (the 8-sample A/B: 3/4 green on W14,
+  2/4 green on the d855713 baseline — no wave coupling); the draw census
+  re-baselines at 191; the fenestra atlas mip re-audit stays honest-open.

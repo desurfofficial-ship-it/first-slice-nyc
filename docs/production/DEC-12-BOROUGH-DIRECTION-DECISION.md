@@ -23,7 +23,7 @@
 
 ## 2. What this ruling opens now — and what it does not
 
-**OPENED now (documents only):** the design-package draft with the pricing analysis — the fresh §8 gate's input — filed as a DRAFT this session (`BOROUGH-DESIGN-PACKAGE-DRAFT.md`, register v1.70.0); the identity reconciliation wording (AGENTS.md / roadmap / README, this wave); the risks register's DEC-12 row and the scoping study's status banner.
+**OPENED now (documents only):** the design-package draft with the pricing analysis — the fresh §8 gate's input — filed as a DRAFT this session (`BOROUGH-DESIGN-PACKAGE-DRAFT.md`, register v1.71.0); the identity reconciliation wording (AGENTS.md / roadmap / README, this wave); the risks register's DEC-12 row and the scoping study's status banner.
 
 **NOT opened (each keeps its own gate):** borough geometry of any kind; registry rows for a second district; nav, content, interiors, businesses or residents outside Alder Heights; the two-live-districts draw-budget ruling (a DEC-2-class call the owner makes with the pricing in hand); the Passport program; DEC-7/9/10/11 (each its own row); the Phase-4 population/dials calls.
 
