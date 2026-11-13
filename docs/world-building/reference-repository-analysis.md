@@ -60,7 +60,7 @@ agent never re-studies the same ground.
   rooflines, big factory-window grids, cornice-less parapets, rooftop
   bulkheads — as the massing vocabulary for Catalpa's loft conversions;
   the ghost-sign read (painted brick) as the district's identity layer.
-- **Adapted into:** `world/catalpaKit.ts` (W-C2) — loft masses, industrial
+- **Adapted into:** `world/larchYardsKit.ts` (W-C2) — loft masses, industrial
   shells, ghost signs, loading docks; and the **Catalpa silhouette row**
   added to the skyline fabric (W-C3): a low-industrial roofline reads over
   the district's fog line, the same far-world technique as the existing
@@ -75,7 +75,7 @@ agent never re-studies the same ground.
   bays (widths, heights, door positions) generated from a seeded grammar,
   never one mesh stamped twice; height falloff as identity (a district
   reads by its roofline).
-- **Adapted into:** the Catalpa row builder (`buildCatalpaJunction`,
+- **Adapted into:** the Catalpa row builder (`buildLarchYards`,
   W-C2): every mass reads its registry footprint (`regShell` — the A-3
   law), then the kit varies bays, cornices, window grids, and dock doors
   from a per-row seeded PRNG (`mulberry32`, the house determinism law).
@@ -132,7 +132,7 @@ agent never re-studies the same ground.
 No incompatible or unlicensed asset enters the tree. The house asset law
 (palette + shared geometry + `MeshLambertMaterial` + district bake) governs
 every piece this build adds. `THIRD-PARTY-NOTICES.md` already covers the
-MIT technique ports; the new kit (`catalpaKit.ts`) carries the same
+MIT technique ports; the new kit (`larchYardsKit.ts`) carries the same
 header-style provenance notes.
 
 ## 4. The integration map (where each system lives after this build)
@@ -142,8 +142,8 @@ header-style provenance notes.
 | Fog-law district ring | `web-three/src/world/World.ts` (`updateDistricts`, `SIGHT_M`) | W-C1 |
 | Extended lattice + bounds | `World.ts` district constants; `docs/data/world-registry.json` `bounds` | W-C1 |
 | Catalpa paving (2 merged draws) | `World.ts` `groundMerged()` helper | W-C1 |
-| The Spur bed + rails + crossings | `world/catalpaKit.ts` + `buildCatalpaJunction` | W-C1 |
-| Loft/industrial masses + ghost signs | `world/catalpaKit.ts` | W-C2 |
+| The Spur bed + rails + crossings | `world/larchYardsKit.ts` + `buildLarchYards` | W-C1 |
+| Loft/industrial masses + ghost signs | `world/larchYardsKit.ts` | W-C2 |
 | Registry rows (CJN-*, SUB-03, parks, landmarks, streets) | `docs/data/world-registry.json` | W-C0 |
 | Roof fabric on CJN rows | `world/cityFabric.ts` (automatic — no change needed) | W-C2 |
 | Fire-escape jobs | `world/neighborhoodFabric.ts` `ESCAPE_JOBS` (+3 rows) | W-C2 |

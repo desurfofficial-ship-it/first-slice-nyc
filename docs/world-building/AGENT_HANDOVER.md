@@ -5,6 +5,16 @@
 > (the truth), `IMPLEMENTATION_LOG.md` (the how), and
 > `complete-world-master-plan.md` (the target).
 
+
+> **RECONCILIATION (2026-11-14, the integrated tree):** while this
+> assignment built, a concurrent line landed DEC-13 — the owner approved the
+> design package as filed and the Narrative Director pinned **Catalpa
+> Junction** to the K line's **west reach** (the docks past 42 St, rows
+> `CDK-*`). This document's district — the complete east build (x +100..+252)
+> — is therefore named **the Larch Yards** (the tree grammar + the freight
+> term; rows `LRY-*`). Both districts ship; the naming honors the canon; the
+> ids never collide. The build's substance is unchanged.
+
 ## 1. What exists now (2026-11-14)
 
 FIRST SLICE's playable world is **two districts and a destination**:
@@ -12,11 +22,11 @@ FIRST SLICE's playable world is **two districts and a destination**:
 - **Alder Heights** — the shipped vertical-slice district (x −100..+100).
   UNTOUCHED by this assignment: the 4-day story, the cast, the cart corner,
   all 81 canon buildings, all 22 shipped interiors. Do not redesign it.
-- **Catalpa Junction** — the DEC-12 second district, BUILT this assignment
+- **the Larch Yards** — the DEC-12 second district, BUILT this assignment
   (x +100..+252): the freight-spur neighborhood. 20 building rows (`CJN-*`),
   the elevated spur viaduct, the Junction Plaza + crane, the Spur Gardens,
   the enterable Freight Market hall (FREIGHTMKT-INT), the K's east headhouse
-  stub (SUB-03). Registry prefix `CJN-*`, append-only.
+  stub (SUB-03). Registry prefix `LRY-*`, append-only. (The concurrent line's west-reach docks ship as Catalpa Junction, rows `CDK-*`, zone-gated — do not confuse the two.)
 - **Times Square** — one K-line ride west, unchanged.
 
 **Branch:** `feat/catalpa-junction-world` (head `3788097` at handover).
@@ -37,7 +47,7 @@ already builds from the registry's SUB-TS row). The work:
    the stair hood already sits at SUB-03's north face).
 3. `ride.ts`: the ride machine gains a route — `beginRide(s, from, route)`
    where route ∈ 'W' (Alder Heights ⇄ Times Square, the shipped beats) or
-   'E' (Alder Heights ⇄ Catalpa Junction, a short hop ~8-10 s, its own beat
+   'E' (Alder Heights ⇄ the Larch Yards, a short hop ~8-10 s, its own beat
    set). `RIDE_T` gains the E-leg constants; `swapFeet` gains the E delta
    (STATION_C_X − STATION_A_X). The state machine stays pure — pin the new
    transitions in `ride.test.ts` first (the issue→guard law).
@@ -63,7 +73,7 @@ Do not start without the priced ledger row (the DEC-2 law).
    Every emit path must re-center geometry onto the mesh position, and must
    **copy the bounding-sphere center before translating** (`translate()`
    recomputes the sphere in place; a live alias reads back (0,0,0) — the bug
-   that cost this build a day). See `catalpaKit.emit` and the two fabrics'
+   that cost this build a day). See `larchYardsKit.emit` and the two fabrics'
    emits.
 2. **The junction off-grid law:** a nav junction whose x OR z lands on a
    chain's 6 m grid multiple collides with the chain point and the corner

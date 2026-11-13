@@ -1,6 +1,8 @@
-# Borough Design Package — DRAFT: Catalpa Junction (the DEC-12 district, priced)
+# Borough Design Package — APPROVED: Catalpa Junction (the DEC-12 district, priced)
 
-> **Status: DRAFT — the fresh §8 gate's INPUT, not its exercise.** This package exists because the owner's DEC-12 ruling selected Option B (one additional district, chapter-structured) with one added condition: *the rendering and performance implications are priced before building.* This document carries that pricing. **It authorizes nothing:** zero registry rows, zero geometry, zero code, zero nav, zero content exist for any second district, and none may begin without the owner's fresh §8 approval ON this package and its first priced wave ([DEC-12-BOROUGH-DIRECTION-DECISION.md](DEC-12-BOROUGH-DIRECTION-DECISION.md) §2; [BOROUGH-SCOPING-STUDY.md](BOROUGH-SCOPING-STUDY.md) §5 law 1). Narrative reconciliation (the district concept and its chapter mapping reviewed by the Narrative Director against docs 04/06/12) rides BEFORE any construction wave. The five-borough Passport remains a long-term ambition — this package does not schedule it and does not build its meta-system.
+> **Status: APPROVED (2026-11-13) — the owner's fresh §8 sign-off, [DEC-13-CATALPA-JUNCTION-PACKAGE-APPROVAL-DECISION.md](DEC-13-CATALPA-JUNCTION-PACKAGE-APPROVAL-DECISION.md).** The package was filed as DRAFT — the fresh §8 gate's INPUT; the gate has since been exercised on it and the package approved **as filed**, scenario **S1 governing**, W-C1 authorized. The filename keeps DRAFT for link stability; the approval record governs. The Narrative Director's reconciliation (the package's own precondition) has been executed and **corrects §1's C6 mapping to the canon's own pins** — the hall stays on the Alder Works parcel; Catalpa Junction is the open endgame's district. See §5 gate 1 and §7 for the dated amendment notes.
+
+> **Filing status (historical): DRAFT — the fresh §8 gate's INPUT, not its exercise.** This package exists because the owner's DEC-12 ruling selected Option B (one additional district, chapter-structured) with one added condition: *the rendering and performance implications are priced before building.* This document carries that pricing. **It authorizes nothing:** zero registry rows, zero geometry, zero code, zero nav, zero content exist for any second district, and none may begin without the owner's fresh §8 approval ON this package and its first priced wave ([DEC-12-BOROUGH-DIRECTION-DECISION.md](DEC-12-BOROUGH-DIRECTION-DECISION.md) §2; [BOROUGH-SCOPING-STUDY.md](BOROUGH-SCOPING-STUDY.md) §5 law 1). Narrative reconciliation (the district concept and its chapter mapping reviewed by the Narrative Director against docs 04/06/12) rides BEFORE any construction wave. The five-borough Passport remains a long-term ambition — this package does not schedule it and does not build its meta-system.
 
 | | |
 |---|---|
@@ -22,6 +24,8 @@ DEC-12's terms, verbatim in substance: preserve Alder Heights as the foundation;
 **The identity.** *The junction where the K line meets the old freight industry* — a compact working neighborhood one stop past Alder Heights: warehouse lofts conversions, a freight spur gone pedestrian, iron bridges over the spur, wholesaler signs, the same forever-5:45-PM first-week-of-October light (the identity guide holds: **a new place under the same light, not a new game**). Environmental character: wider sky (low industrial rooflines), steam from the grates, the rattle of the elevated spur, brick ghost-signs — distinct from Alder Heights' residential stoop streets, the way a real borough reads one stop apart.
 
 **The chapter anchor.** C6 is the setting chapter (doc 12: *the hall's fit-out; the hearing; Deniz's exam; Kev's fork; the hundredth tree; winter lights*). The hall lives here: Catalpa Junction is where the endgame's hospitality is built — the amends economy's last structure, the winter lights, the hundredth tree. The district earns its existence by housing a chapter the block cannot house; that is the DEC-12 "meaningful expansion" test. Earlier chapters' content does not move; the spine's heart stays Alder Heights.
+
+> **AMENDED 2026-11-13 by the Narrative Director's reconciliation (DEC-13 §3, canon-owned):** the canon pins C6's stations to Alder Heights — Juniper Commons rises on the **Alder Works parcel** (doc 04 §6; doc 15 §1), Provisions Hall is its food hall, the hundredth tree stands at **Kestrel Green** (doc 04 §C6). The sentence above is corrected: **the hall does not move**. Catalpa Junction is **the open endgame's district** — the continuation content's setting (doc 09 §8's paths; doc 15 §3.8's intended openness) — where the ride, the spur walk, the freight market and the district's own winter lights are NEW beats that move no C6 station. The spine's heart stays Alder Heights, verbatim.
 
 ## 2. The program (the DEC-12 meaningfulness terms, as a proposal)
 
@@ -56,7 +60,7 @@ Registry-driven construction (the A-3 flip is complete: rows render from the reg
 
 ## 5. The gates every future Catalpa wave would run (the scoping study §5's laws, bound)
 
-1. The fresh **§8 approval on THIS package + W-C1's priced ledger row** — sought explicitly, before any construction.
+1. The fresh **§8 approval on THIS package + W-C1's priced ledger row** — sought explicitly, before any construction. *(AMENDED 2026-11-13: the approval half of this gate was exercised and GRANTED — [DEC-13](DEC-13-CATALPA-JUNCTION-PACKAGE-APPROVAL-DECISION.md); W-C1's own ledger row remains the wave's measured deliverable under the DEC-2 priced-wave law.)*
 2. **Registry append-only**: `CJN-*` ids only; canon rows never edited, renamed, or renumbered.
 3. **No geodata ingestion** — authored streets through the registry's coordinate system, as Alder Heights was.
 4. Per-wave batteries: priced ledger row first · ghost gates ±0.1 m · the pocket scan re-run with zero registered-space traps · probes per new place · E2E extended for story-relevant places · the compliance red line (no TSL/WebGPU) throughout.
@@ -71,5 +75,7 @@ Registry-driven construction (the A-3 flip is complete: rows render from the reg
 - It does **not** narrow the identity (DEC-12): FIRST SLICE is an open-world New York life simulation delivered chapter by chapter; Catalpa Junction is the second chapter of that growth, nothing more and nothing less.
 
 ## 7. The decision frame handed back to the owner
+
+> **DECIDED 2026-11-13: APPROVED.** The owner approved this package as filed, scenario **S1 governing**, W-C1 authorized subject to the Narrative Director's reconciliation (executed — §1's dated amendment above) and W-C1's own measured ledger row. Adjudication of record: [DEC-13-CATALPA-JUNCTION-PACKAGE-APPROVAL-DECISION.md](DEC-13-CATALPA-JUNCTION-PACKAGE-APPROVAL-DECISION.md). The frame below is the historical filing text.
 
 Approve this package + the first priced wave (scenario S1 default), amend it, or hold it. **Until the fresh §8 gate opens: Alder Heights is the whole playable world, and the roadmap continues inside it** — the W16 seasonal pass (register v1.70.0) already made the calendar's seasons real in the shipped district, which is exactly the machinery Catalpa's winter-lights chapter will ride.

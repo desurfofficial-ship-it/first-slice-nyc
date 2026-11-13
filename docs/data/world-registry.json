@@ -12,7 +12,8 @@
       "W6 (2026-11-11): the terrace build-out — playable core z ±48 → ±64 by owner authorization (DEC-8); four rows appended (GRB-06/07, TEN-02/KTS-04, all built (W6); the strips’ x ±67..74 stays avenue corridor); two garden parks appended (PRK-LARKIN/PRK-CARROW); the three W2 parks’ status column repaired (built in W2, read planned — the E-1-era defect pattern; geometry untouched).",
       "W11 (2026-11-13): the registry-truth repair — the eight W5 rooms' statuses flip 'planned' → 'built (W5)'; they shipped in W5 (World.ts buildW5*), were dressed by the sand3d batch (2026-11-07), and docs/production/interiors/00-INVENTORY.md records all nine as enterable in play — the statuses never flipped. The pizza openDecision closes (shipped as a full W5 room), the MEZZ/CORNERHOUSE decision rewords to current truth, and the shipped W8/W9 phase rows join the ledger. No id, footprint, shell, plan or anchor value moved.",
       "W14 (2026-11-13): the Corner House interior ships — the openDecision \"CORNERHOUSE-INT remains an optional slice\" closes on the owner’s confirmation (\"build corner house\"). CORNERHOUSE-INT joins interiors (built (W14), shell x −59.6..−50.4 / z 8.2..19.8, clear 3.2) and W14 joins constructionPhases. KTN-00W’s interior field flips to built. No id, footprint, entrance, shell position or anchor value moved — append-only discipline held.",
-      "W14b (2026-11-13): the corner store's restock pass — the owner's \"doesn't look finished nor production ready\" verdict answered with the bodega playbook, the store's own identity. CORNERHOUSE-INT's dressing rebuilds: the center gondola a real double-sided island (spine, boards both sides, end frames, kick) fully stocked (merged one mesh per color), the four wall units + two back flanks rebuilt with real shelf architecture and stocked facings, the counter in the fascia's brick red + cream top + gold trim with the impulse rack and bag stack, the goods board + household poster (the store's inside voice), the floor warm cream-tan, the entrance mat, backstock on the cooler. The five batch GLB slots unchanged; no id, footprint, entrance, shell or anchor value moved; colliders byte-identical (aisle law, pocket scan, walkability leg untouched); probe-city-fabric 191 byte-equal (the street ledger pays nothing — the room's dressing is band-gated)."
+      "W14b (2026-11-13): the corner store's restock pass — the owner's \"doesn't look finished nor production ready\" verdict answered with the bodega playbook, the store's own identity. CORNERHOUSE-INT's dressing rebuilds: the center gondola a real double-sided island (spine, boards both sides, end frames, kick) fully stocked (merged one mesh per color), the four wall units + two back flanks rebuilt with real shelf architecture and stocked facings, the counter in the fascia's brick red + cream top + gold trim with the impulse rack and bag stack, the goods board + household poster (the store's inside voice), the floor warm cream-tan, the entrance mat, backstock on the cooler. The five batch GLB slots unchanged; no id, footprint, entrance, shell or anchor value moved; colliders byte-identical (aisle law, pocket scan, walkability leg untouched); probe-city-fabric 191 byte-equal (the street ledger pays nothing — the room's dressing is band-gated).",
+      "WC1 (2026-11-13, the re-integration merge): SKY-TS-W card row moved x −428 → −476 (timesSquare.ts rim + this line) — the Catalpa Junction rows took the old ground; no canon building row touched (the W7 SKY-W/E move precedent)"
     ],
     "coordSystem": {
       "axes": "x = east(+)/west(−), z = north(+)/south(−), y = up. Identical to the live web-three world; the origin does not move.",
@@ -79,14 +80,14 @@
         "role": "Marlow/downtown backdrop"
       },
       {
-        "id": "SKY-TS-W",
-        "line": "x −428 card row + spire",
-        "role": "Times Square’s west rim (the reveal through the M121’s windshield)"
-      },
-      {
         "id": "SKY-E",
         "line": "x = +262 card row",
         "role": "the east vanishing point beyond Catalpa Junction (moved +122 -> +262 in W-C0 — the district took the old ground; the skyline fabric keeps its clearance)"
+      },
+      {
+        "id": "SKY-TS-W",
+        "line": "x −476 card row + spire",
+        "role": "Times Square's west rim (the reveal through the M121's windshield) — moved x −428 → −476 in WC1: the Catalpa Junction rows took the old ground (W-C1's approved footprints overlap the rim's old columns); the Times Sq west vista keeps its closure 48 m further out, and from the Junction the rim reads as the district's own west backdrop"
       }
     ]
   },
@@ -323,7 +324,8 @@
         "STR-JUNIPER"
       ],
       "x": -72,
-      "z": 40
+      "z": 40,
+      "cornerBuildings": []
     },
     {
       "id": "IX-GS",
@@ -332,7 +334,8 @@
         "STR-SYCAMORE"
       ],
       "x": 72,
-      "z": 40
+      "z": 40,
+      "cornerBuildings": []
     },
     {
       "id": "IX-MJ",
@@ -341,7 +344,8 @@
         "STR-JUNIPER"
       ],
       "x": -72,
-      "z": -40
+      "z": -40,
+      "cornerBuildings": []
     },
     {
       "id": "IX-MS",
@@ -350,72 +354,73 @@
         "STR-SYCAMORE"
       ],
       "x": 72,
-      "z": -40
+      "z": -40,
+      "cornerBuildings": []
     },
     {
-      "id": "IX-CJN-KS",
+      "id": "IX-LRY-KS",
       "streets": [
         "STR-KESTREL",
         "STR-SPUR"
       ],
       "cornerBuildings": [
-        "CJN-01",
-        "CJN-03"
+        "LRY-01",
+        "LRY-03"
       ]
     },
     {
-      "id": "IX-CJN-KL",
+      "id": "IX-LRY-KL",
       "streets": [
         "STR-KESTREL",
         "STR-LARCH"
       ],
       "cornerBuildings": [
-        "CJN-05",
-        "CJN-12"
+        "LRY-05",
+        "LRY-12"
       ]
     },
     {
-      "id": "IX-CJN-RS",
+      "id": "IX-LRY-RS",
       "streets": [
         "STR-GABLE",
         "STR-SPUR"
       ],
       "cornerBuildings": [
-        "CJN-03",
-        "CJN-15"
+        "LRY-03",
+        "LRY-15"
       ]
     },
     {
-      "id": "IX-CJN-RL",
+      "id": "IX-LRY-RL",
       "streets": [
         "STR-GABLE",
         "STR-LARCH"
       ],
       "cornerBuildings": [
-        "CJN-16",
-        "CJN-06"
+        "LRY-16",
+        "LRY-06"
       ]
     },
     {
-      "id": "IX-CJN-SS",
+      "id": "IX-LRY-SS",
       "streets": [
         "STR-MARLOW",
         "STR-SPUR"
       ],
       "cornerBuildings": [
-        "CJN-09",
-        "CJN-18"
+        "LRY-09",
+        "LRY-18"
       ]
     },
     {
-      "id": "IX-CJN-SL",
+      "id": "IX-LRY-SL",
       "streets": [
         "STR-MARLOW",
         "STR-LARCH"
       ],
       "cornerBuildings": [
-        "CJN-19",
-        "CJN-12"
+        "LRY-19",
+        "LRY-12"
       ]
     }
   ],
@@ -493,7 +498,7 @@
       "note": "planned mid-block crossing serving the court + park gate, phase W1 (cab yield zones extend to it)"
     },
     {
-      "id": "XW-CJN-KS",
+      "id": "XW-LRY-KS",
       "x": 152,
       "z": 0,
       "w": 3.4,
@@ -501,7 +506,7 @@
       "note": "Kestrel x Spur — the junction's zebra (crosses Kestrel at the bed)"
     },
     {
-      "id": "XW-CJN-GS",
+      "id": "XW-LRY-GS",
       "x": 152,
       "z": 40,
       "w": 3.4,
@@ -509,7 +514,7 @@
       "note": "Gable x Spur (under the viaduct span)"
     },
     {
-      "id": "XW-CJN-MS",
+      "id": "XW-LRY-MS",
       "x": 152,
       "z": -40,
       "w": 3.4,
@@ -517,7 +522,7 @@
       "note": "Marlow x Spur — the gardens' gate"
     },
     {
-      "id": "XW-CJN-SPUR-K-N",
+      "id": "XW-LRY-SPUR-K-N",
       "x": 152,
       "z": 4.5,
       "w": 3.4,
@@ -525,7 +530,7 @@
       "note": "the spur's walk lanes cross Kestrel (north landing)"
     },
     {
-      "id": "XW-CJN-SPUR-K-S",
+      "id": "XW-LRY-SPUR-K-S",
       "x": 152,
       "z": -4.5,
       "w": 3.4,
@@ -533,7 +538,7 @@
       "note": "the spur's walk lanes cross Kestrel (south landing)"
     },
     {
-      "id": "XW-CJN-SPUR-G-N",
+      "id": "XW-LRY-SPUR-G-N",
       "x": 152,
       "z": 44.5,
       "w": 3.4,
@@ -541,7 +546,7 @@
       "note": "the spur's walk lanes cross Gable (north landing)"
     },
     {
-      "id": "XW-CJN-SPUR-G-S",
+      "id": "XW-LRY-SPUR-G-S",
       "x": 152,
       "z": 35.5,
       "w": 3.4,
@@ -549,7 +554,7 @@
       "note": "the spur's walk lanes cross Gable (south landing)"
     },
     {
-      "id": "XW-CJN-SPUR-M-N",
+      "id": "XW-LRY-SPUR-M-N",
       "x": 152,
       "z": -35.5,
       "w": 3.4,
@@ -557,7 +562,7 @@
       "note": "the spur's walk lanes cross Marlow (north landing)"
     },
     {
-      "id": "XW-CJN-SPUR-M-S",
+      "id": "XW-LRY-SPUR-M-S",
       "x": 152,
       "z": -44.5,
       "w": 3.4,
@@ -565,7 +570,7 @@
       "note": "the spur's walk lanes cross Marlow (south landing — the gardens' gate)"
     },
     {
-      "id": "XW-CJN-LARCH-K-N",
+      "id": "XW-LRY-LARCH-K-N",
       "x": 228,
       "z": 4.5,
       "w": 3.4,
@@ -573,7 +578,7 @@
       "note": "Larch's walks cross Kestrel (north landing)"
     },
     {
-      "id": "XW-CJN-LARCH-K-S",
+      "id": "XW-LRY-LARCH-K-S",
       "x": 228,
       "z": -4.5,
       "w": 3.4,
@@ -581,7 +586,7 @@
       "note": "Larch's walks cross Kestrel (south landing)"
     },
     {
-      "id": "XW-CJN-LARCH-G-N",
+      "id": "XW-LRY-LARCH-G-N",
       "x": 228,
       "z": 44.5,
       "w": 3.4,
@@ -589,7 +594,7 @@
       "note": "Larch's walks cross Gable (north landing)"
     },
     {
-      "id": "XW-CJN-LARCH-G-S",
+      "id": "XW-LRY-LARCH-G-S",
       "x": 228,
       "z": 35.5,
       "w": 3.4,
@@ -597,7 +602,7 @@
       "note": "Larch's walks cross Gable (south landing)"
     },
     {
-      "id": "XW-CJN-LARCH-M-N",
+      "id": "XW-LRY-LARCH-M-N",
       "x": 228,
       "z": -35.5,
       "w": 3.4,
@@ -605,7 +610,7 @@
       "note": "Larch's walks cross Marlow (north landing)"
     },
     {
-      "id": "XW-CJN-LARCH-M-S",
+      "id": "XW-LRY-LARCH-M-S",
       "x": 228,
       "z": -44.5,
       "w": 3.4,
@@ -613,7 +618,7 @@
       "note": "Larch's walks cross Marlow (south landing)"
     },
     {
-      "id": "XW-CJN-KL-W",
+      "id": "XW-LRY-KL-W",
       "x": 224.5,
       "z": 0,
       "w": 3.4,
@@ -621,7 +626,7 @@
       "note": "Kestrel x Larch — the zebra at Larch's west edge"
     },
     {
-      "id": "XW-CJN-KL-E",
+      "id": "XW-LRY-KL-E",
       "x": 231.5,
       "z": 0,
       "w": 3.4,
@@ -629,7 +634,7 @@
       "note": "Kestrel x Larch — the zebra at Larch's east edge"
     },
     {
-      "id": "XW-CJN-GL-W",
+      "id": "XW-LRY-GL-W",
       "x": 224.5,
       "z": 40,
       "w": 3.4,
@@ -637,7 +642,7 @@
       "note": "Gable x Larch — the west-edge zebra"
     },
     {
-      "id": "XW-CJN-GL-E",
+      "id": "XW-LRY-GL-E",
       "x": 231.5,
       "z": 40,
       "w": 3.4,
@@ -645,7 +650,7 @@
       "note": "Gable x Larch — the east-edge zebra"
     },
     {
-      "id": "XW-CJN-ML-W",
+      "id": "XW-LRY-ML-W",
       "x": 224.5,
       "z": -40,
       "w": 3.4,
@@ -653,7 +658,7 @@
       "note": "Marlow x Larch — the west-edge zebra"
     },
     {
-      "id": "XW-CJN-ML-E",
+      "id": "XW-LRY-ML-E",
       "x": 231.5,
       "z": -40,
       "w": 3.4,
@@ -671,7 +676,8 @@
         "zMin": 8,
         "zMax": 32
       },
-      "identity": "commercial story face (S) over brownstones (N), with the community hall on Juniper, the café shell on Sycamore, and Kestrel Green + the garden inside"
+      "identity": "commercial story face (S) over brownstones (N), with the community hall on Juniper, the café shell on Sycamore, and Kestrel Green + the garden inside",
+      "buildings": []
     },
     {
       "id": "BLK-S",
@@ -682,7 +688,8 @@
         "zMin": -32,
         "zMax": -8
       },
-      "identity": "the cart corner + Corner Park + the Cecil on Kestrel; bakery/record row and the playground on Marlow; the diner holding the Sycamore corner"
+      "identity": "the cart corner + Corner Park + the Cecil on Kestrel; bakery/record row and the playground on Marlow; the diner holding the Sycamore corner",
+      "buildings": []
     },
     {
       "id": "BLK-N2",
@@ -693,7 +700,8 @@
         "zMin": 48,
         "zMax": 64
       },
-      "identity": "Gable's brownstone row continues north (GRB-06..11) with the Larkin garden behind the VDN-DN1 mass — W7 took the band west and east to the wall line"
+      "identity": "Gable's brownstone row continues north (GRB-06..11) with the Larkin garden behind the VDN-DN1 mass — W7 took the band west and east to the wall line",
+      "buildings": []
     },
     {
       "id": "BLK-S2",
@@ -704,7 +712,8 @@
         "zMin": -64,
         "zMax": -48
       },
-      "identity": "Marlow's shop-and-walk-up row continues south (TEN-02..04, KTS-04..06) with the Carrow garden behind the VDN-DS1 mass — W7 took the band west and east to the wall line"
+      "identity": "Marlow's shop-and-walk-up row continues south (TEN-02..04, KTS-04..06) with the Carrow garden behind the VDN-DS1 mass — W7 took the band west and east to the wall line",
+      "buildings": []
     },
     {
       "id": "BLK-W1",
@@ -715,7 +724,8 @@
         "zMin": 8,
         "zMax": 32
       },
-      "identity": "Gable's brownstone row and Kestrel's walk-up row continue west (GRB-12/13, KTN-08/09) — party walls meet at z 20 like the core block's edges"
+      "identity": "Gable's brownstone row and Kestrel's walk-up row continue west (GRB-12/13, KTN-08/09) — party walls meet at z 20 like the core block's edges",
+      "buildings": []
     },
     {
       "id": "BLK-W2",
@@ -726,7 +736,8 @@
         "zMin": -32,
         "zMax": -8
       },
-      "identity": "Kestrel's tenement row and Marlow's shop-and-walk-up row continue west (KTS-07/08, MRW-01/02) — the strip reads edge to edge, no yard"
+      "identity": "Kestrel's tenement row and Marlow's shop-and-walk-up row continue west (KTS-07/08, MRW-01/02) — the strip reads edge to edge, no yard",
+      "buildings": []
     },
     {
       "id": "BLK-E1",
@@ -737,7 +748,8 @@
         "zMin": 8,
         "zMax": 32
       },
-      "identity": "Gable's brownstone row and Kestrel's walk-up row continue east (GRB-14/15, KTN-10/11) — the Eastgate mirror"
+      "identity": "Gable's brownstone row and Kestrel's walk-up row continue east (GRB-14/15, KTN-10/11) — the Eastgate mirror",
+      "buildings": []
     },
     {
       "id": "BLK-E2",
@@ -748,49 +760,50 @@
         "zMin": -32,
         "zMax": -8
       },
-      "identity": "Kestrel's tenement row and Marlow's shop-and-walk-up row continue east (KTS-09/10, MRW-03/04) — the Eastgate mirror"
+      "identity": "Kestrel's tenement row and Marlow's shop-and-walk-up row continue east (KTS-09/10, MRW-03/04) — the Eastgate mirror",
+      "buildings": []
     },
     {
-      "id": "BLK-CJN-N",
+      "id": "BLK-LRY-N",
       "note": "Catalpa north band (z 8..34, x 100..252) — loft conversions + the market hall",
       "buildings": [
-        "CJN-01",
-        "CJN-02",
-        "CJN-03",
-        "CJN-04",
-        "CJN-05",
-        "CJN-06"
+        "LRY-01",
+        "LRY-02",
+        "LRY-03",
+        "LRY-04",
+        "LRY-05",
+        "LRY-06"
       ]
     },
     {
-      "id": "BLK-CJN-S",
+      "id": "BLK-LRY-S",
       "note": "Catalpa south band (z -34..-8) — wholesalers + bottling + sheds",
       "buildings": [
-        "CJN-07",
-        "CJN-08",
-        "CJN-09",
-        "CJN-10",
-        "CJN-11",
-        "CJN-12"
+        "LRY-07",
+        "LRY-08",
+        "LRY-09",
+        "LRY-10",
+        "LRY-11",
+        "LRY-12"
       ]
     },
     {
-      "id": "BLK-CJN-FARN",
+      "id": "BLK-LRY-FARN",
       "note": "Catalpa far-north strip (z 50..64) — low walk-ups on the Gable east continuation, under the viaduct’s shadow",
       "buildings": [
-        "CJN-13",
-        "CJN-14",
-        "CJN-15",
-        "CJN-16"
+        "LRY-13",
+        "LRY-14",
+        "LRY-15",
+        "LRY-16"
       ]
     },
     {
-      "id": "BLK-CJN-FARS",
+      "id": "BLK-LRY-FARS",
       "note": "Catalpa far-south strip (z -64..-50) — low works rows on the Marlow east continuation",
       "buildings": [
-        "CJN-17",
-        "CJN-18",
-        "CJN-19"
+        "LRY-17",
+        "LRY-18",
+        "LRY-19"
       ]
     }
   ],
@@ -2951,12 +2964,12 @@
       "collider": true
     },
     {
-      "id": "CJN-01",
+      "id": "LRY-01",
       "name": "The Catalpa Freight Market",
       "status": "built (W-C2)",
       "class": "A",
       "face": "Kestrel N",
-      "block": "BLK-CJN-N",
+      "block": "BLK-LRY-N",
       "footprint": {
         "x": 116,
         "z": 20,
@@ -2979,12 +2992,12 @@
       "business": "The Catalpa Freight Market (stalls — books open in a later phase)"
     },
     {
-      "id": "CJN-02",
+      "id": "LRY-02",
       "name": "Catalpa Cold Storage",
       "status": "built (W-C2)",
       "class": "C",
       "face": "Kestrel N",
-      "block": "BLK-CJN-N",
+      "block": "BLK-LRY-N",
       "footprint": {
         "x": 137,
         "z": 20,
@@ -3006,12 +3019,12 @@
       "collider": true
     },
     {
-      "id": "CJN-03",
+      "id": "LRY-03",
       "name": "The Spur Lofts",
       "status": "built (W-C2)",
       "class": "C",
       "face": "The Spur E",
-      "block": "BLK-CJN-N",
+      "block": "BLK-LRY-N",
       "footprint": {
         "x": 174,
         "z": 20,
@@ -3038,12 +3051,12 @@
       "collider": true
     },
     {
-      "id": "CJN-04",
+      "id": "LRY-04",
       "name": "Starlite Stamping & Tool",
       "status": "built (W-C2)",
       "class": "C",
       "face": "The Spur E",
-      "block": "BLK-CJN-N",
+      "block": "BLK-LRY-N",
       "footprint": {
         "x": 201,
         "z": 19,
@@ -3065,12 +3078,12 @@
       "collider": true
     },
     {
-      "id": "CJN-05",
+      "id": "LRY-05",
       "name": "Junction Lofts",
       "status": "built (W-C2)",
       "class": "C",
       "face": "Kestrel N + Larch W",
-      "block": "BLK-CJN-N",
+      "block": "BLK-LRY-N",
       "footprint": {
         "x": 216,
         "z": 20,
@@ -3097,12 +3110,12 @@
       "collider": true
     },
     {
-      "id": "CJN-06",
+      "id": "LRY-06",
       "name": "Larch Street Lofts",
       "status": "built (W-C2)",
       "class": "C",
       "face": "Larch W",
-      "block": "BLK-CJN-N",
+      "block": "BLK-LRY-N",
       "footprint": {
         "x": 243,
         "z": 20,
@@ -3124,12 +3137,12 @@
       "collider": true
     },
     {
-      "id": "CJN-07",
+      "id": "LRY-07",
       "name": "Beacon Crate & Box",
       "status": "built (W-C2)",
       "class": "C",
       "face": "Kestrel S",
-      "block": "BLK-CJN-S",
+      "block": "BLK-LRY-S",
       "footprint": {
         "x": 112,
         "z": -20,
@@ -3151,12 +3164,12 @@
       "collider": true
     },
     {
-      "id": "CJN-08",
+      "id": "LRY-08",
       "name": "Catalpa Bottling",
       "status": "built (W-C2)",
       "class": "C",
       "face": "Kestrel S",
-      "block": "BLK-CJN-S",
+      "block": "BLK-LRY-S",
       "footprint": {
         "x": 134,
         "z": -20,
@@ -3178,12 +3191,12 @@
       "collider": true
     },
     {
-      "id": "CJN-09",
+      "id": "LRY-09",
       "name": "Spur Front Lofts",
       "status": "built (W-C2)",
       "class": "C",
       "face": "The Spur E",
-      "block": "BLK-CJN-S",
+      "block": "BLK-LRY-S",
       "footprint": {
         "x": 171,
         "z": -24,
@@ -3210,12 +3223,12 @@
       "collider": true
     },
     {
-      "id": "CJN-10",
+      "id": "LRY-10",
       "name": "Federal Wire & Cable",
       "status": "built (W-C2)",
       "class": "C",
       "face": "Kestrel S",
-      "block": "BLK-CJN-S",
+      "block": "BLK-LRY-S",
       "footprint": {
         "x": 194,
         "z": -20,
@@ -3237,12 +3250,12 @@
       "collider": true
     },
     {
-      "id": "CJN-11",
+      "id": "LRY-11",
       "name": "Sumac Shed",
       "status": "built (W-C2)",
       "class": "C",
       "face": "Kestrel S",
-      "block": "BLK-CJN-S",
+      "block": "BLK-LRY-S",
       "footprint": {
         "x": 213,
         "z": -19,
@@ -3264,12 +3277,12 @@
       "collider": true
     },
     {
-      "id": "CJN-12",
+      "id": "LRY-12",
       "name": "Larch Storage",
       "status": "built (W-C2)",
       "class": "C",
       "face": "Larch E",
-      "block": "BLK-CJN-S",
+      "block": "BLK-LRY-S",
       "footprint": {
         "x": 243,
         "z": -20,
@@ -3291,12 +3304,12 @@
       "collider": true
     },
     {
-      "id": "CJN-13",
+      "id": "LRY-13",
       "name": "Rowan Walk-ups",
       "status": "built (W-C2)",
       "class": "C",
       "face": "Gable N",
-      "block": "BLK-CJN-FARN",
+      "block": "BLK-LRY-FARN",
       "footprint": {
         "x": 115,
         "z": 57,
@@ -3318,12 +3331,12 @@
       "collider": true
     },
     {
-      "id": "CJN-14",
+      "id": "LRY-14",
       "name": "Viaduct Block W",
       "status": "built (W-C2)",
       "class": "C",
       "face": "Gable N",
-      "block": "BLK-CJN-FARN",
+      "block": "BLK-LRY-FARN",
       "footprint": {
         "x": 137,
         "z": 57,
@@ -3345,12 +3358,12 @@
       "collider": true
     },
     {
-      "id": "CJN-15",
+      "id": "LRY-15",
       "name": "Viaduct Block E",
       "status": "built (W-C2)",
       "class": "C",
       "face": "Gable N",
-      "block": "BLK-CJN-FARN",
+      "block": "BLK-LRY-FARN",
       "footprint": {
         "x": 176,
         "z": 57,
@@ -3372,12 +3385,12 @@
       "collider": true
     },
     {
-      "id": "CJN-16",
+      "id": "LRY-16",
       "name": "Rowan Works",
       "status": "built (W-C2)",
       "class": "C",
       "face": "Gable N",
-      "block": "BLK-CJN-FARN",
+      "block": "BLK-LRY-FARN",
       "footprint": {
         "x": 207,
         "z": 57,
@@ -3399,12 +3412,12 @@
       "collider": true
     },
     {
-      "id": "CJN-17",
+      "id": "LRY-17",
       "name": "Sumac Works 1",
       "status": "built (W-C2)",
       "class": "C",
       "face": "Marlow S",
-      "block": "BLK-CJN-FARS",
+      "block": "BLK-LRY-FARS",
       "footprint": {
         "x": 119,
         "z": -57,
@@ -3426,12 +3439,12 @@
       "collider": true
     },
     {
-      "id": "CJN-18",
+      "id": "LRY-18",
       "name": "Sumac Works 2",
       "status": "built (W-C2)",
       "class": "C",
       "face": "Marlow S",
-      "block": "BLK-CJN-FARS",
+      "block": "BLK-LRY-FARS",
       "footprint": {
         "x": 179,
         "z": -57,
@@ -3453,12 +3466,12 @@
       "collider": true
     },
     {
-      "id": "CJN-19",
+      "id": "LRY-19",
       "name": "Sumac Works 3",
       "status": "built (W-C2)",
       "class": "C",
       "face": "Marlow S",
-      "block": "BLK-CJN-FARS",
+      "block": "BLK-LRY-FARS",
       "footprint": {
         "x": 210,
         "z": -57,
@@ -3504,6 +3517,296 @@
       ],
       "interior": null,
       "storyRole": "The junction's front door (LMK-13's globe). One stop east of Alder Heights on the K.",
+      "collider": true
+    },
+    {
+      "id": "CDK-01",
+      "name": "Catalpa Terminal Warehouse (the Catalpa Docks — the west reach)",
+      "status": "built (WC1)",
+      "class": "B",
+      "face": "the Junction spur",
+      "block": "",
+      "footprint": {
+        "x": -429,
+        "z": 40,
+        "w": 14,
+        "d": 16
+      },
+      "height": 13,
+      "floors": 4,
+      "style": "warehouse loft conversion: painted-brick shell, freight cornice, dock canopy on the spur face",
+      "exterior": "rail-freight loading dock converted to lofts; the terminal wall keeps its painted ghost courses",
+      "entrance": [
+        {
+          "x": -422,
+          "z": 40,
+          "faces": "E",
+          "type": "dock door"
+        }
+      ],
+      "interior": null,
+      "storyRole": "the endgame district's north anchor — the first roof the ride reveals past the bridge",
+      "collider": true
+    },
+    {
+      "id": "CDK-02",
+      "name": "Corbin & Sons Wholesale (the Catalpa Docks — the west reach)",
+      "status": "built (WC1)",
+      "class": "C",
+      "face": "the Junction spur",
+      "block": "",
+      "footprint": {
+        "x": -429,
+        "z": 20,
+        "w": 14,
+        "d": 14
+      },
+      "height": 12,
+      "floors": 3,
+      "style": "working wholesaler: brick shell, steel dock door, hand-painted fascia",
+      "exterior": "CORBIN & SONS fascia over the dock door; pallet stack by the spur",
+      "entrance": [
+        {
+          "x": -422,
+          "z": 20,
+          "faces": "E",
+          "type": "dock door"
+        }
+      ],
+      "interior": null,
+      "storyRole": "a working door — the district reads open for business the moment its zone lights",
+      "collider": true
+    },
+    {
+      "id": "CDK-03",
+      "name": "Catalpa Iron Works (the Catalpa Docks — the west reach)",
+      "status": "built (WC1)",
+      "class": "B",
+      "face": "the Junction spur",
+      "block": "",
+      "footprint": {
+        "x": -429,
+        "z": -4,
+        "w": 14,
+        "d": 20
+      },
+      "height": 15,
+      "floors": 4,
+      "style": "the spur's landmark shell: dark brick, iron lintels, smoke stack, the district's biggest ghost sign",
+      "exterior": "CATALPA IRON WORKS — STRUCTURAL · ORNAMENTAL · EST. 1911 painted across the spur face",
+      "entrance": [
+        {
+          "x": -422,
+          "z": -4,
+          "faces": "E",
+          "type": "dock door"
+        }
+      ],
+      "interior": null,
+      "storyRole": "the Junction's ghost-sign heart — the industry the district grew from",
+      "collider": true
+    },
+    {
+      "id": "CDK-04",
+      "name": "Starlawn Fork & Tool (the Catalpa Docks — the west reach)",
+      "status": "built (WC1)",
+      "class": "C",
+      "face": "the Junction spur",
+      "block": "",
+      "footprint": {
+        "x": -429,
+        "z": -24,
+        "w": 14,
+        "d": 14
+      },
+      "height": 11,
+      "floors": 3,
+      "style": "small wholesaler shell: brick, dock canopy, painted band",
+      "exterior": "STARLAWN band over the dock; the spur's quietest door",
+      "entrance": [
+        {
+          "x": -422,
+          "z": -24,
+          "faces": "E",
+          "type": "dock door"
+        }
+      ],
+      "interior": null,
+      "storyRole": "the working row's middle beat",
+      "collider": true
+    },
+    {
+      "id": "CDK-05",
+      "name": "The Docksman (the Catalpa Docks — the west reach)",
+      "status": "built (WC1)",
+      "class": "B",
+      "face": "the Junction spur",
+      "block": "",
+      "footprint": {
+        "x": -429,
+        "z": -46,
+        "w": 14,
+        "d": 14
+      },
+      "height": 14,
+      "floors": 4,
+      "style": "warehouse loft conversion: brick shell, painted tank wall, dock canopy",
+      "exterior": "THE DOCKSMAN — WAREHOUSE row lettering kept from the freight years",
+      "entrance": [
+        {
+          "x": -422,
+          "z": -46,
+          "faces": "E",
+          "type": "dock door"
+        }
+      ],
+      "interior": null,
+      "storyRole": "the spur's south gate — the walk turns here toward the market blocks",
+      "collider": true
+    },
+    {
+      "id": "CDK-06",
+      "name": "Meridian Lumber (the Catalpa Docks — the west reach)",
+      "status": "built (WC1)",
+      "class": "C",
+      "face": "the Junction spur",
+      "block": "",
+      "footprint": {
+        "x": -394,
+        "z": 42,
+        "w": 12,
+        "d": 14
+      },
+      "height": 12,
+      "floors": 3,
+      "style": "timber wholesaler: brick shell, high dock door, lumber-mark fascia",
+      "exterior": "MERIDIAN LUMBER fascia; the dock sill worn hollow by a century of carts",
+      "entrance": [
+        {
+          "x": -400,
+          "z": 42,
+          "faces": "W",
+          "type": "dock door"
+        }
+      ],
+      "interior": null,
+      "storyRole": "the east row's north anchor",
+      "collider": true
+    },
+    {
+      "id": "CDK-07",
+      "name": "Halstead Lofts (the Catalpa Docks — the west reach)",
+      "status": "built (WC1)",
+      "class": "B",
+      "face": "the Junction spur",
+      "block": "",
+      "footprint": {
+        "x": -394,
+        "z": 26,
+        "w": 12,
+        "d": 12
+      },
+      "height": 18,
+      "floors": 5,
+      "style": "loft row, the district's tallest: brick shell, tall studio windows, cornice",
+      "exterior": "HALSTEAD LOFTS painted under the cornice; five floors of studio glass over the spur",
+      "entrance": [
+        {
+          "x": -400,
+          "z": 26,
+          "faces": "W",
+          "type": "dock door"
+        }
+      ],
+      "interior": null,
+      "storyRole": "the Junction's roofline — the wider sky the package promised, measured here",
+      "collider": true
+    },
+    {
+      "id": "CDK-08",
+      "name": "United Cotton Duck (the Catalpa Docks — the west reach)",
+      "status": "built (WC1)",
+      "class": "C",
+      "face": "the Junction spur",
+      "block": "",
+      "footprint": {
+        "x": -394,
+        "z": 8,
+        "w": 12,
+        "d": 16
+      },
+      "height": 11,
+      "floors": 3,
+      "style": "textile wholesaler: brick shell, wide dock door, painted band",
+      "exterior": "UNITED COTTON DUCK fascia; bales stenciled on the pier",
+      "entrance": [
+        {
+          "x": -400,
+          "z": 8,
+          "faces": "W",
+          "type": "dock door"
+        }
+      ],
+      "interior": null,
+      "storyRole": "the spur's mid-dock — the market stalls will face its wall (W-C2+)",
+      "collider": true
+    },
+    {
+      "id": "CDK-09",
+      "name": "The Junction Depot (the Catalpa Docks — the west reach)",
+      "status": "built (WC1)",
+      "class": "B",
+      "face": "the Junction spur",
+      "block": "",
+      "footprint": {
+        "x": -394,
+        "z": -16,
+        "w": 12,
+        "d": 14
+      },
+      "height": 13,
+      "floors": 4,
+      "style": "the old freight depot: brick shell, iron freight doors, depot sign band",
+      "exterior": "JUNCTION FREIGHT DEPOT band; two iron doors sealed on the spur face",
+      "entrance": [
+        {
+          "x": -400,
+          "z": -16,
+          "faces": "W",
+          "type": "dock door"
+        }
+      ],
+      "interior": null,
+      "storyRole": "the depot that named the Junction — the district's reason, standing",
+      "collider": true
+    },
+    {
+      "id": "CDK-SUB",
+      "name": "Catalpa Junction station (K) (the Catalpa Docks — the west reach)",
+      "status": "built (WC1)",
+      "class": "A",
+      "face": "the Junction spur",
+      "block": "",
+      "footprint": {
+        "x": -410,
+        "z": 15.95,
+        "w": 12,
+        "d": 13
+      },
+      "height": 0,
+      "floors": 1,
+      "style": "subway station slot: below-grade platform on the K line's west reach (the SUB-TS precedent)",
+      "exterior": "open-cut platform under the Junction; headhouse stair at the spur crossing, x −410",
+      "entrance": [
+        {
+          "x": -410,
+          "z": 8,
+          "faces": "S",
+          "type": "subway stair"
+        }
+      ],
+      "interior": null,
+      "storyRole": "the line's west terminus — the ride seam's future Catalpa side; the stub prices the platform, the machine rides later (DEC-13 §2.3)",
       "collider": true
     }
   ],
@@ -3946,8 +4249,8 @@
       "notes": "W6 terrace garden — the flyer board stands at its NW corner"
     },
     {
-      "id": "PRK-JUNCTION",
-      "name": "Junction Plaza",
+      "id": "PRK-YARDS",
+      "name": "the Yards Plaza",
       "status": "built (W-C3)",
       "bbox": {
         "xMin": 146,
@@ -3957,7 +4260,7 @@
       },
       "elements": "cobble deck over the spur's junction square, the preserved freight crane (LMK-10), two benches, string lights between the viaduct columns, bollards, the K station house across the way W-C1 amendment: the plaza sits NORTH of the Kestrel crossing (z 4..16) — the junction square itself is the crossing.",
       "npcZones": [
-        "NZ-CJN-PLAZA"
+        "NZ-LRY-PLAZA"
       ],
       "notes": "W-C0: new row (built W-C3). The district's front porch."
     },
@@ -3973,7 +4276,7 @@
       },
       "elements": "raised beds between the rails, sunflowers, the track reading through, the Sumac gate at z -40, water barrels W-C5 amendment: the bbox pulled south of Marlow’s south walk (the W-C0 row reached into the road mouth).",
       "npcZones": [
-        "NZ-CJN-SPUR"
+        "NZ-LRY-SPUR"
       ],
       "notes": "W-C0: new row (built W-C3). The community claiming the freight line."
     }
@@ -4036,13 +4339,13 @@
     {
       "id": "LMK-10",
       "name": "The Junction Crane",
-      "anchor": "PRK-JUNCTION",
+      "anchor": "PRK-YARDS",
       "reason": "the preserved freight crane — the junction's front porch piece and the district's meeting point ('by the crane')"
     },
     {
       "id": "LMK-11",
       "name": "The Catalpa Iron Works ghost sign",
-      "anchor": "CJN-04",
+      "anchor": "LRY-04",
       "reason": "CATALPA IRON WORKS — STRUCTURAL . ORNAMENTAL — EST. 1911, painted brick on the east gable; the district's memory"
     },
     {
@@ -4267,14 +4570,14 @@
       "status": "existing"
     },
     {
-      "id": "NZ-CJN-PLAZA",
+      "id": "NZ-LRY-PLAZA",
       "place": "Junction Plaza",
       "who": "the market crowd, the crane's bench-sitters, the K's eastbound commuters",
       "when": "rush band",
       "status": "built (W-C3)"
     },
     {
-      "id": "NZ-CJN-SPUR",
+      "id": "NZ-LRY-SPUR",
       "place": "the Spur Gardens",
       "who": "the gardeners, the sunflower watch",
       "when": "midday band",
@@ -5928,7 +6231,7 @@
     },
     {
       "id": "FREIGHTMKT-INT",
-      "building": "CJN-01",
+      "building": "LRY-01",
       "status": "built (W-C4)",
       "shell": {
         "xMin": 105,
@@ -6149,6 +6452,12 @@
       "id": "W-C5",
       "name": "Catalpa Junction — the nav + walked-extent wave",
       "content": "The nav builder's LANES table grows the four new streets' walking lanes (validated against the registry's own walk bands — the build throws if a lane leaves its band or enters a road); NAV_BOUNDS follows the registry's grown core (x +252); the crosswalk rows carry their axis (EW legs across Kestrel/Rowan/Sumac at the spur and Larch, NS legs across the spur's track strip and Larch at the same six corners); the graph now derives Catalpa's sidewalk spines, door nodes and the Freight Market's lobby from the registry rows exactly as it derived Alder Heights'. The pocket scanner's grid grows with the map (its own gate re-run). W-C5 amendments (pre-ship, this build's own rows): the Rowan/Sumac lane offsets sit off the 6 m grid (47.5/36.5/-36.5/-47.5 — the junction law; a grid-aligned offset collides with the chain nodes and orphans the corner), the NS zebra rows sit at the gap landings (+/-0.5 off each EW road's edge — the shipped GJ pattern; a mid-gap landing hops more than the 4.5 m curb apron allows), and five CJN footprints pulled clear of Larch's west walk (CJN-05/11/16/19 narrowed, CJN-12 re-fronted onto the east walk). GEOMETRY AMENDMENT: the draft STR-ROWAN/STR-SUMAC streets retired — their corridors duplicated Gable’s and Marlow’s own (two parallel E-W streets 2 m apart read as a drawing error); Gable and Marlow continue east instead (spanX +252), the district’s cross streets ARE the shipped streets’ east ends, and all CJN geometry shifted to the true centerlines (z 40/-40). The Larch junction zebras follow the shipped XW-KJ-E/W pattern exactly: one row at each road edge (+/-0.5), whose landing hops stay inside the 4.5 m curb-apron law (a center row’s landings sat 6 m from the chain edges and hung isolated). The spur/larch lane offsets sit off the 6 m grid on BOTH axes — a junction whose x or z lands on a chain’s grid multiple collides with the chain point and the corner never connects (the 155.5/221.5/234.5 amendment)."
+    },
+    {
+      "id": "WC1",
+      "name": "The Junction docks — Catalpa Junction's first priced slice",
+      "content": "The owner-approved district's first wave (DEC-13: the design package APPROVED as filed, scenario S1 transit-gated, W-C1 authorized; the Narrative Director's reconciliation rode first — the hall stays on the Alder Works parcel, Catalpa Junction is the open endgame's district). Nine registry rows on the K line's west reach past 42 ST (x −450..−378, the registry's free band — the district the freight industry built): the spur's two dock rows (CDK-01..05 west doors east, CDK-06..09 east doors west), the Iron Works ghost-sign shell, the loft row's roofline, and CDK-SUB the K-line platform stub (the SUB-TS slot-row precedent, h 0). All zone-owned: CJN_Group lights only inside its catalpaSurface/catalpaPlatform zones (the tsSurface law), NAMED_SKIP keeps it out of every district tile, ROOF_SKIP keeps the fabric off the far world's roofs — the shipped Alder Heights rigs stay byte-identical (+0 standing), and the district's own census prices in the wave's probe. No ride-seam machine change (the ride stays A↔B); no interiors, businesses, residents, or story content (each its own priced wave). [RENAMED at the integrated tree (2026-11-14): the dock rows ride CDK-* — the east district’s build took the draft CJN ids first; the rename honors the uniqueness law without touching either geometry.]",
+      "unlocks": "the second district's first slice, priced: the spur walk, the dock rows, the platform stub — visible when the ride seam wave opens the zone"
     }
   ],
   "openDecisions": [

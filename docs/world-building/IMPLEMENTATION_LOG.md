@@ -1,3 +1,13 @@
+
+
+> **RECONCILIATION (2026-11-14, the integrated tree):** while this
+> assignment built, a concurrent line landed DEC-13 — the owner approved the
+> design package as filed and the Narrative Director pinned **Catalpa
+> Junction** to the K line's **west reach** (the docks past 42 St, rows
+> `CDK-*`). This document's district — the complete east build (x +100..+252)
+> — is therefore named **the Larch Yards** (the tree grammar + the freight
+> term; rows `LRY-*`). Both districts ship; the naming honors the canon; the
+> ids never collide. The build's substance is unchanged.
 # IMPLEMENTATION LOG — the master build assignment, wave by wave
 
 > The record of what was done, in order, with the numbers read from the
@@ -17,7 +27,7 @@
   **visually verified** — the audit reads the running game, not the docs.
 - Read the whole governance stack: AGENTS.md (the Laws, the gates), the
   world contract, the DEC-12 borough ruling, the borough design package
-  (Catalpa Junction, priced), the five-reference study (doc 09), the W14
+  (the Larch Yards, priced), the five-reference study (doc 09), the W14
   handover. The master build assignment (2026-11-14) is the owner's fresh
   construction authorization that the design package's §8 gate asked for.
 - Deliverables: `docs/world-building/current-world-audit.md` (M0),
@@ -42,7 +52,7 @@
   (`World.groundMerged` — the +2-draw pricing law), the bed at walk level,
   curbs, yards (vc, bake-free), the plaza deck, zebras, streetlights, street
   trees, the plaza furniture + the K globe.
-- **The kit** (`world/catalpaKit.ts`, ~700 lines): the masses (per-row seeded
+- **The kit** (`world/larchYardsKit.ts`, ~700 lines): the masses (per-row seeded
   bay/window/dock grammar — the Metropolis lot-band discipline on the house
   GeoPush law), the viaduct, the crane, the gardens, the trucks, the
   bollards, the ghost signs (through `World.signBoard`), the lit panes (one

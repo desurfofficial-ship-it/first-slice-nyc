@@ -1,5 +1,5 @@
 /**
- * src/world/catalpaKit.ts — THE CATALPA JUNCTION KIT (docs/world-building —
+ * src/world/catalpaKit.ts — THE THE LARCH YARDS KIT (docs/world-building —
  * the W-C1..W-C4 construction waves, the DEC-12 district)
  *
  * The third slop-newyork/Metropolis/HongKongThreejs adaptation wave, built
@@ -23,7 +23,7 @@
  *      column stands clear of road, walk and plaza bands).
  *   4. LIT PANES — one InstancedMesh sharing the shipped skyline window
  *      material (HK3's shader-window discipline on the house instancing
- *      law): the dusk tween dresses Catalpa's windows with the towers',
+ *      law): the dusk tween dresses the district's windows with the towers',
  *      one draw for the whole district.
  *   5. THE PUBLIC REALM — Junction Plaza (the preserved crane, bollards,
  *      benches), the Spur Gardens (raised beds between the rails), parked
@@ -31,7 +31,7 @@
  *
  * Everything rides the district bake: per-group GeoPush meshes fuse into
  * their tiles. Deterministic: seeded PRNGs only, a rebuild is
- * byte-identical. Palette law: PAL + FABRIC + WEAR + the CJN set below,
+ * byte-identical. Palette law: PAL + FABRIC + WEAR + the LRY set below,
  * declared once and recorded in the register row.
  */
 import * as THREE from 'three';
@@ -44,7 +44,7 @@ import { mulberry32 } from './dressing';
 
 /** The district's own scene signatures (declared once, recorded in the
  *  register row — the fabric palette law). */
-export const CJN = {
+export const LRY = {
   iron: 0x35323a,       // the viaduct's cast iron (FABRIC.hoist's cool cousin)
   ironRust: 0x5a4438,   // rust banding on the old spans
   timber: 0x7a5f42,     // the timber street crossings
@@ -67,17 +67,17 @@ export const CJN = {
 
 // ------------------------------------------------------------------ DI ----
 
-export interface CatalpaShell { x: number; z: number; w: number; d: number; h: number }
-export interface CatalpaEntrance { x?: number; z?: number; faces?: string }
+export interface LarchYardsShell { x: number; z: number; w: number; d: number; h: number }
+export interface LarchYardsEntrance { x?: number; z?: number; faces?: string }
 
-export interface CatalpaDI {
+export interface LarchYardsDI {
   scene: THREE.Scene;
   mat: (color: number, opts?: { emissive?: number; emissiveIntensity?: number }) => THREE.MeshLambertMaterial;
   vc: (fog: boolean) => THREE.MeshLambertMaterial;
   /** World.regShell — footprint+height by registry id (throws on 'planned'). */
-  shell: (id: string) => CatalpaShell;
+  shell: (id: string) => LarchYardsShell;
   /** The full registry row (entrances drive the dock/door grammar). */
-  row: (id: string) => { id: string; entrance?: CatalpaEntrance[] } | null;
+  row: (id: string) => { id: string; entrance?: LarchYardsEntrance[] } | null;
   /** World.skylineWinMat — the shared dusk-lit pane material. */
   skylineWinMat: THREE.MeshLambertMaterial;
   /** World.signBoard — the canvas sign carrier (the ghost signs ride it). */
@@ -87,13 +87,13 @@ export interface CatalpaDI {
 }
 
 /** A collider the world must own (columns, the crane pedestal, dock edges). */
-export interface CatalpaCollider { x: number; y: number; z: number; sx: number; sy: number; sz: number }
+export interface LarchYardsCollider { x: number; y: number; z: number; sx: number; sy: number; sz: number }
 
-const LEDGER = (di: CatalpaDI, name: string, x: number, y: number, z: number): void => {
+const LEDGER = (di: LarchYardsDI, name: string, x: number, y: number, z: number): void => {
   di.ledger?.push({ name, x, y, z });
 };
 
-function emit(di: CatalpaDI, fog: boolean, name: string, geo: THREE.BufferGeometry,
+function emit(di: LarchYardsDI, fog: boolean, name: string, geo: THREE.BufferGeometry,
   cast: boolean, receive: boolean): THREE.Mesh {
   // Re-center onto the bounding sphere: GeoPush bakes WORLD coordinates
   // into the geometry, but the district bake files a mesh by its world
@@ -137,18 +137,18 @@ const VIADUCT_PARAPET = 1.1;
 
 // -------------------------------------------------------- 1. track bed ----
 
-function trackBed(di: CatalpaDI): void {
+function trackBed(di: LarchYardsDI): void {
   const g = new GeoPush();
   const rng = mulberry32(0xCA17);
   // the bed's worn surface strip (between the boundary of the walk bands)
-  g.box((SPUR.xMin + SPUR.xMax) / 2, 0.015, 0, SPUR.xMax - SPUR.xMin, 0.03, 128, CJN.bed);
+  g.box((SPUR.xMin + SPUR.xMax) / 2, 0.015, 0, SPUR.xMax - SPUR.xMin, 0.03, 128, LRY.bed);
   // rails: two long steel strips, ≤ 6 cm proud — walkable through
   for (const rx of [SPUR.railW, SPUR.railE]) {
-    g.box(rx, 0.035, 0, 0.12, 0.07, 128, CJN.rail);
+    g.box(rx, 0.035, 0, 0.12, 0.07, 128, LRY.rail);
   }
   // sleepers every 0.7 m under both rails
   for (let z = -63.5; z <= 63.5; z += 0.7) {
-    g.box(152, 0.012, z + (rng() - 0.5) * 0.04, 2.6, 0.045, 0.24, CJN.timber);
+    g.box(152, 0.012, z + (rng() - 0.5) * 0.04, 2.6, 0.045, 0.24, LRY.timber);
   }
   // weed tufts — the bed's occupation, seeded
   for (let i = 0; i < 90; i++) {
@@ -156,25 +156,25 @@ function trackBed(di: CatalpaDI): void {
     const x = SPUR.xMin + 0.6 + rng() * (SPUR.xMax - SPUR.xMin - 1.2);
     if (Math.abs(z) < 7 && Math.abs(x - 152) < 2.2) continue; // the crossing decks own the junction
     const h = 0.12 + rng() * 0.2;
-    g.box(x, h / 2 + 0.02, z, 0.14 + rng() * 0.12, h, 0.14, rng() < 0.5 ? CJN.weed : PAL.teal);
+    g.box(x, h / 2 + 0.02, z, 0.14 + rng() * 0.12, h, 0.14, rng() < 0.5 ? LRY.weed : PAL.teal);
   }
-  emit(di, true, 'Catalpa_TrackBed', g.toGeometry(), false, true);
-  LEDGER(di, 'Catalpa_TrackBed', 152, 0.05, 0);
+  emit(di, true, 'LarchYards_TrackBed', g.toGeometry(), false, true);
+  LEDGER(di, 'LarchYards_TrackBed', 152, 0.05, 0);
 }
 
 /** The timber crossings where streets cross the bed (flush, no colliders). */
-function timberCrossings(di: CatalpaDI): void {
+function timberCrossings(di: LarchYardsDI): void {
   const g = new GeoPush();
   for (const cz of [0, 40, -40]) {
     for (let i = 0; i < 24; i++) {
       const x = SPUR.xMin + 0.3 + i * 0.5;
-      g.box(x, 0.025, cz, 0.44, 0.05, 8.6, i % 2 ? CJN.timber : 0x6b533a);
+      g.box(x, 0.025, cz, 0.44, 0.05, 8.6, i % 2 ? LRY.timber : 0x6b533a);
     }
     // the worn warning plates at both approaches
-    g.box(152, 0.02, cz + 5.6, 3.4, 0.04, 0.7, CJN.ironRust);
-    g.box(152, 0.02, cz - 5.6, 3.4, 0.04, 0.7, CJN.ironRust);
+    g.box(152, 0.02, cz + 5.6, 3.4, 0.04, 0.7, LRY.ironRust);
+    g.box(152, 0.02, cz - 5.6, 3.4, 0.04, 0.7, LRY.ironRust);
   }
-  emit(di, true, 'Catalpa_Crossings', g.toGeometry(), false, true);
+  emit(di, true, 'LarchYards_Crossings', g.toGeometry(), false, true);
 }
 
 // ------------------------------------------------------------ 2. masses ----
@@ -184,38 +184,38 @@ interface MassStyle {
   glass?: number;                // window glass tone
   windows: 'factory' | 'grid' | 'clerestory';
   dockSide?: 'S' | 'N' | 'W' | 'E';  // which face carries the freight doors
-  hallGround?: boolean;          // CJN-01: the market hall's open ground floor
+  hallGround?: boolean;          // LRY-01: the market hall's open ground floor
   ghostOn?: 'E' | 'W' | 'N' | 'S'; // which gable carries the ghost sign
 }
 
 const MASS_STYLES: Record<string, MassStyle> = {
-  'CJN-01': { tone: CJN.loftA, band: CJN.sign, windows: 'factory', hallGround: true },
-  'CJN-02': { tone: CJN.loftB, windows: 'factory', dockSide: 'S', ghostOn: 'W' },
-  'CJN-03': { tone: CJN.loftC, windows: 'factory', dockSide: 'S' },
-  'CJN-04': { tone: PAL.bldg, windows: 'clerestory', dockSide: 'W', ghostOn: 'E' },
-  'CJN-05': { tone: CJN.loftA, windows: 'grid', dockSide: 'S' },
-  'CJN-06': { tone: CJN.loftB, windows: 'factory', dockSide: 'W' },
-  'CJN-07': { tone: CJN.loftB, band: CJN.sign, windows: 'grid', dockSide: 'N' },
-  'CJN-08': { tone: CJN.loftA, windows: 'factory', dockSide: 'N' },
-  'CJN-09': { tone: CJN.loftC, windows: 'factory', dockSide: 'N' },
-  'CJN-10': { tone: CJN.loftB, band: CJN.sign, windows: 'factory', dockSide: 'N' },
-  'CJN-11': { tone: PAL.bldg2, windows: 'clerestory', dockSide: 'N' },
-  'CJN-12': { tone: CJN.loftA, windows: 'grid', dockSide: 'W' },
-  'CJN-13': { tone: CJN.loftC, windows: 'grid', dockSide: 'S' },
-  'CJN-14': { tone: PAL.bldg, windows: 'grid', dockSide: 'S' },
-  'CJN-15': { tone: CJN.loftB, windows: 'grid', dockSide: 'S' },
-  'CJN-16': { tone: PAL.bldg2, windows: 'clerestory', dockSide: 'S' },
-  'CJN-17': { tone: PAL.bldg, windows: 'clerestory', dockSide: 'N' },
-  'CJN-18': { tone: CJN.loftC, windows: 'grid', dockSide: 'N' },
-  'CJN-19': { tone: PAL.bldg2, windows: 'clerestory', dockSide: 'N' },
+  'LRY-01': { tone: LRY.loftA, band: LRY.sign, windows: 'factory', hallGround: true },
+  'LRY-02': { tone: LRY.loftB, windows: 'factory', dockSide: 'S', ghostOn: 'W' },
+  'LRY-03': { tone: LRY.loftC, windows: 'factory', dockSide: 'S' },
+  'LRY-04': { tone: PAL.bldg, windows: 'clerestory', dockSide: 'W', ghostOn: 'E' },
+  'LRY-05': { tone: LRY.loftA, windows: 'grid', dockSide: 'S' },
+  'LRY-06': { tone: LRY.loftB, windows: 'factory', dockSide: 'W' },
+  'LRY-07': { tone: LRY.loftB, band: LRY.sign, windows: 'grid', dockSide: 'N' },
+  'LRY-08': { tone: LRY.loftA, windows: 'factory', dockSide: 'N' },
+  'LRY-09': { tone: LRY.loftC, windows: 'factory', dockSide: 'N' },
+  'LRY-10': { tone: LRY.loftB, band: LRY.sign, windows: 'factory', dockSide: 'N' },
+  'LRY-11': { tone: PAL.bldg2, windows: 'clerestory', dockSide: 'N' },
+  'LRY-12': { tone: LRY.loftA, windows: 'grid', dockSide: 'W' },
+  'LRY-13': { tone: LRY.loftC, windows: 'grid', dockSide: 'S' },
+  'LRY-14': { tone: PAL.bldg, windows: 'grid', dockSide: 'S' },
+  'LRY-15': { tone: LRY.loftB, windows: 'grid', dockSide: 'S' },
+  'LRY-16': { tone: PAL.bldg2, windows: 'clerestory', dockSide: 'S' },
+  'LRY-17': { tone: PAL.bldg, windows: 'clerestory', dockSide: 'N' },
+  'LRY-18': { tone: LRY.loftC, windows: 'grid', dockSide: 'N' },
+  'LRY-19': { tone: PAL.bldg2, windows: 'clerestory', dockSide: 'N' },
 };
 
 /** The lit-pane collector (one InstancedMesh owns the whole district). */
 interface PaneCell { x: number; y: number; z: number; ry: number }
 
-function pushWindows(g: GeoPush, s: CatalpaShell, style: MassStyle, rng: () => number,
+function pushWindows(g: GeoPush, s: LarchYardsShell, style: MassStyle, rng: () => number,
   panes: PaneCell[], opts: { groundOpen?: boolean }): void {
-  const glass = style.glass ?? CJN.glass;
+  const glass = style.glass ?? LRY.glass;
   const floors = Math.max(2, Math.round(s.h / 3.3));
   const floorH = s.h / floors;
   // per-face window rhythm — the bay grammar (Metropolis's discipline):
@@ -258,8 +258,8 @@ function pushWindows(g: GeoPush, s: CatalpaShell, style: MassStyle, rng: () => n
   }
 }
 
-function pushMass(di: CatalpaDI, id: string, s: CatalpaShell, style: MassStyle,
-  rng: () => number, panes: PaneCell[], cols: CatalpaCollider[]): void {
+function pushMass(di: LarchYardsDI, id: string, s: LarchYardsShell, style: MassStyle,
+  rng: () => number, panes: PaneCell[], cols: LarchYardsCollider[]): void {
   const g = new GeoPush();
   const row = di.row(id);
   const ents = row?.entrance ?? [];
@@ -337,16 +337,16 @@ function pushMass(di: CatalpaDI, id: string, s: CatalpaShell, style: MassStyle,
         return Math.abs(ex - dx) < 2.2 && Math.abs(ez - dz) < 2.2;
       });
       if (nearEnt) continue;
-      if (isZ) g.box(dx, 1.55, dz, 2.6, 3.1, 0.12, CJN.dock);
-      else g.box(dx, 1.55, dz, 0.12, 3.1, 2.6, CJN.dock);
+      if (isZ) g.box(dx, 1.55, dz, 2.6, 3.1, 0.12, LRY.dock);
+      else g.box(dx, 1.55, dz, 0.12, 3.1, 2.6, LRY.dock);
     }
     // the dock apron: a 1.6 m concrete lip along the dock face
     if (isZ) g.box(s.x, 0.09, faceZ + sign * 0.85, s.w - 0.6, 0.18, 1.6, FABRIC.limestoneDark);
     else g.box(faceX + sign * 0.85, 0.09, s.z, 1.6, 0.18, s.d - 0.6, FABRIC.limestoneDark);
   }
 
-  emit(di, true, `Catalpa_Mass_${id}`, g.toGeometry(), true, true);
-  LEDGER(di, `Catalpa_Mass_${id}`, s.x, s.h / 2, s.z);
+  emit(di, true, `LarchYards_Mass_${id}`, g.toGeometry(), true, true);
+  LEDGER(di, `LarchYards_Mass_${id}`, s.x, s.h / 2, s.z);
 }
 
 /** W-C4: the Freight Market hall's fit-out — the registry row's own plan
@@ -356,7 +356,7 @@ function pushMass(di: CatalpaDI, id: string, s: CatalpaShell, style: MassStyle,
  *  band. Every fixture carries its collider; the door lane stays clear
  *  (the pocket scan's registered-space law). The C6 winter-lights beat
  *  dresses this room later without re-carving. */
-function freightMarketFitout(di: CatalpaDI, cols: CatalpaCollider[]): void {
+function freightMarketFitout(di: LarchYardsDI, cols: LarchYardsCollider[]): void {
   const g = new GeoPush();
   const rng = mulberry32(0xF4217);
   const z1 = 28.6;
@@ -364,26 +364,26 @@ function freightMarketFitout(di: CatalpaDI, cols: CatalpaCollider[]): void {
   // side walls (the plan's rows A and B)
   for (const side of [-1, 1] as const) {
     const sx = 116 + side * 8.8;
-    g.box(sx, 0.5, 20, 1.6, 1.0, 12, CJN.planter);            // the counter run
-    g.box(sx, 1.08, 20, 1.8, 0.16, 12.4, CJN.timber);         // the counter top
-    g.box(sx, 2.35, 20, 1.7, 0.12, 12.2, CJN.sign);           // the canopy board
+    g.box(sx, 0.5, 20, 1.6, 1.0, 12, LRY.planter);            // the counter run
+    g.box(sx, 1.08, 20, 1.8, 0.16, 12.4, LRY.timber);         // the counter top
+    g.box(sx, 2.35, 20, 1.7, 0.12, 12.2, LRY.sign);           // the canopy board
     for (const sz of [15.5, 20, 24.5]) {                       // the goods boxes
-      g.box(sx + side * 0.2, 1.45, sz, 1.1, 0.5, 1.4, rng() < 0.5 ? CJN.bloom : PAL.cream);
+      g.box(sx + side * 0.2, 1.45, sz, 1.1, 0.5, 1.4, rng() < 0.5 ? LRY.bloom : PAL.cream);
     }
     cols.push({ x: sx, y: 0.5, z: 20, sx: 1.6, sy: 1.0, sz: 12 });
   }
   // the trader counter (north end, under the far pane)
-  g.box(116, 0.55, 27.2, 8, 1.1, 1.2, CJN.planter);
-  g.box(116, 1.18, 27.2, 8.4, 0.14, 1.5, CJN.timber);
+  g.box(116, 0.55, 27.2, 8, 1.1, 1.2, LRY.planter);
+  g.box(116, 1.18, 27.2, 8.4, 0.14, 1.5, LRY.timber);
   cols.push({ x: 116, y: 0.55, z: 27.2, sx: 8, sy: 1.1, sz: 1.2 });
   // the center island — WEST of the door line (a real market keeps its
   // island off the door; the W14 corner-store law)
-  g.box(114, 0.5, 21.5, 2.2, 1.0, 6, CJN.planter);
-  g.box(114, 1.08, 21.5, 2.5, 0.14, 6.4, CJN.timber);
+  g.box(114, 0.5, 21.5, 2.2, 1.0, 6, LRY.planter);
+  g.box(114, 1.08, 21.5, 2.5, 0.14, 6.4, LRY.timber);
   cols.push({ x: 114, y: 0.5, z: 21.5, sx: 2.2, sy: 1.0, sz: 6 });
   // the far pane: the north wall's window band (the room reads from the
   // street through the door)
-  g.box(116, 2.6, z1 - 0.16, 12, 1.6, 0.1, CJN.glass);
+  g.box(116, 2.6, z1 - 0.16, 12, 1.6, 0.1, LRY.glass);
   // the hanging lamps down the middle (the hall's warm read; the emissive
   // keeps them out of the vertex bake — two live draws, priced)
   const lampMat = di.mat(PAL.gold, { emissive: PAL.gold, emissiveIntensity: 0.35 });
@@ -408,44 +408,44 @@ function freightMarketFitout(di: CatalpaDI, cols: CatalpaCollider[]): void {
 
 // ------------------------------------------------------- 3. the viaduct ----
 
-function viaduct(di: CatalpaDI, cols: CatalpaCollider[]): void {
+function viaduct(di: LarchYardsDI, cols: LarchYardsCollider[]): void {
   const g = new GeoPush();
   const deckTop = VIADUCT_DECK_Y;
   const deckBot = deckTop - VIADUCT_DECK_T;
   // the deck: one span z −64..+64 (the parapets read the rhythm; the deck
   // itself is one slab — the crossings' clearances live in the columns)
-  g.box(152, (deckTop + deckBot) / 2, 0, SPUR.xMax - SPUR.xMin, VIADUCT_DECK_T, 128, CJN.iron);
+  g.box(152, (deckTop + deckBot) / 2, 0, SPUR.xMax - SPUR.xMin, VIADUCT_DECK_T, 128, LRY.iron);
   // parapets both sides + the rust banding
   for (const px of [SPUR.xMin + 0.25, SPUR.xMax - 0.25]) {
-    g.box(px, deckTop + VIADUCT_PARAPET / 2, 0, 0.5, VIADUCT_PARAPET, 128, CJN.iron);
-    g.box(px, deckTop + 0.12, 0, 0.56, 0.16, 128, CJN.ironRust);
+    g.box(px, deckTop + VIADUCT_PARAPET / 2, 0, 0.5, VIADUCT_PARAPET, 128, LRY.iron);
+    g.box(px, deckTop + 0.12, 0, 0.56, 0.16, 128, LRY.ironRust);
   }
   // plate girders under the deck (the spans' deep iron)
   for (const px of [SPUR.railW - 0.9, SPUR.railE + 0.9]) {
-    g.box(px, deckBot - 0.55, 0, 0.9, 1.1, 128, CJN.iron);
+    g.box(px, deckBot - 0.55, 0, 0.9, 1.1, 128, LRY.iron);
   }
   // column pairs + cross braces; colliders back to the world
   for (const cz of VIADUCT_COLUMN_Z) {
     for (const cx of [SPUR.colW, SPUR.colE]) {
-      g.box(cx, (deckBot - 0.1) / 2, cz, 0.75, deckBot - 0.1, 0.75, CJN.iron);
-      g.box(cx, deckBot - 1.4, cz, 1.15, 0.35, 1.15, CJN.ironRust); // the capital
+      g.box(cx, (deckBot - 0.1) / 2, cz, 0.75, deckBot - 0.1, 0.75, LRY.iron);
+      g.box(cx, deckBot - 1.4, cz, 1.15, 0.35, 1.15, LRY.ironRust); // the capital
       cols.push({ x: cx, y: (deckBot - 0.1) / 2, z: cz, sx: 0.85, sy: deckBot - 0.1, sz: 0.85 });
     }
     // the cross brace between the pair (below the girder line, above heads)
-    g.box(152, deckBot - 2.6, cz, SPUR.colE - SPUR.colW, 0.4, 0.4, CJN.iron);
+    g.box(152, deckBot - 2.6, cz, SPUR.colE - SPUR.colW, 0.4, 0.4, LRY.iron);
   }
   // the junction span's extra iron — the "bridge over Kestrel" read:
   // two deep plate girders carry the long span
   for (const px of [SPUR.colW, SPUR.colE]) {
-    g.box(px, deckBot - 1.35, 0, 0.7, 2.2, 38, CJN.ironRust);
+    g.box(px, deckBot - 1.35, 0, 0.7, 2.2, 38, LRY.ironRust);
   }
-  emit(di, true, 'Catalpa_Viaduct', g.toGeometry(), true, true);
-  LEDGER(di, 'Catalpa_Viaduct', 152, deckTop, 0);
+  emit(di, true, 'LarchYards_Viaduct', g.toGeometry(), true, true);
+  LEDGER(di, 'LarchYards_Viaduct', 152, deckTop, 0);
 }
 
 // ---------------------------------------------------------- 4. the crane ----
 
-function crane(di: CatalpaDI, cols: CatalpaCollider[]): void {
+function crane(di: LarchYardsDI, cols: LarchYardsCollider[]): void {
   const g = new GeoPush();
   const bx = 152, bz = 7.5; // the plaza's north half — never in the crossing's roadway
   // pedestal + the mast's lattice (4 posts + braces), the cab, the jibs
@@ -453,29 +453,29 @@ function crane(di: CatalpaDI, cols: CatalpaCollider[]): void {
   cols.push({ x: bx, y: 0.55, z: bz, sx: 2.6, sy: 1.1, sz: 2.6 });
   const mastH = 7.2;
   for (const [ox, oz] of [[-0.55, -0.55], [0.55, -0.55], [-0.55, 0.55], [0.55, 0.55]] as const) {
-    g.box(bx + ox, 1.1 + mastH / 2, bz + oz, 0.16, mastH, 0.16, CJN.crane);
+    g.box(bx + ox, 1.1 + mastH / 2, bz + oz, 0.16, mastH, 0.16, LRY.crane);
   }
   for (let y = 1.8; y < 1.1 + mastH; y += 1.2) {
-    g.box(bx, y, bz - 0.55, 1.26, 0.09, 0.09, CJN.crane);
-    g.box(bx, y, bz + 0.55, 1.26, 0.09, 0.09, CJN.crane);
-    g.box(bx - 0.55, y, bz, 0.09, 0.09, 1.26, CJN.crane);
-    g.box(bx + 0.55, y, bz, 0.09, 0.09, 1.26, CJN.crane);
+    g.box(bx, y, bz - 0.55, 1.26, 0.09, 0.09, LRY.crane);
+    g.box(bx, y, bz + 0.55, 1.26, 0.09, 0.09, LRY.crane);
+    g.box(bx - 0.55, y, bz, 0.09, 0.09, 1.26, LRY.crane);
+    g.box(bx + 0.55, y, bz, 0.09, 0.09, 1.26, LRY.crane);
   }
   // the cab + the jib (stepped rise — the house axis-aligned read)
-  g.box(bx, 1.1 + mastH + 0.55, bz, 1.5, 1.1, 1.5, CJN.iron);
-  g.box(bx + 3.4, 1.1 + mastH + 0.9, bz, 5.4, 0.5, 0.6, CJN.crane);
-  g.box(bx + 6.2, 1.1 + mastH + 1.15, bz, 0.9, 0.5, 0.6, CJN.crane);
-  g.box(bx - 2.1, 1.1 + mastH + 0.8, bz, 2.8, 0.4, 0.5, CJN.crane);
-  g.box(bx - 3.3, 1.1 + mastH + 0.45, bz, 0.7, 0.9, 0.7, CJN.ironRust); // counterweight
-  g.box(bx + 6.6, 1.1 + mastH - 0.6, bz, 0.05, 2.6, 0.05, CJN.iron);    // the cable
-  g.box(bx + 6.6, 1.1 + mastH - 2.0, bz, 0.35, 0.3, 0.35, CJN.iron);    // the hook block
-  emit(di, true, 'Catalpa_Crane', g.toGeometry(), true, true);
-  LEDGER(di, 'Catalpa_Crane', bx, 4, bz);
+  g.box(bx, 1.1 + mastH + 0.55, bz, 1.5, 1.1, 1.5, LRY.iron);
+  g.box(bx + 3.4, 1.1 + mastH + 0.9, bz, 5.4, 0.5, 0.6, LRY.crane);
+  g.box(bx + 6.2, 1.1 + mastH + 1.15, bz, 0.9, 0.5, 0.6, LRY.crane);
+  g.box(bx - 2.1, 1.1 + mastH + 0.8, bz, 2.8, 0.4, 0.5, LRY.crane);
+  g.box(bx - 3.3, 1.1 + mastH + 0.45, bz, 0.7, 0.9, 0.7, LRY.ironRust); // counterweight
+  g.box(bx + 6.6, 1.1 + mastH - 0.6, bz, 0.05, 2.6, 0.05, LRY.iron);    // the cable
+  g.box(bx + 6.6, 1.1 + mastH - 2.0, bz, 0.35, 0.3, 0.35, LRY.iron);    // the hook block
+  emit(di, true, 'LarchYards_Crane', g.toGeometry(), true, true);
+  LEDGER(di, 'LarchYards_Crane', bx, 4, bz);
 }
 
 // ------------------------------------------------------ 5. the gardens ----
 
-function gardens(di: CatalpaDI): void {
+function gardens(di: LarchYardsDI): void {
   const g = new GeoPush();
   const rng = mulberry32(0xC0DE);
   // raised beds along both bed edges, z −61..−41 — the rails read through
@@ -483,8 +483,8 @@ function gardens(di: CatalpaDI): void {
     for (const side of [-1, 1]) {
       const cx = 152 + side * 4.4;
       if (rng() < 0.18) continue; // a missing bed — the garden grew, not was poured
-      g.box(cx, 0.3, z, 2.4, 0.6, 2.6, CJN.planter);
-      g.box(cx, 0.66, z, 2.1, 0.16, 2.3, CJN.soil);
+      g.box(cx, 0.3, z, 2.4, 0.6, 2.6, LRY.planter);
+      g.box(cx, 0.66, z, 2.1, 0.16, 2.3, LRY.soil);
       // the crop: sunflowers on some beds, greens on the rest
       const kind = rng();
       for (let i = 0; i < 3; i++) {
@@ -492,24 +492,24 @@ function gardens(di: CatalpaDI): void {
         const pz = z + (rng() - 0.5) * 1.8;
         if (kind < 0.5) {
           const h = 1.1 + rng() * 0.7;
-          g.box(px, 0.74 + h / 2, pz, 0.07, h, 0.07, CJN.leaf);
-          g.box(px, 0.74 + h + 0.14, pz, 0.34, 0.3, 0.34, CJN.bloom);
+          g.box(px, 0.74 + h / 2, pz, 0.07, h, 0.07, LRY.leaf);
+          g.box(px, 0.74 + h + 0.14, pz, 0.34, 0.3, 0.34, LRY.bloom);
         } else {
-          g.box(px, 0.85, pz, 0.3, 0.28, 0.3, rng() < 0.5 ? CJN.leaf : PAL.teal);
+          g.box(px, 0.85, pz, 0.3, 0.28, 0.3, rng() < 0.5 ? LRY.leaf : PAL.teal);
         }
       }
     }
   }
   // water barrels at the north gate (south of Marlow's south walk)
-  g.box(148.2, 0.45, -47.2, 0.7, 0.9, 0.7, CJN.planter);
-  g.box(155.8, 0.45, -47.2, 0.7, 0.9, 0.7, CJN.planter);
-  emit(di, true, 'Catalpa_Gardens', g.toGeometry(), true, true);
-  LEDGER(di, 'Catalpa_Gardens', 152, 0.6, -54);
+  g.box(148.2, 0.45, -47.2, 0.7, 0.9, 0.7, LRY.planter);
+  g.box(155.8, 0.45, -47.2, 0.7, 0.9, 0.7, LRY.planter);
+  emit(di, true, 'LarchYards_Gardens', g.toGeometry(), true, true);
+  LEDGER(di, 'LarchYards_Gardens', 152, 0.6, -54);
 }
 
 // ---------------------------------------------------- 6. street furniture ----
 
-function trucks(di: CatalpaDI): void {
+function trucks(di: LarchYardsDI): void {
   const g = new GeoPush();
   const rng = mulberry32(0x1E7C1);
   // parked box trucks at the CURBS — clear of every walking lane (the
@@ -538,23 +538,23 @@ function trucks(di: CatalpaDI): void {
       else g.box(cx + lz, ly, cz + lx, sz, sy, sx, color);
     };
     put(-0.9, 1.85, 0, boxL, 2.3, W, p.body);                    // the box
-    put(2.6, 1.0, 0, cabL, 1.5, W - 0.15, CJN.sign);             // the cab
+    put(2.6, 1.0, 0, cabL, 1.5, W - 0.15, LRY.sign);             // the cab
     put(2.62, 1.55, 0, 0.06, 0.5, W - 0.5, FABRIC.glassDark);    // the windshield
-    put(0, 0.5, 0, 5.6, 0.3, W - 0.4, CJN.iron);                 // the chassis
+    put(0, 0.5, 0, 5.6, 0.3, W - 0.4, LRY.iron);                 // the chassis
     for (const [lx, lz] of [[-1.8, -0.95], [-1.8, 0.95], [2.4, -0.95], [2.4, 0.95]] as const) {
-      put(lx, 0.32, lz, 0.62, 0.64, 0.28, CJN.iron);             // the wheels
+      put(lx, 0.32, lz, 0.62, 0.64, 0.28, LRY.iron);             // the wheels
     }
   }
-  emit(di, true, 'Catalpa_Trucks', g.toGeometry(), true, true);
-  LEDGER(di, 'Catalpa_Trucks', 152, 1.2, 0);
+  emit(di, true, 'LarchYards_Trucks', g.toGeometry(), true, true);
+  LEDGER(di, 'LarchYards_Trucks', 152, 1.2, 0);
 }
 
 /** Bollard pairs guarding the bed's street mouths + the plaza edge. */
-function bollards(di: CatalpaDI, cols: CatalpaCollider[]): void {
+function bollards(di: LarchYardsDI, cols: LarchYardsCollider[]): void {
   const g = new GeoPush();
   const put = (x: number, z: number): void => {
-    g.box(x, 0.5, z, 0.28, 1.0, 0.28, CJN.iron);
-    g.box(x, 1.06, z, 0.34, 0.12, 0.34, CJN.ironRust);
+    g.box(x, 0.5, z, 0.28, 1.0, 0.28, LRY.iron);
+    g.box(x, 1.06, z, 0.34, 0.12, 0.34, LRY.ironRust);
     cols.push({ x, y: 0.5, z, sx: 0.3, sy: 1.0, sz: 0.3 });
   };
   for (const cz of [0, 40, -40]) {
@@ -563,24 +563,24 @@ function bollards(di: CatalpaDI, cols: CatalpaCollider[]): void {
   }
   // the plaza's crane corner (the plaza sits north of the Kestrel crossing)
   put(147.4, 5.0); put(156.6, 5.0);
-  emit(di, true, 'Catalpa_Bollards', g.toGeometry(), true, true);
+  emit(di, true, 'LarchYards_Bollards', g.toGeometry(), true, true);
 }
 
 /** The plaza's string lights — one span of the house bulb grammar across
  *  the bed at the junction (the wire rides the vertex bake; the bulbs keep
  *  ONE live basic draw — the shipped stringLights carrier, priced
  *  honestly in the wave's ledger row). */
-export function catalpaPlazaLights(di: Pick<CatalpaDI, 'scene' | 'vc'>): void {
+export function larchYardsPlazaLights(di: Pick<LarchYardsDI, 'scene' | 'vc'>): void {
   const g = new GeoPush();
   const y0 = 5.4;
   const sag = (t: number): number => y0 - Math.sin(t * Math.PI) * 0.55;
   for (let i = 1; i <= 16; i++) {
     const x0 = 144 + ((i - 1) / 16) * 16, x1 = 144 + (i / 16) * 16;
     const yA = sag((i - 1) / 16), yB = sag(i / 16);
-    g.box((x0 + x1) / 2, (yA + yB) / 2, 8, Math.hypot(x1 - x0, yB - yA), 0.035, 0.035, CJN.iron);
+    g.box((x0 + x1) / 2, (yA + yB) / 2, 8, Math.hypot(x1 - x0, yB - yA), 0.035, 0.035, LRY.iron);
   }
   const m = new THREE.Mesh(g.toGeometry(), di.vc(true));
-  m.name = 'Catalpa_PlazaWire';
+  m.name = 'LarchYards_PlazaWire';
   m.geometry.computeBoundingSphere();
   const wc = { x: m.geometry.boundingSphere!.center.x, y: m.geometry.boundingSphere!.center.y, z: m.geometry.boundingSphere!.center.z };
   m.geometry.translate(-wc.x, -wc.y, -wc.z);
@@ -595,52 +595,52 @@ export function catalpaPlazaLights(di: Pick<CatalpaDI, 'scene' | 'vc'>): void {
   }
   const bulbs = new THREE.Mesh(mergeGeometries(bulbGeo, false)!,
     new THREE.MeshBasicMaterial({ color: PAL.amber }));
-  bulbs.name = 'Catalpa_PlazaBulbs';
+  bulbs.name = 'LarchYards_PlazaBulbs';
   di.scene.add(bulbs);
 }
 
 // ------------------------------------------------------------- 7. signs ----
 
-function ghostSigns(di: CatalpaDI): void {
-  // LMK-11: CATALPA IRON WORKS — the east gable of CJN-04 (x 212), high,
+function ghostSigns(di: LarchYardsDI): void {
+  // LMK-11: CATALPA IRON WORKS — the east gable of LRY-04 (x 212), high,
   // facing the spur's east walk — the district's memory, painted brick.
-  const s4 = di.shell('CJN-04');
-  const sign = di.sign('Catalpa_GhostSign_CIW', 'CATALPA\nIRON WORKS', 0.12, 3.0, 7.5,
-    384, 160, PAL.bldg, CJN.ghost, 46, 'x');
+  const s4 = di.shell('LRY-04');
+  const sign = di.sign('LarchYards_GhostSign_CIW', 'CATALPA\nIRON WORKS', 0.12, 3.0, 7.5,
+    384, 160, PAL.bldg, LRY.ghost, 46, 'x');
   sign.position.set(s4.x + s4.w / 2 + 0.09, s4.h - 2.6, s4.z);
   sign.rotation.y = Math.PI / 2;
   di.scene.add(sign);
-  LEDGER(di, 'Catalpa_GhostSign_CIW', s4.x + s4.w / 2, s4.h - 2.6, s4.z);
+  LEDGER(di, 'LarchYards_GhostSign_CIW', s4.x + s4.w / 2, s4.h - 2.6, s4.z);
   // the wholesaler bands' captions (two, the grammar's seasoning)
-  const s10 = di.shell('CJN-10');
-  const wire = di.sign('Catalpa_Sign_FWC', 'FEDERAL WIRE & CABLE', 0.12, 0.75, 8.5,
-    512, 96, CJN.sign, PAL.cream, 44, 'z');
+  const s10 = di.shell('LRY-10');
+  const wire = di.sign('LarchYards_Sign_FWC', 'FEDERAL WIRE & CABLE', 0.12, 0.75, 8.5,
+    512, 96, LRY.sign, PAL.cream, 44, 'z');
   wire.position.set(s10.x, s10.h - 1.4, s10.z - s10.d / 2 - 0.09);
   di.scene.add(wire);
-  const s7 = di.shell('CJN-07');
-  const crate = di.sign('Catalpa_Sign_BCB', 'BEACON CRATE & BOX', 0.12, 0.75, 7.0,
-    512, 96, CJN.sign, PAL.cream, 44, 'z');
+  const s7 = di.shell('LRY-07');
+  const crate = di.sign('LarchYards_Sign_BCB', 'BEACON CRATE & BOX', 0.12, 0.75, 7.0,
+    512, 96, LRY.sign, PAL.cream, 44, 'z');
   crate.position.set(s7.x, s7.h - 1.4, s7.z - s7.d / 2 - 0.09);
   di.scene.add(crate);
 }
 
 /** SUB-03's name band — the headhouse's own sign. */
-function stationSign(di: CatalpaDI): void {
+function stationSign(di: LarchYardsDI): void {
   const s = di.shell('SUB-03');
-  const band = di.sign('Catalpa_Sign_SUB03', 'CATALPA JUNCTION', 0.12, 0.62, 5.2,
+  const band = di.sign('LarchYards_Sign_SUB03', 'THE LARCH YARDS', 0.12, 0.62, 5.2,
     448, 88, PAL.ink, PAL.gold, 40, 'z');
   band.position.set(s.x, s.h - 0.55, s.z - s.d / 2 - 0.09);
   di.scene.add(band);
-  LEDGER(di, 'Catalpa_Sign_SUB03', s.x, s.h - 0.55, s.z);
+  LEDGER(di, 'LarchYards_Sign_SUB03', s.x, s.h - 0.55, s.z);
 }
 
 // ------------------------------------------------------- 8. lit panes ----
 
-function litPanes(di: CatalpaDI, panes: PaneCell[]): void {
+function litPanes(di: LarchYardsDI, panes: PaneCell[]): void {
   if (!panes.length) return;
   const geo = new THREE.PlaneGeometry(0.5, 0.72);
   const mesh = new THREE.InstancedMesh(geo, di.skylineWinMat, panes.length);
-  mesh.name = 'Catalpa_LitPanes';
+  mesh.name = 'LarchYards_LitPanes';
   mesh.frustumCulled = false;
   const m4 = new THREE.Matrix4();
   const q = new THREE.Quaternion();
@@ -653,7 +653,7 @@ function litPanes(di: CatalpaDI, panes: PaneCell[]): void {
   }
   mesh.instanceMatrix.needsUpdate = true;
   di.scene.add(mesh);
-  LEDGER(di, 'Catalpa_LitPanes', 152, 8, 0);
+  LEDGER(di, 'LarchYards_LitPanes', 152, 8, 0);
 }
 
 // ------------------------------------------------------- 8. silhouette ----
@@ -661,12 +661,12 @@ function litPanes(di: CatalpaDI, panes: PaneCell[]): void {
 /** The district's silhouette underlay (the S2 read from the design
  *  package): the masses' own roofline as ONE merged fogged mesh, visible
  *  ONLY while the district's tiles are unlit — from Alder Heights the
- *  east read is Catalpa's roofline over the fog; walk east and the real
+ *  east read is the district's roofline over the fog; walk east and the real
  *  buildings replace it in place (same footprints, same heights — the
  *  light-up becomes a detail pop at ~35 % fog, never a shape pop).
  *  NAMED_SKIP in the bake (a baked silhouette would be ring-owned and
  *  vanish exactly when it is needed). */
-export function catalpaSilhouette(di: Pick<CatalpaDI, 'scene' | 'vc' | 'shell'>): void {
+export function larchYardsSilhouette(di: Pick<LarchYardsDI, 'scene' | 'vc' | 'shell'>): void {
   const g = new GeoPush();
   const tone = 0x7d6a60; // the fog will wash it; one muted mass tone
   for (const id of Object.keys(MASS_STYLES)) {
@@ -680,9 +680,9 @@ export function catalpaSilhouette(di: Pick<CatalpaDI, 'scene' | 'vc' | 'shell'>)
     g.box(s.x, s.h / 2, s.z, s.w, s.h, s.d, tone);
   } catch { /* unplanned */ }
   // the viaduct's deck line (the silhouette's signature)
-  g.box(152, VIADUCT_DECK_Y - VIADUCT_DECK_T / 2, 0, SPUR.xMax - SPUR.xMin, VIADUCT_DECK_T, 128, CJN.iron);
+  g.box(152, VIADUCT_DECK_Y - VIADUCT_DECK_T / 2, 0, SPUR.xMax - SPUR.xMin, VIADUCT_DECK_T, 128, LRY.iron);
   const m = new THREE.Mesh(g.toGeometry(), di.vc(true));
-  m.name = 'Catalpa_Silhouette';
+  m.name = 'LarchYards_Silhouette';
   m.geometry.computeBoundingSphere();
   const sc = { x: m.geometry.boundingSphere!.center.x, y: m.geometry.boundingSphere!.center.y, z: m.geometry.boundingSphere!.center.z };
   m.geometry.translate(-sc.x, -sc.y, -sc.z);
@@ -696,8 +696,8 @@ export function catalpaSilhouette(di: Pick<CatalpaDI, 'scene' | 'vc' | 'shell'>)
 
 /** Build the whole district's fabric. Returns the colliders the world must
  *  own (viaduct columns, the crane pedestal, bollards). Deterministic. */
-export function buildCatalpaJunction(di: CatalpaDI): CatalpaCollider[] {
-  const cols: CatalpaCollider[] = [];
+export function buildLarchYards(di: LarchYardsDI): LarchYardsCollider[] {
+  const cols: LarchYardsCollider[] = [];
   const panes: PaneCell[] = [];
 
   trackBed(di);
@@ -705,7 +705,7 @@ export function buildCatalpaJunction(di: CatalpaDI): CatalpaCollider[] {
 
   // the masses — every id through the registry door (the no-invention law)
   for (const [id, style] of Object.entries(MASS_STYLES)) {
-    let s: CatalpaShell;
+    let s: LarchYardsShell;
     try {
       s = di.shell(id);
     } catch {
@@ -717,7 +717,7 @@ export function buildCatalpaJunction(di: CatalpaDI): CatalpaCollider[] {
 
   // the market hall's fit-out (the registry's own plan list)
   try {
-    di.shell('CJN-01');
+    di.shell('LRY-01');
     freightMarketFitout(di, cols);
   } catch { /* unplanned */ }
 
@@ -730,8 +730,8 @@ export function buildCatalpaJunction(di: CatalpaDI): CatalpaCollider[] {
     // the stair hood on its north face (the future platform's stair)
     g.box(ss.x, 1.5, ss.z + ss.d / 2 + 0.9, 3.2, 3.0, 1.6, FABRIC.limestoneDark);
     g.box(ss.x, 3.15, ss.z + ss.d / 2 + 0.9, 3.6, 0.22, 2.0, PAL.ink);
-    emit(di, true, 'Catalpa_Sub03', g.toGeometry(), true, true);
-    LEDGER(di, 'Catalpa_Sub03', ss.x, ss.h / 2, ss.z);
+    emit(di, true, 'LarchYards_Sub03', g.toGeometry(), true, true);
+    LEDGER(di, 'LarchYards_Sub03', ss.x, ss.h / 2, ss.z);
     cols.push({ x: ss.x, y: ss.h / 2, z: ss.z, sx: ss.w, sy: ss.h, sz: ss.d });
     cols.push({ x: ss.x, y: 1.5, z: ss.z + ss.d / 2 + 0.9, sx: 3.2, sy: 3.0, sz: 1.6 });
     stationSign(di);
@@ -744,7 +744,7 @@ export function buildCatalpaJunction(di: CatalpaDI): CatalpaCollider[] {
   bollards(di, cols);
   ghostSigns(di);
   litPanes(di, panes);
-  catalpaSilhouette(di);
+  larchYardsSilhouette(di);
 
   return cols;
 }

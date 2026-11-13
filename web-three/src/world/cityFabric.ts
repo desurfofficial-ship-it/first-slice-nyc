@@ -60,6 +60,8 @@ export const ROOF_SKIP = new Set([
   'SUB-01', 'SUB-02',       // the subway headhouse + control house
   'ROS-01',                 // the bodega keeps its rooftop billboard
   'TSS-01', 'TSS-02', 'TSS-03', 'TSS-04', 'TSS-05', // the far world dresses itself
+  'CDK-01', 'CDK-02', 'CDK-03', 'CDK-04', 'CDK-05', // Catalpa Junction dresses itself
+  'CDK-06', 'CDK-07', 'CDK-08', 'CDK-09', 'CDK-SUB', // (W-C1: the zone-owned far band — the fabric never touches it)
 ]);
 
 /** The VQ pass's roof-clutter rows (World.ts) — bulkhead+vents already live

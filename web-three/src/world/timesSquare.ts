@@ -1083,19 +1083,25 @@ export function buildTimesSquare(
   col(-294, 0.7, -5.7, 1.7, 1.3, 0.9);
 
   // ---- skyline card: the west rim of towers + one spire (fog does the
-  //      rest) — painted grids so the terminus stops reading as gray foam ----
+  //      rest) — painted grids so the terminus stops reading as gray foam
+  //      ---- (WC1 AMENDMENT: the row moved x −428 → −476 — the Catalpa
+  //      Junction rows took the old ground (their approved footprints
+  //      overlap the rim's old columns); the Times Sq west vista keeps its
+  //      closure 48 m further out, and from the Junction the rim reads as
+  //      the district's own west backdrop — the registry's SKY-TS-W line
+  //      and the corrections entry carry the move)
   const spireDay = towerTexture('sp', 192, 512, 0x8a94a0, 91, false);
   const spireNight = towerTexture('sp', 192, 512, 0x8a94a0, 91, true);
   const spireMat = swapMat(spireDay, spireNight);
-  box('TSS_SKY_spire_base', -428, 26, 0, 18, 52, 18, spireMat, { collide: false });
-  box('TSS_SKY_spire_mid', -428, 55, 0, 12, 10, 12, 0x8a94a0, { collide: false });
-  box('TSS_SKY_spire', -428, 70, 0, 2, 20, 2, 0x8a94a0, { collide: false, cast: false });
+  box('TSS_SKY_spire_base', -476, 26, 0, 18, 52, 18, spireMat, { collide: false });
+  box('TSS_SKY_spire_mid', -476, 55, 0, 12, 10, 12, 0x8a94a0, { collide: false });
+  box('TSS_SKY_spire', -476, 70, 0, 2, 20, 2, 0x8a94a0, { collide: false, cast: false });
   const rimDay = towerTexture('rim', 128, 256, 0x8a94a0, 93, false);
   const rimMat = new THREE.MeshLambertMaterial({ map: rimDay });
   rimMat.envMapIntensity = 0.22;
   for (let i = 0; i < 7; i++) {
     const h = 22 + ((i * 37) % 40);
-    box(`TSS_SKY_tower_${i}`, -430 + (i % 3) * 16, h / 2, -40 + i * 13, 12, h, 12, rimMat, { collide: false });
+    box(`TSS_SKY_tower_${i}`, -478 + (i % 3) * 16, h / 2, -40 + i * 13, 12, h, 12, rimMat, { collide: false });
   }
 
   // ---- the cast of the square ----

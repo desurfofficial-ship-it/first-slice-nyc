@@ -56,6 +56,7 @@ import { SEASON_DRESSING, seasonForCalendarDay, type Season } from './seasonDres
 import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
 import { buildSubwaySystem, STATION, ZONE_KEEP_RE, type SubwaySystem, type ColliderSpec } from './subway';
 import { buildTimesSquare, type TimesSquare } from './timesSquare';
+import { buildCatalpaJunction, type CatalpaJunction } from './catalpaJunction';
 import { buildArrivalBus, BUS04_RECT, playerOccupiesBus04, type ArrivalBus } from './arrivalBus';
 import { buildCityFabric, GeoPush } from './cityFabric';
 import { groundMaterial, metricBoxUVs } from './groundTex';
@@ -70,7 +71,7 @@ import { FenestraMaterial, fenestraMeshFromPlan, loadFenestraAtlas,
 import { EnvSky } from '../render/envsky';
 import { sampleDayCycle, keyframeState, freshDayState, CANON_MINUTES, type DayState, type DayPin } from '../render/daycycle';
 import { buildNeighborhoodFabric, NEIGH, TERRACE_GATES } from './neighborhoodFabric';
-import { buildCatalpaJunction, catalpaPlazaLights } from './catalpaKit';
+import { buildLarchYards, larchYardsPlazaLights } from './larchYardsKit';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay,
   skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH,
   STREET_PLAN, PEDESTRIAN_ROLES, type StreetPlan } from './dressing';
@@ -269,6 +270,7 @@ export class World {
   readonly subwayRoot = new THREE.Group();
   subway!: SubwaySystem;
   timesSquare!: TimesSquare;
+  catalpa!: CatalpaJunction;
   arrivalBus!: ArrivalBus;
   /** The named street-dressing groups (the vendor cart, the fruit stand)
    *  the curb bake may merge WITHIN — never across groups. They are
@@ -529,7 +531,7 @@ export class World {
     }
     if (this.catalpaFar.length) {
       for (const o of this.catalpaFar) {
-        o.visible = o.name === 'Catalpa_LitPanes' ? catalpaLit : !catalpaLit;
+        o.visible = o.name === 'LarchYards_LitPanes' ? catalpaLit : !catalpaLit;
       }
     }
   }
@@ -707,7 +709,10 @@ export class World {
       fog: false,
     });
     this.skyMat = skyMat;
-    const sky = new THREE.Mesh(new THREE.SphereGeometry(380, 24, 16), skyMat);
+    // radius 560 (WC1): the dome must carry the second district — the
+    // spur stands at x −410, the west rim at −478 (the old 380 left the
+    // Junction reading a black sky past Alder Heights' horizon)
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(560, 24, 16), skyMat);
     sky.frustumCulled = false;
     sky.name = 'SkyDome';
     scene.add(sky);
@@ -2148,7 +2153,7 @@ export class World {
     // W-C1..W-C3: Catalpa Junction (the DEC-12 district, the owner's 2026-11-14
     // master build authorization) — streets, yards, masses, the viaduct, the
     // public realm. All pre-bake so the merge swallows the statics.
-    this.buildCatalpaJunction();
+    this.buildLarchYards();
     // W4 part 1: the district's static life — zone figures, parked cars,
     // the BUS-03 stop — all pre-bake so the W0 merge swallows them (the
     // perf law: the zones cost merges, not draw calls).
@@ -2293,6 +2298,33 @@ export class World {
     // fuses it like every other TS mesh (zone visibility owns the far world;
     // the district tiles never reach here).
     this.dressFarWorldSI(tsRoot);
+    // ---- W-C1: Catalpa Junction, the second district's first priced slice
+    // (DEC-13: the design package APPROVED as filed, scenario S1 governing).
+    // The district lives west of Times Square (x −450..−378, the registry's
+    // free band), zone-owned like every far-world root: CDK_Group lights
+    // only inside its catalpaSurface/catalpaPlatform zones, never joins a
+    // district tile (NAMED_SKIP), never takes city-fabric roofs (ROOF_SKIP).
+    // The masses READ their registry rows — the flip never invents geometry.
+    const cjnRoot = new THREE.Group();
+    cjnRoot.name = 'CDK_Group';
+    this.scene.add(cjnRoot);
+    this.catalpa = buildCatalpaJunction(cjnRoot, (c, opts) => this.mat(c, opts), {
+      'CDK-01': this.regShell('CDK-01'),
+      'CDK-02': this.regShell('CDK-02'),
+      'CDK-03': this.regShell('CDK-03'),
+      'CDK-04': this.regShell('CDK-04'),
+      'CDK-05': this.regShell('CDK-05'),
+      'CDK-06': this.regShell('CDK-06'),
+      'CDK-07': this.regShell('CDK-07'),
+      'CDK-08': this.regShell('CDK-08'),
+      'CDK-09': this.regShell('CDK-09'),
+      // the h-0 slot row rides regFootprint (the ALY-02/SUB-TS law —
+      // regShell's height floor would refuse it)
+      'CDK-SUB': this.regFootprint('CDK-SUB'),
+    });
+    for (const c of this.catalpa.colliders) {
+      this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d));
+    }
     this.arrivalBus = buildArrivalBus((c, opts) => this.mat(c, opts));
     this.scene.add(this.arrivalBus.group);
     for (const c of this.arrivalBus.colliders) {
@@ -5689,11 +5721,12 @@ export class World {
       // rows live OUTSIDE every district tile (x ±110 / z −88 / z +104) —
       // a tile ring that drops them would blink the horizon out of view
       'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121', 'Yard_N',
-      'SkylineFabric', 'SkylineFabricWindows',
-      // W-C1: the Catalpa silhouette underlay rides the district ring's own
-      // law (visible while the district's tiles are unlit) — a baked
-      // silhouette would be ring-owned and vanish exactly when needed
-      'Catalpa_Silhouette']);
+      'SkylineFabric', 'SkylineFabricWindows', 'CDK_Group',
+      // W-C1 (this tree): the Larch Yards silhouette underlay rides the
+      // district ring's own law (visible while the district's tiles are
+      // unlit) — a baked silhouette would be ring-owned and vanish exactly
+      // when needed
+      'LarchYards_Silhouette']);
     const excluded = (o: THREE.Object3D): boolean => {
       for (let p: THREE.Object3D | null = o; p !== null; p = p.parent) {
         if (skip.has(p) || NAMED_SKIP.has(p.name)) return true;
@@ -5706,12 +5739,8 @@ export class World {
     const batches = new Map<string, Batch>();
     const EYE_LAYER = new THREE.Layers(); // layer 0 — the main camera's layer
 
-    const kitSeen: string[] = [];
     this.scene.traverse((o) => {
       if (!(o instanceof THREE.Mesh) || excluded(o)) return;
-      if (o.name.startsWith('Catalpa_Mass') || o.name === 'Catalpa_Viaduct' || o.name === 'Catalpa_Gardens') {
-        kitSeen.push(`${o.name} tile=${World.districtKey(o.matrixWorld.elements[12], o.matrixWorld.elements[14])} idx=${!!o.geometry.index} nrm=${!!o.geometry.attributes.normal} col=${!!o.geometry.attributes.color} verts=${o.geometry.attributes.position.count} mw=(${o.matrixWorld.elements[12].toFixed(0)},${o.matrixWorld.elements[14].toFixed(0)})`);
-      }
       // Shadow proxies (personRig docs/51 B13) live ONLY on the shadow layer:
       // a batch mesh is an ordinary layer-0 mesh, so baking a proxy would
       // print its white silhouette standing inside every zone figure. The
@@ -5802,9 +5831,6 @@ export class World {
       // 4–8 per-tile ones at every rig. The batch still registers under a
       // key no district owns ('ATLAS'), so district visibility never hides it.
       const tile = onAtlas ? 'ATLAS' : World.districtKey(o.matrixWorld.elements[12], o.matrixWorld.elements[14]);
-      if (o.name.startsWith('Catalpa_Mass') && (o.name === 'Catalpa_Mass_CJN-01' || o.name === 'Catalpa_Mass_CJN-09')) {
-        console.log(`KITBAKE2: ${o.name} tile=${tile} mw=(${o.matrixWorld.elements[12].toFixed(1)},${o.matrixWorld.elements[14].toFixed(1)}) pos=(${o.position.x.toFixed(1)},${o.position.z.toFixed(1)})`);
-      }
       b.srcs.push({ geo: g, mesh: o, tile });
     });
 
@@ -5891,7 +5917,6 @@ export class World {
       this.registerDistrictObject(o, o.position.x, o.position.z);
     }
     this.updateDistricts(-30, 6.2); // boot at the spawn — the E2E's first frame
-    console.log('KITBAKE:', kitSeen.length, kitSeen.slice(0, 6).join(' | '));
   }
 
   /** The zone bake — the far world's statics, merged per zone group.
@@ -5930,7 +5955,7 @@ export class World {
   private bakeZoneStatics(groups: THREE.Group[] = [
     this.subway.groups.stationA, this.subway.groups.stationB,
     this.subway.groups.tunnel, this.subway.groups.scenery,
-    this.timesSquare.group,
+    this.timesSquare.group, this.catalpa.group,
   ]): void {
     const ANIMATED = /priya|busker|usher|crowd|mover|rider|sub_wait|sub_sax|tss_screen_\d+$|tss_banner|bus_driver/i;
     const animated = (o: THREE.Object3D, g: THREE.Group): boolean => {
@@ -7216,7 +7241,7 @@ export class World {
   // Every mass renders from its registry row through the kit's DI — the
   // A-3 no-invention law holds here exactly as it holds on Kestrel.
   // ===================================================================
-  private buildCatalpaJunction(): void {
+  private buildLarchYards(): void {
     const rng = seededRng(20261114);
     const CURB = 0x8f8a82;
 
@@ -7224,7 +7249,7 @@ export class World {
     // Roads at the shipped levels (top 0.0); walks + the bed at the walk
     // level (top 0.1); every slab split around every road mouth (the W1
     // walk-cut law, generalized — roads own their mouths).
-    this.groundMerged('Catalpa_Roads', 'asphalt', [
+    this.groundMerged('LarchYards_Roads', 'asphalt', [
       { x: 176, y: -0.1, z: 0, sx: 152, sy: 0.2, sz: 8 },    // Kestrel East (x 100..252)
       { x: 228, y: -0.1, z: 0, sx: 8, sy: 0.2, sz: 128 },    // Larch (z −64..64)
       { x: 176, y: -0.1, z: 40, sx: 152, sy: 0.2, sz: 8 },   // Gable East (the continuation; centerline 40)
@@ -7246,7 +7271,7 @@ export class World {
       walkSlabs.push({ x: 234, y: -0.05, z: cz, sx: 4, sy: 0.3, sz: d });
       walkSlabs.push({ x: 152, y: -0.025, z: cz, sx: 12, sy: 0.25, sz: d }); // the bed, walk-flush
     }
-    this.groundMerged('Catalpa_Walks', 'concrete', walkSlabs);
+    this.groundMerged('LarchYards_Walks', 'concrete', walkSlabs);
 
     // the curbs (deco, no colliders — the shipped curb grammar), split
     // around the mouths exactly like the slabs above
@@ -7263,22 +7288,22 @@ export class World {
       curbSegs.push({ x: 232.08, z: cz, w: 0.5, d });
     }
     let curbI = 0;
-    for (const c of curbSegs) this.deco(`Catalpa_Curb_${curbI++}`, c.x, 0.065, c.z, c.w, 0.13, c.d, CURB);
+    for (const c of curbSegs) this.deco(`LarchYards_Curb_${curbI++}`, c.x, 0.065, c.z, c.w, 0.13, c.d, CURB);
 
     // ---- 2. the block yards (vc solids — the bake fuses them free) ------
     for (const [a, b] of XSEG) {
       const cx = (a + b) / 2, w = b - a;
-      this.solid('Catalpa_Yard_N1', cx, -0.05, 21, w, 0.3, 26, PAL.walk, { receive: true, cast: false });
-      this.solid('Catalpa_Yard_S1', cx, -0.05, -21, w, 0.3, 26, PAL.walk, { receive: true, cast: false });
-      this.solid('Catalpa_Yard_N2', cx, -0.05, 57, w, 0.3, 14, PAL.walk, { receive: true, cast: false });
-      this.solid('Catalpa_Yard_S2', cx, -0.05, -57, w, 0.3, 14, PAL.walk, { receive: true, cast: false });
+      this.solid('LarchYards_Yard_N1', cx, -0.05, 21, w, 0.3, 26, PAL.walk, { receive: true, cast: false });
+      this.solid('LarchYards_Yard_S1', cx, -0.05, -21, w, 0.3, 26, PAL.walk, { receive: true, cast: false });
+      this.solid('LarchYards_Yard_N2', cx, -0.05, 57, w, 0.3, 14, PAL.walk, { receive: true, cast: false });
+      this.solid('LarchYards_Yard_S2', cx, -0.05, -57, w, 0.3, 14, PAL.walk, { receive: true, cast: false });
     }
     // the Junction Plaza's cobble deck (the plaza square, north of the
     // crossing — the bed's own surface carries the south half)
-    this.deco('Catalpa_PlazaDeck', 152, 0.115, 10.1, 12, 0.03, 11.8, PAL.stone);
+    this.deco('LarchYards_PlazaDeck', 152, 0.115, 10.1, 12, 0.03, 11.8, PAL.stone);
 
     // ---- 3. the district fabric (the kit: masses, viaduct, crane, ....) -
-    const kitColliders = buildCatalpaJunction({
+    const kitColliders = buildLarchYards({
       scene: this.scene,
       mat: this.mat.bind(this),
       vc: this.vcMaterial.bind(this),
@@ -7289,20 +7314,20 @@ export class World {
       ledger: this.vqLedger,
     });
     for (const c of kitColliders) this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.sx, c.sy, c.sz));
-    catalpaPlazaLights({ scene: this.scene, vc: this.vcMaterial.bind(this) });
+    larchYardsPlazaLights({ scene: this.scene, vc: this.vcMaterial.bind(this) });
     // the far-read pair rides the ring law together (see updateDistricts)
     this.catalpaFar = [];
     this.scene.traverse((o) => {
-      if (o.name === 'Catalpa_Silhouette' || o.name === 'Catalpa_LitPanes') this.catalpaFar.push(o);
+      if (o.name === 'LarchYards_Silhouette' || o.name === 'LarchYards_LitPanes') this.catalpaFar.push(o);
     });
 
     // ---- 4. the zebras (the continental crosswalks at the six corners) --
     let zebraI = 0;
     const zebraEW = (cx: number, cz: number): void => {
-      for (let i = 0; i < 6; i++) this.deco(`Catalpa_Zebra_${zebraI++}`, cx, 0.03, cz - 3.3 + i * 1.3, 3, 0.02, 0.6, PAL.cream);
+      for (let i = 0; i < 6; i++) this.deco(`LarchYards_Zebra_${zebraI++}`, cx, 0.03, cz - 3.3 + i * 1.3, 3, 0.02, 0.6, PAL.cream);
     };
     const zebraNS = (cx: number, cz: number): void => {
-      for (let i = 0; i < 6; i++) this.deco(`Catalpa_Zebra_${zebraI++}`, cx - 3.3 + i * 1.3, 0.03, cz, 0.6, 0.02, 3, PAL.cream);
+      for (let i = 0; i < 6; i++) this.deco(`LarchYards_Zebra_${zebraI++}`, cx - 3.3 + i * 1.3, 0.03, cz, 0.6, 0.02, 3, PAL.cream);
     };
     zebraEW(152, 0); zebraEW(228, 0);
     zebraEW(152, 40); zebraEW(228, 40);
@@ -7349,7 +7374,7 @@ export class World {
       if ((px + pz) % 2 < 1) pallets.box(px, 0.42, pz, 0.9, 0.5, 0.8, 0x7a5f42);
     }
     const palletMesh = new THREE.Mesh(pallets.toGeometry(), this.vcMaterial(true));
-    palletMesh.name = 'Catalpa_Pallets';
+    palletMesh.name = 'LarchYards_Pallets';
     // the re-centering law (see catalpaKit.emit): the bake files by world
     // translation — the pallets carry their true center
     palletMesh.geometry.computeBoundingSphere();
@@ -9635,7 +9660,13 @@ export class World {
           this.colliders.push(this.terminalCollider);
         }
       }
-      this.timesSquare.group.visible = this.subway.lit.has('tsSurface');
+      this.timesSquare.group.visible = this.subway.lit.has('tsSurface')
+        || this.subway.lit.has('catalpaSurface'); // the shared-sky law (W-C1): the Junction reads the same city — the square's towers east, the west rim behind its own rooflines
+      // the district's own zones (the tsSurface law one line up): the
+      // Junction lights only when the player stands inside it — the shipped
+      // Alder Heights rigs never see it, +0 standing by construction
+      this.catalpa.group.visible =
+        this.subway.lit.has('catalpaSurface') || this.subway.lit.has('catalpaPlatform');
       const tsBeat = this.timesSquare.update(dt, feet, this.worldDay);
       if (tsBeat) this.tsBeats.push(tsBeat);
       this.arrivalBus.update(dt);

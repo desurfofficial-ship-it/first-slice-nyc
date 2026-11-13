@@ -6,17 +6,27 @@
 > `IMPLEMENTATION_LOG.md` (the wave-by-wave record),
 > `complete-world-master-plan.md` (the locked target).
 
+
+> **RECONCILIATION (2026-11-14, the integrated tree):** while this
+> assignment built, a concurrent line landed DEC-13 — the owner approved the
+> design package as filed and the Narrative Director pinned **Catalpa
+> Junction** to the K line's **west reach** (the docks past 42 St, rows
+> `CDK-*`). This document's district — the complete east build (x +100..+252)
+> — is therefore named **the Larch Yards** (the tree grammar + the freight
+> term; rows `LRY-*`). Both districts ship; the naming honors the canon; the
+> ids never collide. The build's substance is unchanged.
+
 | | |
 |---|---|
 | **Branch** | `feat/catalpa-junction-world` (off `main` at `de9777c`) |
 | **Head** | `3788097` — W-C4/W-C5 |
 | **Registry** | v1.75.0-era + W-C0..W-C5 rows (101 buildings, 9 parks, 23 interiors, 13 landmarks, 7 streets, 17 phases) |
-| **The world** | **Two districts and a destination:** Alder Heights (x −100..+100, unchanged) + **Catalpa Junction** (x +100..+252, built this assignment) + Times Square (one K-line ride west, unchanged) |
+| **The world** | **Two districts and a destination:** Alder Heights (x −100..+100, unchanged) + **the Larch Yards** (x +100..+252, built this assignment) + Times Square (one K-line ride west, unchanged) |
 | **Playable core** | x −100..+252, z ±64 (registry `bounds.playableCore`; the invisible walls follow) |
 
 ## 1. What is BUILT (verified in the running game)
 
-- **The complete street grid of Catalpa Junction:** Kestrel Street East
+- **The complete street grid of the Larch Yards:** Kestrel Street East
   (the connecting spine, x 100..252), Gable East and Marlow East (the shipped
   streets' own continuations — the draft separate streets retired; see
   IMPLEMENTATION_LOG W-C5), The Spur (the freight spur gone pedestrian: track
@@ -30,7 +40,7 @@
   CATALPA IRON WORKS ghost sign), Junction Lofts, Larch Street Lofts, Beacon
   Crate & Box, Catalpa Bottling, Spur Front Lofts, Federal Wire & Cable (sign
   band), Sumac Shed, Larch Storage, the four far-north walk-up strips, the
-  three far-south works rows, and SUB-03 (the K's Catalpa Junction headhouse
+  three far-south works rows, and SUB-03 (the K's the Larch Yards headhouse
   with its stair hood and name band). Bay rhythm, window grids, dock doors and
   wear vary per row from seeded PRNGs; the roof fabric adds tanks, chimneys
   and bulkheads automatically.
@@ -110,7 +120,7 @@
 | Criterion | Status |
 |---|---|
 | The entire planned playable area constructed | ✅ both districts + the destination |
-| All planned neighbourhoods represented | ✅ Alder Heights (5 streets) + Catalpa Junction (the spur, Larch, the continuations) |
+| All planned neighbourhoods represented | ✅ Alder Heights (5 streets) + the Larch Yards (the spur, Larch, the continuations) |
 | The road network connected and navigable | ✅ one walkable component, player-collision clean, nav one world |
 | Buildings and environmental assets integrated | ✅ 101 registry buildings render from their rows |
 | Consistent visual quality | ✅ the house grammar everywhere; evidence frames attached |

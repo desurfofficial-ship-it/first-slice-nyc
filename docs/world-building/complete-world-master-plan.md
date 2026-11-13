@@ -16,6 +16,16 @@
 > invent boroughs, rivers, or a second subway line; it does not schedule
 > the Passport program (DEC-12 §1.5).
 
+
+> **RECONCILIATION (2026-11-14, the integrated tree):** while this
+> assignment built, a concurrent line landed DEC-13 — the owner approved the
+> design package as filed and the Narrative Director pinned **Catalpa
+> Junction** to the K line's **west reach** (the docks past 42 St, rows
+> `CDK-*`). This document's district — the complete east build (x +100..+252)
+> — is therefore named **the Larch Yards** (the tree grammar + the freight
+> term; rows `LRY-*`). Both districts ship; the naming honors the canon; the
+> ids never collide. The build's substance is unchanged.
+
 ---
 
 ## 1. The complete world in one paragraph
@@ -23,7 +33,7 @@
 FIRST SLICE's complete playable world is **two districts and a destination,
 connected by street and by transit**: **Alder Heights** — the shipped
 residential-commercial neighborhood, the story's heart (x −100..+100);
-**Catalpa Junction** — the new working district one road-continuation east
+**the Larch Yards** — the new working district one road-continuation east
 (x +100..+252), where the old freight industry lives as loft conversions,
 a pedestrian spur, and an elevated rail viaduct; and **Times Square** — the
 postcard destination, one K-line ride west (x ~−400). Kestrel Street runs
@@ -41,7 +51,7 @@ registry-truthed.
 | invisible walls | x ±100, z ±64 | x −100, **x +252**, z ±64 | the east wall moves to the new core edge; the N/S walls re-span x −100..+252 (center x +76, length 352) |
 
 **Area:** the playable core grows from ~25,600 m² to ~**44,800 m²** (+75%).
-Catalpa Junction itself is 152 m × 128 m ≈ 19,500 m² — deliberately **half
+the Larch Yards itself is 152 m × 128 m ≈ 19,500 m² — deliberately **half
 the linear scale of a sprawl district**: the design package's "compact
 district, never a sprawl" law.
 
@@ -51,7 +61,7 @@ district, never a sprawl" law.
 Kestrel Street (E-W spine), Juniper & Sycamore Avenues (N-S), Gable &
 Marlow Streets (N-S). The K line under Juniper, west to 42 St–Times Square.
 
-### 3.2 Catalpa Junction (new, 5 ways)
+### 3.2 the Larch Yards (new, 5 ways)
 
 | Street | Class | Geometry (registry row) | Character |
 |---|---|---|---|
@@ -121,7 +131,7 @@ geometry per the shipped pattern (3.4 m bands).
 | CJN-18 Sumac Works 2 | 179, −57, 34, 10 | 9 |
 | CJN-19 Sumac Works 3 | 212, −57, 24, 10 | 8 |
 
-**Transit:** `SUB-03` — the **Catalpa Junction station house**, the K line's
+**Transit:** `SUB-03` — the **the Larch Yards station house**, the K line's
 eastbound stop (x 164, z 5, w 8, d 6, h 3.8; door S to the junction). Ships
 this phase as the surface stub (headhouse + globe lamp + stair hood); the
 underground platform and the eastbound ride machine are the next priced
@@ -136,7 +146,7 @@ chimneys and bulkheads; three rows carry fire-escape fabric
 
 ## 5. Neighbourhood identity — why Catalpa does not look like Alder Heights
 
-| Dimension | Alder Heights | Catalpa Junction |
+| Dimension | Alder Heights | the Larch Yards |
 |---|---|---|
 | Roofline | row houses 12–16 m, stoops, cornices | **low industrial 8–10 m** on the strips, lofts 12–16 m — **wider sky** |
 | Ground floor | retail awnings, storefront glass | loading docks, freight doors, wholesaler signage, the market hall |
@@ -160,7 +170,7 @@ chimneys and bulkheads; three rows carry fire-escape fabric
 - **LMK-11** — the Catalpa Iron Works ghost sign ("CATALPA IRON WORKS —
   STRUCTURAL · ORNAMENTAL — EST. 1911", CJN-04's east gable)
 - **LMK-12** — the Elevated Spur (the viaduct)
-- **LMK-13** — the Catalpa Junction globe (the K station's globe lamp)
+- **LMK-13** — the the Larch Yards globe (the K station's globe lamp)
 
 ## 8. Interiors (essential only, per assignment §6.5)
 
@@ -179,7 +189,7 @@ forward-compatibility law).
   M121 bus and the taxi keep their authored routes this phase (pinned
   systems; the route's eastward extension is a documented next wave).
   Parked box trucks and vans dress the loading docks.
-- **By rail:** the K line — 42 St ⇄ Alder Heights ⇄ Catalpa Junction.
+- **By rail:** the K line — 42 St ⇄ Alder Heights ⇄ the Larch Yards.
   The Catalpa station house ships; the eastbound ride is the next priced
   wave (station kit is parameterized — `buildStation` already builds B
   from a registry row; C needs a third car, zones, and a route choice in
