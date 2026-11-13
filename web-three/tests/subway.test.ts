@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { updateZones, type ZoneDef } from '../src/world/subway/zone';
-import { turnstileHubAt, ZONE_KEEP_RE } from '../src/world/subway/stationKit';
+import { southWallPieces, turnstileHubAt, ZONE_KEEP_RE, STAIR_SLOT } from '../src/world/subway/stationKit';
 import { CAR_BODY, southBenchSpans } from '../src/world/subway/trainKit';
 import {
   aboardCar, beginRide, createRide, endRide, CAR_Z_MAX, CAR_Z_MIN,
@@ -281,5 +281,95 @@ describe('Priya\u2019s window diagram (docs/51 B11 — the teach draws itself)',
   it('the chalk strokes ride ZONE_KEEP_RE (toggle-only writes, the bake contract)', () => {
     expect(ZONE_KEEP_RE.test('SUB_Diagram_-44.2_lights_a')).toBe(true);
     expect(ZONE_KEEP_RE.test('SUB_Diagram_-332.2_river_b')).toBe(true);
+  });
+});
+
+describe('the ride keeps wall time under frame starvation (the field report law)', () => {
+  // The field report "ride to Times Square doesn't work" was the ride
+  // machine fed the RENDER-CLAMPED dt: below 10 fps every frame gave the
+  // machine 0.1 s for 0.5 s of real time and the 22 s ride stretched 5×+
+  // (measured: rate 0.185 at 2 fps — a 110-second ride). The loop now feeds
+  // the machine TRUE elapsed time (Game.frame trueDt, capped 1 s). These
+  // laws pin that the machine is SAFE under that regime: thresholds only,
+  // no integration, no event may double-fire on a 1 s step.
+  it('arrives within RIDE_T.arrive of fed time at the 1 s step cap', () => {
+    const s = createRide();
+    beginRide(s, 'A');
+    let t = 0;
+    let arrived = -1;
+    while (t < 120 && arrived < 0) {
+      for (const e of tickRide(s, 1.0)) {
+        if (e.type === 'arrived') arrived = t + 1.0;
+      }
+      t += 1.0;
+    }
+    // threshold steps quantize to the 1 s cap: closing (1.2 s) ends at the
+    // step-2 boundary, riding's 22 s threshold at one step later — the law
+    // is arrival ≤ continuous time + one step per phase, never a stall
+    expect(arrived).toBeGreaterThanOrEqual(RIDE_T.arrive);
+    expect(arrived).toBeLessThanOrEqual(RIDE_T.close + RIDE_T.arrive + 1.0);
+  });
+
+  it('each beat fires exactly once, the swap exactly once, at the 1 s cap', () => {
+    const s = createRide();
+    const events: RideEvent[] = [...beginRide(s, 'A')];
+    for (let i = 0; i < 40; i++) events.push(...tickRide(s, 1.0));
+    const notes = events.filter((e) => e.type === 'note');
+    expect(notes.map((e) => e.beat)).toEqual(RIDE_BEATS.map((b) => b.key)); // each once, in order
+    expect(events.filter((e) => e.type === 'swap')).toHaveLength(1);
+    expect(events.filter((e) => e.type === 'arrived')).toHaveLength(1);
+  });
+
+  it('the departure chain also holds at the 1 s cap (doors reopen at rest)', () => {
+    const s = createRide();
+    beginRide(s, 'A');
+    let doorsOpen = 0;
+    for (let i = 0; i < 40; i++) {
+      for (const e of tickRide(s, 1.0)) if (e.type === 'doors' && e.open) doorsOpen++;
+    }
+    endRide(s);
+    for (let i = 0; i < 10; i++) {
+      for (const e of tickRide(s, 1.0)) if (e.type === 'doors' && e.open) doorsOpen++;
+    }
+    expect(doorsOpen).toBe(2); // arrival + the rest state
+    expect(s.phase).toBe('idle');
+  });
+});
+
+describe('the south wall opens on EVERY station\u2019s own stair slot (the seal law)', () => {
+  // The field report "ride to Times Square doesn't work" had two mechanisms.
+  // The second: buildStation computed BOTH stations' south-wall opening from
+  // A's slot band — station B's west piece became a 291 m wall sealing its
+  // stair mouth (you rode to 42 St and could never leave), and its east
+  // piece inverted into an empty box. The pieces now come from one pure
+  // seam, translated per station; these laws pin it forever.
+  const xWOf = (cx: number): number => cx - 8.15; // halfW
+  const xEOf = (cx: number): number => cx + 8.15;
+
+  it('station A\u2019s pieces bracket A\u2019s own slot', () => {
+    const pieces = southWallPieces(xWOf(-44), xEOf(-44), 0);
+    expect(pieces[0]).toEqual({ x0: -52.15, x1: STAIR_SLOT.minX }); // −48.5
+    expect(pieces[1]).toEqual({ x0: STAIR_SLOT.maxX, x1: -35.85 }); // −45.9
+  });
+
+  it('station B\u2019s pieces bracket B\u2019s own slot (translated by the swap)', () => {
+    const pieces = southWallPieces(xWOf(-332), xEOf(-332), RIDE_SWAP_DX);
+    expect(pieces[0]).toEqual({ x0: -340.15, x1: STAIR_SLOT.minX + RIDE_SWAP_DX }); // −336.5
+    expect(pieces[1]).toEqual({ x0: STAIR_SLOT.maxX + RIDE_SWAP_DX, x1: -323.85 }); // −333.9
+  });
+
+  it('no piece crosses a slot band; no piece is inverted; the opening is the slot', () => {
+    for (const [cx, dx] of [[-44, 0], [-332, RIDE_SWAP_DX]] as const) {
+      const pieces = southWallPieces(xWOf(cx), xEOf(cx), dx);
+      const slotMinX = STAIR_SLOT.minX + dx;
+      const slotMaxX = STAIR_SLOT.maxX + dx;
+      for (const p of pieces) {
+        expect(p.x1).toBeGreaterThan(p.x0); // never inverted (the old B east piece)
+        const crosses = p.x0 < slotMinX && p.x1 > slotMaxX;
+        expect(crosses).toBe(false); // never seals the slot (the old B west piece)
+      }
+      expect(pieces[0].x1).toBe(slotMinX); // the opening is EXACTLY the slot
+      expect(pieces[1].x0).toBe(slotMaxX);
+    }
   });
 });

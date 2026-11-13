@@ -66,6 +66,12 @@ export interface SubwaySystem {
    *  bit-exact, the seam stays invisible. */
   seamDx: number;
   requestRide(from: RideEnd): boolean;
+  /** `dt` is the TRUE frame delta (capped 1 s), forwarded by
+   *  World.updateAmbient's `trueDt` — NOT the render-clamped dt. The ride
+   *  is a wall-clock experience (22 s of doors-closed tunnel; the teach
+   *  beats land in real seconds): fed the clamped dt, any device under
+   *  10 fps stretched it 5×+ and the player read "the ride doesn't work".
+   *  The machine is pure thresholds, so true elapsed time is safe. */
   update(dt: number, feet: { x: number; y: number; z: number }, onBeat: (key: string) => void): void;
 }
 
@@ -98,7 +104,7 @@ export function buildSubwaySystem(
   });
 
   const stationA = buildStation(ctx(groups.stationA), {
-    cx: -44, name: 'ALDER HTS', accent: '#1f6e5c', ads: [0, 2], home: true,
+    cx: -44, name: 'ALDER HTS', accent: '#1f6e5c', ads: [0, 2], home: true, slotDx: 0,
   });
   // A-3 UNIT 10 (the far world, DEC-4 Option B standing ruling): station
   // B's cx READS its registry row (SUB-TS) — the row IS the station's
@@ -118,6 +124,7 @@ export function buildSubwaySystem(
   }
   const stationB = buildStation(ctx(groups.stationB), {
     cx: subTs.footprint.x, name: '42 ST-TIMES SQ', accent: '#6D4C7D', ads: [1, 2, 0], home: false,
+    slotDx: RIDE_SWAP_DX, // B's own stair slot — the south-wall opening brackets it
   });
   // the fare banks' live parts (docs/50 §4.6): a pass through a gate
   // spins that hub a third-turn and clicks — the arms earn their dressing

@@ -17,7 +17,7 @@ export const SPEED = 4.2;
 export const SPEED_SPRINT = 6.4;
 const GRAVITY = 18.0;
 const CLIMB_SPEED = 2.6;
-const STEP_UP = 0.35;
+const STEP_UP = 0.55;          // was 0.35 — raised so sidewalks/curbs are walkable
 const GROUND_SNAP = 0.45;
 
 /** Acceleration responsiveness: reaching target speed in ~0.08s */

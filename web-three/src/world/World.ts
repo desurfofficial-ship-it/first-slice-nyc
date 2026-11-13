@@ -8763,7 +8763,13 @@ export class World {
 
   /** Phase 2 of the frame (after the player's move): everything that only
    *  reads the world — pedestrian steering, birds, steam, leaves. */
-  updateAmbient(dt: number, player?: { x: number; y: number; z: number }, dusk = false): void {
+  updateAmbient(dt: number, player?: { x: number; y: number; z: number }, dusk = false,
+    /** TRUE frame delta (capped 1 s) — feeds the subway ride machine only.
+     *  The ride is a wall-clock experience (22 s doors-closed); the render
+     *  clamp would starve it on low-fps devices (the field report "ride to
+     *  Times Square doesn't work"). Everything here keeps the clamped dt. */
+    trueDt?: number,
+  ): void {
     // the walkers steer around you and the cart, mind the furniture, and
     // hold their ground against the cab's — and now the M121's — footprint
     this.peds.update(
@@ -8826,7 +8832,7 @@ export class World {
     // ---- the far world: zones, the dollhouse, the square, the bus ----
     if (player && this.subway) {
       const feet = player as { x: number; y: number; z: number };
-      this.subway.update(dt, feet, (key) => this.subwayBeats.push(key));
+      this.subway.update(trueDt ?? dt, feet, (key) => this.subwayBeats.push(key));
       if (this.subway.underground !== this.dollhouseOn) {
         this.dollhouseOn = this.subway.underground;
         this.setUndergroundShadow(this.dollhouseOn);
