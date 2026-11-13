@@ -398,3 +398,50 @@ block's corner store at the Kestrel×Juniper intersection:
   documented mover-nondeterminism class (the 8-sample A/B: 3/4 green on W14,
   2/4 green on the d855713 baseline — no wave coupling); the draw census
   re-baselines at 191; the fenestra atlas mip re-audit stays honest-open.
+
+---
+
+## 15. Session addendum — W18, the DEC-13 approval wave (2026-11-13, later)
+
+The owner exercised the fresh §8 gate ("your §8 call on the Catalpa Junction
+package is the only decision standing between the roadmap and the second
+district — I approve it"). The wave landed the approval and the canon's own
+reconciliation, documents only:
+
+- **The adjudication of record** (`docs/production/DEC-13-CATALPA-JUNCTION-
+  PACKAGE-APPROVAL-DECISION.md`, new): the design package APPROVED as filed —
+  scenario **S1 (transit-gated)** governing, **W-C1 "the Junction docks"**
+  authorized (~9 rows + the K-line platform stub; its measured ledger row the
+  wave's own deliverable under the DEC-2 priced-wave law); what stays gated:
+  S2's skyline price, S3's two-live-districts budget (a DEC-2-class ruling the
+  owner keeps), the ride-seam machine wave, the program depth, the Passport.
+- **The Narrative Director's reconciliation** (the package's own precondition,
+  executed against docs 04/06/09/12/15; dated ruling in docs/narrative/15 §7):
+  the name passes (the tree-rooted grammar extended, the `CJN-*` prefix
+  append-only); the geography passes (the K line's west reach beyond 42 ST —
+  the direction the shipped tunnel already runs; "one stop past Alder Heights"
+  recorded as social distance, not a stop-count); **the C6 mapping is
+  corrected by the canon** — Juniper Commons rises on the Alder Works parcel
+  (doc 04 §6; doc 15 §1), Provisions Hall is its food hall, the hundredth tree
+  stands at Kestrel Green: **the hall does not move**. Catalpa Junction is the
+  open endgame's district (doc 09 §8's continuation paths; doc 15 §3.8's
+  intended openness) — its beats NEW, no C6 station relocated.
+- **The paper trail** (the DEC-4 living-docs precedent — filed history kept):
+  the design package → APPROVED banner + dated amendments (§1 anchor, §5 gate
+  1, §7 decided); DEC-12 §3 → the gate GRANTED; BOROUGH-SCOPING-STUDY header +
+  §5 law 1 → SATISFIED; AGENTS.md §0 DIRECTION → the gate opened, the package's
+  own §5 gates govern each wave; MASTER-GAME-ROADMAP §1 item 3 + the Phase-8
+  STATUS tail → DEC-13; PRODUCTION-RISKS-AND-DEPENDENCIES → the DEC-12 row
+  closed out + the new DEC-13 row RULED; docs/narrative/15 → the §2 DEC-13 row
+  + §6's naming registry (Catalpa Junction + the Junction spur) + §7's dated
+  ruling; register v1.73.0.
+- **Zero runtime path**: docs-only wave — the registry read, never written;
+  no geometry, no code. Gates (the docs-only re-certification precedent):
+  validate-registry OK (179 IDs, 81 buildings, 23/23 anchors) · tsc clean ·
+  vitest 1,719/1,719 (103 files) · build OK.
+- **Next**: W-C1, the Junction docks — the second district's first priced
+  slice, built under the package's own §5 gates (append-only `CJN-*`, no
+  geodata, per-wave batteries, purpose + interaction + books at the Alder
+  Heights bar, same-commit law).
+
+— Z.ai agent, 2026-11-13

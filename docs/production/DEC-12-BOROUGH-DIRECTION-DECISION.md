@@ -30,3 +30,5 @@
 ## 3. The next gate (stated for the next agent)
 
 The design package draft + first priced wave → **the owner's fresh §8 approval, explicitly sought, before any expansion construction begins.** Until that gate opens: Alder Heights is the whole playable world, and the roadmap continues inside it. The standing truth between DEC-8's ruling and this one ("Alder Heights is the world, and it is complete") is hereby succeeded by: *Alder Heights is the first district of a growing New York — and the next district is a decision the owner has not yet been asked to make on real numbers.*
+
+> **AMENDED 2026-11-13: the gate above was exercised and GRANTED** — the owner approved the design package as filed, scenario S1 governing, W-C1 authorized. Adjudication of record: [DEC-13-CATALPA-JUNCTION-PACKAGE-APPROVAL-DECISION.md](DEC-13-CATALPA-JUNCTION-PACKAGE-APPROVAL-DECISION.md). The Narrative Director's reconciliation rode first per §2's precondition and corrected the C6 mapping to the canon's own pins (the hall stays on the Alder Works parcel; Catalpa Junction is the open endgame's district).

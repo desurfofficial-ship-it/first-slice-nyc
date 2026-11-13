@@ -3,6 +3,8 @@
 > **Status:** Phase-8 exit deliverable (2026-11-13), filed under the DEC-8 ruling ([DEC-8-EXPANSION-APPROVAL-DECISION.md](DEC-8-EXPANSION-APPROVAL-DECISION.md)). **This document authorizes nothing.** No borough geometry exists, no registry row for a second district exists, no code for one exists — and nothing in this study changes that. It is the roadmap's own deliverable ("the borough scoping study (document only, if approved)"), written so the owner can decide the borough question with real numbers in hand instead of adjectives. **UPDATE 2026-11-13 — RULED: the owner selected Option B (one additional district, chapter-structured), direction only; construction stays behind the fresh §8 gate on the design package + first priced wave. Adjudication of record: [DEC-12-BOROUGH-DIRECTION-DECISION.md](DEC-12-BOROUGH-DIRECTION-DECISION.md).**
 >
 > **Method:** every number below is read from the shipped tree at `2cba191` (register v1.65.0) — the live registry, the probe fleet's recorded censuses, the change log's per-wave batteries, and the reference implementations in `web-three/src/sim/`. Nothing is projected from hope; where a cost is unknown, it is marked unknown and named as the first task of the wave that would price it.
+>
+> **UPDATE 2026-11-13 — THE GATE OPENED: the owner approved the Catalpa Junction design package as filed (scenario S1 governing, W-C1 authorized) — adjudication of record: [DEC-13-CATALPA-JUNCTION-PACKAGE-APPROVAL-DECISION.md](DEC-13-CATALPA-JUNCTION-PACKAGE-APPROVAL-DECISION.md). §5 law 1's fresh owner gate is SATISFIED for the approved package + W-C1; laws 2–7 govern every wave verbatim (law 2's DEC-2-class ruling stays the owner's, un sought — W-C1 rides S1's +0 standing).**
 
 ---
 
@@ -63,7 +65,7 @@ The reason a scoping study is now *possible* rather than speculative is that the
 
 ## 5. The binding laws for any future borough wave (the checklist that would govern it)
 
-1. A fresh **owner gate** on the chosen option's design package and first priced wave — this study is not that gate.
+1. A fresh **owner gate** on the chosen option's design package and first priced wave — this study is not that gate. *(SATISFIED 2026-11-13 for the approved package + W-C1: [DEC-13-CATALPA-JUNCTION-PACKAGE-APPROVAL-DECISION.md](DEC-13-CATALPA-JUNCTION-PACKAGE-APPROVAL-DECISION.md).)*
 2. **DEC-2-class budget ruling** before any geometry: the two-live-districts draw budget is priced, not assumed.
 3. **Registry append-only**: new ids only; canon rows untouched; the validator's id grammar respected.
 4. **No geodata ingestion** (OSM/NYC-Open-Data stay out; references stay reference-only).
