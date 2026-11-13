@@ -4248,3 +4248,18 @@ Work Log:
 
 Stage Summary:
 - The world is TWO districts and a destination now: Alder Heights (untouched, the story's heart), Catalpa Junction (the freight-spur neighborhood — 20 buildings, the viaduct, the plaza, the gardens, the enterable market hall), Times Square one ride west. One walkable world end to end, one draw budget under its ceiling, one registry telling the truth about all of it. The next agent opens the game, walks east past Sycamore, and is standing in Catalpa Junction.
+
+---
+## 2026-11-14 — Z Agent: the INTEGRATION — the concurrent line's DEC-13 west-reach docks (Catalpa Junction, CDK-*) join the Larch Yards tree (LRY-*); both districts ship
+
+Task ID: WC-INTEGRATION (the push refused fast-forward: the remote main carried 6ccf7f8 + 6485e4e — a concurrent line's W-C1 "the Junction docks" under DEC-13, the owner's approval of the design package as filed with the Narrative Director pinning Catalpa Junction to the K line's WEST reach past 42 St; this tree's complete east district had taken the draft CJN ids).
+
+Work Log:
+- THE COLLISION: both lines built districts named Catalpa Junction with overlapping CJN-01..09 ids — theirs the west-reach dock shells (x −450..−378), mine the complete east district (x +100..+252). The canon law (DEC-13's ND reconciliation, doc 15) pins the NAME to the west reach; the master assignment (the owner, 2026-11-14, later) commands the complete world. THE RESOLUTION honors both: the docks keep the canon name (rows CJN-* → CDK-*, the group CDK_Group, the construction tokens CDK_*), the east district renames to THE LARCH YARDS (rows LRY-*, the tree grammar + the freight term; world/catalpaKit.ts → world/larchYardsKit.ts, buildLarchYards, the LarchYards_* mesh names). Neither geometry moved a meter.
+- THE REGISTRY: the three-way union scripted from the two clean sources (git show both sides) — my rows as LRY-*, their rows as CDK-*, their WC1 phase row + corrections + SKY-TS-W reconciliation + transit entrances joined, the unlocks fields enriched onto the shared phase rows, the WC1 prose re-pointed at CDK with the rename annotation. 111 buildings (19 LRY + 10 CDK + the 82 canon), zero duplicate ids, zero stray CJN refs.
+- THEIR CODE re-pointed: catalpaJunction.ts's ROW_NAMES/zone-bake/group tokens (CDK_*), World.ts's 18 regShell lookups + the NAMED_SKIP + the group name, cityFabric's ROOF_SKIP, the content catalogue's dispatch (now dispatches BOTH prefixes), subway/index.ts's zone comment, the validator's pin block, their probe's token greps. THEIR TESTS (catalpa-junction.test.ts, 15) pass unchanged in law.
+- MY CODE renamed: larchYardsKit.ts (LRY palette const, LarchYardsDI interfaces, buildLarchYards/larchYardsPlazaLights/larchYardsSilhouette), World.ts's wiring + the far-read names + the debug instrumentation removed (the forensics live in the log).
+- THE INTEGRATED BATTERY: tsc clean · vitest 1,748/1,748 (105 files — both suites join with no seam) · build OK · DRAWS 192 · probe-wc1-catalpa OK (the docks' measured ledger: spawn 192 +0 standing, spur 53, platform 23) · the Larch Yards evidence re-captured (9 frames, zero page errors, spawn census 179) · the pocket scan one component x −98..250, traps 18.
+
+Stage Summary:
+- The repo's memory held: two agent lines, two owner rulings (DEC-13's package gate, the master assignment's complete-world command), zero overwritten work, one coherent registry. The world now ships TWO named districts beyond Alder Heights — Catalpa Junction (the west docks, canon, zone-gated) and the Larch Yards (the east district, walked, one nav world) — plus Times Square, inside one draw budget.
