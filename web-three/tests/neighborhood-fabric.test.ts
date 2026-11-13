@@ -308,7 +308,10 @@ describe('neighborhood fabric — the W7 gate-row fabric (docs/production/westga
     }
     const bounds = (doc.doc.bounds ?? {}) as { playableCore?: { xMin: number; xMax: number; zMin: number; zMax: number } };
     expect(bounds.playableCore?.xMin).toBe(-100);
-    expect(bounds.playableCore?.xMax).toBe(100);
+    // W-C0 (2026-11-14): the core grew east to x +252 — Catalpa Junction is
+    // real rows now (the DEC-12 district, the owner's master build
+    // authorization). The old W7 pin (xMax 100) grew with the map.
+    expect(bounds.playableCore?.xMax).toBe(252);
     expect(bounds.playableCore?.zMin).toBe(-64);
     expect(bounds.playableCore?.zMax).toBe(64);
   });
