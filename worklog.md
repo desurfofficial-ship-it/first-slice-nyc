@@ -4058,3 +4058,17 @@ Work Log:
 
 Stage Summary:
 - DEC-8 closes the way the register writes closures: the owner's sign-off recorded in an adjudication of record, the gate's own terms quoted verbatim, and the unlocked work executed in the same wave — Phase 8's exit checklist is all green with evidence, MS-6 reads VERIFIED, and the borough scoping study exists as the document the roadmap always said it should be. The borough question is now the owner's to answer with real numbers in hand; until then, Alder Heights is the world, and it is complete. Register v1.66.0.
+
+---
+Task ID: W14-FIX-SPLICE (the W14 wave's own find, continued — the branch-less focused fix, the v1.63.0 precedent)
+Agent: Z.ai (GLM)
+Task: The integrated tree must pass the full gate battery before the push; it didn't — repair the defect the battery caught and record it honestly.
+
+Work Log:
+- THE FIND: after the re-integration merge (d6aa2a1), the battery's tsc gate FAILED on the integrated tree — `src/postcard/PostcardCapture.ts` lines 288-295 unparseable (TS1109/TS1127/TS1002, orphan comment-body lines outside any comment). Byte-diff proved the defect ships ON THE REMOTE TIP (d855713): the remote line's own PostcardCapture union (their 6b58870) spliced TWO doc comments above `CaptureOptions` — the one-line pipeline comment (`/** Full pipeline: … */`, correctly closed) followed by the DOF comment's BODY WITHOUT ITS OPENING `/**`. Their last certification ("tsc clean · 1,709/1,709") predates the last commits of their line; the splice rode in after it. Origin/main has been un-buildable since d855713 — the exact class the push-gate battery exists to catch.
+- THE FIX (one comment, zero runtime path): the two fragments rejoined into ONE doc comment — the pipeline line as the head, the DOF body verbatim beneath it, closed properly. Every word of both remote-side comments preserved; no code token moved.
+- THE DEP SYNC (not a defect — the fetch discipline): the remote line's fridge-test pass added `@fontsource/caveat` (the postcard handwriting face) + reordered `@types/node` in devDependencies; the local node_modules predated the fetch — `npm install` synced (0 vulnerabilities). Their dependency decision is their landed call on origin; this wave integrates, not re-litigates.
+- THE BATTERY (the integrated tree, FINAL): validate-registry OK (178 IDs, 81 buildings, 23/23 anchors) · tsc clean · vitest **1,709/1,709** (102 files — the remote line's own suite claim REPRODUCED on this box) · build OK (692 ms). The E2E rides the remote line's own honest record (100 PASS / 0 FAIL through day 3 at E2E_SCALE=0.5, cap-cut; the full-scale re-run is the faster-box follow-up they named).
+
+Stage Summary:
+- The battery did its job: origin/main's parse break never crossed to a pushed tip un-caught. One comment rejoined, the suite reproduced at 1,709/1,709, the build green — and the integrated tree (W14's DEC-8 paperwork + the remote line's evidence/postcard/ledger-truth tranche) is ready to ship as one pushed line. Register v1.67.0.
