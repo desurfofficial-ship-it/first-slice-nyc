@@ -420,6 +420,9 @@ export class Game {
 
     // Expose instance for React HUD integration
     (window as any).__game = this;
+    // The probe harness's door to THREE itself (grid overlays, raycasts,
+    // geometry forensics in the diag scripts). A constant, never state.
+    (window as any).THREE = THREE;
 
     // ---------------- interactions (Doc 37 §3B — one registry) -------------
     // Authored beats + the free-roam set, declared once in interactionDefs.

@@ -2881,7 +2881,7 @@
     {
       "id": "CJN-01",
       "name": "The Catalpa Freight Market",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "A",
       "face": "Kestrel N",
       "block": "BLK-CJN-N",
@@ -2909,7 +2909,7 @@
     {
       "id": "CJN-02",
       "name": "Catalpa Cold Storage",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "Kestrel N",
       "block": "BLK-CJN-N",
@@ -2936,7 +2936,7 @@
     {
       "id": "CJN-03",
       "name": "The Spur Lofts",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "The Spur E",
       "block": "BLK-CJN-N",
@@ -2968,7 +2968,7 @@
     {
       "id": "CJN-04",
       "name": "Starlite Stamping & Tool",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "The Spur E",
       "block": "BLK-CJN-N",
@@ -2995,7 +2995,7 @@
     {
       "id": "CJN-05",
       "name": "Junction Lofts",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "Kestrel N + Larch W",
       "block": "BLK-CJN-N",
@@ -3027,7 +3027,7 @@
     {
       "id": "CJN-06",
       "name": "Larch Street Lofts",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "Larch W",
       "block": "BLK-CJN-N",
@@ -3054,7 +3054,7 @@
     {
       "id": "CJN-07",
       "name": "Beacon Crate & Box",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "Kestrel S",
       "block": "BLK-CJN-S",
@@ -3081,7 +3081,7 @@
     {
       "id": "CJN-08",
       "name": "Catalpa Bottling",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "Kestrel S",
       "block": "BLK-CJN-S",
@@ -3108,7 +3108,7 @@
     {
       "id": "CJN-09",
       "name": "Spur Front Lofts",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "The Spur E",
       "block": "BLK-CJN-S",
@@ -3140,7 +3140,7 @@
     {
       "id": "CJN-10",
       "name": "Federal Wire & Cable",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "Kestrel S",
       "block": "BLK-CJN-S",
@@ -3167,7 +3167,7 @@
     {
       "id": "CJN-11",
       "name": "Sumac Shed",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "Kestrel S",
       "block": "BLK-CJN-S",
@@ -3194,7 +3194,7 @@
     {
       "id": "CJN-12",
       "name": "Larch Storage",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "Larch W",
       "block": "BLK-CJN-S",
@@ -3221,7 +3221,7 @@
     {
       "id": "CJN-13",
       "name": "Rowan Walk-ups",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "Rowan N",
       "block": "BLK-CJN-FARN",
@@ -3248,7 +3248,7 @@
     {
       "id": "CJN-14",
       "name": "Viaduct Block W",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "Rowan N",
       "block": "BLK-CJN-FARN",
@@ -3275,7 +3275,7 @@
     {
       "id": "CJN-15",
       "name": "Viaduct Block E",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "Rowan N",
       "block": "BLK-CJN-FARN",
@@ -3302,7 +3302,7 @@
     {
       "id": "CJN-16",
       "name": "Rowan Works",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "Rowan N",
       "block": "BLK-CJN-FARN",
@@ -3329,7 +3329,7 @@
     {
       "id": "CJN-17",
       "name": "Sumac Works 1",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "Sumac S",
       "block": "BLK-CJN-FARS",
@@ -3356,7 +3356,7 @@
     {
       "id": "CJN-18",
       "name": "Sumac Works 2",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "Sumac S",
       "block": "BLK-CJN-FARS",
@@ -3383,7 +3383,7 @@
     {
       "id": "CJN-19",
       "name": "Sumac Works 3",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "C",
       "face": "Sumac S",
       "block": "BLK-CJN-FARS",
@@ -3410,23 +3410,23 @@
     {
       "id": "SUB-03",
       "name": "Catalpa Junction station house",
-      "status": "planned",
+      "status": "built (W-C2)",
       "class": "B",
       "face": "The Spur E",
       "block": "BLK-CJN-N",
       "footprint": {
         "x": 164,
-        "z": 5,
+        "z": 8,
         "w": 8,
         "d": 6
       },
       "height": 3.8,
       "floors": 1,
-      "style": "the K line's eastbound headhouse — iron globe lamp, stair hood, the station's name band (the surface stub; the underground platform + the eastbound ride are the next priced wave)",
+      "style": "the K line's eastbound headhouse — iron globe lamp, stair hood, the station's name band (the surface stub; the underground platform + the eastbound ride are the next priced wave) W-C1 amendment: the footprint moved north (z 5..11) — the W-C0 row sat 2 m inside the Kestrel roadway; headhouses stand ON the walk.",
       "entrance": [
         {
           "x": 164,
-          "z": 2,
+          "z": 5,
           "faces": "S"
         }
       ],
@@ -3876,14 +3876,14 @@
     {
       "id": "PRK-JUNCTION",
       "name": "Junction Plaza",
-      "status": "planned",
+      "status": "built (W-C3)",
       "bbox": {
         "xMin": 146,
         "xMax": 158,
-        "zMin": -6,
-        "zMax": 6
+        "zMin": 4,
+        "zMax": 16
       },
-      "elements": "cobble deck over the spur's junction square, the preserved freight crane (LMK-10), two benches, string lights between the viaduct columns, bollards, the K station house across the way",
+      "elements": "cobble deck over the spur's junction square, the preserved freight crane (LMK-10), two benches, string lights between the viaduct columns, bollards, the K station house across the way W-C1 amendment: the plaza sits NORTH of the Kestrel crossing (z 4..16) — the junction square itself is the crossing.",
       "npcZones": [
         "NZ-CJN-PLAZA"
       ],
@@ -3892,7 +3892,7 @@
     {
       "id": "PRK-SPURGARDEN",
       "name": "the Spur Gardens",
-      "status": "planned",
+      "status": "built (W-C3)",
       "bbox": {
         "xMin": 146,
         "xMax": 158,
@@ -4199,14 +4199,14 @@
       "place": "Junction Plaza",
       "who": "the market crowd, the crane's bench-sitters, the K's eastbound commuters",
       "when": "rush band",
-      "status": "planned"
+      "status": "built (W-C3)"
     },
     {
       "id": "NZ-CJN-SPUR",
       "place": "the Spur Gardens",
       "who": "the gardeners, the sunflower watch",
       "when": "midday band",
-      "status": "planned"
+      "status": "built (W-C3)"
     }
   ],
   "routes": {
@@ -6072,7 +6072,17 @@
     {
       "id": "W-C0",
       "name": "Catalpa Junction — the data wave",
-      "content": "The DEC-12 district's registry rows under the owner's 2026-11-14 master build authorization: bounds (world xMax +268, playableCore xMax +252, SKY-E +262), Kestrel spanX east to +252, streets STR-SPUR/STR-LARCH/STR-ROWAN/STR-SUMAC, 6 intersections + 6 crosswalks, 4 blocks, buildings CJN-01..19 + SUB-03 (planned — the builders flip them), parks PRK-JUNCTION/PRK-SPURGARDEN (planned), landmarks LMK-10..13, npcZones NZ-CJN-PLAZA/SPUR, pedestrian routes R-SPUR-*/R-LARCH-*/R-ROWAN-*/R-SUMAC-*, interior FREIGHTMKT-INT (planned). Append-only: no canon row edited beyond the two documented span/bounds growth fields."
+      "content": "The DEC-12 district's registry rows under the owner's 2026-11-14 master build authorization: bounds (world xMax +268, playableCore xMax +252, SKY-E +262), Kestrel spanX east to +252, streets STR-SPUR/STR-LARCH/STR-ROWAN/STR-SUMAC, 6 intersections + 6 crosswalks, 4 blocks, buildings CJN-01..19 + SUB-03 (planned — the builders flip them), parks PRK-JUNCTION/PRK-SPURGARDEN (planned), landmarks LMK-10..13, npcZones NZ-CJN-PLAZA/SPUR, pedestrian routes R-SPUR-*/R-LARCH-*/R-ROWAN-*/R-SUMAC-*, interior FREIGHTMKT-INT (planned). Append-only: no canon row edited beyond the two documented span/bounds growth fields. W-C1 amendments (pre-ship, this build's own rows): SUB-03 footprint z 5->8 (out of the roadway), PRK-JUNCTION bbox z 4..16 (north of the crossing)."
+    },
+    {
+      "id": "W-C1",
+      "name": "Catalpa Junction — the foundation wave",
+      "content": "The paving (two merged mapped draws: Catalpa_Roads asphalt, Catalpa_Walks concrete incl. the bed at walk level — the +2-draw pricing law), the curbs, the block yards (vc, bake-free), the Junction Plaza cobble deck, the invisible walls' east move (x +252; the N/S walls re-span 352 m centered x +76), the district lattice grown 6 -> 12 columns with the fog-law sight ring (SIGHT_M 95 — the gen-city-auto residency discipline adapted; the standing census stays bounded as the map grows), the zebras at the six new corners, streetlights, street trees (buildSimpleTree), the plaza furniture + the K globe. Priced: census re-read at the end of the wave."
+    },
+    {
+      "id": "W-C2",
+      "name": "Catalpa Junction — the buildings wave",
+      "content": "catalpaKit.ts: the 19 CJN masses (loft conversions + industrial shells, per-row seeded bay/window/dock grammar — the Metropolis lot-band discipline on the house GeoPush law), SUB-03's headhouse + stair hood, the ghost signs (LMK-11 CATALPA IRON WORKS on CJN-04's east gable; FEDERAL WIRE & CABLE, BEACON CRATE & BOX bands), the lit panes (one InstancedMesh on the shipped skyline window material — HK3's shader-window discipline), the elevated spur viaduct (12 cast-iron columns, plate girders, the 38 m junction span — LMK-12), the preserved crane (LMK-10), the Spur Gardens, the track bed + timber crossings + bollards, the parked box trucks, the plaza string lights. Every mass via regShell (the A-3 no-invention law). Statuses flipped planned -> built (W-C2)."
     }
   ],
   "openDecisions": [

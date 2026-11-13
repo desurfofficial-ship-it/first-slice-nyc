@@ -57,7 +57,7 @@ import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './pe
 import { buildSubwaySystem, STATION, ZONE_KEEP_RE, type SubwaySystem, type ColliderSpec } from './subway';
 import { buildTimesSquare, type TimesSquare } from './timesSquare';
 import { buildArrivalBus, BUS04_RECT, playerOccupiesBus04, type ArrivalBus } from './arrivalBus';
-import { buildCityFabric } from './cityFabric';
+import { buildCityFabric, GeoPush } from './cityFabric';
 import { groundMaterial, metricBoxUVs } from './groundTex';
 // the fenestra windows (docs/production/fenestra/): interior-mapping after
 // J. van Dongen 2008, adapted from codedgar/three-fenestra (MIT) — the
@@ -70,6 +70,7 @@ import { FenestraMaterial, fenestraMeshFromPlan, loadFenestraAtlas,
 import { EnvSky } from '../render/envsky';
 import { sampleDayCycle, keyframeState, freshDayState, CANON_MINUTES, type DayState, type DayPin } from '../render/daycycle';
 import { buildNeighborhoodFabric, NEIGH, TERRACE_GATES } from './neighborhoodFabric';
+import { buildCatalpaJunction, catalpaPlazaLights } from './catalpaKit';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay,
   skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH,
   STREET_PLAN, PEDESTRIAN_ROLES, type StreetPlan } from './dressing';
@@ -393,23 +394,39 @@ export class World {
 
   // ---- district system (docs/45 W0 — the culling prerequisite) ----------
   // The master world grew with the registry's playableCore (W6 z ±64, W7
-  // x ±100); the TILE GRID keeps its shipped 28 m × 32 m lattice over the
-  // W0 core — content beyond it (the terrace strips, the Westgate/Eastgate
-  // rows) CLAMPS into the edge tiles (districtKey's own law), so the edge
-  // tiles carry the new strips and nothing ever goes unlit or unculled.
-  // Static geometry bakes per DISTRICT TILE — 28 m columns × 32 m rows — and
-  // every tile plus registered dynamic groups belongs to a district. Each
-  // frame the player's district lights a RING of districts and everything
-  // outside it goes invisible (frustum culling then does the rest). The
-  // ring rule follows the registry's own law: a street is ONE sight line,
-  // so the ring spans every column along it (STREET_RING = all) and 1 row
-  // of depth each way (ROW_RING = 1 = the block behind each sidewalk).
-  private static readonly DIST_COL_W = 28;   // x: −84..84 in 6 columns (W7 strips clamp into c0/c5)
+  // x ±100, W-C0 east to +252 — Catalpa Junction); the TILE GRID keeps its
+  // shipped 28 m × 32 m cell size over the grown span — content beyond it
+  // CLAMPS into the edge tiles (districtKey's own law), so nothing ever
+  // goes unlit or unculled.
+  // Static geometry bakes per DISTRICT TILE and every tile plus registered
+  // dynamic groups belongs to a district. Each frame the player's district
+  // lights a RING of districts and everything outside it goes invisible
+  // (frustum culling then does the rest).
+  // W-C1 ring law (the gen-city-auto residency discipline, adapted): the
+  // shipped ring lit EVERY column always — true when the world was 200 m
+  // wide, unscalable past it. A column now lights when its CENTER is
+  // within SIGHT_M of the player (and ROW_RING rows of depth each way) —
+  // a 6–8 column window the FogExp2 covers (the lit boundary sits deep in
+  // fog; the skyline fabric keeps the horizon, so nothing pops). The
+  // window is tuned to the SPAWN: the Day-1 spawn sits at x ≈ −30 (col 1)
+  // and the shipped district runs to x +112 (the Eastgate strip's content
+  // lives in c5/c6) — a tighter window cut a hole through the shipped
+  // block's east half at boot (the aerial-census blob the probe caught).
+  // The standing draw census stays bounded as the map grows: the
+  // streamed-city law on an authored budget.
+  private static readonly DIST_COL_W = 28;   // x: −84..+252 in 12 columns (W-C0; the old W7 strips clamp into c0)
   private static readonly DIST_ROW_H = 32;   // z: −48..48 in 3 rows (W6 strips clamp into r0/r2)
-  private static readonly DIST_COLS = 6;
+  private static readonly DIST_COLS = 12;
   private static readonly DIST_ROWS = 3;
-  private static readonly STREET_RING = World.DIST_COLS; // one sight line, for now
+  /** The fog-law sight window (m, column-center distance). 130 covers the
+   *  spawn view through c6 (|98−(−30)| = 128) and reads 6–8 columns from
+   *  anywhere on the map. */
+  private static readonly SIGHT_M = 130;
   private static readonly ROW_RING = 1;
+  /** A column's center x (the sight window's measure). */
+  private static colCenterX(c: number): number {
+    return -84 + c * World.DIST_COL_W + World.DIST_COL_W / 2;
+  }
   /** Baked meshes keyed by district (c<col>r<row>). */
   private readonly districtBatches = new Map<string, THREE.Mesh[]>();
   /** Dynamic groups registered to a district (trees, flocks, glb props). */
@@ -418,6 +435,10 @@ export class World {
   private readonly districtOf = new Map<THREE.Object3D, string>();
   /** The district the visibility pass last applied (skip redundant writes). */
   private lastDistrict = '';
+  /** W-C1b: the Catalpa far-read group — the silhouette underlay + the lit
+   *  panes. Visible while the district's tiles are unlit; the ring pass
+   *  flips it when Catalpa enters the sight window. */
+  private catalpaFar: THREE.Object3D[] = [];
 
   // ---- the shadow follow (docs/47 lever 1 — Doc 07's reaching lever) ----
   // The sun's shadow camera was a FIXED ±60 m box over the whole street:
@@ -482,20 +503,33 @@ export class World {
   }
 
   /** Light the ring of districts around the player, dark the rest.
-   *  Called from updateDynamics with the live player position. */
+   *  Called from updateDynamics with the live player position.
+   *  W-C1: the column law is DISTANCE (fog-law sight window), not
+   *  column index — the ring follows the player across the grown map
+   *  while the lit-tile count stays what the census was tuned to.
+   *  W-C1b: the Catalpa silhouette + lit panes ride the same law — the
+   *  silhouette shows while the district is unlit (the far read), the
+   *  panes show only with their buildings. */
   private updateDistricts(px: number, pz: number): void {
     const col = Math.max(0, Math.min(World.DIST_COLS - 1, Math.floor((px + 84) / World.DIST_COL_W)));
     const row = Math.max(0, Math.min(World.DIST_ROWS - 1, Math.floor((pz + 48) / World.DIST_ROW_H)));
     const key = `c${col}r${row}`;
     if (key === this.lastDistrict) return;
     this.lastDistrict = key;
+    let catalpaLit = false;
     for (let c = 0; c < World.DIST_COLS; c++) {
-      const colIn = Math.abs(c - col) <= World.STREET_RING;
+      const colIn = Math.abs(World.colCenterX(c) - px) <= World.SIGHT_M;
+      if (colIn && c >= 7) catalpaLit = true;
       for (let r = 0; r < World.DIST_ROWS; r++) {
         const inRing = colIn && Math.abs(r - row) <= World.ROW_RING;
         const dk = `c${c}r${r}`;
         for (const m of this.districtBatches.get(dk) ?? []) m.visible = inRing;
         for (const o of this.districtProps.get(dk) ?? []) o.visible = inRing;
+      }
+    }
+    if (this.catalpaFar.length) {
+      for (const o of this.catalpaFar) {
+        o.visible = o.name === 'Catalpa_LitPanes' ? catalpaLit : !catalpaLit;
       }
     }
   }
@@ -1494,10 +1528,15 @@ export class World {
     // Westgate & Eastgate rows, same standing authorization): the core grows
     // to x ±100 — the E–W streets grow their west and east ends, the strips
     // beyond the avenues become real rows, and the x walls follow.
+    // W-C0 (2026-11-14, the master build assignment): the core grows EAST
+    // to x +252 — Catalpa Junction is real rows now (the DEC-12 district).
+    // The east wall follows the registry's own playableCore; the N/S walls
+    // re-span the grown length (center x +76, 352 m). The west wall keeps
+    // its shipped post (Times Square stays one RIDE west, never a walk).
     this.colliders.push(boxFromCenter(-100, 5, 0, 1, 20, 128));
-    this.colliders.push(boxFromCenter(100, 5, 0, 1, 20, 128));
-    this.colliders.push(boxFromCenter(0, 6, -64, 200, 24, 1)); // south wall behind the Carrow terrace
-    this.colliders.push(boxFromCenter(0, 6, 64, 200, 24, 1));  // north wall behind the Larkin terrace
+    this.colliders.push(boxFromCenter(252, 5, 0, 1, 20, 128)); // W-C0: the east wall follows the registry's grown core
+    this.colliders.push(boxFromCenter(76, 6, -64, 352, 24, 1)); // south wall behind the Carrow terrace + Sumac works (W-C0 re-span)
+    this.colliders.push(boxFromCenter(76, 6, 64, 352, 24, 1));  // north wall behind the Larkin terrace + Rowan works (W-C0 re-span)
 
     // zones
     this.crosswalkZone = boxFromCenter(-5, 1, 0, 3.4, 2, 7.5);
@@ -2106,6 +2145,10 @@ export class World {
     // rows and both terrace bands into the strips (every mass via regShell
     // — the no-invention law). All pre-bake.
     this.buildAlderHeightsW7Gates();
+    // W-C1..W-C3: Catalpa Junction (the DEC-12 district, the owner's 2026-11-14
+    // master build authorization) — streets, yards, masses, the viaduct, the
+    // public realm. All pre-bake so the merge swallows the statics.
+    this.buildCatalpaJunction();
     // W4 part 1: the district's static life — zone figures, parked cars,
     // the BUS-03 stop — all pre-bake so the W0 merge swallows them (the
     // perf law: the zones cost merges, not draw calls).
@@ -5646,7 +5689,11 @@ export class World {
       // rows live OUTSIDE every district tile (x ±110 / z −88 / z +104) —
       // a tile ring that drops them would blink the horizon out of view
       'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121', 'Yard_N',
-      'SkylineFabric', 'SkylineFabricWindows']);
+      'SkylineFabric', 'SkylineFabricWindows',
+      // W-C1: the Catalpa silhouette underlay rides the district ring's own
+      // law (visible while the district's tiles are unlit) — a baked
+      // silhouette would be ring-owned and vanish exactly when needed
+      'Catalpa_Silhouette']);
     const excluded = (o: THREE.Object3D): boolean => {
       for (let p: THREE.Object3D | null = o; p !== null; p = p.parent) {
         if (skip.has(p) || NAMED_SKIP.has(p.name)) return true;
@@ -5659,8 +5706,12 @@ export class World {
     const batches = new Map<string, Batch>();
     const EYE_LAYER = new THREE.Layers(); // layer 0 — the main camera's layer
 
+    const kitSeen: string[] = [];
     this.scene.traverse((o) => {
       if (!(o instanceof THREE.Mesh) || excluded(o)) return;
+      if (o.name.startsWith('Catalpa_Mass') || o.name === 'Catalpa_Viaduct' || o.name === 'Catalpa_Gardens') {
+        kitSeen.push(`${o.name} tile=${World.districtKey(o.matrixWorld.elements[12], o.matrixWorld.elements[14])} idx=${!!o.geometry.index} nrm=${!!o.geometry.attributes.normal} col=${!!o.geometry.attributes.color} verts=${o.geometry.attributes.position.count} mw=(${o.matrixWorld.elements[12].toFixed(0)},${o.matrixWorld.elements[14].toFixed(0)})`);
+      }
       // Shadow proxies (personRig docs/51 B13) live ONLY on the shadow layer:
       // a batch mesh is an ordinary layer-0 mesh, so baking a proxy would
       // print its white silhouette standing inside every zone figure. The
@@ -5751,6 +5802,9 @@ export class World {
       // 4–8 per-tile ones at every rig. The batch still registers under a
       // key no district owns ('ATLAS'), so district visibility never hides it.
       const tile = onAtlas ? 'ATLAS' : World.districtKey(o.matrixWorld.elements[12], o.matrixWorld.elements[14]);
+      if (o.name.startsWith('Catalpa_Mass') && (o.name === 'Catalpa_Mass_CJN-01' || o.name === 'Catalpa_Mass_CJN-09')) {
+        console.log(`KITBAKE2: ${o.name} tile=${tile} mw=(${o.matrixWorld.elements[12].toFixed(1)},${o.matrixWorld.elements[14].toFixed(1)}) pos=(${o.position.x.toFixed(1)},${o.position.z.toFixed(1)})`);
+      }
       b.srcs.push({ geo: g, mesh: o, tile });
     });
 
@@ -5837,6 +5891,7 @@ export class World {
       this.registerDistrictObject(o, o.position.x, o.position.z);
     }
     this.updateDistricts(-30, 6.2); // boot at the spawn — the E2E's first frame
+    console.log('KITBAKE:', kitSeen.length, kitSeen.slice(0, 6).join(' | '));
   }
 
   /** The zone bake — the far world's statics, merged per zone group.
@@ -6051,6 +6106,31 @@ export class World {
     m.receiveShadow = true;
     this.scene.add(m);
     this.colliders.push(boxFromCenter(cx, cy, cz, sx, sy, sz));
+    return m;
+  }
+
+  /** W-C1: MANY ground slabs, ONE mapped draw. The Catalpa paving would
+   *  cost a draw per slab as individual groundSolids (mapped materials
+   *  leave the bake) — +13 draws against a < 200 census. The merge keeps
+   *  the metric-UV law (each box's UVs computed at its own size before the
+   *  merge) and the collider law (one box per slab), at two draws total:
+   *  one asphalt, one concrete. The gen-city-auto lesson — the ground is
+   *  the cheapest place to economize and the most expensive to waste. */
+  private groundMerged(name: string, kind: 'asphalt' | 'concrete',
+    slabs: Array<{ x: number; y: number; z: number; sx: number; sy: number; sz: number }>): THREE.Mesh {
+    const geos: THREE.BufferGeometry[] = [];
+    for (const s of slabs) {
+      const geo = new THREE.BoxGeometry(s.sx, s.sy, s.sz);
+      metricBoxUVs(geo, s.sx, s.sy, s.sz);
+      geo.translate(s.x, s.y, s.z);
+      geos.push(geo);
+      this.colliders.push(boxFromCenter(s.x, s.y, s.z, s.sx, s.sy, s.sz));
+    }
+    const m = new THREE.Mesh(mergeGeometries(geos, false)!, groundMaterial(kind));
+    m.name = name;
+    m.castShadow = false;
+    m.receiveShadow = true;
+    this.scene.add(m);
     return m;
   }
 
@@ -7128,6 +7208,155 @@ export class World {
       throw new Error(`[A-3] registry building "${registryId}" is still 'planned' — the flip never renders an unbuilt row (DEC-4 §5)`);
     }
     return { x: b.footprint.x, z: b.footprint.z, w: b.footprint.w, d: b.footprint.d };
+  }
+
+  // ===================================================================
+  // W-C1..W-C4 — CATALPA JUNCTION (the DEC-12 district; docs/world-building)
+  // The second district: the freight industry one road-continuation east.
+  // Every mass renders from its registry row through the kit's DI — the
+  // A-3 no-invention law holds here exactly as it holds on Kestrel.
+  // ===================================================================
+  private buildCatalpaJunction(): void {
+    const rng = seededRng(20261114);
+    const CURB = 0x8f8a82;
+
+    // ---- 1. the paving: two merged mapped draws (the W-C1 pricing law) --
+    // Roads at the shipped levels (top 0.0); walks + the bed at the walk
+    // level (top 0.1); every slab split around every road mouth (the W1
+    // walk-cut law, generalized — roads own their mouths).
+    this.groundMerged('Catalpa_Roads', 'asphalt', [
+      { x: 176, y: -0.1, z: 0, sx: 152, sy: 0.2, sz: 8 },    // Kestrel East (x 100..252)
+      { x: 228, y: -0.1, z: 0, sx: 8, sy: 0.2, sz: 128 },    // Larch (z −64..64)
+      { x: 176, y: -0.1, z: 42, sx: 152, sy: 0.2, sz: 8 },   // Rowan
+      { x: 176, y: -0.1, z: -42, sx: 152, sy: 0.2, sz: 8 },  // Sumac
+    ]);
+    const walkSlabs: Array<{ x: number; y: number; z: number; sx: number; sy: number; sz: number }> = [];
+    const XSEG: Array<[number, number]> = [[100, 145.8], [158.2, 223.8], [232.2, 252]];
+    const ZSEG: Array<[number, number]> = [[-64, -46.2], [-37.8, -4.2], [4.2, 37.8], [46.2, 64]];
+    for (const [a, b] of XSEG) {
+      const cx = (a + b) / 2, w = b - a;
+      for (const wz of [6, -6, 48, 36, -36, -48]) {
+        walkSlabs.push({ x: cx, y: -0.05, z: wz, sx: w, sy: 0.3, sz: 4 });
+      }
+    }
+    for (const [a, b] of ZSEG) {
+      const cz = (a + b) / 2, d = b - a;
+      walkSlabs.push({ x: 222, y: -0.05, z: cz, sx: 4, sy: 0.3, sz: d });
+      walkSlabs.push({ x: 234, y: -0.05, z: cz, sx: 4, sy: 0.3, sz: d });
+      walkSlabs.push({ x: 152, y: -0.025, z: cz, sx: 12, sy: 0.25, sz: d }); // the bed, walk-flush
+    }
+    this.groundMerged('Catalpa_Walks', 'concrete', walkSlabs);
+
+    // the curbs (deco, no colliders — the shipped curb grammar), split
+    // around the mouths exactly like the slabs above
+    const curbSegs: Array<{ x: number; z: number; w: number; d: number }> = [];
+    for (const [a, b] of XSEG) {
+      const cx = (a + b) / 2, w = b - a;
+      for (const cz of [4.08, -4.08, 46.08, 37.92, -37.92, -46.08]) {
+        curbSegs.push({ x: cx, z: cz, w, d: 0.5 });
+      }
+    }
+    for (const [a, b] of ZSEG) {
+      const cz = (a + b) / 2, d = b - a;
+      curbSegs.push({ x: 223.92, z: cz, w: 0.5, d });
+      curbSegs.push({ x: 232.08, z: cz, w: 0.5, d });
+    }
+    let curbI = 0;
+    for (const c of curbSegs) this.deco(`Catalpa_Curb_${curbI++}`, c.x, 0.065, c.z, c.w, 0.13, c.d, CURB);
+
+    // ---- 2. the block yards (vc solids — the bake fuses them free) ------
+    for (const [a, b] of XSEG) {
+      const cx = (a + b) / 2, w = b - a;
+      this.solid('Catalpa_Yard_N1', cx, -0.05, 21, w, 0.3, 26, PAL.walk, { receive: true, cast: false });
+      this.solid('Catalpa_Yard_S1', cx, -0.05, -21, w, 0.3, 26, PAL.walk, { receive: true, cast: false });
+      this.solid('Catalpa_Yard_N2', cx, -0.05, 57, w, 0.3, 14, PAL.walk, { receive: true, cast: false });
+      this.solid('Catalpa_Yard_S2', cx, -0.05, -57, w, 0.3, 14, PAL.walk, { receive: true, cast: false });
+    }
+    // the Junction Plaza's cobble deck (the plaza square, north of the
+    // crossing — the bed's own surface carries the south half)
+    this.deco('Catalpa_PlazaDeck', 152, 0.115, 10.1, 12, 0.03, 11.8, PAL.stone);
+
+    // ---- 3. the district fabric (the kit: masses, viaduct, crane, ....) -
+    const kitColliders = buildCatalpaJunction({
+      scene: this.scene,
+      mat: this.mat.bind(this),
+      vc: this.vcMaterial.bind(this),
+      shell: this.regShell.bind(this),
+      row: (id) => loadRegistry().building(id),
+      skylineWinMat: this.skylineWinMat,
+      sign: this.signBoard.bind(this),
+      ledger: this.vqLedger,
+    });
+    for (const c of kitColliders) this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.sx, c.sy, c.sz));
+    catalpaPlazaLights({ scene: this.scene, vc: this.vcMaterial.bind(this) });
+    // the far-read pair rides the ring law together (see updateDistricts)
+    this.catalpaFar = [];
+    this.scene.traverse((o) => {
+      if (o.name === 'Catalpa_Silhouette' || o.name === 'Catalpa_LitPanes') this.catalpaFar.push(o);
+    });
+
+    // ---- 4. the zebras (the continental crosswalks at the six corners) --
+    let zebraI = 0;
+    const zebraEW = (cx: number, cz: number): void => {
+      for (let i = 0; i < 6; i++) this.deco(`Catalpa_Zebra_${zebraI++}`, cx, 0.03, cz - 3.3 + i * 1.3, 3, 0.02, 0.6, PAL.cream);
+    };
+    const zebraNS = (cx: number, cz: number): void => {
+      for (let i = 0; i < 6; i++) this.deco(`Catalpa_Zebra_${zebraI++}`, cx - 3.3 + i * 1.3, 0.03, cz, 0.6, 0.02, 3, PAL.cream);
+    };
+    zebraEW(152, 0); zebraEW(228, 0);
+    zebraEW(152, 42); zebraEW(228, 42);
+    zebraEW(152, -42); zebraEW(228, -42);
+    zebraNS(228, 0); zebraNS(228, 42); zebraNS(228, -42);
+
+    // ---- 5. the street furniture (the house makers — all bake free) -----
+    // streetlights: Kestrel East alternating curbs, the cross streets' walks
+    for (const [lx, lz] of [[112, 5.2], [140, -5.2], [168, 5.2], [196, -5.2], [224, 5.2], [248, -5.2],
+      [222.4, 16], [233.6, -16], [222.4, 48], [233.6, -48],
+      [120, 37.2], [172, 46.8], [224, 37.2], [120, -46.8], [172, -37.2], [224, -46.8]] as const) {
+      const lamp = makeStreetlight(this.bank);
+      lamp.position.set(lx, 0.05, lz);
+      this.scene.add(lamp);
+      this.colliders.push(boxFromCenter(lx, 2.6, lz, 0.22, 5.2, 0.22));
+    }
+    // street trees on the three new streets (the instanced canopy owns
+    // every crown — buildSimpleTree registers the whole grammar)
+    const treeSpots: Array<[number, number]> = [
+      [222.6, 24], [222.6, 8], [233.4, -8], [233.4, 32], [222.6, -24], [233.4, 52],
+      [116, 36.6], [148, 36.6], [188, 36.6], [220, 36.6], [132, 47.4], [200, 47.4],
+      [116, -47.4], [148, -47.4], [188, -47.4], [220, -47.4], [132, -36.6], [200, -36.6],
+    ];
+    for (const [tx, tz] of treeSpots) this.buildSimpleTree(tx, tz, rng);
+    // the plaza's furniture: two benches, the K globe, a hydrant, cans,
+    // the mailbox, a steam grate (the district's breath)
+    const bench1 = makeBench(this.bank); bench1.position.set(149.2, 0.1, 12.5); bench1.rotation.y = Math.PI / 2; this.scene.add(bench1);
+    const bench2 = makeBench(this.bank); bench2.position.set(154.8, 0.1, 12.5); bench2.rotation.y = Math.PI / 2; this.scene.add(bench2);
+    this.colliders.push(boxFromCenter(149.2, 0.35, 12.5, 0.6, 0.7, 1.7));
+    this.colliders.push(boxFromCenter(154.8, 0.35, 12.5, 0.6, 0.7, 1.7));
+    const globe = makeSubwayGlobePost(this.bank, 160.6, 3.2);
+    this.scene.add(globe);
+    this.colliders.push(boxFromCenter(160.6, 1.2, 3.2, 0.3, 2.4, 0.3));
+    const hyd = makeHydrant(this.bank); hyd.position.set(165.4, 0.1, 4.9); this.scene.add(hyd);
+    const can1 = makeTrashCan(this.bank); can1.position.set(158.9, 0.1, 9.5); this.scene.add(can1);
+    const can2 = makeTrashCan(this.bank); can2.position.set(226.2, 0.1, 3.4); this.scene.add(can2);
+    const mail = makeMailboxNYC(this.bank, 0.1, 159.6, 14.2, Math.PI / 2); this.scene.add(mail);
+    const steam1 = makeSteamVentNYC(this.bank, 172, -6.4); this.scene.add(steam1);
+    const steam2 = makeSteamVentNYC(this.bank, 149.8, 30); this.scene.add(steam2);
+    // loading-dock bollard pairs read from the kit; the docks' pallets:
+    const pallets = new GeoPush();
+    for (const [px, pz] of [[131.5, 8.6], [141.5, 8.6], [204.5, 8.6], [219.5, -8.6], [161.5, -13.4], [226.5, -31.4]] as const) {
+      pallets.box(px, 0.09, pz, 1.2, 0.14, 1.0, 0x8a6f4d);
+      if ((px + pz) % 2 < 1) pallets.box(px, 0.42, pz, 0.9, 0.5, 0.8, 0x7a5f42);
+    }
+    const palletMesh = new THREE.Mesh(pallets.toGeometry(), this.vcMaterial(true));
+    palletMesh.name = 'Catalpa_Pallets';
+    // the re-centering law (see catalpaKit.emit): the bake files by world
+    // translation — the pallets carry their true center
+    palletMesh.geometry.computeBoundingSphere();
+    const pc = { x: palletMesh.geometry.boundingSphere!.center.x, y: palletMesh.geometry.boundingSphere!.center.y, z: palletMesh.geometry.boundingSphere!.center.z };
+    palletMesh.geometry.translate(-pc.x, -pc.y, -pc.z);
+    palletMesh.position.set(pc.x, pc.y, pc.z);
+    palletMesh.castShadow = true; palletMesh.receiveShadow = true;
+    this.scene.add(palletMesh);
   }
 
   private buildAlderHeightsW1(): void {

@@ -83,6 +83,14 @@ describe('city fabric — determinism', () => {
   });
 });
 
+
+/** W-C1: the fabric emit re-centers geometry onto the mesh position (the
+ *  district bake files by world translation) — the laws read WORLD space,
+ *  so every box below adds the mesh's own offset back. */
+const worldBox = (m: THREE.Mesh): THREE.Box3 =>
+  new THREE.Box3().setFromBufferAttribute(m.geometry.getAttribute('position') as THREE.BufferAttribute)
+    .translate(m.position);
+
 describe('city fabric — the roof feet law', () => {
   it('every roof item sits ON its registry roof line (never floating)', () => {
     const doc = loadRegistry();
@@ -94,7 +102,7 @@ describe('city fabric — the roof feet law', () => {
       if (!hit) continue;
       const id = hit[3];
       const row = byId.get(id)!;
-      const min = new THREE.Box3().setFromBufferAttribute(m.geometry.getAttribute('position') as THREE.BufferAttribute).min.y;
+      const min = worldBox(m).min.y;
       expect(min, `${m.name} floats`).toBeCloseTo(row.height!, 3);
       checked++;
     }
@@ -139,12 +147,12 @@ describe('city fabric — the sidewalk law', () => {
     const street = fabricMeshes(b).filter((m) => /^Fabric_(Meter|Basket)_/.test(m.name));
     expect(street.length).toBeGreaterThan(10);
     for (const m of street) {
-      const bb = new THREE.Box3().setFromBufferAttribute(m.geometry.getAttribute('position') as THREE.BufferAttribute);
+      const bb = worldBox(m);
       const px = (bb.min.x + bb.max.x) / 2, pz = (bb.min.z + bb.max.z) / 2;
       const kestrelBand = Math.abs(pz - 7.62) < 0.3 || Math.abs(pz + 7.62) < 0.3;
       const avenueBand = Math.abs(Math.abs(px) - 60.6) < 0.3;
       expect(kestrelBand || avenueBand, `${m.name} at (${px.toFixed(1)},${pz.toFixed(1)}) leaves the lanes`).toBe(true);
-      const min = new THREE.Box3().setFromBufferAttribute(m.geometry.getAttribute('position') as THREE.BufferAttribute).min.y;
+      const min = bb.min.y;
       expect(min, `${m.name} floats off the walk`).toBeCloseTo(0.15, 3);
     }
   });

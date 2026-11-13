@@ -64,7 +64,11 @@ function build(): Built {
 
 const nbhdMeshes = (b: Built): THREE.Mesh[] => b.meshes.filter((m) => m.name.startsWith('Nbhd_'));
 const bboxOf = (m: THREE.Mesh): THREE.Box3 =>
-  new THREE.Box3().setFromBufferAttribute(m.geometry.getAttribute('position') as THREE.BufferAttribute);
+  // W-C1: the fabric emit re-centers geometry onto the mesh position (the
+  // district bake files by world translation) — the laws read WORLD space,
+  // so every box adds the mesh's own offset back.
+  new THREE.Box3().setFromBufferAttribute(m.geometry.getAttribute('position') as THREE.BufferAttribute)
+    .translate(m.position);
 
 describe('neighborhood fabric — determinism', () => {
   it('two builds produce byte-identical placement ledgers', () => {
@@ -339,7 +343,7 @@ describe('neighborhood fabric — the W7 gate-row fabric (docs/production/westga
       const pos = m.geometry.getAttribute('position') as THREE.BufferAttribute;
       const cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2;
       for (let vi = 0; vi < pos.count; vi++) {
-        const vx = pos.getX(vi), vy = pos.getY(vi), vz = pos.getZ(vi);
+        const vx = pos.getX(vi) + m.position.x, vy = pos.getY(vi), vz = pos.getZ(vi) + m.position.z;
         const dz = Math.abs(vz - cz), dx = Math.abs(vx - cx);
         if (vy < 3.3 && dz < 1.2) {
           const nearPost = [-3.4, 3.4].some((px) => Math.abs(vx - (cx + px)) < 0.3);

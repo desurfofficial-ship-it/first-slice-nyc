@@ -106,7 +106,21 @@ export interface NeighborhoodDI {
 
 function emit(di: NeighborhoodDI, fog: boolean, name: string, geo: THREE.BufferGeometry,
   cast: boolean, receive: boolean): THREE.Mesh {
+  // the re-centering law (W-C1, the Catalpa ring's gift to the whole map):
+  // these fabrics bake world coordinates INTO the geometry and leave the
+  // mesh at the origin — the district bake files a mesh by its world
+  // TRANSLATION, so every fabric mesh misfiled into the origin's tile and
+  // the ring's sight window made the far fabric vanish with it. Carrying
+  // the true center on the mesh (and re-centering the geometry) files
+  // every piece into its own tile: correct ring ownership, correct
+  // frustum culling, same merged draw economy.
+  geo.computeBoundingSphere();
+  // COPY the center first (the translate recomputes the sphere in place —
+  // a live alias reads back (0,0,0); see catalpaKit.emit's note)
+  const bcx = geo.boundingSphere!.center.x, bcy = geo.boundingSphere!.center.y, bcz = geo.boundingSphere!.center.z;
+  if (bcx !== 0 || bcy !== 0 || bcz !== 0) geo.translate(-bcx, -bcy, -bcz);
   const m = new THREE.Mesh(geo, di.vc(fog));
+  m.position.set(bcx, bcy, bcz);
   m.name = name;
   m.castShadow = cast;
   m.receiveShadow = receive;

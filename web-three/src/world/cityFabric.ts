@@ -189,7 +189,21 @@ export class GeoPush {
 /** One named vc mesh into the scene. */
 function emit(scene: THREE.Scene, vc: CityFabricDI['vc'], fog: boolean, name: string, geo: THREE.BufferGeometry,
   cast: boolean, receive: boolean): THREE.Mesh {
+  // the re-centering law (W-C1, the Catalpa ring's gift to the whole map):
+  // these fabrics bake world coordinates INTO the geometry and leave the
+  // mesh at the origin — the district bake files a mesh by its world
+  // TRANSLATION, so every fabric mesh misfiled into the origin's tile and
+  // the ring's sight window made the far fabric vanish with it. Carrying
+  // the true center on the mesh (and re-centering the geometry) files
+  // every piece into its own tile: correct ring ownership, correct
+  // frustum culling, same merged draw economy.
+  geo.computeBoundingSphere();
+  // COPY the center first (the translate recomputes the sphere in place —
+  // a live alias reads back (0,0,0); see catalpaKit.emit's note)
+  const bcx = geo.boundingSphere!.center.x, bcy = geo.boundingSphere!.center.y, bcz = geo.boundingSphere!.center.z;
+  if (bcx !== 0 || bcy !== 0 || bcz !== 0) geo.translate(-bcx, -bcy, -bcz);
   const m = new THREE.Mesh(geo, vc(fog));
+  m.position.set(bcx, bcy, bcz);
   m.name = name;
   m.castShadow = cast;
   m.receiveShadow = receive;
@@ -301,8 +315,12 @@ const SKY_ROWS: SkyRow[] = [
   // W7: the rows moved ∓110 → ∓122 — the Westgate/Eastgate strips took the
   // old ground (walls x ±84 → ±100) and the fabric keeps ≥ 10 m of clearance
   // from the new wall line (registry bounds.skylineCards, same move).
+  // W-C0 (2026-11-14): the E row moves +122 → +262 — Catalpa Junction took
+  // the old ground (the district spans x +100..+252); the row that stood at
+  // +122 was standing IN the district's blocks. The registry's own
+  // bounds.skylineCards row led the move; the fabric follows it.
   { key: 'W', axis: 'z', at: -122, from: -64, to: 64, faceSign: +1, seed: 0x51C9, glassBias: 0.22, boostMid: true },
-  { key: 'E', axis: 'z', at: +122, from: -64, to: 64, faceSign: -1, seed: 0x52C9, glassBias: 0.22, boostMid: true },
+  { key: 'E', axis: 'z', at: +262, from: -64, to: 64, faceSign: -1, seed: 0x52C9, glassBias: 0.22, boostMid: true },
   { key: 'S', axis: 'x', at: -88, from: -140, to: 96, faceSign: +1, seed: 0x53C9, glassBias: 0.45, boostMid: false },
   { key: 'N', axis: 'x', at: +104, from: -80, to: 80, faceSign: -1, seed: 0x54C9, glassBias: 0.3, boostMid: false },
 ];
