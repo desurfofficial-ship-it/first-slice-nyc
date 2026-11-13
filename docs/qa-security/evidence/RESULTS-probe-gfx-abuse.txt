@@ -1,0 +1,43 @@
+PASS  P1 malformed ?gfx="<script>alert(1)</script>" → detection governs, clean — tier=low
+PASS  P1 malformed ?gfx="ULTRA" → detection governs, clean — tier=low
+PASS  P1 malformed ?gfx="" → detection governs, clean — tier=low
+PASS  P1 malformed ?gfx="high;alert(1)" → detection governs, clean — tier=low
+PASS  P1 malformed ?gfx="__proto__" → detection governs, clean — tier=low
+PASS  P1 malformed ?gfx="high%00" → detection governs, clean — tier=low
+PASS  P1 malformed ?gfx="ultra extra" → detection governs, clean — tier=low
+PASS  P1 malformed ?gfx="0" → detection governs, clean — tier=low
+PASS  P1 malformed ?gfx="-1" → detection governs, clean — tier=low
+PASS  P1 malformed ?gfx="high#" → detection governs, clean — tier=low
+PASS  P1 malformed ?gfx="high%26bloom%3D1" → detection governs, clean — tier=low
+PASS  P2 malformed ?tod="99:99" → day state finite, clean — exp=1.062 nightK=0.32
+PASS  P2 malformed ?tod="abc:xy" → day state finite, clean — exp=1.063 nightK=0.33
+PASS  P2 malformed ?tod="-5:30" → day state finite, clean — exp=1.053 nightK=0.22
+PASS  P2 malformed ?tod="24:00" → day state finite, clean — exp=1.063 nightK=0.33
+PASS  P2 malformed ?tod="::::" → day state finite, clean — exp=1.065 nightK=0.37
+PASS  P2 malformed ?tod="1e999" → day state finite, clean — exp=1.063 nightK=0.33
+PASS  P2 malformed ?tod="12.9.9" → day state finite, clean — exp=1.050 nightK=0.08
+PASS  P2 malformed ?tod=":" → day state finite, clean — exp=1.063 nightK=0.33
+PASS  P2 malformed ?tod="12:" → day state finite, clean — exp=1.050 nightK=0.08
+PASS  P2 malformed ?tod="99999999999:59" → day state finite, clean — exp=1.050 nightK=0.10
+PASS  P2 malformed ?tod="12:60" → day state finite, clean — exp=1.050 nightK=0.07
+PASS  P2 malformed ?tod="-99:-99" → day state finite, clean — exp=1.052 nightK=0.21
+PASS  P2 malformed ?tod="⁠12:30" → day state finite, clean — exp=1.063 nightK=0.33
+PASS  P3 ?fx=off beats gfx=ultra + all flags → composer off, flags collapsed — composer=false bloom=false
+PASS  P4 ?fx=weird ignored; ?gfx=high still forced — tier=high forced=true
+PASS  P5 flag spam + unknown params ignored, boot clean — tier=high
+PASS  P6 __proto__/constructor keys harmless — tier=medium
+PASS  P7 worldclock=999999 × gfx=ultra × tod=03:00 → clean — tier=ultra
+PASS  P7 worldclock=abc × gfx=medium × tod=99:99 → clean — tier=medium
+PASS  P8 ?gfx=__proto__ → detection governs, pixelRatioCap finite — tier=low cap=1.25
+PASS  P8 ?gfx=constructor → detection governs, pixelRatioCap finite — tier=low cap=1.25
+PASS  P8 ?gfx=toString → detection governs, pixelRatioCap finite — tier=low cap=1.25
+PASS  P8 ?gfx=hasOwnProperty → detection governs, pixelRatioCap finite — tier=low cap=1.25
+PASS  D1 ?gfx=high → forced, composer on — composer=true bloom=true
+PASS  D2 ?tod=00:00 → pinned (night) — nightK=1.00
+PASS  D2 ?tod=04:30 → pinned (night plateau) — nightK=1.00
+PASS  D2 ?tod=05:30 → pinned (dawn) — nightK=0.70
+PASS  D2 ?tod=12:00 → pinned (midday band) — nightK=0.02
+PASS  D2 ?tod=23:59 → pinned (wrapping into night) — nightK=1.00
+
+=== SUMMARY ===
+GFX-ABUSE OK: 40/40 checks passed

@@ -1,0 +1,67 @@
+IMPORT-PATH-ONLY REWRITE PROOF — reconciliation harness R2
+Modules under test: origin/main @ 62a6244cee258a243fdb308bd78daf7793c62cc5
+(read-only worktree /home/z/my-project/repos/fsn-audit-main)
+Rule: every line changed below must differ ONLY by appending .ts to a
+relative import specifier. Logic bytes are otherwise identical.
+Files copied: 13; non-import line changes: 0 (must be 0)
+
+--- core/Save.ts:19
+- import type { DiaryNoted } from './diary';
++ import type { DiaryNoted } from './diary.ts';
+--- core/Save.ts:20
+- import type { FieldDiaryEntry } from './fieldDiary';
++ import type { FieldDiaryEntry } from './fieldDiary.ts';
+--- core/Save.ts:21
+- import { parseFieldDiary } from './fieldDiary';
++ import { parseFieldDiary } from './fieldDiary.ts';
+--- core/Save.ts:22
+- import { clampCalendarDay } from './calendar';
++ import { clampCalendarDay } from './calendar.ts';
+--- core/fieldDiary.ts:35
+- import type { GameDate } from './calendar';
++ import type { GameDate } from './calendar.ts';
+--- sim/entities.ts:18
+- import { isSimId, relId, simKindOf } from './ids';
++ import { isSimId, relId, simKindOf } from './ids.ts';
+--- sim/entities.ts:19
+- import type { PlaceTag } from './registry';
++ import type { PlaceTag } from './registry.ts';
+--- sim/epochMap.ts:53
+- } from '../core/calendar';
++ } from '../core/calendar.ts';
+--- sim/epochMap.ts:54
+- import { EPOCH, calendarOf, weekdayOf } from './clock';
++ import { EPOCH, calendarOf, weekdayOf } from './clock.ts';
+--- sim/narrative.ts:34
+- import type { GameClock } from './clock';
++ import type { GameClock } from './clock.ts';
+--- sim/narrative.ts:35
+- import { businessIsOpen, type BusinessState, type NpcState, type RelationshipState } from './entities';
++ import { businessIsOpen, type BusinessState, type NpcState, type RelationshipState } from './entities.ts';
+--- sim/narrative.ts:36
+- import type { WorldRegistry } from './registry';
++ import type { WorldRegistry } from './registry.ts';
+--- sim/narrative.ts:37
+- import { relId, simId } from './ids';
++ import { relId, simId } from './ids.ts';
+--- sim/registry.ts:28
+- import registryJson from '../../../docs/data/world-registry.json';
++ import registryJson from '../../../docs/data/world-registry.json.ts';
+--- sim/registry.ts:29
+- import { isRegistryId } from './ids';
++ import { isRegistryId } from './ids.ts';
+--- sim/state.ts:34
+- import { GameClock, type ClockData } from './clock';
++ import { GameClock, type ClockData } from './clock.ts';
+--- sim/state.ts:35
+- import { WorldRandom } from './rng';
++ import { WorldRandom } from './rng.ts';
+--- sim/state.ts:39
+- } from './entities';
++ } from './entities.ts';
+--- sim/state.ts:40
+- import { EconomyLedger } from './economy';
++ import { EconomyLedger } from './economy.ts';
+--- sim/state.ts:44
+- } from './narrative';
++ } from './narrative.ts';

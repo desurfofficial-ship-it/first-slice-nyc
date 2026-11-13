@@ -1,0 +1,30 @@
+4-DAY E2E, RUN 2 (the v1.50.0 tree) — A/B protocol note, 2026-11-12
+
+The sandbox running this session enforces a hard 600 s wall per command and
+keeps no background processes between commands; this box (2 cores, software
+GL) needs ~660-750 s for the full four-day driver. The gate was therefore
+run as a same-wall A/B instead of a single full pass:
+
+  knobs (both sides identical): E2E_W=420 E2E_H=315 E2E_SCALE=0.4,
+  timeout 590 s, chromium flags unchanged (the harness's own).
+
+  main side  (pristine 7be6373, register v1.49.0): 121 PASS / 0 FAIL —
+             truncated by the wall mid-day-4, at "day 4 pays $13 all in".
+  tree side  (the v1.50.0 working tree):           123 PASS / 0 FAIL —
+             same checkpoint PLUS "Sal takes the apron" + "the washer drum
+             is actually spinning" (the tree runs the same window faster).
+
+  Pass-set diff: identical except the two extra green checks on the v1.50.0
+  tree and one walk-trace position within tolerance (x 10.7 main / 10.5 tree
+  — the same check passing).
+
+Conclusion: zero regressions introduced by the v1.50.0 wave within the
+observable window, at identical or better pace. The full four-day pass's own
+0-failure evidence is v1.49.0's (RESULTS-e2e-4day-bodega-pass.txt, 667 s,
+139 PASS lines, console clean); the day-1 rush/collect, day-2, day-3 and
+day-4 economy legs re-verified green on the v1.50.0 tree above.
+
+One pre-existing slow-box flake documented en route: the first (contended)
+attempt failed the day-1 ladder grabs under CPU starvation (the walk covered
+0.3 m in its 8 s budget); both clean reruns pass the ladder — the A-3 UNIT 5
+"idle-box rerun green" pattern, no code delta.

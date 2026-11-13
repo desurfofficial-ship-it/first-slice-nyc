@@ -168,10 +168,10 @@ describe('per-walker band (bandOfLoop — the W4 law, proved where it lives)', (
     expect(pulledX).toBeGreaterThan(0); // stays on its own block
   });
 
-  it('the band never escapes the playable core (x ±84, z ±64 — the world extent)', () => {
+  it('the band never escapes the playable core (x ±100, z ±64 — the W7 world extent)', () => {
     const far = bandOfLoop([[-200, -80], [200, 80]]);
-    expect(far.minX).toBe(-84);
-    expect(far.maxX).toBe(84);
+    expect(far.minX).toBe(-100); // W7: the core grew ±84 → ±100 (the registry's own bounds)
+    expect(far.maxX).toBe(100);
     expect(far.minZ).toBe(-64);
     expect(far.maxZ).toBe(64);
   });
@@ -224,6 +224,28 @@ describe('per-walker band (bandOfLoop — the W4 law, proved where it lives)', (
       expect(Math.abs(b.minZ)).toBeLessThanOrEqual(7.5 + 1e-9);
       expect(Math.abs(b.maxZ)).toBeLessThanOrEqual(7.5 + 1e-9);
       expect(b.maxZ).toBeGreaterThan(b.minZ);
+    }
+  });
+});
+
+describe('the lens law on walker bodies (docs/51 B18 — seeThroughCamera)', () => {
+  function loneCrowd(): Pedestrians {
+    const scene = new THREE.Scene();
+    return new Pedestrians(
+      scene,
+      [{ jacket: 0x4a5568, pants: 0x3b3f4a, skin: 0xc98e5a, hair: 0x2b2730, style: 'cap' }],
+      42,
+      [[[2, 6], [6, 6]]],
+      [],
+    );
+  }
+
+  it('every walker collider rides seeThroughCamera — the lens never stops on a body', () => {
+    const peds = loneCrowd();
+    // the boxes sync under live walkers every frame; the flag must survive
+    // the sync (it rides the same object the bounds mutate)
+    for (const b of peds.walkColliders) {
+      expect((b as { seeThroughCamera?: boolean }).seeThroughCamera).toBe(true);
     }
   });
 });

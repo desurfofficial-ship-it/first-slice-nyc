@@ -47,11 +47,20 @@ import {
 import { buildArticulatedPerson, updatePersonAnim, type PersonLook } from './personRig';
 import { seededRng } from './ambient';
 import {
-  resolveCirclesXZ, pushCircleOutOfRectXZ, type AABB, type CirclePush,
+  resolveCirclesXZ, pushCircleOutOfRectXZ, type AABB, type CirclePush, type RectXZ,
 } from '../engine/collide';
+import type { StreetPlan, StreetRole } from './dressing';
+import {
+  type CommuteContext, type CommuteState, newCommuteState,
+  pickDestination, standPoint, dwellFor, RETRY_FRAMES,
+} from './pedCommute';
 
 /** Walkers wear the same look schema as the cast — scale/shoe included. */
 export interface PedLook extends PersonLook {}
+
+/** (The shifts themselves — 'street' | 'park' | 'dusk' — live with the
+ *  schedule table in world/dressing; this file owns only the mechanism.) */
+export type { StreetRole } from './dressing';
 
 /** Lane discipline: y 0 on a road, y 0.1 on a walk slab. W4 generalizes the
  *  shipped |z| > 4.15 rule with the district's five road rectangles (the
@@ -96,7 +105,8 @@ const MAX_PUSH = 0.25;    // per-frame cap — nobody slingshots, ever
  */
 /** W4: a walker's own clamp band — the bbox of its loop, inflated 1.6 m
  *  laterally (curb-yield room) and 0.65 m in z, then held inside the
- *  playable core (x ±84; the shipped ±7.5 z-discipline). Per-walker on
+ *  playable core (the registry's own bounds; W7 grew it x ±84 → ±100 —
+ *  the shipped ±7.5 z-discipline). Per-walker on
  *  purpose: a district walker pushed off Gable can never be clamped into
  *  Juniper — the pre-W4 bug clamped every zone to the block's band, so
  *  off-block walkers teleported to the home street's corner every frame
@@ -123,7 +133,7 @@ export function bandOfLoop(
   // the ±7.5 line exactly, and every other street lane stays under it.
   // The ±64 net is the district's own extent — a typo net, not a wall.
   return {
-    minX: Math.max(-84, minX - 1.6), maxX: Math.min(84, maxX + 1.6),
+    minX: Math.max(-100, minX - 1.6), maxX: Math.min(100, maxX + 1.6),
     minZ: Math.max(-64, minZ - 0.65), maxZ: Math.min(64, maxZ + 0.65),
   };
 }
@@ -207,6 +217,16 @@ interface Ped {
   stillDist: number;       // meters moved inside the current window
   lastX: number;           // position at the previous update (the truth, not
   lastZ: number;           // the velocity — a pinned walker's velocity lies)
+  // ---- the street schedule (M4) ----
+  role: StreetRole;        // their shift — read by applyStreetPlan only
+  home: boolean;           // off stage: hidden, collider parked, not simulated
+  duskIdx: number;         // order among the dusk-shift walkers (roster order)
+  // ---- the commute (WP-3v: destination movement over the ONE nav graph) ----
+  // null = the shipped loop walker (pre-WP-3v constructions and tests are
+  // byte-for-byte unchanged); non-null = destination movement is armed.
+  commute: CommuteState | null;
+  commuteRng: (() => number) | null; // this walker's OWN seeded stream
+  animTick: number;        // deterministic LOD parity (anim cadence at distance)
 }
 
 const MAX_DT = 0.1; // matches the game loop's clamp — Yuka integrates with the same dt
@@ -279,9 +299,33 @@ export class Pedestrians {
   private castObstacle: GameEntity;
   private time = 0;
   private roads: readonly RoadRect[];
+  private footprints: readonly RectXZ[] = [];
   /** Real bodies for the player's collision stack (World registers these).
    *  Parked underground until the first update puts each under its walker. */
   readonly walkColliders: AABB[];
+  // ---- the commute (WP-3v) ----
+  private commuteCtx: CommuteContext | null = null;
+  private commuteCursor = 0;   // round-robin build cursor (deterministic order)
+  private commutes = 0;        // routes walked to their destination (diagnostics)
+  // Route-build budget: at most BUILDS_PER_FRAME pathfinding calls per
+  // frame (each is a cached A* — bounded, never a per-frame full rebuild).
+  private static readonly BUILDS_PER_FRAME = 2;
+  // The dwell/arrived detection radii (see stepCommutes).
+  private static readonly ARRIVE_R = 0.75;
+  private static readonly STUCK_ARRIVE = 3; // stuck windows before "close enough"
+  // W7: the commute follower tracks its route TIGHTLY. The shipped patrol
+  // radius (0.7) lets the vehicle cut a 90° weave corner by ~0.35 m — fine
+  // on the open patrol lanes, but the graph's curb-cut skirts ride 0.25 m
+  // off the road band (the SUB-02 squeeze), and a 0.35 m corner cut there
+  // samples the roadway the route legally avoids. The ped law's road rects
+  // are ground truth for every walker's feet, so the commute swap tightens
+  // the waypoint distance below the skirt margin. Patrol loops keep the
+  // shipped 0.7.
+  private static readonly COMMUTE_WAYPOINT_R = 0.3;
+  // Reusable pin buffers — the pin pass allocates NOTHING per frame.
+  private readonly pinPeds: Ped[] = [];
+  private readonly pinX: number[] = [];
+  private readonly pinZ: number[] = [];
 
   constructor(
     scene: THREE.Scene,
@@ -291,10 +335,27 @@ export class Pedestrians {
     staticObstacles: Array<{ x: number; z: number; r: number }>,
     routines: RoutineStop[][] = [],
     roads: readonly RoadRect[] = [],
+    roles: readonly StreetRole[] = [],
+    // W7: the registry's own solid footprints (minus the passable set) —
+    // the depenetration law's ground truth. The shipped trio of hard
+    // guarantees kept bodies on the BLOCK (the band clamp) but nothing
+    // kept them out of a FACADE: a separation half-push at a curb-cut
+    // skirt squeeze could shove a walker through a control house's face.
+    // The strips' westbound traffic made that certainty, so the resolve
+    // now answers to the registry's buildings as well.
+    footprints: readonly RectXZ[] = [],
   ) {
     this.group.name = 'Pedestrians';
     this.roads = roads;
+    this.footprints = footprints;
     const rng = seededRng(seed);
+    // the roster's shifts — an untagged roster is all-'street' (the shipped
+    // behavior, and every pre-M4 test/probe constructs exactly that)
+    let duskSeen = 0;
+    const roleOf = (i: number): { role: StreetRole; duskIdx: number } => {
+      const role = roles[i] ?? 'street';
+      return { role, duskIdx: role === 'dusk' ? duskSeen++ : -1 };
+    };
 
     // invisible avoidance circles — the city's fixed furniture
     for (const o of staticObstacles) {
@@ -326,9 +387,16 @@ export class Pedestrians {
     this.manager.add(this.castObstacle);
 
     // one real body per walker — parked at y −999 (the cast-collider trick:
-    // a box under the world can't overlap anything) until the first update
+    // a box under the world can't overlap anything) until the first update.
+    // seeThroughCamera (the chain-link law): bodies stop bodies, lenses
+    // don't stop on bodies — a walker crossing the boom reads as a
+    // foreground silhouette, never as the follow camera yanked to ~1.3 m
+    // and buried in the player's own hair (docs/51 B18: the step-off spawn
+    // sits inside the Shuffle lanes; a walker loitering behind it pulled
+    // the handover snap down to the truncation floor).
     this.walkColliders = looks.map(() => ({
       minX: 0, maxX: 0, minY: -999, maxY: -998, minZ: 0, maxZ: 0,
+      seeThroughCamera: true,
     }));
 
     looks.forEach((look, i) => {
@@ -370,6 +438,15 @@ export class Pedestrians {
       // inflated 1.6 m laterally (curb-yield room) and 0.65 m in z, so a
       // district walker pushed off Gable can never be clamped into Juniper.
       const band = bandOfLoop(pts);
+      const { role, duskIdx } = roleOf(i);
+      // dusk-shift walkers boot home (the game boots into the day phase;
+      // the first street-plan read keeps them there)
+      const home = role === 'dusk';
+      if (home) {
+        group.visible = false;
+        this.walkColliders[i].minY = -999;
+        this.walkColliders[i].maxY = -998;
+      }
       this.peds.push({
         vehicle, group, speed: vehicle.maxSpeed,
         box: this.walkColliders[i],
@@ -382,6 +459,9 @@ export class Pedestrians {
         stillDist: 0,
         lastX: start[0],
         lastZ: start[1],
+        role,
+        home,
+        duskIdx,
         // the Shuffle — nobody has brushed you yet today
         brushCooldown: 1.2, // the first seconds a player sees them: no chatter
         bubbleT: 0,
@@ -394,6 +474,10 @@ export class Pedestrians {
         faceTo: null,
         cooldown: 1.2 + i * 0.7, // don't pause in the first seconds a player sees them
         latched: false,
+        // the commute: armed later by setCommute (null = the shipped loop)
+        commute: null,
+        commuteRng: null,
+        animTick: 0,
       });
     });
 
@@ -401,18 +485,201 @@ export class Pedestrians {
   }
 
   /** Live position of walker `i` — the interaction registry reads this every
-   *  frame (moving NPCs stay live, Doc 37 §3B). Out of range → parked below
-   *  the world, which the registry's y-band excludes. */
+   *  frame (moving NPCs stay live, Doc 37 §3B). Out of range, or home on the
+   *  schedule's word, → parked below the world, which the registry's y-band
+   *  excludes (a neighbor who went home can't be talked to — coherent). */
   bodyAt(i: number): { x: number; y: number; z: number } {
     const p = this.peds[i];
-    if (!p) return { x: 0, y: -100, z: 0 };
+    if (!p || p.home) return { x: 0, y: -100, z: 0 };
     const v = p.vehicle.position;
     return { x: v.x, y: 0, z: v.z };
   }
 
-  /** XZ bodies for World's taxi-yield list — a crossing walker holds the cab. */
+  /** XZ bodies for World's taxi-yield list — a crossing walker holds the
+   *  cab. Home walkers are not bodies (the pool is XZ-only; a parked box
+   *  must never brake traffic). */
   bodies(): Array<{ x: number; z: number }> {
-    return this.peds.map((p) => ({ x: p.vehicle.position.x, z: p.vehicle.position.z }));
+    const out = this.bodiesOut;
+    out.length = 0;
+    for (const p of this.peds) {
+      if (p.home) continue;
+      out.push({ x: p.vehicle.position.x, z: p.vehicle.position.z });
+    }
+    return out;
+  }
+  private readonly bodiesOut: Array<{ x: number; z: number }> = [];
+
+  // ==================== the commute (WP-3v) ====================
+
+  /**
+   * Arm destination movement. `ctx` is the game layer's view of the ONE
+   * navigation graph (destinations, routing under the STREET gate, the
+   * availability epoch); `seed` gives every walker their OWN deterministic
+   * stream (seed + i·7919) — stable per-agent seeds, never global
+   * randomness. Idempotent per context (re-arming with the same context
+   * keeps each walker's stream and progress; only a first arm seeds).
+   * Loop walkers whose routes fail keep their shipped authored loop —
+   * the street never freezes, it just keeps its old habits.
+   */
+  setCommute(ctx: CommuteContext, seed: number): void {
+    const firstArm = this.commuteCtx === null;
+    this.commuteCtx = ctx;
+    for (let i = 0; i < this.peds.length; i++) {
+      const p = this.peds[i];
+      if (p.commute) continue; // already armed — keep their stream/progress
+      p.commute = newCommuteState(ctx.epoch());
+      p.commuteRng = seededRng(seed + i * 7919);
+      if (firstArm) {
+        // destination dwells replace the authored loop beats — the beats
+        // were loop-geometry, and a commuter's route is the graph's
+        p.stops = [];
+      }
+    }
+  }
+
+  /** Routes walked to their destination since boot (diagnostics/probe). */
+  commutesWalked(): number { return this.commutes; }
+
+  /** One walker's commute state, for tests and the browser probe. */
+  commuteStateOf(i: number): {
+    armed: boolean; destId: string | null; arrived: boolean; epoch: number; retry: number;
+  } | null {
+    const p = this.peds[i];
+    if (!p) return null;
+    return {
+      armed: p.commute !== null,
+      destId: p.commute?.destId ?? null,
+      arrived: p.commute?.arrived ?? false,
+      epoch: p.commute?.epoch ?? 0,
+      retry: p.commute?.retry ?? 0,
+    };
+  }
+
+  /**
+   * The per-frame commute step — route builds under a strict budget,
+   * arrival detection, dwell arming, epoch re-derivation. Runs BEFORE
+   * the steering step so a swapped path drives this frame's forces.
+   * Allocation-free in steady state (the only allocations are a new
+   * Path at the rare route swap — every ~30–90 s per walker).
+   */
+  private stepCommutes(): void {
+    const ctx = this.commuteCtx;
+    if (!ctx) return;
+    const epoch = ctx.epoch();
+    let builds = Pedestrians.BUILDS_PER_FRAME;
+    const n = this.peds.length;
+    for (let k = 0; k < n; k++) {
+      // round-robin cursor: walkers take their budgeted turn in a stable
+      // order, so a busy frame never starves the same walker twice running
+      const i = (this.commuteCursor + k) % n;
+      const p = this.peds[i];
+      const c = p.commute!;
+      if (p.home) continue; // the schedule froze them — no route work
+      if (c.retry > 0) { c.retry--; continue; }
+
+      // arrival: the path is exhausted (index clamped at the last waypoint)
+      // and the body is within the arrive radius — or pinned against
+      // something for a few windows trying (the anti-stuck fallback: treat
+      // "close enough" as there, dwell, move on; nobody grinds forever)
+      if (!c.arrived && c.destId !== null && p.fpb.path.finished()) {
+        const v = p.vehicle.position;
+        const last = p.fpb.path.current();
+        const d = Math.hypot(v.x - last.x, v.z - last.z);
+        if (d <= Pedestrians.ARRIVE_R || p.stuckTime >= Pedestrians.STUCK_ARRIVE) {
+          c.arrived = true;
+          this.commutes++;
+          // window shopping: stand a seeded beat, face the frontage — the
+          // SHIPPED dwell machinery does the counting, the pinning and the
+          // facing (dwellLeft/faceTo/latched serve both populations)
+          p.dwellLeft = dwellFor(p.commuteRng!);
+          const np = ctx.nodePos(c.destId);
+          p.faceTo = np ? [np.x, np.z] : null;
+          continue;
+        }
+      }
+
+      // dwell over (the shipped block cleared dwellLeft + latched): pick
+      // the next destination and build
+      const needsNext = c.arrived && p.dwellLeft <= 0;
+      const needsFirst = c.destId === null;
+      const needsRedo = !c.arrived && c.epoch !== epoch; // world changed under us
+      if (!needsNext && !needsFirst && !needsRedo) continue;
+      if (builds <= 0) continue; // the budget decides; the cursor keeps order
+      const destId = needsRedo && c.destId !== null
+        ? c.destId
+        : pickDestination(p.commuteRng!, ctx.destinations, c.destId);
+      if (!destId) { c.retry = RETRY_FRAMES; continue; }
+      const v = p.vehicle.position;
+      const pts = ctx.routeTo(v.x, v.z, destId);
+      if (!pts || pts.length < 2) {
+        // no legal route right now: wait politely, keep the current path
+        // (first-build failures keep the shipped loop — never a freeze)
+        c.retry = RETRY_FRAMES;
+        continue;
+      }
+      // swap the path: non-loop, ending at the STAND-OFF (one body-length
+      // short of the door node, facing it — never pressed into a facade).
+      // The stand point lies ON the final leg, so truncating the last
+      // waypoint to it keeps the graph's geometry — the walker simply
+      // stops short of the facade instead of turning back for a waypoint.
+      const stand = standPoint(pts);
+      const path = new Path();
+      path.loop = false;
+      for (let j = 0; j < pts.length - 1; j++) path.add(new Vector3(pts[j].x, 0, pts[j].z));
+      path.add(new Vector3(stand.x, 0, stand.z));
+      p.fpb.path = path;
+      p.fpb.nextWaypointDistance = Pedestrians.COMMUTE_WAYPOINT_R; // the skirt-margin law (W7)
+      // the band follows the route (push containment, district-legal)
+      p.band = bandOfLoop(pts.map((pt) => [pt.x, pt.z] as [number, number]));
+      c.destId = destId;
+      c.arrived = false;
+      c.epoch = epoch;
+      p.latched = false;
+      builds--;
+    }
+    this.commuteCursor = (this.commuteCursor + 1) % Math.max(1, n);
+  }
+
+
+  /**
+   * The street schedule's word (M4, world/dressing STREET_PLAN). Idempotent
+   * per plan; call on the phase edge, not every frame. The floor law: a
+   * 'street' walker is out in every phase — the table can thin the street,
+   * never empty it. Sending home parks the collider at y −999 (the
+   *  barrier's trick), clears any mid-beat state, and freezes the walker
+   *  exactly where their loop stands; coming back resumes that spot with
+   *  the body re-synced (a visible walker never keeps an underground box).
+   */
+  applyStreetPlan(plan: StreetPlan): void {
+    for (const p of this.peds) {
+      const out = p.role === 'street'
+        ? true
+        : p.role === 'park'
+          ? plan.parkOut
+          : p.duskIdx < plan.duskShift;
+      if (out === !p.home) continue; // already in the right place
+      if (out) {
+        p.home = false;
+        p.group.visible = true;
+        // the body returns with them — the vehicle never moved while home
+        // (pinned), so this box is the truth even before the next update
+        const v = p.vehicle.position;
+        p.box.minX = v.x - 0.28; p.box.maxX = v.x + 0.28;
+        p.box.minZ = v.z - 0.28; p.box.maxZ = v.z + 0.28;
+        p.box.minY = 0; p.box.maxY = 1.7;
+      } else {
+        p.home = true;
+        p.group.visible = false;
+        // no mid-beat ghosts: a walker sent home mid-dwell or mid-brush
+        // leaves the beat and the bubble behind on the street
+        p.dwellLeft = 0; p.faceTo = null; p.latched = true;
+        p.bubbleT = 0; p.bubble.visible = false; p.bubbleMat.opacity = 0;
+        p.holdTime = 0; p.slideSide = 0;
+        p.stuckTime = 0; p.stillClock = 0; p.stillDist = 0;
+        p.vehicle.velocity.set(0, 0, 0);
+        p.box.minY = -999; p.box.maxY = -998;
+      }
+    }
   }
 
   /** The frame's brushes (walker index + where it happened) and clears the
@@ -434,6 +701,7 @@ export class Pedestrians {
   resolveAgainstCab(cabRect: AABB): void {
     const push: CirclePush = { x: 0, z: 0 };
     for (const p of this.peds) {
+      if (p.home) continue; // a home walker holds no lane
       if (pushCircleOutOfRectXZ(p.vehicle.position.x, p.vehicle.position.z, PED_R, cabRect, MAX_PUSH, push)) {
         p.vehicle.position.x += push.x;
         p.vehicle.position.z += push.z;
@@ -450,6 +718,9 @@ export class Pedestrians {
     bus?: { x: number; z: number },
   ): void {
     this.time += dt;
+    // the commute first: route swaps and arrival/dwell arming drive THIS
+    // frame's steering (a swapped path must be the one Yuka integrates)
+    this.stepCommutes();
     if (player) this.playerObstacle.position.set(player.x, 0, player.z);
     if (cart) this.cartObstacle.position.set(cart.x, 0, cart.z);
     if (taxi) this.taxiObstacle.position.set(taxi.x, 0, taxi.z);
@@ -478,6 +749,7 @@ export class Pedestrians {
     // moment the dwell is spent. Deterministic, so the E2E meets the same
     // street life every run.
     for (const pd of this.peds) {
+      if (pd.home) continue; // the schedule's word — no beats while off stage
       if (pd.dwellLeft > 0) {
         pd.dwellLeft -= dt;
         pd.cooldown = 1.2; // re-armed fresh when the beat ends
@@ -503,16 +775,48 @@ export class Pedestrians {
       }
     }
 
-    // pinned walkers hold their exact spot through the integration step
-    const pinned = this.peds
-      .filter((p) => p.dwellLeft > 0)
-      .map((p) => ({ p, x: p.vehicle.position.x, z: p.vehicle.position.z }));
+    // pinned walkers hold their exact spot through the integration step —
+    // and so do HOME walkers: the schedule suspends them, it does not
+    // unroute them (Yuka integrates every entity; the pin is the off switch).
+    // Reusable buffers: the pin pass allocates NOTHING per frame.
+    this.pinPeds.length = 0; this.pinX.length = 0; this.pinZ.length = 0;
+    for (const p of this.peds) {
+      if (p.dwellLeft > 0 || p.home) {
+        this.pinPeds.push(p);
+        this.pinX.push(p.vehicle.position.x);
+        this.pinZ.push(p.vehicle.position.z);
+      }
+    }
 
+    // W7: a pedestrian slows for a corner. The graph's curb-cut skirts ride
+    // 0.25 m off the road band (the SUB-02 squeeze is the shipped tightest),
+    // and the seek force at a 90° corner is (desired − current) ≈ 1.56 m/s —
+    // it rotates the velocity at ~1.4 rad/s, so a cruise-speed turn overshoots
+    // ~0.8 m past the waypoint switch and samples roadway the route legally
+    // avoids. The overshoot scales with v², and a half-speed corner stays
+    // inside the walk band. The signal is the velocity-vs-target heading
+    // (the vehicle IS cornering), never the route's own geometry — straight
+    // walking and avoidance jostle read ≈1 and cruise on.
+    for (const pd of this.peds) {
+      if (pd.home) continue;
+      const vel = pd.vehicle.velocity;
+      const sp = Math.hypot(vel.x, vel.z);
+      if (sp > 0.15 && pd.dwellLeft <= 0) {
+        const target = pd.fpb.path.current();
+        const tx = target.x - pd.vehicle.position.x;
+        const tz = target.z - pd.vehicle.position.z;
+        const tl = Math.hypot(tx, tz) || 1;
+        const dot = (vel.x * tx + vel.z * tz) / (sp * tl);
+        pd.vehicle.maxSpeed = dot < 0.72 ? pd.speed * 0.45 : pd.speed;
+      } else {
+        pd.vehicle.maxSpeed = pd.speed;
+      }
+    }
     this.manager.update(Math.min(dt, MAX_DT));
 
-    for (const pin of pinned) {
-      pin.p.vehicle.position.set(pin.x, 0, pin.z);
-      pin.p.vehicle.velocity.set(0, 0, 0);
+    for (let i = 0; i < this.pinPeds.length; i++) {
+      this.pinPeds[i].vehicle.position.set(this.pinX[i], 0, this.pinZ[i]);
+      this.pinPeds[i].vehicle.velocity.set(0, 0, 0);
     }
 
     // ---- hard guarantees (steering asked; physics resolves) --------------
@@ -524,9 +828,11 @@ export class Pedestrians {
     const b: CirclePush = { x: 0, z: 0 };
     for (let i = 0; i < this.peds.length; i++) {
       const pd = this.peds[i];
+      if (pd.home) continue; // a home walker holds no lane and yields to nobody
       const pi = pd.vehicle.position;
       for (let j = i + 1; j < this.peds.length; j++) {
         const pj = this.peds[j].vehicle.position;
+        if (this.peds[j].home) continue;
         if (resolveCirclesXZ(pi.x, pi.z, pj.x, pj.z, PED_R, PED_R, MAX_PUSH * 0.5, a, b)) {
           pi.x += a.x; pi.z += a.z;
           pj.x += b.x; pj.z += b.z;
@@ -600,6 +906,16 @@ export class Pedestrians {
       // so their loop's bounds are applied to their bodies directly
       pi.x = Math.max(pd.band.minX, Math.min(pd.band.maxX, pi.x));
       pi.z = Math.max(pd.band.minZ, Math.min(pd.band.maxZ, pi.z));
+      // 4. walker ↔ facades (W7): nobody stands inside a building. The band
+      //    clamp knows the block; this knows the walls. A separation
+      //    half-push at a curb-cut skirt (or any tight squeeze) depenetrates
+      //    back to the nearest face — the registry's own footprints, in
+      //    registry order, capped at the shipped push so nobody slingshots.
+      for (const fp of this.footprints) {
+        if (pushCircleOutOfRectXZ(pi.x, pi.z, PED_R, fp, MAX_PUSH, a)) {
+          pi.x += a.x; pi.z += a.z;
+        }
+      }
     }
 
     // the anti-stuck law (docs/51 B17): a walker that is not dwelling and
@@ -612,6 +928,7 @@ export class Pedestrians {
     // Eight windows is longer than any routine dwell (max 6 s) and longer
     // than any legal stall; a 20-minute freeze is the alternative.
     for (const pd of this.peds) {
+      if (pd.home) continue; // the schedule froze them — the clock does not run
       if (pd.dwellLeft > 0) {
         pd.stuckTime = 0; pd.stillClock = 0; pd.stillDist = 0;
         pd.lastX = pd.vehicle.position.x; pd.lastZ = pd.vehicle.position.z;
@@ -632,6 +949,7 @@ export class Pedestrians {
     }
 
     for (const p of this.peds) {
+      if (p.home) continue; // off stage: no render sync, no anim clock
       const v = p.vehicle.position;
       p.group.position.set(v.x, groundY(v.x, v.z, this.roads), v.z);
       // face the walking direction (velocity, not the steering force) —
@@ -639,11 +957,22 @@ export class Pedestrians {
       const vx = p.vehicle.velocity.x;
       const vz = p.vehicle.velocity.z;
       if (vx * vx + vz * vz > 0.01) p.group.rotation.y = Math.atan2(vx, vz);
+      // distance-tiered detail (WP-3v, deterministic — no wall clock):
+      //   near  (<45 m): full rate — anim every frame, chat scan live
+      //   mid   (<90 m): anim every OTHER frame per-walker parity (the rig
+      //                  reads its own position delta; a half-rate clock at
+      //                  45 m+ is imperceptible), chat scan live
+      //   far   (≥90 m): steering + body sync only — anim and the chat
+      //                  scan skip (the walkers are sub-pixel believable)
+      const tierDist = player ? Math.hypot(v.x - player.x, v.z - player.z) : 0;
+      const far = player !== undefined && tierDist >= 90;
+      const mid = player !== undefined && tierDist >= 45;
+      p.animTick = (p.animTick + 1) & 1;
       // dwelling: face the beat — or a neighbor who stopped beside you
       // (two dwelling walkers within CHAT_RANGE face each other: the
       // block's occasional two-person conversations, emergent from the
       // schedules, never scripted)
-      if (p.dwellLeft > 0) {
+      if (p.dwellLeft > 0 && !far) {
         let tx: number | null = null;
         let tz: number | null = null;
         let bestD2 = CHAT_RANGE * CHAT_RANGE;
@@ -664,7 +993,7 @@ export class Pedestrians {
       }
       // the rig measures its own position delta → the walk cycle is free
       // (a dwelling walker's delta is zero → it reads as a natural idle)
-      updatePersonAnim(p.group, dt);
+      if (!far && (!mid || p.animTick === 0)) updatePersonAnim(p.group, dt);
       // the brush bubble rides its own mouth: hold ~2 s, fade the last half
       if (p.bubbleT > 0) {
         p.bubbleT -= dt;

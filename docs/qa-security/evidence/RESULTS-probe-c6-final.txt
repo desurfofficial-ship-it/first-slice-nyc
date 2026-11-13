@@ -1,0 +1,67 @@
+--- Pass A: Day 814, the first dollar (the roll’s landing) ---
+  ✓ the chapter boots on its canon date (got "December 1 · Year 3")
+  ✓ the chapter’s own morning is on the clock (the C6 pack’s voice)
+  ✓ the first dollar lands through the registry’s own def
+  ✓ Ada’s three lines verbatim (the first line in the book)
+  ✓ the amends ledger’s C6 column opens (acts=1)
+  ✓ the compression arms the two-press linger (pending=835)
+  ✓ the montage’s own voice (the first winter’s gap)
+  ✓ the close’s latch untouched by a mid-chapter linger
+  ✓ pass A console clean (0 errors)
+--- Pass B: Days 835 + 870, the lights and the fork ---
+  ✓ the winter lights land through the registry’s own def
+  ✓ the block’s own verdict in the book (doc 04’s C6 line)
+  ✓ pass B/835 console clean (0 errors)
+  ✓ Kev’s fork lands through the registry’s own def
+  ✓ the take’s shelf: the ledger’s movement is the witness
+  ✓ Grace’s row routed through the letter, not cash (acts=2)
+  ✓ pass B/870 console clean (0 errors)
+--- Pass C: Days 898 + 920, the deposition and the hearing ---
+  ✓ the sworn statement lands through the registry’s own def
+  ✓ the C2 meeting on the record (Deniz’s price, not money)
+  ✓ Father Mike’s row closed (acts=3)
+  ✓ pass C/898 console clean (0 errors)
+  ✓ the hearing lands through the registry’s own def
+  ✓ the 220→280 in the book (doc 12 §2’s fixed event)
+  ✓ the hearing’s second press offers N7 (the pick rides the beat)
+  ✓ N7’s flags land (the register’s own rows)
+  ✓ the public-record law: testify posts SHARED
+  ✓ the pick’s ink in the book (c6-n7-testify)
+  ✓ pass C/920 console clean (0 errors)
+--- Pass D: Days 948 + 969 + 990, the hall, the offer, the tree ---
+  ✓ Juniper Commons opens through the registry’s own def
+  ✓ his layout, her lobby, his name in no brochure
+  ✓ Father Mike’s lease torn the same morning (the load-bearing edge resolved)
+  ✓ pass D/948 console clean (0 errors)
+  ✓ Marisol’s late offer lands through the registry’s own def
+  ✓ Marisol’s line verbatim (doc 09 §7’s test)
+  ✓ N6’s flag lands (the self-portrait’s raw material)
+  ✓ the offer’s act stays private (the register’s own column)
+  ✓ the decline’s ink in the book
+  ✓ pass D/969 console clean (0 errors)
+  ✓ the hundredth tree lands through the registry’s own def
+  ✓ the album’s line verbatim (El Vann’s one sentimental act)
+  ✓ Verna’s row closed at the booth (acts=4)
+  ✓ pass D/990 console clean (0 errors)
+--- Pass E: Days 1002 + 1016 + OPEN, the floor, the close, the open sim ---
+  ✓ the floor lands through the registry’s own def
+  ✓ June’s restart shelf reads the flags (her language’s whole vocabulary)
+  ✓ the self-portrait writes through the persistent slot
+  ✓ the portrait composes from the machine’s own facts
+  ✓ the portrait is law-sized (the diary’s own cap: 595)
+  ✓ F8 fired inside the first portrait (the diary’s own birth, the register’s row)
+  ✓ the notebook writes once a day (the rewrite refused)
+  ✓ pass E/1002 console clean (0 errors)
+  ✓ the hospitality close lands through the registry’s own def
+  ✓ the stranger, the slice, the ritual kept (doc 06 §C6’s last event)
+  ✓ the formal close’s entry latched (the nine-month mark)
+  ✓ the chapter turned OPEN through advanceChapter’s own door
+  ✓ the wall then rolls into the open sim’s first morning (rollTo=1017)
+  ✓ the close’s last line in the book
+  ✓ Odessa’s envelope logged last (acts=5)
+  ✓ pass E/1016 console clean (0 errors)
+  ✓ the open chapter is the terminal continuation (no endscreen)
+  ✓ the open chapter’s ordinary mornings roll plainly (the plain next-day; the city keeps its one note)
+  ✓ pass E/open console clean (0 errors)
+
+60 checks, 0 failures

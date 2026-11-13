@@ -18,39 +18,82 @@ import { composeCaption, tsWowCaption, MAP_NOTE_BOOT, LINGER_OBJECTIVE, DAY_DONE
   RUSH_NOTE_5, MOMENT_RUSH_CAPTION, MOMENT_TOWERS_CAPTION, MOMENT_FOLD_CAPTION,
   momentCornerCaption, MOMENT_TAGS, type MomentCardKind,
 } from '../core/content';
-import { loadSave, writeSave, type SaveData } from '../core/Save';
+import { loadSave, writeSave, wipeSave, newGameSave, type SaveData } from '../core/Save';
+import {
+  authorizeDebugDrivers, enableDriverStorageSandbox, readDriverHandshake,
+  type DriverAuth,
+} from './driverGate';
 import { FreeRoam, roamDiscoveryLine, ROAM_OBJECTIVE } from './freeroam';
-import { STARTERS, starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
+import { WorldRuntime } from './worldRuntime';
+import { MoneyBridge } from '../sim/moneyBridge';
+import { datelineOfStoryDay } from '../sim/epochMap';
+import { starterById, isStarterId, DEFAULT_STARTER } from '../core/starters';
 import { PAL } from '../core/palette';
-import { World, phys } from '../world/World';
+import { World } from '../world/World';
+import { aboardCar } from '../world/subway';
 import { Player, lerpAngle } from '../player/Player';
 import { GameCamera } from '../camera/GameCamera';
 import { InputManager } from '../engine/Input';
 import { Tweens, type Tween } from '../engine/tweens';
 import { capsuleInBox, moveAxisX, moveAxisZ, type Capsule } from '../engine/collide';
 import { UI } from '../ui/UI';
+import { Wardrobe, wardrobeDecision } from '../ui/Wardrobe';
 import { capturePostcard, downloadPostcard, canShareFiles, sharePostcard } from '../postcard/PostcardCapture';
+import { focusDistance } from '../render/postcardDof';
 import { addToAlbum, entryId, loadAlbum, makeThumb, storeAlbum, type AlbumEntry } from '../postcard/Album';
-import { updatePersonAnim, type PersonRig } from '../world/personRig';
+import { updatePersonAnim, buildStarterSkateboard, type PersonRig } from '../world/personRig';
 import { FAMILIAR_SPEED, familiarBeatForDay } from '../world/dressing';
 import { InteractionRegistry, NEVER_NEAR, type InteractionCtx } from './interactions';
 import { buildInteractions, byDay, BUS_BENCH_SEAT, PARK_BENCH_SEAT } from './interactionDefs';
-import { BENCH_SIT_NOTES, PARK_SIT_NOTES, FREE_WASH_NOTES } from '../core/content';
+import { worldPaused } from './pauseSet';
+import { BENCH_SIT_NOTES, PARK_SIT_NOTES, FREE_WASH_NOTES, DIARY_NOTE_TEXT } from '../core/content';
+// ---- the C0 pack (narrative/14 §7 step 6 — doc 11 against the shipped
+// opening, first tranche: the spine goes live) ----
+import {
+  C0_COLD_OPEN, C0_SYSTEM_LINE, C0_THEORY, C0_FIRST_QUESTION,
+  applyColdOpen, theoryEntryDraft, questionEntryDraft, morningWhisper,
+  C0_WEEK_CLIMB_NOTE, C0_WEEK_GOLDEN_NOTE, C0_WEEK_ORDERS,
+  morningBeginNoteFor,
+} from '../core/c0pack';
+import { C1_FIRST_DAY, c1ChoicePackOf, c1StationOf } from '../core/c1pack';
+import { c2ChoicePackOf, c2StationOf } from '../core/c2pack';
+import { c3ChoicePackOf, c3StationOf } from '../core/c3pack';
+import { c4ChoicePackOf } from '../core/c4pack';
+import { freshChapterState, serializeChapterState } from '../core/chapters';
+import { freshRailStates, serializeRails } from '../core/chapterRails';
+import { serializeLedger } from '../core/consequenceLedger';
+import { serializeFieldDiary } from '../core/fieldDiary';
+// ---- the §7-step-7 machines (R9–R12) ----
+import { DEFAULT_IDENTITY, sanitizeIdentity } from '../core/identity';
+import { freshFluency, isFluencyTier } from '../core/fluency';
 import { gameAudio } from './audio';
 import { ArrivalCinematic } from './arrival';
 import { RIDE_BEAT_TEXT, TS_SYNC_NOTE } from '../core/content';
 import { CourtGame } from '../court/CourtGame';
+// ---- the graphics wave (docs/rendering/) ----
+import { resolveGfxConfig, probeCapabilities, type GfxConfig } from '../render/quality';
+import { PostPipeline } from '../render/postfx';
+import { phaseToKeyframe } from '../render/daycycle';
 
 /** One waypoint on the familiar face's daily walk. dwell = seconds she
  *  stands there (the nod, the word); sit/hide = what happens on arrival. */
 interface FamiliarStop { x: number; z: number; dwell?: number; sit?: boolean; hide?: boolean; note?: string }
 
+/** The C0 block layer's wobble trigger (doc 11 §3): the laundromat's
+ *  door, in world space — the laundry interaction's own spot. Passing
+ *  within 4.5 m on/after Day 7 writes Entry 5 once. */
+const C0_LAUNDRY_X = -7.0;
+const C0_LAUNDRY_Z = 7.3;
+
 /** The bodega shelf's three stock spots — the Day-1 errand picks from these,
- *  and the morning restock puts them back (the shop is open every day). */
+ *  and the morning restock puts them back (the shop is open every day).
+ *  y IS the gondola board top each item stands on (World's restock pass
+ *  reserves their gaps: mango/coffee on unit 1/2's board 3, bread on
+ *  unit 0's board 2). */
 const SHELF_STOCK: Array<[id: string, x: number, y: number, z: number]> = [
-  ['mango', -18, 2.25, 19.2],
-  ['coffee', -16, 2.25, 19.2],
-  ['bread', -14, 2.25, 19.2],
+  ['mango', -14.5, 1.34, 19.18],
+  ['coffee', -16, 1.34, 19.18],
+  ['bread', -17.35, 0.987, 19.18],
 ];
 
 export class Game {
@@ -60,9 +103,27 @@ export class Game {
   readonly cam: GameCamera;
   readonly input: InputManager;
   readonly ui: UI;
+  /** The 3D fitting room (ui/Wardrobe.ts) — the pick-is-for-keeps law's UI. */
+  readonly wardrobe: Wardrobe;
   readonly tweens = new Tweens();
 
   private renderer: THREE.WebGLRenderer;
+  // ---- the graphics wave (docs/rendering/) ----
+  /** The resolved quality config (capability probe + URL overrides).
+   *  Mutable only through applyGfxTier (the runtime quality knob). */
+  gfx: GfxConfig;
+  /** The post pipeline — null on the low tier / ?fx=off (today's direct path). */
+  private pipeline: PostPipeline | null = null;
+  /** ?tod=HH:MM — pins the day cycle to a clock minute for validation rigs. */
+  private todOverride: number | null = null;
+  /** The ?tod URL pin lands ONCE, on the first frame — after World's boot
+   *  golden-hour pin has landed (FS-QA2-005). */
+  private todApplied = false;
+  /** Auto-degrade: a rolling frame-time average; one tier drop max. */
+  private frameTimeAvg = 16;
+  private degraded = false;
+  /** The grade pass's grain clock (seconds, drives the animated noise). */
+  private ambientClock = 0;
   /** The player's articulated visual — public for the test harness. Reassigned
    *  by applyStarter (Doc 02 six starters): same boxes, a new face. */
   playerVisual: THREE.Group;
@@ -88,8 +149,14 @@ export class Game {
    *  driver asks for it explicitly). Forces the offer at the film handover
    *  so evidence probes can tap the tiles. */
   private forcePickCard = false;
+  /** ?starter=<id> was given at boot — a direct dress skips the cold open
+   *  (the pick-card law's own pattern). */
+  private starterParamGiven = false;
   /** The pick card has been offered this session (offer once, never nag). */
   private starterOffered = false;
+  /** The cold open has been mounted this session (the once law's session
+   *  half — the durable half is the world's `node:N0=` flag). */
+  private coldOpenShown = false;
   private postcardRig = false;
   /** The Wow card (docs/51 B10) is open — the panel currently shows the
    *  sync beat's keepsake, NOT the day-end card. Dismissal takes the light
@@ -101,6 +168,9 @@ export class Game {
   private waypoint: THREE.Sprite | null = null;
   private roofHidden = false;
   private climbLean = 0;
+  /** The walker's stride half-cycle index — footstep ownership (one soft
+   *  tap per footfall, scaled with pace; see the cast loop in frame()). */
+  private stepIndex = 0;
   /** Scratch capsule for the kid's follow-walk — reused, never allocated
    *  per frame (his physical body against the world's colliders). */
   private readonly kidCapsule: Capsule = { x: 0, y: 0.05, z: 0, radius: 0.25, height: 1.4 };
@@ -135,6 +205,26 @@ export class Game {
   // rewind the story.
   readonly roam = new FreeRoam();
 
+  // ---- the world runtime (sim/runtime.ts + game/worldRuntime.ts) ----
+  // Phase-1 runtime integration (world-contract doc 17): ONE world, ONE
+  // clock, ONE arbitration. The brain ticks every frame (the D-1 valve);
+  // in roam/scenario it also owns the bound bodies (Rosa, Idris) and keys
+  // the dusk visuals + M4 street plan to the clock. In story mode the
+  // authored choreography keeps every body it ever had — the sim runs
+  // beside, never instead.
+  readonly worldSim: WorldRuntime;
+
+  // ---- the money→ledger bridge (WP-4, wc-12 §4) ----
+  // Observes the story's honest math and posts it to the world's ledger —
+  // one instance, event-driven, never per-frame.
+  readonly moneyBridge: MoneyBridge;
+
+  /** The R1 debug-driver authorization decision (game/driverGate.ts) —
+   *  the explicit development/production boundary. Decided once at boot,
+   *  before any storage is read, because an authorized session also
+   *  re-keys persistence into the driver sandbox. */
+  private driverAuth: DriverAuth;
+
   // ---- notes don't stampede (docs/12: the city is patient) ----
   // Two notes arriving together queue instead of replacing: Rosa's quiet
   // line gets its two seconds before the rush-end note lands.
@@ -144,6 +234,7 @@ export class Game {
   private static readonly NOTE_MIN_SHOW = 2.4;
   private mapOpen = false;
   private mapKeyWasDown = false;
+  private wardrobeKeyWasDown = false;
 
   // ---- the street performer's listen (Doc 02 §10:00–15:00) ----
   // Once per session: after the square has synced, stepping back to the B
@@ -177,8 +268,27 @@ export class Game {
   private lastTime = performance.now();
   private running = true;
   private autotestStarted = false;
+  private scenarioStarted = false;
 
   constructor(container: HTMLElement) {
+    // ---------------- R1: the debug-driver boundary (FS-AUDIT-001) ------
+    // Decided FIRST — before this constructor reads a single storage key —
+    // because an authorized driver session re-keys persistence into the
+    // driver sandbox (see enableDriverStorageSandbox): every read and
+    // write this session makes rides the driver keys, never the player's.
+    // In a production build a URL alone can no longer start the autotest
+    // or scenario drivers: only the dev server (import.meta.env.DEV) or
+    // the harness's own session-storage handshake opens this gate.
+    this.driverAuth = authorizeDebugDrivers({
+      devMode: import.meta.env.DEV,
+      handshake: readDriverHandshake(
+        typeof sessionStorage !== 'undefined' ? sessionStorage : undefined,
+      ),
+    });
+    if (this.driverAuth.allowed) {
+      const sandbox = enableDriverStorageSandbox();
+      console.info(`[driver] authorized (${this.driverAuth.source}) — storage sandbox active: story save → "${sandbox.storySaveKey}", world save → "${sandbox.worldSaveKey}", album → "${sandbox.albumKey}"; player save data is unreachable this session`);
+    }
     // the places the first session guarantees: the terminal you woke up on,
     // the corner you work. revealPlace dedups, so a resumed save's own
     // list (loaded later) simply keeps its order.
@@ -189,15 +299,45 @@ export class Game {
     // 21 → 46 fps), and a clamped dt stretches the four-day E2E driver past
     // every timeout. Shadows carry no gameplay state; the visual checks
     // (visual-check.mjs) keep full fx so screenshots stay faithful.
-    const fxOff = new URLSearchParams(location.search).get('fx') === 'off';
+    // The graphics wave: ?fx=off ALSO skips the composer (the low tier IS
+    // today's direct path — the E2E contract is unchanged).
+    const params = new URLSearchParams(location.search);
+    const fxOff = params.get('fx') === 'off';
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace; // explicit (was implicit-default)
+    // quality tiers: capability probe + URL overrides (docs/rendering/03 §8)
+    this.gfx = resolveGfxConfig(params, probeCapabilities(this.renderer));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.gfx.pixelRatioCap));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = !fxOff;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.NeutralToneMapping; // closest to the reference's filmic
     this.renderer.toneMappingExposure = 1.05;
+    // whole-frame draw-call accounting (probe parity between the direct
+    // path and the composer path — info.autoReset counts ONE render call;
+    // the frame resets it, so both paths report the full frame)
+    this.renderer.info.autoReset = false;
     container.appendChild(this.renderer.domElement);
+    // ?tod=HH:MM — the validation/probe affordance: pin the day cycle to a
+    // clock time (roam OR story) so the visual rigs can shoot any hour.
+    const tod = params.get('tod');
+    if (tod !== null) {
+      const [hh, mm] = tod.split(':').map((v) => Number.parseInt(v, 10) || 0);
+      this.todOverride = ((hh * 60 + (mm || 0)) % 1440 + 1440) % 1440;
+    }
+    // the fenestra windows (docs/production/fenestra): the quality tier sets
+    // the LOD band distances; ?fenestra=0 is the A/B affordance — the world
+    // returns to the shipped dim-box look, everything else untouched.
+    this.world.setFenestraTier(this.gfx.tier);
+    if (params.get('fenestra') === '0') this.world.setFenestraEnabled(false);
+
+    // ABO furniture (docs/57): the KTX2/meshopt decoders need the renderer
+    // for the transcoder's format probe — wired here, once, and the
+    // interior slots fetch their models. Missing files keep the procedural
+    // rooms (the docs/28 seam law — the game never depends on its assets).
+    // (Restored: the player-merge cherry-pick dropped this line and the
+    // swap went silently dead — the unit gates never boot a renderer.)
+    this.world.configureGltfDecoders(this.renderer);
 
     // ---------------- systems ----------------
     this.player = new Player(this.world.colliders);
@@ -206,6 +346,14 @@ export class Game {
     // fades those canopies so the street never hides the player.
     // setCanopies re-binds if World ever grows more trees after boot (B6).
     this.world.canopyOcclusion = this.cam.setCanopies(this.world.canopySpheres());
+    // the post pipeline (the graphics wave) — built AFTER the camera exists;
+    // low tier / ?fx=off stays pipeline-null (today's direct render path)
+    if (this.gfx.composer) {
+      this.pipeline = new PostPipeline(this.renderer,
+        { scene: this.world.scene, camera: this.cam.camera }, this.gfx,
+        [...this.world.aoExclude]);
+      this.pipeline.setSize(window.innerWidth, window.innerHeight);
+    }
     this.ui = new UI();
     this.input = new InputManager({
       joyZone: document.getElementById('joy-zone')!,
@@ -215,6 +363,18 @@ export class Game {
       turnL: document.getElementById('turn-left')!,
       turnR: document.getElementById('turn-right')!,
     });
+
+    // ---------------- the wardrobe (the fitting room) ----------------------
+    // The lock law renders here: looking is free, wearing a different face
+    // is a new game. Game owns the verdict; the wardrobe is the paper. The
+    // SAME room is the film's pick beat (openPick): the first wear is free.
+    this.wardrobe = new Wardrobe({
+      onSwitchRequest: (id) => this.wardrobeSwitchRequest(id),
+      onNewGame: (id) => this.beginNewGameAs(id),
+      onClose: () => this.toggleWardrobe(),
+      onPick: (id) => this.applyWardrobePick(id),
+    });
+    this.ui.onWardrobeToggle = () => this.toggleWardrobe();
 
     // ---------------- player visual (a person who WALKS) -------------------
     // Playtest 2026-10-29, round two: "the characters doesn't walk, they
@@ -236,23 +396,30 @@ export class Game {
       new THREE.CylinderGeometry(0.075, 0.06, 0.17, 10),
       new THREE.MeshLambertMaterial({ color: PAL.cream }),
     );
+    const cupSleeve = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.072, 0.065, 0.075, 10),
+      new THREE.MeshLambertMaterial({ color: 0xb5654a }),
+    );
+    cupSleeve.position.y = 0.01;
     const cupLid = new THREE.Mesh(
       new THREE.CylinderGeometry(0.078, 0.078, 0.03, 10),
       new THREE.MeshLambertMaterial({ color: PAL.teal }),
     );
     cupLid.position.y = 0.1;
     const cup = new THREE.Group();
-    cup.add(cupBody, cupLid);
+    cup.add(cupBody, cupSleeve, cupLid);
     cup.position.set(0.44, 0.9, 0.22); // in the right hand
     cup.visible = false;
     this.cupProp = cup;
     this.playerVisual.add(cup);
     this.world.scene.add(this.playerVisual);
 
-    // the rest of the cast joins the animator (walk/idle/breathe)
     this.cast.push(this.world.rosa, this.world.idris, this.world.kidSil, this.world.kidGround, this.world.stranger);
     this.cast.push(this.world.sal); // Sal breathes at his counter, every day
     this.cast.push(this.world.familiar); // the familiar face breathes between her rounds
+
+    // Expose instance for React HUD integration
+    (window as any).__game = this;
 
     // ---------------- interactions (Doc 37 §3B — one registry) -------------
     // Authored beats + the free-roam set, declared once in interactionDefs.
@@ -280,10 +447,11 @@ export class Game {
       cart: () => this.world.cartRoot.position,
       shelfItem: (id) => this.world.itemMeshes.get(id)?.position ?? NEVER_NEAR,
       walker: (i) => this.world.walkerPos(i), // Phase 4 — live walker positions
+      worldSimBody: (id) => this.worldSim.bodyPos(id) ?? NEVER_NEAR, // sim-driven bodies
     }));
-    this.world.addItem('mango', -18, 2.25, 19.2, PAL.amber);
-    this.world.addItem('coffee', -16, 2.25, 19.2, PAL.teal);
-    this.world.addItem('bread', -14, 2.25, 19.2, PAL.cream);
+    for (const [id, x, y, z] of SHELF_STOCK) {
+      this.world.addItem(id, x, y, z, 0);
+    }
 
     // ---------------- the half-court (docs/49) ----------------
     // The world built the visuals (paint, net, fence, tally); the court
@@ -297,6 +465,49 @@ export class Game {
       camera: this.cam.camera,
       weaves: this.world.courtWeaves,
     });
+
+    // ---------------- the world runtime (Phase-1 integration) ----------------
+    // One world beside the story (doc 02 D1). The valve reads
+    // ?worldclock=<sim-min per real-sec> (default 60 — one in-game minute
+    // per real second); the world save rides its own storage key. The
+    // hello interactions registered above read live body positions
+    // through the lazy src closure.
+    this.worldSim = new WorldRuntime(this, (() => {
+      const q = Number(new URLSearchParams(location.search).get('worldclock'));
+      return { timeScale: Number.isFinite(q) && q > 0 && q <= 1440 ? q : undefined };
+    })());
+
+    // ---------------- the money→ledger bridge (WP-4, wc-12 §4) ----------------
+    // Every Effect('money') the shipped story emits becomes a ledger
+    // transaction — the game's honest math, now traceable, NOT replaced
+    // (GameState keeps owning story math; wc-05 §2's one-way bridge). The
+    // wrappers observe the ACTUAL delta — post-clamp, post-replay — and
+    // post behind the same confirm-gates. The sanctioned mirror
+    // (world.player.moneyCents) follows the story's head; auditWorld fails
+    // the world the moment they disagree.
+    {
+      const brainWorld = this.worldSim.brain.world;
+      const bridge = new MoneyBridge(
+        brainWorld.ledger,
+        brainWorld,
+        () => ({ tick: brainWorld.clock.tick, day: this.state.day, step: this.state.step }),
+      );
+      this.moneyBridge = bridge;
+      const rawEarn = this.state.earn.bind(this.state);
+      const rawSpend = this.state.spend.bind(this.state);
+      this.state.earn = (n: number) => {
+        const before = this.state.money * 100;
+        const out = rawEarn(n);
+        bridge.observe(before, this.state.money * 100);
+        return out;
+      };
+      this.state.spend = (n: number) => {
+        const before = this.state.money * 100;
+        const out = rawSpend(n);
+        bridge.observe(before, this.state.money * 100);
+        return out;
+      };
+    }
 
     // ---------------- boot (main.gd `_ready`) ----------------
     const save = loadSave();
@@ -321,6 +532,9 @@ export class Game {
     } else {
       this.state.money = START_MONEY;
       this.state.dayStartMoney = START_MONEY;
+      // WP-4: the fresh world's genesis is the shipped start on BOTH sides
+      // of the sanctioned mirror (ledger 8700¢ from createWorldState).
+      this.moneyBridge.syncMirror(START_MONEY * 100);
       this.state.setStep(Step.MEET_ROSA);
       this.world.dressDay(1); // Day 1 is dressed by construction defaults; this makes it honest
       this.ui.setMoneyQuiet(this.state.money);
@@ -347,19 +561,29 @@ export class Game {
       // explicitly, the way any future harness will.
       this.filmRequested = params.has('film');
       this.forcePickCard = params.has('pickcard');
+      this.starterParamGiven = isStarterId(qStarter);
       if (this.driverBoot && !this.filmRequested) {
         this.ui.showNote(MAP_NOTE_BOOT);
       } else {
         // the arrival — Doc 02's opening, staged on the terminal coach
         this.arrival.begin();
       }
+      // the Day-1 reload's spine truth (the cold open's merged Day-1 save):
+      // the rails' fire-once law holds across a tab closed before Day 2
+      if (save.chapter) this.state.chapter = save.chapter;
+      if (save.rails) this.state.rails = save.rails;
+      if (save.ledger) this.state.ledger = save.ledger;
+      // the spine's first walk (the C0 pack — the machines go live): the
+      // rails evaluate for the arrival day on every Day-1 boot, human or
+      // driver, before a word is spoken. Humans read the city's line at
+      // the film's handover; drivers read it now, as a note.
+      this.runSpineWalk();
+      if (this.driverBoot || this.filmRequested) this.renderMorningWhisper();
     }
     this.ui.onNameSubmit = () => this.confirmName(this.ui.nameInput.value);
-    this.ui.onStarterPick = (id) => {
-      this.applyStarter(id, true);
-      this.ui.closeStarterPick();
-      this.ui.showNote('There you are. Now the story has a face.');
-    };
+    // (the paper pick card's onStarterPick retired — applyWardrobePick owns
+    // the beat now; see the wardrobe block and onArrivalHandover)
+    this.ui.onNotebookPick = (pack, optionId, freeText) => this.applyNotebookPick(pack, optionId, freeText, this.pendingPickNode ?? undefined);
     this.ui.onCineTap = () => { if (this.arrival.active) this.arrival.tap(); };
     this.ui.onCineSkip = () => { if (this.arrival.active) this.arrival.skip(); };
     this.ui.onOrderChoose = (reply) => this.advanceOrder(reply);
@@ -393,6 +617,10 @@ export class Game {
 
     this.ui.setObjective(this.state.objectiveText());
     this.ui.setBeatMarker(this.state.beatPlaceId());
+    // WP-6: the dateline — the calendar date the block is living, through
+    // the one mapping (sim/epochMap); the date renders from the calendar,
+    // never real time (R4).
+    this.ui.setDateline(datelineOfStoryDay(this.state.day));
     this.cam.snapBehind({ x: this.player.capsule.x, y: this.player.capsule.y, z: this.player.capsule.z });
 
     // ---------------- loop ----------------
@@ -400,9 +628,22 @@ export class Game {
       requestAnimationFrame(loop);
       if (!this.running) return;
       const now = performance.now();
-      const dt = Math.min(0.1, (now - this.lastTime) / 1000);
+      const elapsed = (now - this.lastTime) / 1000;
+      const dt = Math.min(0.1, elapsed); // the render-clamped dt (the sim
+      // dilation class: below 10 fps the world runs slow — that is its own
+      // documented tradeoff, the DEF-15 wall-budget law)
+      // TRUE elapsed (capped 1 s): feeds exactly one consumer — the subway
+      // ride machine, a WALL-CLOCK experience (22 s of doors-closed tunnel,
+      // four teach beats, one announcement). Starved by the clamp, a ride
+      // on a low-fps device stretched 5×+ and the field report read "ride
+      // to Times Square doesn't work": the doors shut, the tunnel crawled,
+      // no arrival ever came. The machine is pure (thresholds only, no
+      // integration), so real elapsed time is safe to feed it — the ride
+      // takes its 22 real seconds at ANY frame rate. Healthy devices
+      // (fps ≥ 10) see no change: trueDt ≤ dt there, bit-identical frames.
+      const trueDt = Math.min(1.0, elapsed);
       this.lastTime = now;
-      this.frame(dt);
+      this.frame(dt, trueDt);
     };
     requestAnimationFrame(loop);
 
@@ -413,16 +654,36 @@ export class Game {
     (window as unknown as { __game: Game }).__game = this;
 
     // E2E driver (mirrors the original headless autotest) — ?autotest=1
-    if (new URLSearchParams(location.search).has('autotest') && !this.autotestStarted) {
+    // (R1, FS-AUDIT-001: the URL alone is no longer a trigger — the
+    // request must pass the driver gate below, and an authorized session
+    // runs sandboxed on the driver storage keys either way)
+    const autotestRequested = new URLSearchParams(location.search).has('autotest');
+    if (autotestRequested && !this.driverAuth.allowed) {
+      console.info('[driver] ?autotest ignored — debug drivers are gated in production builds (game/driverGate.ts); the player save is untouched');
+    }
+    if (autotestRequested && this.driverAuth.allowed && !this.autotestStarted) {
       this.autotestStarted = true;
       void import('./autotest').then(({ runAutotest }) => runAutotest(this));
+    }
+
+    // the runtime-integration scenario (?scenario=schedules) — the Phase-1
+    // playable proof: six demonstrations on the real street, accelerated
+    // time, results streamed to window.__SCENARIO_REPORT__ (R1: same gate)
+    const scenarioParams = new URLSearchParams(location.search);
+    if (scenarioParams.has('scenario') && !this.driverAuth.allowed) {
+      console.info('[driver] ?scenario ignored — debug drivers are gated in production builds (game/driverGate.ts); the player saves are untouched');
+    }
+    if (scenarioParams.has('scenario') && this.driverAuth.allowed && !this.scenarioStarted) {
+      this.scenarioStarted = true;
+      void import('./scenario').then(({ runScenario }) => runScenario(this, scenarioParams));
     }
   }
 
   // ------------------------------------------------------------------ frame
 
-  private frame(dt: number): void {
+  private frame(dt: number, trueDt = dt): void {
     const s = this.state;
+    this.ambientClock += dt;
 
     // Doc 02 §10:00–15:00 — the street performer's listen: once, on the way
     // back from the square, the city slows for four seconds and just plays.
@@ -435,6 +696,22 @@ export class Game {
     this.tweens.update(dt);
     // the arrival rides its own clock while active (machine, strip, phases)
     if (this.arrival.active) this.arrival.frame(dt);
+    // the D-1 valve — the sim hears FULL dt (the listen beat's 0.45× is
+    // presentation only; doc 06 §1: the sim hears only ticks). Pauses are
+    // the host's set, written once in game/pauseSet.ts (WP-1v): the film,
+    // a day fade, held UI (name/order/starter), and — closed by WP-1v —
+    // the wardrobe fitting room and a held postcard stop the clock
+    // politely. The Map deliberately does NOT pause the world (the
+    // notebook is always available; the city keeps breathing).
+    this.worldSim.update(dt, worldPaused({
+      arrivalActive: this.arrival.active,
+      dayFading: this.dayFading,
+      nameBoxOpen: !this.ui.nameBox.hidden,
+      orderCardOpen: !this.ui.orderCard.hidden,
+      starterCardOpen: !this.ui.starterCard.hidden,
+      wardrobeOpen: this.wardrobe.isOpen,
+      postcardOpen: !this.ui.postcardPanel.hidden,
+    }));
     const inp = this.input.sample();
 
     if (this.arrival.active) {
@@ -447,9 +724,11 @@ export class Game {
       return;
     } else if (inp.interactPressed && !this.dayFading && this.ui.nameBox.hidden
       && this.ui.starterCard.hidden) {
-      if (!this.ui.postcardPanel.hidden) this.dismissPostcard();
-      else if (this.state.pendingCard) this.advanceOrder(null); // the card owns the counter
-      else if (!this.mapOpen) this.tryInteract();
+      if (!this.wardrobe.isOpen) {
+        if (!this.ui.postcardPanel.hidden) this.dismissPostcard();
+        else if (this.state.pendingCard) this.advanceOrder(null); // the card owns the counter
+        else if (!this.mapOpen) this.tryInteract();
+      }
     }
     // M folds / opens the Map — the notebook is always available, never forced
     const mapDown = this.input.isDown('KeyM');
@@ -458,6 +737,14 @@ export class Game {
       this.toggleMap();
     }
     this.mapKeyWasDown = mapDown;
+    // O folds / opens the Wardrobe — the fitting room, not a switchboard
+    const wardrobeDown = this.input.isDown('KeyO');
+    if (wardrobeDown && !this.wardrobeKeyWasDown && !this.dayFading
+      && this.ui.nameBox.hidden && this.ui.orderCard.hidden
+      && this.ui.starterCard.hidden) {
+      this.toggleWardrobe();
+    }
+    this.wardrobeKeyWasDown = wardrobeDown;
 
     // debug (greybox README): G forces dusk + the gold window
     if (this.input.isDown('KeyG') && !this.goldDebugFired && !this.dayFading) {
@@ -481,12 +768,23 @@ export class Game {
     if (this.world.familiar.visible) peds.push({ x: this.world.familiar.position.x, z: this.world.familiar.position.z });
     this.world.updateDynamics(wdt, this.player.capsule, peds, this.duskStarted);
     this.cam.interiorMode = this.world.subway.underground;
+    // the lift stands down while the feet are in the car's z-band: aboard,
+    // the car is the room and the street boom scale is the honest one
+    // (the lift would press the lens into the car roof)
+    this.cam.interiorAboard = aboardCar(this.player.capsule.z);
+    // the ride's seam: the boom inherits the swap's ±288 m jump (see
+    // SubwaySystem.seamDx) in the same frame the player does — the framing
+    // survives bit-exact instead of lerping 288 m through the tunnel wall
+    if (this.world.subway.seamDx !== 0) {
+      this.cam.camera.position.x += this.world.subway.seamDx;
+      this.world.subway.seamDx = 0;
+    }
     this.drainFarWorld(wdt);
     if (!this.dayFading && this.ui.nameBox.hidden && this.ui.orderCard.hidden && !this.mapOpen
-      && this.ui.starterCard.hidden && !this.arrival.active) {
+      && this.ui.starterCard.hidden && !this.arrival.active && !this.wardrobe.isOpen) {
       // movement — paused on the bench (Doc 37 §3C: the seat holds you;
       // physics would drag the capsule off it, so the walker simply rests)
-      if (!this.sitting) this.player.update(dt, inp.move);
+      if (!this.sitting) this.player.update(dt, inp.move, inp.sprint);
     } else {
       this.player.update(dt, { x: 0, y: 0 });
     }
@@ -499,7 +797,7 @@ export class Game {
     this.climbLean += ((climbing ? -0.42 : 0) - this.climbLean) * Math.min(1, dt * 10);
     this.playerVisual.position.set(
       this.player.capsule.x,
-      this.player.capsule.y,
+      this.player.visualY,
       this.player.capsule.z + this.climbLean,
     );
     this.playerVisual.rotation.y = this.player.rotationY;
@@ -524,7 +822,15 @@ export class Game {
     this.perFrameChecks(dt);
     this.updateNotes(dt);
 
-    // camera — the walker steers by `moveYaw` (the frozen reference during an
+    // camera — pointer drag and wheel zoom input forwarded for intuitive controls
+    if (Math.abs(inp.dragX) > 0 || Math.abs(inp.dragY) > 0) {
+      this.cam.handlePointerDrag(inp.dragX, inp.dragY);
+    }
+    if (Math.abs(inp.zoomDelta) > 0) {
+      this.cam.handleZoom(inp.zoomDelta);
+    }
+
+    // the walker steers by `moveYaw` (the frozen reference during an
     // auto-flip), the boom swings by camYaw. See GameCamera for the split.
     // The arrival rides the same rig override the postcard uses.
     const rig = (this.postcardRig || this.arrival.active)
@@ -542,7 +848,7 @@ export class Game {
     // around the fresh player position, trees breathe, pigeons worry about
     // your shoes. (Phase 1 — colliders + the cab + the M121, yielding to the
     // kid AND the stranger AND the familiar face — ran before the walker.)
-    this.world.updateAmbient(wdt, this.player.capsule, this.duskStarted);
+    this.world.updateAmbient(wdt, this.player.capsule, this.duskStarted, trueDt);
     this.syncGlows();
     this.maybeBuskerHorn(dt);
 
@@ -586,6 +892,23 @@ export class Game {
         : undefined);
     }
 
+    // the walker's own footsteps — one soft asphalt tap per stride
+    // half-cycle, grounded only, scaled with pace (a stroll pads, a
+    // sprint slaps). docs/30 house rules: synthesized, gain-enveloped,
+    // mute-respecting, silent until the first gesture unlocks audio.
+    const prig = this.playerVisual.userData.rig as PersonRig | undefined;
+    if (prig && !this.sitting && !climbing && this.player.onGround) {
+      const idx = Math.floor(prig.phase / Math.PI);
+      if (prig.smoothSpeed > 0.5) {
+        if (idx !== this.stepIndex) {
+          this.stepIndex = idx;
+          gameAudio.step(0.35 + Math.min(1, prig.smoothSpeed / 6.4) * 0.55);
+        }
+      } else {
+        this.stepIndex = idx; // parked: no steps, no stale crossing
+      }
+    }
+
     // the follow beacon — a gold chevron bobbing over whoever the objective
     // says to tail (playtest: "the prompt said follow her and she vanish").
     // Drawn through walls (depthTest off), so following is never a guessing
@@ -624,7 +947,55 @@ export class Game {
     // an offer you walked away from is an offer you declined
     if (s.buyConfirm !== null && near?.id !== s.buyConfirm) s.buyConfirm = null;
 
-    this.renderer.render(this.world.scene, this.cam.camera);
+    // ---- the graphics wave: the clock-driven day cycle -----------------
+    // ?tod pins (validation rigs); story beats pin (startDusk/toMorningLight
+    // — see applySimPhase); everything else follows the sim clock minute.
+    // The ?tod URL contract (FS-QA2-005): the URL alone never unpinned the
+    // boot golden-hour pin — World.updateDayCycle samples only while the
+    // pin is null, so ?tod was inert in the shipped build (the visual rigs
+    // passed only because they call the setClockTime API directly, which
+    // clears the pin). Apply the URL pin once, on the first frame, after
+    // the boot pin has landed. A story page's authored beats (startDusk /
+    // toMorningLight) still own the cycle and re-pin over this by design —
+    // the affordance's use case is the fresh boot (the visual rigs).
+    if (this.todOverride !== null && !this.todApplied) {
+      this.todApplied = true;
+      this.world.setClockMinute(this.todOverride);
+    }
+    const minute = this.todOverride ?? this.worldSim.brain.world.clock.minuteOfDay;
+    this.world.updateDayCycle(minute, dt);
+    // the auto-degrade watchdog (docs/rendering/03 §8): a sustained slow
+    // frame average drops ONE tier — never two, and only when no URL tier
+    // was forced (a forced tier is a statement, not a suggestion)
+    this.frameTimeAvg += (dt * 1000 - this.frameTimeAvg) * Math.min(1, dt * 2);
+    if (!this.degraded && !this.gfx.forced && this.frameTimeAvg > 42) {
+      this.degraded = true;
+      this.applyGfxTier(this.gfx.tier === 'high' ? 'medium' : 'low');
+      console.info(`[gfx] auto-degraded to ${this.gfx.tier} (avg frame ${Math.round(this.frameTimeAvg)} ms)`);
+    }
+
+    // the one render seam: the composer chain on medium+, the shipped
+    // direct render on low / ?fx=off
+    this.renderer.info.reset();
+    if (this.pipeline) {
+      const ds = this.world.dayState;
+      this.pipeline.render({
+        time: this.ambientClock,
+        bloomStrength: ds.bloomStrength,
+        grain: ds.gradeGrain,
+        vignette: ds.gradeVignette,
+        ca: ds.gradeCa,
+        sharpen: ds.gradeSharpen,
+        gainR: ds.gradeGainR,
+        gainG: ds.gradeGainG,
+        gainB: ds.gradeGainB,
+        lift: ds.gradeLift,
+        saturation: ds.gradeSaturation,
+        exposure: ds.exposure,
+      });
+    } else {
+      this.renderer.render(this.world.scene, this.cam.camera);
+    }
   }
 
   private syncGlows() {
@@ -690,7 +1061,7 @@ export class Game {
 
     // top landing (main.gd `_reach_top`)
     if (!this.reachedTopFired && capsuleInBox(c, this.world.topLandingZone)) {
-      if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4) {
+      if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4 || this.state.step === Step.WK_CLIMB) {
         this.reachedTopFired = true;
         this.reachTop();
       }
@@ -705,13 +1076,20 @@ export class Game {
       this.checkpoint = { x: 9.4, y: 0.05, z: -5.5 };
       this.startDusk();
     }
-    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4) {
+    // the stabilized week's roam → wind-down (doc 11 §7): grabbing the
+    // escape IS choosing the seat — the step follows the player, the way
+    // the shipped days' steps follow the beats
+    if (this.state.step === Step.WK_ROAM) {
+      for (const e of this.state.setStep(Step.WK_CLIMB)) this.applyEffect(e);
+      this.ui.setObjective(this.state.objectiveText());
+    }
+    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4 || this.state.step === Step.WK_CLIMB) {
       this.ui.setObjective('Climb.');
     }
   }
 
   private onLadderLeave(): void {
-    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4) {
+    if (this.state.step === Step.CLIMB || this.state.step === Step.D2_CLIMB2 || this.state.step === Step.D3_CLIMB3 || this.state.step === Step.D4_CLIMB4 || this.state.step === Step.WK_CLIMB) {
       this.ladderHintPending = true;
     }
   }
@@ -721,6 +1099,24 @@ export class Game {
     void dt;
     const s = this.state;
     const c = this.player.capsule;
+
+    // Entry 5 — the RECALL wobble (doc 11 §3, the block layer): passing
+    // the laundromat on/after Day 7. One sensory line, faint, unexplained.
+    // The trigger rides the roam week — the story's own floor is long
+    // past; drivers never reach Day 7, so the fleet is safe by math.
+    if (s.calendarDay >= 7 && Math.hypot(c.x - C0_LAUNDRY_X, c.z - C0_LAUNDRY_Z) < 4.5) {
+      for (const e of s.c0Wobble()) this.applyEffect(e);
+    }
+
+    // F1 — the dryer bank (doc 06 §C1 event 4, day 30's end of day): the
+    // three RECALL entries ride the SAME laundromat seam, keyed to F1's
+    // canon day and the loop's afternoon steps. "He tells no one" — the
+    // ink is the whole event. Drivers never reach Day 30 (the fleet is
+    // safe by math — the wobble's own law).
+    if (s.day === 30 && (s.step === Step.WK_ROAM || s.step === Step.WK_CLIMB)
+      && Math.hypot(c.x - C0_LAUNDRY_X, c.z - C0_LAUNDRY_Z) < 4.5) {
+      for (const e of s.c1F1AtLaundry(c.x, c.z, C0_LAUNDRY_X, C0_LAUNDRY_Z)) this.applyEffect(e);
+    }
 
     // Seam 1: the goal is the far sidewalk, not one painted stripe
     if (s.step === Step.CROSS && c.z < -4.1) {
@@ -733,7 +1129,7 @@ export class Game {
     // the fire escape you had just correctly climbed.
     if (this.ladderHintPending && this.player.ladder === null && this.player.onGround && this.player.capsule.y < 1.0) {
       this.ladderHintPending = false;
-      if (s.step === Step.CLIMB || s.step === Step.D2_CLIMB2 || s.step === Step.D3_CLIMB3 || s.step === Step.D4_CLIMB4) {
+      if (s.step === Step.CLIMB || s.step === Step.D2_CLIMB2 || s.step === Step.D3_CLIMB3 || s.step === Step.D4_CLIMB4 || s.step === Step.WK_CLIMB) {
         this.ui.setObjective('The fire escape, around the corner. Rosa will not let this go.');
         this.ui.showNote('Rosa, from somewhere behind you: \u201CFire escape! Around the corner! You found it once!\u201D');
       }
@@ -909,7 +1305,11 @@ export class Game {
     if (this.state.buyConfirm !== null && this.state.buyConfirm !== it.id) {
       this.state.buyConfirm = null;
     }
+    // The interaction's id rides the bridge's trace column (WP-4): money
+    // posted while it is set cites the intent that moved it.
+    this.moneyBridge.intent = it.id;
     for (const e of it.perform(this.ictx)) this.applyEffect(e);
+    this.moneyBridge.intent = null;
   }
 
   // ------------------------------------------------ the order conversation ----
@@ -942,6 +1342,10 @@ export class Game {
     this.mapOpen = true;
     this.ui.openMap(this.state.mapNotes, this.state.mapSlang);
     this.ui.refreshSketch(this.state.visitedPlaces, this.player.capsule.x, this.player.capsule.z);
+    // WP-6: the diary's ink rides the Map when it opens — the entries as
+    // they stand, and the day's dateline (the leaf shares the HUD's).
+    this.ui.refreshDiary(this.state.fieldDiary);
+    this.ui.setDateline(datelineOfStoryDay(this.state.day));
   }
 
   /** The Roam toggle — the open-block contract's one switch (freeroam.ts).
@@ -957,6 +1361,7 @@ export class Game {
     if (applied.objective === null) this.ui.setObjective(this.state.objectiveText());
     else this.ui.setObjective(applied.objective);
     this.pushNote(applied.note);
+    this.worldSim.onRoamToggle(this.roam.active); // the sim's bodies + clock flips ride roam
     const save = loadSave();
     if (save.day >= 2) {
       const next = { ...save };
@@ -1171,6 +1576,13 @@ export class Game {
         this.ui.hideOrderCard();
         this.player.frozen = false;
         break;
+      case 'diary-ink':
+        // the C0 block layer's page landed (the state appended the entry)
+        // — the Map says so; the margins refresh if the Map is open (the
+        // WP-6 pipe)
+        this.ui.wiggleMap();
+        if (this.mapOpen) this.ui.refreshDiary(this.state.fieldDiary);
+        break;
       case 'money':
         this.ui.setMoney(this.state.money);
         break;
@@ -1236,10 +1648,13 @@ export class Game {
         this.warmRosaWindow();
         break;
       case 'next-day':
-        void this.beginDay(this.state.day + 1, null, false);
+        void this.beginDay(e.to ?? this.state.day + 1, null, false);
         break;
-      case 'day-beyond':
-        this.ui.showNote(`Day ${this.state.day + 1} is still being written. The light stays a little longer.`);
+      case 'story-flags':
+        // the choice nodes' flag writes (N0's precedent — the world's own
+        // flag store, flushed with the write; the spine's next walk reads
+        // them as the held set)
+        this.worldSim.setStoryFlags(e.flags);
         break;
       case 'idris-served':
         this.tweens.num(
@@ -1339,6 +1754,9 @@ export class Game {
       case 'persist':
         this.persist();
         break;
+      case 'diary-prompt':
+        this.onDiaryPrompt(e.pack, e.node);
+        break;
     }
   }
 
@@ -1391,12 +1809,172 @@ export class Game {
     // Doc 02: "Six starter characters to pick from (30 seconds, all
     // delightful)." An explicit ?pickcard=1 ask wins (same law as ?film=1);
     // otherwise only humans on the film path see it — drivers and film
-    // evidence probes keep the shipped face.
+    // evidence probes keep the shipped face. The pick asks through the REAL
+    // fitting room now (wardrobe openPick, 2026-11): every face previews in
+    // 3D, the wear button applies, the name rides in with the pick. The
+    // paper starter card stays for the seam (a DOM without WebGL renders
+    // the wardrobe's own paper lineup — same tiles, same laws).
     if (!this.starterOffered && this.state.starterId === DEFAULT_STARTER
       && (this.forcePickCard || (!this.driverBoot && !this.filmRequested))) {
       this.starterOffered = true;
-      this.ui.showStarterPick(STARTERS);
+      this.wardrobe.openPick(this.state.starterId);
+    } else {
+      // no card this session (a persisted face, a driver, a film probe):
+      // the cold open asks humans directly (maybeColdOpen's own laws)
+      this.maybeColdOpen();
     }
+    // the city's first line about him (R1 fires Day 1 — the rails walked
+    // at boot; the whisper reads at the handover, when the screen belongs
+    // to the morning)
+    this.renderMorningWhisper();
+  }
+
+  // ---------------- the C0 pack: the spine goes live ----------------
+  // (narrative/14 §7 step 6, doc 11 against the shipped opening — the
+  // machines R1/R2/R8 were built and waiting; this is the tranche that
+  // feeds them: the rails' fire observable in the city diary, the choice
+  // register's N0 live, the diary beats landing at their shipped beats.)
+
+  /** The spine's walk for the morning the story stands on: the rails
+   *  evaluate (fire-once) against the calendar day, with the world's own
+   *  flag store as the held set (the narrative contract's flags). The
+   *  fires stay in state for the whisper to read. */
+  private runSpineWalk(): void {
+    const held = new Set(this.worldSim.storyFlagKeys());
+    this.state.walkSpine(this.state.calendarDay, held);
+  }
+
+  /** The city's diary gets its one line for the morning (doc 09's
+   *  one-note-per-morning law): a rail's canon line outranks the ambient
+   *  note — the block may talk about coffee tomorrow, but the day the
+   *  city names him is the line that speaks. When a rail speaks, the roam
+   *  watermark does NOT move: the watermark tracks what was SAID (core/
+   *  diary.ts's own law), so the ambient note simply waits a morning. */
+  private renderMorningWhisper(): void {
+    const whisper = morningWhisper(
+      this.state.spineFires,
+      this.state.diaryCounters(),
+      this.state.diaryNoted,
+      (f) => DIARY_NOTE_TEXT[f],
+ );
+    if (!whisper) return;
+    if (whisper.kind === 'roam') {
+      this.state.diaryNoted = { ...this.state.diaryNoted, [whisper.family]: whisper.count };
+    }
+    this.pushNote(whisper.line);
+  }
+
+  /** The cold open (doc 11 §2 beat 0 — the diary's first page, choice node
+   *  N0). Fresh human boots only: drivers and film-evidence probes keep
+   *  the shipped flow (the pick-card law), a harness dress (?starter=)
+   *  skips, and the world's own N0 flag is the once law — a reload never
+   *  re-asks a page that was already written (the flag is durable in the
+   *  world save). */
+  private maybeColdOpen(): void {
+    if (this.coldOpenShown) return;
+    if (this.state.day >= 2) return;                        // a mid-week resume
+    if (this.driverBoot || this.filmRequested) return;      // the pick-card law
+    if (this.starterParamGiven) return;                     // a direct dress
+    if (this.worldSim.storyFlagKeys().some((k) => k.startsWith('node:N0='))) return;
+    this.coldOpenShown = true;
+    this.ui.showNotebookPrompt('cold-open', {
+      systemLine: C0_SYSTEM_LINE,
+      ask: 'The green notebook\u2019s first page. Write the first line.',
+      options: C0_COLD_OPEN.map((o) => ({ id: o.optionId, label: o.text })),
+      freeWrite: true,
+      freePlaceholder: '…or write your own line — it’s your notebook',
+    });
+  }
+
+  /** The notebook's pick lands — the pack's three pages, one seam:
+   *  cold-open (N0's flags + ledger entry + entry 1), the running theory,
+   *  the first question. Each lands once per save by id; a duplicate pick
+   *  is absorbed by the append seams (the idempotent law). */
+  private applyNotebookPick(pack: string, optionId: string, freeText: string, node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d' | 'N5a' | 'N5b' | 'N5c' | 'N6' | 'N7'): void {
+    const day = this.state.calendarDay;
+    if (pack === 'cold-open') {
+      const res = applyColdOpen(optionId, day, freeText);
+      if (res) {
+        this.state.logDiaryEntry(res.entry);
+        this.state.logLedgerEntry(res.ledgerEntry);
+        this.worldSim.setStoryFlags(res.flagWrites);
+        // Day 1 has no snapshot (the v1 law: the story save starts at
+        // Day 2) — the spine's truth + entry 1 ride a merged Day-1 save
+        // so a reload keeps the fire-once law without re-asking the page.
+        writeSave({
+          ...loadSave(),
+          field_diary: serializeFieldDiary(this.state.fieldDiary),
+          ledger: serializeLedger(this.state.ledger),
+          chapter: serializeChapterState(this.state.chapter),
+          rails: serializeRails(this.state.rails),
+        });
+      }
+    } else if (pack === 'theory') {
+      const draft = theoryEntryDraft(optionId, day);
+      if (draft) this.state.logDiaryEntry(draft);
+    } else if (pack === 'question') {
+      const draft = questionEntryDraft(optionId, day, freeText);
+      if (draft) this.state.logDiaryEntry(draft);
+    } else if (pack === 'choice' && node) {
+      // The season's structural picks (C1's N1a/N1b, C2's N2/N2b and the
+      // toast): the register resolves, the state writes (ledger + ink +
+      // flags), the effects loop applies the rest (the room's reaction,
+      // the persist). A refused pick closes the page and changes nothing.
+      const held = new Set(this.worldSim.storyFlagKeys());
+      for (const e of this.state.applyChoicePick(node, optionId, held)) this.applyEffect(e);
+    }
+    this.pendingPickNode = null; // the page is closed; it forgets which choice it was
+    this.ui.closeNotebookPrompt();
+  }
+
+  /** The C0 pack's mid-week diary picks (doc 11 §3): the running theory
+   *  (the usual's give-back) and the first question (the Day-3 linger).
+   *  Drivers and film probes never see the paper — the pick-card law —
+   *  and take the FIRST authored option deterministically, so the
+   *  machines' save shape stays uniform across boots (no dice in
+   *  progression-adjacent prose). C1's choice pages ride the same seam
+   *  with their node id (`pendingPickNode` — transient, the page's own
+   *  memory; closed pages forget it). */
+  private pendingPickNode: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d' | 'N5a' | 'N5b' | 'N5c' | 'N6' | 'N7' | null = null;
+  private onDiaryPrompt(pack: 'theory' | 'question' | 'choice', node?: 'N1a' | 'N1b' | 'N2' | 'N2b' | 'TOAST' | 'N3a' | 'N3b' | 'N3c' | 'N4a' | 'N4b' | 'N4c' | 'N4d' | 'N5a' | 'N5b' | 'N5c' | 'N6' | 'N7'): void {
+    if (this.driverBoot || this.filmRequested) {
+      // the pick-card law: drivers keep the shipped flow and take the
+      // FIRST authored option deterministically (no dice in
+      // progression-adjacent prose)
+      if (pack === 'choice' && node) {
+        // the C3 packs first (all three nodes carry no locks — the
+        // driver's first option is the canon default), then C2's (N2's
+        // Form C is the held-set's honest function — drivers hold no
+        // flags, so the driver takes the first unlocked option), then
+        // C1's
+        const src = c4ChoicePackOf(node) ?? c3ChoicePackOf(node) ?? c2ChoicePackOf(node) ?? c1ChoicePackOf(node);
+        const first = src?.options[0];
+        if (first) this.applyNotebookPick('choice', first.optionId, '', node);
+        return;
+      }
+      const first = pack === 'theory' ? C0_THEORY.options[0] : C0_FIRST_QUESTION.options[0];
+      if (first) this.applyNotebookPick(pack, first.optionId, '');
+      return;
+    }
+    if (pack === 'choice' && node) {
+      const held = new Set(this.worldSim.storyFlagKeys());
+      const src = c4ChoicePackOf(node) ?? c3ChoicePackOf(node) ?? c2ChoicePackOf(node, held) ?? c1ChoicePackOf(node);
+      if (!src) { this.ui.closeNotebookPrompt(); return; }
+      this.pendingPickNode = node; // the page remembers which choice it is
+      this.ui.showNotebookPrompt('choice', {
+        ask: src.prompt,
+        options: src.options.map((o) => ({ id: o.optionId, label: `${o.label}. ${o.blurb}` })),
+        freeWrite: false,
+      });
+      return;
+    }
+    const src = pack === 'theory' ? C0_THEORY : C0_FIRST_QUESTION;
+    this.ui.showNotebookPrompt(pack, {
+      ask: src.prompt,
+      options: src.options.map((o) => ({ id: o.optionId, label: o.body })),
+      freeWrite: src.freeWrite,
+      freePlaceholder: src.freeWrite ? '…or write your own question' : undefined,
+    });
   }
 
   /** Dress the walker as a picked starter — Doc 02 §0:00–2:00. Same boxes
@@ -1418,37 +1996,84 @@ export class Game {
     if (i >= 0) this.cast[i] = g;
     this.playerVisual = g;
     this.world.scene.remove(old);
-    if (persist) writeSave({ ...loadSave(), starter: st.id });
+    if (persist) writeSave({ ...loadSave(), starter: st.id, player_name: { ...this.state.playerIdentity } });
+  }
+
+  setStarter(id: string): void {
+    this.applyStarter(id, true);
+  }
+
+  /** PICK MODE's wear button: the first face is applied right here — the
+   *  name lands WITH the pick (doc 11 §5: the chosen name is the name the
+   *  block learns; cleared fields fall back to the canon identity), the
+   *  starter persists, the room folds, the cold open asks its first page.
+   *  Same shape as the old paper-card pick; the room is just better now. */
+  private applyWardrobePick(id: string): void {
+    this.state.applyIdentity(this.ui.starterName());
+    this.applyStarter(id, true);
+    this.wardrobe.close(); // close() also ends pick mode — the room reopens
+    this.ui.showNote('There you are. Now the story has a face.');
+    this.maybeColdOpen();
+  }
+
+  // ---------------- the wardrobe (the pick is for keeps) ----------------
+
+  /** O (or the pocket chip) folds the fitting room over the street. */
+  toggleWardrobe(): void {
+    if (this.wardrobe.isOpen) {
+      this.wardrobe.close();
+      return;
+    }
+    // the room opens on who the save is wearing — the lock law's anchor
+    this.wardrobe.open(this.state.starterId);
+  }
+
+  /** A tile was tapped. The pure verdict (wardrobeDecision) decides: the
+   *  same look closes the question; a different one can only be worn by
+   *  starting over — the confirm strip asks before anything moves. */
+  private wardrobeSwitchRequest(id: string): void {
+    const decision = wardrobeDecision(this.state.starterId, id);
+    if (decision.action === 'close') this.wardrobe.showAlreadyWearing();
+    else this.wardrobe.showConfirm(decision.starterId);
+  }
+
+  /** "Start over" confirmed: the save is wiped and rewritten factory-fresh
+   *  with the new face pinned (newGameSave), then the page reboots — the
+   *  boot law dresses the new starter and the story begins at the bus. */
+  private beginNewGameAs(id: string): void {
+    const st = starterById(id);
+    wipeSave();
+    writeSave(newGameSave(st.id));
+    this.wardrobe.close();
+    location.reload();
+  }
+
+  setCameraPreset(mode: 'cozy' | 'street' | 'vista' | 'topdown'): void {
+    if (mode === 'cozy') {
+      (this.cam as any).pitchOffset = 0;
+      (this.cam as any).userDistMultiplier = 1.0;
+    } else if (mode === 'street') {
+      (this.cam as any).pitchOffset = -0.15;
+      (this.cam as any).userDistMultiplier = 0.75;
+    } else if (mode === 'vista') {
+      (this.cam as any).pitchOffset = 0.22;
+      (this.cam as any).userDistMultiplier = 1.35;
+    } else if (mode === 'topdown') {
+      (this.cam as any).pitchOffset = 0.42;
+      (this.cam as any).userDistMultiplier = 1.1;
+    }
+    this.cam.snapBehind(this.player.capsule);
+  }
+
+  resetCamera(): void {
+    this.cam.snapBehind(this.player.capsule);
   }
 
   /** Dee's board: deck + grip stripe + four wheels, carried diagonal across
    *  the back (model faces local +Z, so −Z is the spine side). */
   private makeSkateboardProp(): THREE.Group {
-    const g = new THREE.Group();
-    g.name = 'Starter_Board';
-    const deck = new THREE.Mesh(
-      new THREE.BoxGeometry(0.46, 0.035, 0.11),
-      new THREE.MeshLambertMaterial({ color: 0x2b2730 }),
-    );
-    deck.castShadow = true;
-    const grip = new THREE.Mesh(
-      new THREE.BoxGeometry(0.44, 0.012, 0.1),
-      new THREE.MeshLambertMaterial({ color: 0x2a9d8f }),
-    );
-    grip.position.y = 0.02;
-    g.add(deck, grip);
-    for (const [wx, wz] of [[-0.16, 0.07], [0.16, 0.07], [-0.16, -0.07], [0.16, -0.07]]) {
-      const wheel = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.024, 0.024, 0.02, 8),
-        new THREE.MeshLambertMaterial({ color: 0xece5d8 }),
-      );
-      wheel.rotation.x = Math.PI / 2;
-      wheel.position.set(wx, -0.03, wz);
-      g.add(wheel);
-    }
-    g.position.set(0.03, 1.12, -0.26); // between the shoulders, on the back
-    g.rotation.z = 0.3; // the diagonal carry
-    return g;
+    // one builder shared with the wardrobe turntable (personRig.ts)
+    return buildStarterSkateboard();
   }
 
   /** Day 4: the stranger appears at the terminal — the spot where the whole
@@ -1568,45 +2193,46 @@ export class Game {
     gameAudio.hornNote();
   }
 
+  /** The dusk law (graphics-wave retarget): the SAME story trigger, the
+   *  SAME duskStarted contract — but the transition rides the day cycle's
+   *  pinned-dusk keyframe (SKY.dusk canon verbatim) with the World's exp
+   *  approach (the shipped 6 s tween's feel, allocation-free). */
   private startDusk(): void {
     if (this.duskStarted) return;
     this.duskStarted = true;
-    const sky = this.world.skyUniforms;
-    const t = this.tweens;
-    t.parallel(
-      t.rgb(sky.topColor, { r: 0x3e / 255, g: 0x2f / 255, b: 0x5b / 255 }, 6),
-      t.rgb(sky.horizonColor, { r: 0x6d / 255, g: 0x4c / 255, b: 0x7d / 255 }, 6),
-      t.rgb(sky.groundColor, { r: 0x6d / 255, g: 0x4c / 255, b: 0x7d / 255 }, 6),
-      t.rgb(this.world.sun.color, { r: 0xc7 / 255, g: 0x7d / 255, b: 0x8e / 255 }, 6),
-      t.num(() => this.world.sun.intensity, (v) => { this.world.sun.intensity = v; }, phys(0.35), 6),
-      t.num(() => this.world.hemi.intensity, (v) => { this.world.hemi.intensity = v; }, phys(0.45), 6),
-      t.rgb(this.world.fog.color, { r: 0x6d / 255, g: 0x4c / 255, b: 0x7d / 255 }, 6),
-    );
+    this.world.pinDayState('dusk');
   }
 
+  /** The morning law — SKY.morning canon verbatim through the day cycle's
+   *  pinned-morning keyframe. The old sun-position write is gone: the
+   *  shadow law's light direction never changed (updateSunFollow overwrote
+   *  it), and the cycle keys color/intensity, not direction. */
   private toMorningLight(): void {
-    const sky = this.world.skyUniforms;
-    sky.topColor.setHex(0x8fb8cf);
-    sky.horizonColor.setHex(0xffd9a0);
-    sky.groundColor.setHex(0xe8c9a0);
-    this.world.sun.color.setHex(PAL.amber);
-    this.world.sun.intensity = phys(1.25);
-    this.world.sun.position.set(-32, 31, 23); // rotation (-38, -55) in the reference
-    this.world.hemi.intensity = phys(0.85);
-    this.world.fog.color.setHex(0xffd9a0);
+    this.world.pinDayState('morning');
     this.duskStarted = false;
   }
 
   private reachTop(): void {
     const s = this.state;
+    const wk = s.step === Step.WK_CLIMB;
     const day4 = s.step === Step.D4_CLIMB4;
     const day3 = s.step === Step.D3_CLIMB3;
     const day2 = s.step === Step.D2_CLIMB2;
-    s.setStep(day4 ? Step.D4_POSTCARD : (day3 ? Step.D3_POSTCARD : (day2 ? Step.D2_POSTCARD : Step.POSTCARD)));
+    // F3 rides the dusk (doc 06 §C2 diary developments — the M121's
+    // window, the loop home: day 147's climb IS the ride; once, the
+    // wobble style). BEFORE the step's own transition — the fragment's
+    // law reads the climb step. F2 rides the same law one chapter later
+    // (doc 06 §C3 event 1 — the visiting-room window's afterglow: day
+    // 309's climb, the shop's window from the fire escape).
+    for (const e of s.c2F3AtDusk()) this.applyEffect(e);
+    for (const e of s.c3F2AtGlass()) this.applyEffect(e);
+    s.setStep(wk ? Step.WK_POSTCARD : (day4 ? Step.D4_POSTCARD : (day3 ? Step.D3_POSTCARD : (day2 ? Step.D2_POSTCARD : Step.POSTCARD))));
     this.ui.setObjective('');
     this.startDusk();
     this.player.frozen = true;
-    this.ui.showNote(day4
+    this.ui.showNote(wk
+      ? (c3StationOf(s.day)?.climbNote ?? c2StationOf(s.day)?.climbNote ?? c1StationOf(s.day)?.climbNote ?? C0_WEEK_CLIMB_NOTE)
+      : day4
       ? D4_CLIMB_NOTE
       : day3
       ? D3_CLIMB_NOTE
@@ -1636,13 +2262,14 @@ export class Game {
     // §26:00–30:00): the window flickers, holds gold — and ROSA SAYS WHY.
     // The kid's cold cup connects to the window; the send-off plants
     // tomorrow's usual. The emotional payoff is authored, never UI.
-    const day1 = !day4 && !day3 && !day2;
+    const day1 = !wk && !day4 && !day3 && !day2;
     t.sequence(
       glide,
       t.wait(1.0),
       t.call(() => {
         this.lightGoldWindow();
-        if (day4) { this.goldenBeat4(); gameAudio.bell(); }
+        if (wk) { this.goldenBeatWeek(); gameAudio.bell(); }
+        else if (day4) { this.goldenBeat4(); gameAudio.bell(); }
         else if (day3) this.goldenBeat3();
         else if (day2) this.kidDuskWave();
         else {
@@ -1694,6 +2321,49 @@ export class Game {
       }
     }
     this.ui.showNote(D3_GOLDEN_NOTE);
+  }
+
+  /** The stabilized week's golden beat (doc 11 §7 — the wind-down): all
+   *  four windows relight and hold (Rosa counted them twice on Day 4 —
+   *  "Four windows now. FOUR." — the week's count is the block's own),
+   *  and the kid, down on his stool, waves without looking up. */
+  private goldenBeatWeek(): void {
+    const t = this.tweens;
+    const station = c3StationOf(this.state.day) ?? c2StationOf(this.state.day) ?? (this.state.isC1 ? c1StationOf(this.state.day) : undefined);
+    // the nor'easter's dark wind-down (doc 06 §C1 event 5): the storm
+    // owns the glass — the windows stay dark, the candles are the light,
+    // and the station's own note says so. No lighting tweens, no bell —
+    // the room holds by candlelight.
+    if (station?.storm) {
+      this.ui.showNote(station.goldenNote);
+      return;
+    }
+    const light = (mat: THREE.MeshLambertMaterial, hold: number) => {
+      const flick: ReturnType<Tweens['num']>[] = [];
+      for (const e of [1.4, 0.2, 2.4, 0.0, hold]) {
+        flick.push(t.num(() => mat.emissiveIntensity, (v) => { mat.emissiveIntensity = v; }, e, 0.15, (x) => x));
+      }
+      t.sequence(...flick);
+    };
+    light(this.world.secondWindowMat, 2.6);
+    light(this.world.thirdWindowMat, 2.9);
+    light(this.world.fourthWindowMat, 3.2);
+    if (this.world.kidGround.visible) {
+      const rig = this.world.kidGround.userData.rig as PersonRig | undefined;
+      if (rig) {
+        rig.mode = 'wave';
+        t.sequence(
+          t.num(() => rig.armR.rotation.x, (v) => { rig.armR.rotation.x = v; }, -2.6, 0.3),
+          t.num(() => rig.armR.rotation.z, (v) => { rig.armR.rotation.z = v; }, 0.5, 0.25),
+          t.num(() => rig.armR.rotation.z, (v) => { rig.armR.rotation.z = v; }, -0.3, 0.5),
+          t.call(() => {
+            rig.armR.rotation.x = -0.38; rig.armR.rotation.z = -0.14;
+            rig.mode = this.state.kidAtCorner ? 'sit' : 'auto';
+          }),
+        );
+      }
+    }
+    this.ui.showNote(station ? station.goldenNote : C0_WEEK_GOLDEN_NOTE);
   }
 
   /** Day 4's golden-hour payoff: the lamp next door — the one that flickered
@@ -1781,7 +2451,7 @@ export class Game {
     this.lastPostcardKind = 'day';
     this.lastPostcardTag = undefined;
     if (s.day > 1) s.dayComplete = true;
-    s.setStep(s.day >= 4 ? Step.D4_POSTCARD : (s.day === 3 ? Step.D3_POSTCARD : (s.day > 1 ? Step.D2_POSTCARD : Step.DONE)));
+    s.setStep(s.day >= 5 ? Step.WK_POSTCARD : (s.day >= 4 ? Step.D4_POSTCARD : (s.day === 3 ? Step.D3_POSTCARD : (s.day > 1 ? Step.D2_POSTCARD : Step.DONE))));
     this.ui.setObjective('');
 
     let url: string;
@@ -1790,9 +2460,17 @@ export class Game {
       const capCam = new THREE.PerspectiveCamera(55, 768 / 1160, 0.1, 400);
       capCam.position.set(this.rigPos.x, this.rigPos.y, this.rigPos.z);
       capCam.lookAt(this.rigLook.x, this.rigLook.y, this.rigLook.z);
+      // v1.54.0: the authored rig's look-at IS the subject — the capture's
+      // focal plane rides it (the DOF chapter, authored poses only:
+      // docs/rendering/05). ?fx=off / ?dof=0 never pass it (the resolver).
+      const dof = this.gfx.postcardDof
+        ? { focus: focusDistance(capCam.position.x, capCam.position.y, capCam.position.z,
+            this.rigLook.x, this.rigLook.y, this.rigLook.z) }
+        : undefined;
       const result = capturePostcard(
         this.renderer, this.world.scene, capCam, caption, s.cartName || 'First Slice', s.day,
         'october', // days 1–4 are one golden October week — the stamp knows it
+        { dof, exclude: this.world.aoExclude },
       );
       url = result.dataUrl;
       this.lastPostcardUrl = url;
@@ -1831,16 +2509,27 @@ export class Game {
     this.lastPostcardKind = 'wow';
     this.lastPostcardTag = 'THE SQUARE';
     const capCam = new THREE.PerspectiveCamera(55, 768 / 1160, 0.1, 400);
-    // the arrival view, held: from mid-plaza the stacked south tower fills
-    // the portrait frame — screens top-two-thirds, warm plaza below (the
-    // first pose hugged the facade; the vista lives one block back)
-    capCam.position.set(-326, 1.9, 10.5);
-    capCam.lookAt(-326, 13.5, -7.9); // the stacked south screens straight-on — the tower, warm, owns the frame
+    // the arrival view, held: from the square's mid-north the stacked south
+    // tower fills the portrait frame — screens in the top two-thirds, the
+    // warm plaza (stair, benches, walkers) below. v1.54.0 re-pose: the
+    // shipped spot (z 10.5, look y 13.5) tilted up 32°, so the plaza was
+    // mathematically out of frame (the bottom edge ray stayed above the
+    // horizon) and the card read as a flat facade close-up — found by this
+    // wave's capture evidence, candidates judged in-engine
+    // (scripts/diag-wow-pose.mjs, docs/rendering/05 §6).
+    capCam.position.set(-326, 2.4, 20);
+    capCam.lookAt(-326, 8.0, -7.9); // the stacked south screens straight-on — the tower, warm, owns the frame
+    const wowLook = { x: -326, y: 8.0, z: -7.9 };
+    const dof = this.gfx.postcardDof
+      ? { focus: focusDistance(capCam.position.x, capCam.position.y, capCam.position.z,
+          wowLook.x, wowLook.y, wowLook.z) }
+      : undefined;
     try {
       const result = capturePostcard(
         this.renderer, this.world.scene, capCam, caption,
         s.cartName || 'First Slice', s.day,
         'october', // days 1–4 are one golden October week — the stamp knows it
+        { dof, exclude: this.world.aoExclude },
       );
       this.lastPostcardUrl = result.dataUrl;
       this.wowPostcard = true;
@@ -1886,6 +2575,9 @@ export class Game {
       : kind === 'fold' ? MOMENT_FOLD_CAPTION
       : momentCornerCaption(cartName);
     const capCam = new THREE.PerspectiveCamera(55, 768 / 1160, 0.1, 400);
+    // each authored pose names its subject with the look-at — the DOF focal
+    // plane rides it (docs/rendering/05)
+    let look = { x: 0, y: 0, z: 0 };
     if (kind === 'towers') {
       // up-west from the escape's height: the tank clears the south
       // roofline against the dusk sky (the corner's own first clear view).
@@ -1893,12 +2585,15 @@ export class Game {
       // parked the near red roof as a dead wedge in the lower frame; from
       // here the roof reads as a roof, and the street below (the fire
       // escapes, the trees) joins the vista — a view, not a wall.
+      // The DOF focal plane rides the look-at (the remote line's law).
       capCam.position.set(7, 16.4, -3.5);
       capCam.lookAt(-14, 17.2, -12.5);
+      look = { x: -14, y: 17.2, z: -12.5 };
     } else if (kind === 'corner') {
       // across the corner from the cart — the frame the name now owns
       capCam.position.set(0.6, 1.8, -2.0);
       capCam.lookAt(4, 1.2, -6.6);
+      look = { x: 4, y: 1.2, z: -6.6 };
     } else {
       // inside Rosa's: the fold frames the counter from the aisle (the top
       // runs diagonally to the door light); the rush frames the storefront
@@ -1911,18 +2606,25 @@ export class Game {
         // Stance stepped 0.7 m left (docs/59): the doorway sits centered in
         // the card now, the right pier slims down, and the van under the
         // tree reads as the street waiting — not as clutter parked in the
-        // aperture's corner.
+        // aperture's corner. The DOF focal plane rides the look-at.
         capCam.position.set(-16.7, 1.7, 14.2);
         capCam.lookAt(-17.0, 1.45, 8.4);
+        look = { x: -17.0, y: 1.45, z: 8.4 };
       } else {
         capCam.position.set(-12.6, 2.0, 5.0);
         capCam.lookAt(-17.4, 2.1, 8.4);
+        look = { x: -17.4, y: 2.1, z: 8.4 };
       }
     }
+    const dof = this.gfx.postcardDof
+      ? { focus: focusDistance(capCam.position.x, capCam.position.y, capCam.position.z,
+          look.x, look.y, look.z) }
+      : undefined;
     try {
       const result = capturePostcard(
         this.renderer, this.world.scene, capCam, caption,
         cartName, s.day, 'october',
+        { dof, exclude: this.world.aoExclude },
       );
       const id = entryId(s.day, 'wow', caption);
       this.sessionFull.set(id, result.dataUrl); // this session re-prints full-size
@@ -2123,9 +2825,10 @@ export class Game {
       bubble.position.set(0, 2.35, 0);
       g.add(bubble);
     }
-    const queue = s.step === Step.D4_RUSH ? D4_ORDERS : D3_ORDERS;
+    const week = s.step === Step.WK_RUSH;
+    const queue = week ? C0_WEEK_ORDERS : (s.step === Step.D4_RUSH ? D4_ORDERS : D3_ORDERS);
     const order = queue[s.rushIndex];
-    if ((s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) && order) {
+    if ((s.step === Step.D3_RUSH || s.step === Step.D4_RUSH || s.step === Step.WK_RUSH) && order) {
       const bubble = this.world.makeOrderBubble(order.bubble);
       bubble.position.set(0, 2.35, 0);
       g.add(bubble);
@@ -2357,6 +3060,9 @@ export class Game {
 
     s.day = n;
     this.world.setWorldDay(n); // the sync beat is day-keyed (docs/50)
+    // WP-6: the dateline follows the calendar day through the one mapping
+    // (sim/epochMap) — a new morning is a new date, rendered, never guessed
+    this.ui.setDateline(datelineOfStoryDay(n));
     s.onDay2 = n >= 2;
     s.dayComplete = false;
     s.elapsed = 0;
@@ -2406,6 +3112,11 @@ export class Game {
       s.cartName = sd.cart_name;
       if (isStarterId(sd.starter)) s.starterId = sd.starter!;
       s.money = sd.money;
+      // WP-4: the ledger catches up to the story's truth here — the story
+      // save owns the player's money; a world write that failed (storage
+      // full) leaves a lag the bridge repairs as a traceable transaction
+      // (no drift → no post, no noise).
+      this.moneyBridge.reconcile(s.money * 100);
       s.awningUp = sd.awning;
       s.kidKept = sd.kid_kept;
       s.stoolUp = sd.stool ?? false;
@@ -2427,6 +3138,37 @@ export class Game {
       s.trims = sd.trims ?? 0;
       s.washes = sd.washes ?? 0;
       s.hoopMakes = sd.hoop_makes ?? 0;
+      // the diary watermark rides the same migration law (absence = owes
+      // no notes); a mid-day resume re-reads it before the drain below
+      s.diaryNoted = sd.diary_noted ?? {};
+      // the in-game calendar + the field diary ride the same law
+      // (narrative/14 R3+R4): post-parse both fields are always
+      // materialized, so a resume is exact — the calendar lands on the
+      // saved day, the diary on its saved entries (already
+      // quarantine-cleaned in parseSave); absence in a hand-built snapshot
+      // reads as an empty diary (the migration law)
+      s.fieldDiary = sd.field_diary ?? [];
+      // the spine's state rides the same v1-safe law (R1/R2/R8 — the
+      // fields are post-parse materialized in Save; absence reads as a
+      // fresh arrival with an empty ledger, so an old save wakes up and
+      // the rails simply fire now — the spine is never skipped, only
+      // waited for)
+      s.chapter = sd.chapter ?? freshChapterState();
+      s.rails = sd.rails ?? freshRailStates();
+      s.ledger = sd.ledger ?? [];
+      // the §7-step-7 machines ride the same v1-safe law (R9–R12):
+      // identity absent = Leo Marsh (doc 02 §1); fluency absent = the
+      // bottom rung, then healed to its chapter's floor; the send reads
+      // once; the latch reads once
+      s.playerIdentity = sd.player_name ? sanitizeIdentity(sd.player_name) : { ...DEFAULT_IDENTITY };
+      if (sd.fluency && isFluencyTier(sd.fluency.tier)) {
+        s.fluency = { tier: sd.fluency.tier, sinceDay: sd.fluency.since_day };
+      } else {
+        s.fluency = freshFluency();
+      }
+      s.healFluencyFloor();
+      s.sentPostcardDay = sd.sent_postcard?.day ?? null;
+      s.resourceNoteOffered = sd.resource_note_offered ?? false;
     }
     // sd === null (a rail "Tomorrow"): the live state carries the wallet, the
     // name, the awning — and the STOOL. The stool is bought, the Map is
@@ -2436,6 +3178,11 @@ export class Game {
     // day-start money snapshot (Doc 22's "$112 → $111" math; the reference
     // never updates day_start_money on Day 2 — fixed here as intended behavior).
     s.dayStartMoney = (sd !== null && sd.day_start_money !== undefined) ? sd.day_start_money : s.money;
+    // the calendar advances with the story day (narrative/14 R4). A save
+    // resume lands on the saved day; the rail's "Tomorrow" (sd === null)
+    // walks one day forward, and a replayed day never double-advances
+    // (max() — the same morning twice is one morning to the calendar).
+    s.calendarDay = sd !== null ? (sd.calendar_day ?? n) : Math.max(s.calendarDay, n);
     // day-3/4 morning state resets fresh each begin (mid-day saves resume at the morning)
     s.rushIndex = 0;
     s.brewing = false;
@@ -2470,6 +3217,7 @@ export class Game {
     this.resetFamiliar(n);
     this.world.setFlyerText(s.cartName || 'YOUR CORNER'); // the flyer learns your name
     this.toMorningLight();
+    this.worldSim.onStoryDayBegin(n); // the world clock may fast-forward to the story's morning (one-way)
     if (n >= 4) this.placeDay4Cast();
     else if (n === 3) this.placeDay3Cast();
     else this.placeDay2Cast();
@@ -2484,7 +3232,41 @@ export class Game {
     this.world.fourthWindowMat.emissiveIntensity = 0;
     if (s.kidKept && n < 4) this.showKid(); // in the glass until Day 4 — down here, he lives at the corner
 
-    if (n >= 4) {
+    const station = c3StationOf(n) ?? c2StationOf(n) ?? (n >= C1_FIRST_DAY ? c1StationOf(n) : undefined);
+    if (station) {
+      // C1's/C2's stations (narrative/14 §7 steps 8–9 — doc 06 §C1/§C2):
+      // the same stabilized loop, the season's own voice. The compressions
+      // jumped the counters WHOLE (the 1:1 law — story day, sim day,
+      // calendar day), so the dateline set above already reads the
+      // station's canon date, and the world's fast-forward lands on the
+      // same morning.
+      if (s.stoolUp) {
+        this.sitKid();
+        s.kidDown = true;
+        s.kidAtCorner = true;
+      }
+      s.setStep(Step.WK_WAKE);
+      this.ui.setObjective(s.objectiveText());
+      this.ui.setBeatMarker(s.beatPlaceId());
+      this.ui.showNote(station.begin);
+    } else if (n >= 5) {
+      // the stabilized week (doc 11 §2 beat 11 + §7 — the C0 pack's
+      // tranche 3): the same morning shape as Day 4 — the kid takes his
+      // stool, Rosa holds the wake beat, then the loop runs open → rush →
+      // roam → wind-down → postcard until the season cut closes the week.
+      if (s.stoolUp) {
+        this.sitKid();
+        s.kidDown = true;
+        s.kidAtCorner = true;
+      }
+      s.setStep(Step.WK_WAKE);
+      this.ui.setObjective(s.objectiveText());
+      this.ui.setBeatMarker(s.beatPlaceId());
+      // FS-QA2-001: the C0 week's day-keyed notes belong to days 5–7 only;
+      // the machine's plain mornings (post-C0 no-station days) speak the
+      // plain note — never "Day 7" again (tests/plain-mornings.test.ts).
+      this.ui.showNote(morningBeginNoteFor(n));
+    } else if (n >= 4) {
       // the kid LIVES at the corner now — he takes his stool at sunrise
       if (s.stoolUp) {
         this.sitKid();
@@ -2516,6 +3298,14 @@ export class Game {
     // day-start snapshot — this is what a restart (R) or a quit comes back to
     this.persist();
     for (const e of s.advanceDay2()) this.applyEffect(e);
+
+    // the spine walks the new morning (R1 + R8 — the C0 pack): the rails
+    // evaluate against the calendar day (fire-once), then the city's
+    // diary gets its one line — a rail's canon line outranks the ambient
+    // note, and the roam watermark only moves when its note is the one
+    // that speaks (renderMorningWhisper's law).
+    this.runSpineWalk();
+    this.renderMorningWhisper();
 
     this.ui.showTitle(`DAY ${n}`);
     await this.ui.fadeIn(900);
@@ -2582,12 +3372,85 @@ export class Game {
   persist(): void {
     const snap = this.state.snapshotForSave();
     if (snap !== null) writeSave(snap);
+    this.worldSim.onStoryPersist(); // the world save rides the same beats
+  }
+
+  /** The world runtime's clock-keyed presentation flips (roam/scenario
+   *  only — story days keep their authored dusk triggers). Both shipped
+   *  paths are idempotent, and the M4 street plan follows the flag. */
+  applySimPhase(dusk: boolean): void {
+    if (dusk) this.startDusk();
+    else if (this.duskStarted) this.toMorningLight();
+  }
+
+  /** The roam/scenario clock band → day cycle (the graphics wave): each
+   *  phase change pins that band's keyframe — the lighting rides the
+   *  authored states band to band (the shipped, certified look). Story
+   *  mode never calls this — its beats pin explicit keyframes. */
+  setClockPhase(phase: string): void {
+    const kf = phaseToKeyframe(phase);
+    this.world.pinDayState(kf);
+    this.duskStarted = kf === 'dusk' || kf === 'night';
+  }
+
+  /** The validation/probe affordance (?tod drives this at boot): pin the
+   *  day cycle to an explicit clock minute, frozen there. */
+  setClockTime(minuteOfDay: number, freezeTod = true): void {
+    if (freezeTod) this.todOverride = ((Math.round(minuteOfDay) % 1440) + 1440) % 1440;
+    this.world.setClockMinute(minuteOfDay);
+    this.duskStarted = false;
+  }
+
+  /** The quality knob (probe/quality menu): apply a tier at runtime —
+   *  rebuilds the pass chain when AO/bloom presence changes. */
+  applyGfxTier(tier: 'low' | 'medium' | 'high' | 'ultra'): void {
+    const params = new URLSearchParams(location.search);
+    params.set('gfx', tier);
+    const next = resolveGfxConfig(params, null);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, next.pixelRatioCap));
+    this.onResize();
+    if (next.composer && this.pipeline) {
+      this.pipeline.applyConfig(next);
+    } else if (next.composer && !this.pipeline) {
+      this.pipeline = new PostPipeline(this.renderer,
+        { scene: this.world.scene, camera: this.cam.camera }, next,
+        [...this.world.aoExclude]);
+      this.pipeline.setSize(window.innerWidth, window.innerHeight);
+    } else if (!next.composer && this.pipeline) {
+      this.pipeline.dispose();
+      this.pipeline = null;
+    }
+    Object.assign(this.gfx, next); // tier + flags + cap, one live shape
+    this.world.setFenestraTier(tier); // the windows' LOD bands follow the tier
+  }
+
+  /** The dusk flag, for the scenario/probe harnesses (the sim's D-2 flip
+   *  is proven by the SAME flag the story's dusk law drives). */
+  get worldDuskStarted(): boolean {
+    return this.duskStarted;
+  }
+
+  /** A sim hello (the R6 door's input side, doc 09 §4.3). The lines are
+   *  mechanics prose — one beat of acknowledgement — and belong to the
+   *  Narrative Director to replace with real ones. */
+  worldSimHello(npcId: string): Effect[] {
+    const names: Record<string, string> = {
+      'npc:idris_warsame': 'Mr. Idris',
+      'npc:rosa_delgado': 'Rosa',
+    };
+    const name = names[npcId] ?? 'They';
+    const lines = [
+      `${name} stops to say hello.`,
+      `${name} nods — whatever it was, it can wait a minute.`,
+    ];
+    return this.worldSim.hello(npcId, lines[(Math.max(1, this.state.day) - 1) % lines.length]);
   }
 
   // ------------------------------------------------------------------ misc
 
   private onResize(): void {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.pipeline?.setSize(window.innerWidth, window.innerHeight);
     this.cam.updateFov(window.innerWidth / window.innerHeight);
   }
 

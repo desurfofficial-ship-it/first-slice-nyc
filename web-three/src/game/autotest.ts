@@ -12,6 +12,7 @@
 
 import { Step } from '../core/GameState';
 import { loadSave, wipeSave } from '../core/Save';
+import { isDriverAuthorizedNow } from './driverGate';
 import type { Game } from './Game';
 
 interface AutotestReport {
@@ -29,6 +30,14 @@ declare global {
 }
 
 export function runAutotest(game: Game): void {
+  // R1 (FS-AUDIT-001) — defense in depth: the URL dispatch in Game.ts is
+  // gated, and the driver ITSELF re-checks the same authorization before
+  // touching anything. No path reaches the destructive operations without
+  // the dev build flag or the harness's session-storage handshake.
+  if (!isDriverAuthorizedNow()) {
+    console.warn('[driver] runAutotest refused — debug drivers are gated in production builds (game/driverGate.ts)');
+    return;
+  }
   const report: AutotestReport = { lines: [], failures: [], done: false, startedAt: Date.now() };
   window.__AUTOTEST__ = report;
   const log = document.createElement('pre');
@@ -469,6 +478,10 @@ export function runAutotest(game: Game): void {
       // its 700 ms fade ends, and a Day-2 resume would race this check and
       // run the whole suite against a replay session (money $111, every
       // interaction "dead").
+      // R1: wipeSave() rides the ACTIVE key — inside an authorized driver
+      // session that is the driver sandbox key
+      // (first_slice_save_v1_driver), so this can only ever reset the
+      // driver's own world, never a real player save.
       wipeSave();
       if (game.bootedFromDay >= 2) location.reload();
 
@@ -1113,12 +1126,22 @@ export function runAutotest(game: Game): void {
       await walkTo(12.5, -6.8, 8);
       await interact();
       check(s.lingerStage === 2, 'rail: Rosa\u2019s goodnight (day 4)' + snap());
-      await interact();
-      await waitMs(500);
-      check(s.day === 4 && !dbg.dayFading(), 'day 5 does not begin \u2014 the wall holds, honestly');
+      // the day-4 snapshot BEFORE the roll (the postcard's persist wrote
+      // day_complete; the next press is tomorrow and writes day 5's)
       const save4 = loadSave();
       check(save4.day === 4 && save4.day_complete === true && save4.stool === true && save4.map_given === true && save4.permit === true && save4.money === 123,
         `save holds day 4 complete: $${save4.money}, map=${save4.map_given}, permit=${save4.permit}, stool=${save4.stool}`);
+      await interact();
+      await waitMs(500);
+      // the wall moved (the C0 pack's tranche 3 — doc 11 §7): day 4's
+      // second linger-press is TOMORROW now. The week's morning begins
+      // — the stabilized loop's open, the same shape day 5 has always
+      // been authored to have.
+      {
+        const t0 = performance.now();
+        while (performance.now() - t0 < budget(15000) && !(s.day === 5 && s.step === Step.WK_WAKE)) await nextFrame();
+      }
+      check(s.day === 5 && s.step === Step.WK_WAKE, 'day 5 begins \u2014 the week\u2019s stabilized loop opens (the seasons run to the open endgame\u2019s turn, Dec 1, Y4 \u2014 MAX_DAY = 1179)' + snap());
     } catch (err) {
       check(false, `driver exception: ${(err as Error).message}`);
       console.error(err);

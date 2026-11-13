@@ -1,0 +1,61 @@
+================================================================
+FIRST SLICE — R2 RECONCILIATION BATTERY @ origin/main 62a6244
+================================================================
+
+===== R1. STORY SAVE (core/Save.ts @62a6244) — FS-AUDIT-004 still present? =====
+[R1.1 day-99999] expect=clamped to 4 (unchanged) | observed: 4
+[R1.2 money-1e15] expect=ACCEPTED — FS-AUDIT-004 stands | observed: 1000000000000000
+[R1.3 money-str-1e15] expect=ACCEPTED — FS-AUDIT-004 stands | observed: 1000000000000000
+[R1.4 cart_name-1MB] expect=ACCEPTED len=1000000 — FS-AUDIT-004 stands | observed: len=1000000
+[R1.5 calendar_day-1e15] expect=clamped 36500 (clamp intact) | observed: 36500
+[R1.6 proto-pollution] expect=still neutralized (A22 regression check) | observed: polluted=NO money=100
+
+===== R2. WORLD SAVE (sim/state.ts @62a6244) — FS-AUDIT-002 still present? =====
+[R2.1 missing-ledger] expect=THROWS (finding stands) | observed: THREW TypeError: Cannot read properties of undefined (reading 'txns')
+[R2.2 missing-clock] expect=THROWS (finding stands) | observed: THREW TypeError: Cannot read properties of undefined (reading 'day')
+[R2.3 missing-player] expect=THROWS (finding stands) | observed: THREW TypeError: Cannot read properties of undefined (reading 'moneyCents')
+[R2.4 relationships-5] expect=THROWS (finding stands) | observed: THREW TypeError: doc.relationships.map is not a function
+[R2.5 ledger.txns-5] expect=THROWS (finding stands) | observed: THREW TypeError: doc.ledger.txns is not iterable
+[R2.6 wrong-magic] expect=fresh (validated refusal intact, B8) | observed: source=fresh
+[R2.7 future-version-99] expect=fresh (validated refusal intact, B9) | observed: source=fresh
+[R2.8 valid-minimal] expect=restored (B1 regression check) | observed: source=restored notes=0 day=1 money=8700
+
+===== R3. ECONOMIC RE-DERIVATION (sim/state.ts @62a6244) — FS-AUDIT-003 still present? =====
+[R3.1 money-1e12] expect=restored, ZERO notes (finding stands, B11) | observed: source=restored money=1000000000000 notes=[] notesLen=0
+
+===== R4. CLOCK (sim/clock.ts @62a6244) — FS-AUDIT-005 still present? =====
+[R4.1 world-save-day-1e15] expect=accepted (B12: no clamp) | observed: source=restored day=1000000000000000
+[R4.2 GameClock-day-1e15] expect=accepted unclamped (C3: finding stands) | observed: 1000000000000000
+[R4.3] calendarOf(1e7) in 0.43ms (linear growth unchanged, C1)
+[R4.4 weekday-huge-clock] expect=O(1) modulo — no hang on boot (C4) | observed: Sun
+
+===== R5. NEW SURFACE: sim/epochMap.ts (WP-2v @62a6244) — validation front door =====
+[R5.1 simTickOfStoryDay(1)] expect=460 (the 7:40 platform) | observed: 460
+[R5.2 simTickOfStoryDay(4)] expect=4780 | observed: 4780
+[R5.3 datelineOfStoryDay(1)] expect=canon string (print) | observed: September 9 · Year 1
+[R5.4 datelineOfStoryDay(1e15)] expect=THROWS (strict front door) | observed: THREW Error: epochMap: story day is past the calendar's ceiling (36500), got 1000000000000000
+[R5.5 simTickOfStoryDay(0)] expect=THROWS | observed: THREW Error: epochMap: story day starts at 1 (the arrival), got 0
+[R5.6 simTickOfStoryDay(NaN)] expect=THROWS | observed: THREW Error: epochMap: story day must be a finite integer, got NaN
+[R5.7 simTickOfStoryDay(1.5)] expect=THROWS (fraction) | observed: THREW Error: epochMap: story day must be a finite integer, got 1.5
+[R5.8 simTickOfStoryDay(36501)] expect=THROWS (past ceiling) | observed: THREW Error: epochMap: story day is past the calendar's ceiling (36500), got 36501
+[R5.9 epochAgreement()] expect=agreed=true (epochs consistent) | observed: agreed=true issues=0
+[R5.10 calendarDayForStoryDay(2, 1e15)] expect=clamped 36500 | observed: 36500
+[R5.11 calendarDayForStoryDay(2, NaN)] expect=junk → story day 2 (tolerant read law) | observed: 2
+
+===== R6. ALBUM (postcard/Album.ts @62a6244, imported in-place) — FS-AUDIT-006 still present? =====
+[R6.1 javascript-thumb] expect=rejected (D2 regression check) | observed: 0
+[R6.2 svg-thumb] expect=ACCEPTED (D3: finding stands) | observed: 1
+[R6.3 valid-png-thumb] expect=kept=1 (normal path intact) | observed: 1
+[R6.4 oversized-cartName-50] expect=rejected (Album.ts:77 cap intact) | observed: 0
+
+===== R7. WIPE SEAM (core/Save.ts @62a6244) — FS-AUDIT-001 destructive primitive =====
+[R7.1] expect=seeded save present | observed: pre-wipe {"day":4,"money":240}
+[R7.2] expect=key removed, defaults restored (finding stands) | observed: post-wipe {"day":1,"day_complete":false,"replay":false,"cart_name":"","money":87,"awning":false,"kid_kept":false,"idris_served":false,"lunch_served":0,"stool":false,"map_given":false,"permit":false,"shelf_buys":0,"dog_buys":0,"trims":0,"washes":0,"hoop_makes":0,"map_notes":[],"map_priya_lines":false,"map_slang":[],"map_places":[],"calendar_day":1,"field_diary":[]}
+
+Total R-cases executed: 35
+Modules under test: origin/main @ 62a6244cee258a243fdb308bd78daf7793c62cc5 (read-only worktree)
+Static source facts cross-checked in the same session (bash, byte-identical diffs):
+  - autotest.ts / scenario.ts / Save.ts:271-277 / clock.ts / state.ts / runtime.ts: UNCHANGED vs 7995e6e (git diff = 0 lines)
+  - Game.ts dispatch ?autotest/?scenario: STILL PRESENT at lines 469-471 / 477-480 (pause-set edit only)
+  - deploy-pages.yml: UNCHANGED (FS-AUDIT-008 stands)
+  - advanceMinutes sanity cap 14400 (sim/runtime.ts:364-371) unchanged

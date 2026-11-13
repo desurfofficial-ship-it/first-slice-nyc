@@ -31,7 +31,14 @@ const server = createServer((req, res) => {
 await new Promise((r) => server.listen(PORT, r));
 
 const browser = await chromium.launch({
-  args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox'],
+  // --disable-dev-shm-usage: this container's /dev/shm is 64 MB — the
+  // 4-day run's shared-memory surfaces outgrow it and Chromium dies
+  // silently mid-sim (caught 2026-11-08, unit 7's gate; harness-only).
+  // --no-sandbox: this container's Chromium also dies deterministically
+  // mid-sim under the default sandbox (reproduced twice at the C4 wave's
+  // gate — day 3's midday, no console output; the probe fleet needed the
+  // same flag; harness-only, 2026-11-10).
+  args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox', '--disable-dev-shm-usage', '--no-sandbox'],
 });
 // Viewport override for slow/software-GL machines: at ~5 fps the loop's dt
 // clamp (0.1 s) makes game-time run at half wall speed and the four-day
@@ -39,7 +46,21 @@ const browser = await chromium.launch({
 // clamping; the driver is viewport-agnostic. Defaults unchanged (900x700).
 const VW = Number.parseInt(process.env.E2E_W ?? '900', 10);
 const VH = Number.parseInt(process.env.E2E_H ?? '700', 10);
-const page = await browser.newPage({ viewport: { width: VW, height: VH } });
+// E2E_SCALE — the render buffer's scale (deviceScaleFactor): a slow-machine
+// affordance in the same family as fx=off and the viewport knob. The driver
+// reads STATE, not pixels; the HUD layout is CSS-px and unaffected; only
+// the WebGL buffer shrinks. Default 1 (unchanged).
+const SCALE = Number.parseFloat(process.env.E2E_SCALE ?? '1');
+const page = await browser.newPage({ viewport: { width: VW, height: VH }, deviceScaleFactor: SCALE });
+
+// R1 (FS-AUDIT-001): the production build gates the debug drivers behind a
+// session-storage handshake a URL can never carry. The harness authorizes
+// ITSELF here, before any page script runs — the documented, non-URL path
+// (game/driverGate.ts). The driver's destructive steps also ride the
+// driver sandbox keys, so the player-save keys are unreachable either way.
+// (The block was duplicated by an old two-sides merge — both copies rode
+// the tree; the redundant copy retired, the handshake is idempotent.)
+await page.addInitScript(() => sessionStorage.setItem('fs_driver_authorized', '1'));
 
 const consoleErrors = [];
 page.on('console', (msg) => {
@@ -69,7 +90,7 @@ await page.goto(`http://localhost:${PORT}/?autotest=1&fx=off${WALKLOG}`, { waitU
 // pointer-events: none) while every keyboard test stayed green. Phones had
 // no M key, so on mobile the Map was unreachable, period.
 {
-  const p = await browser.newPage({ viewport: { width: VW, height: VH } });
+  const p = await browser.newPage({ viewport: { width: VW, height: VH }, deviceScaleFactor: SCALE });
   const pointerFails = [];
   const ok = (cond, what) => {
     console.log(`${cond ? 'POINTER: PASS' : 'POINTER: FAIL'} ${what}`);

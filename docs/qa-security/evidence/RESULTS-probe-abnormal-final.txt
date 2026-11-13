@@ -1,0 +1,20 @@
+— Phase A: the impatient player (movement + interaction abuse, seeded day-4 roam) —
+PASS  A0: the built game boots clean on a seeded save (no driver auth)
+PASS  A0: HUD alive
+PASS  A1: start position finite and in-envelope — {"x":3,"y":0.09999999999999999,"z":-5.4,"rot":0}
+PASS  A2: sustained walk moves the player (>0.3 m) and stays finite — moved 4.20 m
+PASS  A3: 5 s boundary push never escapes the world envelope — {"x":12.04295539114759,"y":0.1,"z":7.649,"rot":0.7108127099400211}
+PASS  A4: 4 s corner grind — every sample finite, no per-sample tunneling — max step 1.52 m
+PASS  A5: 40×E interaction spam — no errors, money finite and within the save ceiling — money 240 → 240
+PASS  A6: interact-while-moving — no errors, position still sane
+PASS  A7: 15 s idle — the sim clock advances, the frame loop stays alive, no errors — tick +10, 90 frames (rate is recorded, not gated)
+PASS  A8: R restart reloads into a clean boot, save rules hold
+— Phase B: session abuse (rapid reload spam over a seeded save) —
+PASS  B1: 3× rapid reload spam — the story save survives (present, valid JSON, not wiped) — day 4, money 240
+PASS  B2: reload spam — zero page errors across all boots
+— Phase C: mid-boot reload spam (interrupted sessions) —
+PASS  C1: mid-boot reload spam — the save survives interrupted sessions — day 4
+PASS  C2: mid-boot spam — zero page errors
+
+ABNORMAL PROBE: 14/14 checks passed, 0 page errors expected across all phases
+ABNORMAL PROBE OK — the game survives the abnormal player: no escapes, no NaN, no wiped saves, no crashes

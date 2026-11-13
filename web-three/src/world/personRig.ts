@@ -133,12 +133,24 @@ export interface PersonRig {
   smoothSpeed: number;
   prevX: number;
   prevZ: number;
+  /** measured vertical speed → hands-over-hand cadence (climb mode) */
+  prevY: number;
+  smoothClimb: number;
   hasPrev: boolean;
   time: number;
   /** measured yaw rate → body roll (bank into turns, auto mode only) */
   bank: number;
   prevYaw: number;
   hasPrevYaw: boolean;
+  /** measured yaw rate → the head LEADS the body into a turn (auto only):
+   *  a real walker's eyes arrive at the corner before the shoulders do. */
+  headLead: number;
+  /** fall bookkeeping for the landing recovery: the distance of the fall
+   *  being accumulated (Σ|vy|·dt while airborne), and the knee-bend dip
+   *  currently decaying. Both live here so any mover — the player's jumps,
+   *  an NPC's dismount, a tween's re-stage — gets the same absorb. */
+  fallEnergy: number;
+  landDip: number;
   mode: 'auto' | 'climb' | 'sweep' | 'wave' | 'sit';
 }
 
@@ -162,11 +174,16 @@ export function attachRig(
     smoothSpeed: 0,
     prevX: group.position.x,
     prevZ: group.position.z,
+    prevY: group.position.y,
+    smoothClimb: 0,
     hasPrev: false,
     time: Math.random() * 10, // desync idle breathes across the cast
     bank: 0,
     prevYaw: group.rotation.y,
     hasPrevYaw: false,
+    headLead: 0,
+    fallEnergy: 0,
+    landDip: 0,
     mode: 'auto',
   };
   group.userData.rig = rig;
@@ -205,8 +222,16 @@ export function buildArticulatedPerson(o: PersonLook): { group: THREE.Group; rig
   const hipR = new THREE.Group(); hipR.position.set(0.11, 0.72, 0);
   for (const hip of [hipL, hipR]) {
     hip.add(mergedMesh([
+      // Main pant leg
       { geo: new THREE.BoxGeometry(0.13, 0.62, 0.16), color: o.pants, x: 0, y: -0.31, z: 0 },
+      // Rolled pant cuff hem at ankle
+      { geo: new THREE.BoxGeometry(0.145, 0.05, 0.175), color: o.pants, x: 0, y: -0.59, z: 0 },
+      // Sneaker collar / ankle wrap
+      { geo: new THREE.BoxGeometry(0.14, 0.06, 0.14), color: o.shoe ?? PAL.ink, x: 0, y: -0.61, z: 0.02 },
+      // Main sneaker base / sole (touches y = -0.72, preserving foot landing at 0)
       { geo: new THREE.BoxGeometry(0.16, 0.1, 0.28), color: o.shoe ?? PAL.ink, x: 0, y: -0.67, z: 0.03 },
+      // Sneaker front toe cap / bumper
+      { geo: new THREE.BoxGeometry(0.155, 0.07, 0.10), color: o.shoe ?? PAL.ink, x: 0, y: -0.68, z: 0.12 },
     ]));
     root.add(hip);
   }
@@ -217,15 +242,34 @@ export function buildArticulatedPerson(o: PersonLook): { group: THREE.Group; rig
   const body = new THREE.Group();
   body.position.set(0, 0.72, 0);
   const bodyParts: Array<{ geo: THREE.BufferGeometry; color: number; x: number; y: number; z: number; rz?: number }> = [
+    // Main jacket torso
     { geo: new THREE.BoxGeometry(0.5, 0.62, 0.3), color: o.jacket, x: 0, y: 0.31, z: 0 },
+    // Chunky stand-up jacket collar at neckline
+    { geo: new THREE.BoxGeometry(0.36, 0.08, 0.26), color: o.jacket, x: 0, y: 0.62, z: -0.01 },
+    // Left and right folded lapels
+    { geo: new THREE.BoxGeometry(0.11, 0.22, 0.025), color: o.jacket, x: -0.13, y: 0.45, z: 0.152, rz: 0.08 },
+    { geo: new THREE.BoxGeometry(0.11, 0.22, 0.025), color: o.jacket, x: 0.13, y: 0.45, z: 0.152, rz: -0.08 },
+    // Front zipper placket / wind flap
+    { geo: new THREE.BoxGeometry(0.045, 0.44, 0.02), color: o.jacket, x: 0, y: 0.26, z: 0.154 },
+    // Lower jacket ribbed waistband / hem
+    { geo: new THREE.BoxGeometry(0.51, 0.07, 0.31), color: o.jacket, x: 0, y: 0.035, z: 0 },
+    // Front utility welt pockets
+    { geo: new THREE.BoxGeometry(0.10, 0.09, 0.02), color: o.jacket, x: -0.15, y: 0.16, z: 0.153 },
+    { geo: new THREE.BoxGeometry(0.10, 0.09, 0.02), color: o.jacket, x: 0.15, y: 0.16, z: 0.153 },
   ];
 
   const armL = new THREE.Group(); armL.position.set(-0.325, 0.56, 0);
   const armR = new THREE.Group(); armR.position.set(0.325, 0.56, 0);
   for (const [arm, sx, rz] of [[armL, -0.325, 0.09], [armR, 0.325, -0.09]] as const) {
     arm.add(mergedMesh([
+      // Upper & forearm sleeve
       { geo: new THREE.BoxGeometry(0.11, 0.52, 0.13), color: o.jacket, x: 0, y: -0.22, z: 0, rz },
+      // Sleeve cuff band
+      { geo: new THREE.BoxGeometry(0.125, 0.05, 0.145), color: o.jacket, x: 0, y: -0.45, z: 0, rz },
+      // Hand palm
       { geo: new THREE.BoxGeometry(0.09, 0.09, 0.09), color: o.skin, x: sx * 0.06, y: -0.5, z: 0.01 },
+      // Stylized thumb wedge
+      { geo: new THREE.BoxGeometry(0.035, 0.045, 0.04), color: o.skin, x: sx * 0.16, y: -0.49, z: 0.03 },
     ]));
     body.add(arm);
   }
@@ -238,21 +282,60 @@ export function buildArticulatedPerson(o: PersonLook): { group: THREE.Group; rig
   const hairGeos: THREE.BufferGeometry[] = [
     new THREE.BoxGeometry(0.32, 0.13, 0.3).translate(0, 0.2, -0.025),
     new THREE.BoxGeometry(0.32, 0.2, 0.07).translate(0, 0.08, -0.145),
+    // Side hair volume / sideburns
+    new THREE.BoxGeometry(0.035, 0.14, 0.10).translate(-0.155, 0.06, 0.01),
+    new THREE.BoxGeometry(0.035, 0.14, 0.10).translate(0.155, 0.06, 0.01),
   ];
   if (o.style === 'bun') {
-    hairGeos.push(new THREE.SphereGeometry(0.085, 10, 8).translate(0, 0.26, -0.15));
+    // Low-poly faceted top/back bun with scrunchie band
+    hairGeos.push(new THREE.SphereGeometry(0.09, 8, 6).translate(0, 0.26, -0.15));
+    hairGeos.push(new THREE.BoxGeometry(0.13, 0.04, 0.13).translate(0, 0.22, -0.15));
   } else if (o.style === 'cap') {
-    hairGeos.push(new THREE.BoxGeometry(0.3, 0.03, 0.16).translate(0, 0.135, 0.14));
-    hairGeos.push(new THREE.BoxGeometry(0.32, 0.1, 0.31).translate(0, 0.195, -0.02));
+    // Baseball cap with shaped visor, crown, top button & back notch
+    hairGeos.push(new THREE.BoxGeometry(0.3, 0.03, 0.17).translate(0, 0.135, 0.145));
+    hairGeos.push(new THREE.BoxGeometry(0.32, 0.11, 0.31).translate(0, 0.2, -0.02));
+    hairGeos.push(new THREE.BoxGeometry(0.045, 0.02, 0.045).translate(0, 0.26, -0.02));
+    hairGeos.push(new THREE.BoxGeometry(0.12, 0.04, 0.03).translate(0, 0.145, -0.17));
+  } else {
+    // 'flat' style: front parted fringe and side layers
+    hairGeos.push(new THREE.BoxGeometry(0.26, 0.045, 0.05).translate(0.02, 0.145, 0.13));
+    hairGeos.push(new THREE.BoxGeometry(0.09, 0.035, 0.04).rotateZ(0.2).translate(-0.09, 0.14, 0.135));
   }
+
+  // Warm blush tone derived from character skin
+  const skinColor = new THREE.Color(o.skin);
+  const blushColor = skinColor.clone().offsetHSL(0.02, 0.25, -0.08).getHex();
+
   const headParts: Array<{ geo: THREE.BufferGeometry; color: number; x: number; y: number; z: number; rz?: number }> = [
+    // Chunky low-poly neck connecting head to torso
+    { geo: new THREE.BoxGeometry(0.13, 0.10, 0.13), color: o.skin, x: 0, y: -0.18, z: 0 },
+    // Head base
     { geo: new THREE.BoxGeometry(0.3, 0.32, 0.28), color: o.skin, x: 0, y: 0, z: 0 },
+    // Stylized ears
+    { geo: new THREE.BoxGeometry(0.025, 0.065, 0.05), color: o.skin, x: -0.155, y: 0.01, z: -0.01 },
+    { geo: new THREE.BoxGeometry(0.025, 0.065, 0.05), color: o.skin, x: 0.155, y: 0.01, z: -0.01 },
+    // Hair geometry
     { geo: mergeGeometries(hairGeos, false)!, color: o.hair, x: 0, y: 0, z: 0 },
+    // Eye whites
+    { geo: new THREE.BoxGeometry(0.062, 0.055, 0.015), color: 0xffffff, x: -0.072, y: 0.015, z: 0.141 },
+    { geo: new THREE.BoxGeometry(0.062, 0.055, 0.015), color: 0xffffff, x: 0.072, y: 0.015, z: 0.141 },
+    // Rich dark iris / pupils
+    { geo: new THREE.BoxGeometry(0.040, 0.042, 0.015), color: 0x1f1924, x: -0.072, y: 0.015, z: 0.143 },
+    { geo: new THREE.BoxGeometry(0.040, 0.042, 0.015), color: 0x1f1924, x: 0.072, y: 0.015, z: 0.143 },
+    // Catchlight sparkle
+    { geo: new THREE.BoxGeometry(0.015, 0.015, 0.015), color: 0xffffff, x: -0.062, y: 0.025, z: 0.145 },
+    { geo: new THREE.BoxGeometry(0.015, 0.015, 0.015), color: 0xffffff, x: 0.082, y: 0.025, z: 0.145 },
+    // Eyebrows matching hair
+    { geo: new THREE.BoxGeometry(0.060, 0.018, 0.015), color: o.hair, x: -0.072, y: 0.062, z: 0.142 },
+    { geo: new THREE.BoxGeometry(0.060, 0.018, 0.015), color: o.hair, x: 0.072, y: 0.062, z: 0.142 },
+    // Cheerful subtle blush cheeks
+    { geo: new THREE.BoxGeometry(0.050, 0.022, 0.015), color: blushColor, x: -0.095, y: -0.038, z: 0.141 },
+    { geo: new THREE.BoxGeometry(0.050, 0.022, 0.015), color: blushColor, x: 0.095, y: -0.038, z: 0.141 },
   ];
   if (o.glasses) {
     // one dark bar across the eyes — reads as glasses at iso distance,
     // costs one box, and instantly separates Idris and Sal from the crowd
-    headParts.push({ geo: new THREE.BoxGeometry(0.27, 0.05, 0.035), color: 0x1c1a20, x: 0, y: 0.04, z: 0.145 });
+    headParts.push({ geo: new THREE.BoxGeometry(0.27, 0.05, 0.035), color: 0x1c1a20, x: 0, y: 0.04, z: 0.148 });
   }
   head.add(mergedMesh(headParts));
   body.add(head);
@@ -264,12 +347,15 @@ export function buildArticulatedPerson(o: PersonLook): { group: THREE.Group; rig
   if (o.strap !== undefined) {
     // courier look: a strap that wraps the torso (front AND back — the game
     // camera spends most of its life behind the player) and the bag it holds.
-    // All three boxes ride the body group rigidly (their old position+rz
-    // tilt baked into the geometry: T·Rz composition preserved)
+    // All boxes ride the body group rigidly (T·Rz composition preserved)
     const strapGeos = [
-      new THREE.BoxGeometry(0.05, 0.82, 0.06).rotateZ(0.62).translate(0.03, 0.3, 0.165),
-      new THREE.BoxGeometry(0.05, 0.82, 0.06).rotateZ(0.62).translate(0.03, 0.3, -0.165),
-      new THREE.BoxGeometry(0.16, 0.14, 0.13).translate(-0.29, 0.0, 0.0),
+      new THREE.BoxGeometry(0.055, 0.82, 0.06).rotateZ(0.62).translate(0.03, 0.3, 0.165),
+      new THREE.BoxGeometry(0.055, 0.82, 0.06).rotateZ(0.62).translate(0.03, 0.3, -0.165),
+      new THREE.BoxGeometry(0.17, 0.15, 0.13).translate(-0.29, 0.0, 0.0),
+      // Satchel flap with subtle overhang
+      new THREE.BoxGeometry(0.18, 0.05, 0.14).translate(-0.29, 0.055, 0.0),
+      // Front strap clip/buckle accent
+      new THREE.BoxGeometry(0.07, 0.06, 0.03).rotateZ(0.62).translate(0.03, 0.28, 0.18),
     ];
     bodyParts.push({ geo: mergeGeometries(strapGeos, false)!, color: o.strap, x: 0, y: 0, z: 0 });
   }
@@ -308,17 +394,46 @@ export function updatePersonAnim(
   }
   rig.prevX = group.position.x;
   rig.prevZ = group.position.z;
+  // measured vertical speed, same law as the ground speed: the climb reads
+  // the body's own motion, not a flag. Normalized to CLIMB_SPEED (2.6 m/s)
+  // and smoothed so the grab frame doesn't kick the hands.
+  let climbSpeed = 0;
+  if (rig.hasPrev) {
+    climbSpeed = (group.position.y - rig.prevY) / Math.max(dt, 1e-4);
+  }
+  rig.prevY = group.position.y;
   rig.hasPrev = true;
 
   // smooth so one teleport frame doesn't snap the pose
   rig.smoothSpeed += (Math.min(speed, 6) - rig.smoothSpeed) * Math.min(1, dt * 10);
+  rig.smoothClimb += (Math.min(Math.abs(climbSpeed) / 2.6, 1) - rig.smoothClimb) * Math.min(1, dt * 8);
+
+  // landing recovery — the whole cast's knees (auto mode consumes it):
+  // accumulate the fall while airborne (a real fall adds real distance;
+  // a teleport's one-frame jump is capped out below), and on touching
+  // back down convert it into a knee-bend dip that decays. Stair steps
+  // (~0.2 m descents) never reach the 0.8 m threshold; a stoop hop, a
+  // ladder dismount or a missed curb do.
+  if (climbSpeed < -1.5 && climbSpeed > -14) {
+    rig.fallEnergy += -climbSpeed * dt;
+  } else if (climbSpeed > 14 || climbSpeed < -14) {
+    rig.fallEnergy = 0; // a teleport re-stage, not a fall
+  } else if (Math.abs(climbSpeed) < 0.4 && rig.fallEnergy > 0.8) {
+    rig.landDip = Math.min(0.03 + rig.fallEnergy * 0.02, 0.085);
+    rig.fallEnergy = 0;
+  }
+  rig.landDip += (0 - rig.landDip) * Math.min(1, dt * 6.5);
+
   const s = Math.min(1, rig.smoothSpeed / 3.6); // normalized effort 0..1
   const t = rig.time;
 
   if (rig.mode === 'climb') {
-    // arms reach up the rails, legs pedal slowly, body hugs the ladder
-    rig.phase += dt * 3.4;
-    const swing = Math.sin(rig.phase);
+    // arms reach up the rails, legs pedal slowly, body hugs the ladder.
+    // The cadence is the climb's own speed now (the climb-feel polish): a
+    // fixed 3.4 rad/s pedaled in mid-air whenever you paused on the rails —
+    // hands-over-hand while you move, a held reach when you hang.
+    rig.phase += dt * (0.35 + 3.1 * rig.smoothClimb);
+    const swing = Math.sin(rig.phase) * (0.55 + 0.45 * rig.smoothClimb);
     rig.armL.rotation.x = -2.75 + swing * 0.18;
     rig.armR.rotation.x = -2.75 - swing * 0.18;
     rig.armL.rotation.z = 0.12;
@@ -405,33 +520,93 @@ export function updatePersonAnim(
   rig.hipL.rotation.x = sinP * swing;
   rig.hipR.rotation.x = -sinP * swing;
 
-  // arms counter the legs at ~3/4 of the hip swing; hands breathe when parked
-  const armSwing = swing * 0.78;
+  // arms counter the legs at ~3/4 of the hip swing; hands breathe when
+  // parked. At sprint pace the swing deepens and the arms tuck slightly
+  // (a runner's elbows) — driven by the MEASURED speed, so only true
+  // sprint paces (above the 4.2 walk ceiling) ever see it.
+  const pump = Math.max(0, Math.min(1, (rig.smoothSpeed - 4.4) / 2.0));
+  const armSwing = swing * (0.78 + pump * 0.5);
   rig.armL.rotation.x = -sinP * armSwing + (1 - s) * Math.sin(t * 1.7) * 0.045;
   rig.armR.rotation.x = sinP * armSwing + (1 - s) * Math.sin(t * 1.7 + 1.3) * 0.045;
-  rig.armL.rotation.z = 0.09;
-  rig.armR.rotation.z = -0.09;
+  rig.armL.rotation.z = 0.09 + pump * 0.055;
+  rig.armR.rotation.z = -0.09 - pump * 0.055;
 
-  // bob at stride frequency, lean into the walk
-  rig.root.position.y = Math.abs(Math.sin(rig.phase)) * 0.045 * s;
-  rig.root.rotation.x = 0.07 * s;
+  // bob at stride frequency, lean into the walk (deeper athletic lean when sprinting);
+  // the landing dip rides on top — the knee-bend absorb, decaying
+  rig.root.position.y = Math.abs(Math.sin(rig.phase)) * 0.045 * s - rig.landDip;
+  const sprintLean = Math.max(0, s - 0.7) * 0.09;
+  rig.root.rotation.x = (0.07 + sprintLean) * s;
+
+  // torso / shoulder counter-rotation in the transverse plane
+  rig.body.rotation.y = -sinP * swing * 0.14;
 
   // bank into turns: measured yaw rate → a small body roll, filtered so a
-  // story-tween reface reads as a wheel-around instead of a glitch
+  // story-tween reface reads as a wheel-around instead of a glitch.
+  // The same measurement drives the HEAD LEAD: the eyes arrive at the
+  // corner before the shoulders do (look-where-you-go), smoothed so a
+  // reface teleports nothing.
   if (rig.hasPrevYaw) {
     const d = group.rotation.y - rig.prevYaw;
     const wrapped = Math.atan2(Math.sin(d), Math.cos(d));
     const yawRate = wrapped / Math.max(dt, 1e-4);
-    const target = THREE.MathUtils.clamp(-yawRate * 0.045, -0.12, 0.12) * Math.min(1, s * 2);
+    const target = THREE.MathUtils.clamp(-yawRate * 0.045, -0.14, 0.14) * Math.min(1, s * 2);
     rig.bank += (target - rig.bank) * Math.min(1, dt * 8);
+    const lead = THREE.MathUtils.clamp(yawRate * 0.10, -0.38, 0.38) * Math.min(1, s * 3);
+    rig.headLead += (lead - rig.headLead) * Math.min(1, dt * 9);
   }
   rig.prevYaw = group.rotation.y;
   rig.hasPrevYaw = true;
   rig.root.rotation.z = rig.bank;
 
   // idle life: breathe, a slow weight shift, and a layered head scan
-  // (two incommensurate sines — it never loops audibly at any cadence)
-  rig.body.rotation.x = (1 - s) * Math.sin(t * 2.1) * 0.02;
+  // (two incommensurate sines — it never loops audibly at any cadence).
+  // Moving, the head replaces the scan with the turn lead; sprinting adds
+  // a forward focus pitch — eyes on the block, not the shoes.
+  rig.body.rotation.x = (1 - s) * Math.sin(t * 2.1) * 0.02 + rig.landDip * 1.6;
   rig.body.rotation.z = (1 - s) * Math.sin(t * 0.4) * 0.016;
-  rig.head.rotation.y = (1 - s) * (Math.sin(t * 0.6) * 0.26 + Math.sin(t * 1.57) * 0.07);
+  rig.head.rotation.y = (1 - s) * (Math.sin(t * 0.6) * 0.26 + Math.sin(t * 1.57) * 0.07) + rig.headLead;
+  rig.head.rotation.x = -Math.min(0.12, Math.max(0, (rig.smoothSpeed - 4.5) * 0.055));
+}
+
+/**
+ * buildStarterSkateboard — the one non-box starter accessory (Doc 02: Dee
+ * carries her deck across the back "the way the stranger carries her
+ * duffel"). Lives here so the walker AND the wardrobe turntable wear the
+ * exact same prop — one builder, no duelling copies (the costume law:
+ * dress, don't rebuild).
+ */
+export function buildStarterSkateboard(): THREE.Group {
+  const g = new THREE.Group();
+  g.name = 'Starter_Board';
+  const deck = new THREE.Mesh(
+    new THREE.BoxGeometry(0.46, 0.035, 0.11),
+    new THREE.MeshLambertMaterial({ color: 0x2b2730 }),
+  );
+  deck.castShadow = true;
+  const grip = new THREE.Mesh(
+    new THREE.BoxGeometry(0.44, 0.012, 0.1),
+    new THREE.MeshLambertMaterial({ color: 0x2a9d8f }),
+  );
+  grip.position.y = 0.02;
+  g.add(deck, grip);
+  for (const tx of [-0.16, 0.16]) {
+    const truck = new THREE.Mesh(
+      new THREE.BoxGeometry(0.03, 0.018, 0.12),
+      new THREE.MeshLambertMaterial({ color: 0x8a8378 }),
+    );
+    truck.position.set(tx, -0.02, 0);
+    g.add(truck);
+  }
+  for (const [wx, wz] of [[-0.16, 0.07], [0.16, 0.07], [-0.16, -0.07], [0.16, -0.07]]) {
+    const wheel = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.024, 0.024, 0.02, 8),
+      new THREE.MeshLambertMaterial({ color: 0xece5d8 }),
+    );
+    wheel.rotation.x = Math.PI / 2;
+    wheel.position.set(wx, -0.03, wz);
+    g.add(wheel);
+  }
+  g.position.set(0.03, 1.12, -0.26); // between the shoulders, on the back
+  g.rotation.z = 0.3; // the diagonal carry
+  return g;
 }

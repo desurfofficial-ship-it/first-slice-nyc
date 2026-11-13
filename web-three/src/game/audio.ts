@@ -32,6 +32,9 @@ class GameAudio {
     try {
       this.muted = localStorage.getItem(MUTE_KEY) === 'true';
     } catch { /* private mode — default to audible */ }
+    // no DOM (unit tests, workers): stay import-safe and silent — every
+    // voice self-guards on ctx anyway, so nothing else needs to know
+    if (typeof window === 'undefined') return;
     // unlock on the first honest gesture — pointer or key, once
     const unlock = () => {
       window.removeEventListener('pointerdown', unlock);
@@ -413,6 +416,15 @@ class GameAudio {
 
   saxStop(): void {
     if (this.saxTimer !== null) { window.clearTimeout(this.saxTimer); this.saxTimer = null; }
+  }
+
+  /** A footstep — one soft asphalt tap per stride (the walker's own
+   *  rhythm, hooked to the rig's stride phase). strength scales with
+   *  pace: a stroll pads, a sprint slaps. */
+  step(strength = 0.4): void {
+    const s = Math.max(0.12, Math.min(1, strength));
+    this.blip({ dur: 0.045, type: 'lowpass', freq: 480, peak: 0.034 * s, attack: 0.003 });
+    this.tone(74, 0.05, 0.022 * s, 'sine', 52);
   }
 
   // ---------------- the half-court (docs/49 — the court upgrade) ----------------

@@ -8,6 +8,14 @@
  * says what you picked. The reference was silent on all three counts.
  */
 
+import type { DiaryFamily } from './diary';
+import { c1CaptionOf } from './c1pack';
+import { c2CaptionOf } from './c2pack';
+import { c4CaptionOf } from './c4pack';
+import { c5CaptionOf } from './c5pack';
+import { c6CaptionOf } from './c6pack';
+import { c3CaptionOf } from './c3pack';
+
 /** Objective line per step (main.gd `_set_step`). */
 export const OBJECTIVES: Record<number, string> = {
   0:  'Someone by the terminal is waving at you.',                       // MEET_ROSA
@@ -44,6 +52,12 @@ export const OBJECTIVES: Record<number, string> = {
   29: 'The washers are going. There\u2019s a notice by the crosswalk — the city posts things where you\u2019ll read them.', // D4_PERMIT
   30: 'Fire escape at dusk. The best seat is yours by habit now.',       // D4_CLIMB4
   31: '',                                                                // D4_POSTCARD
+  // ---- Days 5–7 — the stabilized loop (doc 11 §2 beat 11 + §7: open, rush, roam, wind-down, postcard) ----
+  33: 'Morning. Rosa’s at the cart, and the block is already talking.',  // WK_WAKE
+  34: 'The morning rush. Serve at your cart — the regulars know the words now.', // WK_RUSH
+  35: 'The afternoon is yours. The block doesn’t assign, it offers.',   // WK_ROAM
+  36: 'Fire escape at dusk. The best seat is yours by habit now.',       // WK_CLIMB
+  37: '',                                                                // WK_POSTCARD
 };
 
 export const MAP_NOTE_BOOT = 'You are here. That\u2019s enough.'; // Doc 08 note #1
@@ -56,6 +70,49 @@ export function composeCaption(s: {
   day: number; replay: boolean; dayStartMoney: number; money: number; cartName: string;
   awningUp?: boolean;
 }): string {
+  // C1's/C2's seasons (doc 06 §C1/§C2): the postcard says its own DATE —
+  // in the seasons the dates are the story (the compressions moved the
+  // calendar, and the card is the receipt). The stations' own captions;
+  // a non-station day in a season falls through to the C0 branches (a
+  // crafted save's graceful degradation, the same law beginDay applies).
+  if (s.day >= 8) {
+    const cap = c6CaptionOf(s.day) ?? c5CaptionOf(s.day) ?? c4CaptionOf(s.day) ?? c3CaptionOf(s.day) ?? c2CaptionOf(s.day) ?? c1CaptionOf(s.day);
+    if (cap) {
+      return s.replay
+        ? `Day ${s.day}, again. ${cap.replay}\n\n— ${s.cartName}, ${cap.date}`
+        : `Day ${s.day}. $${s.dayStartMoney} → $${s.money}.\n${cap.body}\n\n— ${s.cartName}, ${cap.date}`;
+    }
+  }
+  if (s.day >= 7) {
+    // Day 7's card IS the season-cut postcard (doc 11 §7: "one postcard
+    // (the fire-escape dusk)") — the week's last capture, the week kept.
+    if (s.replay) {
+      return (
+        'Day 7, again. The week is kept; the light just runs longer.\n\n' +
+        `\u2014 ${s.cartName}, Day 7`
+      );
+    }
+    return (
+      `Day 7. $${s.dayStartMoney} \u2192 $${s.money}.\n` +
+      'Kept: the week. The fire-escape dusk, one more time.\n' +
+      'Monday, the corner is a habit.\n\n' +
+      `\u2014 ${s.cartName}, Day 7`
+    );
+  }
+  if (s.day >= 5) {
+    if (s.replay) {
+      return (
+        `Day ${s.day}, again. The loop holds — that\u2019s what a loop is for.\n\n` +
+        `\u2014 ${s.cartName}, Day ${s.day}`
+      );
+    }
+    return (
+      `Day ${s.day}. $${s.dayStartMoney} \u2192 $${s.money}.\n` +
+      'The loop: open, rush, roam, wind-down, this.\n' +
+      'The block is open. Everything\u2019s available.\n\n' +
+      `\u2014 ${s.cartName}, Day ${s.day}`
+    );
+  }
   if (s.day >= 4) {
     if (s.replay) {
       return (
@@ -922,6 +979,47 @@ export const HALL_WORKSHOP_NOTES: string[] = [
  *  note adopted in W5): one quiet look out the north window, the gold one
  *  across the street answering. Day-keyed, free, no state. NOT adopted:
  *  any sleep mechanic — days end at the rail, the way the story wrote it. */
+// ---------------------------------------------------- the W6 terraces ----
+// docs/production/terrace-buildout — the terrace build-out's three prompts
+// (the stoop, the payphone, the flyer board). Same law as the block diary:
+// day-keyed, deterministic, no save fields, the notebook never blocks.
+
+export const TERRACE_STOOP_NOTES: string[] = [
+  'The stoop is warm from the afternoon. Gable\u2019s whole afternoon passes at eye level from here \u2014 dogs, strollers, the school run.',
+  'Someone chalked a hopscotch grid on the bottom step. Nobody remembers teaching the kids the numbers.',
+  'From the third riser you can see the Larkin garden\u2019s trees move. The city paid for the paving; the residents paid for everything else.',
+];
+
+export const TERRACE_PAYPHONE_NOTES: string[] = [
+  'The receiver still has a dial tone. Somebody\u2019s bill got paid four months past the last call. You let it hum.',
+  'A strip of taped numbers beside the keypad: a dentist, a locksmith, someone\u2019s cousin in Queens. The card is sun-bleached to ghost colors.',
+  'You lift the receiver and the line is quiet the way old wire is quiet. The terrace keeps one phone that works, apparently.',
+];
+
+export const TERRACE_FLYER_NOTES: string[] = [
+  'LOST: gray cat, answers to Miso \u2014 and a potluck flyer with a date two summers old. Nobody takes anything down on this board.',
+  'The guitar-lessons flyer has real tear-off tabs, all gone. Someone should print more. Someone will.',
+  'A tenant-rights workshop flyer with this month\u2019s date on it \u2014 the good kind of news. You photograph it for the fridge.',
+];
+
+// ------------------------------------------------ the W7 gate rows ----
+// docs/production/westgate-eastgate — the strips' own two loops, the same
+// one-day-slot law as the terrace's three (day-keyed, no save fields).
+// The west stoop (GRB-08, the Larkin band's west house) and the east
+// chalk-menu A-frame (MRW-03's LARKIN PROVISIONS front).
+export const WEST_STOOP_NOTES: string[] = [
+  'The Westgate stoop faces the wrong way for the view and the right way for the sun. Nobody who lives here apologizes for either.',
+  'A kid\u2019s bike lies across the bottom step, kickstand up. You move it a respectful four inches and sit anyway.',
+  'From here the terrace band reads as one long stone sentence, west to east. The end house\u2019s windows catch the last of it.',
+];
+
+export const EAST_MENU_NOTES: string[] = [
+  'The chalk menu offers a sandwich named after the avenue and a soup named after the weather. Both are $6 and neither is a joke.',
+  'Yesterday\u2019s special is half-erased under today\u2019s. The rag hangs off the A-frame like it grew there.',
+  'Someone drew a small star beside LARKIN PROVISIONS on the board and wrote \u201cthe good bread.\u201d The endorsement carries weight on this walk.',
+];
+
+
 export const CECIL_GAZE_NOTES: string[] = [
   'The gold window across the street is lit. From here, on your side of the road, it looks like the block is keeping a light on for you.',
   'The street below does its evening arithmetic \u2014 cabs, headlights, the crosswalk\u2019s white bars. Yours is the only window that counts them.',
@@ -1096,6 +1194,22 @@ export const MEMORY_LINES: Record<'shelf' | 'dog' | 'trim' | 'wash' | 'hoop', Me
   },
 };
 
+// ---------------------------------------------------- the diary (M3) ----
+// docs/architecture/05 M3 — the block remembers you TOMORROW: the morning
+// after a family crosses its diary threshold (core/diary.ts picks which;
+// Game applies it through the note queue), the city says one line about
+// yesterday's rounds. One line per family, ever — the watermark in the
+// save (`diary_noted`) keeps the morning from repeating itself. Keys must
+// match core/diary.ts's DiaryFamily. No-FOMO check: no line asks for
+// another round; being known is the whole reward.
+export const DIARY_NOTE_TEXT: Record<DiaryFamily, string> = {
+  shelf: 'Rosa front-stocked \u201Cyour row\u201D before the door chime settled this morning. Nobody asked her to.',
+  dog: 'The cart man started your order while you were still crossing the street. You hadn\u2019t decided yet.',
+  trim: 'The barber\u2019s chair is turned to face the door. Yours is the next cut he expects.',
+  wash: 'Sunrise kept the first machine open this morning. The block notices who comes back.',
+  hoop: 'Someone chalked a small tally under the court\u2019s score. It\u2019s your makes, kept.',
+};
+
 // ---------------------------------------------------- docs/50 far world ----
 // The K line, Times Square, the M121 — the first-session world's missing
 // rooms (Agent 2). Same diary law: day-keyed where it rotates, fixed where
@@ -1206,7 +1320,7 @@ export interface MapPlace {
 export const MAP_PLACES: readonly MapPlace[] = [
   { id: 'terminal', label: 'the terminal', x: -24.5, z: 7.4, kind: 'bus', born: true, tilt: -2.5 },
   { id: 'bodega', label: "Rosa's", x: -16, z: 9.4, kind: 'store', born: true, tilt: 1.8 },
-  { id: 'globe', label: 'the globe', x: -42, z: 6.2, kind: 'globe', tilt: 3 },
+  { id: 'globe', label: 'the globe', x: -47.2, z: 6.2, kind: 'globe', tilt: 3 },
   { id: 'cart', label: 'your corner', x: 4, z: -6.6, kind: 'cart', born: true, tilt: -1.5 },
   { id: 'laundry', label: 'the laundry', x: -2.25, z: 12.6, kind: 'wash', tilt: 2 },
   { id: 'slice', label: 'the slice shop', x: 25.85, z: 12.6, kind: 'slice', tilt: -2 },

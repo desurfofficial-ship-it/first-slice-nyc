@@ -44,8 +44,13 @@ import {
   BAKERY_PRICE, BAKERY_OFFER, BAKERY_BROKE, BAKERY_LINES,
   RECORD_BIN_PRICE, RECORD_BIN_OFFER, RECORD_BIN_BROKE, RECORD_BIN_LINES,
   RECORD_LISTEN_NOTES,
+  // W6 — the terraces (docs/production/terrace-buildout)
+  TERRACE_STOOP_NOTES, TERRACE_PAYPHONE_NOTES, TERRACE_FLYER_NOTES,
+  // W7 — the gate rows (docs/production/westgate-eastgate)
+  WEST_STOOP_NOTES, EAST_MENU_NOTES,
 } from '../core/content';
 import { hallNoticeForDay } from '../world/dressing';
+import { EDDIE_COVENANT, EDDIE_LINES } from '../core/c0pack';
 import { NEVER_NEAR, type Interaction, type InteractionCtx, type Vec3Like } from './interactions';
 import type { SubwaySystem } from '../world/subway';
 
@@ -91,6 +96,9 @@ export interface InteractionSources {
   shelfItem: (id: string) => Vec3Like;
   /** Live position of ambient walker i (Phase 4 — moving NPCs stay live). */
   walker?: (i: number) => Vec3Like;
+  /** A world-runtime body's live position, or NEVER_NEAR when the person
+   *  is away / the sim is story-gated (Phase-1 runtime integration). */
+  worldSimBody?: (npcId: string) => Vec3Like;
 }
 
 // ---------------------------------------------------------------- free-roam ----
@@ -105,8 +113,18 @@ const bench: Interaction = {
   pos: () => BUS_BENCH_SEAT,
   radius: 2.2,
   enabled: () => true, // the bench does not care what day it is
-  prompt: (_s, ctx) => (ctx.game.sitting ? 'Stand up' : 'Sit a while'),
+  prompt: (s, ctx) => {
+    if (s.isC3 && s.day === 390) return 'The envelope\u2019s call';
+    return ctx.game.sitting ? 'Stand up' : 'Sit a while';
+  },
   perform: (ctx) => {
+    // C3's season (doc 06 §C3 event 5's envelope, day 390, fixed date
+    // Oct 3): the bench hosts the call that asks zero questions — the
+    // beat BEFORE the sit logic (the barber's precheck pattern)
+    if (ctx.state.isC3 && ctx.state.day === 390) {
+      const beats = ctx.state.c3Ada();
+      if (beats.length > 0) return beats;
+    }
     if (ctx.game.sitting) {
       ctx.game.standUp();
       return [];
@@ -127,8 +145,17 @@ const parkBench: Interaction = {
   pos: () => PARK_BENCH_SEAT,
   radius: 2.2,
   enabled: () => true,
-  prompt: (_s, ctx) => (ctx.game.sitting ? 'Stand up' : 'Sit in the park'),
+  prompt: (s, ctx) => {
+    if (s.isC3 && s.day === 420) return 'The dominoes table';
+    return ctx.game.sitting ? 'Stand up' : 'Sit in the park';
+  },
   perform: (ctx) => {
+    // C3's season (doc 07 §4's senate scene, day 420): the park hosts
+    // the table that adopts Leo — the beat BEFORE the sit logic
+    if (ctx.state.isC3 && ctx.state.day === 420) {
+      const beats = ctx.state.c3Senate();
+      if (beats.length > 0) return beats;
+    }
     if (ctx.game.sitting) {
       ctx.game.standUp();
       return [];
@@ -286,16 +313,60 @@ const board: Interaction = {
   pos: () => ({ x: -37.6, y: 1.4, z: 7.5 }),
   // Day 3's beat is the poster itself — the board steps aside for it
   enabled: (s) => s.step !== Step.D3_POSTER,
-  prompt: () => 'Read the board',
-  perform: ({ state }) => [{ kind: 'note', text: byDay(BULLETIN_NOTES, state.day) }],
+  prompt: (s) => (s.isC1
+    ? (s.day === 29 ? 'Read the petition' : (s.day === 30 ? 'The freezer drive' : (s.day === 95 ? 'Yoli\u2019s petitions' : 'Read the board')))
+    : (s.day === 120 ? 'The mailboxes\u2019 new map' : (s.day === 188 ? 'Kev\u2019s letter' : 'Read the board'))),
+  perform: ({ state }) => {
+    // C1's paper trail rides the board (doc 06 §C1 events 6/3 + the
+    // 1994 conversation — the board is where the block's paper lives;
+    // the recontextualizations are noted in the pack)
+    if (state.isC1) {
+      const beats = [...state.c1Petition(), ...state.c1Yoli(), ...state.c1Yoli1994()];
+      if (beats.length > 0) return beats;
+    }
+    // C2's paper rides the same board (doc 06 §C2): the assemblage map
+    // in the mailboxes (day 120, with the K6 strike), Kev's denied
+    // appeal (day 188) — the block's paper is the block's pulse.
+    if (state.isC2) {
+      const beats = [...state.c2BoardMap(), ...state.c2Kev()];
+      if (beats.length > 0) return beats;
+    }
+    // C5's season (doc 06 §C5 events 4 + 7's first half, day 752): the
+    // run and the sale — the books in daylight, the corkboard's portrait.
+    if (state.isC5) {
+      const beats = state.c5Run();
+      if (beats.length > 0) return beats;
+    }
+    return [{ kind: 'note', text: byDay(BULLETIN_NOTES, state.day) }];
+  },
 };
 
 const newsbox: Interaction = {
   id: 'newsbox',
   pos: () => ({ x: -44.6, y: 0.85, z: 6.6 }),
   enabled: () => true,
-  prompt: () => 'Read the headlines',
-  perform: ({ state }) => [{ kind: 'note', text: byDay(NEWSPAPER_NOTES, state.day) }],
+  prompt: (s) => (s.day === 230 ? 'The paper\u2019s rent-wave page' : (s.day === 580 ? 'The audit\u2019s language' : (s.day === 743 ? 'The stoops\u2019 paper' : 'Read the headlines'))),
+  perform: ({ state }) => {
+    // C2's season (doc 06 §C2 event 9): the rent wave makes the paper —
+    // the whole row's arithmetic, the room's new number, day 230.
+    if (state.isC2) {
+      const beats = state.c2RentWave();
+      if (beats.length > 0) return beats;
+    }
+    // C4's season (doc 06 §C4 event 2's April, day 580): the audit's
+    // eight words and the meme — the paper eats its own headline.
+    if (state.isC4) {
+      const beats = state.c4KevFall();
+      if (beats.length > 0) return beats;
+    }
+    // C5's season (doc 06 §C5 event 3, day 743): the receipts — the
+    // post's title verbatim, K2's strike riding the same scene.
+    if (state.isC5) {
+      const beats = state.c5Receipts();
+      if (beats.length > 0) return beats;
+    }
+    return [{ kind: 'note', text: byDay(NEWSPAPER_NOTES, state.day) }];
+  },
 };
 
 const subway: Interaction = {
@@ -310,11 +381,16 @@ const subway: Interaction = {
 // Positions come from the builders' own static spots (single source of
 // truth); enables read the ride machine through the orchestrator.
 
-/** Inside the aligned car at Alder Heights: press to ride downtown. */
+/** Inside the aligned car at Alder Heights: press to ride downtown.
+ *  Radius 1.05: the prompt must mean "you are at this car" — the doorway
+ *  or the aisle — not "near it on the platform". The old 1.7 let a player
+ *  standing at the platform edge press it, the doors closed in front of
+ *  them, and the ride ran without them (the left-behind law is honest,
+ *  but the PROMPT invited the mistake). */
 const trainA: Interaction = {
   id: 'trainA',
   pos: () => ({ ...SUBWAY_SPOTS.rideA }),
-  radius: 1.7,
+  radius: 1.05,
   yBand: 2.2,
   enabled: (_s, ctx) => {
     const sub = farSubway(ctx);
@@ -327,11 +403,11 @@ const trainA: Interaction = {
   },
 };
 
-/** Inside the aligned car at 42nd St: press to ride home. */
+/** Inside the aligned car at 42nd St: press to ride home (same 1.05 law). */
 const trainB: Interaction = {
   id: 'trainB',
   pos: () => ({ ...SUBWAY_SPOTS.rideB }),
-  radius: 1.7,
+  radius: 1.05,
   yBand: 2.2,
   enabled: (_s, ctx) => {
     const sub = farSubway(ctx);
@@ -349,8 +425,22 @@ const priya: Interaction = {
   id: 'priya',
   pos: () => ({ ...SUBWAY_SPOTS.priya }),
   enabled: () => true,
-  prompt: () => 'Say hi to Priya',
-  perform: ({ state }) => [{ kind: 'note', text: byDay(PRIYA_LINES, state.day) }],
+  prompt: (s) => (s.day === 160 ? 'Priya\u2019s two things' : (s.day === 760 ? 'The platform\u2019s 7:40' : 'Say hi to Priya')),
+  perform: ({ state }) => {
+    // C2's season (doc 06 §C2 event 3): the intel, traded for a favor —
+    // the debt rides the ledger open, day 160.
+    if (state.isC2) {
+      const beats = state.c2Priya();
+      if (beats.length > 0) return beats;
+    }
+    // C5's season (doc 06 §C5 event 5, day 760): the handover — her
+    // neutrality, priced at last, her tile sentence owned verbatim.
+    if (state.isC5) {
+      const beats = state.c5Handover();
+      if (beats.length > 0) return beats;
+    }
+    return [{ kind: 'note', text: byDay(PRIYA_LINES, state.day) }];
+  },
 };
 
 /** The busker — the listen is free; the coin is the gated $1. */
@@ -510,8 +600,30 @@ const dinerBooth: Interaction = {
   pos: () => ({ x: 52.6, y: 0.5, z: -14.0 }),
   radius: 2.2,
   enabled: () => true,
-  prompt: () => 'Sit in the booth',
-  perform: ({ state }) => [{ kind: 'note', text: byDay(DINER_BOOTH_NOTES, state.day) }],
+  prompt: (s) => (s.day === 129 ? 'The booth with the coffee waiting' : (s.day === 174 ? 'The back booth' : (s.day === 432 ? 'The lunch with no agenda' : 'Sit in the booth'))),
+  perform: ({ state }) => {
+    // C2's season (doc 06 §C2): Marisol's coffee (day 129, event 2 —
+    // the seduction in miniature) and Craig's squeeze (day 174, events
+    // 4+5 — the private offer, and behind it N2, the break's four
+    // forms). The booth holds both conversations; the days keep them
+    // apart.
+    if (state.isC2) {
+      const coffee = state.c2Coffee();
+      if (coffee.length > 0) return coffee;
+      const squeeze = state.c2Squeeze();
+      if (squeeze.length > 0) return squeeze;
+    }
+    // C3's season (doc 06 §C3 event 6): Gino's first lunch (day 432,
+    // fixed date Nov 14) — the networking entry that refuses the
+    // violation, the SECRET favor, and behind it N3c (the tell-or-not,
+    // the Silent class). The booth hosts the deli's corner table (the
+    // recontextualization noted at the trigger, doc 11's header law).
+    if (state.isC3) {
+      const lunch = state.c3Lunch();
+      if (lunch.length > 0) return lunch;
+    }
+    return [{ kind: 'note', text: byDay(DINER_BOOTH_NOTES, state.day) }];
+  },
 };
 
 const pieCase: Interaction = {
@@ -596,12 +708,749 @@ const cecilCorkboard: Interaction = {
   perform: ({ state }) => [{ kind: 'note', text: byDay(BULLETIN_NOTES, state.day) }],
 };
 
+// ------------------------------------------- the W6 terrace prompts ----
+// docs/production/terrace-buildout: the terrace build-out's own three
+// loops — a stoop to sit on, a payphone that works, a flyer board that
+// never gets cleaned. One-day-slot law (the oktays precedent): existing
+// ground, the census untouched, no save fields.
+
+const terraceStoop: Interaction = {
+  id: 'terrace_stoop',
+  pos: () => ({ x: -66.2, y: 1.2, z: 47.4 }),
+  radius: 2.2,
+  enabled: () => true,
+  prompt: () => 'Sit on the stoop',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(TERRACE_STOOP_NOTES, state.day) }],
+};
+
+const terracePayphone: Interaction = {
+  id: 'terrace_payphone',
+  pos: () => ({ x: 66.6, y: 1.4, z: 47.6 }),
+  radius: 2.0,
+  enabled: () => true,
+  prompt: () => 'Lift the receiver',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(TERRACE_PAYPHONE_NOTES, state.day) }],
+};
+
+const terraceFlyer: Interaction = {
+  id: 'terrace_flyer',
+  pos: () => ({ x: -58.9, y: 1.3, z: -47.5 }),
+  radius: 2.0,
+  enabled: () => true,
+  prompt: () => 'Read the flyer board',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(TERRACE_FLYER_NOTES, state.day) }],
+};
+
+// ---------------------------------------- the W7 gate-row prompts ----
+// docs/production/westgate-eastgate: the strips' own two loops — the west
+// stoop (the Larkin band's west house) and the east chalk-menu A-frame.
+// Same one-day-slot law: existing ground, no save fields.
+
+const westStoop: Interaction = {
+  id: 'west_stoop',
+  pos: () => ({ x: -90.2, y: 1.2, z: 47.4 }),
+  radius: 2.2,
+  enabled: () => true,
+  prompt: () => 'Sit on the stoop',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(WEST_STOOP_NOTES, state.day) }],
+};
+
+const eastMenu: Interaction = {
+  id: 'east_menu',
+  pos: () => ({ x: 88, y: 1.1, z: -32.8 }),
+  radius: 2.0,
+  enabled: () => true,
+  prompt: () => 'Read the chalk menu',
+  perform: ({ state }) => [{ kind: 'note', text: byDay(EAST_MENU_NOTES, state.day) }],
+};
+
 export function freeRoamInteractions(src: InteractionSources): Interaction[] {
   return [bench, parkBench, court, hotdog, barber, alley, washerFree, board, newsbox, subway,
     trainA, trainB, priya, busker, buskerCoin, usher, driver, duffel,
     // W5 — the rooms (docs/41): every loop anchored inside its registry shell
     dryer, pizza, dinerCoffee, dinerBooth, pieCase, hallNotice, hallWorkshop, bakery, recordBin, recordListen, cecilGaze, cecilCorkboard,
-    ...walkerChats(src), ...shelfInteractions(src)];
+    // the C0 pack's neighbors (narrative/14 §7 step 6 — doc 11): Eddie's
+    // counter, the lease notice, the surveyor, Miss Odessa, Deshaun
+    eddie, leaseNotice, surveyor, odessa, deshaun,
+    // the C1 wave's own spot (narrative/14 §7 step 8 — doc 06 §C1):
+    // June at the plaza, for her one day
+    june,
+    // the C2 wave's own spots (narrative/14 §7 step 9 — doc 06 §C2):
+    // the garden (the Compact's founding, Yoli's two evenings) and the
+    // Oktays' last Saturday on the strip
+    garden, oktays,
+    // the C3 wave's own spots (narrative/14 §7 step 10 — doc 06 §C3):
+    // El Vann's community room and Deshaun's court edge — one-day slots
+    // on existing ground (the oktays precedent, the census untouched)
+    elvann, deshaunExam,
+    // the C4 wave's own spots (narrative/14 §7 step 10 continued — doc
+    // 06 §C4): the pledge's stage, the gallery's velvet corner, Tito's
+    // dominoes table, Dr. Feld's block, and the shop's dark window —
+    // one-day slots on existing ground (the census untouched)
+    kevPledge, rachelGallery, titoTable, feldRoom, lateWindow,
+    // the C5 wave's own spots (narrative/14 §7 step 10 continued — doc
+    // 06 §C5): the funeral's porch, the shop's dark window, the
+    // lawyer's priced office, the 1 a.m. payphone, the call-home's
+    // station phone, and the terminal stairs — one-day slots on
+    // existing ground (the census untouched)
+    funeralPorch, lastNight, lawyerOffice, oneAmCall, phoneHome, terminalStairs,
+    // the W6 terrace prompts (docs/production/terrace-buildout): the
+    // stoop, the payphone, the flyer board — existing ground, one-day-slot law
+    terraceStoop, terracePayphone, terraceFlyer, westStoop, eastMenu,
+    // the C6 wave's own spots (narrative/14 §7 step 10's last content
+    // wave — doc 06 §C6): the first dollar, the winter lights, Kev's
+    // fork, the deposition, the hearing, the hall's opening, the late
+    // offer, the hundredth tree, the floor, and the hospitality close —
+    // one-day slots on existing ground (the census untouched) — plus
+    // the self-portrait, the one PERSISTENT slot of the endgame (doc
+    // 03 §7: writable at any point in C6+, each version kept)
+    c6FirstDollar, c6Lights, c6KevFork, c6Deposition, c6Hearing,
+    c6HallOpens, c6LateOffer, c6HundredthTree, c6Floor, c6Hospitality,
+    c6SelfPortrait,
+    ...simHellos(src), ...walkerChats(src), ...shelfInteractions(src)];
+}
+
+// ----------------------------------------------- the C0 pack's neighbors ----
+// Doc 11's narrative layer over the shipped opening (narrative/14 §7 step
+// 6): the covenant, the three hooks (small, civic, deniable), the
+// grounding kit. Every def is LATCH-GATED through the state's c0 latches
+// — a beat lands once, then it is an echo. None of them gate the story's
+// steps: the notebook never blocks the block.
+
+/** The sim clock's phase, when the harness carries one (the walker rule's
+ *  precedent: authored-only harnesses don't — the gate then yields so the
+ *  def stays testable; the real world always supplies the clock). */
+function simPhase(ctx: InteractionCtx): string | null {
+  const ws = (ctx.game as { worldSim?: { brain: { clock: { phase: string } } } }).worldSim;
+  return ws?.brain.clock.phase ?? null;
+}
+
+/** Eddie — the covenant at Corner Slice's counter (doc 11 §2 beat 6).
+ *  He's there from the trial shift on (Day 2+); the first press receives
+ *  the six-word covenant, the rest are the counter's day-keyed rhythm.
+ *  The latch is the session transient (rituals repeat across sessions —
+ *  that is what makes them rituals); Entry 2's running theory is the
+ *  spine tranche's beat (its own trigger fires it). */
+const eddie: Interaction = {
+  id: 'eddie',
+  pos: () => ({ x: 25.9, y: 1.05, z: 10.6 }),
+  radius: 2.0,
+  enabled: (s) => s.day >= 2,
+  prompt: (s) => {
+    if (s.isC1) {
+      if (s.day === 8) return 'Say hi to Eddie';
+      if (s.day === 52) return 'The warming station';
+      if (s.day === 95) return 'The man at the counter';
+      if (s.day === 106) return 'The answer';
+    }
+    if (s.isC3) {
+      if (s.day === 301) return 'The counter\u2019s bad news';
+      if (s.day === 309) return 'The keys\u2019 afterglow';
+      if (s.day === 349) return 'The Summit\u2019s host';
+    }
+    if (s.isC4) {
+      if (s.day === 493) return 'The pen and the letter';
+    }
+    return s.eddieCovenantSaid ? 'Say hi to Eddie' : 'Take the first slice';
+  },
+  perform: ({ state }) => {
+    // C1's season (doc 06 §C1): the ladder rung, Kev's lanyard (F6), the
+    // blackout table (and behind it N1b), Craig's visit, and — after the
+    // flour line — N1a, the promise. Each latches by its own ink.
+    if (state.isC1) {
+      const beats = [
+        ...state.c1Ladder(),
+        ...state.c1KevLanyard(),
+        ...state.c1BlackoutTable(),
+        ...state.c1Craig(),
+      ];
+      if (beats.length > 0) return beats;
+      const pick = state.c1PromisePick();
+      if (pick.length > 0) return pick;
+    }
+    // C2's season (doc 06 §C2): the ribbon and Eddie's question — the
+    // chapter's most painful kindness, at the counter where it lands.
+    if (state.isC2) {
+      const beats = state.c2Ribbon();
+      if (beats.length > 0) return beats;
+    }
+    // C3's season (doc 06 §C3): the collapse (day 301), the keys from
+    // the hospital bed's afterglow (day 309), and the Slice Summit
+    // after hours (day 349) — the counter is the chapter's own room.
+    if (state.isC3) {
+      const beats = [...state.c3Collapse(), ...state.c3Keys(), ...state.c3Summit()];
+      if (beats.length > 0) return beats;
+    }
+    // C4's season (doc 12 §2's fixed event, day 493): the pen and the
+    // letter — the kindest sentence in the chapter, and wrong, and the
+    // signing is the chapter's first line that counts.
+    if (state.isC4) {
+      const beats = state.c4Signing();
+      if (beats.length > 0) return beats;
+    }
+    if (!state.eddieCovenantSaid) {
+      state.eddieCovenantSaid = true;
+      return [{ kind: 'note', text: `Eddie: \u201C${EDDIE_COVENANT}\u201D` }];
+    }
+    return [{ kind: 'note', text: byDay(EDDIE_LINES, state.day) }];
+  },
+};
+
+/** C1 — June at the plaza, day 29 (doc 06 §C1 event 2: the Halcyon
+ *  build-out's DOB wall, Priya's knowledge). The shipped block hosts her
+ *  a step from the bus bench — the corner is where the block tells its
+ *  news (the recontextualization is noted in the pack). C2's season
+ *  hosts her once more (doc 06 §C2 handoff, day 295): June's lease, the
+ *  same paperstock — her spot exists for the day and fades when the ink
+ *  has landed. */
+const june: Interaction = {
+  id: 'june',
+  pos: () => ({ x: -21.6, y: 0.05, z: 6.4 }),
+  radius: 2.0,
+  enabled: (s) => (s.day === 29 && s.step >= Step.WK_ROAM) || (s.day === 295 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD)
+    || (s.day === 369 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD)
+    || (s.day === 608 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD),
+  prompt: (s) => (s.day === 295 ? 'The paper in June\u2019s hand' : (s.day === 369 ? 'Opening night at Halcyon' : (s.day === 608 ? 'June with the notebook' : 'Sit with June'))),
+  perform: ({ state }) => {
+    // C3's season (doc 06 §C3 event 8 + doc 07 §2.x): Halcyon opens —
+    // the voice named kindly, close (day 369)
+    if (state.isC3) {
+      const halcyon = state.c3Halcyon();
+      if (halcyon.length > 0) return halcyon;
+    }
+    // C4's season (doc 06 §C4 event 5, day 608): the diary discovery —
+    // the quiet fight, K3 written and struck the same scene, and behind
+    // it N4b — June after discovery's three doors.
+    if (state.isC4) {
+      const beats = state.c4Discovery();
+      if (beats.length > 0) return beats;
+    }
+    if (state.day === 295) {
+      const lease = state.c2LeaseJune();
+      if (lease.length > 0) return lease;
+    }
+    return state.c1June();
+  },
+};
+
+/** C2 — the garden (the Gable Garden, the block's convening place): the
+ *  Compact's founding meeting (doc 06 §C2 event 1, day 124 — the
+ *  sign-in sheet, doc 08 §3) and Yoli's strategy session (doc 10 §4's
+ *  window, days 146/147 — two evenings). The gate stands at the garden's
+ *  own fence; the spot exists for its three days and fades between
+ *  them. */
+const garden: Interaction = {
+  id: 'garden',
+  pos: () => ({ x: 2.4, y: 0.05, z: 24.6 }),
+  radius: 2.2,
+  enabled: (s) =>
+    ((s.day === 124 || s.day === 146 || s.day === 147)
+      || (s.day === 328 || s.day === 383 || s.day === 404 || s.day === 425)
+      || (s.day === 595 || s.day === 802))
+    && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: (s) => {
+    if (s.day === 124) return 'The garden meeting';
+    if (s.day === 146 || s.day === 147) return 'The shed session';
+    if (s.day === 328) return 'The buckets\u2019 last row';
+    if (s.day === 383) return 'The Club\u2019s first pitch';
+    if (s.day === 404) return 'The pantry\u2019s Tuesday';
+    if (s.day === 425) return 'The closing pitch';
+    if (s.day === 595) return 'Camille\u2019s labeled boxes';
+    if (s.day === 802) return 'The beds going down for winter';
+    return 'The garden';
+  },
+  perform: ({ state }) => {
+    // doc 06 §C2 event 1 (day 124, with the K1 strike — the ledger's
+    // first strikethrough, earned at the sheet) and doc 10 §4's window
+    // (days 146/147; the flag sets once, on either evening)
+    const compact = state.c2Compact();
+    if (compact.length > 0) return compact;
+    // C3's season (doc 06 §C3): the water-fix week's helped side (day
+    // 328, doc 10 §4's specimen — the missed side rides the compression),
+    // the Club's founding pitch (day 383), Camille's pantry (day 404),
+    // and the closing pitch (day 425, and behind it N3b — the investor
+    // list, nineteen named faces)
+    if (state.isC3) {
+      const beats = [...state.c3WaterFix(), ...state.c3Club(), ...state.c3Pantry(), ...state.c3Close()];
+      if (beats.length > 0) return beats;
+    }
+    // C5's season (doc 06 §C5 major decisions, day 802): the garden's
+    // own week — N5c's venue (what to tell the block).
+    if (state.isC5) {
+      const beats = state.c5GardenReckoning();
+      if (beats.length > 0) return beats;
+    }
+    // C4's season (doc 06 §C4 event 4, day 595): Camille's exit — the
+    // staging is door-neutral; the C3 pantry latch decides which exit
+    // the player lived.
+    if (state.isC4) {
+      const beats = state.c4Camille();
+      if (beats.length > 0) return beats;
+    }
+    return state.c2Session();
+  },
+};
+
+/** C2 — the Oktays' last Saturday (doc 06 §C2 event 6, day 243): boxes
+ *  on the strip between the garden and the green, the register's last
+ *  sale, Deniz's photograph — and behind it N2b (the Oktay moment, the
+ *  register's node). The spot exists for the day. */
+const oktays: Interaction = {
+  id: 'oktays',
+  pos: () => ({ x: 5.4, y: 0.05, z: 22.5 }),
+  radius: 2.4,
+  enabled: (s) => s.day === 243 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'Help with the boxes',
+  perform: ({ state }) => {
+    const leaving = state.c2Oktays();
+    if (leaving.length > 0) return leaving;
+    // the scene said: the moment itself is the pick (N2b — the
+    // register's own node; the overlay carries its three options)
+    return [];
+  },
+};
+
+/** C3 — El Vann's paper wall (doc 06 §C3 event 2, day 328): the East
+ *  Tenement's community room — the borrowing that becomes the first
+ *  look at the block's paper history. C4's season re-voices the room
+ *  once more (doc 06 §C4 + doc 07 §2.x, day 622): the papers and the
+ *  bridge story — F7's trigger, and behind it N4c. One-day spots on
+ *  existing ground (the oktays precedent — no new meshes, the census
+ *  untouched). */
+const elvann: Interaction = {
+  id: 'elvann',
+  pos: () => ({ x: 33.5, y: 0.05, z: -6.2 }),
+  radius: 2.0,
+  enabled: (s) => (s.day === 328 || s.day === 622) && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: (s) => (s.day === 328 ? 'El Vann\u2019s community room' : 'The papers and the bridge story'),
+  perform: ({ state }) => {
+    // C3's season (doc 06 §C3 event 2, day 328): the paper wall.
+    if (state.isC3) return state.c3Elvann();
+    // C4's season (doc 06 §C4 + doc 07 §2.x, day 622): the papers and
+    // the bridge story — the railing surfaces (F7), R12's opt-in note
+    // spends, and behind it N4c (the El Vann papers' three doors).
+    if (state.isC4) {
+      const beats = state.c4Papers();
+      if (beats.length > 0) return beats;
+    }
+    return [];
+  },
+};
+
+/** C3 — Deshaun's exam (doc 12 §2's fixed event, day 376): his own
+ *  chapter at the rim where he keeps everything. A one-day spot at the
+ *  court's edge (the shoot mechanic owns the court's own press). */
+const deshaunExam: Interaction = {
+  id: 'deshaun_exam',
+  pos: () => ({ x: 39.5, y: 0.05, z: 1.5 }),
+  radius: 2.0,
+  enabled: (s) => s.day === 376 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'Sit with Deshaun',
+  perform: ({ state }) => state.c3Exam(),
+};
+
+/** C4 — the jobs-fair op (doc 06 §C4 event 2, day 546): the stage built
+ *  against the Works' own fence — Kev fronts the hiring pledge, the
+ *  cameras take the thesis-in-falsehood, and behind it N4a (the jobs
+ *  number's three doors). A one-day spot by the fence (the surveyor's
+ *  own ground — the fence is the beat's door). */
+const kevPledge: Interaction = {
+  id: 'kev_pledge',
+  pos: () => ({ x: -50.5, y: 0.05, z: 16.5 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 546 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The pledge\u2019s stage',
+  perform: ({ state }) => state.c4JobsFair(),
+};
+
+/** C4 — Rachel at the gallery (doc 06 §C4 event 6, day 615): Fitz's
+ *  velvet corner, the room where the Face is an exhibit — and the
+ *  un-impressible mirror declines the performance. A one-day spot on
+ *  the plaza ground (the june precedent — existing ground, no meshes). */
+const rachelGallery: Interaction = {
+  id: 'rachel_gallery',
+  pos: () => ({ x: -20.4, y: 0.05, z: 8.6 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 615 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The gallery\u2019s velvet corner',
+  perform: ({ state }) => state.c4Rachel(),
+};
+
+/** C4 — Tito's story (doc 06 §C4 event 7, day 629): the dominoes table,
+ *  late, the cheap wine saved for stories with weight — the mirror at
+ *  full length. A one-day spot in Corner Park near the bench (the
+ *  park_bench's ground — the senate's own park). */
+const titoTable: Interaction = {
+  id: 'tito_table',
+  pos: () => ({ x: 40.2, y: 0.05, z: -7.4 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 629 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The dominoes table',
+  perform: ({ state }) => state.c4Tito(),
+};
+
+/** C4 — the therapy booking (doc 12 §2's "therapy starts (Jun 3)", day
+ *  633): Dr. Feld's block, two avenues east — the thread's opening, the
+ *  Map's pin. A one-day spot on the corner's east sidewalk (existing
+ *  ground, the odessa-block precedent). */
+const feldRoom: Interaction = {
+  id: 'feld_room',
+  pos: () => ({ x: 16.5, y: 0.05, z: 11.5 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 633 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'Dr. Feld\u2019s block',
+  perform: ({ state }) => state.c4FeldBooking(),
+};
+
+/** C4 — the villain-question scene (doc 08 §6, day 645): 2 a.m., the
+ *  shop dark, the K-Globes amber through the gate — the notebook read
+ *  like evidence, and behind it N4d (the morning's three doors). A
+ *  one-day spot at the shop's dark window (the lease_notice's own wall —
+ *  the scene staged in prose, the census untouched). */
+const lateWindow: Interaction = {
+  id: 'late_window',
+  pos: () => ({ x: 27.4, y: 0.05, z: 7.8 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 645 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The shop\u2019s dark window',
+  perform: ({ state }) => state.c4VillainQuestion(),
+};
+
+/** Hook 1 — the lease notice on Eddie's wall (doc 11 §4): visible,
+ *  unremarked; the interacting player gets one line. C1's fuse, lit in
+ *  plain sight. C1's season re-voices it twice (doc 06 §C1): day 8, the
+ *  notice FRAMED (the starting circumstance); day 106, the second
+ *  notice without the walk-back — Eddie's flour line lands here, at the
+ *  wall where he taped it. */
+const leaseNotice: Interaction = {
+  id: 'lease_notice',
+  pos: () => ({ x: 27.9, y: 1.5, z: 8.9 }),
+  radius: 1.8,
+  enabled: (s) => s.day >= 2,
+  prompt: (s) => (s.day === 8 ? 'Read the framed notice' : (s.day === 106 ? 'The second notice' : (s.day === 120 ? 'The letter beside the frame' : (s.day === 432 ? 'The wall behind the frame' : 'Read the notice on the wall')))),
+  perform: ({ state }) => {
+    if (state.isC1) {
+      const beats = state.c1Notice();
+      if (beats.length > 0) return beats;
+    }
+    // C2's season (doc 06 §C2 starting circumstances): the ask goes
+    // formal — the letter with the number typed twice, day 120.
+    if (state.isC2) {
+      const beats = state.c2Notice();
+      if (beats.length > 0) return beats;
+    }
+    // C3's season (doc 06 §C3 event 6's tail): the wall's missing slip —
+    // the notebook knows what the wall lost even if the lunch entry
+    // doesn't say the word (day 432).
+    if (state.isC3) {
+      const beats = state.c3Violation();
+      if (beats.length > 0) return beats;
+    }
+    return state.c0Lease();
+  },
+};
+
+/** Hook 2 — the surveyor at the Works fence at dawn (doc 11 §2 beat 11 +
+ *  §4): a man with a camera and a sun-angle chart. Dawn only — he
+ *  measures light, professionally. The diary's GUESS is available; C2
+ *  strikes it ("it was always sunlight and square feet"). */
+const surveyor: Interaction = {
+  id: 'surveyor',
+  pos: () => ({ x: -52.5, y: 0.9, z: 18.4 }),
+  radius: 2.2,
+  enabled: (s, ctx) => {
+    // C3's offer (doc 06 §C3 event 4, day 457): the fence door propped
+    // open for the roam window — the dawn law keeps the other days'
+    const roamDay = s.day === 457 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD;
+    if (roamDay) return true;
+    const phase = simPhase(ctx);
+    return phase === null ? s.day >= 1 : phase === 'dawn';
+  },
+  prompt: (s) => (s.day === 457 ? 'The fence door at the Works' : 'Ask about the camera'),
+  perform: ({ state }) => {
+    // C3's season (doc 06 §C3 event 4): the offer (day 457, fixed date
+    // Dec 9) — the EVIDENCE photographed unsigned, Marisol's card v1,
+    // and behind it N3a (the offer's three doors). The surveyor's spot
+    // IS the Works fence; the fence door is the beat's door.
+    if (state.isC3) {
+      const beats = state.c3Offer();
+      if (beats.length > 0) return beats;
+    }
+    return state.c0Surveyor();
+  },
+};
+
+/** Hook 3 — Miss Odessa's nod (doc 11 §2 beat 11 + §4): one word, the
+ *  handshake. Nobody comments. The game never explains. (The second job
+ *  surfaces once, in C3, when Eli mentions Grandma sleeps on the bus.
+ *  That's all. Some things are just true.) */
+const odessa: Interaction = {
+  id: 'odessa',
+  pos: () => ({ x: 13.8, y: 0.05, z: 8.2 }),
+  radius: 2.0,
+  enabled: (s) => s.day >= 5,
+  prompt: (s) => (s.day === 654 ? 'Miss Odessa\u2019s window, short $140' : 'Morning, Miss Odessa'),
+  perform: ({ state }) => {
+    // C4's season (doc 06 §C4 event 10, day 654): the first missed
+    // repayment — the withdrawal that doesn't clear, the $140 covered
+    // in cash and told to no one, the deletion logged.
+    if (state.isC4) {
+      const beats = state.c4Missed();
+      if (beats.length > 0) return beats;
+    }
+    return state.c0Odessa();
+  },
+};
+
+/** C5 — the funeral porch (doc 06 §C5 event 1, day 736): Doris's
+ *  chair, the estate's arithmetic, Craig inheriting the pen. One-day
+ *  slot on the garden's south edge (the block's outdoor room stands in
+ *  for the porch — the census untouched). */
+const funeralPorch: Interaction = {
+  id: 'funeral_porch',
+  pos: () => ({ x: 6.2, y: 0.05, z: 20.4 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 736 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The porch\u2019s arithmetic',
+  perform: ({ state }) => state.c5Funeral(),
+};
+
+/** C5 — the shop's last night (doc 06 §C5 event 7's second half, day
+ *  756): the last slice of the last pie, the lights, the four seconds.
+ *  One-day slot outside the shop's dark window (the lateWindow's own
+ *  block — the census untouched). */
+const lastNight: Interaction = {
+  id: 'last_night',
+  pos: () => ({ x: 25.4, y: 0.05, z: 13.2 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 756 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The shop\u2019s last night',
+  perform: ({ state }) => state.c5LastNight(),
+};
+
+/** C5 — the lawyer's office (doc 06 §C5 event 6, day 784): the deal,
+ *  the system's mercy, K5's record — and behind it N5a. One-day slot on
+ *  the civic row (the surveyor's fence block — the census untouched). */
+const lawyerOffice: Interaction = {
+  id: 'lawyer_office',
+  pos: () => ({ x: -50.2, y: 0.05, z: 17.2 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 784 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The priced agreement',
+  perform: ({ state }) => state.c5Deal(),
+};
+
+/** C5 — the 1 a.m. payphone (doc 06 §C5 event 8, day 795): Rachel's
+ *  sentence, Eddie's floor, June's conditions resolved — and behind
+ *  them N5b. One-day slot by Miss Odessa's window (the bodega row's
+ *  own phone corner — the census untouched). */
+const oneAmCall: Interaction = {
+  id: 'one_am_call',
+  pos: () => ({ x: 14.9, y: 0.05, z: 5.8 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 795 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The 1 a.m. call',
+  perform: ({ state }) => state.c5Exits(),
+};
+
+/** C5 — the call home (doc 06 §C5 event 9, day 802): Ada, the $8,000,
+ *  zero questions; the ONE send; F5; K5's strike. One-day slot by the
+ *  subway entrance (the station's own phone — the census untouched). */
+const phoneHome: Interaction = {
+  id: 'phone_home',
+  pos: () => ({ x: -40.2, y: 0.05, z: 2.6 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 802 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The call home',
+  perform: ({ state }) => state.c5CallHome(),
+};
+
+/** C5 — the terminal (doc 06 §C5 events 10 + 11, day 809): Thanksgiving
+ *  eve, the duffel bag, Rosa's line, the Inwood pin. One-day slot at
+ *  the subway stairs' mouth (the census untouched). */
+const terminalStairs: Interaction = {
+  id: 'terminal_stairs',
+  pos: () => ({ x: -41.4, y: 0.05, z: 5.4 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 809 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The subway stairs',
+  perform: ({ state }) => state.c5Terminal(),
+};
+
+/** C6 — the first dollar (doc 06 §C6 event 1, day 814, the roll's
+ *  landing): the schedule's first payment through Bea, Ada's three-line
+ *  answer. One-day slot by Rosa's door (the census untouched). */
+const c6FirstDollar: Interaction = {
+  id: 'c6_first_dollar',
+  pos: () => ({ x: -17.6, y: 0.05, z: 10.6 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 814 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The first dollar\u2019s morning',
+  perform: ({ state }) => state.c6FirstDollar(),
+};
+
+/** C6 — the winter lights (doc 12 §4 / doc 04, day 835): the tin's
+ *  ones on the park's tree, Yoli's terms, the call's diegetic meter.
+ *  One-day slot at the little park's tree (the census untouched). */
+const c6Lights: Interaction = {
+  id: 'c6_lights',
+  pos: () => ({ x: 37.6, y: 0.05, z: -7.2 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 835 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The lights on the tree',
+  perform: ({ state }) => state.c6Lights(),
+};
+
+/** C6 — Kev's fork (doc 07 §2.4, day 870): the reference letter, signed
+ *  in person, no camera; the machine reads the ledger. One-day slot at
+ *  Halcyon's corner of the plaza (the census untouched). */
+const c6KevFork: Interaction = {
+  id: 'c6_kev_fork',
+  pos: () => ({ x: -22.2, y: 0.05, z: 7.2 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 870 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The letter',
+  perform: ({ state }) => state.c6KevFork(),
+};
+
+/** C6 — the deposition (doc 07's dial table, day 898): Deniz's sworn
+ *  statement of the C2 meeting; Father Mike's boiler-watch closes.
+ *  One-day slot on the civic row's other door (the census untouched). */
+const c6Deposition: Interaction = {
+  id: 'c6_deposition',
+  pos: () => ({ x: -49.6, y: 0.05, z: 18.4 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 898 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The sworn statement',
+  perform: ({ state }) => state.c6Deposition(),
+};
+
+/** C6 — the concessions hearing (doc 12 §2, day 920): the Compact
+ *  papers, the 220→280, the CLT option — and behind it N7. One-day
+ *  slot on the civic row (the census untouched). */
+const c6Hearing: Interaction = {
+  id: 'c6_hearing',
+  pos: () => ({ x: -51.2, y: 0.05, z: 15.6 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 920 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The hearing',
+  perform: ({ state }) => state.c6Hearing(),
+};
+
+/** C6 — the hall opens (doc 12 §2, day 948): Juniper Commons, without
+ *  him; the lease torn on the church steps. One-day slot at the Works
+ *  fence's other gate (the census untouched). */
+const c6HallOpens: Interaction = {
+  id: 'c6_hall_opens',
+  pos: () => ({ x: -50.2, y: 0.05, z: 14.5 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 948 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'Juniper Commons',
+  perform: ({ state }) => state.c6HallOpens(),
+};
+
+/** C6 — Marisol's late offer (doc 09 §7, day 969): the test — and
+ *  behind it N6. One-day slot at the plaza's other corner (the census
+ *  untouched). */
+const c6LateOffer: Interaction = {
+  id: 'c6_late_offer',
+  pos: () => ({ x: -24.8, y: 0.05, z: 10.4 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 969 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The late offer',
+  perform: ({ state }) => state.c6LateOffer(),
+};
+
+/** C6 — the hundredth tree (doc 12 §2, day 990): Kestrel Green's
+ *  serviceberry; the album to Eli; Verna's booth. One-day slot at the
+ *  park's east side (the census untouched). */
+const c6HundredthTree: Interaction = {
+  id: 'c6_hundredth_tree',
+  pos: () => ({ x: 41.6, y: 0.05, z: -5.2 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 990 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The hundredth tree',
+  perform: ({ state }) => state.c6HundredthTree(),
+};
+
+/** C6 — Eddie's floor, the second offer (doc 09 §5, day 1002): the
+ *  exit that is also a home; June's shelves; Camille's letter. One-day
+ *  slot by the phone corner (the census untouched). */
+const c6Floor: Interaction = {
+  id: 'c6_floor',
+  pos: () => ({ x: 12.8, y: 0.05, z: 7.0 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 1002 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The floor',
+  perform: ({ state }) => state.c6Floor(),
+};
+
+/** C6 — the hospitality close (doc 06 §C6's last event, day 1016): the
+ *  stranger with the duffel at the terminal, the slice on the counter.
+ *  One-day slot at the subway stairs' mouth (the census untouched). */
+const c6Hospitality: Interaction = {
+  id: 'c6_hospitality',
+  pos: () => ({ x: -43.2, y: 0.05, z: 4.2 }),
+  radius: 2.2,
+  enabled: (s) => s.day === 1016 && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The hospitality close',
+  perform: ({ state }) => state.c6Hospitality(),
+};
+
+/** C6 — the self-portrait (doc 03 §7 — the arc's decision form): a
+ *  PERSISTENT slot on the cart's own corner, available any day of C6
+ *  and the open endgame (the notebook's last question). Composed from
+ *  the machine's own facts; append-only, each version kept; F8 fires
+ *  inside the first one only; once per day. The census untouched —
+ *  invisible trigger, existing ground. */
+const c6SelfPortrait: Interaction = {
+  id: 'self_portrait',
+  pos: () => ({ x: 7.0, y: 0.05, z: -3.0 }),
+  radius: 2.2,
+  enabled: (s) => (s.isC6 || s.isOpen) && s.step >= Step.WK_ROAM && s.step < Step.WK_POSTCARD,
+  prompt: () => 'The notebook\u2019s last question',
+  perform: ({ state }) => state.writeSelfPortrait(),
+};
+
+/** Beat 7 — Deshaun on the platform, Day 2 midday (doc 11 §2): the panic
+ *  beat's teach. The kit is learned by a person, in scene — the
+ *  condition's first public shadow, misread as ordinary new-kid nerves. */
+const deshaun: Interaction = {
+  id: 'deshaun',
+  pos: () => ({ x: -38.4, y: SUBWAY_SPOTS.priya.y, z: 9.0 }),
+  radius: 2.2,
+  enabled: (s, ctx) => {
+    if (s.day !== 2) return false;
+    const phase = simPhase(ctx);
+    return phase === null || phase === 'midday';
+  },
+  prompt: () => 'Sit with Deshaun',
+  perform: ({ state }) => state.c0Deshaun(),
+};
+
+// ------------------------------------------- the world runtime's hellos ----
+// Phase-1 runtime integration (world-contract doc 17): the R6 door's
+// input side. When the sim owns the street (roam/scenario), Rosa and
+// Idris stand where their schedules put them — and a press says hello.
+// The hello is a HIGH claim through the arbitrator: the interrupted
+// activity suspends and resumes when you walk away (R1/R2/R3). The
+// prompt is the presence itself — the pos getter parks the interaction
+// out of reach whenever the person is away, the registry's own pattern.
+
+const SIM_HELLO_NPCS = ['npc:rosa_delgado', 'npc:idris_warsame'] as const;
+
+function simHellos(src: InteractionSources): Interaction[] {
+  if (!src.worldSimBody) return []; // stub harnesses bind nothing
+  return SIM_HELLO_NPCS.map((npcId): Interaction => ({
+    id: `hello_${npcId.split(':')[1]}`,
+    pos: () => src.worldSimBody!(npcId),
+    radius: 2.2,
+    enabled: (_s, ctx) => !(ctx.game as { worldSim?: { inDialogueWith(id: string): boolean } })
+      .worldSim?.inDialogueWith(npcId),
+    prompt: () => 'Say hello',
+    perform: ({ game }) => (game as { worldSimHello(id: string): Effect[] })
+      .worldSimHello(npcId),
+  }));
 }
 
 // ------------------------------------------------------------------ authored ----
@@ -627,7 +1476,8 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
       enabled: (s) =>
         s.step === Step.MEET_ROSA || (s.isDay2 && s.step <= Step.D2_CLIMB2)
         || (s.isDay3 && s.step >= Step.D3_WAKE && s.step <= Step.D3_CLIMB3)
-        || (s.isDay4 && s.step >= Step.D4_WAKE && s.step <= Step.D4_MAP),
+        || (s.isDay4 && s.step >= Step.D4_WAKE && s.step <= Step.D4_MAP)
+        || (s.isWeek && s.step >= Step.WK_WAKE && s.step <= Step.WK_ROAM),
       prompt: () => 'Say hi',
       perform: (ctx) => act(ctx, (s) => {
         if (s.step === Step.D3_WAKE) {
@@ -639,6 +1489,32 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
         if (s.step === Step.D4_WAKE) {
           // Day 4 morning, same law: the wake beat first, chat second.
           return s.rosaD4Wake();
+        }
+        if (s.step === Step.WK_WAKE) {
+          // The stabilized week's wake (doc 11 §7): the same law, third
+          // verse — the wake beat first, chat second.
+          return s.rosaWeekWake();
+        }
+        if (s.isC1 && s.day === 95) {
+          // the cigar box (doc 06 §C1 conversations — the block's real
+          // economy is memory): once, at her counter, in December
+          const cigar = s.c1CigarBox();
+          if (cigar.length > 0) return cigar;
+        }
+        if (s.isC2 && s.day === 269) {
+          // Rosa's twenty-five (doc 06 §C2 event 7): the verbatim toast
+          // line, Eleanor's pointer, the QUESTION — and behind them, the
+          // toast itself (the local pick; one of the two makes Rosa stop
+          // smiling for exactly two seconds)
+          const anniversary = s.c2Anniversary();
+          if (anniversary.length > 0) return anniversary;
+        }
+        if (s.isC3 && s.day === 414) {
+          // the sound (doc 06 §C3 event 7 + doc 07 §2.x): Doris's fight
+          // heard, not seen; her warning verbatim at the door; the
+          // chapter's QUESTION (doc 06 §C3 diary developments)
+          const sound = s.c3Sound();
+          if (sound.length > 0) return sound;
         }
         if (s.isDay2) {
           return s.rosaTask().effects;
@@ -661,7 +1537,7 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
       enabled: (s) => {
         if (s.step === Step.CLAIM_CART || s.step === Step.SOLO || s.step === Step.D2_LUNCH
           || s.step === Step.D3_RUSH || s.step === Step.D3_STOOL
-          || s.step === Step.D4_RUSH) return true;
+          || s.step === Step.D4_RUSH || s.step === Step.WK_RUSH) return true;
         // while Idris stands AT the cart (D2_IDRIS, arrived), the cart's own
         // press is meaningless — the awning needs the counter clear — and a
         // walker parked a step nearer the cart than him fed the press to
@@ -669,13 +1545,15 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
         return (s.isDay2 && s.step >= Step.D2_WAKE && s.step < Step.D2_POSTCARD
           && !(s.step === Step.D2_IDRIS && s.idrisArrived))
           || (s.isDay3 && s.step >= Step.D3_WAKE && s.step < Step.D3_POSTCARD)
-          || (s.isDay4 && s.step >= Step.D4_WAKE && s.step < Step.D4_POSTCARD);
+          || (s.isDay4 && s.step >= Step.D4_WAKE && s.step < Step.D4_POSTCARD)
+          || (s.isWeek && s.step >= Step.WK_WAKE && s.step < Step.WK_POSTCARD);
       },
       prompt: (s) => {
         if (s.step === Step.CLAIM_CART) return 'Claim corner';
         if (s.step === Step.SOLO) return 'Take the order';
         if (s.step === Step.D2_LUNCH) return 'Serve';
         if (s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) return s.brewing ? BREWING_PROMPT : 'Serve';
+        if (s.step === Step.WK_RUSH) return s.brewing ? BREWING_PROMPT : 'Serve';
         if (s.step === Step.D3_STOOL) return 'Stool \u2014 $10';
         if (s.day >= 2 && !s.awningUp && s.money >= 15) return 'Awning \u2014 $15';
         return 'Serve';
@@ -690,6 +1568,9 @@ export function authoredInteractions(src: InteractionSources): Interaction[] {
           return ctx.game.customer ? s.serveCart() : [];
         }
         if (s.step === Step.D3_RUSH || s.step === Step.D4_RUSH) {
+          return ctx.game.customer ? s.startBrew() : [];
+        }
+        if (s.step === Step.WK_RUSH) {
           return ctx.game.customer ? s.startBrew() : [];
         }
         if (s.step === Step.D3_STOOL) return s.stoolInteraction();

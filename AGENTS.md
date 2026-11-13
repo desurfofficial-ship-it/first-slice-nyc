@@ -2,19 +2,21 @@
 
 > **You are an AI agent contributing to FIRST SLICE: A New York Story** — a cozy lowpoly mobile life-sim where people who have never been to NYC fall in love with the city one postcard at a time. This file is your operating contract. Read it fully before touching anything. When instructions here conflict with habit, **this file wins**.
 
-**Current phase:** Vertical Slice production (Phase 1 of [docs/06-production-roadmap.md](docs/06-production-roadmap.md)) — now with the **Roam layer shipped** (the open-block contract, [docs/architecture/03](docs/architecture/03-target-architecture.md)). Phase 0 exit was signed 2026-10-28 ([docs/18](docs/18-phase0-exit-summary.md)); the code is real — `web-three/` is a playable Three.js slice with a vitest suite, probe harnesses, and a 4-day E2E. Entry gates for any change: `npx tsc --noEmit` and `npx vitest run` in `web-three/`. Don't redesign what already ships: the first-session world in [docs/50](docs/50-agent2-first-session-world.md) is the paved path.
+**Current phase:** Vertical Slice production — the **narrative reboot is canon** ([docs/narrative/](docs/narrative/), baseline v1.0, 2026-11-06): [14-narrative-implementation-spec.md](docs/narrative/14-narrative-implementation-spec.md) is the systems contract for building agents (R0–R15; its §7 is the build order). The code is real — `web-three/` is a playable Three.js slice with a vitest suite, probe harnesses, and a 4-day E2E. Entry gates for any change: `npx tsc --noEmit` and `npx vitest run` in `web-three/`. Don't redesign what already ships: the paved path is the shipped code and its tests; world construction truth is [docs/data/world-registry.json](docs/data/world-registry.json). The legacy docs tree (docs/01–56) was cleared 2026-11-06 — pre-reboot doc numbers cited anywhere read as history, and the files live in git.
 
-> **DIRECTION (2026-11, corrected):** FIRST SLICE is **not an open-world game — it is a life sim on an open block**. The four-day story is the spine; free roam is a player capability laid over the sim (the city runs on your clock), never a genre swap. The contract, the module fences and the roadmap live in [docs/architecture/](docs/architecture/) (audit → comparison → target → module map → roadmap → agent framework → perf/testing). The Roam law in [docs/architecture/06](docs/architecture/06-agent-development-framework.md) binds every agent: new HUD pressure is mode-aware, new world gates are roam-aware, ambient life carries no `step ===` dependencies.
+> **DIRECTION (2026-11, corrected):** FIRST SLICE is **not an open-world game — it is a life sim on an open block**. The story spine (C0–C6) is the spine; the shipped Day 1–4 opening is its first movement; free roam is a player capability laid over the sim (the city runs on your clock), never a genre swap. The module fences and the Roam law are stated in [docs/narrative/14](docs/narrative/14-narrative-implementation-spec.md) (binding context) and enforced by the tests. The Roam law binds every agent: new HUD pressure is mode-aware, new world gates are roam-aware, ambient life carries no `step ===` dependencies.
 
-> **ACTIVE WORK:** the open-bugs ledger [docs/51-open-bugs-for-agents.md](docs/51-open-bugs-for-agents.md). Claim an unowned bug (skip ones with an owner hint — agents work in parallel), fix it with its permanent guard (§1c.1), and update the ledger **and** [worklog.md](worklog.md) in the same commit. The Living Neighborhood milestone (Doc 37) was implemented through docs/34 + docs/38 and is no longer the active front; future construction plans live in docs/45.
+> **ACTIVE WORK:** the narrative implementation — [docs/narrative/14](docs/narrative/14-narrative-implementation-spec.md) §7 build order (R0 hygiene re-point → R4 + R3 time model & field diary → R2 + R7 …). Claim the next unbuilt requirement, implement it **with its permanent guards** (§1c.1), and update [worklog.md](worklog.md) in the same commit. Canon rulings go to [docs/narrative/15](docs/narrative/15-continuity-and-canon-register.md).
+>
+> **THE WORLD CONTRACT (2026-11-06):** the open-world life-sim foundations are established — global simulation state, in-game clock, spatial-semantic registry, entity identity, NPC behavior arbitration, narrative validation, economy guardrails, and a validated reference world. The contracts live in [docs/architecture/world-contract/](docs/architecture/world-contract/); the implementation lives in `web-three/src/sim/` (headless, tested in `web-three/tests/sim-*.test.ts`). Six workstreams (A spatial · B npc · C narrative · D world-sim · E content · F integration) build on these contracts — read [14-agent-development-framework.md](docs/architecture/world-contract/14-agent-development-framework.md) before starting one. The four-day story and every shipped system are untouched by construction. **The runtime integration has landed (2026-11-06, roadmap Phase 1):** the D-1 tick valve runs in `Game.frame` beside the story; in roam/scenario the bound cast (Rosa, Idris) lives their clock-keyed schedules through arbitration, and the world save rides its own key (`first_slice_world_v1`). The brain is `web-three/src/sim/runtime.ts` (pure), the body is `web-three/src/game/worldRuntime.ts`, and `?scenario=schedules` replays the playable proof; doc 17's ledger names what is still open (the D-3 money bridge, ambient-walker schedule migration). The calendar epoch is ruled (DEC-1, 2026-11-06): Day 1 = Tuesday, September 9, Y1.
 
 ---
 
-## 0. Living Neighborhood — GDD is law (read before expanding the world)
+## 0. The story is law (read before building)
 
-**Authoritative creative direction:** [docs/01-game-design-document.md](docs/01-game-design-document.md) (**GDD v2.0**).
+**Authoritative creative direction:** the narrative bible — [docs/narrative/01-narrative-vision.md](docs/narrative/01-narrative-vision.md) (identity, themes, the narrative laws) and [docs/narrative/06-master-storyline.md](docs/narrative/06-master-storyline.md) (the spine, C0–C6).
 
-Any expansion prompt (including the Living Neighborhood milestone, Doc 33 / Doc 34) exists to fix **lack of exploration, player agency, and meaningful interactions**. It is **not** permission to replace the original game concept or build a generic open-world city.
+The narrative reboot (2026-11-06) replaced the protagonist, cast architecture and master storyline to fix **lack of consequence and a spine worth keeping**. It is **not** permission to replace the life-sim concept or build a generic open-world city. **The world, its systems and these design pillars carry over:**
 
 ### Keep these original design pillars central
 
@@ -31,12 +33,12 @@ Any expansion prompt (including the Living Neighborhood milestone, Doc 33 / Doc 
 - Prefer a **compact but rich neighborhood** over a huge map.
 - Every new location needs a **purpose**.
 - Every major interaction needs a **meaningful experience or consequence**.
-- **Identify** which GDD systems are already implemented, partially implemented, and still missing — **before** building more world.
-- **Do not silently replace or abandon** GDD systems while expanding the world.
+- **Identify** which shipped systems are already implemented, partially implemented, and still missing — **before** building more world.
+- **Do not silently replace or abandon** shipped systems while expanding the world.
 
 **Ultimate goal (unchanged):** FIRST SLICE — a cozy New York life-simulation about discovering the city, building relationships, learning its culture, and gradually finding your place in it.
 
-If a proposed change fights these pillars, **stop and ask a human**. Expansion without the GDD is scope failure, not progress.
+If a proposed change fights these pillars, **stop and ask a human**. Expansion without the bible is scope failure, not progress.
 
 ---
 
@@ -100,7 +102,7 @@ Lessons adapted from high-output agent game builds (notably [@poteto](https://x.
 
 8. **Small coherent PRs.** Many focused commits beat one giant dump. Each PR should name the law or gate it serves and how it was verified.
 
-**Do not import** unrelated stacks from other games (formal TLA+ models, custom chip synths, pixel atlases) unless the GDD and roadmap ask for them. Import the *discipline*, not the costume.
+**Do not import** unrelated stacks from other games (formal TLA+ models, custom chip synths, pixel atlases) unless the bible and the spec ask for them. Import the *discipline*, not the costume.
 
 
 ## 1d. Trust, memory, and the paved path
@@ -123,7 +125,8 @@ A correction that lives **only in chat** is lost to the next agent. Chat is ephe
 
 Agents see a small context window. Durable truth must live in the tree:
 
-- this file, the GDD, Doc 07, Doc 37, and living-neighborhood docs
+- this file, the narrative bible ([docs/narrative/](docs/narrative/)), the engineering ledger ([docs/57](docs/57-engineering-references.md)), and the registry data
+- the production system ([docs/production/](docs/production/README.md)) — the master roadmap, phase acceptance, system checklists, the status register, governance, risks, and the next-phase plan; check it before claiming work
 - unit tests, probes, and `?autotest=1`
 - clear module boundaries (registry vs story steps vs save vs world)
 
@@ -146,16 +149,28 @@ You may ship faster with agents only when:
 Automations and scheduled bots are optional later. They do not replace a paved path or headless proof.
 
 
+## 1e. Engineering References — study before building (non-negotiable)
+
+Two permanent reference repos inform this project's engineering:
+
+1. **Gen City Auto** — https://github.com/greggman/gen-city-auto — runtime world management, procedural generation, pedestrians, traffic, vehicles, spatial systems, workers, performance.
+2. **Slop New York** — https://github.com/mrdoob/slop-newyork/ — real-NYC geography, city grid and districts, buildings from open data, map/atlas, scene culling.
+
+**The rule:** whenever a task builds, upgrades, replaces, or improves a system that exists in either reference, inspect that reference's **actual source first** (local clones: `/home/z/my-project/refs/`; re-clone commands in the doc). Decide what to reuse conceptually, adapt, improve, or build independently — then implement inside FIRST SLICE's architecture (TypeScript, Three.js, Vite, the registry, the Laws). Never adopt a reference's WebGPU/TSL renderer as an engine swap. Never ingest OSM/NYC-Open-Data geodata (reference-only; license ledger in docs/57 §3.4).
+
+**Proportional study:** read only the system the task touches — the file map and the findings so far live in [docs/57-engineering-references.md](docs/57-engineering-references.md). If a reference has no equivalent, say so and build independently. When delegating a task to another agent, name the reference files it should study. Record new findings in docs/57 §3 so the next agent doesn't re-study the same ground.
+
+
 ## 2. Voice & Terminology
 
 **Writing voice (all docs, dialogue, captions, commit messages):** short sentences. Plain words. Warm, wry, unhurried — like Rosa, not like a wiki. Concrete nouns over abstractions. Humor is dry and kind, never sarcastic. Never "users," "players" where "you" will do.
 
 | Term | Meaning (use exactly this way) |
 |---|---|
-| **Map** | The co-newbie paper companion (GDD §4.0). Always capitalized as a name. Not a UI map. |
+| **Map** | The co-newbie paper companion (the bible, docs/narrative/03). Always capitalized as a name. Not a UI map. |
 | **Regular** | A recurring NPC the player knows by order and name. |
 | **Postcard** | The auto-composed shareable session-end artifact. Capital P in design docs. |
-| **Skyline of Lit Windows** | The visible progress system (GDD §6.4). Windows turn gold when someone feels kept. |
+| **Skyline of Lit Windows** | The visible progress system (docs/narrative/01). Windows turn gold when someone feels kept. |
 | **Wonder beat** | One designed frame/line producing "I wish I could see that." |
 | **The usual** | "A tiny love letter." A story beat, not a combo. |
 | **Chef's welcome** | The mechanic where the cook chooses for you. |
@@ -171,21 +186,44 @@ Automations and scheduled bots are optional later. They do not replace a paved p
 first-slice-nyc/
 ├── README.md                  # Pitch overview + docs index + previews
 ├── AGENTS.md                  # ← you are here
-├── docs/                      # 01–52: GDD, scripts, art bible, build logs.
-│   │                          #   The two live coordination files:
-│   ├── 50-agent2-first-session-world.md  # the paved path — current world truth
-│   │                          #   (51-open-bugs-for-agents.md — the live bug ledger, check it first)
-│   └── …                      #   full index in README
+├── docs/                      # the canon + the ledgers:
+│   ├── narrative/             #   the story bible, 00–15 (canon, v1.0, 2026-11-06)
+│   ├── production/            #   the master roadmap + checklists + status register (v1.0, 2026-11-06)
+│   ├── architecture/world-contract/  # THE WORLD CONTRACT — 17 docs: global sim state,
+│   │                          #   spatial/semantic registry, entity identity, arbitration,
+│   │                          #   narrative validation, economy guardrails, the six
+│   │                          #   workstreams' deal (implemented in web-three/src/sim/)
+│   ├── 57-engineering-references.md  # the study-before-build ledger — check it first
+│   └── data/                  #   world-registry.json + curated manifests
 ├── web-three/                 # THE GAME — Vite + TypeScript + Three.js
 │   ├── src/                   #   camera, world, game, court, subway, ui, …
 │   ├── tests/                 #   vitest suite — permanent guards live here
 │   └── scripts/               #   probe-*.mjs in-engine verification harnesses
 ├── tools3d/, scripts/         # asset generation (GLB pipelines) + registry tooling
-├── assets/                    # styleframes, web evidence frames, postcards
+├── assets/                    # styleframes, web evidence frames, postcards…
+│   └── furniture/             #   …and the ABO pack — 141 CC-BY-4.0 furniture GLBs
 └── worklog.md                 # append-only agent worklog — add yours at the end
 ```
 
-The game lives in `web-three/` — it is the vertical-slice build and the only build. Do not replace GDD systems with a generic city demo.
+The game lives in `web-three/` — it is the vertical-slice build and the only build. Do not replace the sim's systems with a generic city demo.
+
+**The furniture pack — reusable by any agent (docs/57):** 141 curated ABO
+GLBs sit in `assets/furniture/<bucket>/<ASIN>.glb` (meshopt geometry, KTX2
+textures, ~300 KB median, floor pieces sit on Y=0). The manifest is
+`docs/data/abo-curated.json` — per model: id / name / product_type /
+bucket / **repo_path** / triangles / size_metres / score, so you can pick
+by bucket or score and resolve the file without guessing. To dress an
+interior, load through the seam (`web-three/src/world/furniture.ts`) and
+keep docs/57's laws: the GLB is a costume, never a dependency (a missing
+or malformed file keeps the procedural room, one `console.info`, no
+retries); colliders are authored in the builder, never imported. Extend
+the pack idempotently with `python3 tools3d/abo_select.py && python3
+tools3d/abo_fetch.py` (edits the curated manifest + re-fetches by size
+check). The slots the game itself wears are byte-identical copies in
+`web-three/public/models/furniture/`, pinned by test. License and
+per-model credit live beside the pack (`LICENSE-CC-BY-4.0.txt`,
+`ATTRIBUTION.md`) — CC-BY-4.0 means the credit ships with anything you
+make from these.
 
 ## 4. Environment & Commands
 
@@ -206,7 +244,7 @@ git status && git log --oneline -5     # orient first, always
 
 ## 5. Workflow Protocol
 
-1. **Read `AGENTS.md` §0 (GDD / Living Neighborhood) and the latest commit log before starting.** Understand what previous agents did.
+1. **Read `AGENTS.md` §0 (the bible's pillars) and the latest commit log before starting.** Understand what previous agents did.
 2. Work in a branch or on `main` only for doc fixes — bulk changes get a branch.
 3. Small, honest commits: `docs(gdd): add Map v1 trigger table`.
 4. Before finishing: run whatever check exists (`lint` for code, self-review for docs — voice guide §2, Laws §1, §0 pillars).
@@ -214,7 +252,7 @@ git status && git log --oneline -5     # orient first, always
 6. Cite provenance: if an idea, skill, or snippet comes from a repo, a post, or the web, say so in the doc's changelog or the commit message. Stolen-with-credit is our house style; stolen-silently is not.
 
 **PR / change checklist:**
-- [ ] **§0 GDD pillars respected** (daily loop, Map, Regulars, Postcard, Slice Ladder, Passport, cozy low-poly) — expansion did not replace the concept
+- [ ] **§0 pillars respected** (daily loop, Map, Regulars, Postcard, Slice Ladder, Passport, cozy low-poly) — expansion did not replace the concept
 - [ ] Laws §1 respected (which ones apply? name them in the description)
 - [ ] Anti-Slop Quality Gate §1b respected (inspected in-game; no filler; owner + behavior + style + verification)
 - [ ] Engineering discipline §1c respected (guards for bugs found; no hot-path waste; headless proof where story-critical)
@@ -222,7 +260,7 @@ git status && git log --oneline -5     # orient first, always
 - [ ] Voice guide §2 respected
 - [ ] Terminology consistent with §2 table
 - [ ] No secrets, no fabricated data, TBDs marked `[TBD]` with owner + date
-- [ ] GDD systems audited: implemented / partial / missing named; nothing silently abandoned
+- [ ] Shipped systems audited: implemented / partial / missing named; nothing silently abandoned
 
 ## 6. Skills Library
 
@@ -230,7 +268,7 @@ A **skill** is a packaged procedure an agent loads when a task matches its trigg
 
 | Skill | Load when… |
 |---|---|
-| `system-spec` | Turning a one-line system idea into a GDD-grade spec |
+| `system-spec` | Turning a one-line system idea into a bible-grade spec |
 | `content-pipeline` | Writing postcards, Map notes, Regular beats, slang cards |
 | `slice-guardian` | Reviewing whether a change respects the vertical-slice scope |
 | `implement-epic` | Implementing a roadmap epic in code (Phase 1+) |
@@ -251,7 +289,7 @@ A **skill** is a packaged procedure an agent loads when a task matches its trigg
 
 ### skill: content-pipeline
 **Inputs:** content type (postcard / Map note / slang card / Regular beat / event) + quantity.
-1. Re-read Doc 02 + Doc 04 for voice; read 3 existing examples of the type.
+1. Re-read [docs/narrative/13](docs/narrative/13-dialogue-and-writing-style-guide.md) for voice; read 3 existing examples of the type.
 2. Draft with the type's law: postcards ≤ 2 sentences, one "wait, REALLY?" fact; Map notes in feelings--first ordinary words; Regular beats end on warmth, never cliffhanger-of-dread.
 3. Run the self-check: Could a never-visitor keep this? Does it pass the fridge test? Is there exactly one wonder beat? Does any line quiz, sigh at, or flatter the player falsely?
 4. Mark culture-specific beats for the NYC-resident panel.
@@ -260,20 +298,20 @@ A **skill** is a packaged procedure an agent loads when a task matches its trigg
 
 ### skill: slice-guardian
 **Inputs:** a proposed change/feature/PR.
-1. Open Doc 07 §3 scope tables (IN/OUT).
-2. Classify: IN (spec exists?) · OUT (recommend deferral with a one-line note in the backlog section of Doc 07 §10) · UNDECIDED (escalate to human).
+1. Open the scope law: §0 pillars + [docs/narrative/01](docs/narrative/01-narrative-vision.md) narrative laws.
+2. Classify: IN (spec exists in docs/narrative/14?) · OUT (recommend deferral with a one-line note in docs/narrative/15's open questions) · UNDECIDED (escalate to human).
 3. For IN items, verify acceptance criteria are addressed.
-4. Check **§0**: does this expand the GDD, or replace it with a generic city?
+4. Check **§0**: does this expand the bible, or replace it with a generic city?
 **DoD:** verdict in 5 lines: IN/OUT/UNDECIDED + why + what to do next.
 **Pitfall:** scope creep is a *design* failure here, not just a schedule one — every OUT-feature dilutes the slice's proof.
 
 ### skill: implement-epic
-**Inputs:** an epic from Doc 06 §4 (Phase 1+).
-1. Read the mapped Doc 07 feature spec; write a task list (≤ 8 tasks) with estimates.
+**Inputs:** a requirement from [docs/narrative/14](docs/narrative/14-narrative-implementation-spec.md) §1 (build order §7).
+1. Write a task list (≤ 8 tasks) with estimates.
 2. Scaffold → implement → unit-test the pure logic (order flow, caption composer, note triggers) → device smoke test.
 3. Run the Laws audit on anything visual; run `visual-qa` **and** the Anti-Slop Quality Gate (§1b).
 4. PR with: what, which law it serves, screenshots, open questions.
-**DoD:** feature DoD from Doc 06 §7 fully checked; Anti-Slop Gate passed; §0 pillars intact.
+**DoD:** the requirement's acceptance criteria fully checked; Anti-Slop Gate passed; §0 pillars intact.
 **Pitfall:** optimizing code before the moment works in greybox. Feel first, performance second, elegance last.
 
 ### skill: visual-qa
@@ -289,14 +327,14 @@ A **skill** is a packaged procedure an agent loads when a task matches its trigg
 ### skill: playtest-analysis
 **Inputs:** raw notes, survey scores, funnel numbers.
 1. Separate observation from interpretation from recommendation — three columns, always.
-2. Map each finding to a Law or a Doc 07 acceptance metric; prioritize by "does it break the feeling?" first, funnel second.
+2. Map each finding to a Law or a docs/narrative/14 acceptance criterion; prioritize by "does it break the feeling?" first, funnel second.
 3. Output: top-5 changes with owner + doc/section to edit. **Never invent or extrapolate numbers beyond the data given — state sample size and unknowns.**
 **DoD:** prioritized changelist merged into the right docs; raw data untouched and cited.
 **Pitfall:** solving "they didn't share" by nagging harder. If share rate is low, the postcards aren't good enough yet — fix the postcards.
 
 ### skill: art-brief
 **Inputs:** subject + placement (doc section, site, store).
-1. Compose prompts with: subject, cozy lowpoly 3D diorama style, palette hexes from Doc 04, lighting mood, vertical-first composition note, "postcard composition, charming, highly readable, high quality."
+1. Compose prompts with: subject, cozy lowpoly 3D diorama style, palette hexes sampled from the shipped build (don't invent), lighting mood, vertical-first composition note, "postcard composition, charming, highly readable, high quality."
 2. Enforce 1-Second Law: one hero prop per frame; silhouette describable in one sentence.
 3. Include size guidance (1344x768 wide / 768x1344 vertical / 1024x1024 square) and the 32px-multiple constraint.
 **DoD:** brief saved in the doc; 2–3 generated candidates reviewed against the palette.
@@ -304,7 +342,7 @@ A **skill** is a packaged procedure an agent loads when a task matches its trigg
 
 ### skill: worklog-keeper
 **Inputs:** completed task.
-1. Append (never overwrite) to `/home/z/my-project/worklog.md`:
+1. Append (never overwrite) to `worklog.md` (repo root):
 ```markdown
 ---
 Task ID: <id>
@@ -322,7 +360,7 @@ Stage Summary:
 ### skill: pitch-assets
 **Inputs:** a doc/feature worth showing.
 1. Refresh README preview screenshots and doc index if docs changed materially.
-2. Keep the store-style screenshot order from Doc 05 §7 in sync.
+2. Keep the README preview order stable.
 3. If the pitch site needs updating (sandbox Next.js project), follow §4 sandbox commands and `visual-qa`.
 **DoD:** README reflects reality; site and docs never contradict.
 
@@ -351,7 +389,7 @@ trigger: <when to load>
 
 - Monetization or pricing of any kind is proposed (Law 6 territory)
 - Scope grows: new boroughs, new systems beyond the roadmap epics
-- **World expansion that abandons GDD pillars** (daily loop, Map, Regulars, Postcard, Slice Ladder) in favor of a generic open city
+- **World expansion that abandons the §0 pillars** (daily loop, Map, Regulars, Postcard, Slice Ladder) in favor of a generic open city
 - Naming, IP, or partnership decisions (the title is a legal decision, not a design one)
 - Credentials are requested, or anything touches payments/PII
 - A "requirement" contradicts the Laws or §0 — escalate with the conflict stated plainly
@@ -359,7 +397,7 @@ trigger: <when to load>
 ## 9. Honesty Rules
 
 - **Never fabricate** metrics, playtest results, quotes, or "player reactions." Use `[TBD]` with an owner and a date.
-- Mark unfinished work as unfinished (see Doc 07's status banner — that's the house style).
+- Mark unfinished work as unfinished (see the status banners in docs/narrative/00 — that's the house style).
 - If you don't know NYC, say so and check the docs or ask; the game has a law against sighing at newcomers and it applies to you too.
 - Report failure plainly: a red gate is a red gate. The city forgives; the roadmap doesn't need spin.
 

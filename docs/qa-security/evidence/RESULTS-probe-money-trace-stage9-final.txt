@@ -1,0 +1,22 @@
+
+--- Day-1 money trace (tick 1900) ---
+  txn:story_495_0  faucet   business_revenue   +$5  counter shift — the rush cup, $5 from the counter's side of the day
+  txn:story_495_1  faucet   business_revenue   +$5  counter shift — the rush cup, $5 from the counter's side of the day
+  txn:story_496_0  faucet   business_revenue   +$5  counter shift — the rush cup, $5 from the counter's side of the day
+  txn:story_497_0  faucet   business_revenue   +$5  counter shift — the rush cup, $5 from the counter's side of the day
+  txn:story_497_1  faucet   business_revenue   +$5  counter shift — the rush cup, $5 from the counter's side of the day
+  balance: $112 (mirror $112), 5 transactions
+
+PASS genesis mirror reads $87.00 (got 87.00)
+PASS genesis ledger reads $87.00 (got 87.00)
+PASS genesis ledger is empty — the shipped start is genesis, not a transaction (got 0 txns)
+PASS genesis ledger audits clean
+PASS exactly five transactions — the five rush cups (got 5)
+PASS ledger ends at $112.00 (got $112)
+PASS the sanctioned mirror holds: player moneyCents === ledger balance
+PASS the ledger audit is clean — every dollar = genesis + Σ(transactions)
+PASS every cup is a +$5.00 business_revenue faucet (the customer is not a simulated account)
+PASS ids are deterministic story ids (txn:story_495_0, txn:story_495_1, txn:story_496_0, txn:story_497_0, txn:story_497_1)
+PASS console clean (0 errors)
+
+probe-money-trace: ALL CHECKS PASSED

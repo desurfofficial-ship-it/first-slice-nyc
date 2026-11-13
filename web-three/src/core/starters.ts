@@ -12,6 +12,13 @@
  * 'classic' is the shipped courier look — the game's original face. Drivers,
  * probes and old saves keep it unless a human picks; the pick card is a
  * film-path-only beat (webdriver never sees it).
+ *
+ * THE LOCK LAW (ui/Wardrobe.ts, 2026-11): a picked face rides the save and
+ * is for keeps — the wardrobe is a fitting room, not a switchboard. Looking
+ * is free (the turntable spins every look); wearing a different one is only
+ * reachable through a confirmed new game (Save.newGameSave), which resets
+ * the days, the diary and the postcards. Nothing re-dresses the walker
+ * underneath a live save.
  */
 
 import { PAL } from './palette';

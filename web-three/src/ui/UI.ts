@@ -8,8 +8,11 @@ import { gameAudio } from '../game/audio';
 import type { OrderCard } from '../core/content';
 import { MAP_PLACES, SLANG_CARDS } from '../core/content';
 import { buildSketchSvg } from './sketch';
+import { mountDateline, mountDiaryInk, type DiaryInkHandle, type DatelineHandle } from './diary';
 import type { AlbumEntry } from '../postcard/Album';
+import type { FieldDiaryEntry } from '../core/fieldDiary';
 import { touchPanelUp } from './touchLaw';
+import { clampFreeWrite } from '../core/c0pack';
 
 function el<T extends HTMLElement>(id: string): T {
   const e = document.getElementById(id);
@@ -54,6 +57,22 @@ export class UI {
   // ---- the Roam chip (freeroam.ts — the open-block contract's switch) ----
   readonly roamBtn = el<HTMLButtonElement>('btn-roam');
   private roamPeek = el<HTMLSpanElement>('roam-peek');
+  // ---- WP-6: the field diary's ink + the calendar dateline (ui/diary.ts) —
+  // mounted lazily on first use; both are display-only seams ----
+  private diaryInk: DiaryInkHandle | null = null;
+  private hudDateline: DatelineHandle | null = null;
+  // ---- the notebook prompt — the C0 pack's diary picks (doc 11 §3) ----
+  readonly notebookPrompt = el<HTMLDivElement>('notebook-prompt');
+  private notebookSystem = el<HTMLDivElement>('notebook-system');
+  private notebookAsk = el<HTMLLabelElement>('notebook-ask');
+  private notebookChoices = el<HTMLDivElement>('notebook-choices');
+  private notebookFreeRow = el<HTMLDivElement>('notebook-free-row');
+  private notebookFree = el<HTMLInputElement>('notebook-free');
+  private notebookFreeOk = el<HTMLButtonElement>('notebook-free-ok');
+  /** The pack id currently on the notebook's page — 'cold-open' | 'theory'
+   *  | 'question'; null when the paper is shut. */
+  private notebookPack: string | null = null;
+
   // ---- the album — the shelf where kept postcards live ----
   readonly albumBtn = el<HTMLButtonElement>('btn-album');
   readonly albumPanel = el<HTMLDivElement>('album-panel');
@@ -63,7 +82,14 @@ export class UI {
   private albumCountBadge = el<HTMLSpanElement>('album-count');
   // ---- who got off the bus (Doc 02: six starters) ----
   readonly starterCard = el<HTMLDivElement>('starter-card');
-  private starterChoices = el<HTMLDivElement>('starter-choices');
+  /** R11's name entry (doc 02 §1 + doc 11 §5): the pick card's paper row —
+   *  defaults are the canon identity; cleared fields fall back to it. */
+  private starterNameFirst = el<HTMLInputElement>('starter-name-first');
+  private starterNameNick = el<HTMLInputElement>('starter-name-nick');
+  private starterNameLast = el<HTMLInputElement>('starter-name-last');
+  // ---- the wardrobe — the 3D fitting room (ui/Wardrobe.ts) ----
+  readonly wardrobeBtn = el<HTMLButtonElement>('btn-wardrobe');
+  readonly wardrobePanel = el<HTMLDivElement>('wardrobe-panel');
   // ---- the pocket — one button that opens Map / Album / Sound ----
   // (declared here: the pocket wave wired the behavior but left the
   // properties undeclared — main did not typecheck without these)
@@ -95,7 +121,11 @@ export class UI {
   onCineTap: (() => void) | null = null;
   onCineSkip: (() => void) | null = null;
   /** Doc 02's starter pick — fired with the tapped starter's id. */
-  onStarterPick: ((id: string) => void) | null = null;
+  /** The notebook's pick — fired with the pack id, the chosen option's id,
+   *  and the free-write line (empty string when the pick was an option). */
+  onNotebookPick: ((pack: string, optionId: string, freeText: string) => void) | null = null;
+  /** The wardrobe chip — fired when the pocket's Wardrobe tile is tapped. */
+  onWardrobeToggle: (() => void) | null = null;
 
   constructor() {
     this.nameOk.addEventListener('click', () => this.onNameSubmit?.());
@@ -144,6 +174,11 @@ export class UI {
       this.closePocket();
       this.onRoamToggle?.();
     });
+    // the wardrobe chip: fold the menu, then open the fitting room
+    this.wardrobeBtn.addEventListener('click', () => {
+      this.closePocket();
+      this.onWardrobeToggle?.();
+    });
     this.mapClose.addEventListener('click', () => this.onMapToggle?.());
     this.albumBtn.addEventListener('click', () => {
       this.closePocket();
@@ -162,6 +197,11 @@ export class UI {
       const btn = (e.target as HTMLElement).closest('[data-reply]');
       if (btn) this.onOrderChoose?.(Number((btn as HTMLElement).dataset.reply));
       else if (this.orderRespondedShown) this.onOrderChoose?.(null);
+    });
+    // the notebook's options + free-write line (the C0 pack's diary picks)
+    this.notebookFreeOk.addEventListener('click', () => this.commitNotebookFree());
+    this.notebookFree.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); this.commitNotebookFree(); }
     });
     // keyboard on the conversation: 1–4 choose, Space/Enter advances,
     // Escape steps back from the counter without penalty (nothing can fail)
@@ -266,6 +306,8 @@ export class UI {
       postcardPanel: !this.postcardPanel.hidden,
       albumPanel: !this.albumPanel.hidden,
       starterCard: !this.starterCard.hidden,
+      wardrobePanel: !this.wardrobePanel.hidden,
+      notebookPrompt: !this.notebookPrompt.hidden,
     }));
   }
 
@@ -373,29 +415,78 @@ export class UI {
 
   // ---------------- who got off the bus (Doc 02 six starters) ----------------
 
-  /** The pick card: six tiles, every one safe. Open only for humans on the
-   *  film path; drivers and ?starter= boots apply directly. */
-  showStarterPick(starters: Array<{ id: string; name: string; blurb: string }>) {
-    this.starterChoices.innerHTML = '';
-    for (const s of starters) {
+  // (2026-11: the paper pick card retired — the wardrobe's pick mode is the
+  // "who got off the bus?" beat now, six 3D previews instead of six blurbs.
+  // The #starter-card element and its UI-state line stay for the pause/panel
+  // law; the pick itself lives in ui/Wardrobe.ts openPick → Game.applyWardrobePick.)
+
+  /** The name the block learns (doc 11 §5): read raw; GameState's
+   *  sanitizeIdentity owns the caps and the fallbacks. The inputs live in
+   *  the wardrobe's pick row (#wardrobe-pick-name). */
+  starterName(): { first: string; nick: string; last: string } {
+    return {
+      first: this.starterNameFirst.value,
+      nick: this.starterNameNick.value,
+      last: this.starterNameLast.value,
+    };
+  }
+
+  // ---------------- the notebook prompt (the C0 pack) ----------------
+
+  /** One page of the green notebook: the system line in his hand, the ask,
+   *  the options as handwriting — and, where the pack offers it, the
+   *  free-write line (doc 11 §3 entry 4: "or writes their own"). */
+  showNotebookPrompt(pack: string, opts: {
+    systemLine?: string;
+    ask: string;
+    options: ReadonlyArray<{ id: string; label: string }>;
+    freeWrite: boolean;
+    freePlaceholder?: string;
+  }) {
+    this.notebookPack = pack;
+    this.notebookSystem.textContent = opts.systemLine ?? '';
+    this.notebookSystem.hidden = !opts.systemLine;
+    this.notebookAsk.textContent = opts.ask;
+    this.notebookChoices.innerHTML = '';
+    for (const o of opts.options) {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'starter-tile';
-      b.dataset.starter = s.id;
-      b.innerHTML = `<span class="starter-name">${escapeHtml(s.name)}</span>`
-        + `<span class="starter-blurb">${escapeHtml(s.blurb)}</span>`;
-      b.addEventListener('click', () => this.onStarterPick?.(s.id));
-      this.starterChoices.appendChild(b);
+      b.className = 'notebook-option';
+      b.dataset.option = o.id;
+      b.textContent = o.label;
+      b.addEventListener('click', () => {
+        this.onNotebookPick?.(pack, o.id, '');
+      });
+      this.notebookChoices.appendChild(b);
     }
-    this.starterCard.hidden = false;
+    this.notebookFreeRow.hidden = !opts.freeWrite;
+    if (opts.freeWrite) {
+      this.notebookFree.value = '';
+      this.notebookFree.placeholder = opts.freePlaceholder ?? '…or write your own line';
+    }
+    this.notebookPrompt.hidden = false;
     this.syncTouchUI();
     this.prompt.hidden = true;
     this.interactBtn.classList.remove('occupied');
+    if (opts.freeWrite) window.setTimeout(() => this.notebookFree.focus(), 30);
   }
 
-  closeStarterPick() {
-    this.starterCard.hidden = true;
+  closeNotebookPrompt() {
+    this.notebookPack = null;
+    this.notebookPrompt.hidden = true;
+    this.notebookFree.blur();
     this.syncTouchUI();
+  }
+
+  notebookIsOpen(): boolean {
+    return !this.notebookPrompt.hidden;
+  }
+
+  private commitNotebookFree() {
+    if (this.notebookPack === null) return;
+    const text = clampFreeWrite(this.notebookFree.value);
+    if (text.length === 0) return; // an empty line never lands — the paper waits
+    this.onNotebookPick?.(this.notebookPack, 'free-write', text);
   }
 
   // ---------------- the serving conversation (docs/11 + docs/12) ----------------
@@ -554,6 +645,27 @@ export class UI {
       this.mapSlangList.appendChild(li);
     }
     this.mapEmpty.hidden = notes.length > 0 || slang.length > 0;
+  }
+
+  /** WP-6 — the field diary's ink on the Map (narrative/14 R3: "the Map
+   *  renders entries as ink"). Mounts the folded leaf lazily; the render
+   *  is a rebuild of the list only (the sketch's build-once law). The
+   *  diary rides the Map's own paper surface — it adds no paper door of
+   *  its own, so the touch law's wiring is untouched. */
+  refreshDiary(entries: readonly FieldDiaryEntry[]): void {
+    if (!this.diaryInk) this.diaryInk = mountDiaryInk(el<HTMLDivElement>('map-sheet'));
+    this.diaryInk.render(entries);
+  }
+
+  /** WP-6 — the calendar dateline (HUD, and the diary leaf once mounted).
+   *  The text arrives rendered — Game passes it through
+   *  `datelineOfStoryDay` (sim/epochMap's one mapping; the R4 law: the
+   *  date comes from the calendar, never real time). The UI only ever
+   *  displays it. */
+  setDateline(text: string): void {
+    if (!this.hudDateline) this.hudDateline = mountDateline(el<HTMLDivElement>('hud-top-right'));
+    this.hudDateline.set(text);
+    this.diaryInk?.setDateline(text);
   }
 
   /** "Map wants to write this down" — the folded corner does a small

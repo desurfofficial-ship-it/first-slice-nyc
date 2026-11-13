@@ -8,6 +8,8 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PAL } from '../core/palette';
 import { ITEM_LABELS } from '../core/content';
@@ -31,14 +33,45 @@ import { MatBank, makeTree, makeTreePit, makeStreetlight, makeTrashCan, makeRecy
 import { drawIntoAtlas, atlasMaterial, atlasTexture } from './signAtlas';
 import { PigeonFlock, Squirrel, seededRng } from './ambient';
 import { fuseFlatParts } from './vertexFuse';
+import { FURNITURE_SLOTS, type FurnitureSlot } from './furniture';
+import { INTERIOR_SLOTS } from './interiorAssets';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
+import { makeCornice, makeBrickover, makeDownspout, makeRoofClutter, makeGrassTufts,
+  makeLeafPile, makeManhole, makeStormDrain, makePatch, makeStopLine, makeSill,
+  makeLintel, makeGooseneck, WEAR } from './facadeKit';
+// SI (2026-11-11): the borough-character kit — architectural and street
+// details PORTED from mrdoob/slop-newyork (MIT) and rebuilt in the
+// facadeKit convention. Provenance and part-by-part mapping:
+// docs/slop-integration/01-SOURCE-REUSE-REPORT.md; licensing:
+// THIRD-PARTY-NOTICES.md (repo root, the merged tree's notice file). The
+// World SI pass is the only consumer; the city-fabric pass (main's own
+// slop-newyork roofscape) owns tanks/chimneys/bulkheads — this kit keeps
+// the chillers, escapes and street pieces.
+import { makeHVACUnitNYC, makeCorniceBand,
+  makeAwningNYC, makeFireEscapeStack, makeSteamVentNYC, makeSubwayStairNYC,
+  makeSubwayGlobePost, makeMailboxNYC, makeScaffoldShedNYC, NYC } from './nycKit';
+import { buildSkylineLandmarks } from './skylineLandmarks';
 import { LeafDrift } from './leaves';
 import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
 import { buildSubwaySystem, STATION, ZONE_KEEP_RE, type SubwaySystem, type ColliderSpec } from './subway';
 import { buildTimesSquare, type TimesSquare } from './timesSquare';
 import { buildArrivalBus, BUS04_RECT, playerOccupiesBus04, type ArrivalBus } from './arrivalBus';
+import { buildCityFabric } from './cityFabric';
+import { groundMaterial, metricBoxUVs } from './groundTex';
+// the fenestra windows (docs/production/fenestra/): interior-mapping after
+// J. van Dongen 2008, adapted from codedgar/three-fenestra (MIT) — the
+// technique study lives in docs/57 §3.8. Core = the pure laws + collector;
+// Material = the Lambert injections + instanced mesh builder.
+import { collectWindowPlan, FEN_BANDS_BY_TIER, fenBandOf, bandValues,
+  type FenestraInstance } from './fenestraCore';
+import { FenestraMaterial, fenestraMeshFromPlan, loadFenestraAtlas,
+  applyAtlasMaxLod, type FenestraMesh } from './fenestraMaterial';
+import { EnvSky } from '../render/envsky';
+import { sampleDayCycle, keyframeState, freshDayState, CANON_MINUTES, type DayState, type DayPin } from '../render/daycycle';
+import { buildNeighborhoodFabric, NEIGH, TERRACE_GATES } from './neighborhoodFabric';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay,
-  skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH } from './dressing';
+  skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH,
+  STREET_PLAN, PEDESTRIAN_ROLES, type StreetPlan } from './dressing';
 import { D4_LAUNDRY_SIGN, D4_NOTICE_TITLE, D4_NOTICE_LINES, D4_RECEIPT_TEXT,
   RECORD_SIGN_TOP, RECORD_SIGN_SUB } from '../core/content';
 // the half-court upgrade (docs/48/49) — basketball-owned module, the one
@@ -48,6 +81,13 @@ import { makeNet, makePolePad, makeCourtLight, makeTallyBoard, buildBackstop,
   type CourtNet, type TallyBoard } from '../court/courtDressing';
 import { makeBasketball } from '../court/Basketball';
 import { COURT_BALL_REST } from '../game/interactionDefs';
+// A-3 (DEC-4, 2026-11-07): the registry geometry flip — a flipped building's
+// placement and dimensions read the construction truth (world-registry.json)
+// at runtime; the per-style builder code stays. The registry already drives
+// the nav graph, the doors and the capacity gates; this extends the same
+// single truth to the render coordinates.
+import { loadRegistry } from '../sim/registry';
+import { PASSABLE_FOOTPRINTS } from '../sim/nav/build';
 
 export interface LadderInfo { area: AABB; top: number; }
 
@@ -92,7 +132,7 @@ export class World {
   readonly sun: THREE.DirectionalLight;
   readonly hemi: THREE.HemisphereLight;
   readonly skyUniforms: { topColor: THREE.Color; horizonColor: THREE.Color; groundColor: THREE.Color };
-  readonly fog: THREE.Fog;
+  readonly fog: THREE.FogExp2;
   readonly roof: THREE.Mesh;
   readonly goldWindowMat!: THREE.MeshLambertMaterial;
   readonly secondWindowMat!: THREE.MeshLambertMaterial;
@@ -206,6 +246,20 @@ export class World {
   readonly ambientWindowMatRiser!: THREE.MeshLambertMaterial;  // the early riser, Day 4
   readonly skylineWinMat!: THREE.MeshLambertMaterial;          // the far city, always on at dusk
   readonly skylineWinDiaryMat!: THREE.MeshLambertMaterial;     // two windows across the avenue, day-keyed
+
+  // ---- fenestra: the interior-mapping windows (docs/production/fenestra) --
+  // The plan collects BEFORE the bake (the named proud-window rows must
+  // exist); the planes build AFTER it (instanced draws own themselves, but
+  // the collector needs the source boxes alive). Two instanced meshes —
+  // one per family — ride the whole block (the shipped skyline-pane
+  // precedent: frustumCulled false, depth-tested, fogged).
+  private fenestraPlan: FenestraInstance[] = [];
+  private fenestraMeshes: FenestraMesh[] = [];
+  private fenestraMats: FenestraMaterial[] = [];
+  private fenestraBands: Uint8Array = new Uint8Array(0);
+  private fenestraBandDist: { full: number; far: number } = FEN_BANDS_BY_TIER.high;
+  private fenestraEnabled = true;
+  private fenestraBandTimer = 0;
   /** The half-court ball (docs/38): rests by the key, flies when shot.
    *  Excluded from the static bake — it moves. (Assigned by buildCourt.) */
   ball!: THREE.Mesh;
@@ -262,12 +316,34 @@ export class World {
   }> = [];
   /** Canopy bounding spheres for the camera's sight-line guard. */
   private readonly canopySpheresCache: Array<{ x: number; y: number; z: number; r: number }> = [];
+  /** Every tree pit the world laid (the quality pass grows grass in each —
+   *  recorded at placement so the pass never re-derives coordinates). */
+  private readonly treePits: Array<{ x: number; z: number }> = [];
+  /** The visual-quality pass's ledger (docs/3d-assets): what it built and
+   *  where, recorded BEFORE bakeStatics merges the bare meshes into their
+   *  district tiles — the named groups survive the bake, the bare meshes
+   *  become tile vertices, and this list is the probe's ground truth. */
+  readonly vqLedger: Array<{ name: string; x: number; y: number; z: number }> = [];
   private readonly pigeonFlock: PigeonFlock;
   private readonly pigeonFlockEast: PigeonFlock; // the east end gets its own small knot of birds
   private readonly squirrel: Squirrel;
   private leaves!: LeafDrift;
   private peds: Pedestrians;
   private ambientTime = 0;
+  // ---- the street schedule (M4, world/dressing STREET_PLAN) ----
+  /** The dusk flag this World last saw — null until the first update, so
+   *  the day plan applies exactly once at boot. The lever stays Game's
+   *  (the dusk flag); the schedule table stays dressing's; World only
+   *  applies the row on the edge. */
+  private streetPhaseDusk: boolean | null = null;
+  /** The applied plan's cab multiplier — updateTaxi reads it every frame
+   *  (one multiply, hot-path cold). */
+  private cabPaceNow = 1;
+  /** The applied plan — probes read this (the schedule's wiring, provable
+   *  without sampling). */
+  streetPlanNow(): StreetPlan {
+    return STREET_PLAN[this.streetPhaseDusk ? 'dusk' : 'day'];
+  }
 
   /** Read-only XZ of every ambient walker (diagnostics + probes). */
   pedBodies(): Array<{ x: number; z: number }> {
@@ -295,12 +371,31 @@ export class World {
     return this.peds ? this.peds.walkColliders.length : 0;
   }
 
+  /** Arm navigation-aware commuting (WP-3v): the game layer hands the
+   *  walkers its view of the ONE navigation graph (destinations, street
+   *  routing, the availability epoch) and a seed base. The walkers keep
+   *  Yuka's steering stack and every shipped hard guarantee — they gain
+   *  destination movement over the graph. Pure pass-through; safe before
+   *  the roster exists (a no-op), safe to call once at boot. */
+  setPedCommute(ctx: import('./pedCommute').CommuteContext, seed: number): void {
+    if (this.peds) this.peds.setCommute(ctx, seed);
+  }
+
+  /** Ambient commute diagnostics for probes/tests. */
+  pedCommutesWalked(): number {
+    return this.peds ? this.peds.commutesWalked() : 0;
+  }
+
   private steamPoints: THREE.Points;
   private steamSeed: Float32Array;
   private steamLife: Float32Array;
 
   // ---- district system (docs/45 W0 — the culling prerequisite) ----------
-  // The master world spans x ±84 / z ±48 (registry bounds.playableCore).
+  // The master world grew with the registry's playableCore (W6 z ±64, W7
+  // x ±100); the TILE GRID keeps its shipped 28 m × 32 m lattice over the
+  // W0 core — content beyond it (the terrace strips, the Westgate/Eastgate
+  // rows) CLAMPS into the edge tiles (districtKey's own law), so the edge
+  // tiles carry the new strips and nothing ever goes unlit or unculled.
   // Static geometry bakes per DISTRICT TILE — 28 m columns × 32 m rows — and
   // every tile plus registered dynamic groups belongs to a district. Each
   // frame the player's district lights a RING of districts and everything
@@ -308,11 +403,8 @@ export class World {
   // ring rule follows the registry's own law: a street is ONE sight line,
   // so the ring spans every column along it (STREET_RING = all) and 1 row
   // of depth each way (ROW_RING = 1 = the block behind each sidewalk).
-  // With the shipped single-street world every district sits inside the
-  // ring — zero visible change today; W1+ content lands district-tagged
-  // from birth, and far rows cull the moment they exist.
-  private static readonly DIST_COL_W = 28;   // x: −84..84 in 6 columns
-  private static readonly DIST_ROW_H = 32;   // z: −48..48 in 3 rows
+  private static readonly DIST_COL_W = 28;   // x: −84..84 in 6 columns (W7 strips clamp into c0/c5)
+  private static readonly DIST_ROW_H = 32;   // z: −48..48 in 3 rows (W6 strips clamp into r0/r2)
   private static readonly DIST_COLS = 6;
   private static readonly DIST_ROWS = 3;
   private static readonly STREET_RING = World.DIST_COLS; // one sight line, for now
@@ -461,15 +553,73 @@ export class World {
   private glbLoader: GLTFLoader | null = new GLTFLoader();
   /** Which props ended up wearing a generated .glb, and from which file. */
   readonly glbUpgrades = new Map<string, string>();
+  /** ABO furniture (docs/57): which slots ended up wearing a real model,
+   *  and from which file — the probe's evidence map. */
+  readonly furnitureUpgrades = new Map<string, string>();
+  /** The renderer-backed loader (KTX2 transcoder + meshopt decoder) is
+   *  configured once the Game owns its renderer; furniture upgrades fire
+   *  from that call. Until then the street-seam loader loads plain GLBs. */
+  private furnitureWired = false;
+  /** The renderer handle (Game hands it over once, with the GLB decoders);
+   *  the fenestra atlas LOD clamp needs the GL context at upload time. */
+  private rendererRef: THREE.WebGLRenderer | null = null;
+
+  // ---------------- the graphics wave (docs/rendering/) ----------------
+  /** The sky dome's material (the applier writes its halo/nightK uniforms). */
+  private skyMat!: THREE.ShaderMaterial;
+  private skyDome!: THREE.Mesh;
+  /** The CURRENT interpolated day state — Game reads bloom/grade/exposure
+   *  from it each frame and feeds the post pipeline. */
+  readonly dayState: DayState = freshDayState();
+  /** The sampling scratch (the target state the current lerps toward). */
+  private dayScratch: DayState = freshDayState();
+  /** null = clock-driven (roam/scenario); a keyframe name = a story pin. */
+  private dayPin: DayPin | null = 'evening';
+  private dayMinute = -1;
+  /** The night emissive registry (docs/rendering/03 §5): streetlights,
+   *  traffic greens, storefront strips, warm interiors — base → night
+   *  intensity, driven by nightK. Story windows stay Game-owned. */
+  private nightEmissives: Array<{ mat: THREE.MeshLambertMaterial; base: number; night: number }> = [];
+  /** The PMREM sky environment (built when Game wires the renderer). */
+  private envSky: EnvSky | null = null;
+  private envDirty = true;
+  /** The sim-minute of the last environment rebuild — the clock-driven
+   *  rebuild throttle (the stage-9 wave's repair of the graphics wave's
+   *  env-churn defect): under a continuously advancing clock the settle
+   *  gate alone re-armed the PMREM rebuild every few frames, and each
+   *  rebuild's cost on software GL collapsed the frame wall-throughput
+   *  the validation scenarios' wall-clock budgets assume. The sky's own
+   *  lerp carries the between-rebuild look; the env map (the PBR heroes'
+   *  reflections) may lag the clock by up to this granularity — the six
+   *  keyframe bands are ~240 sim-min wide, so a 20 sim-min floor keeps
+   *  the reflections honest while the rebuilds stay "a few per in-game
+   *  day", which is what this throttle's own comment always promised.
+   *  The explicit pins (?tod, the story beats' pinDayState) bypass the
+   *  floor — a rig's rebuild is a statement, not a clock tick. */
+  private lastEnvRebuildMinute = -1;
+  private static readonly ENV_REBUILD_MIN_SIM_MIN = 20;
+  /** Glow sprites (billboards) — excluded from the AO normal prepass. */
+  private glowSprites: THREE.Sprite[] = [];
+  /** The AO prepass exclusion list (far world + movers + billboards). */
+  private aoExcludeList: THREE.Object3D[] = [];
+  /** Public read for the Game's PostPipeline (CityAOPass hides these). */
+  get aoExclude(): readonly THREE.Object3D[] { return this.aoExcludeList; }
+  /** The day-state scalar keys, computed once (no per-frame Object.keys). */
+  private static readonly DAY_KEYS = Object.keys(freshDayState()) as Array<keyof DayState>;
 
   constructor() {
     const scene = this.scene;
-    scene.fog = this.fog = new THREE.Fog(PAL.amber, 40, 170);
+    // FogExp2 (the graphics wave): squared-exponential aerial perspective —
+    // the far skyline melts into the horizon color instead of hard-cutting
+    // at the old linear near/far. Density is keyed per day state
+    // (applyDayState); ~0.0055 ≈ the shipped (40,170) linear feel at street
+    // ranges with a far tail the skyline rows now ride.
+    scene.fog = this.fog = new THREE.FogExp2(PAL.amber, 0.0055);
     // the material bank exists before anything is built — signs need its
     // shared plain materials (W0: sign edges bake-merge per district)
     this.bank = new MatBank((c) => this.mat(c));
 
-    // ---------------- sky (ProceduralSkyMaterial counterpart) ----------------
+    // ---------------- sky (the wave: sun halo + night stars) ----------------
     this.skyUniforms = {
       topColor: new THREE.Color(PAL.amber).setHex(0x7fa7c9),
       horizonColor: new THREE.Color(PAL.amber),
@@ -480,6 +630,10 @@ export class World {
         topColor: { value: this.skyUniforms.topColor },
         horizonColor: { value: this.skyUniforms.horizonColor },
         groundColor: { value: this.skyUniforms.groundColor },
+        sunDir: { value: this.sunOffset.clone().normalize() },
+        haloColor: { value: new THREE.Color(PAL.amber) },
+        haloStrength: { value: 0.65 },
+        nightK: { value: 0 },
       },
       vertexShader: `
         varying vec3 vDir;
@@ -489,21 +643,40 @@ export class World {
         }`,
       fragmentShader: `
         uniform vec3 topColor; uniform vec3 horizonColor; uniform vec3 groundColor;
+        uniform vec3 sunDir; uniform vec3 haloColor; uniform float haloStrength;
+        uniform float nightK;
         varying vec3 vDir;
+        float hash13(vec3 p) {
+          p = fract(p * 0.1031);
+          p += dot(p, p.zyx + 31.32);
+          return fract((p.x + p.y) * p.z);
+        }
         void main() {
           float h = vDir.y;
           vec3 col = h >= 0.0
             ? mix(horizonColor, topColor, pow(min(h, 1.0), 0.55))
             : mix(horizonColor, groundColor, pow(min(-h, 1.0), 0.5));
+          // the sun's halo — atmosphere scatters most toward the sun
+          // (docs/rendering/02, the sky chapter's core insight, adapted)
+          float sd = max(dot(normalize(vDir), sunDir), 0.0);
+          col += haloColor * (pow(sd, 14.0) * 0.45 + pow(sd, 60.0) * 0.7) * haloStrength;
+          // night stars — hash sparkle above the roofline, gated by nightK
+          if (nightK > 0.02 && h > 0.04) {
+            float star = step(0.9986, hash13(floor(vDir * 300.0)));
+            col += vec3(star) * nightK * 0.7 * smoothstep(0.04, 0.3, h);
+          }
           gl_FragColor = vec4(col, 1.0);
         }`,
       side: THREE.BackSide,
       depthWrite: false,
       fog: false,
     });
+    this.skyMat = skyMat;
     const sky = new THREE.Mesh(new THREE.SphereGeometry(380, 24, 16), skyMat);
     sky.frustumCulled = false;
+    sky.name = 'SkyDome';
     scene.add(sky);
+    this.skyDome = sky;
 
     // ---------------- lights (main.gd "--SETUP--") ----------------
     // three r155+ physical lights: intensities need the legacy π factor to
@@ -539,13 +712,16 @@ export class World {
     this.sunBasis.texel = (2 * World.SHADOW_HALF) / this.sun.shadow.mapSize.x;
 
     // ---------------- ground & street (street runs along X) ----------------
-    this.solid('Road', 0, -0.1, 0, 100, 0.2, 8, PAL.road, { receive: true, cast: false });
+    // The graphics wave: the road and walks wear procedural asphalt/concrete
+    // (groundTex) with metric UVs — they leave the vertex bake automatically
+    // (the bake skips mapped materials) and gain grain, joints and wear.
+    this.groundSolid('Road', 0, -0.1, 0, 100, 0.2, 8, 'asphalt');
     // Sidewalk_N is split around the subway stairwell slot (x -45.9..-43.3,
     // docs/50): same material, same top, two slabs — the descent opens the
     // walking lane exactly where the headhouse always stood beside it.
-    this.solid('Sidewalk_N_W', -49.25, -0.05, 6, 1.5, 0.3, 4, PAL.walk, { receive: true, cast: false });
-    this.solid('Sidewalk_N_E', 2.05, -0.05, 6, 95.9, 0.3, 4, PAL.walk, { receive: true, cast: false });
-    this.solid('Sidewalk_S', 0, -0.05, -6, 100, 0.3, 4, PAL.walk, { receive: true, cast: false });
+    this.groundSolid('Sidewalk_N_W', -49.25, -0.05, 6, 1.5, 0.3, 4, 'concrete');
+    this.groundSolid('Sidewalk_N_E', 2.05, -0.05, 6, 95.9, 0.3, 4, 'concrete');
+    this.groundSolid('Sidewalk_S', 0, -0.05, -6, 100, 0.3, 4, 'concrete');
     for (let i = 0; i < 6; i++) {
       // lifted clear of the road top (coplanar bottoms shimmered at grazing angles)
       this.deco('Crosswalk', -5, 0.03, -3.3 + i * 1.3, 3, 0.02, 0.6, PAL.cream);
@@ -561,40 +737,66 @@ export class World {
     this.solid('Curb_S_E', 24.5, 0.065, -4.08, 51, 0.13, 0.5, CURB, { collide: false });
 
     // ---------------- buildings ----------------
-    this.solid('Bldg_N_West', -35.5, 7, 14, 29, 14, 12, PAL.bldg);
-    this.solid('Bldg_N_East_A', -1, 9, 14, 20, 18, 12, PAL.bldg2);
-    this.solid('Bldg_N_GoldWindow', 15, 5.5, 14, 12, 11, 12, PAL.brick);
+    // A-3 UNITS 8+9 (the shipped street's class B/A bands, DEC-4 Option B
+    // standing ruling — the continuation series COMPLETED): every shipped-
+    // street mass READS its registry row through regShell — KTN-01 the
+    // terminal, KTN-03 the ginkgo walk-up, KTN-04/KTN-05 the alley-split
+    // halves, KTS-01/KTS-03 the south row, ROS-01 the deli (the bodega
+    // block below), SUB-01 the station-house placement. KTN-02 the laundry
+    // builds in buildGardenSlot (the slot row cut it in W2). The proud
+    // dressing (doors, signs, windows, glows, stoops) derives against the
+    // shells; the rhythms, palettes and dressing are the style.
+    const ktn1 = this.regShell('KTN-01');
+    const ktn3 = this.regShell('KTN-03');
+    const ktn4 = this.regShell('KTN-04');
+    const ktn5 = this.regShell('KTN-05');
+    const kts1 = this.regShell('KTS-01');
+    const kts3 = this.regShell('KTS-03');
+    this.solid('Bldg_N_West', ktn1.x, ktn1.h / 2, ktn1.z, ktn1.w, ktn1.h, ktn1.d, PAL.bldg);
+    this.solid('Bldg_N_GoldWindow', ktn3.x, ktn3.h / 2, ktn3.z, ktn3.w, ktn3.h, ktn3.d, PAL.brick);
     // Bldg_N_East_B is split in two so the alley (buildAlley) can be a REAL
     // cut — a 2.8 m slot with open sky above — instead of a false front.
-    // West half x 21–30.7, east half x 33.5–49; the alley fills the gap.
-    this.solid('Bldg_N_East_B_W', 25.85, 8, 14, 9.7, 16, 12, PAL.bldg);
-    this.solid('Bldg_N_East_B_E', 41.25, 8, 14, 15.5, 16, 12, PAL.bldg);
-    // Terminal door + sign (west building, faces the street). The sign gets a
-    // real label — the block stopped being a maze of anonymous boxes.
-    this.deco('Terminal_Door', -30, 1.4, 7.95, 3, 2.8, 0.15, PAL.teal);
+    // The halves ARE the registry rows KTN-04 (west) and KTN-05 (east);
+    // ALY-01's own row fills the gap between them.
+    this.solid('Bldg_N_East_B_W', ktn4.x, ktn4.h / 2, ktn4.z, ktn4.w, ktn4.h, ktn4.d, PAL.bldg);
+    this.solid('Bldg_N_East_B_E', ktn5.x, ktn5.h / 2, ktn5.z, ktn5.w, ktn5.h, ktn5.d, PAL.bldg);
+    // Terminal door + sign (faces the street). The sign gets a real label —
+    // the block stopped being a maze of anonymous boxes. The face z derives
+    // off the terminal's shell; the door/sign x is the facade's own style.
+    const termFaceZ = ktn1.z - ktn1.d / 2 - 0.05;
+    this.deco('Terminal_Door', -30, 1.4, termFaceZ, 3, 2.8, 0.15, PAL.teal);
     // The sign gets a real label — the block stopped being a maze of
     // anonymous boxes. (signBoard: plain box + two textured faces — W0.)
     this.signBoard('Terminal_Sign', 'BUS TERMINAL', 5, 0.8, 0.15, 640, 96, PAL.stone, PAL.ink, 56)
-      .position.set(-30, 3.4, 7.95);
+      .position.set(-30, 3.4, termFaceZ);
 
-    this.solid('Bldg_S_West', -25, 8, -14, 50, 16, 12, PAL.bldg2);
+    this.solid('Bldg_S_West', kts1.x, kts1.h / 2, kts1.z, kts1.w, kts1.h, kts1.d, PAL.bldg2);
     this.solid('Bldg_S_FireEscape', 13, 7, -14, 26, 14, 12, PAL.brick);
-    this.solid('Bldg_S_East', 38, 9, -14, 24, 18, 12, PAL.bldg);
+    this.solid('Bldg_S_East', kts3.x, kts3.h / 2, kts3.z, kts3.w, kts3.h, kts3.d, PAL.bldg);
 
     // Water towers — Doc 04 object canon ("the buildings wear wooden hats")
-    this.waterTower(-30, 14, 12.5, 1.5);
-    this.waterTower(-14, 16, -12.5, 1.7);
-    this.waterTower(31, 16, 12.5, 1.4);
+    this.waterTower(-30, ktn1.h, 12.5, 1.5); // unit 8: the terminal's own roof height
+    this.waterTower(-14, kts1.h, -12.5, 1.7); // unit 7: the row's own roof height
+    this.waterTower(31, ktn5.h, 12.5, 1.4); // unit 8: the fade king's own roof height
 
     // ---------------- bodega (Doc 10 §B, main.gd `_build_bodega`) ----------------
-    const h = 4.5;
-    this.solid('Bodega_Floor', -16, 0.06, 14, 10, 0.1, 12, PAL.interior, { receive: true, cast: false });
-    this.solid('Bodega_Wall_W', -20.8, h / 2, 14, 0.4, h, 12, PAL.stone);
-    this.solid('Bodega_Wall_E', -11.2, h / 2, 14, 0.4, h, 12, PAL.stone);
-    this.solid('Bodega_Wall_Back', -16, h / 2, 19.8, 10, h, 0.4, PAL.stone);
-    this.solid('Bodega_Front_L', -19.25, h / 2, 8.2, 3.5, h, 0.4, PAL.brick);
-    this.solid('Bodega_Front_R', -12.75, h / 2, 8.2, 3.5, h, 0.4, PAL.brick);
-    this.solid('Bodega_Front_Lintel', -16, 3.8, 8.2, 3, 1.4, 0.4, PAL.brick);
+    // A-3 UNIT 9 (the shipped street's class A band — THE HEROES): Rosa's
+    // deli READS its registry row (ROS-01) through regShell. The walls'
+    // centers sit ON the row's edges (the 0.4 m thickness straddles them),
+    // the floor/roof/walls run the row's depth plus the wall thickness, the
+    // front opening splits 3.5/3/3.5 across the row's width, and every
+    // proud face (sign, blade, window, awning) rides the derived front
+    // face. The warm window's emission and the sign texts are the style.
+    const rosa = this.regShell('ROS-01');
+    const h = rosa.h;
+    const rosaFace = rosa.z - rosa.d / 2 - 0.2; // the front walls' outer face
+    this.solid('Bodega_Floor', rosa.x, 0.06, rosa.z, rosa.w, 0.1, rosa.d + 0.4, PAL.interior, { receive: true, cast: false });
+    this.solid('Bodega_Wall_W', rosa.x - rosa.w / 2 + 0.2, h / 2, rosa.z, 0.4, h, rosa.d + 0.4, PAL.stone);
+    this.solid('Bodega_Wall_E', rosa.x + rosa.w / 2 - 0.2, h / 2, rosa.z, 0.4, h, rosa.d + 0.4, PAL.stone);
+    this.solid('Bodega_Wall_Back', rosa.x, h / 2, rosa.z + rosa.d / 2, rosa.w, h, 0.4, PAL.stone);
+    this.solid('Bodega_Front_L', rosa.x - rosa.w / 2 + 1.75, h / 2, rosa.z - rosa.d / 2, 3.5, h, 0.4, PAL.brick);
+    this.solid('Bodega_Front_R', rosa.x + rosa.w / 2 - 1.75, h / 2, rosa.z - rosa.d / 2, 3.5, h, 0.4, PAL.brick);
+    this.solid('Bodega_Front_Lintel', rosa.x, h - 0.7, rosa.z - rosa.d / 2, 3, 1.4, 0.4, PAL.brick);
     // "ROSA'S / DELI & GROCERY" — the building has a name now, and it says it
     // three ways (playtest: nobody knew whose store it was, and the chase cam
     // crops a low facade sign when you stand at the door):
@@ -603,16 +805,19 @@ export class World {
     //      when the facade board is above the frame),
     //   3. a rooftop billboard (readable from anywhere on the block).
     this.signBoard('Bodega_Sign', "ROSA'S\nDELI & GROCERY", 6.2, 1.35, 0.14, 832, 176, PAL.gold, PAL.ink, 62)
-      .position.set(-16, 4.0, 7.93);
+      .position.set(rosa.x, h - 0.5, rosaFace - 0.07);
     // blade sign: perpendicular board over the door gap, text on the ±x faces
-    this.decoMesh('Bodega_BladeBracket', new THREE.BoxGeometry(0.07, 0.5, 0.9), this.mat(PAL.ink), -14.9, 3.55, 7.55);
+    this.decoMesh('Bodega_BladeBracket', new THREE.BoxGeometry(0.07, 0.5, 0.9), this.mat(PAL.ink), rosa.x + 1.1, h - 0.95, rosaFace - 0.45);
     this.signBoard('Bodega_BladeSign', "ROSA'S", 0.12, 0.95, 1.7, 384, 192, PAL.gold, PAL.ink, 74, 'x')
-      .position.set(-14.9, 2.95, 7.1);
-    // The warm window (emission 0.55 — main.gd comment: "the warm window, actually warm")
+      .position.set(rosa.x + 1.1, 2.95, rosaFace - 0.9);
+    // The warm window (emission 0.55 — main.gd comment: "the warm window, actually warm").
+    // Story-owned: the dusk beat TWEENS this intensity (Game goldenBeat —
+    // the E2E pins >1.5), so it stays OUT of the night registry — the
+    // applier would clobber the tween every frame (the E2E caught exactly that).
     this.rosaWindowMat = this.mat(PAL.amber, { emissive: PAL.amber, emissiveIntensity: 0.55 });
-    this.decoMesh('Bodega_Window', new THREE.BoxGeometry(2.6, 1.6, 0.06), this.rosaWindowMat, -19.25, 1.8, 7.92);
-    this.deco('Bodega_Awning', -16, 3.2, 7.6, 10, 0.15, 1.2, PAL.teal);
-    this.roof = this.solid('Bodega_Roof', -16, h + 0.15, 14, 10, 0.3, 12, PAL.bldg);
+    this.decoMesh('Bodega_Window', new THREE.BoxGeometry(2.6, 1.6, 0.06), this.rosaWindowMat, rosa.x - rosa.w / 2 + 1.75, 1.8, rosaFace - 0.08);
+    this.deco('Bodega_Awning', rosa.x, h - 1.3, rosaFace - 0.4, rosa.w, 0.15, 1.2, PAL.teal);
+    this.roof = this.solid('Bodega_Roof', rosa.x, h + 0.15, rosa.z, rosa.w, 0.3, rosa.d + 0.4, PAL.bldg);
     // Rooftop billboard — the store's name over the block, readable from the
     // chase cam anywhere on the street. Childed to the roof so it ducks out
     // of the way exactly when the roof does (player steps inside).
@@ -631,7 +836,326 @@ export class World {
     bb.position.set(0, 0.15, -4.6); // roof-local: near the front edge, over the sidewalk
     this.roof.add(bb);
     this.solid('Bodega_Counter', -19.6, 0.55, 13.5, 1.2, 1.1, 6, PAL.teal);
-    this.solid('Bodega_BackShelf', -16, 1.0, 19.3, 6, 2.0, 0.6, PAL.bldg2);
+    // Back-bar shelving: FOUR sand3d gondola units wear the old blank box's
+    // span (one visual-only collider below — the shelf never carried
+    // gameplay). Feet ride the floor top (0.11 — the placeholder center is
+    // half-height over it), so the GLB's kick plinth shows instead of
+    // sinking into the tiles. Fallback boxes keep the bldg2 look if the
+    // files ever go missing.
+    for (let si = 0; si < 4; si++) {
+      const shelfPh = this.decoMesh(`Bodega_BackShelf_${si}`, new THREE.BoxGeometry(1.3, 1.64, 0.55), this.mat(PAL.bldg2), -17.5 + si * 1.5, 0.93, 19.3);
+      shelfPh.rotation.y = Math.PI; // goods face south, into the store
+      shelfPh.castShadow = true;
+      shelfPh.receiveShadow = true;
+      this.registerGlbProp(`bodega_shelf_${si}`, shelfPh);
+      void this.upgradePropWithGLB(`bodega_shelf_${si}`, 'models/bodega_shelf.glb');
+    }
+    // one collider covers the run plus the west backstock pile (below)
+    this.colliders.push(boxFromCenter(-16.35, 1.0, 19.3, 8.3, 2.0, 0.6));
+    // Commercial reach-in cooler on the bodega's east wall — the SAME
+    // stocked sand3d asset the pizza shop's slot wears
+    // (models/drink_cooler.glb: glass front, can rows on three shelves,
+    // brand stripes in the house palette). The 2026-11-12 round-two audit
+    // retired the two-door refrigerator.glb here: its door GLB buries its
+    // glass pane inside an opaque slab, so the "glass-front cooler" read as
+    // a blank white door on a bare wall — the owner's "still not production
+    // ready". The drink cooler's cans ARE the stock; no extra dressing.
+    // Orientation: the door faces local −x → rotation 0 points it west, into
+    // the room; the 3 m run lies along world z on the east wall.
+    const fridgePh = new THREE.Group();
+    fridgePh.name = 'Fridge_Bodega';
+    fridgePh.position.set(-11.75, 1.03, 16.0); // feet on the floor top (0.11)
+    const fridgeBox = new THREE.Mesh(new THREE.BoxGeometry(0.59, 1.84, 3.17), this.bank.get(0x2b2730));
+    fridgeBox.castShadow = true;
+    fridgeBox.receiveShadow = true;
+    fridgePh.add(fridgeBox);
+    this.scene.add(fridgePh);
+    this.registerGlbProp('fridge_bodega', fridgePh);
+    void this.upgradePropWithGLB('fridge_bodega', 'models/drink_cooler.glb');
+    // the collider matches the upgrade's scaled footprint (h ratio 1.84/1.74
+    // scales the GLB's 0.555 × 3.0 m body to 0.587 × 3.17)
+    this.colliders.push(boxFromCenter(-11.75, 1.03, 16.0, 0.59, 1.84, 3.17));
+    // the counter a real deli works from: register, coffee, microwave, and
+    // the produce crates by the window (sand3d ADDs — the register and
+    // coffee wear the washer-slot pattern, front east into the store; the
+    // counter items sit inside the counter's own collider)
+    const bodegaDressing = new THREE.Group();
+    bodegaDressing.name = 'Bodega_Dressing';
+    this.scene.add(bodegaDressing);
+    const mkCounterSlot = (name: string, z: number, bw: number, bh: number, bd: number): void => {
+      const slot = new THREE.Group();
+      slot.name = name;
+      slot.position.set(-19.6, 1.1 + bh / 2, z);
+      slot.rotation.y = Math.PI / 2;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), this.bank.get(0x2b2730));
+      body.castShadow = true;
+      body.receiveShadow = true;
+      slot.add(body);
+      bodegaDressing.add(slot);
+    };
+    mkCounterSlot('Bodega_Register', 14.4, 0.4, 0.3, 0.36);
+    mkCounterSlot('Bodega_Coffee', 11.6, 0.42, 0.45, 0.38);
+    this.fixture(bodegaDressing, 'Bodega_Microwave', -19.6, 1.27, 15.8, 0.385, 0.34, 0.47, PAL.cream);
+    // the produce stand (2026-11-12 production pass, round two): the story
+    // crate used to float alone on the floor by the window — two boxes in a
+    // bare corner read as litter, not produce. It now rides a real deli
+    // table with two stocked crates flanking it (oranges, limes — one merged
+    // draw per fruit). The GLB crate seats feet-on-table via the seam's own
+    // AABB-min law (fixture center = table top + half height).
+    const produceTop = 0.66;
+    const produceTable = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 0.85), this.bank.get(0x9c7a4a));
+    produceTable.name = 'Bodega_ProduceTable';
+    produceTable.position.set(-18.35, 0.11 + 0.275, 9.3);
+    produceTable.castShadow = true;
+    produceTable.receiveShadow = true;
+    bodegaDressing.add(produceTable);
+    this.fixture(bodegaDressing, 'Bodega_Produce', -18.5, produceTop + 0.1575, 9.3, 0.6, 0.315, 0.4, PAL.bldg);
+    this.colliders.push(boxFromCenter(-18.35, 0.385, 9.3, 2.2, 0.55, 0.85));
+    const fruitGeos = new Map<number, THREE.BufferGeometry[]>();
+    const pushFruit = (c: number, g: THREE.BufferGeometry): void => {
+      const arr = fruitGeos.get(c);
+      if (arr) arr.push(g); else fruitGeos.set(c, [g]);
+    };
+    const fruitCrate = (cx: number, fruit: number): void => {
+      const shell = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.28, 0.42), this.bank.get(0xb08d57));
+      shell.name = 'Bodega_ProduceCrate';
+      shell.position.set(cx, produceTop + 0.14, 9.3);
+      shell.castShadow = true;
+      shell.receiveShadow = true;
+      bodegaDressing.add(shell);
+      for (let r = 0; r < 2; r++) {
+        for (let i = 0; i < 4; i++) {
+          pushFruit(fruit, new THREE.CylinderGeometry(0.06, 0.06, 0.09, 10)
+            .translate(cx - 0.165 + i * 0.11, produceTop + 0.26, 9.19 + r * 0.22));
+        }
+      }
+    };
+    fruitCrate(-19.15, 0xe8964a); // oranges, west crate
+    fruitCrate(-17.85, 0x8fbf4d); // limes, east crate
+    for (const [color, geos] of fruitGeos) {
+      const m = new THREE.Mesh(mergeGeometries(geos, false)!, this.bank.get(color));
+      m.name = 'Bodega_ProduceFruit';
+      m.castShadow = true;
+      bodegaDressing.add(m);
+    }
+
+    // ---------------- the deli's own colors (2026-11 identity pass) --------
+    // Cream walls are the shipped stone masses seen from inside; the room's
+    // identity lands ADDITIVELY: teal wainscot + gold trim on every inner
+    // face (split around the door gap), the floor wears warm checker cream,
+    // the counter wall wears a real menu board, the back wall wears stacked
+    // product rows beside the three gondolas, the east wall hangs chip bags
+    // by the produce. The store reads as a deli from the doorway now.
+    const bodegaFloorY = 0.11, bodegaBandH = 0.55;
+    const bandW = this.bank.get(0x1f7a70), trimW = this.bank.get(0xf7b32b);
+    const bodegaBand = (name: string, alongX: boolean, at: number, a: number, b: number): void => {
+      const len = b - a, c = (a + b) / 2;
+      const band = new THREE.Mesh(
+        alongX ? new THREE.BoxGeometry(len, bodegaBandH, 0.05) : new THREE.BoxGeometry(0.05, bodegaBandH, len), bandW);
+      band.name = `${name}_Band`;
+      band.position.set(alongX ? c : at, bodegaFloorY + bodegaBandH / 2, alongX ? at : c);
+      bodegaDressing.add(band);
+      const trim = new THREE.Mesh(
+        alongX ? new THREE.BoxGeometry(len, 0.05, 0.07) : new THREE.BoxGeometry(0.07, 0.05, len), trimW);
+      trim.name = `${name}_Trim`;
+      trim.position.set(alongX ? c : at, bodegaFloorY + bodegaBandH + 0.025, alongX ? at : c);
+      bodegaDressing.add(trim);
+    };
+    bodegaBand('Bodega_W', true, -20.57, 8.4, 19.4);   // behind the counter
+    bodegaBand('Bodega_E', true, -11.43, 8.4, 19.4);   // the fridge wall
+    bodegaBand('Bodega_N', true, 19.37, -20.6, -11.4); // behind the gondolas
+    bodegaBand('Bodega_FrontW', true, 8.43, -20.6, -17.5); // the door gap splits
+    bodegaBand('Bodega_FrontE', true, 8.43, -14.5, -11.4); // ...the front band
+    // floor tint: warm checker cream (the shipped PAL.interior tan retires)
+    const bodegaFloorMesh = this.scene.children.find((o) => o.name === 'Bodega_Floor') as THREE.Mesh | undefined;
+    if (bodegaFloorMesh) bodegaFloorMesh.material = this.bank.get(0xd9c9a8);
+    // the menu board over the counter (west wall, faces east into the
+    // store) — re-parented into the dressing group so the bake keeps it
+    const menu = this.signBoard('Bodega_Menu', 'COFFEE 1.50 — CAFE CON LECHE 2.25\nBACON EGG & CHEESE 4.50 — COLD BEER · LOTTO',
+      0.06, 0.9, 4.6, 640, 112, PAL.cream, PAL.ink, 30, 'x');
+    menu.position.set(-20.53, 2.0, 13.0);
+    bodegaDressing.add(menu);
+    // ---------------- the gondolas' stock (2026-11 restock pass) ----------
+    // The legacy loose-box wall grid (Bodega_ProductRow) is retired: its
+    // three floating rows ran straight THROUGH the gondola volumes and read
+    // as unfinished noise. The store stocks the four gondola units instead —
+    // shelf-aware runs seated on the boards' real tops (the GLB's millimetre
+    // levels × the upgrade's uniform scale 1.64/1.770, feet on the floor
+    // top 0.11), facings laid as color blocks like a real bodega wall. One
+    // merged mesh per color across all four units (the props law: the row
+    // is ONE draw). The three Day-1 stock spots (mango/coffee/bread) own
+    // their gaps on the middle shelves — sized/seeded to match.
+    const gondolaXs = [-17.5, -16, -14.5, -13];
+    const gondolaS = 1.64 / 1.770; // upgradePropWithGLB's scale for this file
+    const shelfTop = (mm: number): number => 0.11 + (mm / 1000) * gondolaS;
+    // base deck, then boards 1-4 (shelf_0..shelf_3)
+    const SHELF = [shelfTop(130), shelfTop(567), shelfTop(947), shelfTop(1327), shelfTop(1697)];
+    const stockGeos = new Map<number, THREE.BufferGeometry[]>();
+    const pushStock = (c: number, g: THREE.BufferGeometry): void => {
+      const arr = stockGeos.get(c);
+      if (arr) arr.push(g); else stockGeos.set(c, [g]);
+    };
+    const stockCan = (x: number, y: number, z: number, c: number): void =>
+      pushStock(c, new THREE.CylinderGeometry(0.032, 0.032, 0.105, 10).translate(x, y + 0.0525, z));
+    const stockBox = (x: number, y: number, z: number, w: number, h: number, d: number, c: number): void =>
+      pushStock(c, new THREE.BoxGeometry(w, h, d).translate(x, y + h / 2, z));
+    const stockBottle = (x: number, y: number, z: number, c: number): void => {
+      pushStock(c, new THREE.CylinderGeometry(0.03, 0.034, 0.16, 10).translate(x, y + 0.08, z));
+      pushStock(c, new THREE.CylinderGeometry(0.014, 0.018, 0.06, 8).translate(x, y + 0.19, z));
+    };
+    const stockJar = (x: number, y: number, z: number, c: number): void =>
+      pushStock(c, new THREE.CylinderGeometry(0.044, 0.04, 0.115, 10).translate(x, y + 0.0575, z));
+    const KRAFT = [0xb08d57, 0xc49a6c, 0x9c7a4a];
+    const stockCase = (x: number, y: number, z: number, w: number, h: number, d: number, c: number): void =>
+      stockBox(x, y, z, w, h, d, c);
+    const canCols = [PAL.coral, PAL.plum, PAL.teal, PAL.taxi];
+    for (let si = 0; si < gondolaXs.length; si++) {
+      const gx = gondolaXs[si];
+      // base deck: kraft cases, one stacked — backstock reads at sight line
+      stockCase(gx - 0.34, SHELF[0], 19.33, 0.30, 0.22, 0.26, KRAFT[0]);
+      stockCase(gx + 0.02, SHELF[0], 19.33, 0.32, 0.24, 0.28, KRAFT[1]);
+      stockCase(gx + 0.36, SHELF[0], 19.33, 0.28, 0.20, 0.26, KRAFT[2]);
+      stockCase(gx + 0.02, SHELF[0] + 0.24, 19.35, 0.26, 0.16, 0.22, KRAFT[0]);
+      // board 1: two can facings, front + back rows
+      for (let i = 0; i < 12; i++) {
+        const cx = gx - 0.45 + i * 0.082;
+        stockCan(cx, SHELF[1], 19.20, canCols[si % 4]);
+        stockCan(cx + 0.041, SHELF[1], 19.42, canCols[(si + 1) % 4]);
+      }
+      // board 2: snack boxes — unit 0 leaves the bread's spot open (+0.02..+0.32)
+      const boxXs = si === 0 ? [-0.44, -0.30, -0.16, 0.36, 0.47] : [-0.375, -0.225, -0.075, 0.075, 0.225, 0.375];
+      for (let i = 0; i < boxXs.length; i++) {
+        stockBox(gx + boxXs[i], SHELF[2], 19.22, 0.11, i % 2 === 0 ? 0.16 : 0.23, 0.07, i % 2 === 0 ? PAL.teal : PAL.gold);
+      }
+      // board 3: jars front, bottles back — units 1/2 keep the coffee and
+      // mango spots open (local ±0.12)
+      const midTaken = si === 1 || si === 2;
+      const jarXs = midTaken ? [-0.45, -0.32, -0.19, 0.19, 0.32, 0.45] : [-0.45, -0.32, -0.19, -0.06, 0.07, 0.2, 0.33];
+      for (const jx of jarXs) stockJar(gx + jx, SHELF[3], 19.20, 0x6a8a5a);
+      const botXs = midTaken ? [-0.36, -0.22, 0.22, 0.36] : [-0.32, -0.16, 0, 0.16, 0.32];
+      for (const bx of botXs) stockBottle(gx + bx, SHELF[3], 19.42, 0xb3552f);
+      // board 4 (top): a can row over the rail line + three kraft cartons back
+      for (let i = 0; i < 9; i++) stockCan(gx - 0.40 + i * 0.10, SHELF[4], 19.20, canCols[(si + 2) % 4]);
+      for (const bx of [-0.38, -0.24, 0.30]) stockBox(gx + bx, SHELF[4], 19.42, 0.11, 0.14, 0.07, KRAFT[1]);
+    }
+    // the west wall's backstock pile — the run's leftover never reads bare
+    stockCase(-20.25, 0.11, 19.38, 0.30, 0.26, 0.34, KRAFT[0]);
+    stockCase(-19.78, 0.11, 19.38, 0.34, 0.24, 0.32, KRAFT[1]);
+    stockCase(-19.78, 0.35, 19.40, 0.30, 0.20, 0.28, KRAFT[2]);
+    stockCase(-19.30, 0.11, 19.38, 0.32, 0.26, 0.32, KRAFT[0]);
+    for (const [color, geos] of stockGeos) {
+      if (!geos.length) continue;
+      const m = new THREE.Mesh(mergeGeometries(geos, false)!, this.bank.get(color));
+      m.name = 'Bodega_ShelfStock';
+      m.receiveShadow = true;
+      bodegaDressing.add(m);
+    }
+    // chip bags hanging by the produce (east wall) — the classic deli door
+    // strip, bright foil colors, one merged draw; a rail bar to hang from
+    // (they used to float off the bare wall)
+    const bagColors = [0xd94f3d, 0xf7b32b, 0x3d8bd9, 0x4a9d5a];
+    const bagGeos: Array<THREE.BufferGeometry[]> = Array.from({ length: bagColors.length }, () => []);
+    for (let i = 0; i < 8; i++) {
+      const z = 9.1 + i * 0.24, y = 1.55 + (i % 2) * 0.18;
+      const g2 = new THREE.BoxGeometry(0.05, 0.34, 0.22).translate(-11.46, y, z);
+      bagGeos[i % bagColors.length].push(g2);
+    }
+    for (let ci = 0; ci < bagColors.length; ci++) {
+      if (!bagGeos[ci].length) continue;
+      const m = new THREE.Mesh(mergeGeometries(bagGeos[ci], false)!, this.bank.get(bagColors[ci]));
+      m.name = 'Bodega_ChipBags';
+      bodegaDressing.add(m);
+    }
+    const bagRail = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.9, 8), this.bank.get(PAL.ink));
+    bagRail.name = 'Bodega_ChipBagRail';
+    bagRail.rotation.x = Math.PI / 2;
+    bagRail.position.set(-11.475, 1.96, 9.94);
+    bodegaDressing.add(bagRail);
+    // the east wall's posters (2026-11-12 production pass, round two): the
+    // wall around the cooler read as a bare plaster field. Two framed
+    // house-voice ads — the beverage cry beside the chip strip, the flat-top
+    // promise north of it — the same signBoard seam the menu rides.
+    const posterCold = this.signBoard('Bodega_Poster_Cold', 'ICE COLD\nsoda · seltzer · water — always',
+      0.05, 1.55, 1.15, 256, 384, 0xf7b32b, PAL.ink, 34, 'x');
+    posterCold.rotation.y = Math.PI; // the face reads west, into the store
+    posterCold.position.set(-11.42, 1.95, 11.8); // south of the cooler run
+    bodegaDressing.add(posterCold);
+    const posterFlat = this.signBoard('Bodega_Poster_FlatTop', 'BREAKFAST ALL DAY\nthe flat top never lies',
+      0.05, 1.55, 1.15, 256, 384, PAL.cream, PAL.ink, 34, 'x');
+    posterFlat.rotation.y = Math.PI;
+    posterFlat.position.set(-11.42, 1.95, 13.2);
+    bodegaDressing.add(posterFlat);
+    // the welcome mat inside the door gap (teal — the awning's color)
+    const mat = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.02, 0.9), this.bank.get(PAL.teal));
+    mat.name = 'Bodega_DoorMat';
+    mat.position.set(-16, bodegaFloorY + 0.01, 8.95);
+    mat.receiveShadow = true;
+    bodegaDressing.add(mat);
+
+    // ---------------- the room's finish (2026-11 production pass) ---------
+    // The store used to show its construction masses: raw red brick inner
+    // faces on the front piers, open sky where a ceiling should be, a bare
+    // teal counter slab. Paint + ceiling + trim — additive dressing, no
+    // wall box moves, no collider changes.
+    const ceil = new THREE.Mesh(new THREE.BoxGeometry(9.2, 0.05, 11.2), this.bank.get(PAL.cream));
+    ceil.name = 'Bodega_Ceiling';
+    ceil.position.set(-16, 4.47, 14);
+    ceil.receiveShadow = true;
+    bodegaDressing.add(ceil);
+    const paintW = this.bank.get(PAL.stone);
+    const frontPanel = (name: string, cx: number): void => {
+      // full-height: pier top to ceiling — no raw brick line survives inside
+      const p = new THREE.Mesh(new THREE.BoxGeometry(3.1, 3.73, 0.03), paintW);
+      p.name = name;
+      p.position.set(cx, 2.585, 8.415);
+      p.receiveShadow = true;
+      bodegaDressing.add(p);
+    };
+    frontPanel('Bodega_FrontPaint_W', -19.05); // Front_L's inner face
+    frontPanel('Bodega_FrontPaint_E', -12.95); // Front_R's inner face
+    // the lintel's inner face — above the door it read as a raw red slab
+    // from across the store
+    const lintelPaint = new THREE.Mesh(new THREE.BoxGeometry(3.0, 1.42, 0.03), paintW);
+    lintelPaint.name = 'Bodega_LintelPaint';
+    lintelPaint.position.set(-16, 3.81, 8.415);
+    bodegaDressing.add(lintelPaint);
+    const jambLiner = (name: string, x: number): void => {
+      const j = new THREE.Mesh(new THREE.BoxGeometry(0.03, 2.99, 0.46), paintW);
+      j.name = name;
+      j.position.set(x, 1.605, 8.2);
+      bodegaDressing.add(j);
+    };
+    jambLiner('Bodega_DoorJamb_W', -17.485); // the door reveal stops reading raw brick
+    jambLiner('Bodega_DoorJamb_E', -14.515);
+    // counter finish: a dark kick and a gold top edge on the aisle face
+    const counterKick = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.12, 6.0), this.bank.get(PAL.manhole));
+    counterKick.name = 'Bodega_CounterKick';
+    counterKick.position.set(-18.985, 0.17, 13.5);
+    bodegaDressing.add(counterKick);
+    const counterTrim = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.06, 6.0), this.bank.get(PAL.gold));
+    counterTrim.name = 'Bodega_CounterTrim';
+    counterTrim.position.set(-18.985, 1.05, 13.5);
+    bodegaDressing.add(counterTrim);
+    // a wall clock over the gondola run — the deli's quiet heartbeat
+    // (y 2.8: clear of the Coffee label pill that rides the item below)
+    const clockRim = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.035, 20), this.bank.get(PAL.ink));
+    clockRim.name = 'Bodega_Clock';
+    clockRim.rotation.x = Math.PI / 2;
+    clockRim.position.set(-16, 2.8, 19.578);
+    bodegaDressing.add(clockRim);
+    const clockFace = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.037, 20), this.bank.get(PAL.cream));
+    clockFace.rotation.x = Math.PI / 2;
+    clockFace.position.set(-16, 2.8, 19.579);
+    bodegaDressing.add(clockFace);
+    const clockHand = (len: number, angle: number): void => {
+      const hand = new THREE.Mesh(new THREE.BoxGeometry(0.018, len, 0.01), this.bank.get(PAL.ink));
+      hand.geometry.translate(0, len / 2 - 0.02, 0);
+      hand.rotation.z = angle;
+      hand.position.set(-16, 2.8, 19.556);
+      bodegaDressing.add(hand);
+    };
+    clockHand(0.09, -Math.PI / 3);
+    clockHand(0.13, Math.PI / 5);
 
     // ---------------- props (Rule of Steam: something is always moving) ----
     this.deco('Manhole', -10, 0.025, 0.5, 0.95, 0.02, 0.95, PAL.manhole); // 0.95 m — a real manhole, not a patio
@@ -677,7 +1201,7 @@ export class World {
     // every frame — and a city-cab yield: it holds at the crosswalk stop line
     // while the crosswalk is occupied, and brakes for anyone in the road
     // ahead of it. A cab you can ghost through read as broken.
-    this.taxiBase = this.buildCar('taxi');
+    this.taxiBase = this.buildCar('taxi', true); // the hero cab wears PBR paint
     this.registerGlbProp('car_taxi', this.taxiBase); // generated mesh may wear it (public/models/car_taxi.glb)
     void this.upgradePropWithGLB('car_taxi');
     this.taxi.position.set(-45, 0, -2);
@@ -703,15 +1227,34 @@ export class World {
     // Player corner — "a waiting rectangle of different paving"
     this.deco('PlayerCorner', 4, 0.12, -6, 8, 0.02, 3.6, PAL.stone);
 
+    // A-3 UNIT 7: the ginkgo building's south-face constants — face z and
+    // the window-grid origin derive against the KTN-03 shell (used by the
+    // teal door below and the window grid further down); the 3 m rhythm is
+    // the style.
+    const goldFaceZ = ktn3.z - ktn3.d / 2 - 0.06;
+    const goldGridX = ktn3.x - ktn3.w / 2 + 1.5;
+
     // The teal door (Day 2's delivery target — the objective says "the teal
     // door across the street"; now there is one, under the gold window).
-    this.decoMesh('Stoop_Door', new THREE.BoxGeometry(1.4, 2.6, 0.12), this.mat(PAL.teal), 15, 1.3, 7.92);
-    this.decoMesh('Stoop_Knob', new THREE.SphereGeometry(0.05, 8, 8), this.mat(PAL.gold), 15.45, 1.3, 7.84);
+    // Unit 7: the door owns the shell's center bay (x IS the row center);
+    // the knob offset and the face insets are the style.
+    const stoopDoorX = ktn3.x;
+    const stoopDoor = this.decoMesh('Stoop_Door', new THREE.BoxGeometry(1.4, 2.6, 0.15), this.mat(PAL.teal), stoopDoorX, 1.3, goldFaceZ - 0.02);
+    stoopDoor.rotation.y = Math.PI; // GLB fronts face +Z — the leaf must face the street (south)
+    const stoopKnob = this.decoMesh('Stoop_Knob', new THREE.SphereGeometry(0.05, 8, 8), this.mat(PAL.gold), stoopDoorX + 0.45, 1.3, goldFaceZ - 0.10);
+    // Sandflow prewar door wears the Day-2 target — its leaf slab is baked
+    // in the canon teal (PAL.teal, tools3d/sandflow_eval/postprocess_glb.py),
+    // so "the teal door across the street" reads on the model, not just the
+    // fallback box. The brass knob is a fallback-only sibling: it hides when
+    // the model lands (the GLB carries its own knob, hinges and peephole).
+    this.registerGlbProp('stoop_door', stoopDoor);
+    void this.upgradePropWithGLB('stoop_door', 'models/apartment_door.glb')
+      .then((ok) => { if (ok) stoopKnob.visible = false; });
     // The stoop itself — "stoup = outdoor living room" deserves actual steps.
     // Two low risers (tops 0.19 / 0.28, both inside the 0.35 STEP_UP curb
     // tolerance, so the walker rolls up them without a hop).
-    this.solid('Stoop_Step', 15, 0.095, 6.9, 1.7, 0.19, 0.55, PAL.stone);
-    this.solid('Stoop_Landing', 15, 0.14, 7.55, 1.7, 0.28, 0.75, PAL.stone);
+    this.solid('Stoop_Step', stoopDoorX, 0.095, 6.9, 1.7, 0.19, 0.55, PAL.stone);
+    this.solid('Stoop_Landing', stoopDoorX, 0.14, 7.55, 1.7, 0.28, 0.75, PAL.stone);
 
     // ---------------- fire escape (main.gd `_build_fire_escape`) ------------
     // Playtest 2026-10-29: "the stairs also looks weird" — the escape used to
@@ -745,11 +1288,14 @@ export class World {
     this.fireBrace(15, 8.0);
 
     // ---------------- windows + the gold one (main.gd `_build_windows`) -----
+    // A-3 UNIT 7: the grid rides the ginkgo building's south face — the face
+    // constants (goldFaceZ/goldGridX) were derived against the KTN-03 shell
+    // above; the 3 m window rhythm and the 3 m floor pitch are the style.
     const dim = PAL.windowDim;
     const dimMat = this.mat(dim, { emissive: PAL.gold, emissiveIntensity: 0 });
     for (let row = 0; row < 3; row++) {
       for (let col = 0; col < 4; col++) {
-        const p = [10.5 + col * 3, 3 + row * 3, 7.94] as const;
+        const p = [goldGridX + col * 3, 3 + row * 3, goldFaceZ] as const;
         if (row === 2 && col === 1) {
           this.goldWindowMat = this.mat(dim, { emissive: PAL.gold, emissiveIntensity: 0 });
           this.decoMesh('GoldWindow', new THREE.BoxGeometry(1.2, 1.6, 0.08), this.goldWindowMat, p[0], p[1], p[2]);
@@ -785,17 +1331,18 @@ export class World {
         }
       }
     }
+    // the glows ride 0.34 proud of the window plane (unit 7: off the shell)
     this.goldGlow = this.makeGlow(3.2);
-    this.goldGlow.position.set(13.5, 9, 7.6);
+    this.goldGlow.position.set(goldGridX + 3, 9, goldFaceZ - 0.34);
     this.scene.add(this.goldGlow);
     this.secondGlow = this.makeGlow(2.6);
-    this.secondGlow.position.set(10.5, 9, 7.6);
+    this.secondGlow.position.set(goldGridX, 9, goldFaceZ - 0.34);
     this.scene.add(this.secondGlow);
     this.thirdGlow = this.makeGlow(2.6);
-    this.thirdGlow.position.set(16.5, 9, 7.6);
+    this.thirdGlow.position.set(goldGridX + 6, 9, goldFaceZ - 0.34);
     this.scene.add(this.thirdGlow);
     this.fourthGlow = this.makeGlow(2.2);
-    this.fourthGlow.position.set(19.5, 9, 7.6);
+    this.fourthGlow.position.set(goldGridX + 9, 9, goldFaceZ - 0.34);
     this.scene.add(this.fourthGlow);
 
     // ---------------- skyline card (far north-east, above the low building) -
@@ -870,12 +1417,18 @@ export class World {
     // ---------------- invisible bounds (the master-world core) -------------
     // W1: the shipped x ±48 / z ∓22/22.5 walls are RETIRED (docs/45 W1 —
     // "retire the x ±48 walls"; the grid is walkable now, Gable and Marlow
-    // sit outside the old z walls). The boundary moves to the registry's
-    // playable core: x ±84, z ±48 — never before a district has content.
-    this.colliders.push(boxFromCenter(-84, 5, 0, 1, 20, 96));
-    this.colliders.push(boxFromCenter(84, 5, 0, 1, 20, 96));
-    this.colliders.push(boxFromCenter(0, 6, -48, 168, 24, 1)); // south wall behind Marlow
-    this.colliders.push(boxFromCenter(0, 6, 48, 168, 24, 1));  // north wall behind Gable
+    // sit outside the old z walls). The boundary moved to the registry's
+    // playable core: x ±84, z ±48. W6 (the terrace build-out, the owner's
+    // 2026-11-11 expansion authorization — DEC-8 satisfied in the register):
+    // the core grows to z ±64 and the strips behind Gable and Marlow become
+    // real rows — the z walls follow the registry's own bounds. W7 (the
+    // Westgate & Eastgate rows, same standing authorization): the core grows
+    // to x ±100 — the E–W streets grow their west and east ends, the strips
+    // beyond the avenues become real rows, and the x walls follow.
+    this.colliders.push(boxFromCenter(-100, 5, 0, 1, 20, 128));
+    this.colliders.push(boxFromCenter(100, 5, 0, 1, 20, 128));
+    this.colliders.push(boxFromCenter(0, 6, -64, 200, 24, 1)); // south wall behind the Carrow terrace
+    this.colliders.push(boxFromCenter(0, 6, 64, 200, 24, 1));  // north wall behind the Larkin terrace
 
     // zones
     this.crosswalkZone = boxFromCenter(-5, 1, 0, 3.4, 2, 7.5);
@@ -929,15 +1482,25 @@ export class World {
     // the cart's body blocks — you lean on the counter, you don't stand in it
     this.cartCollider = boxFromCenter(4, 1.0, -6.6, 2.2, 2.0, 1.4);
     this.colliders.push(this.cartCollider);
-    this.rosaCollider = boxFromCenter(-27, 0.85, 6.8, 0.56, 1.7, 0.56);
-    this.idrisCollider = boxFromCenter(-2, 0.85, -4.6, 0.56, 1.7, 0.56);
-    this.kidCollider = boxFromCenter(15, 0.7, 6.35, 0.5, 1.4, 0.5);
-    this.customerCollider = boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56);
+    // Every person collider rides the chain-link lens law (seeThroughCamera):
+    // bodies stop bodies, lenses don't stop on bodies (docs/51 B18 — the
+    // step-off spawn sits inside the Shuffle lanes; a walker loitering
+    // behind it pulled the handover snap to the truncation floor, ~1.3 m,
+    // burying the lens in the player's own hair at the game's first
+    // playable frame). The same read protects every cast beat: a body
+    // crossing the boom sweeps a foreground silhouette instead of yanking
+    // the camera. syncPersonCollider mutates only the bounds — the flag
+    // rides the same object forever.
+    const person = (b: AABB): AABB => { b.seeThroughCamera = true; return b; };
+    this.rosaCollider = person(boxFromCenter(-27, 0.85, 6.8, 0.56, 1.7, 0.56));
+    this.idrisCollider = person(boxFromCenter(-2, 0.85, -4.6, 0.56, 1.7, 0.56));
+    this.kidCollider = person(boxFromCenter(15, 0.7, 6.35, 0.5, 1.4, 0.5));
+    this.customerCollider = person(boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56));
     // stranger/Sal/familiar — parked underground until their beats make them
     // visible (the customer's trick); updateDynamics syncs them with the cast
-    this.strangerCollider = boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56);
-    this.salCollider = boxFromCenter(-7, 0.85, 7.85, 0.56, 1.7, 0.56);
-    this.familiarCollider = boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56);
+    this.strangerCollider = person(boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56));
+    this.salCollider = person(boxFromCenter(-7, 0.85, 7.85, 0.56, 1.7, 0.56));
+    this.familiarCollider = person(boxFromCenter(0, -999.5, 0, 0.56, 1.7, 0.56));
     this.colliders.push(this.rosaCollider, this.idrisCollider, this.kidCollider, this.customerCollider,
       this.strangerCollider, this.salCollider, this.familiarCollider);
 
@@ -962,22 +1525,26 @@ export class World {
     const rng = seededRng(20261029);
 
     // ---- brownstone row (south-west face): stoops, doors, windows, AC ----
+    // A-3 UNIT 7: the stoop/window/AC z's derive against the KTS-01 shell
+    // (face +0.6/0.06/0.25 proud respectively); the stoop and window x
+    // rhythms are the row's own style (the registry row names them).
+    const brownsFace = kts1.z + kts1.d / 2;
     const stoopDoors = [PAL.teal, 0xff6b6b, 0x6d4c7d];
     const stoopX = [-40, -34, -28];
     for (let i = 0; i < stoopX.length; i++) {
       const stoop = makeBrownstoneStoop(this.bank, stoopDoors[i]);
-      stoop.position.set(stoopX[i], 0, -7.4);
+      stoop.position.set(stoopX[i], 0, brownsFace + 0.6);
       this.scene.add(stoop);
     }
     // tall parlor windows between the stoops + a couple of AC units
     for (const wx of [-43, -37, -31, -25, -19, -13, -7, -1]) {
       for (const wy of [3.6, 6.6, 9.6]) {
-        this.decoMesh(`BrownstoneWin_${wx}_${wy}`, new THREE.BoxGeometry(1.1, 1.9, 0.08), this.mat(0x3b3346), wx, wy, -7.94);
+        this.decoMesh(`BrownstoneWin_${wx}_${wy}`, new THREE.BoxGeometry(1.1, 1.9, 0.08), this.mat(0x3b3346), wx, wy, brownsFace + 0.06);
       }
     }
     for (const [ax, ay] of [[-37, 3.0], [-25, 3.0], [-13, 6.0]] as const) {
       const ac = makeACUnit(this.bank);
-      ac.position.set(ax, ay, -7.75);
+      ac.position.set(ax, ay, brownsFace + 0.25);
       this.scene.add(ac);
     }
 
@@ -994,10 +1561,11 @@ export class World {
     pizza.position.set(27, 0.05, 8.02);
     pizza.rotation.y = Math.PI;
     this.scene.add(pizza);
-    // AC units under the gold-window building's upper windows
-    for (const ax of [10.5, 16.5]) {
+    // AC units under the gold-window building's upper windows (unit 7: the
+    // cols' x and the proud face z derive off the KTN-03 shell)
+    for (const ax of [goldGridX, goldGridX + 6]) {
       const ac = makeACUnit(this.bank);
-      ac.position.set(ax, 5.9, 7.75);
+      ac.position.set(ax, 5.9, goldFaceZ - 0.19);
       this.scene.add(ac);
     }
 
@@ -1023,18 +1591,15 @@ export class World {
     this.solid('Plaza_Deck_W', -44.3, 0.09, 6.55, 1.4, 0.03, 2.3, PAL.stone, { collide: false, cast: false, receive: true });
     this.solid('Plaza_Deck_E', -39.3, 0.09, 6.45, 2.6, 0.03, 2.5, PAL.stone, { collide: false, cast: false, receive: true });
     const subway = makeSubwayEntrance(this.bank, this.signMaterials.bind(this));
-    subway.position.set(-42, 0.05, 6.2);
+    // A-3 UNIT 9 + consumer fix (2026-11): SUB-01 sits on the K-line
+    // STAIR_SLOT center (−47.2, 6.2). The SUBWAY sign and railings frame
+    // the real hole. The old (−42, 6.2) headhouse stood on continuous
+    // sidewalk while the descendable shaft lived five metres west — players
+    // only saw a sign board and railings with no way down. Prop has no
+    // collider (paved-path law); the kit's slot walls own the grade change.
+    const sub1 = this.regShell('SUB-01');
+    subway.position.set(sub1.x, 0.05, sub1.z);
     this.scene.add(subway);
-    // NO blocker here — Agent-5's reconciliation stands (their branch, kept
-    // by the docs/50 merge as the paved path): the placeholder stair-cut
-    // boxes are retired and the real descendable shaft is the K-line slot
-    // west of the headhouse (x −48.5..−45.9), whose walls carry the
-    // below-grade law. The old "nobody walks into the earth" box
-    // (2.6 × 3.5 full walk depth) was authored FOR the retired cut; the
-    // merge restored it without the hole, pinching the north walk shut
-    // between itself and the K-line rails and wedging the W1 walkability
-    // gate (the walker spawns inside it and its eject direction decided
-    // the whole gate). Ground at this plot reads the flat sidewalk (0.1).
     this.flyerMat = new THREE.MeshLambertMaterial({ map: this.flyerTexture('YOUR CORNER') });
     const board = makeBulletinBoard(this.bank, this.flyerMat);
     board.position.set(-37.6, 0.05, 7.5);
@@ -1045,9 +1610,18 @@ export class World {
     plazaBench.rotation.y = Math.PI;
     this.scene.add(plazaBench);
     this.colliders.push(boxFromCenter(-40.5, 0.35, 4.55, 1.85, 0.7, 0.62)); // bench blocks
+    this.registerGlbProp('bench_plaza', plazaBench);
+    void this.upgradePropWithGLB('bench_plaza', 'models/park_bench.glb');
     const papers = makeNewspaperBoxes(this.bank);
     papers.position.set(-44.6, 0.05, 6.6);
     this.scene.add(papers);
+    // one real sand3d newsrack wears the red box; its cream label chip is a
+    // fallback-only sibling and hides when the model lands
+    const newsrackPh = papers.children[0];
+    const newsrackChip = papers.children[2];
+    this.registerGlbProp('newsrack', newsrackPh);
+    void this.upgradePropWithGLB('newsrack', 'models/newsrack.glb')
+      .then((ok) => { if (ok) newsrackChip.visible = false; });
     this.colliders.push(boxFromCenter(-44.29, 0.425, 6.62, 1.3, 0.85, 0.6)); // newsboxes block
 
     // ---- bus stop (north, west of the bodega) + bench ----
@@ -1068,12 +1642,14 @@ export class World {
     busBench.rotation.y = Math.PI;
     this.scene.add(busBench);
     this.colliders.push(boxFromCenter(-23.3, 0.35, 7.62, 1.85, 0.7, 0.62)); // bench blocks
+    this.registerGlbProp('bench_bus', busBench);
+    void this.upgradePropWithGLB('bench_bus', 'models/park_bench.glb');
 
     // ---- street furniture: lights, cans, hydrant, one honest barrier ----
     // The lamp faces are lit: the sun never leaves golden hour here, and
     // city lamps switch on before sundown — four dead heads read as props,
     // not as a block people walk home under. One shared emissive material.
-    const lampFace = this.mat(PAL.taxi, { emissive: PAL.taxi, emissiveIntensity: 0.35 });
+    const lampFace = this.nightGlow(PAL.taxi, 0.35, 2.4);
     // x-spots clear of the tree canopies: a pole sharing its block-face with
     // a tree spears the crown, and the gold lamp head pokes out the far side
     // as a floating yellow chip (Doc 31 read exactly that in two frames).
@@ -1101,6 +1677,17 @@ export class World {
     const can2 = makeTrashCan(this.bank); can2.position.set(2, 0.05, -7.45); this.scene.add(can2);
     const recy = makeRecycleBin(this.bank); recy.position.set(2.85, 0.05, -7.45); this.scene.add(recy);
     const hyd2 = makeHydrant(this.bank); hyd2.position.set(34, 0.05, -4.75); this.scene.add(hyd2);
+    // DSNY baskets wear all three cans (one street, one look); the corner
+    // can + recycle bin stay one recycling station (shared collider below,
+    // unchanged). The east hydrant wears the same model as the west one.
+    this.registerGlbProp('trashcan_north', can1);
+    this.registerGlbProp('trashcan_east', can2);
+    this.registerGlbProp('recycle_bin_east', recy);
+    this.registerGlbProp('hydrant_east', hyd2);
+    void this.upgradePropWithGLB('trashcan_north', 'models/trashcan.glb');
+    void this.upgradePropWithGLB('trashcan_east', 'models/trashcan.glb');
+    void this.upgradePropWithGLB('recycle_bin_east', 'models/recycling_bin.glb');
+    void this.upgradePropWithGLB('hydrant_east', 'models/hydrant.glb');
     // the barrier is a diary entry now (Doc 33 §2.3): Days 1–3 it guards a
     // (theatrically) open water main; Day 4 it's gone and the patch it left
     // reads as fresh asphalt. Kept OUT of the static bake — a merged mesh
@@ -1144,7 +1731,11 @@ export class World {
       // solid reaching below z 7.28 grazes that lane and stalls the driver
       // on a wall it cannot round in one sidestep window (5 fps).
       [-44, -7.0], [-30, -7.0], [-16, -7.0], [28, -7.0], [38, -7.0],      // south
-      [-45, 4.7], [-38.6, 4.5],                                            // plaza park trees
+      // W8 (2026-11-12): the west plaza park tree slides (−45 → −43.9) —
+      // its trunk stood in the new station corridor's east exit (z 4.52..4.88
+      // inside the z 4..5.55 through-path; the walk-ability probe's own
+      // forensics). The plaza keeps its tree; the corridor keeps its width.
+      [-43.9, 4.7], [-38.6, 4.5],                                          // plaza park trees
     ];
     // Four of the twelve are turning — the two plaza park trees (you meet
     // them first, off the subway stairs) plus one tree each side of the
@@ -1161,6 +1752,7 @@ export class World {
       const pit = makeTreePit(this.bank);
       pit.position.set(tx, 0.07, tz);
       this.scene.add(pit);
+      this.treePits.push({ x: tx, z: tz });
       const t = makeTree(this.bank, rng, autumnTrees.has(i));
       t.group.position.set(tx, 0.05, tz);
       t.group.rotation.y = rng() * Math.PI * 2;
@@ -1254,7 +1846,7 @@ export class World {
     // lamps facing the oncoming cab. Deco only; the pole is a solid like
     // every other pole on the block.
     const signal = makeTrafficSignal(this.bank, {
-      greenLamp: this.mat(PAL.teal, { emissive: PAL.teal, emissiveIntensity: 0.55 }),
+      greenLamp: this.nightGlow(PAL.teal, 0.55, 2.2),
     });
     signal.position.set(-1.8, 0.05, -7.55);
     this.scene.add(signal);
@@ -1262,21 +1854,27 @@ export class World {
 
     // ---- planters (the plaza one; the east planter moved to the park,
     // docs/38 — the barbershop needed its storefront, and the planter's
-    // PED bow-around entry moved with it, doc 35 §3's ghost-prop lesson)
+    // PED bow-around entry moved with it, doc 35 §3's ghost-prop lesson).
+    // W8 (2026-11-12): the plaza planter slides east (−46.6 → −44.9) —
+    // its old spot stood IN the new station corridor (z 4..5.55, the walk-
+    // ability probe's forensics: a 0.55 m pinch between planter and slot
+    // face that no capsule fits through) and sealed the through-path.
     const planterPlaza = makePlanter(this.bank, rng);
-    planterPlaza.position.set(-46.6, 0.05, 4.4);
+    planterPlaza.position.set(-44.3, 0.05, 4.4);
     planterPlaza.rotation.y = Math.PI / 2;
     this.scene.add(planterPlaza);
     // the plaza one is yawed π/2 so its long axis runs z
-    this.colliders.push(boxFromCenter(-46.6, 0.25, 4.4, 0.55, 0.55, 1.1));
+    this.colliders.push(boxFromCenter(-44.3, 0.25, 4.4, 0.55, 0.55, 1.1));
     // the bulletin board is furniture too (its flyer face is the Day-3 beat)
     this.colliders.push(boxFromCenter(-37.6, 0.975, 7.5, 1.75, 1.95, 0.3));
 
     // ---- one cast-iron fire-escape silhouette on the brownstone row ------
     // Decorative only — no colliders, no triggers. The climbable escape on
     // the fire-escape building stays the lead agent's greybox geometry.
+    // Unit 7: the z rides the row face (the x is the row's own style —
+    // the registry row's style text names the silhouette at x −21.5).
     const escape = makeFireEscapeDeco(this.bank, 4.4, 8.2);
-    escape.position.set(-21.5, 0, -7.98);
+    escape.position.set(-21.5, 0, kts1.z + kts1.d / 2 + 0.02);
     this.scene.add(escape);
 
     // ---- pigeons + squirrel (seeded; behaviors in ambient.ts) ----
@@ -1424,6 +2022,21 @@ export class World {
     this.buildAlderHeightsW2();
     // W3: the avenue walls, the landmarks, the painted gables. Also pre-bake.
     this.buildAlderHeightsW3();
+    // W6: the terrace build-out (docs/production/terrace-buildout — the
+    // owner's expansion authorization): the core grows z ±48 → ±64, the
+    // strips behind Gable and Marlow gain eight real rows (every mass via
+    // regShell — the no-invention law), the gardens behind the pinned
+    // backdrop rows get lawn, benches and trees. All pre-bake. The
+    // neighborhood fabric (ironwork, terrace faces, street props) runs in
+    // its own pass just before the bake.
+    this.buildAlderHeightsW6Terrace();
+    // W7: the Westgate & Eastgate rows (docs/production/westgate-eastgate —
+    // the map's LAST two sides): the core grows x ±84 → ±100, the E–W
+    // streets grow their west and east ends (butt-jointed slabs, same
+    // levels), and 24 real masses continue the Gable / Kestrel / Marlow
+    // rows and both terrace bands into the strips (every mass via regShell
+    // — the no-invention law). All pre-bake.
+    this.buildAlderHeightsW7Gates();
     // W4 part 1: the district's static life — zone figures, parked cars,
     // the BUS-03 stop — all pre-bake so the W0 merge swallows them (the
     // perf law: the zones cost merges, not draw calls).
@@ -1438,12 +2051,83 @@ export class World {
     // every room carries the visibility toggle (near = fit-out + clear
     // glass; far = the shipped lit-glass face; inside = the tower ducks).
     this.buildAlderHeightsW5();
+    this.upgradeInteriorPropsWithGLB();
+    // the rooms' palette (after the handles exist; dressRoom reads them)
+    this.dressW5Rooms();
+    // the W8 strip-row room rides the same identity pass (its handle
+    // exists by now — the dress law reads handles, not build order)
+    this.dressRoom('FRUIT-INT', { wainscot: 0x4a7a52, trim: 0xf3e2c2, light: 0xfff2d8, clear: 3.2,
+      skips: { z1: [[-66.8, -65.6]] } });
+    // the W9 strip rooms ride the same identity pass (their handles exist
+    // by now — the dress law reads handles, not build order)
+    this.dressRoom('WINE-INT', { wainscot: 0x5a2a2e, trim: 0xf3e2c2, light: 0xffe2c8, clear: 3.2,
+      skips: { z1: [[61.2, 62.4]] } });
+    this.dressRoom('BOOKS-INT', { wainscot: 0x6a5a3a, trim: 0xf3e2c2, light: 0xfff2d8, clear: 3.2,
+      skips: { z0: [[-88.6, -87.4]] } });
+    this.dressRoom('HARDWARE-INT', { wainscot: 0x6a6a72, trim: 0xf3e2c2, light: 0xfff2d8, clear: 3.2,
+      skips: { z0: [[-96.6, -95.4]] } });
+    this.dressRoom('NEWS-INT', { wainscot: 0x5a4a52, trim: 0xf3e2c2, light: 0xfff2d8, clear: 3.2,
+      skips: { z0: [[87.4, 88.6]] } });
+    this.dressRoom('VERBENA-INT', { wainscot: 0x3f5a44, trim: 0xf3e2c2, light: 0xfff2d8, clear: 3.2,
+      skips: { z0: [[95.4, 96.6]] } });
+    this.dressRoom('CORNELIUS-INT', { wainscot: 0x5f4a3a, trim: 0xf3e2c2, light: 0xffe8cc, clear: 3.2,
+      skips: { z0: [[-88.6, -87.4]] } });
+    this.dressRoom('WESTGATE-INT', { wainscot: 0x54454e, trim: 0xf3e2c2, light: 0xfff2d8, clear: 3.2,
+      skips: { z0: [[-96.6, -95.4]] } });
+    this.dressRoom('PROVISIONS-INT', { wainscot: 0x6a5a3a, trim: 0xf3e2c2, light: 0xffe8cc, clear: 3.2,
+      skips: { z0: [[87.4, 88.6]] } });
+    this.dressRoom('CHEESE-INT', { wainscot: 0x8a6a3a, trim: 0xf3e2c2, light: 0xffe2c8, clear: 3.2,
+      skips: { z0: [[95.4, 96.6]] } });
 
+    // the world-visual-quality pass (docs/3d-assets): crowns, gable walls,
+    // sills, AC units, roof clutter, street-floor life — ALL pre-bake so
+    // the district tiles fuse every piece; zero colliders, zero nav changes
+    this.buildWorldVisualQualityPass();
+
+    // the city-fabric pass (docs/production/city-fabric — the slop-newyork
+    // adaptation): rooftop water tanks + chimneys + bulkheads on the registry
+    // roofscape, the four documented-but-never-built skyline rows (SKY-W/E/S
+    // + the north depth row) as real varied buildings, and the sidewalk
+    // furniture (meters, DSNY baskets, cross-street name blades). All
+    // pre-bake so the tiles fuse the fabric; the skyline pair is NAMED_SKIP
+    // (always visible, never district-owned). Zero colliders, zero nav
+    // changes, deterministic (pinned by tests/city-fabric.test.ts).
+    this.buildCityFabricPass();
+
+    // the neighborhood fabric pass (the W6 continuation — same bake law)
+    this.buildNeighborhoodFabricPass();
+
+    // SI (2026-11-11): the borough-character pass — the slop-newyork port's
+    // other half. The three Mallow-row buildings (registry LMS-01/IND-01/
+    // GLS-01) and their styles, the multi-landing fire escapes, the cornice
+    // bands, the rooftop chillers (the fabric pass owns tanks/chimneys/
+    // bulkheads — this pass keeps only what the fabric lacks), and the
+    // street life (mailbox, steam vent, the Kestrel blade, the Juniper
+    // mast, the station globes, the TS subway stair). Pre-bake like every
+    // static wave; its five colliders are street furniture seated off the
+    // walk lanes exactly like the shipped bulletin board / planter set.
+    // The union ruling (2026-11-11, both waves landed in parallel): the
+    // fabric's roofscape owns tanks/chimneys/bulkheads, so this pass ships
+    // without them — docs/slop-integration/01 §2 records the retirement.
+    this.buildAlderHeightsSI();
 
     // leaf drift, now over every tree on the block (shipped 12 + W1 rows)
     this.leaves = new LeafDrift(this.scene, [...leafSpots, ...this.extraLeafSpots], 4);
 
+    // the fenestra plan: every proud window the builders shipped, matched
+    // to its registry shell (the no-invention law) — collected BEFORE the
+    // bake so the named source meshes are alive
+    this.fenestraPlan = collectWindowPlan({
+      scene: this.scene,
+      regShell: (id) => this.regShell(id),
+      buildings: loadRegistry().allBuildings(),
+    });
+
     this.bakeStatics();
+
+    // the planes build after the bake (an InstancedMesh is its own draw;
+    // the bake never touches it — the skyline-pane law)
+    this.buildFenestra();
 
     // instanced canopies for the new tree rows go up AFTER the bake — an
     // InstancedMesh is a Mesh, and the bake must never swallow it
@@ -1474,10 +2158,25 @@ export class World {
     const tsRoot = new THREE.Group();
     tsRoot.name = 'TSS_Group';
     this.scene.add(tsRoot);
-    this.timesSquare = buildTimesSquare(tsRoot, (c, opts) => this.mat(c, opts));
+    this.timesSquare = buildTimesSquare(tsRoot, (c, opts) => this.mat(c, opts), {
+      // A-3 UNIT 10 (the far world, DEC-4 Option B standing ruling): the
+      // Times Square masses READ their registry rows — the shells travel to
+      // the builder; the base/tower splits, crowns, screens and dressing
+      // are the rows' own style laws, derived inside.
+      'TSS-01': this.regShell('TSS-01'),
+      'TSS-02': this.regShell('TSS-02'),
+      'TSS-03': this.regShell('TSS-03'),
+      'TSS-04': this.regShell('TSS-04'),
+      'TSS-05': this.regShell('TSS-05'),
+    });
     for (const c of this.timesSquare.colliders) {
       this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d));
     }
+    // SI: the far-world piece of the borough-character pass — the ported
+    // subway stair on the TS surface. It joins TSS_Group so the zone bake
+    // fuses it like every other TS mesh (zone visibility owns the far world;
+    // the district tiles never reach here).
+    this.dressFarWorldSI(tsRoot);
     this.arrivalBus = buildArrivalBus((c, opts) => this.mat(c, opts));
     this.scene.add(this.arrivalBus.group);
     for (const c of this.arrivalBus.colliders) {
@@ -1521,6 +2220,15 @@ export class World {
       { jacket: 0x54628f, pants: 0x2f333b, skin: 0xe8b08e, hair: 0x5a4632, style: 'bun', shoe: 0x3a3028, scale: 0.93 },
       { jacket: 0x8a5a48, pants: 0x3a3540, skin: 0xc98e5a, hair: 0x241f28, style: 'flat', shoe: 0x2e2a33, scale: 1.0 },
       { jacket: 0x4f6b5e, pants: 0x33383f, skin: 0xe8b08e, hair: 0x1a1a22, style: 'bun', shoe: 0x4a3428, scale: 0.96 },
+      // M4 — THE DUSK SHIFT (world/dressing STREET_PLAN): three more
+      // neighbors whose shift is the evening rush — home while the sun is
+      // up (hidden: zero draw calls at rest, the dressing cost law), out
+      // when the subway draws. Same articulated rig, bank-shared materials,
+      // loops on the shipped north-walk band — the rush thickens the crowd
+      // the Shuffle teach already owns, it does not pave new lanes.
+      { jacket: 0x6e4f3a, pants: 0x32363e, skin: 0xd9a06b, hair: 0x2b2730, style: 'cap', shoe: 0x3a3028, scale: 1.04 },
+      { jacket: 0x715671, pants: 0x3b3f4a, skin: 0x8a5a3b, hair: 0x14141c, style: 'bun', shoe: 0x33291f, scale: 0.94 },
+      { jacket: 0x4a5a6e, pants: 0x443f4a, skin: 0xe8b08e, hair: 0x3a2c22, style: 'flat', shoe: 0x2e2a33, scale: 1.06 },
     ];
     const pedPaths: Array<Array<[number, number]>> = [
       // the commuter: full block, crossing only at the crosswalk (x ≈ -6.5,
@@ -1568,6 +2276,15 @@ export class World {
       [[-26, 6.14], [-36.5, 6.14], [-36.5, 6.68], [-26, 6.68]], // the stair local
       [[-22.5, 6.08], [-39.5, 6.08], [-39.5, 6.76], [-22.5, 6.76]], // the west commuter
       [[-20, 6.16], [-28.5, 6.16], [-28.5, 6.66], [-20, 6.66]], // the bodega local
+      // M4 — the dusk shift's lanes (out only for the evening rush): three
+      // more rectangles on the SAME proven north-walk band (z 6.05–6.8, the
+      // bodega→plaza stretch, no street crossings, so the spawn law —
+      // pts[0] reachable legally from every point — holds trivially). Lanes
+      // offset from the four shipped ones so seven bodies interleave with
+      // gaps to walk toward, never a wall.
+      [[-21.5, 6.28], [-40, 6.28], [-40, 6.6], [-21.5, 6.6]],    // the rush weaver
+      [[-23.5, 6.24], [-36, 6.24], [-36, 6.72], [-23.5, 6.72]],  // the bench local
+      [[-27, 6.3], [-38.5, 6.3], [-38.5, 6.58], [-27, 6.58]],    // the stair weaver
     ];
     // ---- their routines (Phase 4, Doc 37 §3E): the day's small beats ------
     // Every trigger sits OFF the walk lanes (at the building line or the
@@ -1639,6 +2356,18 @@ export class World {
       [
         { x: -18.8, z: 6.9, faceTo: [-18.5, 7.55], dwell: 3.0 }, // the bodega's warm window
       ],
+      // M4 — the dusk shift's beats: the evening errands (the bus bench,
+      // the bulletin board, the bodega window), all off the walk lanes at
+      // the building line, same law as every routine above.
+      [
+        { x: -24.2, z: 7.0, faceTo: [-23.3, 7.62], dwell: 4.0 }, // waits by the bus stop
+      ],
+      [
+        { x: -33.4, z: 6.95, faceTo: [-37.6, 7.5], dwell: 3.0 }, // the bulletin board, from the west
+      ],
+      [
+        { x: -19.1, z: 6.95, faceTo: [-18.5, 7.55], dwell: 3.5 }, // one more glance at the bodega
+      ],
     ];
     this.peds = new Pedestrians(
       this.scene, pedLooks, 20261030, pedPaths,
@@ -1666,7 +2395,7 @@ export class World {
         { x: 44.5, z: -7.35, r: 0.3 },
         { x: 13.5, z: -5.9, r: 0.3 },  // streetlamp
         { x: 29.8, z: -4.55, r: 0.9 }, // dirty-water dog cart (docs/38)
-        { x: -46.6, z: 4.4, r: 0.6 },  // planter plaza (missing)
+        { x: -44.3, z: 4.4, r: 0.6 },  // planter plaza (W8: slid east of the station corridor)
         { x: -8.55, z: 7.55, r: 0.5 }, // shirt rack (missing)
         { x: -4.0, z: 5.8, r: 0.5 },   // permit A-frame — it stands IN the
                                        // north walk lane; walkers bow around it
@@ -1680,7 +2409,7 @@ export class World {
         { x: -16, z: -7.0, r: 0.35 },
         { x: 28, z: -7.0, r: 0.35 },
         { x: 38, z: -7.0, r: 0.35 },
-        { x: -45, z: 4.7, r: 0.35 },
+        { x: -43.9, z: 4.7, r: 0.35 },
         { x: -38.6, z: 4.5, r: 0.35 },
         // W1: the Kestrel fill trees + the south control house + the new
         // south lamp — everything the ambient walkers can meet on the lane
@@ -1707,17 +2436,39 @@ export class World {
       // W4: the district's five road rectangles — ground truth for every
       // walker's feet (registry streets, verbatim)
       [
-        { xMin: -84, xMax: 84, zMin: -4, zMax: 4 },    // Kestrel Street
-        { xMin: -84, xMax: 84, zMin: 36, zMax: 44 },   // Gable Street
-        { xMin: -84, xMax: 84, zMin: -44, zMax: -36 }, // Marlow Street
-        { xMin: -76, xMax: -68, zMin: -64, zMax: 64 }, // Juniper Avenue
-        { xMin: 68, xMax: 76, zMin: -64, zMax: 64 },   // Sycamore Avenue
+        { xMin: -100, xMax: 100, zMin: -4, zMax: 4 },    // Kestrel Street (W7: the ends grew ±84 → ±100)
+        { xMin: -100, xMax: 100, zMin: 36, zMax: 44 },   // Gable Street (W7)
+        { xMin: -100, xMax: 100, zMin: -44, zMax: -36 }, // Marlow Street (W7)
+        { xMin: -76, xMax: -68, zMin: -64, zMax: 64 },   // Juniper Avenue
+        { xMin: 68, xMax: 76, zMin: -64, zMax: 64 },     // Sycamore Avenue
       ] as RoadRect[],
+      // M4: each walker's shift on the street schedule — the dusk shift
+      // boots home (the game boots into the day phase)
+      PEDESTRIAN_ROLES,
+      // W7: the registry's solid footprints (minus the passable set) — the
+      // walker↔facade depenetration law's ground truth. The blocks' own
+      // walls answer to the resolve now: a separation half-push at a
+      // curb-cut skirt depenetrates off the face instead of through it.
+      loadRegistry().allBuildings()
+        .filter((b) => b.footprint && !PASSABLE_FOOTPRINTS.has(b.id))
+        .map((b) => ({
+          minX: b.footprint!.x - b.footprint!.w / 2,
+          maxX: b.footprint!.x + b.footprint!.w / 2,
+          minZ: b.footprint!.z - b.footprint!.d / 2,
+          maxZ: b.footprint!.z + b.footprint!.d / 2,
+        })),
     );
     // the walkers carry real bodies for the player's collision stack — the
     // audit's "NPCs walking through the player" (doc 35 §1): one synced AABB
     // each, registered once, moved by Pedestrians.update every frame
     for (const box of this.peds.walkColliders) this.colliders.push(box);
+
+    // ---- the graphics wave: boot final --------------------------------
+    // Day state: the boot look IS the shipped golden hour (SKY.day = the
+    // 'evening' keyframe, canon verbatim) — written immediately, no lerp
+    // across black on frame one.
+    this.pinDayState('evening', true);
+    this.assembleAoExclude();
   }
 
   // ------------------------------------------------- static-geometry bake
@@ -1861,18 +2612,19 @@ export class World {
   private buildBus(): THREE.Group {
     const g = new THREE.Group();
     g.name = 'M121_Bus';
-    const merged = (geos: THREE.BufferGeometry[], color: number): THREE.Mesh => {
-      const m = new THREE.Mesh(mergeGeometries(geos, false)!, this.bank.get(color));
+    const merged = (geos: THREE.BufferGeometry[], color: number, useMat?: THREE.Material): THREE.Mesh => {
+      const m = new THREE.Mesh(mergeGeometries(geos, false)!, useMat ?? this.bank.get(color));
       m.castShadow = true;
       m.receiveShadow = true;
       g.add(m);
       return m;
     };
-    // body slab + roof cap (one cream batch)
+    // body slab + roof cap (one paint batch — the graphics wave: the M121
+    // wears PBR paint like the taxi, the sky reflects in its flank)
     merged([
       new THREE.BoxGeometry(9.6, 2.2, 2.3).translate(0, 1.45, 0),
       new THREE.BoxGeometry(9.6, 0.14, 2.3).translate(0, 2.62, 0),
-    ], PAL.cream);
+    ], PAL.cream, this.vehicleMat(PAL.cream, 0.35, 0.4));
     // the livery stripe
     merged([new THREE.BoxGeometry(9.64, 0.34, 2.32).translate(0, 1.05, 0)], PAL.teal);
     // window band + the curb-side door (the door rides local −z: the right
@@ -1897,6 +2649,16 @@ export class World {
     hubGeos.push(new THREE.BoxGeometry(0.12, 0.2, 2.2).translate(-4.78, 0.55, 0));
     merged(wheelGeos, PAL.manhole);
     merged(hubGeos, PAL.stone);
+    // the audit pass: a running bus carries its lights (nose +X; the westbound
+    // leg yaws π, so the pair reads right both ways)
+    merged([
+      new THREE.BoxGeometry(0.08, 0.18, 0.30).translate(4.83, 0.85, -0.7),
+      new THREE.BoxGeometry(0.08, 0.18, 0.30).translate(4.83, 0.85, 0.7),
+    ], PAL.cream);
+    merged([
+      new THREE.BoxGeometry(0.08, 0.16, 0.26).translate(-4.83, 0.85, -0.7),
+      new THREE.BoxGeometry(0.08, 0.16, 0.26).translate(-4.83, 0.85, 0.7),
+    ], PAL.coral);
     // the rollsign — the one canvas face, above the windshield
     const sign = new THREE.Mesh(
       new THREE.PlaneGeometry(1.1, 0.36),
@@ -2213,6 +2975,80 @@ export class World {
     return g;
   }
 
+  /** A room's OWN COLORS (2026-11 interior identity pass — "is the
+   *  environment enough to convince someone to play?"). Every room wears:
+   *  a wainscot band + gold-line trim on its four inner faces (split around
+   *  the door gaps so a threshold never gets wallpapered), and one hanging
+   *  light strip under the clear height. Additive dressing — no wall box
+   *  moves, no collider changes, the band toggles with the room's group.
+   *  The band rides 0.55 m: every storefront window starts at 0.5+, so the
+   *  band can only ever meet a DOOR gap — those are the skips. */
+  private dressRoom(
+    id: string,
+    style: { wainscot: number; trim: number; light: number; clear: number;
+      skips?: Partial<Record<'x0' | 'x1' | 'z0' | 'z1', Array<[number, number]>>> },
+  ): void {
+    const h = this.interiorHandles.find((x) => x.id === id);
+    if (!h) return;
+    const g = h.group;
+    const floorY = h.yBand ? h.yBand[0] + 0.61 : 0.16; // the walkable skin
+    const bandH = 0.55, d = 0.05, inset = 0.03;
+    // subtract the door gaps from a face's span — the band runs in segments
+    const segs = (a: number, b: number, skips: Array<[number, number]> | undefined): Array<[number, number]> => {
+      let out: Array<[number, number]> = [[a, b]];
+      for (const [f, t] of skips ?? []) {
+        const next: Array<[number, number]> = [];
+        for (const [s0, s1] of out) {
+          if (t <= s0 || f >= s1) { next.push([s0, s1]); continue; }
+          if (f > s0) next.push([s0, Math.min(f, s1)]);
+          if (t < s1) next.push([Math.max(t, s0), s1]);
+        }
+        out = next;
+      }
+      return out.filter(([s0, s1]) => s1 - s0 > 0.08);
+    };
+    const bandMesh = (len: number, alongX: boolean, cx: number, cz: number, y: number, mat: THREE.Material, face: Face, kind: 'band' | 'trim'): void => {
+      const m = new THREE.Mesh(
+        alongX ? new THREE.BoxGeometry(len, kind === 'band' ? bandH : 0.05, kind === 'band' ? d : d + 0.02)
+          : new THREE.BoxGeometry(kind === 'band' ? d : d + 0.02, kind === 'band' ? bandH : 0.05, len), mat);
+      m.name = `${id}_${face}_${kind}`;
+      m.position.set(cx, y, cz);
+      g.add(m);
+    };
+    const wainsMat = this.bank.get(style.wainscot);
+    const trimMat = this.bank.get(style.trim);
+    const y0 = floorY + bandH / 2, yT = floorY + bandH + 0.025;
+    type Face = 'x0' | 'x1' | 'z0' | 'z1';
+    const faces: Array<{ face: Face; alongX: boolean; at: number }> = [
+      { face: 'z0', alongX: true, at: h.z0 + inset },
+      { face: 'z1', alongX: true, at: h.z1 - inset },
+      { face: 'x0', alongX: false, at: h.x0 + inset },
+      { face: 'x1', alongX: false, at: h.x1 - inset },
+    ];
+    for (const { face, alongX, at } of faces) {
+      const skips = style.skips?.[face];
+      const span = alongX ? [h.x0, h.x1] : [h.z0, h.z1];
+      for (const [s0, s1] of segs(span[0], span[1], skips)) {
+        const c = (s0 + s1) / 2, len = s1 - s0;
+        const cx = alongX ? c : at;
+        const cz = alongX ? at : c;
+        bandMesh(len, alongX, cx, cz, y0, wainsMat, face, 'band');
+        bandMesh(len, alongX, cx, cz, yT, trimMat, face, 'trim');
+      }
+    }
+    // the light strip: a warm emissive bar under the clear height — the
+    // room reads as lit from its own ceiling, not by the street. The name
+    // rides the GROUP's stem (INT_RECORDS → RECORDS_LightStrip), one law
+    // for probe and code — the handle ids and group names disagree.
+    const lamp = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.min((h.x1 - h.x0) * 0.42, 4.2), 0.07, 0.4),
+      this.nightGlow(style.light, 0.75, 1.6),
+    );
+    lamp.name = `${h.group.name.slice(4)}_LightStrip`;
+    lamp.position.set((h.x0 + h.x1) / 2, floorY + style.clear - 0.22, (h.z0 + h.z1) / 2);
+    g.add(lamp);
+  }
+
   private registerInterior(h: InteriorHandle): void {
     for (const o of h.nearParts) o.visible = false;
     h.near = false;
@@ -2224,15 +3060,17 @@ export class World {
    *  glass-side law (docs/51 B13, interiors' window visibility): the near
    *  band shows the fit-out only THROUGH the room's own glass — the player
    *  stands on the outward side of a window run — or inside the room.
-   *  Hysteresis on both (enter 1.6 m, exit 0.8 m past the shell/glass) so a
-   *  player loitering on the sill or the window edge never flickers the
-   *  room. Behind a blind wall the fit-out stays hidden — no window, no
-   *  room; the facade keeps its far look. */
+   *  Hysteresis on both (enter 1.6 m, hold to 2.4 m — the exit rides 0.8 m
+   *  past the enter line; the old 0.8 exit INVERTED the hysteresis and the
+   *  0.8–1.6 m annulus flickered the room every frame — caught by the
+   *  shops furniture probe's sidewalk shots, 2026-11-06). Behind a blind
+   *  wall the fit-out stays hidden — no window, no room; the facade keeps
+   *  its far look. */
   private updateInteriors(px: number, py: number, pz: number): void {
     const inRect = (x0: number, x1: number, z0: number, z1: number): boolean =>
       px >= x0 && px <= x1 && pz >= z0 && pz <= z1;
     for (const h of this.interiorHandles) {
-      const m = h.near ? 0.8 : 1.6;
+      const m = h.near ? 2.4 : 1.6;
       const z1e = h.z1 + m + (h.padZ1 ?? 0);
       const [y0, y1] = h.yBand ?? [-1, 5];
       const inside = inRect(h.x0, h.x1, h.z0, h.z1) && py >= y0 && py <= y1;
@@ -2254,13 +3092,13 @@ export class World {
   /** W5 assembly — the eight rooms. Wall decompositions carry the shipped
    *  masses' outer envelopes exactly (the ghost gate re-verifies them). */
   private buildAlderHeightsW5(): void {
-    this.roomGlassMat = this.mat(0x3b3346, { emissive: 0xffb85c, emissiveIntensity: 0.22 });
+    this.roomGlassMat = this.nightGlow(0x3b3346, 0.22, 0.85, 0xffb85c);
     this.roomGlassMat.transparent = true;
     this.roomGlassMat.opacity = 0.42;
-    this.roomClearMat = this.mat(0x3b3346, { emissive: 0xffb85c, emissiveIntensity: 0.05 });
+    this.roomClearMat = this.nightGlow(0x3b3346, 0.05, 0.35, 0xffb85c);
     this.roomClearMat.transparent = true;
     this.roomClearMat.opacity = 0.16;
-    this.roomWarmMat = this.mat(PAL.interior, { emissive: PAL.amber, emissiveIntensity: 0.42 });
+    this.roomWarmMat = this.nightGlow(PAL.interior, 0.42, 1.6, PAL.amber);
 
     this.buildW5Laundry();
     this.buildW5Barber();
@@ -2270,6 +3108,468 @@ export class World {
     this.buildW5Hall();
     this.buildW5Diner();
     this.buildW5CecilRoom();
+    this.buildW5Fruit();
+    // W9 (2026-11-12): the strip rows' interiors complete — the W6 Carrow
+    // pair's second shop and the eight W7 Westgate/Eastgate shopfronts join
+    // FRUIT-INT. Every carved row keeps its registry footprint (the door
+    // nodes, the lanes and the bake law untouched); the mass decomposes
+    // into duck + walls + an opened facade, and the fit-out rides the
+    // near/far interior law.
+    this.buildW5Wine();
+    this.buildW5Books();
+    this.buildW5Hardware();
+    this.buildW5NewsEast();
+    this.buildW5Verbena();
+    this.buildW5Cornelius();
+    this.buildW5NewsWest();
+    this.buildW5Provisions();
+    this.buildW5Cheese();
+  }
+
+  /** The W9 strip-row carve — the shared decomposition behind FRUIT-INT
+   *  (buildW5Fruit) applied to the remaining shopfront rows. Retires the
+   *  W6/W7 mass + its collider (exact bounds match), stands the duck tower
+   *  above the 3.2 clear height, walls the three blind sides, and opens
+   *  the street facade with the registry door gap (centered on the
+   *  entrance's own x) plus the room's windows. Footprints never move —
+   *  the nav lanes, door nodes and bake districts read them unchanged. */
+  private carveStripRow(o: {
+    id: string;                 // the mesh stem ('KTS04')
+    regId: string;              // the registry row ('KTS-04')
+    massColor: number;
+    h: number;                  // the mass's registry height (the duck's top)
+    x0: number; x1: number; z0: number; z1: number;  // the full footprint
+    face: 'min' | 'max';        // which z side the street door faces
+    door: { from: number; to: number };
+    windows: Array<{ from: number; to: number; y0?: number; y1?: number }>;
+  }): THREE.Mesh {
+    this.retireMass(o.regId.replace('-', '_'));
+    this.retireCollider(o.x0, o.x1, o.z0, o.z1);
+    const duck = this.duckBox(`${o.id}_Upper`, o.x0, o.x1, 3.2, o.h, o.z0, o.z1, o.massColor);
+    // the blind sides: W/E skins run the full depth, the back wall caps
+    // the far end (the 0.4 / 0.2 thickness law FRUIT-INT shipped)
+    this.roomBox(`${o.id}_Wall_W`, o.x0, o.x0 + 0.4, 0, 3.2, o.z0, o.z1, o.massColor);
+    this.roomBox(`${o.id}_Wall_E`, o.x1 - 0.4, o.x1, 0, 3.2, o.z0, o.z1, o.massColor);
+    if (o.face === 'max') {
+      this.roomBox(`${o.id}_Wall_S`, o.x0, o.x1, 0, 3.2, o.z0, o.z0 + 0.2, o.massColor);
+      this.wallRun(`${o.id}_Facade`, 'x', o.z1 - 0.1, o.x0 + 0.4, o.x1 - 0.4, 0, 3.2, 0.2, o.massColor,
+        [...o.windows, { from: o.door.from, to: o.door.to, y1: 2.8 }]);
+    } else {
+      this.roomBox(`${o.id}_Wall_N`, o.x0, o.x1, 0, 3.2, o.z1 - 0.2, o.z1, o.massColor);
+      this.wallRun(`${o.id}_Facade`, 'x', o.z0 + 0.1, o.x0 + 0.4, o.x1 - 0.4, 0, 3.2, 0.2, o.massColor,
+        [...o.windows, { from: o.door.from, to: o.door.to, y1: 2.8 }]);
+    }
+    return duck;
+  }
+
+  /** The W9 strip-room finisher — glass runs + clear panes + the interior
+   *  registration for a carved row's windows (the FRUIT-INT convention:
+   *  glass sits 0.07 inside the wall's room-side face, panes ride 0.55..2.55
+   *  inside the 0.5..2.6 openings, spans inset 0.05). */
+  private finishStripRoom(o: {
+    id: string;                 // the interior handle id ('WINE-INT')
+    shell: { x0: number; x1: number; z0: number; z1: number };
+    face: 'min' | 'max';
+    duck: THREE.Object3D;
+    group: THREE.Group;
+    windows: Array<{ from: number; to: number }>;
+  }): void {
+    const at = o.face === 'max' ? o.shell.z1 + 0.07 : o.shell.z0 - 0.07;
+    const glass: GlassFace[] = [];
+    const nearParts: THREE.Object3D[] = [];
+    for (const w of o.windows) {
+      glass.push({ axis: 'z', side: o.face, at, a0: w.from + 0.05, a1: w.to - 0.05 });
+      const pane = this.facadePane(`${o.id}_Clear_${w.from}`, 'x', at, w.from + 0.05, w.to - 0.05, 0.55, 2.55, this.roomClearMat);
+      nearParts.push(pane);
+    }
+    this.registerInterior({
+      id: o.id, x0: o.shell.x0, x1: o.shell.x1, z0: o.shell.z0, z1: o.shell.z1,
+      glass, group: o.group, nearParts, farParts: [], duck: [o.duck],
+    });
+    for (const p of this.interiorHandles[this.interiorHandles.length - 1].nearParts) this.scene.add(p);
+  }
+
+  /** A strip room's fascia — the wide board over the windows (the W6
+   *  storefront's identity, kept). Faces 'z', long axis x, proud of the
+   *  face plane. (W9 also repairs FRUIT-INT's own fascia, which shipped
+   *  with the x/z dims swapped — a 0.14 m text sliver buried in the wall.) */
+  private stripFascia(name: string, text: string, cx: number, faceZ: number, face: 'min' | 'max',
+    bg: number, fg: number): void {
+    const fascia = this.signBoard(name, text, 5.2, 0.7, 0.14, 5.2 * 72, 0.7 * 72, bg, fg, 44);
+    fascia.position.set(cx, 3.05, face === 'max' ? faceZ + 0.08 : faceZ - 0.08);
+  }
+
+  /** WINE-INT (KTS-04: full-width cavity, x 60.4..67.6, z −63.7..−48.7,
+   *  clear 3.2). The W6 Carrow pair's east shop becomes a real ground
+   *  floor (W9, 2026-11-12): the TERRACE WINE front keeps its deep-red
+   *  identity — the bottle wall on the west skin, the cold case and the
+   *  tasting table mid-room, the barrel stacks against the back wall. */
+  private buildW5Wine(): void {
+    const duck = this.carveStripRow({
+      id: 'KTS04', regId: 'KTS-04', massColor: PAL.brick, h: 18,
+      x0: 60, x1: 68, z0: -63.9, z1: -48.5, face: 'max',
+      door: { from: 61.2, to: 62.4 },
+      windows: [{ from: 62.9, to: 65.3 }, { from: 65.9, to: 67.1 }],
+    });
+    const g = this.roomKit('WINE');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 15.0), this.bank.get(0x6b4636));
+    floor.name = 'Wine_Floor';
+    floor.position.set(64, 0.13, -56.2);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // counter + register (east skin, just inside the door line)
+    this.fixture(g, 'Wine_Counter', 66.85, 0.55, -51.3, 0.7, 1.1, 2.6, 0x4a3a52);
+    this.fixture(g, 'Wine_Register', 66.85, 1.25, -50.6, 0.3, 0.3, 0.4, 0x2b2730);
+    this.colliders.push(boxFromCenter(66.85, 0.55, -51.3, 0.7, 1.1, 2.6));
+    // the bottle wall (west skin) + the cold case behind it
+    this.fixture(g, 'Wine_BottleWall', 60.85, 1.1, -52.8, 0.5, 2.2, 5.2, 0x5a3a2e);
+    this.colliders.push(boxFromCenter(60.85, 1.1, -52.8, 0.5, 2.2, 5.2));
+    this.fixture(g, 'Wine_ColdCase', 60.85, 0.9, -57.6, 0.5, 1.8, 2.2, 0x3b3346);
+    this.colliders.push(boxFromCenter(60.85, 0.9, -57.6, 0.5, 1.8, 2.2));
+    // the tasting table (mid-room, aisle keeps both sides)
+    this.fixture(g, 'Wine_Tasting', 64.2, 0.55, -53.4, 2.2, 1.1, 0.9, 0x6b4636);
+    this.colliders.push(boxFromCenter(64.2, 0.55, -53.4, 2.2, 1.1, 0.9));
+    // the barrel stacks (back wall)
+    this.fixture(g, 'Wine_Barrels', 64, 0.75, -62.8, 4.2, 1.5, 1.2, 0x7a5a3a);
+    this.colliders.push(boxFromCenter(64, 0.75, -62.8, 4.2, 1.5, 1.2));
+    this.stripFascia('Wine_Fascia', 'TERRACE WINE', 64, -48.5, 'max', 0x9e222e, PAL.cream);
+    this.finishStripRoom({
+      id: 'WINE-INT', shell: { x0: 60.4, x1: 67.6, z0: -63.7, z1: -48.7 }, face: 'max',
+      duck, group: g, windows: [{ from: 62.9, to: 65.3 }, { from: 65.9, to: 67.1 }],
+    });
+  }
+
+  /** BOOKS-INT (KTN-08 "WESTGATE BOOKS": x −91.6..−84.4, z 8.2..19.8,
+   *  clear 3.2). The Westgate row's west bookshop — shelf runs down both
+   *  skins, two center islands, the counter by the door and the reading
+   *  table at the back wall. */
+  private buildW5Books(): void {
+    const duck = this.carveStripRow({
+      id: 'KTN08', regId: 'KTN-08', massColor: PAL.bldg, h: 15,
+      x0: -92, x1: -84, z0: 8, z1: 20, face: 'min',
+      door: { from: -88.6, to: -87.4 },
+      windows: [{ from: -91.0, to: -89.2 }, { from: -87.0, to: -85.2 }],
+    });
+    const g = this.roomKit('BOOKS');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 11.6), this.bank.get(0x9a7a54));
+    floor.name = 'Books_Floor';
+    floor.position.set(-88, 0.13, 14);
+    floor.receiveShadow = true;
+    g.add(floor);
+    this.fixture(g, 'Books_Shelf_W', -91.25, 1.1, 13.9, 0.5, 2.2, 9.0, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-91.25, 1.1, 13.9, 0.5, 2.2, 9.0));
+    this.fixture(g, 'Books_Shelf_E', -84.75, 1.1, 13.9, 0.5, 2.2, 9.0, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-84.75, 1.1, 13.9, 0.5, 2.2, 9.0));
+    this.fixture(g, 'Books_Island_A', -88.9, 1.05, 12.2, 2.6, 2.1, 0.45, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-88.9, 1.05, 12.2, 2.6, 2.1, 0.45));
+    this.fixture(g, 'Books_Island_B', -87.1, 1.05, 15.6, 2.6, 2.1, 0.45, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-87.1, 1.05, 15.6, 2.6, 2.1, 0.45));
+    this.fixture(g, 'Books_Counter', -85.6, 0.55, 9.6, 1.6, 1.1, 0.8, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-85.6, 0.55, 9.6, 1.6, 1.1, 0.8));
+    this.fixture(g, 'Books_Table', -88.3, 0.5, 18.6, 1.4, 1.0, 0.9, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-88.3, 0.5, 18.6, 1.4, 1.0, 0.9));
+    this.stripFascia('Books_Fascia', 'WESTGATE BOOKS', -88, 8, 'min', 0x2a5a3a, PAL.cream);
+    this.finishStripRoom({
+      id: 'BOOKS-INT', shell: { x0: -91.6, x1: -84.4, z0: 8.2, z1: 19.8 }, face: 'min',
+      duck, group: g, windows: [{ from: -91.0, to: -89.2 }, { from: -87.0, to: -85.2 }],
+    });
+  }
+
+  /** HARDWARE-INT (KTN-09 "GATE HARDWARE": x −99.6..−92.4, z 8.2..19.8,
+   *  clear 3.2). The west corner hardware store — the tool wall at the
+   *  back, the workbench under it, shelf runs down both skins and the
+   *  paint-drum row by the door. */
+  private buildW5Hardware(): void {
+    const duck = this.carveStripRow({
+      id: 'KTN09', regId: 'KTN-09', massColor: PAL.bldg, h: 16,
+      x0: -100, x1: -92, z0: 8, z1: 20, face: 'min',
+      door: { from: -96.6, to: -95.4 },
+      windows: [{ from: -99.2, to: -97.4 }, { from: -95.0, to: -93.2 }],
+    });
+    const g = this.roomKit('HARDWARE');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 11.6), this.bank.get(0x8a8276));
+    floor.name = 'Hardware_Floor';
+    floor.position.set(-96, 0.13, 14);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // the tool wall (back wall, hung — no collider) + the workbench
+    this.fixture(g, 'Hardware_ToolWall', -96, 1.4, 19.55, 6.0, 2.2, 0.1, 0x6a5a3a);
+    this.fixture(g, 'Hardware_Bench', -96, 0.55, 17.6, 3.2, 1.1, 1.0, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-96, 0.55, 17.6, 3.2, 1.1, 1.0));
+    this.fixture(g, 'Hardware_Shelf_W', -99.15, 1.1, 13.0, 0.5, 2.2, 6.0, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-99.15, 1.1, 13.0, 0.5, 2.2, 6.0));
+    this.fixture(g, 'Hardware_Shelf_E', -92.85, 1.1, 13.0, 0.5, 2.2, 6.0, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-92.85, 1.1, 13.0, 0.5, 2.2, 6.0));
+    this.fixture(g, 'Hardware_Drums', -93.6, 0.55, 9.6, 1.4, 1.1, 1.4, 0x3b3346);
+    this.colliders.push(boxFromCenter(-93.6, 0.55, 9.6, 1.4, 1.1, 1.4));
+    this.fixture(g, 'Hardware_Counter', -95.0, 0.55, 10.0, 1.6, 1.1, 0.8, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-95.0, 0.55, 10.0, 1.6, 1.1, 0.8));
+    this.stripFascia('Hardware_Fascia', 'GATE HARDWARE', -96, 8, 'min', 0xb23a48, PAL.cream);
+    this.finishStripRoom({
+      id: 'HARDWARE-INT', shell: { x0: -99.6, x1: -92.4, z0: 8.2, z1: 19.8 }, face: 'min',
+      duck, group: g, windows: [{ from: -99.2, to: -97.4 }, { from: -95.0, to: -93.2 }],
+    });
+  }
+
+  /** NEWS-INT (KTN-10 "EASTGATE NEWS": x 84.4..91.6, z 8.2..19.8,
+   *  clear 3.2). The east corner newsstand — the magazine wall at the
+   *  back, the counter west of the door, the paper stacks and the center
+   *  rack. */
+  private buildW5NewsEast(): void {
+    const duck = this.carveStripRow({
+      id: 'KTN10', regId: 'KTN-10', massColor: PAL.bldg, h: 15,
+      x0: 84, x1: 92, z0: 8, z1: 20, face: 'min',
+      door: { from: 87.4, to: 88.6 },
+      windows: [{ from: 85.2, to: 87.0 }, { from: 89.0, to: 90.8 }],
+    });
+    const g = this.roomKit('EASTNEWS');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 11.6), this.bank.get(0xc9c2b4));
+    floor.name = 'EastNews_Floor';
+    floor.position.set(88, 0.13, 14);
+    floor.receiveShadow = true;
+    g.add(floor);
+    this.fixture(g, 'EastNews_MagWall', 88, 1.1, 19.5, 5.6, 2.2, 0.35, 0x8e6f66);
+    this.colliders.push(boxFromCenter(88, 1.1, 19.5, 5.6, 2.2, 0.35));
+    this.fixture(g, 'EastNews_Papers', 90.6, 0.55, 10.4, 1.4, 1.1, 1.2, 0xe8e4dc);
+    this.colliders.push(boxFromCenter(90.6, 0.55, 10.4, 1.4, 1.1, 1.2));
+    this.fixture(g, 'EastNews_Counter', 85.8, 0.55, 9.8, 1.8, 1.1, 0.8, 0x4a3a52);
+    this.colliders.push(boxFromCenter(85.8, 0.55, 9.8, 1.8, 1.1, 0.8));
+    this.fixture(g, 'EastNews_Rack', 88.4, 1.05, 13.2, 2.4, 2.1, 0.5, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(88.4, 1.05, 13.2, 2.4, 2.1, 0.5));
+    this.stripFascia('EastNews_Fascia', 'EASTGATE NEWS', 88, 8, 'min', 0xb98a2e, PAL.cream);
+    this.finishStripRoom({
+      id: 'NEWS-INT', shell: { x0: 84.4, x1: 91.6, z0: 8.2, z1: 19.8 }, face: 'min',
+      duck, group: g, windows: [{ from: 85.2, to: 87.0 }, { from: 89.0, to: 90.8 }],
+    });
+  }
+
+  /** VERBENA-INT (KTN-11 "VERBENA BOOKS": x 92.4..99.6, z 8.2..19.8,
+   *  clear 3.2). The east corner bookshop with the herbalist's corner —
+   *  shelf runs down both skins, the planter pair at the back wall, the
+   *  counter by the door. */
+  private buildW5Verbena(): void {
+    const duck = this.carveStripRow({
+      id: 'KTN11', regId: 'KTN-11', massColor: PAL.bldg, h: 16,
+      x0: 92, x1: 100, z0: 8, z1: 20, face: 'min',
+      door: { from: 95.4, to: 96.6 },
+      windows: [{ from: 93.2, to: 95.0 }, { from: 97.0, to: 98.8 }],
+    });
+    const g = this.roomKit('VERBENA');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 11.6), this.bank.get(0x9a7a54));
+    floor.name = 'Verbena_Floor';
+    floor.position.set(96, 0.13, 14);
+    floor.receiveShadow = true;
+    g.add(floor);
+    this.fixture(g, 'Verbena_Shelf_W', 92.85, 1.1, 13.9, 0.5, 2.2, 9.0, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(92.85, 1.1, 13.9, 0.5, 2.2, 9.0));
+    this.fixture(g, 'Verbena_Shelf_E', 99.15, 1.1, 13.9, 0.5, 2.2, 9.0, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(99.15, 1.1, 13.9, 0.5, 2.2, 9.0));
+    this.fixture(g, 'Verbena_Planter_A', 94.0, 0.45, 19.0, 1.2, 0.9, 0.9, 0x4a7a52);
+    this.colliders.push(boxFromCenter(94.0, 0.45, 19.0, 1.2, 0.9, 0.9));
+    this.fixture(g, 'Verbena_Planter_B', 98.0, 0.45, 19.0, 1.2, 0.9, 0.9, 0x4a7a52);
+    this.colliders.push(boxFromCenter(98.0, 0.45, 19.0, 1.2, 0.9, 0.9));
+    this.fixture(g, 'Verbena_Counter', 93.6, 0.55, 10.2, 1.6, 1.1, 0.8, 0x8e6f66);
+    this.colliders.push(boxFromCenter(93.6, 0.55, 10.2, 1.6, 1.1, 0.8));
+    this.stripFascia('Verbena_Fascia', 'VERBENA BOOKS', 96, 8, 'min', 0x2f4858, PAL.cream);
+    this.finishStripRoom({
+      id: 'VERBENA-INT', shell: { x0: 92.4, x1: 99.6, z0: 8.2, z1: 19.8 }, face: 'min',
+      duck, group: g, windows: [{ from: 93.2, to: 95.0 }, { from: 97.0, to: 98.8 }],
+    });
+  }
+
+  /** CORNELIUS-INT (MRW-01 "CORNELIUS & CO.": x −91.6..−84.4,
+   *  z −31.8..−20.2, clear 3.2). Marlow's west general store — the crate
+   *  stacks down the west skin, the shelf run at the back, the counter
+   *  east of the door and the barrel pair at the front corner. */
+  private buildW5Cornelius(): void {
+    const duck = this.carveStripRow({
+      id: 'MRW01', regId: 'MRW-01', massColor: PAL.bldg2, h: 15,
+      x0: -92, x1: -84, z0: -32, z1: -20, face: 'min',
+      door: { from: -88.6, to: -87.4 },
+      windows: [{ from: -91.0, to: -89.2 }, { from: -87.0, to: -85.2 }],
+    });
+    const g = this.roomKit('CORNELIUS');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 11.6), this.bank.get(0xa08a6a));
+    floor.name = 'Cornelius_Floor';
+    floor.position.set(-88, 0.13, -26);
+    floor.receiveShadow = true;
+    g.add(floor);
+    this.fixture(g, 'Cornelius_Crates', -91.1, 0.75, -24.0, 0.9, 1.5, 3.6, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-91.1, 0.75, -24.0, 0.9, 1.5, 3.6));
+    this.fixture(g, 'Cornelius_Shelf', -88, 1.1, -20.85, 5.6, 2.2, 0.5, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-88, 1.1, -20.85, 5.6, 2.2, 0.5));
+    this.fixture(g, 'Cornelius_Counter', -85.4, 0.55, -22.6, 1.8, 1.1, 0.8, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-85.4, 0.55, -22.6, 1.8, 1.1, 0.8));
+    this.fixture(g, 'Cornelius_Barrels', -90.6, 0.7, -29.6, 1.3, 1.4, 1.3, 0x7a5a3a);
+    this.colliders.push(boxFromCenter(-90.6, 0.7, -29.6, 1.3, 1.4, 1.3));
+    this.stripFascia('Cornelius_Fascia', 'CORNELIUS & CO.', -88, -32, 'min', 0x2f4858, PAL.cream);
+    this.finishStripRoom({
+      id: 'CORNELIUS-INT', shell: { x0: -91.6, x1: -84.4, z0: -31.8, z1: -20.2 }, face: 'min',
+      duck, group: g, windows: [{ from: -91.0, to: -89.2 }, { from: -87.0, to: -85.2 }],
+    });
+  }
+
+  /** WESTGATE-INT (MRW-02 "WESTGATE NEWS": x −99.6..−92.4,
+   *  z −31.8..−20.2, clear 3.2). The west corner newsstand — the magazine
+   *  wall at the back, the counter east of the door, the paper stacks and
+   *  the center rack. */
+  private buildW5NewsWest(): void {
+    const duck = this.carveStripRow({
+      id: 'MRW02', regId: 'MRW-02', massColor: PAL.bldg2, h: 17,
+      x0: -100, x1: -92, z0: -32, z1: -20, face: 'min',
+      door: { from: -96.6, to: -95.4 },
+      windows: [{ from: -99.2, to: -97.4 }, { from: -95.0, to: -93.2 }],
+    });
+    const g = this.roomKit('WESTNEWS');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 11.6), this.bank.get(0xc9c2b4));
+    floor.name = 'WestNews_Floor';
+    floor.position.set(-96, 0.13, -26);
+    floor.receiveShadow = true;
+    g.add(floor);
+    this.fixture(g, 'WestNews_MagWall', -96, 1.1, -20.85, 5.6, 2.2, 0.35, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-96, 1.1, -20.85, 5.6, 2.2, 0.35));
+    this.fixture(g, 'WestNews_Counter', -93.4, 0.55, -23.0, 1.8, 1.1, 0.8, 0x4a3a52);
+    this.colliders.push(boxFromCenter(-93.4, 0.55, -23.0, 1.8, 1.1, 0.8));
+    this.fixture(g, 'WestNews_Papers', -98.4, 0.55, -22.2, 1.4, 1.1, 1.2, 0xe8e4dc);
+    this.colliders.push(boxFromCenter(-98.4, 0.55, -22.2, 1.4, 1.1, 1.2));
+    this.fixture(g, 'WestNews_Rack', -96.4, 1.05, -27.4, 2.4, 2.1, 0.5, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-96.4, 1.05, -27.4, 2.4, 2.1, 0.5));
+    this.stripFascia('WestNews_Fascia', 'WESTGATE NEWS', -96, -32, 'min', 0x9e222e, PAL.cream);
+    this.finishStripRoom({
+      id: 'WESTGATE-INT', shell: { x0: -99.6, x1: -92.4, z0: -31.8, z1: -20.2 }, face: 'min',
+      duck, group: g, windows: [{ from: -99.2, to: -97.4 }, { from: -95.0, to: -93.2 }],
+    });
+  }
+
+  /** PROVISIONS-INT (MRW-03 "LARKIN PROVISIONS": x 84.4..91.6,
+   *  z −31.8..−20.2, clear 3.2). The east general store — the counter
+   *  west of the door, the sack-and-barrel row down the east skin, the
+   *  back shelf run and the crate stack by the cold corner. */
+  private buildW5Provisions(): void {
+    const duck = this.carveStripRow({
+      id: 'MRW03', regId: 'MRW-03', massColor: PAL.bldg2, h: 17,
+      x0: 84, x1: 92, z0: -32, z1: -20, face: 'min',
+      door: { from: 87.4, to: 88.6 },
+      windows: [{ from: 85.2, to: 87.0 }, { from: 89.0, to: 90.8 }],
+    });
+    const g = this.roomKit('PROVISIONS');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 11.6), this.bank.get(0xa08a6a));
+    floor.name = 'Provisions_Floor';
+    floor.position.set(88, 0.13, -26);
+    floor.receiveShadow = true;
+    g.add(floor);
+    this.fixture(g, 'Provisions_Counter', 85.6, 0.55, -23.0, 1.8, 1.1, 0.8, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(85.6, 0.55, -23.0, 1.8, 1.1, 0.8));
+    this.fixture(g, 'Provisions_Sacks', 90.7, 0.75, -25.0, 0.9, 1.5, 4.0, 0x8e6f66);
+    this.colliders.push(boxFromCenter(90.7, 0.75, -25.0, 0.9, 1.5, 4.0));
+    this.fixture(g, 'Provisions_Shelf', 88, 1.1, -20.85, 5.6, 2.2, 0.5, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(88, 1.1, -20.85, 5.6, 2.2, 0.5));
+    this.fixture(g, 'Provisions_Crates', 90.4, 0.6, -30.2, 2.0, 1.2, 1.0, 0x8e6f66);
+    this.colliders.push(boxFromCenter(90.4, 0.6, -30.2, 2.0, 1.2, 1.0));
+    this.stripFascia('Provisions_Fascia', 'LARKIN PROVISIONS', 88, -32, 'min', 0xb98a2e, PAL.cream);
+    this.finishStripRoom({
+      id: 'PROVISIONS-INT', shell: { x0: 84.4, x1: 91.6, z0: -31.8, z1: -20.2 }, face: 'min',
+      duck, group: g, windows: [{ from: 85.2, to: 87.0 }, { from: 89.0, to: 90.8 }],
+    });
+  }
+
+  /** CHEESE-INT (MRW-04 "CARROW CHEESE": x 92.4..99.6, z −31.8..−20.2,
+   *  clear 3.2). The east corner cheese shop — the wheel shelf at the
+   *  back, the counter west of the door, the cold case down the east
+   *  skin and the crate at the cold corner. */
+  private buildW5Cheese(): void {
+    const duck = this.carveStripRow({
+      id: 'MRW04', regId: 'MRW-04', massColor: PAL.bldg2, h: 15,
+      x0: 92, x1: 100, z0: -32, z1: -20, face: 'min',
+      door: { from: 95.4, to: 96.6 },
+      windows: [{ from: 93.2, to: 95.0 }, { from: 97.0, to: 98.8 }],
+    });
+    const g = this.roomKit('CHEESE');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 11.6), this.bank.get(0xd8cbb2));
+    floor.name = 'Cheese_Floor';
+    floor.position.set(96, 0.13, -26);
+    floor.receiveShadow = true;
+    g.add(floor);
+    this.fixture(g, 'Cheese_WheelShelf', 96, 1.1, -20.85, 5.6, 2.2, 0.5, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(96, 1.1, -20.85, 5.6, 2.2, 0.5));
+    this.fixture(g, 'Cheese_Counter', 93.6, 0.55, -23.0, 1.8, 1.1, 0.8, 0x4a3a52);
+    this.colliders.push(boxFromCenter(93.6, 0.55, -23.0, 1.8, 1.1, 0.8));
+    this.fixture(g, 'Cheese_ColdCase', 99.15, 0.9, -25.4, 0.5, 1.8, 3.0, 0x3b3346);
+    this.colliders.push(boxFromCenter(99.15, 0.9, -25.4, 0.5, 1.8, 3.0));
+    this.fixture(g, 'Cheese_Crate', 98.2, 0.6, -30.0, 1.4, 1.2, 1.0, 0x8e6f66);
+    this.colliders.push(boxFromCenter(98.2, 0.6, -30.0, 1.4, 1.2, 1.0));
+    this.stripFascia('Cheese_Fascia', 'CARROW CHEESE', 96, -32, 'min', 0x2a5a3a, PAL.cream);
+    this.finishStripRoom({
+      id: 'CHEESE-INT', shell: { x0: 92.4, x1: 99.6, z0: -31.8, z1: -20.2 }, face: 'min',
+      duck, group: g, windows: [{ from: 93.2, to: 95.0 }, { from: 97.0, to: 98.8 }],
+    });
+  }
+
+  /** FRUIT-INT (TEN-02: full-width cavity, x −67.6..−60.4, z −63.7..−48.7,
+   *  clear 3.2). The W5 pattern's first strip-row room (W8, 2026-11-12):
+   *  the Carrow row's working shopfront becomes a real ground floor — the
+   *  mass ducks above y 3.2, the terrace-walk facade carries the door gap
+   *  (the registry entrance's own x, −66.2) plus two windows, the fruit
+   *  crates read through the glass from the walk, and the counter + scale
+   *  and the cold case line the west wall. */
+  private buildW5Fruit(): void {
+    this.retireMass('TEN_02');
+    this.retireCollider(-68, -60, -63.9, -48.5);
+    this.duckBox('TEN02_Upper', -68, -60, 3.2, 16.5, -63.9, -48.5, PAL.brick);
+    const duckUpper = this.scene.children[this.scene.children.length - 1];
+    this.roomBox('TEN02_Wall_S', -68, -60, 0, 3.2, -63.9, -63.7, PAL.brick);
+    this.roomBox('TEN02_Wall_W', -68, -67.6, 0, 3.2, -63.9, -48.5, PAL.brick);
+    this.roomBox('TEN02_Wall_E', -60.4, -60, 0, 3.2, -63.9, -48.5, PAL.brick);
+    this.wallRun('TEN02_Facade', 'x', -48.6, -67.6, -60.4, 0, 3.2, 0.2, PAL.brick, [
+      { from: -66.8, to: -65.6, y1: 2.8 },           // the door (the registry's own entrance x)
+      { from: -64.9, to: -62.5, y0: 0.5, y1: 2.6 },  // the shop window
+      { from: -61.9, to: -60.7, y0: 0.5, y1: 2.6 },  // window E
+    ]);
+
+    const g = this.roomKit('FRUIT');
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.06, 15.0), this.bank.get(0xd8cbb2));
+    floor.name = 'Fruit_Floor';
+    floor.position.set(-64, 0.13, -56.2);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // counter + scale (west wall, just inside the door line)
+    this.fixture(g, 'Fruit_Counter', -66.9, 0.55, -51.5, 0.8, 1.1, 2.6, 0x4a7a52);
+    this.fixture(g, 'Fruit_Scale', -66.8, 1.25, -50.9, 0.3, 0.3, 0.3, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-66.9, 0.55, -51.5, 0.8, 1.1, 2.6));
+    // the cold case (west wall, rear)
+    this.fixture(g, 'Fruit_ColdCase', -66.9, 0.9, -55.2, 0.8, 1.8, 2.2, 0x3b3346);
+    this.colliders.push(boxFromCenter(-66.9, 0.9, -55.2, 0.8, 1.8, 2.2));
+    // the fruit crates — three rows under the shop window, the glass read
+    const crateRows: Array<[number, number, number]> = [[-63.7, -50.2, 0xd9772f], [-63.7, -51.4, 0xb23a48], [-63.7, -52.6, 0x2a9d8f]];
+    for (const [cx, cz, cc] of crateRows) {
+      this.fixture(g, `Fruit_Crate_${cz}`, cx, 0.35, cz, 2.2, 0.5, 0.9, cc);
+      this.colliders.push(boxFromCenter(cx, 0.35, cz, 2.2, 0.7, 0.9));
+    }
+    // the crate stacks (rear, south wall)
+    this.fixture(g, 'Fruit_Stacks', -64, 0.75, -62.9, 4.6, 1.3, 1.1, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-64, 0.75, -62.9, 4.6, 1.5, 1.1));
+
+    // the facade's own sign — the W6 storefront's identity, kept (canvas
+    // materials stay out of the bake by themselves). W9: the dims were
+    // shipped swapped (0.14 wide × 5.2 deep — the text planes buried in
+    // the wall); the wide board faces the walk now, via stripFascia.
+    this.stripFascia('Fruit_Fascia', 'CARROW FRUITS', -64, -48.5, 'max', 0x2a9d8f, PAL.cream);
+
+    const farParts: THREE.Object3D[] = [];
+    this.registerInterior({
+      id: 'FRUIT-INT', x0: -67.6, x1: -60.4, z0: -63.7, z1: -48.7,
+      glass: [
+        { axis: 'z', side: 'max', at: -48.63, a0: -64.85, a1: -62.55 },
+        { axis: 'z', side: 'max', at: -48.63, a0: -61.85, a1: -60.75 },
+      ],
+      group: g,
+      nearParts: [
+        this.facadePane('Fruit_Clear_W', 'x', -48.63, -64.85, -62.55, 0.55, 2.55, this.roomClearMat),
+        this.facadePane('Fruit_Clear_E', 'x', -48.63, -61.85, -60.75, 0.55, 2.55, this.roomClearMat),
+      ],
+      farParts, duck: [duckUpper],
+    });
+    for (const p of (this.interiorHandles[this.interiorHandles.length - 1].nearParts)) this.scene.add(p);
   }
 
   /** LAUNDRY-INT (registry: KTN-02, x −11..1, z 8.2..19, clear 3.2). The
@@ -2294,8 +3594,9 @@ export class World {
 
     const g = this.roomKit('LAUNDRY');
     // floor: from the facade line back, warm plaster — continuous with the
-    // shipped bay floor (0xb9b1a6, the alcove's own gray)
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(11.7, 0.06, 10.8), this.bank.get(0xb9b1a6));
+    // shipped bay floor's neighbor — the room's own tile blue-gray (the
+    // identity pass: every room wears its own floor, not one shared tan)
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(11.7, 0.06, 10.8), this.bank.get(0xc3cdd2));
     floor.name = 'LaundryRoom_Floor';
     floor.position.set(-5.15, 0.13, 13.45);
     floor.receiveShadow = true;
@@ -2308,35 +3609,68 @@ export class World {
     g.add(warm);
     // the registry's machines: 6 washers west wall, 4 dryers east
     for (const wz of [9.5, 11.2, 12.9, 14.6, 16.3, 18]) {
-      const b = this.fixture(g, `LW_${wz}`, -10.35, 0.9, wz, 0.95, 1.5, 0.75, 0x9a938c);
-      const door = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.04, 14), this.bank.get(0x2b2730));
-      door.rotation.z = Math.PI / 2;
-      door.position.set(-9.86, 0.85, wz);
-      g.add(door);
+      // yawed slot: the fallback box keeps today's footprint (0.95 along the
+      // wall, 0.75 deep) while the sand3d front-loader rides the slot's yaw
+      // (door east, into the room). The porthole disc is a slot CHILD, so a
+      // landed model takes it away with the box instead of floating in
+      // front of the GLB's own glass.
+      const slot = new THREE.Group();
+      slot.name = `LW_slot_${wz}`;
+      slot.position.set(-10.35, 0.9, wz);
+      slot.rotation.y = Math.PI / 2;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.75, 1.5, 0.95), this.bank.get(0x9a938c));
+      body.castShadow = true;
+      body.receiveShadow = true;
+      slot.add(body);
+      const porthole = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.04, 14), this.bank.get(0x2b2730));
+      porthole.rotation.x = Math.PI / 2;
+      porthole.position.set(0, -0.05, 0.49);
+      slot.add(porthole);
+      g.add(slot);
+      this.registerGlbProp(`washer_${wz}`, slot);
+      void this.upgradePropWithGLB(`washer_${wz}`, 'models/washing_machine.glb');
       this.colliders.push(boxFromCenter(-10.35, 0.9, wz, 0.95, 1.5, 0.75));
-      void b;
     }
+    // dryers east wall — the washer-slot pattern (group yaw −π/2, door west
+    // into the room; the GLB takes the whole slot, control band included)
     for (const dz of [10.5, 12.2, 13.9, 15.6]) {
-      this.fixture(g, `LD_${dz}`, 0.35, 0.8, dz, 0.95, 1.35, 0.75, 0x9a938c);
-      this.fixture(g, `LDT_${dz}`, 0.35, 1.52, dz, 0.99, 0.08, 0.79, PAL.teal);
+      const slot = new THREE.Group();
+      slot.name = `LD_slot_${dz}`;
+      slot.position.set(0.35, 0.8, dz);
+      slot.rotation.y = -Math.PI / 2;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.75, 1.35, 0.95), this.bank.get(0x9a938c));
+      body.castShadow = true;
+      body.receiveShadow = true;
+      slot.add(body);
+      const band = new THREE.Mesh(new THREE.BoxGeometry(0.79, 0.08, 0.99), this.bank.get(PAL.teal));
+      band.position.y = 0.72;
+      slot.add(band);
+      g.add(slot);
       this.colliders.push(boxFromCenter(0.35, 0.8, dz, 0.95, 1.35, 0.75));
     }
-    // folding tables (2), seating (2 chairs + cart), back room (shelf+carts)
+    // folding tables (2): full-height bodies (the GLB stands on its own
+    // feet), seating (2 chairs + cart), back room (shelf+carts)
     for (const tz of [12.1, 13.1]) {
-      this.fixture(g, `LT_${tz}`, -5, 0.85, tz, 2.4, 0.07, 0.9, PAL.cream);
-      this.fixture(g, `LTleg_${tz}`, -5, 0.42, tz, 0.12, 0.85, 0.7, 0x8e6f66);
+      this.fixture(g, `LT_${tz}`, -5, 0.585, tz, 2.4, 0.85, 0.9, PAL.cream);
       this.colliders.push(boxFromCenter(-5, 0.5, tz, 2.4, 1.0, 0.9));
     }
+    // the waiting chairs (ABO slot — full-height body, the Hall_Chair_A
+    // pattern; the old seat+back pair read floating under a real model)
     for (const cz of [9.3, 9.9]) {
-      this.fixture(g, `LC_${cz}`, -2.9, 0.42, cz, 0.5, 0.06, 0.5, 0x2b2730);
-      this.fixture(g, `LCb_${cz}`, -2.9, 0.71, cz + 0.2, 0.5, 0.55, 0.06, 0x2b2730);
+      this.fixture(g, `LC_${cz}`, -2.9, 0.44, cz, 0.5, 0.88, 0.5, 0x2b2730);
     }
+    // a framed print over the washers (ABO slot — wall decor, no collider)
+    this.fixture(g, 'LWall_Art', -10.81, 2.2, 13.75, 0.05, 0.55, 0.45, 0x8e6f66);
     this.fixture(g, 'LCart', -2.1, 0.45, 9.6, 0.6, 0.9, 0.45, PAL.teal);
     this.colliders.push(boxFromCenter(-2.6, 0.5, 9.6, 1.6, 1.0, 1.0));
     this.fixture(g, 'LShelf', -5, 1.0, 18.5, 4, 1.8, 0.45, PAL.bldg2);
     this.fixture(g, 'LLinen_a', -6.4, 0.5, 17.9, 0.7, 1.0, 0.5, PAL.cream);
     this.fixture(g, 'LLinen_b', -3.6, 0.5, 17.9, 0.7, 1.0, 0.5, PAL.cream);
     this.colliders.push(boxFromCenter(-5, 1.0, 18.5, 4, 2.0, 0.5));
+    // the soda machine on the east wall, south of the dryers — every
+    // laundromat has one (sand3d ADD; collider matches its box)
+    this.fixture(g, 'LD_Vending', 0.5, 1.06, 17.8, 0.6, 1.8, 1.0, 0x2b2730);
+    this.colliders.push(boxFromCenter(0.5, 0.9, 17.8, 0.6, 1.8, 1.0));
 
     // the far state: the shipped bay back wall (extracted — it was baked)
     const back = this.scene.children.find((c) => c.name === 'Laundry_Back');
@@ -2373,7 +3707,7 @@ export class World {
     ]);
 
     const g = this.roomKit('BARBER');
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.06, 11.0), this.bank.get(PAL.interior));
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.06, 11.0), this.bank.get(0xd9cfc2));
     floor.name = 'Barber_Floor';
     floor.position.set(36.6, 0.13, 13.9);
     floor.receiveShadow = true;
@@ -2385,12 +3719,36 @@ export class World {
     g.add(mirror);
     this.fixture(g, 'Barber_Counters', 38.45, 0.45, 12.3, 0.5, 0.9, 5.0, PAL.teal);
     this.colliders.push(boxFromCenter(38.45, 0.45, 12.3, 0.5, 0.9, 5.0));
+    // the register on the counter's south shoulder (sand3d ADD) — the
+    // washer-slot pattern, front west into the room
+    const regSlot = new THREE.Group();
+    regSlot.name = 'Barber_Register';
+    regSlot.position.set(38.3, 1.03, 14.4);
+    regSlot.rotation.y = -Math.PI / 2;
+    const regBody = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 0.36), this.bank.get(0x2b2730));
+    regBody.castShadow = true;
+    regBody.receiveShadow = true;
+    regSlot.add(regBody);
+    g.add(regSlot);
     // the two chairs (the registry's 35.9 / z 11 & 13.6), facing the mirror
+    // wall east — the washer-slot pattern (group yaw +π/2); the GLB is the
+    // whole chair, star base to headrest
     for (const cz of [11.0, 13.6]) {
-      this.fixture(g, `Barber_Chair_${cz}`, 35.9, 0.3, cz, 0.7, 0.6, 0.7, 0x2b2730);
-      this.fixture(g, `Barber_ChairBack_${cz}`, 35.65, 0.75, cz, 0.16, 0.9, 0.7, 0x2b2730);
+      const slot = new THREE.Group();
+      slot.name = `Barber_Chair_${cz.toFixed(1)}`;
+      slot.position.set(35.9, 0.76, cz);
+      slot.rotation.y = Math.PI / 2;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.2, 0.7), this.bank.get(0x2b2730));
+      body.castShadow = true;
+      body.receiveShadow = true;
+      slot.add(body);
+      g.add(slot);
       this.colliders.push(boxFromCenter(35.9, 0.45, cz, 0.75, 0.9, 0.75));
     }
+    // framed mirrors over the counter, one per chair (ABO slot — wall
+    // decor on the mirror wall's west face, no collider)
+    this.fixture(g, 'Barber_Mirror_A', 38.66, 1.35, 11.0, 0.06, 0.78, 0.68, 0x8e6f66);
+    this.fixture(g, 'Barber_Mirror_B', 38.66, 1.35, 13.6, 0.06, 0.78, 0.68, 0x8e6f66);
     // waiting bench (W wall)
     this.fixture(g, 'Barber_Bench', 34.75, 0.25, 12.3, 0.45, 0.5, 2.0, PAL.teal);
     this.colliders.push(boxFromCenter(34.75, 0.3, 12.3, 0.5, 0.6, 2.0));
@@ -2443,7 +3801,7 @@ export class World {
     ]);
 
     const g = this.roomKit('PIZZA');
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.06, 11.0), this.bank.get(PAL.interior));
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.06, 11.0), this.bank.get(0xd8c39c));
     floor.name = 'Pizza_Floor';
     floor.position.set(27, 0.13, 13.9);
     floor.receiveShadow = true;
@@ -2458,10 +3816,11 @@ export class World {
     mouth.position.set(28.8, 1.1, 16.68);
     g.add(mouth);
     this.colliders.push(boxFromCenter(28.8, 0.9, 17.8, 1.8, 1.8, 2.2));
-    // booths (2, W wall): table + two benches each
+    // booths (2, W wall): table + two benches each. The table placeholder
+    // is a full-height body (the ABO swap stands on its own feet; the old
+    // thin top floated a real model 0.7 m over the floor)
     for (const bz of [12.5, 15.5]) {
-      this.fixture(g, `Pizza_BoothT_${bz}`, 25.2, 0.72, bz, 0.8, 0.06, 1.1, PAL.cream);
-      this.fixture(g, `Pizza_BoothLeg_${bz}`, 25.2, 0.36, bz, 0.12, 0.72, 0.12, 0x8e6f66);
+      this.fixture(g, `Pizza_BoothT_${bz}`, 25.2, 0.36, bz, 0.8, 0.72, 1.1, PAL.cream);
       this.fixture(g, `Pizza_BoothB1_${bz}`, 24.55, 0.3, bz, 0.5, 0.6, 2.0, PAL.coral);
       this.fixture(g, `Pizza_BoothB2_${bz}`, 25.85, 0.3, bz, 0.5, 0.6, 2.0, PAL.coral);
       this.colliders.push(boxFromCenter(25.2, 0.5, bz, 1.7, 1.0, 2.0));
@@ -2469,6 +3828,12 @@ export class World {
     // drink fridge (E wall)
     this.fixture(g, 'Pizza_Fridge', 29.45, 0.9, 13.5, 0.5, 1.8, 3.0, 0x2b2730);
     this.colliders.push(boxFromCenter(29.45, 0.9, 13.5, 0.5, 1.8, 3.0));
+    // prep counter on the north wall, west of the deck oven (sand3d ADD —
+    // Eddie and Kev's actual work surface; collider hugs the wall)
+    this.fixture(g, 'Pizza_Prep', 26.8, 0.66, 18.9, 2.0, 1.0, 0.7, PAL.cream);
+    this.colliders.push(boxFromCenter(26.8, 0.5, 18.9, 2.0, 1.0, 0.7));
+    // the menu board over the slice counter (wall decor — no collider)
+    this.fixture(g, 'Pizza_Menu', 27, 2.3, 8.35, 2.2, 1.1, 0.06, 0x3a3440);
 
     const farParts: THREE.Object3D[] = [];
     const glass = this.scene.getObjectByName('Pizza_Glass');
@@ -2511,7 +3876,7 @@ export class World {
     ]);
 
     const g = this.roomKit('BAKERY');
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.06, 11.6), this.bank.get(PAL.interior));
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.06, 11.6), this.bank.get(0xe6d7b4));
     floor.name = 'Bakery_Floor';
     floor.position.set(-34, 0.13, -26);
     floor.receiveShadow = true;
@@ -2535,12 +3900,15 @@ export class World {
     this.fixture(g, 'Bakery_Rack_E', -31.1, 0.9, -22.2, 0.7, 1.8, 1.4, 0x8e6f66);
     this.colliders.push(boxFromCenter(-36.9, 0.9, -22.2, 0.7, 1.8, 1.4));
     this.colliders.push(boxFromCenter(-31.1, 0.9, -22.2, 0.7, 1.8, 1.4));
-    // two two-top tables
+    // two two-top tables (the ABO swap stands on its own feet — the old
+    // thin top + leg pair floated a real model)
     for (const tx of [-36.2, -31.8]) {
-      this.fixture(g, `Bakery_Table_${tx}`, tx, 0.72, -27.4, 1.1, 0.06, 1.1, PAL.cream);
-      this.fixture(g, `Bakery_TableLeg_${tx}`, tx, 0.36, -27.4, 0.14, 0.72, 0.14, 0x8e6f66);
+      this.fixture(g, `Bakery_Table_${tx}`, tx, 0.36, -27.4, 1.1, 0.72, 1.1, PAL.cream);
       this.colliders.push(boxFromCenter(tx, 0.4, -27.4, 1.1, 0.8, 1.1));
     }
+    // rear utility wall behind the oven (sand3d ADD — the flour wall)
+    this.fixture(g, 'Bakery_BackShelf', -34, 1.16, -20.5, 7.0, 2.0, 0.5, PAL.bldg2);
+    this.colliders.push(boxFromCenter(-34, 1.0, -20.5, 7.0, 2.0, 0.5));
 
     const farParts: THREE.Object3D[] = [];
     const glass = this.scene.getObjectByName('Bakery_Glass');
@@ -2620,18 +3988,21 @@ export class World {
     sign.rotation.set(0, Math.PI, -0.04); // faces the street (-z), hand-hung tilt
     g.add(sign);
 
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.06, 11.6), this.bank.get(PAL.interior));
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.06, 11.6), this.bank.get(0x5b4e66));
     floor.name = 'Records_Floor';
     floor.position.set(-25, 0.13, -26);
     floor.receiveShadow = true;
     g.add(floor);
-    // crate rows (3)
+    // crate rows (3) — the bin body is 0.85 tall (the real gondola bin the
+    // spines stand in); the collider keeps the row's 1.1 envelope
     for (const rz of [-23.5, -25.5, -27.5]) {
-      this.fixture(g, `Records_Crate_${rz}`, -25, 0.55, rz, 4.4, 1.1, 0.6, 0x8e6f66);
+      this.fixture(g, `Records_Crate_${rz}`, -25, 0.585, rz, 4.4, 0.85, 0.6, 0x8e6f66);
       this.fixture(g, `Records_CrateTop_${rz}`, -25, 1.12, rz, 4.4, 0.06, 0.62, 0x2b2730);
       this.colliders.push(boxFromCenter(-25, 0.55, rz, 4.4, 1.1, 0.6));
     }
-    // the listening corner: chair, speaker stacks, the player's spot
+    // the listening corner: chair, speaker stacks, the player's spot. The
+    // corner rug (ABO slot — flat, no collider) warms the spot
+    this.fixture(g, 'Records_Rug', -26.4, 0.17, -30.1, 2.2, 0.02, 1.6, PAL.teal);
     this.fixture(g, 'Records_Chair', -26.4, 0.42, -30.2, 0.7, 0.85, 0.7, 0x2b2730);
     this.fixture(g, 'Records_Spk_W', -27.4, 0.6, -30.9, 0.5, 1.2, 0.5, 0x2b2730);
     this.fixture(g, 'Records_Spk_E', -25.4, 0.6, -30.9, 0.5, 1.2, 0.5, 0x2b2730);
@@ -2641,6 +4012,9 @@ export class World {
     // the counter
     this.fixture(g, 'Records_Counter', -23.4, 0.55, -30.6, 1.6, 1.1, 0.7, PAL.teal);
     this.colliders.push(boxFromCenter(-23.4, 0.55, -30.6, 1.6, 1.1, 0.7));
+    // west-wall LP shelving (sand3d ADD — the browse wall the crates face)
+    this.fixture(g, 'Records_WallShelf', -27.6, 1.26, -26.5, 0.4, 2.2, 4.0, PAL.bldg2);
+    this.colliders.push(boxFromCenter(-27.6, 1.1, -26.5, 0.4, 2.2, 4.0));
 
     const farParts: THREE.Object3D[] = [];
     const glass = this.scene.getObjectByName('Records_Glass');
@@ -2691,7 +4065,7 @@ export class World {
     ]);
 
     const g = this.roomKit('HALL');
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(11.3, 0.06, 11.3), this.bank.get(PAL.interior));
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(11.3, 0.06, 11.3), this.bank.get(0xd0c2aa));
     floor.name = 'Hall_Floor';
     floor.position.set(-54.1, 0.13, 26.1);
     floor.receiveShadow = true;
@@ -2707,9 +4081,12 @@ export class World {
       this.fixture(g, `Hall_Note_${i}`, -57.4 + i * 1.2, 1.5 + (i % 2) * 0.25, 20.48, 0.55, 0.7, 0.02, PAL.cream);
     }
     this.colliders.push(boxFromCenter(-55, 1.5, 20.55, 6, 1.9, 0.14));
-    // folding-chair stacks around the hall's clear zone
-    for (const [cx, cz] of [[-58.6, 22.2], [-58.6, 29.6], [-50.6, 22.2], [-50.6, 29.6]] as const) {
-      this.fixture(g, `Hall_Chairs_${cx}_${cz}`, cx, 0.45, cz, 0.55, 0.9, 0.55, PAL.teal);
+    // folding-chair stacks around the hall's clear zone (numbered — the
+    // interiorAssets drift pin matches the loop stem)
+    const hallStacks: ReadonlyArray<readonly [number, number]> =
+      [[-58.6, 22.2], [-58.6, 29.6], [-50.6, 22.2], [-50.6, 29.6]];
+    for (const [i, [cx, cz]] of hallStacks.entries()) {
+      this.fixture(g, `Hall_ChairStack_${i}`, cx, 0.45, cz, 0.55, 0.9, 0.55, PAL.teal);
       this.colliders.push(boxFromCenter(cx, 0.45, cz, 0.6, 0.9, 0.6));
     }
     // workshop (N half): table + shelves
@@ -2721,7 +4098,30 @@ export class World {
     // kitchenette (NE corner)
     this.fixture(g, 'Hall_Kitchenette', -49.4, 0.45, 30.6, 2.4, 0.9, 1.6, PAL.teal);
     this.colliders.push(boxFromCenter(-49.4, 0.45, 30.6, 2.4, 0.9, 1.6));
-
+    // ABO furniture slots (docs/57) — the living-room half: sofa + coffee
+    // table on the E wall's clear zone, a real bookcase beside the shelves,
+    // two real chairs at the work table. Colliders authored here; the GLB
+    // swap is visual-only (the rooms never depend on the files).
+    this.fixture(g, 'Hall_Sofa', -48.75, 0.44, 26.0, 0.9, 0.88, 1.9, PAL.teal);
+    this.colliders.push(boxFromCenter(-48.75, 0.44, 26.0, 0.9, 0.88, 1.9));
+    this.fixture(g, 'Hall_CoffeeTable', -50.2, 0.225, 26.0, 1.1, 0.45, 0.6, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-50.2, 0.225, 26.0, 1.1, 0.45, 0.6));
+    this.fixture(g, 'Hall_Bookcase', -50.9, 0.9, 31.3, 1.0, 1.8, 0.35, PAL.bldg2);
+    this.colliders.push(boxFromCenter(-50.9, 0.9, 31.3, 1.0, 1.8, 0.35));
+    this.fixture(g, 'Hall_Chair_A', -53.1, 0.44, 28.5, 0.5, 0.88, 0.5, 0x2b2730);
+    this.colliders.push(boxFromCenter(-53.1, 0.44, 28.5, 0.5, 0.88, 0.5));
+    this.fixture(g, 'Hall_Chair_B', -54.9, 0.44, 28.5, 0.5, 0.88, 0.5, 0x2b2730);
+    this.colliders.push(boxFromCenter(-54.9, 0.44, 28.5, 0.5, 0.88, 0.5));
+    // the sideboard against the S wall, east of the notice wall
+    this.fixture(g, 'Hall_Sideboard', -51.2, 0.51, 20.75, 1.4, 1.02, 0.5, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-51.2, 0.51, 20.75, 1.4, 1.02, 0.5));
+    // more ABO slots (docs/57 home pass): a floor lamp at the sofa's north
+    // shoulder and an ottoman off the coffee table's south face. The lamp
+    // carries no collider (a thin pole decor; the sofa owns that corner);
+    // the ottoman is solid — a seat-height box you can brush against.
+    this.fixture(g, 'Hall_FloorLamp', -48.75, 0.735, 24.75, 0.35, 1.47, 0.35, 0x8e6f66);
+    this.fixture(g, 'Hall_Ottoman', -50.2, 0.23, 27.1, 0.7, 0.46, 0.5, PAL.teal);
+    this.colliders.push(boxFromCenter(-50.2, 0.23, 27.1, 0.7, 0.46, 0.5));
     // the hall's tall windows: single warm translucent panes, always on —
     // lit from the street, see-through up close (the swap-free pane)
     for (const wz of [22.8, 29.2]) {
@@ -2765,31 +4165,38 @@ export class World {
     ]);
 
     const g = this.roomKit('DINER');
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(9.6, 0.06, 11.6), this.bank.get(PAL.interior));
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(9.6, 0.06, 11.6), this.bank.get(0xdcd4c6));
     floor.name = 'Diner_Floor';
     floor.position.set(55, 0.13, -14);
     floor.receiveShadow = true;
     g.add(floor);
-    // counter bar (E wall) + 8 stools
-    this.fixture(g, 'Diner_CounterBar', 58.9, 0.55, -14.5, 0.7, 1.1, 8, PAL.teal);
-    this.fixture(g, 'Diner_CounterTop', 58.9, 1.12, -14.5, 0.8, 0.06, 8.1, PAL.stone);
-    this.colliders.push(boxFromCenter(58.9, 0.55, -14.5, 0.7, 1.1, 8));
+    // counter bar (E wall) + 8 stools. docs/57 re-lay: the W5 build put the
+    // cook line BETWEEN the aisle and the bar (x 57.6) with the stools in
+    // the 0.15 m slot at 58.35 — buried, first as cylinders and then as the
+    // ABO stool models (docs/57's probe caught it). The line now reads
+    // aisle → stools → bar → cook line → E wall; same pieces, same
+    // colliders' sizes, positions only.
+    this.fixture(g, 'Diner_CounterBar', 57.6, 0.55, -14.5, 0.7, 1.1, 8, PAL.teal);
+    this.fixture(g, 'Diner_CounterTop', 57.6, 1.12, -14.5, 0.8, 0.06, 8.1, PAL.stone);
+    this.colliders.push(boxFromCenter(57.6, 0.55, -14.5, 0.7, 1.1, 8));
     for (let i = 0; i < 8; i++) {
       const sz = -10.9 - i * 1.03;
       const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.55, 8), this.bank.get(PAL.cream));
-      stool.position.set(58.35, 0.28, sz);
+      stool.name = `Diner_Stool_${i}`; // ABO furniture slot (docs/57)
+      stool.position.set(56.95, 0.28, sz);
       stool.castShadow = true;
       g.add(stool);
     }
-    // kitchen line behind the counter
-    this.fixture(g, 'Diner_Kitchen', 57.6, 0.5, -14.5, 1.6, 1.0, 8, 0x9a938c);
+    // kitchen line behind the counter (east of the bar, facing it)
+    this.fixture(g, 'Diner_Kitchen', 58.9, 0.5, -14.5, 1.6, 1.0, 8, 0x9a938c);
     const griddle = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 2.2), this.roomWarmMat);
-    griddle.position.set(57.6, 1.04, -13.2);
+    griddle.position.set(58.9, 1.04, -13.2);
     g.add(griddle);
-    this.colliders.push(boxFromCenter(57.6, 0.5, -14.5, 1.6, 1.0, 8));
-    // booths (4, W wall)
+    this.colliders.push(boxFromCenter(58.9, 0.5, -14.5, 1.6, 1.0, 8));
+    // booths (4, W wall) — the table placeholder is a full-height body
+    // (the ABO swap stands on its own feet)
     for (const bz of [-11.5, -14, -16.5, -18.5]) {
-      this.fixture(g, `Diner_BoothT_${bz}`, 51.6, 0.72, bz, 0.8, 0.06, 1.1, PAL.cream);
+      this.fixture(g, `Diner_BoothT_${bz}`, 51.6, 0.36, bz, 0.8, 0.72, 1.1, PAL.cream);
       this.fixture(g, `Diner_BoothB1_${bz}`, 50.95, 0.3, bz, 0.5, 0.6, 1.8, PAL.coral);
       this.fixture(g, `Diner_BoothB2_${bz}`, 52.25, 0.3, bz, 0.5, 0.6, 1.8, PAL.coral);
       this.colliders.push(boxFromCenter(51.6, 0.5, bz, 2.0, 1.0, 1.8));
@@ -2805,6 +4212,8 @@ export class World {
       g.add(pie);
     }
     this.colliders.push(boxFromCenter(57, 0.55, -18.9, 1.8, 1.1, 0.6));
+    // coffee at the bar's south end (sand3d ADD — the diner's bottomless cup)
+    this.fixture(g, 'Diner_Coffee', 57.6, 1.36, -18.05, 0.45, 0.42, 0.35, 0x2b2730);
 
     // warm translucent panes in the three real openings (always visible)
     this.scene.add(this.facadePane('Diner_Glass_NW', 'x', -8.075, 50.75, 54.05, 0.98, 2.42, this.roomGlassMat));
@@ -2850,8 +4259,9 @@ export class World {
     this.roomBox('KTS02_Above_N', 10.2, 15.8, 11.25, 14, -9.1, -8, PAL.brick);
 
     const g = this.roomKit('CECIL');
-    // the floor (through the door zone — a 0.2 step up from the landing)
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 6.1), this.bank.get(PAL.interior));
+    // the floor (through the door zone — a 0.2 step up from the landing);
+    // the home pass wears warm parquet cream — his place, not a shop
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 6.1), this.bank.get(0xe0cfab));
     floor.name = 'Cecil_Floor';
     floor.position.set(13, 8.34, -11.05);
     floor.receiveShadow = true;
@@ -2876,8 +4286,12 @@ export class World {
     this.fixture(g, 'Cecil_Bath_W', 14.25, 9.4, -13.1, 0.1, 2.0, 2.0, PAL.stone);
     this.fixture(g, 'Cecil_Bath_S_a', 14.6, 9.4, -12.15, 0.75, 2.0, 0.1, PAL.stone);
     this.fixture(g, 'Cecil_Bath_S_b', 15.45, 9.4, -12.15, 0.65, 2.0, 0.1, PAL.stone);
-    this.fixture(g, 'Cecil_Toilet', 15.5, 8.6, -13.6, 0.4, 0.4, 0.6, PAL.cream);
-    this.fixture(g, 'Cecil_Sink', 14.55, 8.85, -13.75, 0.45, 0.3, 0.4, PAL.cream);
+    this.fixture(g, 'Cecil_Toilet', 15.5, 8.81, -13.6, 0.4, 0.82, 0.6, PAL.cream);
+    this.fixture(g, 'Cecil_Sink', 14.55, 8.905, -13.75, 0.45, 1.01, 0.4, PAL.cream);
+    // the steam radiator under the street window (sand3d ADD — the heat
+    // every New York rental is ruled by)
+    this.fixture(g, 'Cecil_Radiator', 14.9, 8.675, -9.35, 0.9, 0.55, 0.18, 0x3a3a40);
+    this.colliders.push(boxFromCenter(14.9, 8.675, -9.35, 0.9, 0.55, 0.2));
     this.colliders.push(boxFromCenter(14.25, 9.4, -13.1, 0.12, 2.0, 2.0));
     this.colliders.push(boxFromCenter(15.0, 9.4, -12.15, 1.6, 2.0, 0.12));
     // the roof hatch (reserved, stage-5 Rooftop — registry (12.2, −12.0))
@@ -2885,13 +4299,83 @@ export class World {
     // the Map's corkboard (by the door)
     this.fixture(g, 'Cecil_Corkboard', 11.2, 9.5, -9.42, 1.1, 0.8, 0.06, 0x8e6f66);
     this.fixture(g, 'Cecil_CorkNote', 11.2, 9.5, -9.38, 0.5, 0.6, 0.02, PAL.cream);
+    // ABO furniture slots (docs/57) — the authored placeholders the real
+    // models wear at boot (manifest: src/world/furniture.ts). Colliders are
+    // authored here; the swap is visual-only, the room never depends on
+    // the files.
+    this.fixture(g, 'Cecil_Dresser', 10.55, 8.875, -13.2, 0.55, 0.95, 1.1, 0x8e6f66);
+    this.colliders.push(boxFromCenter(10.55, 8.875, -13.2, 0.55, 0.95, 1.1));
+    this.fixture(g, 'Cecil_Nightstand', 15.55, 8.675, -10.6, 0.4, 0.55, 0.45, 0x8e6f66);
+    this.colliders.push(boxFromCenter(15.55, 8.675, -10.6, 0.4, 0.55, 0.45));
+    // the lamp rides the dresser's top — its placeholder stands on it
+    this.fixture(g, 'Cecil_Lamp', 10.62, 9.46, -13.35, 0.16, 0.22, 0.16, 0x2b2730);
+    // the mirror hangs on the S wall above the dresser (ABO slot — no
+    // collider: it is wall decor, the dresser below owns the footprint)
+    this.fixture(g, 'Cecil_Mirror', 10.55, 9.72, -14.0, 0.55, 0.75, 0.05, 0x8e6f66);
     // rug
     const rug = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.02, 1.4), this.bank.get(PAL.teal));
+    rug.name = 'Cecil_Rug';
     rug.position.set(12.6, 8.41, -11.0);
     rug.receiveShadow = true;
+    rug.castShadow = true;
     g.add(rug);
     // the window's warm translucent pane (always visible — lit from inside)
     this.scene.add(this.facadePane('Cecil_Glass', 'x', -8.03, 14.32, 15.48, 9.37, 10.73, this.roomGlassMat));
+    // ---------------- the home pass (2026-11 — lived-in, not staged) --------
+    // Two framed prints over the bed (terracotta + teal, the room's band
+    // colors), a monstera by the window (the pot rides the floor, no
+    // collider — the window sill corner is out of the walk line), three
+    // books leaning on the dresser top, a floor cushion by the bed. The
+    // room should read as SOMEONE's, not a showroom's.
+    const homeArt = (name: string, x: number, z: number, w: number, h: number, color: number, matte: number): void => {
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.04), this.bank.get(0x2b2730));
+      frame.name = `${name}_Frame`;
+      frame.position.set(x, 10.15, z);
+      g.add(frame);
+      const print = new THREE.Mesh(new THREE.BoxGeometry(w - 0.09, h - 0.09, 0.045), this.bank.get(matte));
+      print.name = name;
+      print.position.set(x, 10.15, z);
+      g.add(print);
+      const accent = new THREE.Mesh(new THREE.BoxGeometry(w - 0.3, h - 0.3, 0.052), this.bank.get(color));
+      accent.name = `${name}_Accent`;
+      accent.position.set(x, 10.15, z);
+      g.add(accent);
+    };
+    homeArt('Cecil_Art_W', 11.35, -13.98, 0.62, 0.8, 0xc27a4a, 0xf3e2c2);
+    homeArt('Cecil_Art_E', 12.35, -13.98, 0.52, 0.66, 0x2a9d8f, 0xf3e2c2);
+    // the monstera by the window (NE corner, off the walk line)
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.26, 10), this.bank.get(0xb3552f));
+    pot.name = 'Cecil_PlantPot';
+    pot.position.set(15.2, 8.54, -9.7);
+    pot.castShadow = true;
+    g.add(pot);
+    const leavesGeos = [
+      new THREE.SphereGeometry(0.17, 7, 6).translate(0, 0.44, 0),
+      new THREE.SphereGeometry(0.13, 7, 6).translate(0.1, 0.58, 0.06),
+      new THREE.SphereGeometry(0.11, 7, 6).translate(-0.09, 0.52, -0.05),
+    ];
+    const plant = new THREE.Mesh(mergeGeometries(leavesGeos, false)!, this.bank.get(0x4a7a4a));
+    plant.name = 'Cecil_PlantLeaves';
+    plant.position.set(15.2, 8.67, -9.7);
+    plant.castShadow = true;
+    g.add(plant);
+    // three books leaning on the dresser (the dresser top rides 9.35) —
+    // one mesh each, three colors, the shelf's tiny pop
+    for (const [i, c] of [0xb23a48, 0x2a9d8f, 0xf7b32b].entries()) {
+      const h2 = 0.19 + i * 0.02;
+      const book = new THREE.Mesh(new THREE.BoxGeometry(0.03, h2, 0.14), this.bank.get(c));
+      book.name = `Cecil_DresserBook_${i}`;
+      book.position.set(10.4 + i * 0.045, 9.35 + h2 / 2, -13.05);
+      book.castShadow = true;
+      g.add(book);
+    }
+    // a floor cushion by the bed (the honest student-nightchair)
+    const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.14, 0.5), this.bank.get(0x6a8a5a));
+    cushion.name = 'Cecil_FloorCushion';
+    cushion.position.set(13.5, 8.48, -13.55);
+    cushion.castShadow = true;
+    cushion.receiveShadow = true;
+    g.add(cushion);
     this.registerInterior({
       id: 'CECIL-ROOM', x0: 10.2, x1: 15.8, z0: -14.1, z1: -9.1,
       yBand: [7.8, 12.0],
@@ -2903,6 +4387,679 @@ export class World {
     });
   }
 
+  /** THE ROOMS' PALETTE (2026-11 identity pass). One block, eight voices —
+   *  the block's shops stop reading as one beige interior with different
+   *  props. Skips are the door gaps from the facade wallRuns above; the
+   *  wainscot rides 0.55 m so windows (0.5+) never meet the band. */
+  private dressW5Rooms(): void {
+    // laundromat: cool tile floor, teal wainscot — the dryer band's color
+    this.dressRoom('LAUNDRY-INT', { wainscot: 0x2a9d8f, trim: 0xf7b32b, light: 0xfff2d8, clear: 3.2,
+      skips: { z0: [[-7.925, -2.075]] } });
+    // barbershop: deep teal wainscot with a crimson pole stripe of trim
+    this.dressRoom('BARBER-INT', { wainscot: 0x1f6f6a, trim: 0xb23a48, light: 0xfff2d8, clear: 3.4,
+      skips: { z0: [[36.1, 37.1]] } });
+    // pizza: terracotta — the oven's warmth carries to the walls
+    this.dressRoom('PIZZA-INT', { wainscot: 0xb3552f, trim: 0xf3e2c2, light: 0xffe9c4, clear: 3.4,
+      skips: { z0: [[26.6, 27.6]] } });
+    // bakery: honey and butter — the case's warmth carries to the walls
+    this.dressRoom('BAKERY-INT', { wainscot: 0xc98a3d, trim: 0xf8ecd2, light: 0xffe9c4, clear: 3.2,
+      skips: { z0: [[-34.6, -33.4]] } });
+    // record store: deep plum, amber trim — the bins glow in a dark room
+    this.dressRoom('RECORD-INT', { wainscot: 0x3a3044, trim: 0xd99a2b, light: 0xffd98a, clear: 3.2,
+      skips: { z0: [[-25.6, -24.4]] } });
+    // the hall: sage walls, wood trim — the communal room is the calm one
+    this.dressRoom('HALL-INT', { wainscot: 0x8a6b4a, trim: 0xf1e6d0, light: 0xfff2d8, clear: 3.8,
+      skips: { x0: [[25.2, 26.8]] } });
+    // the diner: cherry band, silver trim — the classic lunch-counter read
+    this.dressRoom('DINER-INT', { wainscot: 0xa63c46, trim: 0xc0c4cc, light: 0xfff2d8, clear: 3.6,
+      skips: { z1: [[54.3, 55.7]], x1: [[-14.7, -13.3]] } });
+    // his room: terracotta band, cream trim — home, not a shop
+    this.dressRoom('CECIL-ROOM', { wainscot: 0xc27a4a, trim: 0xf6e8d2, light: 0xffd98a, clear: 2.9 });
+  }
+
+
+  // ================================================================
+  // WORLD VISUAL QUALITY PASS (docs/3d-assets) — the environment-artist
+  // wave. Every piece is static Lambert, non-transparent, non-mapped
+  // (or atlas) → bakeStatics fuses it into its district tile. NOTHING
+  // here adds a collider, moves a registry row, or touches the nav
+  // graph: decoration rides existing faces, stands on unreachable
+  // roofs, or lies flat on the road at ≤ 5 cm proud. All names wear
+  // the VQ_ prefix so the bake's skip sets and the probe never collide.
+  // ================================================================
+  /** The city-fabric placement ledger (the vqLedger pattern): the bake
+   *  fuses the in-tile fabric meshes away, so probes read this. */
+  readonly fabricLedger: Array<{ name: string; x: number; y: number; z: number }> = [];
+  /** The neighborhood fabric's placement ledger (the W6 wave — the probe's
+   *  ground truth, same law as fabricLedger). */
+  readonly nbhdLedger: Array<{ name: string; x: number; y: number; z: number }> = [];
+  /** The city-fabric pass (docs/production/city-fabric — the slop-newyork
+   *  adaptation, MIT-attributed in THIRD-PARTY-NOTICES.md): the module owns
+   *  the geometry; World owns the seams — the registry shells (the
+   *  no-invention law), the shared vc materials, the shipped skyline window
+   *  material (the fabric's panes ride the dusk tween with the towers'), and
+   *  the pole-sign atlas for the cross-street blades. Called pre-bake so the
+   *  in-tile fabric fuses into the district batches; the skyline pair is
+   *  NAMED_SKIP. Zero colliders, zero nav changes, deterministic. */
+  private buildCityFabricPass(): void {
+    buildCityFabric({
+      ledger: this.fabricLedger,
+      scene: this.scene,
+      mat: (c, o) => this.mat(c, o),
+      vc: (fog) => this.vcMaterial(fog),
+      regShell: (id) => this.regShell(id),
+      buildings: loadRegistry().allBuildings(),
+      skylineWinMat: this.skylineWinMat,
+      poleSign: (text, x, z, ry) => {
+        const p = makePoleSign(this.bank, this.signMaterials.bind(this), text, { y: 4.9 });
+        p.position.set(x, 0, z);
+        p.rotation.y = ry;
+        p.name = `Fabric_Blade_${text.replace(/\s+/g, '_')}`;
+        this.scene.add(p);
+        this.vqLedger.push({ name: p.name, x, y: 0, z });
+      },
+    });
+  }
+
+  /** The neighborhood fabric pass (docs/production/terrace-buildout — the
+   *  W6 continuation of the slop-newyork adaptation): fire-escape ironwork
+   *  across the facades, the exposed street faces of the pinned backdrop
+   *  rows (windows, cornices, lit panes riding the dusk material), and the
+   *  missing sidewalk furniture (mailboxes, bike hoops, hydrants, the ConEd
+   *  steam stacks, the terrace payphone). All pre-bake so the tiles fuse
+   *  it; zero colliders, zero nav changes, deterministic. */
+  private buildNeighborhoodFabricPass(): void {
+    buildNeighborhoodFabric({
+      ledger: this.nbhdLedger,
+      scene: this.scene,
+      mat: (c, o) => this.mat(c, o),
+      vc: (fog) => this.vcMaterial(fog),
+      regShell: (id) => this.regShell(id),
+      buildings: loadRegistry().allBuildings(),
+      skylineWinMat: this.skylineWinMat,
+      collider: (x, y, z, w, h, d) => this.colliders.push(boxFromCenter(x, y, z, w, h, d)),
+    });
+  }
+
+  private buildWorldVisualQualityPass(): void {
+    const rng = seededRng(20261110); // the pass's own seed — never re-tunes a shipped row
+    /** Add + record: the name and world position land in the ledger before
+     *  the bake fuses the mesh away — the probe reads this, not the scene. */
+    const vqAdd = (obj: THREE.Object3D, name: string): void => {
+      obj.name = name;
+      this.vqLedger.push({ name, x: +obj.position.x.toFixed(2), y: +obj.position.y.toFixed(2), z: +obj.position.z.toFixed(2) });
+      this.scene.add(obj);
+    };
+
+    // ---- 1. CROWN COMPLETION --------------------------------------------
+    // GRB/TEN/SRC-01/02/KTN-07/KTN-00W already carry cornices from their
+    // own builders; these are every OTHER mass the phases built without
+    // one. The stone band caps the roofline — the single strongest read
+    // that a mass is a building and not a wall.
+    // VDN backdrop rows are NOT crowned: their masses are per-segment
+    // heights (some taller than the registry row), so a footprint crown
+    // band would slice through them — the varied silhouettes are the look.
+    const CROWNS = ['KTN-01', 'KTN-02', 'KTN-03', 'KTN-04', 'KTN-05', 'KTS-01', 'KTS-02', 'KTS-03',
+      'KTN-06', 'PWK-01', 'PWK-02', 'PWK-03', 'SMB-01', 'SMB-02', 'SMB-03',
+      'KCM-01', 'SND-01'];
+    for (const id of CROWNS) {
+      const s = this.regShell(id);
+      const crown = makeCornice(this.bank, s.w, s.d, s.x, s.h - 0.25, s.z);
+      vqAdd(crown, `VQ_Crown_${id}`);
+    }
+
+    // ---- 2. PARTY-WALL LIFE — bricked-over windows + downspouts ---------
+    // The blank gables the audit caught (shots/world-audit g/m/t): every
+    // end or slot wall the streets actually see gets its sealed openings,
+    // the corner pipe, and where it earns it, a painted ghost sign.
+    const brickover = (id: string, wall: 'w' | 'e' | 'n' | 's', rel: Array<[number, number, number, number]>, wallColor: number): void => {
+      const s = this.regShell(id);
+      const rotY = wall === 'w' ? -Math.PI / 2 : wall === 'e' ? Math.PI / 2 : wall === 's' ? Math.PI : 0;
+      const off = 0.02;
+      for (const [a, y, w, h] of rel) {
+        const m = wall === 'w' ? makeBrickover(this.bank, wallColor, w, h, s.x - s.w / 2 - off, y, s.z + a, rotY)
+          : wall === 'e' ? makeBrickover(this.bank, wallColor, w, h, s.x + s.w / 2 + off, y, s.z + a, rotY)
+          : wall === 's' ? makeBrickover(this.bank, wallColor, w, h, s.x + a, y, s.z - s.d / 2 - off, rotY)
+          : makeBrickover(this.bank, wallColor, w, h, s.x + a, y, s.z + s.d / 2 + off, rotY);
+        vqAdd(m, `VQ_Brickover_${id}_${a}_${y}`);
+      }
+    };
+    // the alley slot's two walls (ALY-01, x 30.7 / 33.5) — seen walking through
+    brickover('KTN-04', 'e', [[-3, 5.2, 1.3, 1.9], [1.5, 8.4, 1.3, 1.9], [-2.8, 10.6, 1.1, 1.5]], PAL.bldg);
+    brickover('KTN-05', 'w', [[-2.6, 5.6, 1.3, 1.9], [2.2, 9.2, 1.3, 1.9]], PAL.bldg);
+    // the garden slot's two walls (ALY-02, x 6.5 / 9)
+    brickover('KTN-02', 'e', [[-2.5, 4.8, 1.3, 1.9], [1.8, 9.6, 1.3, 1.9]], PAL.bldg2);
+    brickover('KTN-03', 'w', [[-2.8, 5.2, 1.3, 1.9], [2, 9.6, 1.3, 1.9]], PAL.brick);
+    // the Cecil's east gable — the court looks straight at it
+    brickover('KTS-02', 'e', [[-3.4, 5.2, 1.4, 2.0], [0.6, 8.6, 1.4, 2.0], [-1.2, 11.4, 1.2, 1.6]], PAL.brick);
+    // the Juniper/Sycamore corner end walls — the avenue approach walls
+    brickover('KTN-00W', 'w', [[-3.4, 5.4, 1.3, 1.9], [-0.4, 8.6, 1.3, 1.9], [2.6, 11.4, 1.2, 1.6]], PAL.bldg2);
+    brickover('KTN-06', 'e', [[-3.4, 5.4, 1.3, 1.9], [-0.4, 8.6, 1.3, 1.9], [2.6, 11.4, 1.2, 1.6]], PAL.brick);
+    brickover('KTN-05', 'e', [[-3.6, 5.6, 1.3, 1.9], [0.4, 8.8, 1.3, 1.9]], PAL.bldg);
+    brickover('TEN-01', 'w', [[-2.6, 5.2, 1.2, 1.8], [-2.6, 9.4, 1.2, 1.8]], PAL.brick);
+    brickover('KTS-03', 'e', [[-4.2, 5.4, 1.4, 2.0], [0.6, 8.8, 1.4, 2.0], [4.6, 12.4, 1.2, 1.6]], PAL.bldg);
+    // the two big south-row end walls the green and the court face
+    brickover('KTS-01', 'w', [[-3.8, 5.6, 1.4, 2.0], [0.4, 9.0, 1.4, 2.0]], PAL.bldg2);
+    // the Marlow slot walls (PWK-01 ↔ SMB-01)
+    brickover('PWK-01', 'e', [[-2.6, 5.0, 1.2, 1.7], [1, 9.2, 1.2, 1.7]], PAL.bldg);
+    brickover('SMB-01', 'w', [[-2.6, 5.0, 1.2, 1.7], [1, 9.2, 1.2, 1.7]], PAL.bldg2);
+    // the backdrop rows' avenue-facing walls — the long walls Juniper and
+    // Sycamore see all the way up. Sealed openings above the hint bands
+    // (y ≤ 11: every segment top in every row clears them).
+    brickover('VDN-DW1a', 'e', [[-6, 5.4, 1.5, 2.1], [-2, 8.4, 1.5, 2.1], [5, 6.2, 1.4, 1.9]], PAL.bldg);
+    brickover('VDN-DW1b', 'e', [[-4, 5.8, 1.5, 2.1], [2, 8.8, 1.5, 2.1]], PAL.bldg2);
+    brickover('VDN-DW1c', 'e', [[-6, 5.2, 1.5, 2.1], [-1, 8.2, 1.5, 2.1], [4.4, 6.4, 1.4, 1.9]], PAL.bldg);
+    brickover('VDN-DW1d', 'e', [[-3.6, 5.8, 1.5, 2.1], [2.8, 8.6, 1.5, 2.1]], PAL.bldg2);
+    brickover('VDN-DE1a', 'w', [[-6, 5.4, 1.5, 2.1], [-2, 8.4, 1.5, 2.1], [5, 6.2, 1.4, 1.9]], PAL.bldg);
+    brickover('VDN-DE1b', 'w', [[-4, 5.8, 1.5, 2.1], [2, 8.8, 1.5, 2.1]], PAL.bldg2);
+    brickover('VDN-DE1c', 'w', [[-6, 5.2, 1.5, 2.1], [-1, 8.2, 1.5, 2.1], [4.4, 6.4, 1.4, 1.9]], PAL.bldg);
+    brickover('VDN-DE1d', 'w', [[-3.6, 5.8, 1.5, 2.1], [2.8, 8.6, 1.5, 2.1]], PAL.bldg2);
+    // downspouts — the corner pipes (wall-face coords, brackets point INTO
+    // the wall: east face → +π/2, west → -π/2, south → π, north → 0)
+    for (const [dx, dy, dz, ry, dh] of [
+      [-49.62, 0, 8.6, -Math.PI / 2, 13.4],  // terminal SW corner (west face)
+      [21.02, 0, 8.6, Math.PI / 2, 10.4],    // KTN-03 east face (alley-adjacent corner)
+      [-50.02, 0, -8.6, -Math.PI / 2, 15.4], // KTS-01 west end, Kestrel side
+      [25.62, 0, -7.62, Math.PI, 13.4],      // the Cecil's SE corner (court view)
+      [59.62, 0, -8.6, Math.PI / 2, 12.4],   // the diner's east corner
+      [-59.62, 0, 8.6, -Math.PI / 2, 15.4],  // the Corner House west corner
+    ] as const) {
+      const spout = makeDownspout(this.bank, dh, dx, dy, dz, ry);
+      vqAdd(spout, 'VQ_Downspout');
+    }
+
+    // ---- 3. GHOST SIGNS — the painted panels commerce left behind --------
+    // Atlas faces on painted panels: the panel tone differs from the wall
+    // on purpose (a ghost sign is a painted AREA, not a decal), the letter
+    // tone is the wall-worn cream. The board is a thin box lying IN the
+    // wall plane (x-thin, z-wide) with faces 'x' — the ±x faces measure
+    // depth × height, so the width rides depth (makeSignBoard's own law).
+    const ghosts: Array<[string, number, number, number, number, number]> = [
+      // [text, x, y, z, w(along z), h]
+      ['FADE KING\nBARBER SUPPLY', 49.08, 6.4, 14, 4.6, 2.6],
+      ['STAR BAKERY CO.', 50.08, 5.8, -14, 4.6, 2.2],
+      ['MEADOWBROOK\nDAIRY CO.', -60.08, 6.2, 14, 4.6, 2.8],
+      ['CAPITAL COFFEE\n& SPICE', -60.08, 6.8, -14, 4.2, 2.6],
+      ['ZIMMERMAN\n& SONS', 60.08, 6.6, -26, 3.8, 2.6],
+    ];
+    for (const [text, gx, gy, gz, gw, gh] of ghosts) {
+      const board = this.signBoard(`VQ_GhostSign_${text.slice(0, 8)}`, text, 0.1, gh, gw, gw * 96, gh * 96, PAL.bldg2, PAL.cream, 44, 'x');
+      board.position.set(gx, gy, gz); // no yaw: the 'x' faces already read from both sides
+      vqAdd(board, `VQ_GhostSign_${text.slice(0, 8)}`);
+    }
+
+    // ---- 4. SILL + LINTEL DRESSING on the proud-window rows -------------
+    // GRB row + TEN pair + KTN-00W/06 + the Marlow walk-ups: every window
+    // gets its stone sill (under) and lintel (over) — the reveal that stops
+    // windows reading as stickers. Formulas mirror the owning builders.
+    for (const regId of ['GRB-01', 'GRB-02', 'GRB-03', 'GRB-04', 'GRB-05']) {
+      const reg = this.regShell(regId);
+      const faceZ = reg.z + reg.d / 2 + 0.14;
+      for (const wx of [reg.x - 1.7, reg.x + 1.7]) {
+        vqAdd(makeSill(this.bank, 1.3, wx, 4.6 - 1.1 - 0.05, faceZ), 'VQ_Sill');
+        vqAdd(makeLintel(this.bank, 1.3, wx, 4.6 + 1.1 + 0.07, faceZ), 'VQ_Lintel');
+        for (const wy of [7.4, 10.2]) {
+          vqAdd(makeSill(this.bank, 1.1, wx, wy - 0.8 - 0.05, faceZ), 'VQ_Sill');
+          vqAdd(makeLintel(this.bank, 1.1, wx, wy + 0.8 + 0.07, faceZ), 'VQ_Lintel');
+        }
+      }
+    }
+    const ten = this.regShell('TEN-01');
+    const tenLotW = (ten.w - 1) / 2;
+    for (const x0 of [ten.x - ten.w / 2, ten.x + 0.5]) {
+      const cx = x0 + tenLotW / 2;
+      for (let f = 0; f < 5; f++) {
+        for (const wx of [cx - tenLotW / 4, cx + tenLotW / 4]) {
+          const wy = 3.4 + f * 2.6;
+          vqAdd(makeSill(this.bank, 1.1, wx, wy - 0.8 - 0.05, ten.z + ten.d / 2 + 0.16), 'VQ_Sill');
+          vqAdd(makeLintel(this.bank, 1.1, wx, wy + 0.8 + 0.07, ten.z + ten.d / 2 + 0.16), 'VQ_Lintel');
+        }
+      }
+    }
+    for (const regId of ['KTN-00W', 'KTN-06']) {
+      const s = this.regShell(regId);
+      const faceZ = s.z - s.d / 2 - 0.16;
+      for (let f = 0; f < 3; f++) for (let c = 0; c < 3; c++) {
+        const wx = s.x - s.w / 2 + 1.6 + c * 3.4, wy = 7.2 + f * 2.9;
+        vqAdd(makeSill(this.bank, 1.2, wx, wy - 0.8 - 0.05, faceZ), 'VQ_Sill');
+        vqAdd(makeLintel(this.bank, 1.2, wx, wy + 0.8 + 0.07, faceZ), 'VQ_Lintel');
+      }
+    }
+    for (const regId of ['PWK-01', 'PWK-02', 'PWK-03']) {
+      const s = this.regShell(regId);
+      const faceZ = s.z - s.d / 2 + 0.14;
+      for (let f = 0; f < 4; f++) for (let c = 0; c < 3; c++) {
+        const wx = s.x - s.w / 2 + 1.5 + c * ((s.w - 3) / 2), wy = 3.4 + f * 2.9;
+        vqAdd(makeSill(this.bank, 1.1, wx, wy - 0.85 - 0.05, faceZ), 'VQ_Sill');
+        vqAdd(makeLintel(this.bank, 1.1, wx, wy + 0.85 + 0.07, faceZ), 'VQ_Lintel');
+      }
+    }
+
+    // W8 (2026-11-12): the W6 terrace rows and the W7 gate rows join the
+    // sill+lintel law — the honest ledger's variety item. Their window
+    // grammar is the shared one (floors = max(2, round(h/3.3)), cols =
+    // w>=7?2:1, wy = 3.4 + f*((h-1.2)/floors), skip wy > h-1), mirrored
+    // from the owning builders; every shipped window gets its stone sill
+    // (under) and lintel (over), seated 0.14 proud of the row's own face
+    // (the entrance's `faces` value is the face law).
+    const W6W7_ROWS = [
+      'GRB-06', 'GRB-07', 'TEN-02', 'KTS-04',
+      'GRB-08', 'GRB-09', 'GRB-10', 'GRB-11', 'GRB-12', 'GRB-13', 'GRB-14', 'GRB-15',
+      'KTN-08', 'KTN-09', 'KTN-10', 'KTN-11',
+      'KTS-05', 'KTS-06', 'KTS-07', 'KTS-08', 'KTS-09', 'KTS-10',
+      'TEN-03', 'TEN-04', 'MRW-01', 'MRW-02', 'MRW-03', 'MRW-04',
+    ] as const;
+    for (const regId of W6W7_ROWS) {
+      const reg = this.regShell(regId);
+      const row = loadRegistry().building(regId);
+      const ent = row?.entrance?.[0];
+      const faceSign = ent?.faces === 'N' ? 1 : -1;
+      const faceZ = (ent?.faces === 'N' ? reg.z + reg.d / 2 : reg.z - reg.d / 2) + faceSign * 0.14;
+      const floors = Math.max(2, Math.round(reg.h / 3.3));
+      const cols = reg.w >= 7 ? 2 : 1;
+      for (let f = 0; f < floors; f++) {
+        for (let c = 0; c < cols; c++) {
+          const wx = reg.x - reg.w / 2 + (reg.w / (cols + 1)) * (c + 1);
+          const wy = 3.4 + f * ((reg.h - 1.2) / floors);
+          if (wy > reg.h - 1.0) continue;
+          vqAdd(makeSill(this.bank, 1.15, wx, wy - 0.8 - 0.05, faceZ), 'VQ_Sill');
+          vqAdd(makeLintel(this.bank, 1.15, wx, wy + 0.8 + 0.07, faceZ), 'VQ_Lintel');
+        }
+      }
+    }
+
+    // ---- 5. WINDOW AC UNITS — the summer-now tell ------------------------
+    // Hung under verified sills (window bottom − 0.26): GRB upper floors,
+    // the TEN pair's avenue face, the corner houses, the walk-ups. The
+    // unit is props.makeACUnit (the shipped builder — shared geometry).
+    let acIdx = 0;
+    const ac = (x: number, y: number, z: number): void => {
+      const unit = makeACUnit(this.bank);
+      unit.position.set(x, y, z);
+      vqAdd(unit, `VQ_AC_${acIdx++}`);
+    };
+    for (const regId of ['GRB-01', 'GRB-02', 'GRB-03', 'GRB-04', 'GRB-05']) {
+      const reg = this.regShell(regId);
+      const faceZ = reg.z + reg.d / 2 + 0.26;
+      const side = ((acIdx % 2) === 0) ? -1.7 : 1.7;
+      ac(reg.x + side, 7.4 - 0.8 - 0.26, faceZ);
+      ac(reg.x - side, 10.2 - 0.8 - 0.26, faceZ);
+    }
+    for (const x0 of [ten.x - ten.w / 2, ten.x + 0.5]) {
+      const cx = x0 + tenLotW / 2;
+      for (let f = 0; f < 3; f++) ac(cx + (f % 2 === 0 ? -tenLotW / 4 : tenLotW / 4), 3.4 + f * 2.6 - 0.8 - 0.26, ten.z + ten.d / 2 + 0.28);
+    }
+    for (const regId of ['KTN-00W', 'KTN-06']) {
+      const s = this.regShell(regId);
+      ac(s.x + 3.4, 7.2 + 2.9 - 0.8 - 0.26, s.z - s.d / 2 - 0.28);
+      ac(s.x - 3.4, 7.2 + 5.8 - 0.8 - 0.26, s.z - s.d / 2 - 0.28);
+    }
+    for (const regId of ['PWK-01', 'PWK-02', 'PWK-03']) {
+      const s = this.regShell(regId);
+      ac(s.x + (s.w - 3) / 2, 3.4 + 2.9 - 0.85 - 0.26, s.z - s.d / 2 + 0.28);
+      ac(s.x - (s.w - 3) / 2, 3.4 + 5.8 - 0.85 - 0.26, s.z - s.d / 2 + 0.28);
+    }
+
+    // ---- 6. ROOF CLUTTER — the hats' hats --------------------------------
+    // Bulkhead + vents + antenna on roofs the player can never stand on
+    // (the bodega roof keeps its billboard, the Cecil's climb keeps its
+    // top clean, the terminal carries its water tower).
+    const roofClutter: Array<[string, number, number, number]> = [
+      // [registry id, tone, ox toward the rear, oz toward the rear]
+      ['KTN-02', PAL.bldg2, 0, 2.6], ['KTN-03', PAL.brick, 0, 2.6],
+      ['KTN-04', PAL.bldg, 0, 2.6], ['KTN-05', PAL.bldg, 0, 2.6],
+      ['KTS-01', PAL.bldg2, 0, -2.6], ['KTS-03', PAL.bldg, 0, -2.6],
+      ['KTN-06', PAL.brick, 0, 2.6],
+      ['PWK-01', PAL.bldg, 0, -2.4], ['PWK-02', PAL.bldg2, 0, -2.4], ['PWK-03', PAL.bldg, 0, -2.4],
+      ['SMB-01', PAL.bldg2, 0, -2.4], ['SMB-02', PAL.brick, 0, -2.4], ['SMB-03', PAL.bldg, 0, -2.4],
+      ['KCM-01', PAL.brick, 0, -2.6], ['KTN-07', PAL.bldg2, 0, -2.6],
+      ['SND-01', PAL.stone, 0, -2.6],
+      ['TEN-01', PAL.brick, -1.6, -2.6], ['SRC-01', PAL.brick, 0, -2.6], ['SRC-02', PAL.brick, 0, -2.6],
+    ];
+    for (const [id, tone, ox, oz] of roofClutter) {
+      const s = this.regShell(id);
+      const cl = makeRoofClutter(this.bank, tone, rng);
+      cl.position.set(s.x + ox, s.h, s.z + oz);
+      vqAdd(cl, `VQ_RoofClutter_${id}`);
+    }
+
+    // ---- 7. STREET FLOOR — manholes, drains, patches, stop lines ---------
+    for (const [mx, mz] of [[-32, 1.5], [-44, -1.5], [18, -1.2], [30, 1.8], [52, -1.5],
+      [-72, 12], [-72, -14], [72, 10], [72, -18], [-20, 40], [24, 40], [-40, -42], [10, -38]] as const) {
+      vqAdd(makeManhole(this.bank, mx, mz), 'VQ_Manhole');
+    }
+    for (const [dx, dz, ry] of [[-44, 3.82, 0], [28, -3.82, 0], [58, 3.82, 0], [-62, -3.82, 0],
+      [-68.2, 10, Math.PI / 2], [-75.8, -16, Math.PI / 2], [68.2, 14, Math.PI / 2], [75.8, -22, Math.PI / 2]] as const) {
+      vqAdd(makeStormDrain(this.bank, dx, dz, ry), 'VQ_StormDrain');
+    }
+    for (const [px, pz, w, d] of [[-24, 2.2, 3, 1.6], [12, -2, 2.6, 1.4], [44, 1.5, 3.2, 1.8],
+      [-72, 24, 2.4, 3.2], [72, -12, 2.4, 3], [-40, 40, 3, 1.6]] as const) {
+      vqAdd(makePatch(this.bank, w, d, px, pz, WEAR.patchDark), 'VQ_Patch');
+    }
+    for (const [sx, sz, w, d] of [[-33, -1.8, 1.2, 0.9], [20, 1.2, 1, 0.8], [70, 8, 1.4, 1], [-18, -41.8, 1.2, 0.9]] as const) {
+      vqAdd(makePatch(this.bank, w, d, sx, sz, WEAR.stain), 'VQ_Stain');
+    }
+    // stop lines: the entering lane's bar at each avenue↔street junction
+    // (right-hand traffic: NB lane east of the center line, SB west; the
+    // bar sits 1.3 m before the junction's crosswalk)
+    for (const ax of [-72, 72]) {
+      const nb = ax + 2, sb = ax - 2;
+      vqAdd(makeStopLine(this.bank, nb, -5.8, false, 4.4), 'VQ_StopLine');   // NB → Kestrel
+      vqAdd(makeStopLine(this.bank, sb, 5.8, false, 4.4), 'VQ_StopLine');    // SB → Kestrel
+      vqAdd(makeStopLine(this.bank, nb, 34.6, false, 4.4), 'VQ_StopLine');   // NB → Gable
+      vqAdd(makeStopLine(this.bank, sb, 45.8, false, 4.4), 'VQ_StopLine');
+      vqAdd(makeStopLine(this.bank, nb, -45.8, false, 4.4), 'VQ_StopLine');  // NB → Marlow
+      vqAdd(makeStopLine(this.bank, sb, -34.6, false, 4.4), 'VQ_StopLine');
+    }
+
+    // ---- 8. GROUND LIFE — pit grass + curb leaf piles --------------------
+    for (const pit of this.treePits) {
+      const tufts = makeGrassTufts(this.bank, rng);
+      tufts.position.set(pit.x, 0.08, pit.z);
+      vqAdd(tufts, `VQ_GrassTufts_${pit.x}_${pit.z}`);
+    }
+    for (const [lx, lz, gold, r] of [[-38, 4.6, true, 0.42], [-6, -4.6, false, 0.36], [24, 4.6, true, 0.5],
+      [52, -4.6, true, 0.4], [-72, 8.2, false, 0.44], [72, -8.2, true, 0.4], [-20, 36.4, true, 0.46],
+      [34, 43.6, true, 0.38], [-44, -36.4, true, 0.42], [14, -43.6, false, 0.36]] as const) {
+      vqAdd(makeLeafPile(this.bank, gold, r, lx, 0.05, lz), 'VQ_LeafPile');
+    }
+
+    // ---- 9. DOOR LAMPS — the goosenecks over five doors ------------------
+    const lampWarm = this.bank.get(PAL.amber).clone();
+    lampWarm.emissive = new THREE.Color(PAL.amber);
+    lampWarm.emissiveIntensity = 0.5;
+    for (const [lx, ly, lz, ry] of [
+      [-34, 3.42, -32.06, Math.PI], [-25, 3.42, -32.06, Math.PI], [-17, 3.42, -32.06, Math.PI],
+      [55, 3.35, 7.86, 0], [-30, 3.05, 7.9, 0],
+    ] as const) {
+      const lamp = makeGooseneck(this.bank, lx, ly, lz, ry, lampWarm);
+      vqAdd(lamp, 'VQ_Gooseneck');
+    }
+  }
+
+  // ================================================================
+  // ALDER HEIGHTS — SI: the borough-character pass (2026-11-11)
+  // The slop-newyork port (docs/slop-integration/): the three Mallow-row
+  // buildings the registry gained, the ported roofline systems, the
+  // multi-landing fire escapes, and the street life. Everything static is
+  // built PRE-BAKE (the district tiles fuse it); the five colliders it
+  // adds are street furniture seated off the walk lanes exactly like the
+  // shipped bulletin board / planter set; zero nav-footprint changes.
+  // Variation is seeded (seededRng(20261111)) — the same city every run.
+  // ================================================================
+
+  /** SI evidence line — the probe pins these by name + position. */
+  private siAdd(obj: THREE.Object3D, name: string): void {
+    obj.name = name;
+    this.vqLedger.push({ name, x: +obj.position.x.toFixed(2), y: +obj.position.y.toFixed(2), z: +obj.position.z.toFixed(2) });
+    this.scene.add(obj);
+  }
+
+  /** SI, section A — THE MALLOW ROW: LMS-01 (the pre-war limestone court),
+   *  IND-01 (the old works), GLS-01 (the glass infill). The masses, heights
+   *  and door seats READ the registry rows (DEC-4 law); the styles are the
+   *  ported facade grammars: limestone base/ashlar upper + band course +
+   *  high stoop (the source's pre-war preset), brick shell + freight dock
+   *  + small industrials (the loft grammar), and the curtain grid over a
+   *  stone base (the source's curtain-wall preset, flattened to Lambert). */
+  private buildMallowRow(): void {
+    // ---- LMS-01 the Mallow Court (29, −26, 14×12, h 20) -----------------
+    const lms = this.regShell('LMS-01');
+    const LMS_BASE_H = 3.4;
+    this.solid('LMS_01_base', lms.x, LMS_BASE_H / 2, lms.z, lms.w + 0.12, LMS_BASE_H, lms.d + 0.12, PAL.stone);
+    this.solid('LMS_01_upper', lms.x, LMS_BASE_H + (lms.h - LMS_BASE_H) / 2, lms.z, lms.w, lms.h - LMS_BASE_H, lms.d, 0xd9c3a5);
+    this.deco(`LMS_01_Cornice`, lms.x, lms.h - 0.25, lms.z, lms.w + 0.2, 0.5, lms.d + 0.2, PAL.stone, {});
+    // base openings (the lobby's flanking windows)
+    for (const wx of [lms.x - 4.6, lms.x + 4.6]) {
+      this.decoMesh(`LMS01_BaseWin_${wx}`, new THREE.BoxGeometry(1.0, 1.5, 0.08), this.bank.get(PAL.windowDim), wx, 1.9, lms.z - lms.d / 2 - 0.08);
+    }
+    // parlor (tall, y 4.6) + four upper rows on a 2.9 pitch
+    for (const wx of [lms.x - 4.2, lms.x, lms.x + 4.2]) {
+      this.decoMesh(`LMS01_Parlor_${wx}`, new THREE.BoxGeometry(1.3, 2.2, 0.08), this.bank.get(PAL.windowDim), wx, 4.6, lms.z - lms.d / 2 + 0.06);
+      for (let f = 0; f < 4; f++) {
+        const wy = 7.4 + f * 2.9;
+        if (wy > lms.h - 1.4) continue;
+        this.decoMesh(`LMS01_Win_${wx}_${wy}`, new THREE.BoxGeometry(1.1, 1.7, 0.08), this.bank.get(PAL.windowDim), wx, wy, lms.z - lms.d / 2 + 0.06);
+      }
+    }
+    // the court's yard face gets its own window rows (north)
+    for (const wx of [lms.x - 4.2, lms.x + 4.2]) {
+      for (let f = 0; f < 4; f++) {
+        const wy = 4.6 + f * 2.9;
+        if (wy > lms.h - 1.4) continue;
+        this.decoMesh(`LMS01_WinN_${wx}_${wy}`, new THREE.BoxGeometry(1.1, 1.7, 0.08), this.bank.get(PAL.windowDim), wx, wy, lms.z + lms.d / 2 + 0.06);
+      }
+    }
+    // the lobby: high stoop + door (the GRB stoop grammar, plum door)
+    const lmsStoop = makeBrownstoneStoop(this.bank, PAL.plum, true);
+    lmsStoop.position.set(lms.x, 0, lms.z - lms.d / 2 - 0.6);
+    lmsStoop.rotation.y = Math.PI;
+    this.scene.add(lmsStoop);
+    this.deco('LMS01_Door_Light', lms.x, 2.6, lms.z - lms.d / 2 - 0.1, 1.1, 0.5, 0.3, PAL.stone, {});
+    // both flanks are true party walls (PWK-03 at x 22, IND-01 at x 34) —
+    // nothing shows on them, exactly like the shipped rowhouse lots
+
+    // ---- IND-01 the Mallow Works (37, −26, 6×12, h 12) ------------------
+    const ind = this.regShell('IND-01');
+    this.solid('IND_01', ind.x, ind.h / 2, ind.z, ind.w, ind.h, ind.d, PAL.brick);
+    this.deco(`IND_01_Cornice`, ind.x, ind.h - 0.25, ind.z, ind.w + 0.2, 0.5, ind.d + 0.2, PAL.stone, {});
+    // the freight dock: steppable platform (0.3 ≤ the walker's 0.35 step)
+    this.solid('IND01_Dock', ind.x, 0.15, ind.z - ind.d / 2 - 0.7, ind.w - 1.4, 0.3, 1.4, 0x9a938c);
+    // the freight door + its lintel (the loading-face grammar) + the side door
+    this.decoMesh('IND01_Freight', new THREE.BoxGeometry(2.8, 3.2, 0.1), this.bank.get(0x6e554e), ind.x, 1.9, ind.z - ind.d / 2 - 0.06);
+    const lintel = makeLintel(this.bank, 3.0, ind.x, 3.62, ind.z - ind.d / 2 - 0.1);
+    this.siAdd(lintel, 'SI_Lintel_IND01_Freight');
+    this.decoMesh('IND01_SideDoor', new THREE.BoxGeometry(1.0, 2.4, 0.1), this.bank.get(0x6e554e), ind.x + ind.w / 2 - 0.85, 1.5, ind.z - ind.d / 2 - 0.06);
+    // small industrial windows on the walk face + the yard face
+    for (let f = 0; f < 3; f++) {
+      const wy = 4.5 + f * 2.9;
+      if (wy > ind.h - 1.4) continue;
+      for (const wx of [ind.x - 1.6, ind.x + 1.6]) {
+        this.decoMesh(`IND01_Win_${wx}_${wy}`, new THREE.BoxGeometry(1.0, 1.2, 0.08), this.bank.get(PAL.windowDim), wx, wy, ind.z - ind.d / 2 + 0.06);
+        this.decoMesh(`IND01_WinN_${wx}_${wy}`, new THREE.BoxGeometry(1.0, 1.2, 0.08), this.bank.get(PAL.windowDim), wx, wy, ind.z + ind.d / 2 + 0.06);
+      }
+    }
+
+    // ---- GLS-01 the Glass Infill (53.5, −26, 12×12, h 16) ---------------
+    const gls = this.regShell('GLS-01');
+    const GLS_BASE_H = 3.0;
+    this.solid('GLS_01_base', gls.x, GLS_BASE_H / 2, gls.z, gls.w + 0.12, GLS_BASE_H, gls.d + 0.12, PAL.stone);
+    this.solid('GLS_01_tower', gls.x, GLS_BASE_H + (gls.h - GLS_BASE_H) / 2, gls.z, gls.w, gls.h - GLS_BASE_H, gls.d, NYC.awnInk);
+    // the curtain grid: vertical mullions + floor slab bands (the ported
+    // curtain-wall read, told in proud geometry so the bake takes it).
+    // The grid starts ABOVE the storefront head (3.36) — no coplanar fight.
+    const mullBase = 3.36;
+    for (let mx = -gls.w / 2 + 1.5; mx < gls.w / 2 - 0.4; mx += 1.5) {
+      this.decoMesh(`GLS01_Mull_${mx.toFixed(1)}`, new THREE.BoxGeometry(0.09, gls.h - mullBase - 0.4, 0.07), this.bank.get(0x8a8378), gls.x + mx, mullBase + (gls.h - mullBase - 0.4) / 2, gls.z - gls.d / 2 - 0.05);
+    }
+    for (let f = 1; f <= 4; f++) {
+      const fy = GLS_BASE_H + f * 2.6;
+      if (fy > gls.h - 0.3) continue;
+      this.decoMesh(`GLS01_Slab_${f}`, new THREE.BoxGeometry(gls.w, 0.14, 0.08), this.bank.get(0x8a8378), gls.x, fy, gls.z - gls.d / 2 - 0.05);
+    }
+    // the modern parapet cap (ink, not stone — the mass reads new)
+    this.deco('GLS01_Cap', gls.x, gls.h - 0.18, gls.z, gls.w + 0.16, 0.36, gls.d + 0.16, PAL.ink, {});
+  }
+
+  /** SI, section B — the roofline systems this pass owns: rooftop chillers
+   *  and the band-course cornices. THE UNION RULING (2026-11-11): the
+   *  city-fabric pass (main's own slop-newyork roofscape, seeded per-row)
+   *  already owns water tanks, chimney stacks, roof bulkheads and antennae
+   *  over every registry roof INCLUDING the Mallow row — so this pass
+   *  retired its own tank/chimney/bulkhead rows rather than double-place
+   *  them (docs/slop-integration/01 §2 records the retirement). What the
+   *  fabric lacks and this pass keeps: the chillers (the fabric has none)
+   *  and the band-course ledges (the fabric has none). */
+  private dressRooflines(): void {
+    const rng = seededRng(20261111);
+    // ---- rooftop chillers (the source's 35% rule; LMS/IND/GLS always) ---
+    // the fabric never placed a chiller — this is the one roof system that
+    // stays ours; seats are jitters within the roof, clear of the fabric's
+    // own center-biased items by the roofs' spare depth
+    const hvacRoofs: Array<[string, string]> = [
+      ['KTN-03', 'bldg'], ['KTN-04', 'bldg2'], ['KTS-02', 'brick'], ['SMB-02', 'brick'],
+      ['PWK-01', 'bldg'], ['KCM-01', 'brick'], ['KTN-07', 'bldg2'], ['IND-01', 'brick'],
+      ['GLS-01', 'ink'], ['LMS-01', 'tan'],
+    ];
+    for (const [id, tone] of hvacRoofs) {
+      if (rng() > 0.62) continue;
+      const s = this.regShell(id);
+      const w = 2.6 + rng() * 1.8;
+      const d = 2.2 + rng() * 1.6;
+      const h = tone === 'ink' ? 3.0 : 2.4;
+      const ox = (rng() - 0.5) * (s.w - w - 1.6);
+      const oz = (rng() - 0.5) * (s.d - d - 1.6);
+      const unit = makeHVACUnitNYC(this.bank, w, d, h, rng);
+      unit.position.set(s.x + ox, s.h, s.z + oz);
+      this.siAdd(unit, `SI_HVAC_${id}`);
+    }
+    // GLS-01's roof line: a second chiller in a row (the modern roof)
+    {
+      const s = this.regShell('GLS-01');
+      const unit = makeHVACUnitNYC(this.bank, 2.4, 2.2, 2.6, rng);
+      unit.position.set(s.x + 3.2, s.h, s.z + 2.4);
+      this.siAdd(unit, 'SI_HVAC_GLS-01_B');
+    }
+    // ---- band-course cornices (the source's mid-band ledges) -------------
+    const bands: Array<[string, number]> = [
+      ['LMS-01', 13.2], ['KTN-02', 11.2], ['KTS-03', 11.2], ['KTN-05', 9.6],
+    ];
+    for (const [id, y] of bands) {
+      const s = this.regShell(id);
+      const bandS = makeCorniceBand(this.bank, s.w + 0.3, y, s.x, s.z - s.d / 2 - 0.12, Math.PI);
+      this.siAdd(bandS, `SI_CorniceBand_${id}_S`);
+      if (id === 'LMS-01') {
+        const bandN = makeCorniceBand(this.bank, s.w + 0.3, y, s.x, s.z + s.d / 2 + 0.12, 0);
+        this.siAdd(bandN, `SI_CorniceBand_${id}_N`);
+      }
+    }
+  }
+
+  /** SI, section C — the multi-landing FIRE ESCAPES (the source's escape
+   *  template). Silhouette-only deco (the climbable escape stays the Cecil's
+   *  — the shipped law); each stack takes a yard or flank face so no door,
+   *  stoop or storefront is touched: KTS-03 + LMS-01 + IND-01 on their yard
+   *  faces, SRC-01 on its Sycamore flank, PWK-02 in the Marlow yard. */
+  private dressFireEscapes(): void {
+    const escapes: Array<[string, number, 'n' | 's' | 'e', number]> = [
+      ['KTS-03', 44.5, 's', 18],
+      ['LMS-01', 28, 'n', 20],
+      ['IND-01', 37, 'n', 12],
+      ['SRC-01', -26, 'e', 17],
+      ['PWK-02', 5, 'n', 15],
+    ];
+    for (const [id, at, face, h] of escapes) {
+      const s = this.regShell(id);
+      const landings: number[] = [];
+      for (let ly = 3.3; ly < h - 1.6; ly += 2.9) landings.push(+ly.toFixed(2));
+      const esc = makeFireEscapeStack(this.bank, landings, 3.6, h);
+      if (face === 'n') esc.position.set(at, 0, s.z + s.d / 2 + 0.03);
+      else if (face === 's') esc.position.set(at, 0, s.z - s.d / 2 - 0.03);
+      else esc.position.set(s.x + s.w / 2 + 0.03, 0, at);
+      esc.rotation.y = face === 'n' ? 0 : face === 's' ? Math.PI : Math.PI / 2;
+      this.siAdd(esc, `SI_FireEscape_${id}`);
+    }
+  }
+
+  /** SI, section D — storefront + ground-floor dressing: the gallery's
+   *  front (the shipped storefront grammar, plum canvas), the court's lobby
+   *  awning, and the construction shed the registry's own exterior line
+   *  promises in the GLS-01 yard. The shed's deck joins the camera's
+   *  canopy-sphere set (the same sidestep law the tree crowns ride). */
+  private dressStorefrontRow(): void {
+    const gls = this.regShell('GLS-01');
+    const shop = makeStorefront(this.bank, this.signMaterials.bind(this), 'MERIDIAN GALLERY', NYC.awnPlum, 5);
+    shop.position.set(gls.x, 0.05, gls.z - gls.d / 2 - 0.02);
+    shop.rotation.y = Math.PI;
+    this.scene.add(shop);
+    const lms = this.regShell('LMS-01');
+    const lobbyAwn = makeAwningNYC(this.bank, 1, 2.6, lms.x, 3.95, lms.z - lms.d / 2 - 0.1, Math.PI);
+    this.siAdd(lobbyAwn, 'SI_Awning_LMS01_Lobby');
+    // the yard shed (deco only — the deck is overhead; legs hug the wall)
+    const shed = makeScaffoldShedNYC(this.bank, 4.2, 2.2, 45.5, -18.4, Math.PI / 2);
+    this.siAdd(shed, 'SI_Shed_GLS01');
+    this.canopySpheresCache.push({ x: 45.5, y: 3.45, z: -18.4, r: 2.4 });
+  }
+
+  /** SI, section E — street life: the USPS relay box at the bodega corner,
+   *  the ConEd steam vent against the laundry's wall, the DOT street-name
+   *  blades on the shipped signal mast and a second mast at the Juniper
+   *  corner, and the globe lamps flanking the station headhouse. Colliders
+   *  exactly where the shipped street furniture's sit (wall-side, off the
+   *  walk lanes). */
+  private dressStreetLife(): void {
+    const mailbox = makeMailboxNYC(this.bank, -12.3, 0.05, 7.55, Math.PI);
+    this.siAdd(mailbox, 'SI_Mailbox_Kestrel');
+    this.colliders.push(boxFromCenter(-12.3, 0.65, 7.55, 0.65, 1.3, 0.6));
+    const vent = makeSteamVentNYC(this.bank, -2.0, 7.55);
+    this.siAdd(vent, 'SI_SteamVent_Kestrel');
+    this.colliders.push(boxFromCenter(-2.0, 0.62, 7.55, 0.6, 1.3, 0.6));
+    // the Kestrel blade on the shipped signal mast (bolted beside the arm;
+    // the fabric pass owns the cross-street blades at the four corners —
+    // its JUNIPER AVE blade already reads that corner, so this pass adds
+    // only the Kestrel one and the mast itself)
+    const blade = makePoleSign(this.bank, this.signMaterials.bind(this), 'KESTREL ST',
+      { w: 1.5, h: 0.38, y: 3.55, bg: NYC.shedGreen, fg: PAL.cream, facing: 'street' });
+    blade.position.set(-1.45, 0.05, -7.55);
+    this.siAdd(blade, 'SI_Blade_Kestrel');
+    // the second mast: the Juniper corner reads as an intersection now
+    const signal = makeTrafficSignal(this.bank, {
+      greenLamp: this.nightGlow(PAL.teal, 0.55, 2.2),
+    });
+    signal.position.set(-65.3, 0.05, -7.55);
+    signal.rotation.y = -Math.PI / 2; // the arm reaches over Juniper's road
+    this.scene.add(signal);
+    this.colliders.push(boxFromCenter(-65.3, 2.75, -7.55, 0.3, 5.5, 0.3));
+    // the globes flank the station headhouse (both stair corners). W8:
+    // they ride the slot's shrink — z 4.2 stood IN the new curb-side
+    // corridor (the walk-ability probe's own forensics); z 5.85 puts the
+    // pair beside the entrance rim again, clear of the corridor.
+    const globeW = makeSubwayGlobePost(this.bank, -48.75, 5.85);
+    this.siAdd(globeW, 'SI_Globe_SUB01_W');
+    this.colliders.push(boxFromCenter(-48.75, 0.95, 5.85, 0.28, 1.9, 0.28));
+    const globeE = makeSubwayGlobePost(this.bank, -45.65, 5.85);
+    this.siAdd(globeE, 'SI_Globe_SUB01_E');
+    this.colliders.push(boxFromCenter(-45.65, 0.95, 5.85, 0.28, 1.9, 0.28));
+  }
+
+  /** SI, section F — the far-skyline landmark silhouettes: the ported
+   *  stepped-setback, terraced-crown, wedge and glass-sliver techniques
+   *  (skylineLandmarks.ts) on the z 90 band, fog:false, deco-only — the
+   *  clamped district rows keep the band lit exactly like the shipped
+   *  tower row. */
+  private buildSkylineBand(): void {
+    const mStone = new THREE.MeshLambertMaterial({ color: PAL.skyline });
+    mStone.fog = false;
+    const mGlass = new THREE.MeshLambertMaterial({ color: 0x7a7086 });
+    mGlass.fog = false;
+    const mTrim = new THREE.MeshLambertMaterial({ color: 0xb8a8c0 });
+    mTrim.fog = false;
+    buildSkylineLandmarks(this.scene, mStone, mGlass, mTrim);
+    this.vqLedger.push({ name: 'SI_SkylineLandmarks', x: 0, y: 0, z: 90 });
+  }
+
+  /** SI — the pass (sections A–F), pre-bake. */
+  private buildAlderHeightsSI(): void {
+    this.buildMallowRow();
+    this.dressRooflines();
+    this.dressFireEscapes();
+    this.dressStorefrontRow();
+    this.dressStreetLife();
+    this.buildSkylineBand();
+  }
+
+  /** SI, far world — the ported subway stair on the TS surface plaza,
+   *  just south of the SUB-TS station slot: the classic green-railing
+   *  open stair with its SUBWAY band and globe pair. It joins TSS_Group so
+   *  the zone bake fuses it (zone visibility owns the far world); one
+   *  honest collider for the railing line. */
+  private dressFarWorldSI(root: THREE.Group): void {
+    const stair = makeSubwayStairNYC(this.bank, this.signMaterials.bind(this));
+    stair.position.set(-332, 0.12, 3.2);
+    stair.rotation.y = Math.PI; // the entries face the plaza's south walk
+    root.add(stair);
+    this.colliders.push(boxFromCenter(-332, 0.7, 3.2, 2.0, 1.4, 5.4));
+  }
 
   private bakeStatics(): void {
     const skip = new Set<THREE.Object3D>([
@@ -2917,6 +5074,11 @@ export class World {
       ...this.interiorHandles.flatMap((h) => h.duck),
       this.busGroup,   // the M121 runs its rail every frame (W4 p2)
       this.courtDusk,  // the pickup pair toggles at dusk (W4 p2)
+      // the deli's own dressing (2026-11 identity pass) keeps its names —
+      // the probe pins the menu board, the product rows, the chip bags and
+      // the door mat by name, and the counter slots are re-parented by the
+      // GLB upgrades after this bake. ~20 live draws, the store's the hero.
+      this.scene.children.find((o) => o.name === 'Bodega_Dressing') ?? new THREE.Group(),
       this.rosa, this.idris, this.kidGround, this.kidSil, this.stranger, this.sal,
       this.familiar, this.barrier, this.asphaltPatch,
       this.stool, this.permitReceipt,
@@ -2942,11 +5104,26 @@ export class World {
       // clearances by name (the "plaza owns its paving" regression) — two
       // receive-only slabs are a fair price for that identity
       'Plaza_Deck_W', 'Plaza_Deck_E',
+      // the deli's floor keeps its name for the palette probe (one live
+      // slab, the room-color law's ninth voice)
+      'Bodega_Floor',
       // docs/50 far world: the terminal lifts off when the player is
       // underground (the dollhouse), and the zone groups manage their own
       // visibility — none of it may join a district tile (the street ring
       // would light the tunnel forever)
-      'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121']);
+      // + the north yard slab: it ROOFS the station box (x −60..60,
+      //   z 8..32), and collectTerminalShell lifts it BY NAME with the
+      //   dollhouse. Baked (found 2026-11-12, the entering-the-subway
+      //   fix), the name lookup found nothing, the lawn stayed up below
+      //   grade, and every above-grade sight line into the cutaway hit
+      //   grass — aboard the car the frame was solid lawn green, on the
+      //   platform the interior showed through a ~2° slit. One live draw
+      //   above grade is the fair price for the cutaway being cut.
+      // + the city-fabric skyline pair (docs/production/city-fabric): the
+      // rows live OUTSIDE every district tile (x ±110 / z −88 / z +104) —
+      // a tile ring that drops them would blink the horizon out of view
+      'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121', 'Yard_N',
+      'SkylineFabric', 'SkylineFabricWindows']);
     const excluded = (o: THREE.Object3D): boolean => {
       for (let p: THREE.Object3D | null = o; p !== null; p = p.parent) {
         if (skip.has(p) || NAMED_SKIP.has(p.name)) return true;
@@ -2957,9 +5134,15 @@ export class World {
     interface BatchSrc { geo: THREE.BufferGeometry; mesh: THREE.Mesh; tile: string }
     interface Batch { srcs: BatchSrc[]; cast: boolean; receive: boolean; mat: THREE.MeshLambertMaterial }
     const batches = new Map<string, Batch>();
+    const EYE_LAYER = new THREE.Layers(); // layer 0 — the main camera's layer
 
     this.scene.traverse((o) => {
       if (!(o instanceof THREE.Mesh) || excluded(o)) return;
+      // Shadow proxies (personRig docs/51 B13) live ONLY on the shadow layer:
+      // a batch mesh is an ordinary layer-0 mesh, so baking a proxy would
+      // print its white silhouette standing inside every zone figure. The
+      // proxies stay individual casters — that IS the shipped shadow law.
+      if (!o.layers.test(EYE_LAYER)) return;
       // An InstancedMesh IS a Mesh, but its geometry is one instance's —
       // baking it merges a single phantom quad at the origin and STRIPS the
       // real instanced draw from the scene (the canopy dodged this by being
@@ -3016,13 +5199,21 @@ export class World {
         // was color × 1, now white × color: bit-for-bit the same shade, and
         // dropping uv lets uv-less and uv-ful sources fuse into one batch
         g.deleteAttribute('uv');
-        const pos = g.attributes.position;
-        const arr = new Float32Array(pos.count * 3);
-        const c = mat.color;
-        for (let i = 0; i < pos.count; i++) {
-          arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b;
+        // per-vertex palettes (person rigs) ARE the product — captured from
+        // the SOURCE geo, because the clone loop above already stripped the
+        // clone's non-pos/normal/uv attributes
+        const srcColor = geo.attributes.color;
+        if (srcColor) {
+          g.setAttribute('color', srcColor.clone());
+        } else {
+          const pos = g.attributes.position;
+          const arr = new Float32Array(pos.count * 3);
+          const c = mat.color;
+          for (let i = 0; i < pos.count; i++) {
+            arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b;
+          }
+          g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
         }
-        g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
       }
       // Region-split (W0: now 2D district tiles): a whole-world batch would
       // defeat frustum culling (the batch's bounding sphere spans the world,
@@ -3242,34 +5433,37 @@ export class World {
 
   // ------------------------------------------------------------------ helpers
 
-  /** The three bodega shelf items (mango / coffee / bread) — non-colliding deco. */
+  /** The three bodega shelf items (mango / coffee / bread) — non-colliding
+   *  deco. Built feet-at-zero; y IS the shelf board top they stand on
+   *  (board 3 of the gondola run — see the restock pass's SHELF levels). */
   readonly itemMeshes = new Map<string, THREE.Group>();
 
   addItem(id: string, x: number, y: number, z: number, _color: number): THREE.Group {
     void _color; // shape + label now carry the identity; palette stays on the item itself
     const g = new THREE.Group();
     g.name = `Item_${id}`;
-    g.position.set(x, y - 0.25, z); // anchor sits on the shelf top (y=2.0)
+    g.position.set(x, y, z); // feet on the named surface (a gondola board top)
     const add = (m: THREE.Mesh) => { m.castShadow = true; g.add(m); };
     if (id === 'mango') {
-      const body = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 10), this.mat(0xf7a83b, { emissive: 0xf7a83b, emissiveIntensity: 0.18 }));
-      body.scale.y = 0.88;
-      body.position.y = 0.24;
-      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.08, 6), this.mat(0x4a3a30));
-      stem.position.y = 0.5;
+      // shelf-scale fruit: the old half-kilo mango was bigger than the bay
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 10), this.mat(0xf7a83b, { emissive: 0xf7a83b, emissiveIntensity: 0.18 }));
+      body.scale.y = 0.9;
+      body.position.y = 0.077;
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.014, 0.04, 6), this.mat(0x4a3a30));
+      stem.position.y = 0.155;
       add(body); add(stem);
     } else if (id === 'coffee') {
-      const tin = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.42, 12), this.mat(PAL.teal, { emissive: PAL.teal, emissiveIntensity: 0.18 }));
-      tin.position.y = 0.21;
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.165, 0.165, 0.15, 12), this.mat(PAL.cream));
-      band.position.y = 0.21;
+      const tin = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.26, 12), this.mat(PAL.teal, { emissive: PAL.teal, emissiveIntensity: 0.18 }));
+      tin.position.y = 0.13;
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.088, 0.09, 12), this.mat(PAL.cream));
+      band.position.y = 0.13;
       add(tin); add(band);
     } else {
       // bread
-      const loaf = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.2, 0.26), this.mat(0xd9a05b, { emissive: 0xd9a05b, emissiveIntensity: 0.14 }));
-      loaf.position.y = 0.1;
-      const crust = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.07, 0.28), this.mat(0xb3773f));
-      crust.position.y = 0.21;
+      const loaf = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.13, 0.17), this.mat(0xd9a05b, { emissive: 0xd9a05b, emissiveIntensity: 0.14 }));
+      loaf.position.y = 0.065;
+      const crust = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.05, 0.19), this.mat(0xb3773f));
+      crust.position.y = 0.135;
       add(loaf); add(crust);
     }
     // the name floats above the shelf — nobody picks a mystery box
@@ -3303,8 +5497,256 @@ export class World {
   private vcMatFog: THREE.MeshLambertMaterial | null = null;
   private vcMatNoFog: THREE.MeshLambertMaterial | null = null;
   private vcMaterial(fog: boolean): THREE.MeshLambertMaterial {
-    if (fog) return (this.vcMatFog ??= new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true }));
-    return (this.vcMatNoFog ??= new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, fog: false }));
+    if (fog) return (this.vcMatFog ??= new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, envMapIntensity: 0.18 }));
+    return (this.vcMatNoFog ??= new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, fog: false, envMapIntensity: 0.18 }));
+  }
+
+  /** Hero-vehicle paint (the graphics wave): physically-based metal/rough
+   *  so the taxi and the M121 carry the sky's reflection (scene.environment)
+   *  and a real specular. Cached per color — one program, few materials. */
+  private vehBodyMat = new Map<number, THREE.MeshStandardMaterial>();
+  private vehicleMat(color: number, metalness = 0.45, roughness = 0.35): THREE.MeshStandardMaterial {
+    let m = this.vehBodyMat.get(color);
+    if (!m) {
+      m = new THREE.MeshStandardMaterial({ color, metalness, roughness });
+      m.envMapIntensity = 0.9;
+      this.vehBodyMat.set(color, m);
+    }
+    return m;
+  }
+
+  /** A ground slab wearing the procedural street textures (the graphics
+   *  wave) — same collider/receive law as solid(), mapped material so the
+   *  bake leaves it alone, metric UVs so texel density is right at any size. */
+  private groundSolid(name: string, cx: number, cy: number, cz: number, sx: number, sy: number, sz: number, kind: 'asphalt' | 'concrete'): THREE.Mesh {
+    const geo = new THREE.BoxGeometry(sx, sy, sz);
+    metricBoxUVs(geo, sx, sy, sz);
+    const m = new THREE.Mesh(geo, groundMaterial(kind));
+    m.name = name;
+    m.position.set(cx, cy, cz);
+    m.castShadow = false;
+    m.receiveShadow = true;
+    this.scene.add(m);
+    this.colliders.push(boxFromCenter(cx, cy, cz, sx, sy, sz));
+    return m;
+  }
+
+  // ------------------------------------------------ the day cycle (graphics wave)
+  // docs/rendering/03 §1 — the clock-driven lighting canon. Story beats PIN
+  // (startDusk/toMorningLight keep their contracts); roam/scenario follow
+  // the sim clock continuously; the approach is an exp lerp — the shipped
+  // 6 s dusk tween's feel, without per-frame tween allocations.
+
+  /** Pin a keyframe (story beats) or unpin (null — clock-driven). */
+  pinDayState(pin: DayPin | null, immediate = false): void {
+    this.dayPin = pin;
+    if (pin !== null) {
+      keyframeState(pin, this.dayScratch);
+    } else {
+      sampleDayCycle(this.dayMinute < 0 ? CANON_MINUTES.morning : this.dayMinute, this.dayScratch);
+    }
+    this.envDirty = true;
+    if (immediate) this.applyTargetDayState(1);
+  }
+
+  /** Per-frame drive (Game.frame, before the render): sample the clock when
+   *  unpinned, then approach the target. No allocations. */
+  updateDayCycle(minuteOfDay: number, dt: number): void {
+    const minute = ((Math.round(minuteOfDay) % 1440) + 1440) % 1440;
+    if (this.dayPin === null && minute !== this.dayMinute) {
+      this.dayMinute = minute;
+      sampleDayCycle(minute, this.dayScratch);
+      this.envDirty = true;
+    }
+    this.applyTargetDayState(Math.min(1, dt * 1.4));
+  }
+
+  /** Force a clock time (the probe/validation affordance — ?tod and the
+   *  visual rigs). Freezes the clock-driven sample there. */
+  setClockMinute(minute: number): void {
+    this.dayMinute = ((Math.round(minute) % 1440) + 1440) % 1440;
+    this.dayPin = null;
+    sampleDayCycle(this.dayMinute, this.dayScratch);
+    this.envDirty = true;
+    this.applyTargetDayState(1);
+  }
+
+  /** The settle test: the current state may be considered at its target
+   *  (the exp lerp's convergence band — where the env map may rebuild). */
+  private daySettled(): boolean {
+    return Math.abs(this.dayState.exposure - this.dayScratch.exposure) < 1e-3
+      && Math.abs(this.dayState.nightK - this.dayScratch.nightK) < 1e-3;
+  }
+
+  /** Lerp current → target and write the whole lighting stack: sky uniforms,
+   *  FogExp2, sun, hemisphere, night emissives, scene.environment. */
+  private applyTargetDayState(k: number): void {
+    const cur = this.dayState, tgt = this.dayScratch;
+    for (const key of World.DAY_KEYS) {
+      cur[key] = cur[key] + (tgt[key] - cur[key]) * k;
+    }
+    // sky dome
+    (this.skyUniforms.topColor as THREE.Color).setRGB(cur.skyTopR, cur.skyTopG, cur.skyTopB);
+    (this.skyUniforms.horizonColor as THREE.Color).setRGB(cur.skyHorizonR, cur.skyHorizonG, cur.skyHorizonB);
+    (this.skyUniforms.groundColor as THREE.Color).setRGB(cur.skyGroundR, cur.skyGroundG, cur.skyGroundB);
+    this.skyMat.uniforms.haloColor.value.setRGB(cur.haloR, cur.haloG, cur.haloB);
+    this.skyMat.uniforms.haloStrength.value = cur.haloStrength;
+    this.skyMat.uniforms.nightK.value = cur.nightK;
+    // fog
+    this.fog.color.setRGB(cur.fogR, cur.fogG, cur.fogB);
+    this.fog.density = cur.fogDensity;
+    // lights (sun energy rides the same legacy π factor the boot used)
+    this.sun.color.setRGB(cur.sunR, cur.sunG, cur.sunB);
+    this.sun.intensity = phys(cur.sunEnergy);
+    this.hemi.intensity = phys(cur.hemiEnergy);
+    (this.hemi.color as THREE.Color).setRGB(cur.hemiSkyR, cur.hemiSkyG, cur.hemiSkyB);
+    (this.hemi.groundColor as THREE.Color).setRGB(cur.hemiGroundR, cur.hemiGroundG, cur.hemiGroundB);
+    // night emissives — lamps, traffic greens, storefront strips, warm rooms
+    for (const e of this.nightEmissives) {
+      e.mat.emissiveIntensity = e.base + (e.night - e.base) * cur.nightK;
+    }
+    // the fenestra windows ride the same clock: one uniform write per
+    // family material — per-window onsets live in the shader's hashes
+    for (const m of this.fenestraMats) m.setNightK(cur.nightK);
+    this.timesSquare.setNightBoost(cur.nightK);
+    // the sky-PMREM environment — rebuilt only when the target changed and
+    // the lerp has settled (a few rebuilds per in-game day, never per frame)
+    if (this.envSky) {
+      const pinned = this.dayPin !== null
+        || Math.abs(this.dayMinute - this.lastEnvRebuildMinute) >= World.ENV_REBUILD_MIN_SIM_MIN;
+      if (this.envDirty && this.daySettled() && pinned) {
+        this.scene.environment = this.envSky.rebuild({
+          top: this.skyUniforms.topColor,
+          horizon: this.skyUniforms.horizonColor,
+          ground: this.skyUniforms.groundColor,
+          halo: this.skyMat.uniforms.haloColor.value,
+          haloStrength: cur.haloStrength,
+        });
+        this.envDirty = false;
+        this.lastEnvRebuildMinute = this.dayMinute;
+      }
+      this.scene.environmentIntensity = cur.envIntensity;
+    }
+  }
+
+  /** The AO prepass exclusion list (docs/rendering/03 §6): the far-world
+   *  silhouettes the AO lens never sees (sky dome, skyline rows, landmarks,
+   *  Times Square, the movers) + billboards/points whose override-material
+   *  depth would print halos into the occlusion (glow sprites, steam,
+   *  leaves, birds). The dome itself is BackSide and auto-culled — it rides
+   *  along for belt-and-braces. */
+  private assembleAoExclude(): void {
+    const list = this.aoExcludeList;
+    list.length = 0;
+    list.push(this.skyDome, this.steamPoints, this.leaves.mesh,
+      this.pigeonFlock.group, this.pigeonFlockEast.group, this.squirrel.group,
+      this.busGroup, this.taxi, this.arrivalBus.group);
+    for (const s of this.glowSprites) list.push(s);
+    for (const name of ['SkylineFabric', 'SkylineFabricWindows', 'TSS_Group']) {
+      const o = this.scene.getObjectByName(name);
+      if (o) list.push(o);
+    }
+  }
+
+  // ------------------------------------------------------------------ fenestra
+  // The interior-mapping windows (docs/production/fenestra/). Build once;
+  // per-frame work is one uniform write per family (the clock) + a throttled
+  // distance-band pass (hot path cold, AGENTS §1c.3).
+
+  /** Build the two family instanced meshes + load the atlases (the seam
+   *  law: a missing file degrades to the dim-room fallback, never breaks). */
+  private buildFenestra(): void {
+    for (const family of ['residential', 'commercial'] as const) {
+      const mat = new FenestraMaterial({ family });
+      this.fenestraMats.push(mat);
+      const fm = fenestraMeshFromPlan(this.fenestraPlan, family, mat);
+      if (fm) {
+        this.fenestraMeshes.push(fm);
+        this.scene.add(fm.mesh);
+      }
+    }
+    this.fenestraBands = new Uint8Array(this.fenestraPlan.length);
+    // aniso 4 — grazing-angle facades are the common street view; three
+    // clamps the value to the device max (WebGLTextures.texParameterf).
+    void Promise.all([
+      loadFenestraAtlas('textures/fenestra_rooms.png', 'rooms', 4),
+      loadFenestraAtlas('textures/fenestra_fronts.png', 'fronts', 4),
+    ]).then(([rooms, fronts]) => {
+      // the FEN-GLITCH deep-mip clamp: TEXTURE_MAX_LOD 3 pins sampling
+      // inside the gutters' safe range — set once, right after the upload
+      // (onUpdate fires inside WebGLTextures.uploadTexture; the renderer
+      // handle may land later than this promise — it is read at fire time)
+      for (const t of [rooms, fronts]) {
+        t.onUpdate = () => {
+          if (this.rendererRef) applyAtlasMaxLod(this.rendererRef, t);
+        };
+      }
+      for (const m of this.fenestraMats) m.setAtlases(rooms, fronts);
+    });
+  }
+
+  /** The distance-band pass (throttled 4 Hz): each window's LOD attribute
+ *  demotes with hysteresis — FULL near, MID (glass off), FLAT (the
+ *  impostor) far. Writes only changed instances. */
+  private updateFenestraBands(dt: number, px: number, py: number, pz: number): void {
+    if (!this.fenestraEnabled || this.fenestraMeshes.length === 0) return;
+    this.fenestraBandTimer += dt;
+    if (this.fenestraBandTimer < 0.25) return;
+    this.fenestraBandTimer = 0;
+    const { full, far } = this.fenestraBandDist;
+    for (const fm of this.fenestraMeshes) {
+      let lodDirty = false;
+      let glassDirty = false;
+      for (let i = 0; i < fm.planIdx.length; i++) {
+        const inst = this.fenestraPlan[fm.planIdx[i]];
+        const dx = inst.x - px, dy = inst.y - py, dz = inst.z - pz;
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const band = fenBandOf(d, full, far, this.fenestraBands[fm.planIdx[i]] as 0 | 1 | 2);
+        if (band !== this.fenestraBands[fm.planIdx[i]]) {
+          this.fenestraBands[fm.planIdx[i]] = band;
+          const v = bandValues(band);
+          if (fm.lodArray[i] !== v.lod) { fm.lodArray[i] = v.lod; lodDirty = true; }
+          if (fm.glassArray[i] !== v.glass) { fm.glassArray[i] = v.glass; glassDirty = true; }
+        }
+      }
+      if (lodDirty) fm.lod.needsUpdate = true;
+      if (glassDirty) fm.glass.needsUpdate = true;
+    }
+  }
+
+  /** The quality tier's band distances (Game.applyGfxTier wires it; low
+   *  hardware flattens sooner — the mission's distance ladder). */
+  setFenestraTier(tier: string): void {
+    this.fenestraBandDist = FEN_BANDS_BY_TIER[tier] ?? FEN_BANDS_BY_TIER.high;
+  }
+
+  /** The ?fenestra=0 affordance (and the probe's A/B seam): the planes
+   *  hide and the system goes inert — the shipped dim-box look returns. */
+  setFenestraEnabled(on: boolean): void {
+    this.fenestraEnabled = on;
+    for (const fm of this.fenestraMeshes) fm.mesh.visible = on;
+  }
+
+  /** Probe/diagnostics: the plan summary (windows per building). */
+  fenestraSummary(): { total: number; byBldg: Record<string, number> } {
+    const byBldg: Record<string, number> = {};
+    for (const inst of this.fenestraPlan) {
+      byBldg[inst.buildingId] = (byBldg[inst.buildingId] ?? 0) + 1;
+    }
+    return { total: this.fenestraPlan.length, byBldg };
+  }
+
+  /** Full resource release (probes/rebuilds; the page owns the usual
+   *  lifetime). Textures ride the module cache (the groundTex pattern). */
+  disposeFenestra(): void {
+    for (const fm of this.fenestraMeshes) {
+      this.scene.remove(fm.mesh);
+      fm.dispose();
+    }
+    this.fenestraMeshes.length = 0;
+    for (const m of this.fenestraMats) m.dispose();
+    this.fenestraMats.length = 0;
+    this.fenestraBands = new Uint8Array(0);
   }
 
   private mat(color: number, opts: { emissive?: number; emissiveIntensity?: number } = {}): THREE.MeshLambertMaterial {
@@ -3313,6 +5755,20 @@ export class World {
       m.emissive = new THREE.Color(opts.emissive);
       m.emissiveIntensity = opts.emissiveIntensity ?? 1;
     }
+    // the sky-PMREM IBL fill (the graphics wave) — a soft ambient tint, not
+    // a mirror; scene.environment supplies the texture per day state
+    m.envMapIntensity = 0.22;
+    return m;
+  }
+
+  /** The night emissive registry's intake (docs/rendering/03 §5): creates
+   *  the material AND registers its base → night intensity (nightK-driven
+   *  by applyTargetDayState). The night numbers sit above the bloom
+   *  threshold (1.0 linear) so lamps/signs/interiors — and only those —
+   *  glow through UnrealBloom after dark. */
+  private nightGlow(color: number, base: number, night: number, emissive = color): THREE.MeshLambertMaterial {
+    const m = this.mat(color, { emissive, emissiveIntensity: base });
+    this.nightEmissives.push({ mat: m, base, night });
     return m;
   }
 
@@ -3355,6 +5811,23 @@ export class World {
     this.glbProps.set(id, obj);
   }
 
+  /** The interiors dressing seam (docs/production/interiors/): wear each
+   *  manifest slot's sand3d GLB onto its placeholder — the dryers the
+   *  laundromat's washers were waiting for, the barber chairs, the cook
+   *  line, the record bins, the flour wall. The upgrade is the shipped
+   *  prop seam: missing files keep the procedural rooms whole. */
+  private upgradeInteriorPropsWithGLB(): void {
+    for (const slot of INTERIOR_SLOTS) {
+      const placeholder = this.scene.getObjectByName(slot.fixture);
+      if (!placeholder) {
+        console.info(`[interiors] ${slot.id}: fixture ${slot.fixture} not found — kept procedural`);
+        continue;
+      }
+      this.registerGlbProp(slot.id, placeholder);
+      void this.upgradePropWithGLB(slot.id, slot.file ?? `models/${slot.id}.glb`);
+    }
+  }
+
   async upgradePropWithGLB(id: string, file = `models/${id}.glb`): Promise<boolean> {
     const placeholder = this.glbProps.get(id);
     const loader = this.glbLoader;
@@ -3393,7 +5866,6 @@ export class World {
       const center = box.getCenter(new THREE.Vector3());
       if (!(size.y > 0) || !Number.isFinite(size.y)) throw new Error('degenerate bounds');
 
-      const worldPos = placeholder.getWorldPosition(new THREE.Vector3());
       const worldQuat = placeholder.getWorldQuaternion(new THREE.Quaternion());
       const worldScale = placeholder.getWorldScale(new THREE.Vector3());
       if (Math.abs(worldScale.x - worldScale.y) > 1e-3 || Math.abs(worldScale.y - worldScale.z) > 1e-3) {
@@ -3402,6 +5874,13 @@ export class World {
 
       // Uniform scale so the generated mesh stands exactly as tall as the
       // placeholder it replaces, feet on the same ground, XZ centered on it.
+      // THE GROUND IS THE AABB's MIN — not the placeholder's origin. Most
+      // placeholders (the washer slots, the fixture() boxes, the hydrant
+      // cylinder) are CENTERED meshes whose origin rides mid-height; feet on
+      // the origin hung the model half a slot above its own footprint (the
+      // washers read as a wall-mounted row, the bodega produce crate floated
+      // a hand-span over the tiles). The furniture seam always used the box
+      // min (upgradeFurnitureWithGLB's law); the prop seam now matches it.
       const s = phSize.y / size.y;
       // Footprint guard: a car scaled to the placeholder's height must also
       // occupy a similar street width, or its collider (sized for the
@@ -3416,7 +5895,10 @@ export class World {
 
       const wrapper = new THREE.Group();
       wrapper.name = `${placeholder.name || id}_glb`;
-      wrapper.position.copy(worldPos);
+      // feet on the placeholder's GROUND (world AABB min), XZ centered on
+      // the occupied box — the furniture seam's placement law, one source.
+      const phCenter = phBox.getCenter(new THREE.Vector3());
+      wrapper.position.set(phCenter.x, phBox.min.y, phCenter.z);
       wrapper.quaternion.copy(worldQuat);
       wrapper.scale.copy(worldScale);
       wrapper.add(visual);
@@ -3494,6 +5976,125 @@ export class World {
         for (const m of mats) m?.dispose();
       }
     });
+  }
+
+  // ------------------------------------------------- ABO furniture seam
+  // docs/57: the curated Amazon Berkeley Objects pack (CC-BY-4.0) wears the
+  // interiors. The models are the dataset's lod1 GLBs — meshopt-compressed
+  // geometry with KTX2 (basis) textures — so the loader needs the renderer
+  // for the transcoder's format probe; the Game wires it once the renderer
+  // exists. The seam law is the docs/28 one: a missing or malformed file
+  // keeps the authored placeholder, one console.info line, no retry loop,
+  // and NOTHING gameplay-bearing changes (colliders, toggles, anchors).
+
+  /** Called once by the Game after the renderer exists: re-arms the GLB
+   *  loader with the meshopt + KTX2 decoders and fires the furniture
+   *  upgrades. Street-prop upgrades keep their earlier plain loader. */
+  configureGltfDecoders(renderer: THREE.WebGLRenderer): void {
+    if (this.furnitureWired) return;
+    this.furnitureWired = true;
+    this.rendererRef = renderer;
+    // the graphics wave: the sky-PMREM environment builds here (Game hands
+    // the renderer over exactly once); the applier rebuilds it on state change
+    this.envSky = new EnvSky(renderer);
+    this.envDirty = true;
+    const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder);
+    const ktx2 = new KTX2Loader()
+      .setTranscoderPath('vendor/basis/')
+      .detectSupport(renderer);
+    loader.setKTX2Loader(ktx2);
+    this.glbLoader = loader;
+    for (const slot of FURNITURE_SLOTS) void this.upgradeFurnitureWithGLB(slot);
+  }
+
+  /** One furniture slot: swap the named placeholder inside its room group
+   *  for the real model, scaled to the slot's authored height (or footprint
+   *  for flat pieces), XZ-centered on the placeholder, feet on its ground.
+   *  Siblings in `hide` lose visibility ONLY once the model is in — the
+   *  procedural room stays whole when the file is missing. */
+  async upgradeFurnitureWithGLB(slot: FurnitureSlot): Promise<boolean> {
+    const loader = this.glbLoader;
+    if (!loader) return false;
+    const room = this.scene.children.find((c) => c.name === `INT_${slot.room}`);
+    const placeholder = room?.children.find((c) => c.name === slot.fixture);
+    if (!room || !placeholder) {
+      console.info(`[furniture] ${slot.id}: placeholder ${slot.fixture} not found — kept procedural`);
+      return false;
+    }
+    const file = `models/furniture/${slot.id}.glb`;
+    const url = new URL(file, document.baseURI).href;
+    try {
+      const gltf = await loader.loadAsync(url);
+      let visual: THREE.Object3D = gltf.scene;
+      let hasMesh = false;
+      const stray: THREE.Object3D[] = [];
+      visual.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh) hasMesh = true;
+        if ((o as THREE.Light).isLight || (o as THREE.Camera).isCamera) stray.push(o);
+      });
+      if (!hasMesh) throw new Error('no meshes in file');
+      for (const o of stray) o.parent?.remove(o);
+      // the slot's yaw goes on FIRST and the merge bakes it into the
+      // vertices — the bounds below are the occupied ones, so the footprint
+      // guard judges the piece as placed, not as authored
+      visual.rotation.y = slot.rotateY ?? 0;
+      visual.updateWorldMatrix(true, true);
+      // one draw per material (the street seam's merge; furniture files are
+      // single-mesh so this usually returns the scene untouched)
+      visual = this.mergeGltfParts(visual);
+
+      placeholder.updateWorldMatrix(true, false);
+      const phBox = new THREE.Box3().setFromObject(placeholder);
+      const phSize = phBox.getSize(new THREE.Vector3());
+      const box = new THREE.Box3().setFromObject(visual);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      if (!(size.y > 0) || !Number.isFinite(size.y)) throw new Error('degenerate bounds');
+      const worldPos = placeholder.getWorldPosition(new THREE.Vector3());
+
+      // fit law: 'height' scales the model to the slot's authored height;
+      // 'footprint' (flat pieces) covers the placeholder's XZ box. The
+      // footprint guard is the street seam's band (0.5–1.9×) — a mislabeled
+      // model (a lamp wearing the bed slot) bails whole, room keeps its box.
+      const s = slot.fitBy === 'footprint'
+        ? Math.min(phSize.x / size.x, phSize.z / size.z)
+        : slot.height / size.y;
+      const scaledX = size.x * s, scaledZ = size.z * s;
+      if (scaledX < phSize.x * 0.5 || scaledX > phSize.x * 1.9
+        || scaledZ < phSize.z * 0.5 || scaledZ > phSize.z * 1.9) {
+        throw new Error(`footprint mismatch (${scaledX.toFixed(2)}×${scaledZ.toFixed(2)} vs ${phSize.x.toFixed(2)}×${phSize.z.toFixed(2)})`);
+      }
+      if (slot.fitBy === 'footprint' && !(Math.abs(size.y * s - slot.height) < slot.height * 4 + 0.15)) {
+        throw new Error(`flat piece reads ${(size.y * s).toFixed(2)} m thick`);
+      }
+
+      const wrapper = new THREE.Group();
+      wrapper.name = `${slot.fixture}_glb`;
+      wrapper.position.set(worldPos.x, phBox.min.y, worldPos.z);
+      visual.position.set(-center.x, -box.min.y, -center.z);
+      visual.scale.setScalar(s);
+      wrapper.add(visual);
+      wrapper.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.receiveShadow = true; }
+      });
+
+      const parent = placeholder.parent;
+      if (!parent) throw new Error('placeholder was removed from the scene');
+      parent.add(wrapper);
+      parent.remove(placeholder);
+      this.disposeTree(placeholder);
+      for (const name of slot.hide ?? []) {
+        const sibling = parent.children.find((c) => c.name === name);
+        if (sibling) sibling.visible = false;
+      }
+      this.furnitureUpgrades.set(`${slot.room}:${slot.fixture}`, file);
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.info(`[furniture] ${slot.id} keeps its procedural look (${msg})`);
+      return false;
+    }
   }
 
   private makeMailbox(x: number, z: number): THREE.Group {
@@ -3609,11 +6210,23 @@ export class World {
       if (i === 0) this.washerLoad = drum;
       this.colliders.push(boxFromCenter(wx, 0.9, 7.75, 0.95, 1.5, 0.5));
     }
-    // a folded stack rides the far washer — the laundromat is working, even now
-    const stack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 0.4), this.mat(PAL.cream));
-    stack.position.set(CX + 0.3, 1.8, 7.75);
-    stack.castShadow = true;
-    this.scene.add(stack);
+    // a folded stack rides the far washer — the laundromat is working, even
+    // now. The audit pass: three laid towels (corners askew, the top one the
+    // teal of the service counter) instead of one cream cube.
+    const towelLayers: Array<[number, number, number, number, number]> = [
+      [0.52, 0.10, 0.42, 0.0, PAL.cream],
+      [0.47, 0.09, 0.38, 0.14, 0xb9b1a6],
+      [0.42, 0.09, 0.34, -0.08, PAL.teal],
+    ];
+    let towelY = 1.70;
+    for (const [tw, th, td, rot, tcol] of towelLayers) {
+      const t = new THREE.Mesh(new THREE.BoxGeometry(tw, th, td), this.mat(tcol));
+      t.position.set(CX + 0.3, towelY, 7.75);
+      t.rotation.y = rot;
+      t.castShadow = true;
+      this.scene.add(t);
+      towelY += th;
+    }
     // Sal's service counter — waist-high (a real service counter), at the
     // bay's mouth; Sal reads chest-up behind it. The first counter was
     // chest-high and from the street it swallowed him whole — a head on a
@@ -3650,29 +6263,36 @@ export class World {
    *  side walls, a back wall, a lintel, gravel underfoot, open sky above.
    *  The hidden corner the bulletin board's lost cat comes back to. */
   private buildAlley(): void {
+    // A-3 UNIT 7 (the shipped street's class C band, DEC-4 Option B): the
+    // slot READS its registry row (ALY-01) through regShell — the footprint
+    // and the 3 m open-sky law are the row's own truth; the walls sit half
+    // a thickness inside the row's side faces, the back wall 0.1 shy of the
+    // row's north face, the lintel caps the slot (top at the halves' first-
+    // floor line), and the approach strip / bag / wire dressing is style.
+    const aly = this.regShell('ALY-01');
     // gravel floor — flush with the sidewalk, no lip to trip a capsule.
     // W2 (docs/47): raised proud of the W1 yard slab, which had buried
     // these strips whole (top 0.1 over a floor that topped out at 0.06).
-    this.deco('Alley_Floor', 32.1, 0.125, 9.3, 2.8, 0.05, 2.6, 0x4a4552, {});
-    this.deco('Alley_Floor_2', 32.1, 0.125, 7.4, 2.8, 0.05, 1.2, 0x4a4552, {});
+    this.deco('Alley_Floor', aly.x, 0.125, aly.z, aly.w, 0.05, aly.d, 0x4a4552, {});
+    this.deco('Alley_Floor_2', aly.x, 0.125, 7.4, aly.w, 0.05, 1.2, 0x4a4552, {});
     // side walls (y 0–3) + back wall; the slot above y = 3 stays open — a
     // slice of sky between two sixteen-metre masses, exactly like a real
     // alley gives you
-    this.solid('Alley_Wall_W', 30.85, 1.5, 9.3, 0.3, 3, 2.7, PAL.brick);
-    this.solid('Alley_Wall_E', 33.35, 1.5, 9.3, 0.3, 3, 2.7, PAL.brick);
-    this.solid('Alley_Back', 32.1, 1.5, 10.5, 2.8, 3, 0.3, 0x6e554e);
+    this.solid('Alley_Wall_W', aly.x - aly.w / 2 + 0.15, aly.h / 2, aly.z, 0.3, aly.h, aly.d + 0.1, PAL.brick);
+    this.solid('Alley_Wall_E', aly.x + aly.w / 2 - 0.15, aly.h / 2, aly.z, 0.3, aly.h, aly.d + 0.1, PAL.brick);
+    this.solid('Alley_Back', aly.x, aly.h / 2, aly.z + aly.d / 2 - 0.1, aly.w, aly.h, 0.3, 0x6e554e);
     // the lintel ties the two building halves together over the mouth
-    this.solid('Alley_Lintel', 32.1, 3.45, 9.3, 3.2, 1.1, 3.4, PAL.bldg);
+    this.solid('Alley_Lintel', aly.x, aly.h + 0.45, aly.z, aly.w + 0.4, 1.1, aly.d + 0.8, PAL.bldg);
     // one honest trash bag — the alley is somebody's Tuesday
     this.decoMesh('Alley_Bag', new THREE.SphereGeometry(0.28, 8, 6), this.mat(PAL.ink), 31.6, 0.28, 9.9);
     // a string of dead bulbs across the mouth (unlit: the city fixes these
     // eventually) — one thin ink wire, two glass nubs
     const wire = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.015, 0.015), this.mat(PAL.ink));
-    wire.position.set(32.1, 2.82, 8.1);
+    wire.position.set(aly.x, 2.82, aly.z - aly.d / 2 + 0.1);
     this.scene.add(wire);
     for (const bx of [31.4, 32.8]) {
       const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 6), this.mat(PAL.cream));
-      bulb.position.set(bx, 2.74, 8.1);
+      bulb.position.set(bx, 2.74, aly.z - aly.d / 2 + 0.1);
       this.scene.add(bulb);
     }
   }
@@ -3825,12 +6445,15 @@ export class World {
    *  umbrella, gold sign. Lateral clearance to the cab's rail (z = −2) is
    *  2.55 m: the cab's half-width plus the cart's cannot reach contact. */
   private buildVendorCart(): void {
+    // A-3 UNIT 7: the cart's placement AND collider read the registry row
+    // (VND-01) through regShell — the cart builder's own body is the style.
+    const vnd = this.regShell('VND-01');
     const cart = makeVendorCart(this.bank, this.signMaterials.bind(this), 'DIRTY WATER DOGS');
-    cart.position.set(29.8, 0.05, -4.55);
+    cart.position.set(vnd.x, 0.05, vnd.z);
     cart.name = 'Dressing_VendorCart';
     this.zoneDressing.push(cart);
     this.scene.add(cart);
-    this.colliders.push(boxFromCenter(29.8, 0.6, -4.55, 1.7, 1.2, 0.9));
+    this.colliders.push(boxFromCenter(vnd.x, 0.6, vnd.z, vnd.w, 1.2, vnd.d));
   }
 
   // ================================================================
@@ -3846,7 +6469,7 @@ export class World {
    *  merge. New trees do NOT join the fade pass (their camera guard is the
    *  sidestep + z-clamp; docs/47 W1 records the tradeoff). */
   private simpleTrees: Array<{ x: number; z: number; h: number; phase: number; top: number;
-    blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 }> }> = [];
+    blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 | 4 | 5 }> }> = [];
   private extraLeafSpots: Array<{ x: number; z: number; r: number; top: number; tints: number[] }> = [];
   /** The instanced canopy: ONE system for every tree on the block. Slots:
    *  0 leafA (0x5d7d4a) · 1 leafB (0x516e42) · 2 goldA (0xf7b32b) ·
@@ -3855,10 +6478,10 @@ export class World {
    *  the autumn golds land in 2/3. Four draw calls for every canopy on the
    *  block, main pass and shadow pass alike — the recorded Doc 07 lever
    *  (docs/47: 63 blob meshes × 2 passes → 4 × 2). */
-  private canopyMeshes: Array<THREE.InstancedMesh | null> = [null, null, null, null];
+  private canopyMeshes: Array<THREE.InstancedMesh | null> = [null, null, null, null, null, null];
   /** Per-instance fade alpha (the fade-on-occlude law: ONE tree dissolves,
    *  never the street). Simple rows stay at 1 forever (docs/47 W1 tradeoff). */
-  private canopyFade: Array<THREE.InstancedBufferAttribute | null> = [null, null, null, null];
+  private canopyFade: Array<THREE.InstancedBufferAttribute | null> = [null, null, null, null, null, null];
   private canopyBuilt = false;
   private readonly mSway = new THREE.Matrix4();
   private readonly mBlob = new THREE.Matrix4();
@@ -3901,14 +6524,20 @@ export class World {
     const pit = makeTreePit(this.bank);
     pit.position.set(x, 0.07, z);
     this.scene.add(pit);
-    const blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 }> = [];
+    this.treePits.push({ x, z });
+    // the species roll (W8): a position hash picks the tone — locust green
+    // (0/1, the shipped pair), a copper elm (4, ~1 in 7 trees), a dark pine
+    // (5, ~1 in 11). NO rng draws: the seeded rows' shapes stay identical.
+    const roll = Math.abs(Math.round(x * 13.7 + z * 7.3)) % 18;
+    const species: 0 | 1 | 4 | 5 = roll < 12 ? 0 : roll < 14 ? 1 : roll < 16 ? 4 : 5;
+    const blobs: Array<{ ox: number; oy: number; oz: number; r: number; mat: 0 | 1 | 4 | 5 }> = [];
     let top = h;
     for (let i = 0; i < 3; i++) {
       const r = 0.85 + rng() * 0.55;
       const cy = r * 0.45 + rng() * 0.5;
       const ox = (rng() - 0.5) * 0.9;
       const oz = (rng() - 0.5) * 0.9;
-      blobs.push({ ox, oy: cy, oz, r, mat: i === 0 ? 0 : (rng() < 0.5 ? 0 : 1) });
+      blobs.push({ ox, oy: cy, oz, r, mat: i === 0 ? species : (rng() < 0.5 ? species : (species === 0 ? 1 : species)) });
       top = Math.max(top, h + cy + r * 0.9);
     }
     this.simpleTrees.push({ x, z, h, phase: rng() * Math.PI * 2, top, blobs });
@@ -3917,6 +6546,59 @@ export class World {
     this.colliders.push(boxFromCenter(x, 1.15, z, 0.36, 2.2, 0.36));
     // the camera's sight-line guard sees every canopy
     this.canopySpheresCache.push({ x, y: top - 0.9, z, r: 2.15 });
+  }
+
+  // ---- A-3: the registry geometry flip (DEC-4 Option B, ruled 2026-11-07)
+  // A flipped building's PLACEMENT and DIMENSIONS come from its registry
+  // row at runtime (footprint x/z/w/d + height); the look stays the
+  // authored builder code (the style builders are code, not the thing
+  // being flipped). Fallback law: a registry row without footprint+height
+  // throws LOUDLY — the flip never invents geometry to fill a gap
+  // (wc-07's no-coordinates law, extended to rendering).
+  private regShells: Map<string, { x: number; z: number; w: number; d: number; h: number }> | null = null;
+  private regStatuses: Map<string, string | undefined> | null = null;
+  private ensureRegShells(): void {
+    if (!this.regShells) {
+      this.regShells = new Map();
+      this.regStatuses = new Map();
+      for (const b of loadRegistry().allBuildings()) {
+        const fp = b.footprint;
+        if (fp && b.height !== undefined && b.height > 0) {
+          this.regShells.set(b.id, { x: fp.x, z: fp.z, w: fp.w, d: fp.d, h: b.height });
+          this.regStatuses.set(b.id, b.status);
+        }
+      }
+    }
+  }
+  /** The registry shell of a flipped building — throws when the row is
+   *  missing or lacks footprint/height, so a data gap can never render,
+   *  and when the row still reads 'planned' (A-3 unit 4, 2026-11-08: the
+   *  status column was repaired the same day — a flipped band's row must
+   *  never be able to regress to unbuilt without failing loudly here). */
+  private regShell(registryId: string): { x: number; z: number; w: number; d: number; h: number } {
+    this.ensureRegShells();
+    const s = this.regShells?.get(registryId);
+    if (!s) throw new Error(`[A-3] registry building "${registryId}" has no footprint+height — the flip never invents geometry`);
+    if (this.regStatuses!.get(registryId) === 'planned') {
+      throw new Error(`[A-3] registry building "${registryId}" is still 'planned' — the flip never renders an unbuilt row (DEC-4 §5)`);
+    }
+    return s;
+  }
+
+  /** The registry footprint of a flipped SLOT row (h 0 — a cut or a station
+   *  anchor, not a mass: ALY-02 the garden slot, SUB-TS the far station).
+   *  Same refusals as regShell minus the height requirement — the row's
+   *  footprint is the truth even where no mass stands. */
+  private regFootprint(registryId: string): { x: number; z: number; w: number; d: number } {
+    this.ensureRegShells();
+    const s = this.regShells?.get(registryId);
+    if (s) return s;
+    const b = loadRegistry().allBuildings().find((x) => x.id === registryId);
+    if (!b || !b.footprint) throw new Error(`[A-3] registry building "${registryId}" has no footprint — the flip never invents geometry`);
+    if (b.status === 'planned') {
+      throw new Error(`[A-3] registry building "${registryId}" is still 'planned' — the flip never renders an unbuilt row (DEC-4 §5)`);
+    }
+    return { x: b.footprint.x, z: b.footprint.z, w: b.footprint.w, d: b.footprint.d };
   }
 
   private buildAlderHeightsW1(): void {
@@ -4004,74 +6686,98 @@ export class World {
     this.solid('Yard_S', 0, 0.0, -20, 120, 0.2, 24, 0x3a7355, { receive: true, cast: false });
 
     // ---- G. SUB-02 — the south control house (props.makeControlHouse) ----
+    // A-3 flipped (2026-11-08): the placement and the collider box READ the
+    // registry (SUB-02 — fp + height); the authored pavilion geometry (the
+    // style builder) stays.
+    const sub2reg = this.regShell('SUB-02');
     const sub2 = makeControlHouse(this.bank, this.signMaterials.bind(this));
-    sub2.position.set(-57, 0.05, -6.25);
+    sub2.position.set(sub2reg.x, 0.05, sub2reg.z);
     this.scene.add(sub2);
-    this.colliders.push(boxFromCenter(-57, 1.7, -6.25, 6, 3.4, 3.5));
+    this.colliders.push(boxFromCenter(sub2reg.x, sub2reg.h / 2, sub2reg.z, sub2reg.w, sub2reg.h, sub2reg.d));
 
     // ---- H. the shells: corner infills + the Marlow row ------------------
     // KTN-00W — the Corner House (chamfer pier toward the KJ intersection)
-    this.solid('KTN_00W', -55, 8, 14, 10, 16, 12, PAL.bldg2);
+    // A-3 flipped (2026-11-08): the mass, storefront anchor, window grid,
+    // crown, chamfer pier and water tower READ the registry (KTN-00W);
+    // the style constants (window rhythm, insets, the 45° cut) stay code.
+    const ktw = this.regShell('KTN-00W');
+    this.solid('KTN_00W', ktw.x, ktw.h / 2, ktw.z, ktw.w, ktw.h, ktw.d, PAL.bldg2);
     const ch = makeStorefront(this.bank, this.signMaterials.bind(this), 'CORNER HOUSE', PAL.brick, 8);
-    ch.position.set(-55, 0.05, 8.02);
+    ch.position.set(ktw.x, 0.05, ktw.z - ktw.d / 2 + 0.02);
     ch.rotation.y = Math.PI;
     this.scene.add(ch);
     for (let f = 0; f < 3; f++) for (let c = 0; c < 3; c++) {
-      this.decoMesh(`KTN00W_Win_${f}_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), -58.4 + c * 3.4, 7.2 + f * 2.9, 7.92);
+      this.decoMesh(`KTN00W_Win_${f}_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), ktw.x - ktw.w / 2 + 1.6 + c * 3.4, 7.2 + f * 2.9, ktw.z - ktw.d / 2 - 0.08);
     }
-    this.deco('KTN00W_Crown', -55, 15.4, 14, 10.2, 0.8, 12.2, PAL.stone, {});
+    this.deco('KTN00W_Crown', ktw.x, ktw.h - 0.6, ktw.z, ktw.w + 0.2, 0.8, ktw.d + 0.2, PAL.stone, {});
     // the corner-store cut: a 45° pier flush with the SW corner faces
-    const chamfer = this.deco('KTN00W_Chamfer', -59.68, 1.9, 8.32, 0.55, 3.8, 0.55, PAL.brick, {});
+    const chamfer = this.deco('KTN00W_Chamfer', ktw.x - ktw.w / 2 + 0.32, 1.9, ktw.z - ktw.d / 2 + 0.32, 0.55, 3.8, 0.55, PAL.brick, {});
     chamfer.rotation.y = Math.PI / 4;
-    this.waterTower(-55, 16, 12.5, 1.4); // LMK-03: the corners carry tanks too
+    this.waterTower(ktw.x, ktw.h, ktw.z - 1.5, 1.4); // LMK-03: the corners carry tanks too (the tank anchors 1.5 m south of the footprint center)
 
     // KTN-06 — 6 Kestrel St East, the café shell (papered, FOR RENT)
-    this.solid('KTN_06', 55, 8, 14, 10, 16, 12, PAL.brick);
+    // A-3 flipped (2026-11-08): the mass, window grid, papers, sign, door
+    // and water tower READ the registry (KTN-06); the style constants
+    // (paper insets, sign/door offsets, the tower's center-anchored 1.5 m
+    // south offset) stay code.
+    const kt6 = this.regShell('KTN-06');
+    this.solid('KTN_06', kt6.x, kt6.h / 2, kt6.z, kt6.w, kt6.h, kt6.d, PAL.brick);
     for (let f = 0; f < 3; f++) for (let c = 0; c < 3; c++) {
-      this.decoMesh(`KTN06_Win_${f}_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), 51.6 + c * 3.4, 7.2 + f * 2.9, 7.92);
+      this.decoMesh(`KTN06_Win_${f}_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), kt6.x - kt6.w / 2 + 1.6 + c * 3.4, 7.2 + f * 2.9, kt6.z - kt6.d / 2 - 0.08);
     }
     // the vacant ground floor: cream paper over the glass, day-keyed to lit
     // when the café opens (dressing hooks ride the registry, W5)
-    this.deco('KTN06_Paper_L', 52.2, 1.6, 7.9, 2.6, 3.2, 0.06, PAL.cream, {});
-    this.deco('KTN06_Paper_R', 57.8, 1.6, 7.9, 2.6, 3.2, 0.06, PAL.cream, {});
+    this.deco('KTN06_Paper_L', kt6.x - kt6.w / 2 + 2.2, 1.6, kt6.z - kt6.d / 2 - 0.1, 2.6, 3.2, 0.06, PAL.cream, {});
+    this.deco('KTN06_Paper_R', kt6.x + kt6.w / 2 - 2.2, 1.6, kt6.z - kt6.d / 2 - 0.1, 2.6, 3.2, 0.06, PAL.cream, {});
     this.signBoard('KTN06_ForRent', 'FOR RENT', 1.5, 1.0, 0.06, 256, 160, PAL.cream, PAL.ink, 42)
-      .position.set(55, 1.9, 7.86);
-    this.deco('KTN06_Door', 55, 1.4, 7.95, 1.4, 2.8, 0.12, 0x6e554e, {});
-    this.waterTower(55, 16, 12.5, 1.4);
+      .position.set(kt6.x, 1.9, kt6.z - kt6.d / 2 - 0.14);
+    this.deco('KTN06_Door', kt6.x, 1.4, kt6.z - kt6.d / 2 - 0.05, 1.4, 2.8, 0.12, 0x6e554e, {});
+    this.waterTower(kt6.x, kt6.h, kt6.z - 1.5, 1.4);
 
-    // the Marlow row: three shopfronts + three walk-ups (doors and windows
-    // face Marlow — the registry's entrance rows are corrected to z −32)
-    const marlowShops: Array<[string, string, number, number, number, string]> = [
-      ['SMB_01', 'MARLOW BAKERY', -34, 8, PAL.bldg2, 'Bakery_Glass'],
-      ['SMB_02', 'B-SIDE RECORDS', -25, 6, PAL.brick, 'Records_Glass'],
-      ['SMB_03', 'KESTREL HARDWARE', -17, 6, PAL.bldg, ''],
+    // the Marlow row: three shopfronts (doors and windows face Marlow —
+    // the registry's entrance rows are corrected to z −32)
+    // A-3 flipped (2026-11-08): the three shop masses, storefront anchors,
+    // window rows and the bakery's bagel READ the registry (SMB-01/02/03);
+    // the style constants (sign widths, window rhythm) stay code.
+    const marlowShops: Array<[string, string, number, string]> = [
+      ['SMB_01', 'MARLOW BAKERY', PAL.bldg2, 'Bakery_Glass'],
+      ['SMB_02', 'B-SIDE RECORDS', PAL.brick, 'Records_Glass'],
+      ['SMB_03', 'KESTREL HARDWARE', PAL.bldg, ''],
     ];
-    for (const [id, label, x, w, col, glassName] of marlowShops) {
-      this.solid(id, x, 6, -26, w, 12, 12, col);
-      const shop = makeStorefront(this.bank, this.signMaterials.bind(this), label, PAL.teal, w - 1, glassName || undefined);
-      shop.position.set(x, 0.05, -32.02);
+    for (const [id, label, col, glassName] of marlowShops) {
+      const reg = this.regShell(id.replace('_', '-'));
+      this.solid(id, reg.x, reg.h / 2, reg.z, reg.w, reg.h, reg.d, col);
+      const shop = makeStorefront(this.bank, this.signMaterials.bind(this), label, PAL.teal, reg.w - 1, glassName || undefined);
+      shop.position.set(reg.x, 0.05, reg.z - reg.d / 2 - 0.02);
       shop.rotation.y = Math.PI; // the street is SOUTH of the row
       this.scene.add(shop);
       for (let c = 0; c < 2; c++) {
-        this.decoMesh(`${id}_Win_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), x - w / 2 + 1.6 + c * (w - 3.2), 8.6, -31.94);
+        this.decoMesh(`${id}_Win_${c}`, new THREE.BoxGeometry(1.2, 1.6, 0.08), this.bank.get(PAL.windowDim), reg.x - reg.w / 2 + 1.6 + c * (reg.w - 3.2), 8.6, reg.z - reg.d / 2 + 0.06);
       }
     }
     // the bakery's bagel silhouette in the window (Doc 04 object canon #8)
+    const smb1 = this.regShell('SMB-01');
     const bagel = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.13, 8, 18), this.bank.get(0xd9a05b));
-    bagel.position.set(-34, 1.7, -32.3);
+    bagel.position.set(smb1.x, 1.7, smb1.z - smb1.d / 2 - 0.3);
     this.scene.add(bagel);
-    const marlowWalkups: Array<[string, number, number, number]> = [
-      ['PWK_01', -44, 8, PAL.bldg], ['PWK_02', 5, 10, PAL.bldg2], ['PWK_03', 17, 10, PAL.bldg],
+
+    // the Marlow walk-ups — A-3 flipped (2026-11-07): placement and
+    // dimensions READ the registry (PWK-01/02/03); the hand constants
+    // retired. The window rows and the stoops derive from the same
+    // registry numbers (the look stays the authored builder code).
+    const marlowWalkups: Array<[string, string, number]> = [
+      ['PWK_01', 'PWK-01', PAL.bldg], ['PWK_02', 'PWK-02', PAL.bldg2], ['PWK_03', 'PWK-03', PAL.bldg],
     ];
     const pwkDoors = [PAL.teal, PAL.coral, 0x6d4c7d];
     let pwkDoorIdx = 0;
-    for (const [id, x, w, col] of marlowWalkups) {
-      this.solid(id, x, 7.5, -26, w, 15, 12, col);
+    for (const [id, regId, col] of marlowWalkups) {
+      const reg = this.regShell(regId);
+      this.solid(id, reg.x, reg.h / 2, reg.z, reg.w, reg.h, reg.d, col);
       for (let f = 0; f < 4; f++) for (let c = 0; c < 3; c++) {
-        this.decoMesh(`${id}_Win_${f}_${c}`, new THREE.BoxGeometry(1.1, 1.7, 0.08), this.bank.get(PAL.windowDim), x - w / 2 + 1.5 + c * ((w - 3) / 2), 3.4 + f * 2.9, -31.94);
+        this.decoMesh(`${id}_Win_${f}_${c}`, new THREE.BoxGeometry(1.1, 1.7, 0.08), this.bank.get(PAL.windowDim), reg.x - reg.w / 2 + 1.5 + c * ((reg.w - 3) / 2), 3.4 + f * 2.9, reg.z - reg.d / 2 + 0.06);
       }
       const stoop = makeBrownstoneStoop(this.bank, pwkDoors[pwkDoorIdx++ % 3]);
-      stoop.position.set(x, 0, -32.6);
+      stoop.position.set(reg.x, 0, reg.z - reg.d / 2 - 0.6);
       this.scene.add(stoop);
     }
 
@@ -4086,6 +6792,7 @@ export class World {
       const pit = makeTreePit(this.bank);
       pit.position.set(tx, 0.07, tz);
       this.scene.add(pit);
+      this.treePits.push({ x: tx, z: tz });
       const t = makeTree(this.bank, rng, false);
       t.group.position.set(tx, 0.05, tz);
       t.group.rotation.y = rng() * Math.PI * 2;
@@ -4134,7 +6841,12 @@ export class World {
       this.scene.add(lamp);
       this.colliders.push(boxFromCenter(lx, 2.6, lz, 0.24, 5.2, 0.24));
     });
-    for (const [hx, hz] of [[-60, -4.55], [-10, 43.45], [10, -35.25], [-30, 4.55]] as const) {
+    // W8 (2026-11-12): the west hydrant slides (−60 → −61.6) — its old
+    // curb spot pinched the new station corridor's west exit against the
+    // control house face (0.63 m — no capsule fits; the walk-ability
+    // probe's corridor sweep caught it). Still a curb hydrant, off the
+    // through-path.
+    for (const [hx, hz] of [[-61.6, -4.55], [-10, 43.45], [10, -35.25], [-30, 4.55]] as const) {
       const hyd = makeHydrant(this.bank);
       hyd.position.set(hx, 0.05, hz);
       this.scene.add(hyd);
@@ -4169,23 +6881,25 @@ export class World {
    *  Same grammar as the shipped alley: a party-wall slot with open sky
    *  above, gravel underfoot, a lintel over the mouth. */
   private buildGardenSlot(): void {
-    // the laundry mass loses its east 2.5 m: same material, same height
-    const old = this.scene.children.find((c) => c.name === 'Bldg_N_East_A');
-    if (old) {
-      this.scene.remove(old);
-      (old as THREE.Mesh).geometry.dispose();
-      const ci = this.colliders.findIndex((b) =>
-        Math.abs(b.minX + 11) < 0.01 && Math.abs(b.maxX - 9) < 0.01
-        && Math.abs(b.minZ - 8) < 0.01 && Math.abs(b.maxZ - 20) < 0.01);
-      if (ci >= 0) this.colliders[ci].maxX = 6.5; // the cut face IS the wall
-    }
-    this.solid('Bldg_N_East_A_West', -2.25, 9, 14, 17.5, 18, 12, PAL.bldg2);
+    // A-3 UNIT 8 (the shipped street's class B band, DEC-4 Option B): the
+    // laundry mass READS its registry row (KTN-02) through regShell and the
+    // slot READS its row (ALY-02) through regFootprint — the cut lands
+    // between the row's east face and the ginkgo building's west face (the
+    // registry's own street plan: KTN-02 west, ALY-02 the slot, KTN-03
+    // east), LAUNDRY-INT untouched. The constructor's old dead mass
+    // (Bldg_N_East_A, retired here since the W2 decomposition) is gone —
+    // the west half builds ONCE, from the row; the gravel/lintel dressing
+    // rides the slot row, the open-sky gap is the slot row's own truth.
+    const ktn2 = this.regShell('KTN-02');
+    const aly2 = this.regFootprint('ALY-02');
+    this.solid('Bldg_N_East_A_West', ktn2.x, ktn2.h / 2, ktn2.z, ktn2.w, ktn2.h, ktn2.d, PAL.bldg2);
     // gravel floor, a hair PROUD of the yard slab (top 0.1 — the W1 yard
     // buried the first draft at 0.085; the parks' proud-slab grammar applies)
-    this.deco('GardenSlot_Floor_a', 7.75, 0.125, 11, 2.5, 0.05, 6, 0x4a4552, {});
-    this.deco('GardenSlot_Floor_b', 7.75, 0.125, 17, 2.5, 0.05, 6, 0x4a4552, {});
-    // the lintel ties the two masses together over the mouth
-    this.solid('GardenSlot_Lintel', 7.75, 3.55, 8.4, 3.1, 1.1, 1.6, PAL.bldg2);
+    this.deco('GardenSlot_Floor_a', aly2.x, 0.125, aly2.z - aly2.d / 4, aly2.w, 0.05, aly2.d / 2, 0x4a4552, {});
+    this.deco('GardenSlot_Floor_b', aly2.x, 0.125, aly2.z + aly2.d / 4, aly2.w, 0.05, aly2.d / 2, 0x4a4552, {});
+    // the lintel ties the two masses together over the mouth (its rise and
+    // depth are the mouth's own style; its x/w ride the slot row)
+    this.solid('GardenSlot_Lintel', aly2.x, 3.55, aly2.z - aly2.d / 2 + 0.4, aly2.w + 0.6, 1.1, 1.6, PAL.bldg2);
   }
 
   /** W2, section B — R-ALLEY: the shipped slot opens north. The back wall
@@ -4252,6 +6966,7 @@ export class World {
       const pit = makeTreePit(this.bank);
       pit.position.set(tx, 0.16, tz);
       this.scene.add(pit);
+      this.treePits.push({ x: tx, z: tz });
       const t = makeTree(this.bank, rng, false);
       t.group.position.set(tx, 0.15, tz);
       t.group.rotation.y = rng() * Math.PI * 2;
@@ -4424,43 +7139,52 @@ export class World {
    *  Fatima's — under restoration, scaffold hint now, studio never (the
    *  registry's exterior-only promise). */
   private buildGableRow(): void {
-    const grb: Array<[string, number, number, boolean]> = [
-      // [id, center x, door color, scaffold]
-      ['GRB_01', -42.6, 0xff6b6b, false],   // the Okafor house — stoop-sale host
-      ['GRB_02', -35, 0x6d4c7d, false],     // plum door
-      ['GRB_03', -27.4, 0x6e554e, true],    // Fatima's — restoration scaffold
-      ['GRB_04', -19.8, PAL.teal, false],   // teal door
-      ['GRB_05', -12.2, PAL.coral, false],  // coral door
+    const grb: Array<[string, number, boolean]> = [
+      // [solid id, door color, scaffold] — A-3 UNIT 4 (W2-C, DEC-4 Option B
+      // approved 2026-11-08): the mass, cornice, parlor/upper window rows
+      // and the high stoop READ the registry's own rows (GRB-01..05, keyed
+      // by the REGISTRY id; the solid name derives by the shipped -→_ law)
+      // through regShell — the hand-transcribed tuples retire for the band.
+      // The stoop doors, the window rhythm, the scaffold hint are the style
+      // and stay code, expressed against the registry box (brief §5: the
+      // flip moves coordinates, not looks).
+      ['GRB_01', 0xff6b6b, false],          // the Okafor house — stoop-sale host
+      ['GRB_02', 0x6d4c7d, false],          // plum door
+      ['GRB_03', 0x6e554e, true],           // Fatima's — restoration scaffold
+      ['GRB_04', PAL.teal, false],          // teal door
+      ['GRB_05', PAL.coral, false],         // coral door
     ];
-    for (const [id, cx, door, scaffold] of grb) {
-      this.solid(id, cx, 6.25, 26, 7.6, 12.5, 12, PAL.bldg2);
-      // the cornice caps the row (KTN00W crown grammar)
-      this.deco(`${id}_Cornice`, cx, 12.25, 26, 7.8, 0.5, 12.2, PAL.stone, {});
+    for (const [id, door, scaffold] of grb) {
+      const reg = this.regShell(id.replace('_', '-'));
+      const faceZ = reg.z + reg.d / 2; // the row's street face (the Gable walk side, z 34)
+      this.solid(id, reg.x, reg.h / 2, reg.z, reg.w, reg.h, reg.d, PAL.bldg2);
+      // the cornice caps the row (KTN00W crown grammar): h − 0.25 over w/d + 0.2
+      this.deco(`${id}_Cornice`, reg.x, reg.h - 0.25, reg.z, reg.w + 0.2, 0.5, reg.d + 0.2, PAL.stone, {});
       // tall parlor windows (y 4.6) + two upper floors (7.4 / 10.2)
-      for (const wx of [cx - 1.7, cx + 1.7]) {
+      for (const wx of [reg.x - 1.7, reg.x + 1.7]) {
         this.decoMesh(`${id}_Parlor_${wx}`, new THREE.BoxGeometry(1.3, 2.2, 0.08),
-          this.bank.get(PAL.windowDim), wx, 4.6, 32.05); // floats proud of the z 32 face (W1 grammar)
+          this.bank.get(PAL.windowDim), wx, 4.6, faceZ + 0.05); // floats proud of the street face (W1 grammar)
         for (const wy of [7.4, 10.2]) {
           this.decoMesh(`${id}_Win_${wx}_${wy}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
-            this.bank.get(PAL.windowDim), wx, wy, 32.05);
+            this.bank.get(PAL.windowDim), wx, wy, faceZ + 0.05);
         }
       }
       // the high stoop — the door base at y 0.72, every riser ≤ 0.35
       const stoop = makeBrownstoneStoop(this.bank, door, true);
-      stoop.position.set(cx, 0, 32.6);
+      stoop.position.set(reg.x, 0, faceZ + 0.6);
       this.scene.add(stoop);
       if (scaffold) {
         // restoration scaffold: two poles, a deck, a guard rail — the hint
         // the GDD Regular hook needs, nothing more
-        for (const px of [cx - 1.8, cx + 1.8]) {
+        for (const px of [reg.x - 1.8, reg.x + 1.8]) {
           this.decoMesh(`GRB03_Pole_${px}`, new THREE.BoxGeometry(0.16, 5.0, 0.16),
-            this.bank.get(0x8a6a4a), px, 2.5, 32.3);
-          this.colliders.push(boxFromCenter(px, 2.5, 32.3, 0.18, 5.0, 0.18));
+            this.bank.get(0x8a6a4a), px, 2.5, faceZ + 0.3);
+          this.colliders.push(boxFromCenter(px, 2.5, faceZ + 0.3, 0.18, 5.0, 0.18));
         }
         this.decoMesh('GRB03_Deck', new THREE.BoxGeometry(3.8, 0.1, 0.9),
-          this.bank.get(0x8a6a4a), cx, 3.3, 32.35);
+          this.bank.get(0x8a6a4a), reg.x, 3.3, faceZ + 0.35);
         this.decoMesh('GRB03_Rail', new THREE.BoxGeometry(3.8, 0.06, 0.06),
-          this.bank.get(0x3a3440), cx, 4.15, 32.7);
+          this.bank.get(0x3a3440), reg.x, 4.15, faceZ + 0.7);
       }
     }
   }
@@ -4501,96 +7225,109 @@ export class World {
   private buildJuniperFaces(): void {
     // TEN-01 — two 4.5 m tenements with the light-slot between (registry
     // footprint is the pair's 10 m bounding; the slot is the airshaft tell)
-    for (const [id, x0, x1] of [['TEN_01a', -60, -55.5], ['TEN_01b', -54.5, -50]] as const) {
-      const cx = (x0 + x1) / 2, w = x1 - x0;
-      this.solid(id, cx, 8.5, -14, w, 17, 12, PAL.brick);
-      this.deco(`${id}_Cornice`, cx, 16.75, -14, w + 0.2, 0.5, 12.2, PAL.stone, {});
+    // A-3 UNIT 6 (W3-C, DEC-4 Option B): the pair's bounding box READS the
+    // registry row (TEN-01) through regShell; the lot split and the slot
+    // are the style, derived against the registry box. Hand tuples retired.
+    const ten = this.regShell('TEN-01');
+    const lotW = (ten.w - 1) / 2; // the 1 m light-slot owns the middle
+    for (const [id, x0] of [['TEN_01a', ten.x - ten.w / 2], ['TEN_01b', ten.x + 0.5]] as const) {
+      const cx = x0 + lotW / 2, w = lotW;
+      this.solid(id, cx, ten.h / 2, ten.z, w, ten.h, ten.d, PAL.brick);
+      this.deco(`${id}_Cornice`, cx, ten.h - 0.25, ten.z, w + 0.2, 0.5, ten.d + 0.2, PAL.stone, {});
       for (let f = 0; f < 5; f++) {
         for (const wx of [cx - w / 4, cx + w / 4]) {
           this.decoMesh(`${id}_Win_${f}_${wx}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
-            this.bank.get(PAL.windowDim), wx, 3.4 + f * 2.6, -7.92);
+            this.bank.get(PAL.windowDim), wx, 3.4 + f * 2.6, ten.z + ten.d / 2 + 0.08);
         }
       }
       // west-face windows — only the avenue lot reads the walk (the east
       // lot's west face IS the light-slot)
       if (id === 'TEN_01a') {
         for (let f = 0; f < 5; f++) {
-          for (const wz of [-16.5, -11.5]) {
+          for (const wz of [-16.5, -11.5]) { // the style rhythm off the row center
             this.decoMesh(`${id}_WinW_${f}_${wz}`, new THREE.BoxGeometry(0.08, 1.6, 1.1),
-              this.bank.get(PAL.windowDim), -60.04, 3.4 + f * 2.6, wz);
+              this.bank.get(PAL.windowDim), ten.x - ten.w / 2 - 0.04, 3.4 + f * 2.6, wz);
           }
         }
       }
     }
     // the two Kestrel-side doors (registry: (−57, −8) and (−51, −8), faces N)
-    for (const dx of [-57, -51]) {
-      this.deco(`TEN01_Door_${dx}`, dx, 1.4, -7.94, 1.2, 2.8, 0.12, 0x6e554e, {});
+    for (const dx of [-57, -51]) { // the rows' own entrance offsets (the style law)
+      this.deco(`TEN01_Door_${dx}`, dx, 1.4, ten.z + ten.d / 2 + 0.06, 1.2, 2.8, 0.12, 0x6e554e, {});
     }
     // the light-slot: 1 m of open sky between the lots, grilles at both
     // mouths so nobody wedges in an airshaft (the doc 35 lesson)
-    for (const gz of [-7.95, -20.05]) {
+    for (const gz of [ten.z + ten.d / 2 + 0.05, ten.z - ten.d / 2 - 0.05]) {
       const grille = makeFence(this.bank, 1.0, 1.3);
-      grille.position.set(-55, 0.05, gz);
+      grille.position.set(ten.x, 0.05, gz);
       this.scene.add(grille);
-      this.colliders.push(boxFromCenter(-55, 0.65, gz, 1.1, 1.3, 0.15));
+      this.colliders.push(boxFromCenter(ten.x, 0.65, gz, 1.1, 1.3, 0.15));
     }
     // fire escapes on both west faces (the silhouette builder, rotated to
     // face the avenue)
-    for (const ez of [-14]) {
+    for (const ez of [ten.z]) {
       const esc = makeFireEscapeDeco(this.bank, 4.4, 8.2);
-      esc.position.set(-60.02, 0, ez);
+      esc.position.set(ten.x - ten.w / 2 - 0.02, 0, ez);
       esc.rotation.y = -Math.PI / 2;
       this.scene.add(esc);
     }
 
     // SRC-02 Juniper Court (−55, −26, 10×12, h15) — pre-war walk-up
-    this.solid('SRC_02', -55, 7.5, -26, 10, 15, 12, PAL.bldg2);
-    this.deco('SRC02_Cornice', -55, 14.75, -26, 10.2, 0.5, 12.2, PAL.stone, {});
+    // A-3 UNIT 6: the mass READS the registry row (SRC-02); the window
+    // rhythm and the corrected Marlow-face door are the style.
+    const src2 = this.regShell('SRC-02');
+    this.solid('SRC_02', src2.x, src2.h / 2, src2.z, src2.w, src2.h, src2.d, PAL.bldg2);
+    this.deco('SRC02_Cornice', src2.x, src2.h - 0.25, src2.z, src2.w + 0.2, 0.5, src2.d + 0.2, PAL.stone, {});
     for (let f = 0; f < 4; f++) {
-      for (const wx of [-57.4, -52.6]) {
+      for (const wx of [src2.x - 2.4, src2.x + 2.4]) { // the style rhythm
         this.decoMesh(`SRC02_Win_${f}_${wx}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
-          this.bank.get(PAL.windowDim), wx, 3.6 + f * 2.7, -31.92); // south face (Marlow)
+          this.bank.get(PAL.windowDim), wx, 3.6 + f * 2.7, src2.z - src2.d / 2 + 0.08); // south face (Marlow)
       }
     }
     // the registry's north entrance pointed into TEN-01; corrected to the
     // Marlow face it actually fronts (docs/47)
-    this.deco('SRC02_Door', -55, 1.4, -32.06, 1.2, 2.8, 0.12, PAL.teal, {});
+    this.deco('SRC02_Door', src2.x, 1.4, src2.z - src2.d / 2 - 0.06, 1.2, 2.8, 0.12, PAL.teal, {});
     const src02Stoop = makeBrownstoneStoop(this.bank, PAL.teal);
-    src02Stoop.position.set(-55, 0, -32.6);
+    src02Stoop.position.set(src2.x, 0, src2.z - src2.d / 2 - 0.6);
     src02Stoop.rotation.y = Math.PI;
     this.scene.add(src02Stoop);
 
     // KCM-01 Alder Works Hall (−54, 26, 12×12, h15) — limestone base,
     // brick upper, painted band, the marquee (LMK-07)
-    this.solid('KCM_01_upper', -54, 9.1, 26, 12, 11.8, 12, PAL.brick);
-    this.solid('KCM_01_base', -54, 1.6, 26, 12.1, 3.2, 12.1, PAL.stone);
-    this.deco('KCM01_Band_W', -60.06, 3.55, 26, 0.12, 0.7, 12.1, PAL.teal, {});
-    this.deco('KCM01_Band_N', -54, 3.55, 32.06, 12.1, 0.7, 0.12, PAL.teal, {});
+    // A-3 UNIT 6: the mass READS the registry row (KCM-01); the base/upper
+    // split, the painted band, the marquee (LMK-07) and the address tile
+    // are the style, derived against the registry box.
+    const kcm = this.regShell('KCM-01');
+    const HALL_BASE_H = 3.2; // the limestone base's height (the style law)
+    this.solid('KCM_01_upper', kcm.x, HALL_BASE_H + (kcm.h - HALL_BASE_H) / 2, kcm.z, kcm.w, kcm.h - HALL_BASE_H, kcm.d, PAL.brick);
+    this.solid('KCM_01_base', kcm.x, HALL_BASE_H / 2, kcm.z, kcm.w + 0.1, HALL_BASE_H, kcm.d + 0.1, PAL.stone);
+    this.deco('KCM01_Band_W', kcm.x - kcm.w / 2 - 0.06, 3.55, kcm.z, 0.12, 0.7, kcm.d + 0.1, PAL.teal, {});
+    this.deco('KCM01_Band_N', kcm.x, 3.55, kcm.z + kcm.d / 2 + 0.06, kcm.w + 0.1, 0.7, 0.12, PAL.teal, {});
     // main entrance on the Juniper walk + the Gable-side door
-    this.deco('KCM01_Door_Main', -60.06, 1.5, 26, 0.14, 3.0, 1.8, 0x6e554e, {});
-    this.deco('KCM01_Door_N', -54, 1.5, 32.06, 1.4, 3.0, 0.14, 0x6e554e, {});
+    this.deco('KCM01_Door_Main', kcm.x - kcm.w / 2 - 0.06, 1.5, kcm.z, 0.14, 3.0, 1.8, 0x6e554e, {});
+    this.deco('KCM01_Door_N', kcm.x, 1.5, kcm.z + kcm.d / 2 + 0.06, 1.4, 3.0, 0.14, 0x6e554e, {});
     // the marquee: a projecting board over the main door (LMK-07) — 'x'
     // boards run thickness-in-x, width-in-z (the bodega blade's convention)
     const marquee = this.signBoard('LMK07_Marquee', 'ALDER WORKS', 0.22, 0.85, 3.0, 512, 128, PAL.ink, PAL.cream, 56, 'x');
-    marquee.position.set(-60.5, 4.1, 26);
+    marquee.position.set(kcm.x - kcm.w / 2 - 0.5, 4.1, kcm.z);
     this.scene.add(marquee);
-    for (const rz of [25.1, 26.9]) {
+    for (const rz of [kcm.z - 0.9, kcm.z + 0.9]) {
       this.decoMesh(`LMK07_Rod_${rz}`, new THREE.BoxGeometry(0.9, 0.06, 0.06),
-        this.bank.get(PAL.ink), -59.85, 4.35, rz);
+        this.bank.get(PAL.ink), kcm.x - kcm.w / 2 + 0.15, 4.35, rz);
     }
     // the painted-tile address under the marquee line
     const addr = this.signBoard('KCM01_Address', 'EST. 1927', 0.08, 0.5, 1.6, 256, 80, PAL.stone, PAL.ink, 40, 'x');
-    addr.position.set(-60.1, 2.7, 26);
+    addr.position.set(kcm.x - kcm.w / 2 - 0.1, 2.7, kcm.z);
     this.scene.add(addr);
     // hall windows (upper floors, west + north)
     for (let f = 0; f < 3; f++) {
-      for (const wz of [22.5, 29.5]) {
+      for (const wz of [kcm.z - 3.5, kcm.z + 3.5]) { // the style rhythm
         this.decoMesh(`KCM01_WinW_${f}_${wz}`, new THREE.BoxGeometry(0.08, 1.7, 1.3),
-          this.bank.get(PAL.windowDim), -60.04, 5.4 + f * 2.8, wz);
+          this.bank.get(PAL.windowDim), kcm.x - kcm.w / 2 - 0.04, 5.4 + f * 2.8, wz);
       }
-      for (const wx of [-57.5, -50.5]) {
+      for (const wx of [kcm.x - 3.5, kcm.x + 3.5]) { // the style rhythm
         this.decoMesh(`KCM01_WinN_${f}_${wx}`, new THREE.BoxGeometry(1.3, 1.7, 0.08),
-          this.bank.get(PAL.windowDim), wx, 5.4 + f * 2.8, 32.04);
+          this.bank.get(PAL.windowDim), wx, 5.4 + f * 2.8, kcm.z + kcm.d / 2 + 0.04);
       }
     }
   }
@@ -4599,87 +7336,102 @@ export class World {
    *  diner (LMK-04), SRC-01 the corner court, VND-02 the fruit stand. */
   private buildSycamoreFaces(): void {
     // KTN-07 Sycamore Studios (54, 26, 12×12, h15)
-    this.solid('KTN_07', 54, 7.5, 26, 12, 15, 12, PAL.bldg);
-    this.deco('KTN07_Cornice', 54, 14.75, 26, 12.2, 0.5, 12.2, PAL.stone, {});
+    // A-3 UNIT 6 (W3-C, DEC-4 Option B): the mass READS the registry row
+    // (KTN-07); the studio windows and the walk-up doors are the style,
+    // derived against the registry box. Hand tuples retired.
+    const k7 = this.regShell('KTN-07');
+    this.solid('KTN_07', k7.x, k7.h / 2, k7.z, k7.w, k7.h, k7.d, PAL.bldg);
+    this.deco('KTN07_Cornice', k7.x, k7.h - 0.25, k7.z, k7.w + 0.2, 0.5, k7.d + 0.2, PAL.stone, {});
     // the artist ground floor: big north studio windows
-    for (const wx of [51.2, 54, 56.8]) {
+    for (const wx of [k7.x - 2.8, k7.x, k7.x + 2.8]) { // the style rhythm
       this.decoMesh(`KTN07_Studio_${wx}`, new THREE.BoxGeometry(2.2, 1.9, 0.08),
-        this.bank.get(0x3b3346), wx, 1.9, 32.05);
+        this.bank.get(0x3b3346), wx, 1.9, k7.z + k7.d / 2 + 0.05);
     }
     for (let f = 0; f < 3; f++) {
-      for (const wx of [51.5, 56.5]) {
+      for (const wx of [k7.x - 2.5, k7.x + 2.5]) { // the style rhythm
         this.decoMesh(`KTN07_Win_${f}_${wx}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
-          this.bank.get(PAL.windowDim), wx, 5.4 + f * 2.7, 32.04);
+          this.bank.get(PAL.windowDim), wx, 5.4 + f * 2.7, k7.z + k7.d / 2 + 0.04);
       }
     }
     // doors: the registry's studio door off the yard (55, 20, S) + the
     // Sycamore-walk entrance the walk-up needs (added to the registry)
-    this.deco('KTN07_Door_S', 55, 1.4, 19.94, 1.2, 2.8, 0.12, 0x6e554e, {});
-    this.deco('KTN07_Door_E', 60.06, 1.5, 24, 0.14, 3.0, 1.4, PAL.teal, {});
+    this.deco('KTN07_Door_S', 55, 1.4, k7.z - k7.d / 2 - 0.06, 1.2, 2.8, 0.12, 0x6e554e, {});
+    this.deco('KTN07_Door_E', k7.x + k7.w / 2 + 0.06, 1.5, 24, 0.14, 3.0, 1.4, PAL.teal, {});
 
     // SND-01 the Alder Heights Diner (55, −14, 10×12, h13)
-    this.solid('SND_01_upper', 55, 8.1, -14, 10, 9.8, 12, PAL.brick);
-    this.solid('SND_01_band', 55, 1.6, -14, 10.1, 3.2, 12.1, PAL.cream);
+    // A-3 UNIT 6: the mass READS the registry row (SND-01); the porcelain
+    // band, the corner chamfer, the neon (LMK-04), the rooftop sign and
+    // the doors are the style, derived against the registry box.
+    const snd = this.regShell('SND-01');
+    const DINER_BAND_H = 3.2; // the porcelain band's height (the style law)
+    this.solid('SND_01_upper', snd.x, DINER_BAND_H + (snd.h - DINER_BAND_H) / 2, snd.z, snd.w, snd.h - DINER_BAND_H, snd.d, PAL.brick);
+    this.solid('SND_01_band', snd.x, DINER_BAND_H / 2, snd.z, snd.w + 0.1, DINER_BAND_H, snd.d + 0.1, PAL.cream);
     // band windows — the porcelain ribbon
-    for (const bx of [52.4, 57.6]) {
+    for (const bx of [snd.x - 2.6, snd.x + 2.6]) { // the style rhythm
       this.decoMesh(`SND01_BandWin_${bx}`, new THREE.BoxGeometry(3.4, 1.5, 0.08),
-        this.bank.get(0x3b3346), bx, 1.7, -7.95);
+        this.bank.get(0x3b3346), bx, 1.7, snd.z + snd.d / 2 + 0.05);
     }
     // the corner chamfer at Sycamore×Kestrel (NE), with the coral neon blade
-    const chamfer = this.deco('SND01_Chamfer', 59.45, 1.7, -8.55, 0.9, 3.4, 0.9, PAL.cream, {});
+    const chamfer = this.deco('SND01_Chamfer', snd.x + snd.w / 2 - 0.55, 1.7, snd.z + snd.d / 2 - 0.55, 0.9, 3.4, 0.9, PAL.cream, {});
     chamfer.rotation.y = Math.PI / 4;
     // the coral neon: flush on the Sycamore face by the corner — an inset
     // chamfer sign hides from both streets, a wall sign reads up and down
     // the avenue (the first draft sat in the chamfer and the shots caught it)
     const neon = this.signBoard('LMK04_Neon', 'DINER', 0.14, 2.6, 0.75, 128, 512, PAL.coral, PAL.cream, 84, 'x');
-    neon.position.set(60.12, 2.5, -9.4);
+    neon.position.set(snd.x + snd.w / 2 + 0.12, 2.5, snd.z + 4.6);
     this.scene.add(neon);
     const neonGlow = this.makeGlow(2.4);
-    neonGlow.position.set(60.5, 2.5, -9.4);
+    neonGlow.position.set(snd.x + snd.w / 2 + 0.5, 2.5, snd.z + 4.6);
     this.scene.add(neonGlow);
     // doors: Kestrel walk (N) + Sycamore walk (E)
-    this.deco('SND01_Door_N', 55, 1.5, -7.94, 1.4, 3.0, 0.12, 0x6e554e, {});
-    this.deco('SND01_Door_E', 60.06, 1.5, -14, 0.14, 3.0, 1.4, 0x6e554e, {});
+    this.deco('SND01_Door_N', snd.x, 1.5, snd.z + snd.d / 2 + 0.06, 1.4, 3.0, 0.12, 0x6e554e, {});
+    this.deco('SND01_Door_E', snd.x + snd.w / 2 + 0.06, 1.5, snd.z, 0.14, 3.0, 1.4, 0x6e554e, {});
     // the rooftop DINER sign, readable down Kestrel (faces west) — 'x'
     // board: thickness in x, the 7.6 m width running z, legs under it
-    for (const lz of [-13.2, -7.6]) {
+    for (const lz of [snd.z + 0.8, snd.z + 6.4]) { // the sign's leg pads (the style)
       this.decoMesh(`LMK04_Leg_${lz}`, new THREE.BoxGeometry(0.14, 1.6, 0.14),
-        this.bank.get(PAL.ink), 55, 13.8, lz);
+        this.bank.get(PAL.ink), snd.x, 13.8, lz);
     }
     const roofSign = this.signBoard('LMK04_Roof', 'DINER', 0.2, 1.9, 7.6, 640, 160, PAL.coral, PAL.cream, 96, 'x');
-    roofSign.position.set(55, 15.2, -10.4);
+    roofSign.position.set(snd.x, 15.2, snd.z + 3.6);
     this.scene.add(roofSign);
     // upper windows on the Sycamore face
     for (let f = 0; f < 3; f++) {
-      for (const wz of [-16.5, -11.5]) {
+      for (const wz of [snd.z - 2.5, snd.z + 2.5]) { // the style rhythm
         this.decoMesh(`SND01_Win_${f}_${wz}`, new THREE.BoxGeometry(0.08, 1.5, 1.3),
-          this.bank.get(PAL.windowDim), 60.04, 5.2 + f * 2.6, wz);
+          this.bank.get(PAL.windowDim), snd.x + snd.w / 2 + 0.04, 5.2 + f * 2.6, wz);
       }
     }
 
     // SRC-01 Sycamore Court (55, −26, 10×12, h17) — the SW corner
-    this.solid('SRC_01', 55, 8.5, -26, 10, 17, 12, PAL.bldg2);
-    this.deco('SRC01_Cornice', 55, 16.75, -26, 10.2, 0.5, 12.2, PAL.stone, {});
+    // A-3 UNIT 6: the mass READS the registry row (SRC-01); the window
+    // rows and the corrected Marlow-face door are the style.
+    const src1 = this.regShell('SRC-01');
+    this.solid('SRC_01', src1.x, src1.h / 2, src1.z, src1.w, src1.h, src1.d, PAL.bldg2);
+    this.deco('SRC01_Cornice', src1.x, src1.h - 0.25, src1.z, src1.w + 0.2, 0.5, src1.d + 0.2, PAL.stone, {});
     for (let f = 0; f < 5; f++) {
-      for (const wz of [-28.6, -23.4]) {
+      for (const wz of [src1.z - 2.6, src1.z + 2.6]) { // the style rhythm
         this.decoMesh(`SRC01_Win_${f}_${wz}`, new THREE.BoxGeometry(0.08, 1.6, 1.1),
-          this.bank.get(PAL.windowDim), 60.04, 3.4 + f * 2.6, wz);
+          this.bank.get(PAL.windowDim), src1.x + src1.w / 2 + 0.04, 3.4 + f * 2.6, wz);
       }
-      for (const wx of [52.6, 57.4]) {
+      for (const wx of [src1.x - 2.4, src1.x + 2.4]) { // the style rhythm
         this.decoMesh(`SRC01_WinS_${f}_${wx}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
-          this.bank.get(PAL.windowDim), wx, 3.4 + f * 2.6, -32.08);
+          this.bank.get(PAL.windowDim), wx, 3.4 + f * 2.6, src1.z - src1.d / 2 - 0.08);
       }
     }
     // registry entrance flipped to the Marlow face it fronts (docs/47)
-    this.deco('SRC01_Door', 55, 1.4, -32.06, 1.2, 2.8, 0.12, 0x6d4c7d, {});
+    this.deco('SRC01_Door', src1.x, 1.4, src1.z - src1.d / 2 - 0.06, 1.2, 2.8, 0.12, 0x6d4c7d, {});
     const src01Stoop = makeBrownstoneStoop(this.bank, 0x6d4c7d);
-    src01Stoop.position.set(55, 0, -32.6);
+    src01Stoop.position.set(src1.x, 0, src1.z - src1.d / 2 - 0.6);
     src01Stoop.rotation.y = Math.PI;
     this.scene.add(src01Stoop);
 
     // VND-02 — the GOLDEN ORCHARD fruit stand (63.3, −18): crate stack +
     // tarp canopy, the van's brand on the avenue. W3 correction (docs/47):
     // the registry's x 62.5 straddled the avenue spine at x 61.5.
+    // A-3 UNIT 6: the stand's placement AND its collider READ the row
+    // (VND-02); the crates, tarp and sign are the prop factory (the style).
+    const vnd = this.regShell('VND-02');
     const stand = new THREE.Group();
     stand.name = 'Dressing_FruitStand';
     const crateWood = this.bank.get(0x8a6a4a);
@@ -4704,50 +7456,83 @@ export class World {
     const fruit = this.signBoard('VND02_Sign', 'GOLDEN ORCHARD', 1.7, 0.34, 0.06, 384, 80, PAL.gold, PAL.ink, 34);
     fruit.position.set(0, 1.55, 0.62);
     stand.add(fruit);
-    stand.position.set(63.3, 0.05, -18);
+    stand.position.set(vnd.x, 0.05, vnd.z);
     this.zoneDressing.push(stand);
     this.scene.add(stand);
-    this.colliders.push(boxFromCenter(63.3, 0.6, -18, 2.2, 1.2, 1.2));
+    this.colliders.push(boxFromCenter(vnd.x, 0.6, vnd.z, vnd.w, 1.2, vnd.d));
   }
 
   /** W3, section C — the class-D backdrop walls: eight avenue segments and
    *  two roofline strips (docs/40 §3). Simplified masses, storefront hint
-   *  band, no interiors — the skyline-card honesty, one step closer. */
+   *  band, no interiors — the skyline-card honesty, one step closer.
+   *  A-3 UNIT 5 (W3-D, DEC-4 Option B): each row's segmentation derives
+   *  from the REGISTRY footprint (center/width/depth → equal slabs); the
+   *  VARIED per-segment heights are the authored style and stay code (the
+   *  registry's height column is the row's canonical height — the pin:
+   *  footprint verbatim, height inside the segment span). */
   private buildBackdrops(): void {
     const hint = (name: string, cx: number, cz: number, sx: number, sz: number): void => {
       const h = this.deco(name, cx, 1.7, cz, sx, 3.4, sz, PAL.windowDim, {});
       h.castShadow = false; // far hint bands: their shadows are noise (W3 perf)
     };
-    // Juniper W (x −82..−74): three slabs per segment per the registry notes
+    // Juniper W/E (x ±78 ±4): N slabs per row, split evenly across the
+    // registry depth
     const seg = (
-      id: string, x: number, z0: number, z1: number, heights: number[],
+      regId: string, heights: number[],
     ): void => {
+      const reg = this.regShell(regId);
+      const id = regId.replace(/-/g, '_'); // the solid's scene name — the shipped naming law
       const n = heights.length;
-      const d = (z1 - z0) / n;
+      const d = reg.d / n;
       for (let i = 0; i < n; i++) {
         const h = heights[i];
-        const cz = z0 + d * (i + 0.5);
-        this.solid(`${id}_${i}`, x, h / 2, cz, 8, h, d, i % 2 ? PAL.bldg : PAL.bldg2);
-        hint(`${id}_hint_${i}`, x, cz, 8.02, Math.min(d - 0.4, 7));
+        const cz = reg.z - reg.d / 2 + d * (i + 0.5);
+        this.solid(`${id}_${i}`, reg.x, h / 2, cz, reg.w, h, d, i % 2 ? PAL.bldg : PAL.bldg2);
+        hint(`${id}_hint_${i}`, reg.x, cz, reg.w + 0.02, Math.min(d - 0.4, 7));
       }
     };
-    seg('VDN_DW1a', -78, 8, 32, [14, 19, 16]);
-    seg('VDN_DW1b', -78, 46, 61, [15, 13]);
-    seg('VDN_DW1c', -78, -32, -8, [14, 21, 16]);
-    seg('VDN_DW1d', -78, -61, -46, [14, 12]);
-    seg('VDN_DE1a', 78, 8, 32, [17, 14, 16]);
-    seg('VDN_DE1b', 78, 46, 61, [15, 13]);
-    seg('VDN_DE1c', 78, -32, -8, [16, 22, 14]);
-    seg('VDN_DE1d', 78, -61, -46, [12, 14]);
-    // the Gable / Marlow roofline strips: rowhouse silhouettes, varied
+    seg('VDN-DW1a', [14, 19, 16]);
+    seg('VDN-DW1b', [15, 13]);
+    seg('VDN-DW1c', [14, 21, 16]);
+    seg('VDN-DW1d', [14, 12]);
+    seg('VDN-DE1a', [17, 14, 16]);
+    seg('VDN-DE1b', [15, 13]);
+    seg('VDN-DE1c', [16, 22, 14]);
+    seg('VDN-DE1d', [12, 14]);
+    // the Gable / Marlow roofline strips: rowhouse silhouettes, varied —
+    // each strip splits the registry width evenly
     const heightsN = [11, 13, 15, 12, 14, 13, 11, 15, 12, 14];
     const heightsS = [14, 12, 15, 13, 11, 14, 12, 15, 13, 11];
-    for (const [id, zc, hs] of [['VDN_DN1', 53.5, heightsN], ['VDN_DS1', -53.5, heightsS]] as const) {
+    const strip = (regId: string, hs: number[]): void => {
+      const reg = this.regShell(regId);
+      const id = regId.replace(/-/g, '_');
+      const w = reg.w / hs.length;
+      // The park-gate law (W10, 2026-11-13): these rows sealed the registered
+      // parks behind them — the pocket scan (diag-pocket-scan.mjs) found
+      // PRK-LARKIN / PRK-CARROW as unreachable free-space components while
+      // the owner stood at the band blocked. A gated segment builds two
+      // jambs + a lintel (head 2.6 m); the 3.2 m mouth is the park walk-in.
+      // terraceFaceFabric reads the same TERRACE_GATES table and skips its
+      // ground band across the mouth — mass and facade stay in lockstep.
+      const gates = TERRACE_GATES[regId];
       for (let i = 0; i < hs.length; i++) {
-        const cx = -60 + 12 * (i + 0.5);
-        this.solid(`${id}_${i}`, cx, hs[i] / 2, zc, 12, hs[i], 10, i % 2 ? PAL.bldg2 : PAL.bldg);
+        const cx = reg.x - reg.w / 2 + w * (i + 0.5);
+        const x0 = cx - w / 2, x1 = cx + w / 2;
+        const tone = i % 2 ? PAL.bldg2 : PAL.bldg;
+        const gate = gates?.find((g) => g.x0 < x1 - 0.05 && g.x1 > x0 + 0.05);
+        if (!gate) {
+          this.solid(`${id}_${i}`, cx, hs[i] / 2, reg.z, w, hs[i], reg.d, tone);
+          continue;
+        }
+        const gL = Math.max(x0, gate.x0), gR = Math.min(x1, gate.x1);
+        if (gL - x0 > 0.3) this.solid(`${id}_${i}a`, (x0 + gL) / 2, hs[i] / 2, reg.z, gL - x0, hs[i], reg.d, tone);
+        if (x1 - gR > 0.3) this.solid(`${id}_${i}b`, (gR + x1) / 2, hs[i] / 2, reg.z, x1 - gR, hs[i], reg.d, tone);
+        const lintelH = hs[i] - 2.6;
+        if (lintelH > 0.2) this.solid(`${id}_${i}L`, (gL + gR) / 2, 2.6 + lintelH / 2, reg.z, gR - gL, lintelH, reg.d, tone);
       }
-    }
+    };
+    strip('VDN-DN1', heightsN);
+    strip('VDN-DS1', heightsS);
   }
 
   /** W3, section D — the two painted landmarks: the Garden Mural (LMK-05,
@@ -4876,14 +7661,310 @@ export class World {
    *  alpha. The W1 simple rows' instances stay at aFade = 1 forever.
    *  Runs AFTER the bake — an InstancedMesh is a Mesh, and the bake must
    *  never swallow it. */
+  /** W6 — THE TERRACE BUILD-OUT (docs/production/terrace-buildout): the
+   *  playable core grows z ±48 → ±64 (the walls follow the registry's own
+   *  bounds) and the strips become real neighborhood. Eight new masses —
+   *  four brownstones continuing Gable's row north, four walk-ups/shops
+   *  continuing Marlow south — every one reading its registry row through
+   *  regShell (the no-invention law; the rows are status 'built (W6)').
+   *  Behind the pinned backdrop rows (VDN-DN1/DS1, footprints untouched)
+   *  the Larkin and Carrow gardens: lawn, gravel path, benches, street
+   *  trees riding the shipped simple-row grammar. The district bake's
+   *  clamp law puts the strips in the edge rows' tiles — same law the
+   *  backdrop rows have always lived under; zero grid surgery. */
+  private buildAlderHeightsW6Terrace(): void {
+    const rng = seededRng(20261111); // the wave's own seed — never re-tunes a shipped row
+
+    // ---- the terrace walk slabs (the walk plane continues to the walls) --
+    this.solid('Terrace_N_Walk', 0, -0.05, 56, 168, 0.3, 16, PAL.walk, { receive: true, cast: false });
+    this.solid('Terrace_S_Walk', 0, -0.05, -56, 168, 0.3, 16, PAL.walk, { receive: true, cast: false });
+
+    // ---- the eight terrace masses (A-3 law: every row via regShell) ------
+    interface TerraceStyle { mass: number; door: number; storefront?: string; awning?: number }
+    const terraceRows: Array<[string, TerraceStyle]> = [
+      // the Larkin terrace — Gable's brownstone row continues north (the
+      // strip's clean land is x −68..−60 / 60..68: the avenue roadways keep
+      // their corridors and the backdrop rows keep their footprints)
+      ['GRB_06', { mass: PAL.bldg2, door: PAL.teal }],
+      ['GRB_07', { mass: PAL.bldg2, door: 0x6d4c7d }],
+      // the Carrow terrace — Marlow's shop-and-walk-up row continues south
+      ['TEN_02', { mass: PAL.brick, door: 0x6d4c7d, storefront: 'CARROW FRUITS', awning: PAL.teal }],
+      ['KTS_04', { mass: PAL.brick, door: PAL.coral, storefront: 'TERRACE WINE', awning: 0x9e222e }],
+    ];
+    for (const [id, style] of terraceRows) {
+      const regId = id.replace('_', '-');
+      const reg = this.regShell(regId);
+      const row = loadRegistry().building(regId);
+      const isNorthRow = reg.z > 0;              // the Larkin terrace faces south (−z)
+      const faceZ = isNorthRow ? reg.z - reg.d / 2 : reg.z + reg.d / 2; // ±48.5
+      this.solid(id, reg.x, reg.h / 2, reg.z, reg.w, reg.h, reg.d, style.mass);
+      // the cornice caps the mass (the crown grammar)
+      this.deco(`${id}_Cornice`, reg.x, reg.h - 0.25, reg.z, reg.w + 0.2, 0.5, reg.d + 0.2, PAL.stone, {});
+      // the window rhythm against the registry box
+      const floors = Math.max(2, Math.round(reg.h / 3.3));
+      const cols = reg.w >= 7 ? 2 : 1;
+      for (let f = 0; f < floors; f++) {
+        for (let c = 0; c < cols; c++) {
+          const wx = reg.x - reg.w / 2 + (reg.w / (cols + 1)) * (c + 1);
+          const wy = 3.4 + f * ((reg.h - 1.2) / floors);
+          if (wy > reg.h - 1.0) continue;
+          this.decoMesh(`${id}_Win_${f}_${c}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
+            this.bank.get(PAL.windowDim), wx, wy, faceZ + (isNorthRow ? -0.05 : 0.05));
+        }
+      }
+      // the entrance craft — the registry's own row says which
+      const ent = row?.entrance?.[0];
+      const entX = ent?.x ?? reg.x;
+      if (regId === 'TEN-02' || regId === 'KTS-04') {
+        // W8 (2026-11-12): FRUIT-INT owns TEN-02's ground floor; W9
+        // (2026-11-12) gives KTS-04 the same carve (WINE-INT) — the W5
+        // pattern's facade decomposition retires these masses and carries
+        // the door gap + windows + fascia themselves; the W6 storefront
+        // deco and stoops would double the front.
+      } else if (style.storefront) {
+        // the shopfront faces the walk (north, +z, for the Carrow rows)
+        const shop = makeStorefront(this.bank, this.signMaterials.bind(this),
+          style.storefront, style.awning ?? PAL.teal, reg.w - 1);
+        shop.position.set(reg.x, 0.05, faceZ + 0.04);
+        this.scene.add(shop);
+        const door = makeBrownstoneStoop(this.bank, style.door, false);
+        door.position.set(entX, 0, faceZ + 0.6);
+        this.scene.add(door);
+      } else if (isNorthRow) {
+        // the Larkin high stoops — the row faces south, so the stoop turns
+        // (door recessed at the face plane, steps descend onto the walk)
+        const stoop = makeBrownstoneStoop(this.bank, style.door, true);
+        stoop.position.set(entX, 0, faceZ - 0.6);
+        stoop.rotation.y = Math.PI;
+        this.scene.add(stoop);
+      } else {
+        const stoop = makeBrownstoneStoop(this.bank, style.door, false);
+        stoop.position.set(entX, 0, faceZ + 0.6);
+        this.scene.add(stoop);
+      }
+    }
+
+    // ---- the gardens behind the pinned backdrop rows (footprints never
+    // move — the Larkin and Carrow gardens ARE the strip behind them) ----
+    this.deco('Terrace_N_Lawn', 0, 0.125, 61.2, 116, 0.05, 5, 0x3a7355, {});
+    this.deco('Terrace_N_Path', 0, 0.155, 60.2, 100, 0.05, 1.3, PAL.stone, {});
+    this.deco('Terrace_S_Lawn', 0, 0.125, -61.2, 116, 0.05, 5, 0x3a7355, {});
+    this.deco('Terrace_S_Path', 0, 0.155, -60.2, 100, 0.05, 1.3, PAL.stone, {});
+    for (const [bx, bz, byaw] of [
+      [-24, 62.1, Math.PI], [28, 62.1, Math.PI], [-30, -62.1, 0], [22, -62.1, 0],
+    ] as const) {
+      const b = makeBench(this.bank);
+      b.position.set(bx, 0.15, bz);
+      b.rotation.y = byaw;
+      this.scene.add(b);
+      this.colliders.push(boxFromCenter(bx, 0.45, bz, 1.85, 0.7, 0.62));
+    }
+    for (const tx of [-52, -36, -8, 12, 36, 52]) this.buildSimpleTree(tx, 61.6, rng);
+    for (const tx of [-56, -40, -16, 4, 32, 48]) this.buildSimpleTree(tx, -61.6, rng);
+    // the community-garden corner of the Larkin garden (the W2 parks kit:
+    // two beds, the shed, the compost bin — the residents' strip)
+    const bedA = makeGardenBed(this.bank, rng);
+    bedA.position.set(-2, 0.15, 62.4);
+    this.scene.add(bedA);
+    const bedB = makeGardenBed(this.bank, rng);
+    bedB.position.set(20, 0.15, 62.4);
+    this.scene.add(bedB);
+    const shed = makeShed(this.bank);
+    shed.position.set(-44, 0.15, 62.6);
+    this.scene.add(shed);
+    this.colliders.push(boxFromCenter(-44, 1.1, 62.6, 2.0, 2.2, 1.4));
+    const compost = makeCompostBin(this.bank);
+    compost.position.set(-40.5, 0.15, 62.7);
+    this.scene.add(compost);
+
+    // the terrace flyer board (the W6 anchors — the interactions read these)
+    const board = makeBulletinBoard(this.bank, this.flyerMat);
+    board.position.set(-58.9, 0.15, -47.55);
+    this.scene.add(board);
+  }
+
+  /** W7 — the Westgate & Eastgate rows (docs/production/westgate-eastgate):
+   *  the map's LAST two sides. The E–W streets grow their west and east
+   *  ends (butt-jointed slabs at the W1 levels — the W1 law), and 24 real
+   *  masses continue the Gable / Kestrel / Marlow rows and both terrace
+   *  bands into the strips beyond the avenues. A-3 law: every mass reads
+   *  its registry row through regShell; the style constants stay code.
+   *  All pre-bake — the strip content clamps into the c0/c5 edge tiles
+   *  (the districtKey law, same as the W6 strips). */
+  private buildAlderHeightsW7Gates(): void {
+    const rng = seededRng(20261112); // the wave's own seed — never re-tunes a shipped row
+    const CURB = 0x8f8a82;
+
+    // ---- A. the E–W street slabs grow their ends (x ±84 → ±100) ----------
+    // Kestrel: the W1 runs (Road_W/E, 34 wide) end at ±84 — the strips
+    // butt-joint at the same levels (road top y 0.0, walks top 0.1).
+    this.solid('Road_W7_W', -92, -0.1, 0, 16, 0.2, 8, PAL.road, { receive: true, cast: false });
+    this.solid('Road_W7_E', 92, -0.1, 0, 16, 0.2, 8, PAL.road, { receive: true, cast: false });
+    for (const [sz, nm] of [[6, 'N'], [-6, 'S']] as const) {
+      this.solid(`Sidewalk_W7_${nm}_W`, -92, -0.05, sz, 16, 0.3, 4, PAL.walk, { receive: true, cast: false });
+      this.solid(`Sidewalk_W7_${nm}_E`, 92, -0.05, sz, 16, 0.3, 4, PAL.walk, { receive: true, cast: false });
+      for (const sgn of [-1, 1] as const) {
+        this.solid(`Curb_W7_${nm}_${sgn < 0 ? 'W' : 'E'}`, sgn * 92, 0.065, sz === 6 ? 4.08 : -4.08,
+          16, 0.13, 0.5, CURB, { collide: false });
+      }
+    }
+    // Gable / Marlow: the W1 runs (168 wide) end at ±84 — same butt-joint
+    for (const [cz, nm] of [[40, 'G'], [-40, 'M']] as const) {
+      this.solid(`Road_W7_${nm}_W`, -92, -0.105, cz, 16, 0.19, 8, PAL.road, { receive: true, cast: false });
+      this.solid(`Road_W7_${nm}_E`, 92, -0.105, cz, 16, 0.19, 8, PAL.road, { receive: true, cast: false });
+      for (const [wz, side] of [[cz + 6, 'N'], [cz - 6, 'S']] as const) {
+        this.solid(`Walk_W7_${nm}${side}_W`, -92, -0.05, wz, 16, 0.3, 4, PAL.walk, { receive: true, cast: false });
+        this.solid(`Walk_W7_${nm}${side}_E`, 92, -0.05, wz, 16, 0.3, 4, PAL.walk, { receive: true, cast: false });
+      }
+      for (const sgn of [-1, 1] as const) {
+        this.solid(`Curb_W7_${nm}_${sgn < 0 ? 'W' : 'E'}_N`, sgn * 92, 0.065, cz + 3.92, 16, 0.13, 0.5, CURB, { collide: false });
+        this.solid(`Curb_W7_${nm}_${sgn < 0 ? 'W' : 'E'}_S`, sgn * 92, 0.065, cz - 3.92, 16, 0.13, 0.5, CURB, { collide: false });
+      }
+    }
+    // the terrace walk slabs follow the bands to the wall line (the W6 law)
+    this.solid('Terrace_W7_N_Walk_W', -92, -0.05, 56, 16, 0.3, 16, PAL.walk, { receive: true, cast: false });
+    this.solid('Terrace_W7_N_Walk_E', 92, -0.05, 56, 16, 0.3, 16, PAL.walk, { receive: true, cast: false });
+    this.solid('Terrace_W7_S_Walk_W', -92, -0.05, -56, 16, 0.3, 16, PAL.walk, { receive: true, cast: false });
+    this.solid('Terrace_W7_S_Walk_E', 92, -0.05, -56, 16, 0.3, 16, PAL.walk, { receive: true, cast: false });
+
+    // ---- B. the 24 strip masses (A-3 law: every row via regShell) --------
+    // The registry's own entrance rows say which way each door faces: 'S'
+    // doors sit on the mass's south face (z − d/2), 'N' doors on its north
+    // face (z + d/2). Everything on the street side hangs at
+    // faceZ + faceSign * dist — the W6 terrace builder's law, generalized.
+    // W9 (2026-11-12): the eight shopfront rows carve into W5 rooms —
+    // their storefront/stoop deco retires with the mass (the rooms' own
+    // facades carry the front).
+    const CARVED_STRIP_ROWS = new Set(['KTN-08', 'KTN-09', 'KTN-10', 'KTN-11', 'MRW-01', 'MRW-02', 'MRW-03', 'MRW-04']);
+    interface GateStyle { mass: number; door: number; shop?: string; awning?: number; tallStoop?: boolean }
+    const gateRows: Array<[string, GateStyle]> = [
+      // the Larkin terrace band — west then east (high stoops face S)
+      ['GRB_08', { mass: PAL.bldg2, door: PAL.teal, tallStoop: true }],
+      ['GRB_09', { mass: PAL.bldg2, door: 0x6d4c7d, tallStoop: true }],
+      ['GRB_10', { mass: PAL.bldg2, door: 0x9e222e, tallStoop: true }],
+      ['GRB_11', { mass: PAL.bldg2, door: PAL.coral, tallStoop: true }],
+      // the Carrow band — west then east (stoops face N, shopfront ends)
+      ['TEN_03', { mass: PAL.brick, door: 0x6d4c7d }],
+      ['KTS_05', { mass: PAL.brick, door: PAL.teal }],
+      ['TEN_04', { mass: PAL.brick, door: 0x6d4c7d }],
+      ['KTS_06', { mass: PAL.brick, door: PAL.coral }],
+      // Gable's south brownstone row — west then east (high stoops face N)
+      ['GRB_12', { mass: PAL.bldg, door: PAL.teal, tallStoop: true }],
+      ['GRB_13', { mass: PAL.bldg, door: 0x6d4c7d, tallStoop: true }],
+      ['GRB_14', { mass: PAL.bldg, door: 0x9e222e, tallStoop: true }],
+      ['GRB_15', { mass: PAL.bldg, door: PAL.coral, tallStoop: true }],
+      // Kestrel's walk-up row — west then east (shopfronts face S)
+      ['KTN_08', { mass: PAL.bldg, door: PAL.teal, shop: 'WESTGATE BOOKS', awning: NEIGH.awningGreen }],
+      ['KTN_09', { mass: PAL.bldg, door: PAL.coral, shop: 'GATE HARDWARE', awning: NEIGH.awningRed }],
+      ['KTN_10', { mass: PAL.bldg, door: PAL.teal, shop: 'EASTGATE NEWS', awning: NEIGH.awningGold }],
+      ['KTN_11', { mass: PAL.bldg, door: PAL.coral, shop: 'VERBENA BOOKS', awning: NEIGH.awningNavy }],
+      // Kestrel's tenement row — west then east (doors face N)
+      ['KTS_07', { mass: PAL.brick, door: 0x6d4c7d }],
+      ['KTS_08', { mass: PAL.brick, door: PAL.teal }],
+      ['KTS_09', { mass: PAL.brick, door: PAL.coral }],
+      ['KTS_10', { mass: PAL.brick, door: 0x6d4c7d }],
+      // Marlow's shop-and-walk-up row — west then east (shopfronts face S)
+      ['MRW_01', { mass: PAL.bldg2, door: PAL.teal, shop: 'CORNELIUS & CO.', awning: NEIGH.awningNavy }],
+      ['MRW_02', { mass: PAL.bldg2, door: PAL.coral, shop: 'WESTGATE NEWS', awning: NEIGH.awningRed }],
+      ['MRW_03', { mass: PAL.bldg2, door: PAL.teal, shop: 'LARKIN PROVISIONS', awning: NEIGH.awningGold }],
+      ['MRW_04', { mass: PAL.bldg2, door: 0x6d4c7d, shop: 'CARROW CHEESE', awning: NEIGH.awningGreen }],
+    ];
+    for (const [id, style] of gateRows) {
+      const regId = id.replace('_', '-');
+      const reg = this.regShell(regId);
+      const row = loadRegistry().building(regId);
+      const ent = row?.entrance?.[0];
+      const faceSign = ent?.faces === 'N' ? 1 : -1;
+      const faceZ = faceSign > 0 ? reg.z + reg.d / 2 : reg.z - reg.d / 2;
+      this.solid(id, reg.x, reg.h / 2, reg.z, reg.w, reg.h, reg.d, style.mass);
+      this.deco(`${id}_Cornice`, reg.x, reg.h - 0.25, reg.z, reg.w + 0.2, 0.5, reg.d + 0.2, PAL.stone, {});
+      // the window rhythm against the registry box (the W6 grammar)
+      const floors = Math.max(2, Math.round(reg.h / 3.3));
+      const cols = reg.w >= 7 ? 2 : 1;
+      for (let f = 0; f < floors; f++) {
+        for (let c = 0; c < cols; c++) {
+          const wx = reg.x - reg.w / 2 + (reg.w / (cols + 1)) * (c + 1);
+          const wy = 3.4 + f * ((reg.h - 1.2) / floors);
+          if (wy > reg.h - 1.0) continue;
+          this.decoMesh(`${id}_Win_${f}_${c}`, new THREE.BoxGeometry(1.1, 1.6, 0.08),
+            this.bank.get(PAL.windowDim), wx, wy, faceZ + faceSign * 0.05);
+        }
+      }
+      // the entrance craft — the registry's own row says which. The
+      // carved rows' fronts are the rooms' own facades (door gap + windows
+      // + fascia, buildW5Books et al) — NO storefront, NO stoop.
+      const entX = ent?.x ?? reg.x;
+      if (!CARVED_STRIP_ROWS.has(regId)) {
+        if (style.shop) {
+          const shop = makeStorefront(this.bank, this.signMaterials.bind(this),
+            style.shop, style.awning ?? NEIGH.awningGreen, reg.w - 1);
+          shop.position.set(reg.x, 0.05, faceZ + faceSign * 0.04);
+          if (faceSign < 0) shop.rotation.y = Math.PI;
+          this.scene.add(shop);
+          const door = makeBrownstoneStoop(this.bank, style.door, false);
+          door.position.set(entX, 0, faceZ + faceSign * 0.6);
+          if (faceSign < 0) door.rotation.y = Math.PI;
+          this.scene.add(door);
+        } else {
+          const stoop = makeBrownstoneStoop(this.bank, style.door, style.tallStoop ?? false);
+          stoop.position.set(entX, 0, faceZ + faceSign * 0.6);
+          if (faceSign < 0) stoop.rotation.y = Math.PI;
+          this.scene.add(stoop);
+        }
+      }
+    }
+
+    // ---- C. the strip street trees (the shipped rows' own z law) ---------
+    // Kestrel fills at z ±7.48/-7.0, Gable/Marlow rows at 32.6/47.4/-32.6;
+    // every x chosen ≥ 1.4 m clear of the new stoops (the honest spacing).
+    for (const tx of [-93.5, -98.5]) this.buildSimpleTree(tx, 7.48, rng);
+    for (const tx of [93.5, 98.5]) this.buildSimpleTree(tx, 7.48, rng);
+    for (const tx of [-93.5, -98.5]) this.buildSimpleTree(tx, -7.0, rng);
+    for (const tx of [93.5, 98.5]) this.buildSimpleTree(tx, -7.0, rng);
+    for (const tx of [-92.5, -99.5]) this.buildSimpleTree(tx, 32.6, rng);
+    for (const tx of [92.5, 99.5]) this.buildSimpleTree(tx, 32.6, rng);
+    for (const tx of [-85.5, -94.5]) this.buildSimpleTree(tx, 47.4, rng);
+    for (const tx of [89.5, 98.5]) this.buildSimpleTree(tx, 47.4, rng);
+    for (const tx of [-92.5, -99.5]) this.buildSimpleTree(tx, -32.6, rng);
+    for (const tx of [92.5, 99.5]) this.buildSimpleTree(tx, -32.6, rng);
+    for (const tx of [-86.5, -94.5]) this.buildSimpleTree(tx, -47.4, rng);
+    for (const tx of [89.5, 98.5]) this.buildSimpleTree(tx, -47.4, rng);
+
+    // ---- D. the east chalk-menu A-frame (the east_menu anchor's prop) ----
+    // MRW-03's LARKIN PROVISIONS front — the classic sandwich-board on the
+    // walk, 0.8 m off the face plane, clear of the shed (x 84.4..91.6) and
+    // the walk lane (z −34.6). Two leaning chalk slabs + the hinge bar.
+    const chalk = this.bank.get(0x2f2f33);
+    const boardMat = this.bank.get(0x3a3a40);
+    const aFrame = new THREE.Group();
+    for (const s of [-1, 1] as const) {
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(0.72, 1.05, 0.05), s < 0 ? boardMat : chalk);
+      slab.position.set(0, 0.56, s * 0.14);
+      slab.rotation.x = s * 0.16;
+      slab.castShadow = true;
+      aFrame.add(slab);
+    }
+    const hinge = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.05, 0.05), this.bank.get(PAL.ink));
+    hinge.position.set(0, 1.1, 0);
+    aFrame.add(hinge);
+    aFrame.position.set(88, 0.1, -32.8);
+    aFrame.rotation.y = Math.PI; // the chalk face looks south, up the walk
+    this.scene.add(aFrame);
+  }
+
   private buildInstancedTreeRows(): void {
     if (this.canopyBuilt) return;
-    const count = [0, 0, 0, 0];
+    const count = [0, 0, 0, 0, 0, 0];
     for (const t of this.simpleTrees) for (const b of t.blobs) count[b.mat]++;
     for (const t of this.trees) for (const b of t.blobs) count[b.key]++;
-    if (!count[0] && !count[1] && !count[2] && !count[3]) return;
-    const HEXES = [0x5d7d4a, 0x516e42, 0xf7b32b, 0xffb85c] as const;
-    for (let k = 0; k < 4; k++) {
+    if (!count.some((c) => c > 0)) return;
+    // W8 tree-species variety (2026-11-12): the honest ledger's variety
+    // item. The four shipped tones (two honey-locust greens, two ginkgo
+    // golds) gain a copper elm (0xb06038) and a dark pine (0x3e5d3e); the
+    // simple rows roll species per tree by a position hash (deterministic,
+    // NO rng-stream draws — the seeded rows' shapes stay byte-identical).
+    const HEXES = [0x5d7d4a, 0x516e42, 0xf7b32b, 0xffb85c, 0xb06038, 0x3e5d3e] as const;
+    for (let k = 0; k < HEXES.length; k++) {
       if (!count[k]) continue;
       const m = this.bank.get(HEXES[k]).clone();
       m.transparent = true; // fade-on-occlude ready; aFade 1 renders as opaque
@@ -4904,7 +7985,7 @@ export class World {
       const im = new THREE.InstancedMesh(geo, m, count[k]);
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.castShadow = true;
-      im.name = ['TreeCanopy_LeafA', 'TreeCanopy_LeafB', 'TreeCanopy_GoldA', 'TreeCanopy_GoldB'][k];
+      im.name = ['TreeCanopy_LeafA', 'TreeCanopy_LeafB', 'TreeCanopy_GoldA', 'TreeCanopy_GoldB', 'TreeCanopy_Copper', 'TreeCanopy_Pine'][k];
       this.canopyMeshes[k] = im;
       this.canopyFade[k] = fade;
       this.scene.add(im);
@@ -4912,11 +7993,8 @@ export class World {
     // instance slots: the W1 simple rows own the first countSimple slots of
     // meshes 0/1 (updateTreeRows writes them positionally, same order every
     // frame); the makeTree trees claim the slots after, stored per blob.
-    const cursor = [
-      this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === 0).length, 0),
-      this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === 1).length, 0),
-      0, 0,
-    ];
+    const cursor = [0, 1, 2, 3, 4, 5].map((k) =>
+      this.simpleTrees.reduce((n, t) => n + t.blobs.filter((b) => b.mat === k).length, 0));
     for (const t of this.trees) {
       for (const b of t.blobs) b.idx = cursor[b.key]++;
     }
@@ -4934,7 +8012,7 @@ export class World {
    *  blob), so the silhouette and the sway are pixel-identical. */
   private updateTreeRows(time: number): void {
     if (!this.canopyBuilt) return;
-    let ia = 0, ib = 0;
+    const cursors = [0, 0, 0, 0, 0, 0];
     for (const t of this.simpleTrees) {
       const sz = Math.sin(time * 0.9 + t.phase) * 0.022;
       const sx = Math.cos(time * 0.7 + t.phase) * 0.016;
@@ -4945,8 +8023,7 @@ export class World {
       for (const b of t.blobs) {
         this.mBlob.compose(this.tV.set(b.ox, b.oy, b.oz), this.tQ.identity(), this.tS.setScalar(b.r));
         this.mCanopy.multiplyMatrices(this.mSway, this.mBlob);
-        if (b.mat === 0) this.canopyMeshes[0]!.setMatrixAt(ia++, this.mCanopy);
-        else this.canopyMeshes[1]!.setMatrixAt(ib++, this.mCanopy);
+        this.canopyMeshes[b.mat]!.setMatrixAt(cursors[b.mat]++, this.mCanopy);
       }
     }
     for (const t of this.trees) {
@@ -5214,21 +8291,28 @@ export class World {
   }
 
   /** Lowpoly car — nose at +X, axle along Z. Mirrors tools3d/procedural_glb.py. */
-  buildCar(kind: 'taxi' | 'sedan'): THREE.Group {
+  buildCar(kind: 'taxi' | 'sedan', standard = false): THREE.Group {
     const bodyCol = kind === 'taxi' ? PAL.taxi : PAL.teal;
+    // the graphics wave: hero vehicles wear MeshStandardMaterial paint (the
+    // sky environment reflects in them); the parked fleet stays flat Lambert
+    // and keeps its vertex-bake economy. The windowDim glass switches to a
+    // metal/rough pane so cab windows read as glass, not as dark paint.
+    const body = standard ? this.vehicleMat(bodyCol, 0.45, 0.32) : this.mat(bodyCol);
+    const glass = standard ? this.vehicleMat(PAL.windowDim, 0.75, 0.14) : this.mat(PAL.windowDim);
     const g = new THREE.Group();
-    const mk = (geo: THREE.BufferGeometry, color: number, x: number, y: number, z: number) => {
-      const m = new THREE.Mesh(geo, this.mat(color));
+    const mk = (geo: THREE.BufferGeometry, color: number, x: number, y: number, z: number, useMat?: THREE.Material) => {
+      const m = new THREE.Mesh(geo, useMat ?? this.mat(color));
       m.position.set(x, y, z);
       m.castShadow = true;
       m.receiveShadow = true; // W4 p2 batch fold: cast+receive like the world's
       // own solids — the parked cars stopped opening cast-only batches in
       // every district tile they touch
       g.add(m);
+      return m;
     };
-    mk(new THREE.BoxGeometry(4.15, 0.52, 1.86), bodyCol, 0, 0.56, 0);
-    mk(new THREE.BoxGeometry(2.05, 0.52, 1.7), PAL.windowDim, -0.1, 1.08, 0);
-    mk(new THREE.BoxGeometry(2.25, 0.09, 1.76), bodyCol, -0.1, 1.38, 0);
+    mk(new THREE.BoxGeometry(4.15, 0.52, 1.86), bodyCol, 0, 0.56, 0, body);
+    mk(new THREE.BoxGeometry(2.05, 0.52, 1.7), PAL.windowDim, -0.1, 1.08, 0, glass);
+    mk(new THREE.BoxGeometry(2.25, 0.09, 1.76), bodyCol, -0.1, 1.38, 0, body);
     for (const sx of [-1.32, 1.32]) {
       for (const sz of [-0.85, 0.85]) {
         const w = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.22, 14), this.mat(PAL.manhole));
@@ -5363,6 +8447,7 @@ export class World {
       map: tex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending,
     }));
     sp.scale.setScalar(size);
+    this.glowSprites.push(sp); // the AO prepass never sees billboards
     return sp;
   }
 
@@ -5638,6 +8723,16 @@ export class World {
    * Dynamics-before-player fixes the ordering with no gameplay change.
    */
   updateDynamics(dt: number, player?: { x: number; y: number; z: number }, extra?: Array<{ x: number; z: number }>, dusk = false): void {
+    // the street schedule's edge (M4): apply the phase's row once per flip —
+    // the dusk shift comes on, the park's tender heads home, the cab's pace
+    // follows the table. Ambient reads no story state: the dusk flag is the
+    // same lever the M121's night park and the court pair already use.
+    if (dusk !== this.streetPhaseDusk) {
+      this.streetPhaseDusk = dusk;
+      const plan = STREET_PLAN[dusk ? 'dusk' : 'day'];
+      this.peds.applyStreetPlan(plan);
+      this.cabPaceNow = plan.cabPace;
+    }
     // the persistent cast owns a body each — no more ghosting through Rosa,
     // Idris, or the kid (playtest 2026-10-30: "passed through the npc and rosa")
     this.syncPersonCollider(this.rosaCollider, this.rosa);
@@ -5655,6 +8750,7 @@ export class World {
       this.updateDistricts(player.x, player.z);
       this.updateInteriors(player.x, player.y, player.z);
       this.updateSunFollow(player.x, player.z);
+      this.updateFenestraBands(dt, player.x, player.y, player.z);
     }
     this.updateTaxi(dt, player, extra);
     // the M121 runs AFTER the cab: its pool reads the cab's fresh rect, and
@@ -5667,7 +8763,13 @@ export class World {
 
   /** Phase 2 of the frame (after the player's move): everything that only
    *  reads the world — pedestrian steering, birds, steam, leaves. */
-  updateAmbient(dt: number, player?: { x: number; y: number; z: number }, dusk = false): void {
+  updateAmbient(dt: number, player?: { x: number; y: number; z: number }, dusk = false,
+    /** TRUE frame delta (capped 1 s) — feeds the subway ride machine only.
+     *  The ride is a wall-clock experience (22 s doors-closed); the render
+     *  clamp would starve it on low-fps devices (the field report "ride to
+     *  Times Square doesn't work"). Everything here keeps the clamped dt. */
+    trueDt?: number,
+  ): void {
     // the walkers steer around you and the cart, mind the furniture, and
     // hold their ground against the cab's — and now the M121's — footprint
     this.peds.update(
@@ -5730,7 +8832,7 @@ export class World {
     // ---- the far world: zones, the dollhouse, the square, the bus ----
     if (player && this.subway) {
       const feet = player as { x: number; y: number; z: number };
-      this.subway.update(dt, feet, (key) => this.subwayBeats.push(key));
+      this.subway.update(trueDt ?? dt, feet, (key) => this.subwayBeats.push(key));
       if (this.subway.underground !== this.dollhouseOn) {
         this.dollhouseOn = this.subway.underground;
         this.setUndergroundShadow(this.dollhouseOn);
@@ -5934,7 +9036,7 @@ export class World {
     // XW-COURT and both junction boxes from the one shared list. Commit law
     // unchanged: once the nose has reached the zone's line the cab goes —
     // a lurch stop inside the paint is its own hazard.
-    let speed: number = CAB.cruise;
+    let speed: number = CAB.cruise * this.cabPaceNow; // the schedule's pace — rush crawls
     for (const zone of KESTREL_COURTESY_ZONES) {
       let occupied = !!(player && player.x > zone.xMin && player.x < zone.xMax
         && player.z > World.COURTESY_Z.zMin && player.z < World.COURTESY_Z.zMax);

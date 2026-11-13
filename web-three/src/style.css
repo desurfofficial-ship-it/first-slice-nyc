@@ -268,6 +268,67 @@ html, body {
   #starter-card { padding: 18px 18px 14px; }
 }
 
+/* ---------------- The notebook prompt (the C0 pack's diary picks) -------- */
+/* One paper panel, the green notebook's ruled kind: the system line in his
+   hand, the ask, and the options as handwriting. Reused by the cold open
+   (doc 11 §2 beat 0), the running theory (§3 entry 2), and the first
+   question (§3 entry 4) — the tutorial IS the diary. */
+
+#notebook-system {
+  font-family: var(--hand-font);
+  font-size: 15px;
+  color: rgba(58, 52, 64, 0.55);
+  border-bottom: 1.5px dashed rgba(58, 52, 64, 0.25);
+  padding-bottom: 6px;
+}
+#notebook-ask {
+  font-family: var(--hand-font);
+  font-size: 19px;
+  line-height: 1.45;
+}
+#notebook-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.notebook-option {
+  font-family: var(--hand-font);
+  font-weight: 400;
+  font-size: 16.5px;
+  line-height: 1.4;
+  color: var(--ink);
+  text-align: left;
+  background: rgba(58, 52, 64, 0.055);
+  border: 2px solid rgba(58, 52, 64, 0.16);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+.notebook-option:hover {
+  border-color: var(--teal);
+  background: rgba(42, 157, 143, 0.08);
+}
+.notebook-option:active { transform: scale(0.99); }
+#notebook-free-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+#notebook-free {
+  font-family: var(--hand-font);
+  font-size: 17px;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-bottom: 2px dashed rgba(58, 52, 64, 0.4);
+  padding: 6px 2px;
+  outline: none;
+  width: 100%;
+  min-width: 0;
+}
+#notebook-free:focus { border-bottom-color: var(--teal); }
+#notebook-free::placeholder { color: rgba(58, 52, 64, 0.35); }
+
 button {
   font-family: var(--ui-font);
   font-weight: 700;
@@ -876,6 +937,13 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   left: 0; bottom: 0;
   width: 46%; height: 44%;
   pointer-events: auto;
+  /* the stick owns its gestures: html/body carry touch-action: none, but
+     touch-action does NOT inherit — an overlay without it can still hand
+     the gesture to the browser's pan/zoom recognizer, which fires
+     pointercancel and kills the stick mid-drag */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 #joy-base {
@@ -904,6 +972,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   bottom: calc(20px + env(safe-area-inset-bottom));
   display: flex; flex-direction: column; align-items: flex-end; gap: 14px;
   pointer-events: auto;
+  touch-action: none; /* same law as #joy-zone — the buttons own their touches */
 }
 
 #turn-btns { display: flex; gap: 10px; }
@@ -1116,4 +1185,493 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 #cine-chips button:hover {
   background: rgba(247, 179, 43, 0.16);
   color: var(--cream);
+}
+
+/* ---------------- Wardrobe — the 3D fitting room ----------------
+   Paper over the street, same palette as the pick card: the stage holds
+   the turntable, the side holds the lineup. Looking is free; wearing a
+   different face asks for a new game first (the lock law).
+
+   Phone law (iPhone 11 Pro / 375×812 and kin): the stage is CAP'd so the
+   side can scroll; the card goes edge-to-edge under the notch; view chips
+   and the close button are separated so nothing wraps into a muddle. */
+
+#wardrobe-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 33;
+  background: rgba(26, 20, 32, 0.62);
+  display: flex; align-items: center; justify-content: center;
+  padding: 14px;
+  padding-top: max(14px, env(safe-area-inset-top));
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
+  padding-left: max(14px, env(safe-area-inset-left));
+  padding-right: max(14px, env(safe-area-inset-right));
+  animation: note-in 0.25s ease-out;
+}
+
+#wardrobe-card {
+  display: flex;
+  flex-direction: column;
+  width: min(680px, calc(100vw - 28px));
+  max-height: calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  background: var(--cream);
+  border-radius: 14px;
+  box-shadow: 0 22px 60px rgba(26, 20, 32, 0.6);
+  overflow: hidden;
+  min-height: 0;
+}
+@media (min-width: 720px) {
+  #wardrobe-card { flex-direction: row; max-height: calc(100dvh - 48px); }
+}
+
+#wardrobe-stage {
+  position: relative;
+  flex: 0 0 auto;
+  /* The face is the product — real height so the chosen look reads in one glance. */
+  height: clamp(240px, 38dvh, 360px);
+  background:
+    radial-gradient(120% 90% at 50% 8%, rgba(247, 179, 43, 0.16), rgba(247, 179, 43, 0) 60%),
+    linear-gradient(180deg, #2E2637 0%, #1A1420 100%);
+  display: flex; align-items: center; justify-content: center;
+  touch-action: none;
+}
+@media (min-width: 720px) {
+  #wardrobe-stage {
+    flex: 0 0 48%;
+    height: auto;
+    min-height: 340px;
+  }
+}
+#wardrobe-canvas {
+  /* The resize law: OUT of layout flow. The canvas's intrinsic size is the
+     drawing buffer Wardrobe.resize() writes; a canvas in flow inside the
+     auto-height desktop stage fed that size back into layout and the card
+     grew a pixel per frame in a ResizeObserver loop (loop toast on screen
+     the whole time). Absolutely positioned inside the stage (already
+     position:relative), the buffer write can never move layout again. */
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+  cursor: grab;
+}
+#wardrobe-canvas:active { cursor: grabbing; }
+#wardrobe-hint {
+  position: absolute;
+  bottom: 8px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: rgba(255, 248, 240, 0.72);
+  background: rgba(26, 20, 32, 0.55);
+  border: 1px solid rgba(255, 248, 240, 0.16);
+  border-radius: 999px;
+  padding: 3px 10px;
+  pointer-events: none;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+}
+#wardrobe-hint.flash { color: var(--gold); }
+
+#wardrobe-side {
+  flex: 1 1 auto;
+  min-height: 0; /* lets the flex child scroll inside the capped card */
+  display: flex; flex-direction: column;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  color: var(--ink);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+#wardrobe-side label {
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+#wardrobe-sub {
+  font-size: 12px;
+  line-height: 1.35;
+  color: rgba(58, 52, 64, 0.72);
+  margin-top: -6px;
+}
+
+#wardrobe-lineup {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+@media (min-width: 560px) {
+  #wardrobe-lineup { grid-template-columns: 1fr 1fr 1fr; }
+}
+.wardrobe-tile {
+  position: relative;
+  padding: 10px 11px 9px;
+  min-height: 44px; /* phone tap target */
+}
+.wardrobe-tile.wearing {
+  border-color: var(--teal);
+  background: rgba(42, 157, 143, 0.1);
+}
+.wardrobe-tile .starter-name { font-size: 14px; }
+.wardrobe-tile .starter-blurb { font-size: 11px; line-height: 1.3; }
+.wardrobe-swatch {
+  width: 16px; height: 16px;
+  border-radius: 5px;
+  border: 2px solid rgba(58, 52, 64, 0.25);
+  display: inline-block;
+  margin-bottom: 4px;
+}
+.wardrobe-role {
+  font-size: 10.5px;
+  line-height: 1.3;
+  color: rgba(58, 52, 64, 0.7);
+}
+.wardrobe-you {
+  position: absolute;
+  top: 7px; right: 8px;
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #fff8f0;
+  background: var(--teal);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+
+#wardrobe-meta {
+  border-top: 1px dashed rgba(58, 52, 64, 0.25);
+  padding-top: 8px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+#wardrobe-meta-name { font-weight: 800; font-size: 14px; }
+#wardrobe-meta-role { font-size: 11.5px; color: var(--plum); font-weight: 700; }
+#wardrobe-meta-vibe { font-size: 11.5px; line-height: 1.4; color: rgba(58, 52, 64, 0.78); }
+
+/* View chips (Front / 3/4 / Back / Spin) + close.
+   Phone: 4 equal chips on one row, close full-width under them.
+   Desktop: inline chips, close pushed to the right. */
+#wardrobe-controls {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 2px;
+}
+#wardrobe-controls button {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 10px 6px;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 2px solid rgba(58, 52, 64, 0.16);
+  background: rgba(58, 52, 64, 0.055);
+  color: var(--ink);
+}
+#wardrobe-controls button:hover { border-color: var(--teal); }
+#wardrobe-controls #wardrobe-spin[aria-pressed="true"] {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--ink);
+}
+#wardrobe-controls #wardrobe-spin.off { opacity: 0.75; }
+#wardrobe-controls #wardrobe-close {
+  grid-column: 1 / -1;
+  margin-left: 0;
+  background: rgba(58, 52, 64, 0.08);
+  font-weight: 800;
+}
+@media (min-width: 720px) {
+  #wardrobe-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  #wardrobe-controls button {
+    flex: 0 0 auto;
+    padding: 7px 12px;
+    min-height: 0;
+  }
+  #wardrobe-controls #wardrobe-close {
+    grid-column: auto;
+    margin-left: auto;
+    background: rgba(58, 52, 64, 0.055);
+  }
+}
+
+#wardrobe-confirm {
+  border: 2px solid var(--brick);
+  background: rgba(178, 58, 72, 0.08);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+#wardrobe-confirm-text { font-size: 12px; line-height: 1.45; color: var(--ink); }
+#wardrobe-confirm-actions { display: flex; gap: 8px; }
+#wardrobe-confirm-actions button {
+  flex: 1 1 0;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 12px;
+  min-height: 42px;
+  border-radius: 10px;
+  border: 2px solid rgba(58, 52, 64, 0.2);
+  background: var(--cream);
+  color: var(--ink);
+}
+#wardrobe-confirm-actions #wardrobe-newgame {
+  background: var(--brick);
+  border-color: var(--brick);
+  color: var(--cream);
+}
+
+#wardrobe-locknote {
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: rgba(58, 52, 64, 0.55);
+  border-top: 1px dashed rgba(58, 52, 64, 0.25);
+  padding-top: 8px;
+  padding-bottom: 4px;
+}
+
+/* Phone: edge-to-edge sheet, more stage room for the face, denser side */
+@media (max-width: 560px) {
+  #wardrobe-panel {
+    padding: 0;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    align-items: stretch;
+  }
+  #wardrobe-card {
+    width: 100%;
+    max-height: none;
+    height: 100%;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  #wardrobe-stage {
+    /* ~40% of the phone — the consumer is choosing a FACE, not a chip */
+    height: clamp(260px, 42dvh, 380px);
+    flex-shrink: 0;
+  }
+  #wardrobe-side {
+    padding: 12px 14px calc(14px + env(safe-area-inset-bottom));
+    gap: 9px;
+  }
+  #wardrobe-side label { font-size: 15px; }
+  #wardrobe-wear {
+    min-height: 46px;
+    font-size: 15px;
+    padding: 12px 16px;
+  }
+}
+
+/* ---------------- WP-6 — the field diary's ink (narrative/14 R3 + §4) ---------------- */
+/* The Map renders entries as ink: one handwriting font (--hand-font, already
+   shipped) + the RECALL wobble — two draw calls' worth of UI, no scene cost.
+   The contradiction strike is a TEXT style, never an image. The wobble is
+   deterministic (fixed tilts, no animation): a notebook that redraws itself
+   between reads would feel haunted (sketch.ts law). The diary rides the
+   Map's own paper surface — it adds no paper door of its own, so the touch
+   law (docs/51 B7) is untouched. */
+
+/* the leaf and its tab pin to the sheet (a new rule — the shipped one is
+   untouched; the sheet's overflow:hidden clips both, so the fold reads
+   as part of the same paper) */
+#map-sheet { position: relative; }
+
+/* the dateline — the calendar date the block is living, under the clock */
+#hud-dateline {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--hand-font);
+  font-size: clamp(12px, 1.8vmin, 15px);
+  transform: rotate(-0.5deg);
+}
+
+/* the tab — a paper tab on the sheet's corner; a real button, hand-written */
+.diary-tab {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  font-family: var(--hand-font);
+  font-size: 14px;
+  color: var(--ink);
+  background: rgba(247, 179, 43, 0.14);
+  border: 1.5px dashed rgba(178, 58, 72, 0.5);
+  border-radius: 6px;
+  padding: 5px 12px;
+  transform: rotate(1.5deg);
+  cursor: pointer;
+}
+.diary-tab[aria-expanded="true"] { background: rgba(247, 179, 43, 0.3); }
+
+/* the leaf — a folded-over page of the same paper, covering the notebook
+   when read. The crease mirrors the sheet's own (gradient from the other
+   side): the leaf is the notebook's next page, not a new surface. */
+.diary-leaf {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  padding: 26px 22px 18px;
+  color: var(--ink);
+  font-family: var(--hand-font);
+  overflow-y: auto;
+  display: none;
+  background:
+    linear-gradient(270deg, rgba(58, 52, 64, 0.06) 0, rgba(58, 52, 64, 0.0) 18px),
+    var(--cream);
+}
+.diary-leaf.open { display: block; }
+
+.diary-leaf-dateline {
+  font-size: clamp(13px, 1.9vmin, 16px);
+  color: rgba(58, 52, 64, 0.6);
+  transform: rotate(-0.8deg);
+  margin-bottom: 12px;
+}
+
+/* one entry as ink — the same family as the notes list (the star bullet,
+   the slight tilt), the tilt alternating deterministically */
+.diary-entry {
+  margin: 0 0 14px;
+  padding-left: 22px;
+  position: relative;
+  transform: rotate(-0.4deg);
+}
+.diary-entry:nth-child(even) { transform: rotate(0.4deg); }
+.diary-entry::before {
+  content: '\2726';
+  position: absolute; left: 2px; top: 2px;
+  color: var(--teal);
+  font-size: 13px;
+}
+/* the mechanical epistemic tag colors the star — the diary flags honestly */
+.diary-entry[data-epistemic="RECALL"]::before { color: var(--plum); }
+.diary-entry[data-epistemic="GUESS"]::before { color: var(--gold); }
+
+.diary-entry-meta {
+  font-family: var(--ui-font);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(58, 52, 64, 0.5);
+  margin-bottom: 3px;
+}
+
+.diary-body {
+  font-size: clamp(15px, 2.2vmin, 18px);
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+/* the RECALL wobble — soft ink, a fixed tilt (doc 03 §2: RECALL renders
+   in the wobble style; never upgraded away by machinery) */
+.diary-entry[data-epistemic="RECALL"] .diary-body {
+  color: rgba(58, 52, 64, 0.62);
+  transform: rotate(-0.9deg);
+}
+
+/* the contradiction strike — a text style, not an image; the struck words
+   stay readable underneath (the body's bytes are frozen, append-only) */
+.diary-strike {
+  text-decoration: line-through;
+  text-decoration-color: rgba(178, 58, 72, 0.8);
+  text-decoration-thickness: 1.5px;
+}
+
+/* the margin note — current-tense Leo, in pencil-red, beside the line */
+.diary-margin {
+  font-size: clamp(13px, 1.9vmin, 15px);
+  color: var(--brick);
+  margin-top: 4px;
+  padding-left: 12px;
+  transform: rotate(0.6deg);
+}
+.diary-margin::before {
+  content: '\270E';
+  font-size: 12px;
+  margin-right: 4px;
+  opacity: 0.8;
+}
+
+/* R11's name entry (doc 02 §1 + doc 11 §5): the pick card's paper row —
+   three inputs, one breath; the canon defaults show as placeholders. */
+#starter-name-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1.2fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+#starter-name-row input {
+  font-family: var(--ui-font);
+  font-size: 13px;
+  color: var(--ink);
+  background: rgba(58, 52, 64, 0.055);
+  border: 2px solid rgba(58, 52, 64, 0.16);
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-width: 0;
+}
+#starter-name-row input:focus {
+  outline: none;
+  border-color: var(--teal);
+  background: rgba(42, 157, 143, 0.08);
+}
+#starter-name-row input::placeholder {
+  color: rgba(58, 52, 64, 0.42);
+}
+@media (max-width: 430px) {
+  #starter-name-row { grid-template-columns: 1fr 1fr; }
+  #starter-name-nick { grid-column: span 2; }
+}
+
+/* The wardrobe's pick row (2026-11): the same three inputs live in the
+   fitting room now — the name rides in with the face. The wear button is
+   the pick card's one big yes. */
+#wardrobe-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+#wardrobe-pick-name {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1.2fr;
+  gap: 8px;
+}
+#wardrobe-pick-name input {
+  font-family: var(--ui-font);
+  font-size: 13px;
+  color: var(--ink);
+  background: rgba(58, 52, 64, 0.055);
+  border: 2px solid rgba(58, 52, 64, 0.16);
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-width: 0;
+}
+#wardrobe-pick-name input:focus {
+  outline: none;
+  border-color: var(--teal);
+  background: rgba(42, 157, 143, 0.08);
+}
+#wardrobe-pick-name input::placeholder {
+  color: rgba(58, 52, 64, 0.42);
+}
+#wardrobe-wear {
+  font-family: var(--ui-font);
+  font-weight: 800;
+  font-size: 14px;
+  color: #fff8f0;
+  background: var(--teal);
+  border: none;
+  border-radius: 12px;
+  padding: 11px 16px;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+#wardrobe-wear:hover { filter: brightness(1.08); transform: translateY(-1px); }
+#wardrobe-wear:active { transform: translateY(0); }
+@media (max-width: 430px) {
+  #wardrobe-pick-name { grid-template-columns: 1fr 1fr; }
+  #wardrobe-pick-name #starter-name-nick { grid-column: span 2; }
 }

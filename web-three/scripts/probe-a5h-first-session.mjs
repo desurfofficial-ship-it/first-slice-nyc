@@ -1,8 +1,11 @@
 /** A5h — the first-session Doc 02 additions, evidenced:
  *   1. ?starter=dee — the walker wears the pick: teal jacket, cap, cream
  *      shoes, the board on the back (assert Starter_Board on the rig).
- *   2. ?film=1&pickcard=1 — the six-tile pick card at the handover; tap
- *      Dee's tile; the board appears and the card folds.
+ *   2. ?film=1&pickcard=1 — the wardrobe's PICK MODE at the handover (the
+ *      3D fitting room asks "who got off the bus?"): the panel opens with
+ *      the name row visible, tap Dee's tile, tap WEAR — the board appears
+ *      and the room folds. (2026-11: the paper starter card retired; the
+ *      fitting room IS the pick card.)
  *   3. B-Side Records — the hand-written "Back soon. The city knows when."
  *      sign taped to the closed door glass.
  *
@@ -99,28 +102,39 @@ console.log('card reached:', await tapUntil('card', 60000));
 console.log('handover landed:', await landed());
 const cardShown = await page.evaluate(async () => {
   for (let i = 0; i < 50; i++) {
-    if (!document.getElementById('starter-card').hidden) return true;
+    if (!document.getElementById('wardrobe-panel').hidden
+      && !document.getElementById('wardrobe-pick').hidden
+      && document.getElementById('wardrobe-title').textContent === 'Who got off the bus?') return true;
     await new Promise((r) => setTimeout(r, 200));
   }
   return false;
 });
-console.log('pick card shown at handover:', cardShown);
+console.log('pick room shown at handover (pick mode + name row):', cardShown);
 await sleep(400);
 await page.screenshot({ path: 'shots/a5h-pick-card.png' });
-// tap Dee's tile — the board must appear and the card must fold
+// tap Dee's tile, then WEAR — the board must appear and the room must fold
 const picked = await page.evaluate(() => {
-  const tile = document.querySelector('.starter-tile[data-starter="dee"]');
+  const tile = document.querySelector('#wardrobe-lineup .starter-tile[data-starter="dee"]');
   if (!tile) return 'no tile';
   tile.dispatchEvent(new PointerEvent('click', { bubbles: true }));
   return 'tapped';
 });
 await sleep(600);
+await page.screenshot({ path: 'shots/a5h-pick-preview.png' });
+const worn = await page.evaluate(() => {
+  const wear = document.getElementById('wardrobe-wear');
+  if (!wear || wear.hidden) return 'no wear button';
+  wear.click();
+  return 'worn';
+});
+await sleep(600);
 const after = await page.evaluate(() => ({
-  hidden: document.getElementById('starter-card').hidden,
+  hidden: document.getElementById('wardrobe-panel').hidden,
   board: window.__game.playerVisual.children.some((c) => c.name === 'Starter_Board'),
   note: document.getElementById('note')?.textContent ?? '',
+  wearing: window.__game.state.starterId,
 }));
-console.log('pick:', picked, '| card folded:', after.hidden, '| board:', after.board, '| note:', JSON.stringify(after.note));
+console.log('pick:', picked, worn, '| room folded:', after.hidden, '| board:', after.board, '| wearing:', after.wearing, '| note:', JSON.stringify(after.note));
 await page.screenshot({ path: 'shots/a5h-after-pick.png' });
 
 // ----------------------------------------------------- 3. the B-Side sign --

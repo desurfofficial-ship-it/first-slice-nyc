@@ -100,6 +100,17 @@ const FLIP_ANGLE = 1.6;
 /** When idle, settle behind the player's last heading if it disagrees with
  *  the street-side yaw by more than this (~103°) — "I turned around". */
 const TURNED_AROUND = 1.8;
+/** The dollhouse lift (docs/50 cutaway; the entering-the-subway fix,
+ *  2026-11-12): underground and NOT aboard the car, the boom rises this
+ *  much above the street framing so the lens looks DOWN into the opened
+ *  station box. Below grade the station's south wall (top edge y −0.25,
+ *  z 7.85) cuts a street-height lens off at the platform's south half —
+ *  playtest 2026-11-12: "entered the subway and I can't see inside"; the
+ *  measured interior window from the street boom was ~2° of frame. From
+ *  focus + ~10 the sight line clears the wall top with margin, the stair
+ *  mouth reads clean on the descent, and the opened box reads as the
+ *  diorama it is. Aboard the car the lift stands down (interiorAboard). */
+const UNDERGROUND_LIFT = 3.4;
 
 /** One tree's canopy as a bounding sphere (world space) — coarse on
  *  purpose: the camera only needs to know "a blob of leaves lives here". */
@@ -118,6 +129,32 @@ export class GameCamera {
   readonly camera: THREE.PerspectiveCamera;
   /** Camera pose. Switching poses re-syncs the movement reference, so a
    *  postcard never leaves a stale basis behind. */
+  /** Interactive pointer drag & zoom enhancements */
+  private pitchOffset = 0;
+  private userDistMultiplier = 1.0;
+  private manualDragTimer = 0;
+
+  get currentZoomDist(): number {
+    return this.distFor(this.camera.aspect) * this.userDistMultiplier;
+  }
+
+  handlePointerDrag(dx: number, dy: number): void {
+    const dth = dx * 0.0055;
+    this.camYaw += dth;
+    this.moveYaw += dth;
+    this.flipping = false;
+    this.manualDragTimer = 0.8;
+    this.pitchOffset = THREE.MathUtils.clamp(this.pitchOffset - dy * 0.0035, -0.3, 0.5);
+  }
+
+  handleZoom(deltaY: number): void {
+    this.userDistMultiplier = THREE.MathUtils.clamp(
+      this.userDistMultiplier + deltaY * 0.0008,
+      0.6,
+      1.5,
+    );
+  }
+
   get pose(): CameraPose { return this._pose; }
   set pose(p: CameraPose) {
     if (p !== this._pose) {
@@ -229,8 +266,9 @@ export class GameCamera {
     const fwdX = Math.sin(this.camYaw);
     const fwdZ = Math.cos(this.camYaw);
     this.focusTarget.set(playerPos.x, playerPos.y + FOCUS_UP, playerPos.z);
-    const dist = this.distFor(this.camera.aspect);
-    const camH = this.heightFor(this.camera.aspect);
+    const dist = this.distFor(this.camera.aspect) * this.userDistMultiplier;
+    const lift = this.interiorMode && !this.interiorAboard ? UNDERGROUND_LIFT : 0;
+    const camH = this.heightFor(this.camera.aspect) + this.pitchOffset * 4.0 + lift;
     this.desired.set(
       this.focusTarget.x - fwdX * dist,
       this.focusTarget.y + camH,
@@ -335,6 +373,11 @@ export class GameCamera {
    *  only because its walls sit under the boom's height skip). World
    *  flips this from the subway's underground state. */
   interiorMode = false;
+  /** True while the feet stand inside the car's z-band (ride.ts aboardCar;
+   *  Game writes it every frame beside interiorMode). Aboard, the car is
+   *  the room — the street boom scale is the honest one, and the lift
+   *  would only press the lens into the car roof. */
+  interiorAboard = false;
 
   update(
     dt: number,
@@ -371,11 +414,18 @@ export class GameCamera {
     const moving = Math.hypot(move.x, move.y) > 0.1;
     const manual = Math.abs(camTurn) > 0.01;
 
+    if (this.manualDragTimer > 0) {
+      this.manualDragTimer -= dt;
+    }
+
     if (manual) {
       // Manual orbit wins while turning — do not fight the player.
       const dth = camTurn * dt * TURN_SPEED;
       this.camYaw += dth;
       this.moveYaw += dth;
+      this.flipping = false;
+    } else if (this.manualDragTimer > 0) {
+      // User recently dragged camera — hold camera heading without auto-settling
       this.flipping = false;
     } else if (!moving) {
       // Settle while standing still — a flip can't veer anything mid-stride.
@@ -410,7 +460,7 @@ export class GameCamera {
     if (Math.abs(rawDx - this.sideStep) < 0.02) this.sideStep = rawDx;
     this.desired.x += this.sideStep;
 
-    const k = Math.min(1, dt * POS_LERP);
+    const k = 1 - Math.exp(-POS_LERP * dt);
     const goal = this.interiorMode ? this.desired : this.shortenBoom(this.focusTarget, this.desired);
     this.camera.position.x += (goal.x - this.camera.position.x) * k;
     this.camera.position.y += (goal.y - this.camera.position.y) * k;

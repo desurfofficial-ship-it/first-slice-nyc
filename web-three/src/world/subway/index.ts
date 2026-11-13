@@ -13,6 +13,7 @@
  */
 
 import * as THREE from 'three';
+import { loadRegistry } from '../../sim/registry';
 import { updateZones, type ZoneDef } from './zone';
 import {
   aboardCar, beginRide, createRide, endRide, RIDE_SWAP_DX, swapFeet, tickRide,
@@ -24,13 +25,12 @@ import {
 } from './stationKit';
 import { buildTrainPair, buildTunnel } from './trainKit';
 
-export { STAIR_SLOT, STATION, RIDE_SWAP_DX, ZONE_KEEP_RE };
+export { STAIR_SLOT, STATION, RIDE_SWAP_DX, ZONE_KEEP_RE, aboardCar };
 export type { ColliderSpec };
 
 const TRAIN_DOOR_A_X = -41.1; // the aligned car's interactive door, station A
 const STAIR_A_CX = (STAIR_SLOT.minX + STAIR_SLOT.maxX) / 2; // −44.6
 const STAIR_B_CX = STAIR_A_CX + RIDE_SWAP_DX;              // −332.6
-
 export interface SubwayAnchors {
   /** Inside the aligned car at each station — the "press to ride" spot. */
   rideSpotA: { x: number; y: number; z: number };
@@ -58,7 +58,20 @@ export interface SubwaySystem {
   doorsOpen: boolean;
   /** True while the player is below grade (the dollhouse key). */
   underground: boolean;
+  /** The seam's camera debt (metres on x, signed). The swap translates the
+   *  player ±288 m in one frame; the boom must inherit the SAME jump or it
+   *  lerps 288 m through the tunnel wall (~1.3 s of whoosh, playtest:
+   *  "camera freaks out when the train moves"). Game.frame adds this to
+   *  cam.camera.position.x once and zeroes it — the framing is preserved
+   *  bit-exact, the seam stays invisible. */
+  seamDx: number;
   requestRide(from: RideEnd): boolean;
+  /** `dt` is the TRUE frame delta (capped 1 s), forwarded by
+   *  World.updateAmbient's `trueDt` — NOT the render-clamped dt. The ride
+   *  is a wall-clock experience (22 s of doors-closed tunnel; the teach
+   *  beats land in real seconds): fed the clamped dt, any device under
+   *  10 fps stretched it 5×+ and the player read "the ride doesn't work".
+   *  The machine is pure thresholds, so true elapsed time is safe. */
   update(dt: number, feet: { x: number; y: number; z: number }, onBeat: (key: string) => void): void;
 }
 
@@ -91,10 +104,27 @@ export function buildSubwaySystem(
   });
 
   const stationA = buildStation(ctx(groups.stationA), {
-    cx: -44, name: 'ALDER HTS', accent: '#1f6e5c', ads: [0, 2], home: true,
+    cx: -44, name: 'ALDER HTS', accent: '#1f6e5c', ads: [0, 2], home: true, slotDx: 0,
   });
+  // A-3 UNIT 10 (the far world, DEC-4 Option B standing ruling): station
+  // B's cx READS its registry row (SUB-TS) — the row IS the station's
+  // transcription (x −332 = STATION_B_X, w 16.6 = the kit's halfW×2 + 0.3
+  // walls). The kit's interior constants (halfW, the z band, the platform)
+  // are the kit's style; the row anchors the placement. ride.ts's
+  // STATION_B_X stays the sim-side ride constant (a pure module, its math
+  // test-pinned) and is pinned EQUAL to this row by the A-3 acceptance
+  // suite — a diverge fails loudly there, the no-double-truth law at the
+  // data boundary.
+  const subTs = loadRegistry().allBuildings().find((b) => b.id === 'SUB-TS');
+  if (!subTs || !subTs.footprint) {
+    throw new Error('[A-3] registry building "SUB-TS" has no footprint — the flip never invents geometry');
+  }
+  if (subTs.status === 'planned') {
+    throw new Error('[A-3] registry building "SUB-TS" is still \'planned\' — the flip never renders an unbuilt row (DEC-4 §5)');
+  }
   const stationB = buildStation(ctx(groups.stationB), {
-    cx: -332, name: '42 ST-TIMES SQ', accent: '#6D4C7D', ads: [1, 2, 0], home: false,
+    cx: subTs.footprint.x, name: '42 ST-TIMES SQ', accent: '#6D4C7D', ads: [1, 2, 0], home: false,
+    slotDx: RIDE_SWAP_DX, // B's own stair slot — the south-wall opening brackets it
   });
   // the fare banks' live parts (docs/50 §4.6): a pass through a gate
   // spins that hub a third-turn and clicks — the arms earn their dressing
@@ -107,6 +137,14 @@ export function buildSubwaySystem(
   const doorA = buildTrainPair(ctx(groups.trainA), -44.2, TRAIN_DOOR_A_X - (-44.2));
   const doorB = buildTrainPair(ctx(groups.trainB), -44.2 + RIDE_SWAP_DX, TRAIN_DOOR_A_X - (-44.2));
   buildTunnel(ctx(groups.tunnel), groups.scenery);
+  // the aligned cars' ride shells — roof + platform-side face stand down
+  // while the rider is aboard so the dollhouse lens reads the car as the
+  // open room it is (trainKit TrainDoors.roof / .southFace); from the
+  // platform the shell returns and the pair reads as a train again
+  const carShells = [
+    [doorA.roof, ...doorA.southFace],
+    [doorB.roof, ...doorB.southFace],
+  ];
 
   // Priya's window diagram (docs/51 B11): the chalk strokes the 'priya-lines'
   // beat reveals. Collected by name from both aligned cars — the twins carry
@@ -166,6 +204,7 @@ export function buildSubwaySystem(
     ride: createRide(),
     doorsOpen: true,
     underground: false,
+    seamDx: 0,
 
     requestRide(from) {
       const events = beginRide(sys.ride, from);
@@ -187,7 +226,11 @@ export function buildSubwaySystem(
           // Aboard only: a player who stepped back onto the platform during
           // closing stays behind (the ride continues; the arrival's
           // doors-open event sets them free — no 288 m teleport on foot).
-          if (aboardCar(feet.z)) feet.x = swapFeet(feet.x, e.end === 'B' ? 'A' : 'B');
+          if (aboardCar(feet.z)) {
+            feet.x = swapFeet(feet.x, e.end === 'B' ? 'A' : 'B');
+            // the camera inherits the same jump (see seamDx on the interface)
+            sys.seamDx += e.end === 'B' ? RIDE_SWAP_DX : -RIDE_SWAP_DX;
+          }
         }
         // 'arrived' carries no world work — the doors event said it all
       }
@@ -278,6 +321,12 @@ export function buildSubwaySystem(
       groups.trainB.visible = lit.has('trainB');
       stationA.ceiling.visible = !under;
       stationB.ceiling.visible = !under;
+      // the aboard car is the room: its shell (roof + platform-side face)
+      // stands down for the dollhouse lens the same frames the station's
+      // ceiling does (the group's own zone visibility gates the pair — only
+      // the lit car renders)
+      const aboard = aboardCar(feet.z);
+      for (const shell of carShells) for (const m of shell) m.visible = !aboard;
     },
   };
   return sys;

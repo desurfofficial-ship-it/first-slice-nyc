@@ -38,11 +38,33 @@ export const STATION = {
  *  South edge open to the walking lane; W/E/N railed. Sits just west of
  *  the existing SUB-01 headhouse (x -43.3..-40.7) — the ped loop's west
  *  terminus (x -42) and the familiar-face bench (x -41.4..-39.6) both
- *  stay clear of it by design. */
-export const STAIR_SLOT = { minX: -48.5, maxX: -45.9, minZ: 4.45, maxZ: 7.95 } as const;
+ *  stay clear of it by design.
+ *
+ *  W8 walkability fix (2026-11-12): the slot's south face moves 4.45 →
+ *  5.55. The old plot spanned z 4.45..7.95 — the ENTIRE sidewalk depth —
+ *  and its W/E/N railings sealed the Kestrel north walk: the only
+ *  through-path was a 0.35 m ledge-walk against the road edge (the walk-
+ *  ability probe's own leg died on the west railing face, x −48.85). The
+ *  slot now holds to the building line (maxZ 8.0 flush) and the treads
+ *  steepen their run 0.30 → 0.18 to fit the shorter descent (the RISE law
+ *  is untouched: 10 × 0.33 = 3.3; every rise stays ≤ the 0.35 STEP_UP and
+ *  every drop ≤ the 0.45 ground snap). The curb-side corridor z 4..5.55
+ *  is a real 1.55 m walking lane — wide enough for a pedestrian handshake
+ *  (the probe's 1.15 m draft squeezed the player onto the stair treads
+ *  between two walkers) — the same corridor the nav builder's skirt law
+ *  weaves (z 5.0), and the registry's SUB-01 row follows the slot
+ *  exactly. */
+export const STAIR_SLOT = { minX: -48.5, maxX: -45.9, minZ: 5.55, maxZ: 8.0 } as const;
 
 export const STAIR_STEPS = 10;
 export const STAIR_RISE = 0.33; // 10 × 0.33 = 3.3 = sidewalk top (0.1) - platform (-3.2)
+/** The tread run (the z-depth each step eats). The W8 slot shrink stole
+ *  0.7 m of run from the stair; the treads give it back — 9 × 0.18 + the
+ *  0.55 last tread = 2.17 from z0 5.7 lands flush on the 7.85 bridge,
+ *  exactly where the old 0.30 run put it. 0.18 still out-runs nothing it
+ *  shouldn't: the descent's 0.12 substeps and the 0.45 ground snap both
+ *  catch a tread every frame. */
+export const STAIR_RUN = 0.18;
 
 export type ColliderSpec = { x: number; y: number; z: number; w: number; h: number; d: number };
 
@@ -212,15 +234,22 @@ export function clockTexture(): THREE.CanvasTexture {
 // ---------------------------------------------------------------- the stair
 
 /** The walkable descent: 10 solid steps in a railed slot. South edge open
- *  (the entrance), north edge meets the station's south-wall opening. */
+ *  (the entrance), north edge meets the station's south-wall opening.
+ *  `cx` is the station's stair center (A: −47.2, B: −335.2); every slot-band
+ *  feature (the slot walls, the W/E rails, the globe post) rides the slot's
+ *  OWN translation `dx = cx − SLOT_CX` — the shipped bug built B's slot
+ *  walls at A's x band: invisible meshes at A's platform, duplicate
+ *  colliders, and a naked exit slot at B. */
 export function buildStair(ctx: KitCtx, cx: number): void {
   const w = 1.8;
   const tag = cx > -100 ? 'A' : 'B';
+  const SLOT_CX = (STAIR_SLOT.minX + STAIR_SLOT.maxX) / 2;
+  const dx = cx - SLOT_CX; // the station's own slot translation (0 for A)
   const z0 = STAIR_SLOT.minZ + 0.15;
   for (let i = 0; i < STAIR_STEPS; i++) {
     const top = 0.1 - STAIR_RISE * (i + 1);
-    const depth = i === STAIR_STEPS - 1 ? 0.55 : 0.3;
-    const zc = z0 + 0.3 * i + depth / 2;
+    const depth = i === STAIR_STEPS - 1 ? 0.55 : STAIR_RUN;
+    const zc = z0 + STAIR_RUN * i + depth / 2;
     const h = top - (STATION.floorTop - 0.2);
     box(ctx, `SUB_Stair_${tag}_${i}`, cx, top - h / 2, zc, w, h, depth, 0x8f8a82);
   }
@@ -230,24 +259,24 @@ export function buildStair(ctx: KitCtx, cx: number): void {
   // second-to-last tread (-2.87). Flush landing + deeper last tread help
   // the stair descent land on the platform (docs/51 B1).
   box(ctx, `SUB_StairLanding_${tag}`, cx, STATION.floorTop - 0.05, 7.85, w, 0.1, 0.9, 0x8f8a82);
-  // below-grade slot walls either side of the treads
+  // below-grade slot walls either side of the treads (the station's own band)
   const slotMidZ = (STAIR_SLOT.minZ + STAIR_SLOT.maxZ) / 2;
   const slotDepth = STAIR_SLOT.maxZ - STAIR_SLOT.minZ;
-  for (const sx of [STAIR_SLOT.minX + 0.15, STAIR_SLOT.maxX - 0.15]) {
+  for (const sx of [STAIR_SLOT.minX + dx + 0.15, STAIR_SLOT.maxX + dx - 0.15]) {
     box(ctx, `SUB_SlotWall_${sx < cx ? 'W' : 'E'}_${tag}`, sx, -1.6, slotMidZ, 0.3, 3.4, slotDepth, 0x6e5a4e);
   }
   // surface railings on the slot's W/E/N edges (top 1.05 — see in, don't
   // step in sideways). South edge stays open: the entrance.
   for (const [rx, rz, rw, rd] of [
-    [STAIR_SLOT.minX + 0.1, slotMidZ, 0.2, slotDepth],
-    [STAIR_SLOT.maxX - 0.1, slotMidZ, 0.2, slotDepth],
+    [STAIR_SLOT.minX + dx + 0.1, slotMidZ, 0.2, slotDepth],
+    [STAIR_SLOT.maxX + dx - 0.1, slotMidZ, 0.2, slotDepth],
     [cx, STAIR_SLOT.maxZ - 0.1, w + 0.4, 0.2],
   ] as const) {
     box(ctx, `SUB_HeadRail_${tag}_${rz > 5 ? (rx < cx ? 'w' : 'e') : 'n'}`, rx, 0.575, rz, rw, 1.05, rd, 0x2A9D8F);
   }
   // the green globe post — the signal that says subway from a block away
-  box(ctx, `SUB_GlobePost_${tag}`, STAIR_SLOT.minX + 0.35, 1.5, STAIR_SLOT.minZ + 0.4, 0.14, 0.9, 0.14, 0x2A9D8F);
-  box(ctx, `SUB_GlobeLamp_${tag}`, STAIR_SLOT.minX + 0.35, 2.05, STAIR_SLOT.minZ + 0.4, 0.3, 0.3, 0.3, 0x2A9D8F, { emissive: 0x9fe8c8, ei: 0.9, collide: false });
+  box(ctx, `SUB_GlobePost_${tag}`, STAIR_SLOT.minX + dx + 0.35, 1.5, STAIR_SLOT.minZ + 0.4, 0.14, 0.9, 0.14, 0x2A9D8F);
+  box(ctx, `SUB_GlobeLamp_${tag}`, STAIR_SLOT.minX + dx + 0.35, 2.05, STAIR_SLOT.minZ + 0.4, 0.3, 0.3, 0.3, 0x2A9D8F, { emissive: 0x9fe8c8, ei: 0.9, collide: false });
   // low head sign
   const sign = box(ctx, `SUB_HeadSign_${tag}`, cx, 1.55, STAIR_SLOT.minZ + 0.25, 1.7, 0.42, 0.08, 0x2A9D8F, { collide: false });
   (sign.material as THREE.MeshLambertMaterial).map = bandTexture('SUBWAY', '#1f6e5c');
@@ -265,6 +294,13 @@ export interface StationOpts {
   ads: number[];
   /** True for the home station (Priya's platform). */
   home: boolean;
+  /** The stair slot's x translation for THIS station (0 for A, RIDE_SWAP_DX
+   *  for B). The slot is a fixed feature of the parameterized station — the
+   *  south-wall opening MUST bracket the station's own slot, or the wall
+   *  seals it: the shipped bug built B's opening from A's slot band and a
+   *  291 m wall covered B's stair mouth (the field report "ride to Times
+   *  Square doesn't work" — you rode there and could never leave). */
+  slotDx?: number;
 }
 
 /** Meshes that live systems hold by reference and mutate per-frame — the
@@ -311,12 +347,29 @@ export function turnstileHubAt(
   return -1;
 }
 
+/** The south wall's two x-spans for a station — pieces flanking THAT
+ *  station's own stair slot (the opening is exactly the slot band). Pure:
+ *  the seal-law test pins it, the builder consumes it. The shipped bug
+ *  computed B's pieces from A's slot band and a 291 m wall sealed B's
+ *  stair mouth — this seam is the single place the pieces are computed. */
+export function southWallPieces(
+  xW: number, xE: number, slotDx: number,
+): Array<{ x0: number; x1: number }> {
+  const slotMinX = STAIR_SLOT.minX + slotDx;
+  const slotMaxX = STAIR_SLOT.maxX + slotDx;
+  return [
+    { x0: xW, x1: slotMinX },   // west of the opening
+    { x0: slotMaxX, x1: xE },   // east of the opening
+  ];
+}
+
 /** One parameterized station: floor, walls with portal openings, ceiling,
  *  trench, fare bank, dressing. The stair is built separately so the two
  *  builders stay readable. */
 export function buildStation(ctx: KitCtx, opts: StationOpts): StationResult {
   const { cx } = opts;
   const S = STATION;
+  const slotDx = opts.slotDx ?? 0; // the station's own stair slot (see StationOpts)
   const tag = opts.home ? 'A' : 'B';
   const dressing = new THREE.Group();
   dressing.name = `SUB_Dressing_${tag}`;
@@ -336,9 +389,12 @@ export function buildStation(ctx: KitCtx, opts: StationOpts): StationResult {
   box(ctx, `SUB_Floor_${tag}`, cx, yMin - 0.05, (S.zSouth + S.zPlatformEdge) / 2, S.halfW * 2 + 0.3, 0.1, S.zPlatformEdge - S.zSouth, tileCream);
   box(ctx, `SUB_Edge_${tag}`, cx, yMin + 0.02, S.zPlatformEdge - 0.2, S.halfW * 2, 0.04, 0.35, 0xF7B32B, { collide: false });
 
-  // south wall (camera side) — two pieces flanking the stair opening
-  box(ctx, `SUB_WallS_W_${tag}`, (xW + STAIR_SLOT.minX) / 2, yMid, S.zSouth - 0.15, STAIR_SLOT.minX - xW, wallH, 0.3, tileCream);
-  box(ctx, `SUB_WallS_E_${tag}`, (STAIR_SLOT.maxX + xE) / 2, yMid, S.zSouth - 0.15, xE - STAIR_SLOT.maxX, wallH, 0.3, tileCream);
+  // south wall (camera side) — two pieces flanking THIS station's stair
+  // opening (southWallPieces: the station's own slot, translated — the
+  // shipped bug used A's band here and B's 291 m wall sealed its exit)
+  const [sW, sE] = southWallPieces(xW, xE, slotDx);
+  box(ctx, `SUB_WallS_W_${tag}`, (sW.x0 + sW.x1) / 2, yMid, S.zSouth - 0.15, sW.x1 - sW.x0, wallH, 0.3, tileCream);
+  box(ctx, `SUB_WallS_E_${tag}`, (sE.x0 + sE.x1) / 2, yMid, S.zSouth - 0.15, sE.x1 - sE.x0, wallH, 0.3, tileCream);
 
   // north tiled wall behind the tracks (full trench depth)
   box(ctx, `SUB_WallN_${tag}`, cx, (S.trenchTop + yTop) / 2, S.zTrenchN + 0.225, S.halfW * 2 + 0.3, yTop - S.trenchTop, 0.45, tileCream);

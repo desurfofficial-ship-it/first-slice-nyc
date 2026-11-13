@@ -98,8 +98,12 @@ const run = await page.evaluate(async () => {
   tp(-47.2, -1.75, 6.1, 0);        // land mid-stair (a tread holds)
   await sleep(500);
   out.stairMidY2 = +p.y.toFixed(2);
+  // walk the descent to the PLATFORM, not to a wall-clock nap — software-GL
+  // boxes cover less ground per second (the docs/51 machine-honesty law;
+  // the fixed 1100 ms nap landed one tread short on slow boxes)
   g.input.injectKey(keyToward(true), true);
-  await sleep(1100);
+  const t0Stair = Date.now();
+  while (Date.now() - t0Stair < 15000 && p.y > -3.05) await sleep(100);
   g.input.injectKey(keyToward(true), false);
   await sleep(400);
   out.stairY = +p.y.toFixed(2);
@@ -121,15 +125,61 @@ const run = await page.evaluate(async () => {
   await sleep(400);
   out.platformY = +p.y.toFixed(2);
   out.stationLit = g.world.subway.groups.stationA.visible;
+  // the dollhouse lifts the yard roof: the north lawn must survive the
+  // static bake as a STANDALONE named mesh (baked, the name lookup finds
+  // nothing, the lawn stays up underground and the cutaway looks at grass
+  // — the entering-the-subway regression, fixed 2026-11-12) and hide now
+  let yard = null;
+  g.world.scene.traverse((o) => { if (o.name === 'Yard_N') yard = o; });
+  out.yardStandalone = !!yard;
+  out.yardHidden = !!yard && yard.visible === false;
+  // the settled platform lens: the sight line camera→focus must clear the
+  // station's south wall top (z 7.7 plane, top edge −0.25) with margin,
+  // and the lens must ride the dollhouse lift (focus + ~10, not ~6.7)
+  await sleep(1600);
+  const camPos = g.cam.camera.position;
+  const focus = { x: p.x, y: p.y + 1.2, z: p.z };
+  const tWall = (7.7 - camPos.z) / (focus.z - camPos.z);
+  out.lensY = +camPos.y.toFixed(2);
+  out.wallClear = +(camPos.y + tWall * (focus.y - camPos.y)).toFixed(2);
 
   // 4. Priya stands her post
   let priya = null;
   g.world.subway.groups.stationA.traverse((o) => { if (o.name === 'Priya') priya = o; });
   out.priya = !!priya && priya.visible;
 
-  // 5. board: the ride spot is enabled and performs
-  tp(-41.1, -3.1, 15.3);
+  // 5. board — the 2026-11-12 law: WALK in, no teleports. The old leg
+  // teleported into the car and the probe passed while every real player
+  // was left on the platform: the south bench ran across the doorway and
+  // the walk-in stopped 6 cm short of the aboard band. Now: stand on the
+  // platform, walk north through the open door until the band says aboard.
+  tp(-41.1, -3.1, 12.6, 0);
+  await sleep(500);
+  // the aligned car's shell still reads as a train from the platform (the
+  // read happens BEFORE the walk — aboard, roof + south face stand down).
+  // Exact names: the pair's shuttered east car wears its own shell and
+  // keeps it — only the car the player rides stands its shell down.
+  const alignedShellVisible = () => {
+    let roof = null, body = null;
+    g.world.subway.groups.trainA.traverse((o) => {
+      if (o.name === 'SUB_CarRoof_-44.2') roof = o.visible;
+      if (o.name === 'SUB_CarBodyS_-44.2_1') body = o.visible;
+    });
+    return roof === true && body === true;
+  };
+  out.roofOnAtPlatform = alignedShellVisible();
+  // ride.ts's aboard band (CAR_Z_MIN 14.45 / CAR_Z_MAX 17.35) — inlined here
+  // because the page scope has no module imports (the probe's positions are
+  // canon coordinates anyway; the unit test pins the band itself)
+  const aboard = (z) => z > 14.45 && z < 17.35;
+  g.input.injectKey('KeyW', true);
+  const t0Board = Date.now();
+  while (Date.now() - t0Board < 8000 && !aboard(p.z)) await sleep(80);
+  g.input.injectKey('KeyW', false);
   await sleep(300);
+  out.walkInZ = +p.z.toFixed(3);
+  out.walkInY = +p.y.toFixed(3);
+  out.walkInAboard = aboard(p.z);
   const near = g.registry.nearest(p, g.state, { state: g.state, game: g });
   out.ridePrompt = near ? near.id : null;
   if (near && near.id === 'trainA') {
@@ -149,11 +199,37 @@ const run = await page.evaluate(async () => {
   censusDiagram(g.world.subway.groups.trainB);
   out.diagramMeshes = diagramTotal;
   out.diagramUpAtBeat = diagramTotal > 0 && diagramUp === diagramTotal;
+  // aboard, the car is the room: roof AND platform-side face stand down
+  // for the dollhouse lens (the 2026-11-12 fix — a roofed car read as a
+  // closed metal tube; with the face on, the shut door still hid the rider)
+  const alignedShellHidden = () => {
+    let roof = null, body = null, leaf = null;
+    g.world.subway.groups.trainA.traverse((o) => {
+      if (o.name === 'SUB_CarRoof_-44.2') roof = o.visible;
+      if (o.name === 'SUB_CarBodyS_-44.2_1') body = o.visible;
+      if (o.name === 'SUB_DoorLeaf_-44.2_a') leaf = o.visible;
+    });
+    return roof === false && body === false && leaf === false;
+  };
+  out.roofOffAboard = alignedShellHidden();
+  // the seam snap: the boom inherits the swap's ±288 m in the same frame
+  // (SubwaySystem.seamDx → Game.frame) — no 288 m lerp through the tunnel
+  const camXBeforeSeam = g.cam.camera.position.x;
   batch(15);
+  await sleep(250); // the rAF frame consumes the seam debt after the batch
+  const camXAfterSeam = g.cam.camera.position.x;
+  out.seamCamJump = +Math.abs(camXAfterSeam - camXBeforeSeam).toFixed(1);
   out.ridePhase = g.world.subway.ride.phase;
   out.atB = g.world.subway.ride.at === 'B';
   out.swappedX = +p.x.toFixed(1);
   out.doorsOpenAtB = g.world.subway.doorsOpen;
+  // aboard the car the lift stands down: the lens keeps the car-scale
+  // street framing (focus + ~6.7), never the lifted diorama height. The
+  // read waits for the boom to settle — the seam's 288 m teleport and the
+  // batch ticks leave the lens mid-lerp otherwise
+  await sleep(1600);
+  out.aboardLensY = +g.cam.camera.position.y.toFixed(2);
+  out.aboardFocusY = +(p.y + 1.2).toFixed(2);
 
   // 7. the busker waits on the 42nd St platform
   let busker = null;
@@ -190,13 +266,15 @@ const run = await page.evaluate(async () => {
     && g.world.subway.doorsOpen === true;
 
 
-  // 9. climb out: the treads climb (STEP_UP law), the surface receives
-  tp(-335.6, -3.1, 7.4, Math.PI);
+  // 9. climb out — the REAL walk: the pocket south of the fare line, through
+  // the station's own stair opening, up the treads to the square. NO
+  // mid-stair teleport: the shipped B-south-wall bug (a 291 m crossed-slot
+  // wall sealing the opening) was invisible to the old teleporting leg, and
+  // it is exactly the field report "ride to Times Square doesn't work".
+  tp(-335.2, -3.1, 9.4, Math.PI);
   await sleep(400);
-  await walkUntil(keyToward(false), () => p.y > -1.9, 15000); // leg 1: into the stair head
-  tp(-335.6, -1.75, 6.1, Math.PI);
-  await sleep(500);
-  await walkUntil(keyToward(false), () => p.y > 0.05, 25000); // leg 2: up to the square
+  await walkUntil(keyToward(false), () => p.y > -1.9, 25000); // the opening + first treads
+  await walkUntil(keyToward(false), () => p.y > 0.05, 40000); // up to the surface
   await sleep(400);
   out.surfaceY = +p.y.toFixed(2);
   out.tsLit = g.world.subway.lit.has('tsSurface');
@@ -209,6 +287,11 @@ const run = await page.evaluate(async () => {
   // paper froze the walker mid-stride ON PURPOSE. The probe puts it down
   // the way a player does: Stay = back to the square. (Found by this very
   // probe: the M121 walk after the sync stood still — frozen by the card.)
+  // Poll for the card: at the sandbox's ~2 fps the trigger's own frame can
+  // land a second after the surface step (the old mid-stair teleport leg
+  // changed this leg's wall timing — the card raced the check).
+  const wowT0 = Date.now();
+  while (Date.now() - wowT0 < 20000 && g.ui.postcardPanel.hidden) await sleep(400);
   out.wowCardUp = !g.ui.postcardPanel.hidden;
   if (out.wowCardUp) { g.ui.postcardStay.click(); await sleep(300); }
   out.wowDismissed = g.ui.postcardPanel.hidden && !g.player.frozen;
@@ -229,7 +312,9 @@ const run = await page.evaluate(async () => {
   tp(-27.65, 0.1, 4.6, Math.PI);
   await sleep(1100);
   const bayT0 = Date.now();
-  while (Date.now() - bayT0 < 40000 && g.world.arrivalBus.group.visible !== true) await sleep(250);
+  // the exit walk's new (honest) length shifts the loop bus's circuit phase;
+  // the wait rides the bus's own cycle, so give it two full circuit windows
+  while (Date.now() - bayT0 < 120000 && g.world.arrivalBus.group.visible !== true) await sleep(250);
   out.bayShellVisible = g.world.arrivalBus.group.visible === true;
   // the walk keeps a position trace — if a box blocks the gap, the trace
   // says where the walk stopped (the kept diagnostic, probe forensics law)
@@ -253,6 +338,35 @@ const run = await page.evaluate(async () => {
   batch(26);
   out.homeX = +p.x.toFixed(1);
   out.rideHome = g.world.subway.ride.at === 'A';
+
+  // 14. THE STARVATION LAW (the field report "ride to Times Square doesn't
+  // work"): the ride must land on the REAL frame loop — no batching. The
+  // machine is fed TRUE elapsed time (Game.frame trueDt), so even at the
+  // sandbox's ~2 fps the 22 s ride lands inside ~30 s wall. Starved by the
+  // render clamp (the pre-fix regime) the same condition measured rate 0.185
+  // and needed 110+ s — the player read the doors-shut crawl as broken.
+  // First retire leg 13's leftover 'arrived' hold: step off the car band
+  // like a player (z < the platform edge retires it), batch the 1.6 s
+  // departure, THEN press — the law is idle → closing → … → arrived.
+  tp(-41.1, -3.1, 12.6);
+  batch(4);
+  if (g.world.subway.ride.phase !== 'idle') batch(4);
+  tp(-41.1, -3.1, 15.3);
+  await sleep(400);
+  const nearStarve = g.registry.nearest(p, g.state, { state: g.state, game: g });
+  const starveT0 = Date.now();
+  let starveCalls = 0;
+  const origSub = g.world.subway.update.bind(g.world.subway);
+  g.world.subway.update = (dt, feet, onBeat) => { starveCalls++; return origSub(dt, feet, onBeat); };
+  if (nearStarve && nearStarve.id === 'trainA') {
+    for (const e of nearStarve.perform({ state: g.state, game: g })) g.applyEffect(e);
+  }
+  out.starveStarted = g.world.subway.ride.phase !== 'idle';
+  while (Date.now() - starveT0 < 45000 && g.world.subway.ride.phase !== 'arrived') await sleep(500);
+  out.starveArrived = g.world.subway.ride.phase === 'arrived';
+  out.starveWallS = +((Date.now() - starveT0) / 1000).toFixed(1);
+  out.starveCalls = starveCalls;
+  g.world.subway.update = origSub;
   return out;
 });
 
@@ -264,16 +378,27 @@ check(run.stairMidY2 < -0.5 && run.stairMidY2 > -2.7, `a mid-stair tread holds (
 check(Math.abs(run.stairY - (-3.2)) < 0.25, `the stair descends to the platform (y ${run.stairY})`);
 check(run.underground === true, 'the underground state flips on');
 check(run.terminalHidden, 'the terminal lifts off (the dollhouse)');
+check(run.yardStandalone, 'the yard roof survives the bake as a named mesh');
+check(run.yardHidden, 'the dollhouse lifts the yard roof underground');
+check(run.lensY > -1.9 + 9, `the underground boom lifts (cam y ${run.lensY})`);
+check(run.wallClear > 0.15, `the platform lens clears the south wall (y ${run.wallClear} at z 7.7)`);
 check(run.shadowHalfUnder === 18, `the underground shadow box shrinks (half ${run.shadowHalfUnder})`);
 check(run.shadowSymmetric, 'the shrunk box stays symmetric on its lattice');
 check(Math.abs(run.platformY - (-3.2)) < 0.05, `the platform floor holds (y ${run.platformY})`);
 check(run.stationLit === true, 'station A lights its zone');
 check(run.priya === true, 'Priya stands her post at the fare bank');
+check(run.walkInAboard === true, `the walk-in reaches the aisle (z ${run.walkInZ})`);
+check(Math.abs(run.walkInY - (-3.2)) < 0.15, `the car floor holds the walk-in (y ${run.walkInY})`);
 check(run.ridePrompt === 'trainA', 'the ride spot prompts (trainA)');
+check(run.roofOnAtPlatform === true, 'the car reads as a train from the platform (roof on)');
 check(run.boarded === true, 'boarding closes the doors');
+check(run.roofOffAboard === true, 'the aboard lens sees into the car (roof off)');
+check(run.seamCamJump > 250, `the seam snaps the camera with the player (${run.seamCamJump} m)`);
 check(run.atB === true, 'the seam lands the player at 42nd St');
 check(run.swappedX < -320, `the swap translated the player (x ${run.swappedX})`);
 check(run.doorsOpenAtB === true, 'the doors reopen on arrival');
+check(run.starveArrived === true && run.starveStarted === true, `THE STARVATION LAW: the ride lands on the real loop (${run.starveWallS} s wall, ${run.starveCalls} frames — the field report's broken regime needed 110+)`);
+check(run.aboardLensY < run.aboardFocusY + 8, `the aboard lens keeps the car scale (cam y ${run.aboardLensY} vs focus ${run.aboardFocusY})`);
 check(run.leftBehindStarted === true, 'a left-behind player still starts the machine');
 check(run.leftBehindKeptX === true, 'the seam does NOT teleport a player on the platform');
 check(run.leftBehindStillRiding === true, 'the ride continues without the stowaway');

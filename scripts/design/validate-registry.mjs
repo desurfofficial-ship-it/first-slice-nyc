@@ -114,9 +114,58 @@ const shipped = [
   ['KTS-01', -25, -14, 50, 12, 16],    // Bldg_S_West
   ['KTS-02', 13, -14, 26, 12, 14],     // Bldg_S_FireEscape
   ['KTS-03', 38, -14, 24, 12, 18],     // Bldg_S_East
-  ['SUB-01', -42, 6.2, 2.6, 3.5, 3.2], // subway entrance + collider
+  // SUB-01 re-homed to the K-line STAIR_SLOT center (2026-11 consumer
+  // fix, ebfb08a), then W8 (2026-11-12): the slot holds the building line
+  // (z 5.15..7.95) so the headhouse stops sealing the Kestrel north walk;
+  // the row follows STAIR_SLOT exactly (stationKit.ts)
+  ['SUB-01', -47.2, 6.775, 2.6, 2.45, 3.2], // subway entrance + collider
   ['VND-01', 29.8, -4.55, 1.7, 0.9, 2.2] // dog cart
 ];
+// W6 — the terrace build-out (2026-11-11): the strips behind Gable and
+// Marlow are real rows now; the masses are pinned like every band before,
+// with their own status column (the shipped list above is 'existing' law)
+const w6 = [
+  ['GRB-06', -64, 56.2, 8, 15.4, 12.5],
+  ['GRB-07', 64, 56.2, 8, 15.4, 12.5],
+  ['TEN-02', -64, -56.2, 8, 15.4, 16.5],
+  ['KTS-04', 64, -56.2, 8, 15.4, 18]
+];
+for (const [id, x, z, w, d, h] of w6) {
+  const b = R.buildings.find((y) => y.id === id);
+  ok(b, `MISSING W6 ${id}`);
+  if (b) {
+    const f = b.footprint;
+    ok(f.x === x && f.z === z && f.w === w && f.d === d && b.height === h,
+      `W6 DRIFT ${id}: registry (${f.x},${f.z},${f.w},${f.d},h${b.height}) != plan (${x},${z},${w},${d},h${h})`);
+    ok(b.status === 'built (W6)', `${id} must be status 'built (W6)'`);
+  }
+}
+// W7 — the Westgate & Eastgate rows (2026-11-12): the map's last two sides;
+// the masses are pinned like every band before (the W6 pattern)
+const w7 = [
+  ['GRB-08', -88, 56.2, 8, 15.4, 12.5], ['GRB-09', -96, 56.2, 8, 15.4, 12.5],
+  ['GRB-10', 88, 56.2, 8, 15.4, 12.5], ['GRB-11', 96, 56.2, 8, 15.4, 12.5],
+  ['TEN-03', -88, -56.2, 8, 15.4, 16.5], ['KTS-05', -96, -56.2, 8, 15.4, 18],
+  ['TEN-04', 88, -56.2, 8, 15.4, 16.5], ['KTS-06', 96, -56.2, 8, 15.4, 18],
+  ['GRB-12', -88, 26, 8, 12, 12.5], ['GRB-13', -96, 26, 8, 12, 12.5],
+  ['GRB-14', 88, 26, 8, 12, 12.5], ['GRB-15', 96, 26, 8, 12, 12.5],
+  ['KTN-08', -88, 14, 8, 12, 15], ['KTN-09', -96, 14, 8, 12, 16],
+  ['KTN-10', 88, 14, 8, 12, 15], ['KTN-11', 96, 14, 8, 12, 16],
+  ['KTS-07', -88, -14, 8, 12, 16], ['KTS-08', -96, -14, 8, 12, 14],
+  ['KTS-09', 88, -14, 8, 12, 14], ['KTS-10', 96, -14, 8, 12, 16],
+  ['MRW-01', -88, -26, 8, 12, 15], ['MRW-02', -96, -26, 8, 12, 17],
+  ['MRW-03', 88, -26, 8, 12, 17], ['MRW-04', 96, -26, 8, 12, 15],
+];
+for (const [id, x, z, w, d, h] of w7) {
+  const b = R.buildings.find((y) => y.id === id);
+  ok(b, `MISSING W7 ${id}`);
+  if (b) {
+    const f = b.footprint;
+    ok(f.x === x && f.z === z && f.w === w && f.d === d && b.height === h,
+      `W7 DRIFT ${id}: registry (${f.x},${f.z},${f.w},${f.d},h${b.height}) != plan (${x},${z},${w},${d},h${h})`);
+    ok(b.status === 'built (W7)', `${id} must be status 'built (W7)'`);
+  }
+}
 for (const [id, x, z, w, d, h] of shipped) {
   const b = R.buildings.find((y) => y.id === id);
   ok(b, `MISSING EXISTING ${id} — the registry must carry every shipped mass`);
@@ -135,7 +184,10 @@ const anchors = [
   ['barber', 36.6, 7.9], ['alley peek', 32.1, 8.4], ['washer bay', -5.9, 7.6],
   ['bulletin board', -37.6, 7.5], ['newsbox', -44.6, 6.6], ['subway read', -42, 4.55],
   ['bodega shelf', -18.5, 13.5], ['sal counter', -7.0, 7.3], ['permit A-frame', -4.0, 5.8],
-  ['teal door', 15, 6.9], ['roof vantage', 12.5, -6.8], ['terminal door', -30, 8]
+  ['teal door', 15, 6.9], ['roof vantage', 12.5, -6.8], ['terminal door', -30, 8],
+  // the W6 terrace prompts + the W7 gate-row prompts (the strips' own loops)
+  ['terrace stoop', -66.2, 47.4], ['terrace payphone', 66.6, 47.6], ['terrace flyer', -58.9, -47.5],
+  ['west stoop', -90.2, 47.4], ['east chalk menu', 88, -32.8],
 ];
 const near = (ax, az) => R.buildings.some((b) => {
   const f = fp(b.footprint);
@@ -177,4 +229,4 @@ if (problems.length) {
   for (const p of problems) console.log('  ✗ ' + p);
   process.exit(1);
 }
-console.log(`REGISTRY VALIDATION OK — ${ids.size} IDs, ${R.buildings.length} buildings (${R.buildings.filter(b => b.status === 'existing').length} existing), ${R.streets.length} streets, ${R.parks.length} parks, ${R.interiors.length} interiors. Shipped-world fidelity: 12/12 masses, ${anchors.length}/${anchors.length} anchors.`);
+console.log(`REGISTRY VALIDATION OK — ${ids.size} IDs, ${R.buildings.length} buildings (${R.buildings.filter(b => b.status === 'existing').length} existing), ${R.streets.length} streets, ${R.parks.length} parks, ${R.interiors.length} interiors. Shipped-world fidelity: 17/17 masses (13 shipped + 4 W6) + 24/24 W7 gate rows, ${anchors.length}/${anchors.length} anchors.`);

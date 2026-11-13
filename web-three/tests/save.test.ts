@@ -35,8 +35,11 @@ describe('save v1 — corrupt save is a fresh start, never a crash', () => {
 });
 
 describe('save v1 — field clamping (resume exact, nothing out of range)', () => {
-  it('clamps day to [1, MAX_DAY]', () => {
-    expect(parseSave(JSON.stringify({ day: 99 })).day).toBe(MAX_DAY);
+  it('clamps day to [1, MAX_DAY] (the C1 wave moved the ceiling to the season\u2019s end — the clamp moves with it)', () => {
+    expect(parseSave(JSON.stringify({ day: 99999 })).day).toBe(MAX_DAY);
+    // a day inside the C1 season now parses EXACTLY (the stations are
+    // sparse — day 29 is October 7, and a save standing there is legal)
+    expect(parseSave(JSON.stringify({ day: 29 })).day).toBe(29);
     expect(parseSave(JSON.stringify({ day: 0 })).day).toBe(1);
     expect(parseSave(JSON.stringify({ day: -4 })).day).toBe(1);
   });
@@ -45,6 +48,18 @@ describe('save v1 — field clamping (resume exact, nothing out of range)', () =
     const s = parseSave(JSON.stringify({ lunch_served: 12, money: -40 }));
     expect(s.lunch_served).toBe(3);
     expect(s.money).toBe(0);
+  });
+
+  // FS-AUDIT-004 (remediation): the parser now enforces the UI's own
+  // contract — a 24-char name field and a bounded money quantity. The
+  // audit's proof cases (1e6-char name, 1e15 money) can no longer parse
+  // verbatim.
+  it('caps cart_name at the UI maxlength (24) and money at the ceiling (FS-AUDIT-004)', () => {
+    const s = parseSave(JSON.stringify({ cart_name: 'A'.repeat(1_000_000), money: 1e15 }));
+    expect(s.cart_name.length).toBe(24);
+    expect(s.money).toBe(999_999);
+    const t = parseSave(JSON.stringify({ day_start_money: 1e15 }));
+    expect(t.day_start_money).toBe(999_999);
   });
 
   it('coerces stringly-typed values (defensive)', () => {
@@ -69,6 +84,26 @@ describe('save v1 — write/read roundtrip', () => {
       ...data, day_start_money: 111,
       shelf_buys: 0, dog_buys: 0, trims: 0, washes: 0, hoop_makes: 0,
       map_notes: [], map_slang: [], map_places: [], map_priya_lines: false,
+      // the in-game calendar + the field diary (narrative/14 R3+R4) — the
+      // same optional-trailing law one row later: calendar absent reads as
+      // the story day (the C0 mood-lock), the diary absent reads as empty
+      calendar_day: 2, field_diary: [],
+      // the consequence ledger (narrative/14 R2 — WP-5): absent reads as
+      // an empty ledger, the same optional-trailing law one row later
+      ledger: [],
+      // the chapter gate + rails (narrative/14 R1+R8): absent reads as a
+      // fresh arrival with an unfired spine, the same law two rows later
+      chapter: { chapter: 'C0', openedOnDay: 1, calendarDay: 1 },
+      rails: {
+        R1: { fired: false, firedOnDay: null }, R2: { fired: false, firedOnDay: null },
+        R3: { fired: false, firedOnDay: null }, R4: { fired: false, firedOnDay: null },
+        R5: { fired: false, firedOnDay: null }, R6: { fired: false, firedOnDay: null },
+      },
+      // the §7-step-7 machines (narrative/14 R9–R12) — the same
+      // optional-trailing law: identity/fluency/send absent read as their
+      // canon defaults (Leo Marsh, the bottom rung, never-sent); the
+      // resource note's latch materializes false (a boolean default)
+      resource_note_offered: false,
     });
   });
 
@@ -135,6 +170,24 @@ describe('the block remembers — optional counters, Save v1 stays v1 (Doc 37 §
     expect(s.stool).toBe(false);
     expect(s.permit).toBe(false);
     expect(s.shelf_buys).toBe(0);
+  });
+
+  it('an ancient save parses with the calendar + the field diary as defaults (narrative/14 R3+R4)', () => {
+    // the reboot-era compat proof: the exact JSON shape the game wrote
+    // BEFORE the narrative spine — the calendar reads as the story day
+    // (Day 3 = October 3, Year 1 — the mood-lock), the diary reads as empty
+    const ancient = JSON.stringify({ day: 3, day_complete: true, money: 120 });
+    const s = parseSave(ancient);
+    expect(s.calendar_day).toBe(3);
+    expect(s.field_diary).toEqual([]);
+  });
+
+  it('field_diary round-trips through the save (a corrupt page is an empty one, never a crash)', () => {
+    const store = memoryStore();
+    writeSave({ ...defaultSave(), day: 2, field_diary: [{ id: 'E1', kind: 'PLACE' }] as never }, store);
+    expect(loadSave(store).field_diary).toEqual([]); // the malformed entry quarantined
+    const corrupt = memoryStore({ [SAVE_KEY]: '{"day":2,"field_diary":42}' });
+    expect(loadSave(corrupt).field_diary).toEqual([]);
   });
 
   it('counters round-trip', () => {

@@ -256,7 +256,7 @@ export function makeHydrant(bank: MatBank): THREE.Group {
   body.castShadow = true;
   g.add(body);
   g.add(unitCyl(bank.get(PAL_CORAL), 0.12, 0.12, 0, 0.8, 0));
-  g.add(unitBox(bank.get(PAL_CORAL), 0.5, 0.11, 0.14, 0, 0.48, 0));
+  g.add(unitBox(bank.get(PAL_CORAL), 0.5, 0.11, 0.3, 0, 0.48, 0));
   return g;
 }
 
@@ -272,10 +272,13 @@ export function makeSubwayEntrance(
   // the real descendable stairwell lives below (docs/50, the K-line slot west
   // of the headhouse); these two boxes interpenetrated its top steps. The
   // railings, posts, sign and F bullet are the entrance's identity and stay.
+  // W8 (2026-11-12): the slot shrank to z 5.55..8.0 (the headhouse no longer
+  // seals the sidewalk), so the railings follow — 2.4 m frames the 2.45 m slot
+  // with a hand's width of air; the cross rails slide in to match.
   // railings both sides + cross rails
   for (const sx of [-1.3, 1.3]) {
-    g.add(unitBox(iron, 0.07, 0.95, 3.4, sx, 0.48, 0));
-    for (let z = -1.2; z <= 1.2; z += 1.2) g.add(unitBox(iron, 1.35, 0.06, 0.06, 0, 0.72, z));
+    g.add(unitBox(iron, 0.07, 0.95, 2.4, sx, 0.48, 0));
+    for (let z = -1.0; z <= 1.0; z += 1.0) g.add(unitBox(iron, 1.35, 0.06, 0.06, 0, 0.72, z));
   }
   // posts + sign
   for (const sx of [-1.3, 1.3]) g.add(unitBox(iron, 0.09, 2.6, 0.09, sx, 1.3, -1.4));
@@ -357,6 +360,21 @@ export function makeBarrier(bank: MatBank): THREE.Group {
   board.castShadow = true;
   g.add(board);
   for (const sx of [-0.62, 0.62]) g.add(unitBox(orange, 0.1, 0.85, 0.5, sx, 0.42, 0));
+  // the audit pass: diagonal hazard stripes — the NYC barricade signature.
+  // Nine cream bands at 45°, proud of the board face; the notice plate stays
+  // stapled over the middle (a real barricade wears its flyer over stripes).
+  // ONE merged mesh — the barrier is bake-excluded, so the stripes would
+  // otherwise cost nine draws for the life of the object.
+  const stripeGeos: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < 9; i++) {
+    stripeGeos.push(new THREE.BoxGeometry(0.09, 0.52, 0.012)
+      .rotateZ(Math.PI / 4)
+      .translate(-0.59 + i * 0.1475, 0.62, 0.042));
+  }
+  const stripes = new THREE.Mesh(mergeGeometries(stripeGeos, false)!, bank.get(PAL_CREAM));
+  stripes.name = 'BarrierStripes';
+  stripes.castShadow = true;
+  g.add(stripes);
   g.add(unitBox(bank.get(PAL_CREAM), 1.0, 0.14, 0.02, 0, 0.62, 0.05));
   return g;
 }

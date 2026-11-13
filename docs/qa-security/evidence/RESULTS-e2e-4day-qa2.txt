@@ -1,0 +1,146 @@
+PACE: guard budgets ×3.73
+POINTER: PASS the pocket opens by CLICK and shows the tools
+POINTER: PASS the Map opens by CLICK on the HUD button
+POINTER: PASS the Map folds again by click
+TRACE : [pace] avg frame 450.0 ms over 60 — event budgets ×4.00
+DRIVER: PASS player stands on the sidewalk (y=0.10)
+DRIVER: PASS the camera occlusion buffer covers every canopy
+POINTER: PASS the audio button toggles by click
+DRIVER: PASS walk cycle swings the hips while moving (max |hipL|=0.634)
+POINTER: PASS the album opens by CLICK on the HUD button
+DRIVER: PASS Rosa greeting advances flow
+POINTER: PASS the album folds again by click
+DRIVER: PASS enter bodega: roof hides, collect step
+DRIVER: PASS 3 shelf items collected
+DRIVER: PASS card 1: "Regular coffee."
+DRIVER: PASS asking teaches — "Milk and two sugars. That’s what regular means here."
+DRIVER: PASS order card opens — card 2: bacon egg and cheese (got bec)
+DRIVER: PASS order card opens — card 3: everything bagel (repeat it back) (got bagel)
+DRIVER: PASS order card opens — card 4: chopped cheese (ask what a hero is) (got chopped)
+DRIVER: PASS card 5: Mr. Idris — "The usual, please."
+DRIVER: PASS the chef picks: "some orders you learn by heart before you learn by asking"
+DRIVER: PASS Rosa, quietly: two sugars, nine years — the payoff on EVERY choice, not a branch
+DRIVER: PASS 5-order rush served — as five conversations
+DRIVER: PASS day 1 rush pays $87 → $112 (Doc 08) (got $112)
+DRIVER: PASS the Map margins hold all four Doc-08 cards (bodega, online, regular, hero)
+DRIVER: PASS the sketch knows the places you walked (terminal, bodega, cart)
+DRIVER: PASS crosswalk trigger fires
+DRIVER: PASS cart claim opens name box and freezes walker
+DRIVER: PASS name box keeps every letter (got 'Wade's Spot')
+DRIVER: PASS typing WASD/Space doesn't move the walker
+DRIVER: PASS cart named
+DRIVER: PASS order card opens — solo card 1: the stroller woman (ask what she meant) (got stroller)
+DRIVER: PASS solo card 2: "Whatever’s cold…"
+DRIVER: PASS the kid answers "I don’t know either!" — kindness always available (VS-F03)
+DRIVER: PASS the kid got his cold cup — the gold window’s referent
+DRIVER: PASS solo card 3: Mr. Idris, back like he said
+DRIVER: PASS Idris: "Rosa said you’d be here. She’s usually right. It’s annoying."
+DRIVER: PASS 3 solo conversations served incl. Mr. Idris
+DRIVER: PASS the solo rush pays nothing — Rosa counts $112 exactly
+DRIVER: PASS the Map opens when asked — a notebook, not a quest log
+DRIVER: PASS the margins hold the morning (6 notes written down)
+DRIVER: PASS the Map folds again — it never nags, never gates
+DRIVER: PASS grabbed ladder 1
+DRIVER: PASS dusk starts at the fire escape
+DRIVER: PASS stepped off ladder 1 (y=0.10)
+DRIVER: PASS stepping off calls Rosa's hint
+DRIVER: PASS re-grabbed ladder 1
+DRIVER: PASS standing on landing 1 (y=4.08)
+DRIVER: PASS grabbed ladder 2 (pos=15.3,-7.0)
+DRIVER: PASS ladder caps at the rail — no overshoot (y=8.35)
+DRIVER: PASS reached landing 2 (y=8.07)
+DRIVER: PASS climb pose released after stepping off (hands down)
+DRIVER: PASS gold window + Rosa’s payoff lines + Postcard compose
+DRIVER: PASS gold window holds lit
+DRIVER: PASS Rosa, quieter: "You were their first warm thing today." (the kid’s window)
+DRIVER: PASS Rosa, from below: "They’re gonna want the usual." — the open loop
+DRIVER: PASS money label reads $112
+DRIVER: PASS share button hides where files cannot be shared
+DRIVER: PASS keep files the day-1 card — the shelf holds the day’s five (4 moment cards + this)
+DRIVER: PASS the album opens from the HUD button
+DRIVER: PASS the shelf shows the day’s five cards
+DRIVER: PASS the album closes
+DRIVER: PASS postcard dismisses — the end lingers
+DRIVER: PASS rail: Rosa’s goodnight beat
+DRIVER: PASS Rosa’s window warms
+DRIVER: PASS rail: tomorrow begins
+DRIVER: PASS day 2 begins — Idris is on his way
+DRIVER: PASS day 2 keeps name and money
+DRIVER: PASS day-start snapshot written
+DRIVER: PASS Idris arrives at the cart
+DRIVER: PASS Idris served: +$2 (got $114)
+DRIVER: PASS Rosa’s favor accepted: cup in hand
+DRIVER: PASS cup prop is still childed to the player visual
+DRIVER: PASS kid kept: +$3, kid at the glass ($117)
+DRIVER: PASS kid silhouette stands IN FRONT of the window glass
+DRIVER: PASS awning offer asks for a confirm press
+DRIVER: PASS awning up: -$15 (got $102)
+DRIVER: PASS lunch rush with awning tips: $111
+DRIVER: PASS dusk climb offered
+DRIVER: PASS second window lights
+DRIVER: PASS the kid is at the glass
+DRIVER: PASS day 2 postcard composes
+DRIVER: PASS postcard says Day 2
+DRIVER: PASS day 2’s card joins the shelf — the album keeps the week (5 from day 1 + this)
+DRIVER: PASS day 2 end lingers too
+DRIVER: PASS save holds day 2 complete: $111, awning=true, kid=true
+DRIVER: PASS day 2 rail: Rosa’s goodnight beat
+DRIVER: PASS day 3 begins — Rosa has news
+DRIVER: PASS day-3 snapshot written
+DRIVER: PASS Rosa’s news opens the rush
+DRIVER: PASS Idris is first at the cart
+DRIVER: PASS the first order bubble is up
+DRIVER: PASS four orders brewed and served
+DRIVER: PASS morning rush pays $19 (got $130)
+DRIVER: PASS the kid is waiting at the stoop
+DRIVER: PASS the kid joins you
+DRIVER: PASS the kid is actually walking (x 15.0 → 10.6)
+DRIVER: PASS the kid reached the corner on his own feet
+DRIVER: PASS stool up: -$10 (got $120)
+DRIVER: PASS the flyer objective is up
+DRIVER: PASS flyer read — the block knows your name
+DRIVER: PASS day 3: grabbed ladder 1 [step=22 day=3 pos=(9.4,0.10,-7.0) ladder=true ground=false frozen=false dusk=true rig=false linger=0 panelHidden=true w2=0.0 w3=0.0]
+DRIVER: PASS day 3: grabbed ladder 2 (pos=15.3,-7.0) [step=22 day=3 pos=(15.3,4.08,-7.0) ladder=true ground=false frozen=false dusk=true rig=false linger=0 panelHidden=true w2=0.0 w3=0.0]
+DRIVER: PASS day 3: ladder caps at the rail (y=8.35) [step=22 day=3 pos=(16.4,8.35,-7.2) ladder=true ground=false frozen=false dusk=true rig=false linger=0 panelHidden=true w2=0.0 w3=0.0]
+DRIVER: PASS day 3 postcard composes [step=23 day=3 pos=(15.1,8.07,-7.2) ladder=false ground=true frozen=true dusk=true rig=true linger=0 panelHidden=false w2=0.0 w3=3.2]
+DRIVER: PASS postcard says Day 3 [step=23 day=3 pos=(15.1,8.07,-7.2) ladder=false ground=true frozen=true dusk=true rig=true linger=0 panelHidden=false w2=0.0 w3=3.2]
+DRIVER: PASS the third window lights — golden-hour payoff [step=23 day=3 pos=(15.1,8.07,-7.2) ladder=false ground=true frozen=true dusk=true rig=true linger=0 panelHidden=false w2=0.0 w3=3.2]
+DRIVER: PASS the kid is at the corner below, on his stool
+DRIVER: PASS day 3 end lingers too [step=23 day=3 pos=(15.1,8.07,-7.2) ladder=false ground=true frozen=false dusk=true rig=false linger=1 panelHidden=true w2=0.0 w3=3.2]
+DRIVER: PASS rail: Rosa’s goodnight (day 3) [step=23 day=3 pos=(12.6,8.07,-6.8) ladder=false ground=true frozen=false dusk=true rig=false linger=2 panelHidden=true w2=0.0 w3=3.2]
+DRIVER: PASS save holds day 3 complete: $120, stool=true
+DRIVER: PASS day 4 begins — the light stayed because someone keeps it
+DRIVER: PASS day-4 snapshot written
+DRIVER: PASS the kid is on his stool at sunrise, not in the window
+DRIVER: PASS Rosa points at the terminal
+DRIVER: PASS the stranger is standing by the terminal
+DRIVER: PASS the greeting pays Rosa’s $2 (got $122)
+DRIVER: PASS Idris opens the rush behind you — like every day
+DRIVER: PASS three orders brewed and served
+DRIVER: PASS day 4 pays $13 all in (got $133)
+DRIVER: PASS the stranger reached the cart on her own two feet
+DRIVER: PASS the Map changed hands — and the kid flags the apron (the afternoon opens)
+DRIVER: PASS she is walking west with the Map
+DRIVER: PASS Sal takes the apron — the washers start (step=29, $133)
+DRIVER: PASS the washer drum is actually spinning
+DRIVER: PASS the wash finished — warm from the dryer
+DRIVER: PASS the permit asks for a confirm press
+DRIVER: PASS permit filed: -$10, honest money (got $123)
+DRIVER: PASS the receipt sits on the cart
+DRIVER: PASS a repeat press at the A-frame spends nothing
+DRIVER: PASS day 4: grabbed ladder 1 [step=30 day=4 pos=(9.4,0.10,-7.1) ladder=true ground=false frozen=false dusk=true rig=false linger=0 panelHidden=true w2=0.0 w3=0.0]
+DRIVER: PASS day 4: grabbed ladder 2 (pos=15.3,-7.0) [step=30 day=4 pos=(15.3,4.08,-7.0) ladder=true ground=false frozen=false dusk=true rig=false linger=0 panelHidden=true w2=0.0 w3=0.0]
+DRIVER: PASS day 4: ladder caps at the rail (y=8.35) [step=30 day=4 pos=(16.4,8.35,-7.2) ladder=true ground=false frozen=false dusk=true rig=false linger=0 panelHidden=true w2=0.0 w3=0.0]
+DRIVER: PASS day 4 postcard composes [step=31 day=4 pos=(15.1,8.07,-7.2) ladder=false ground=true frozen=true dusk=true rig=true linger=0 panelHidden=false w2=0.0 w3=0.0]
+DRIVER: PASS postcard says Day 4 [step=31 day=4 pos=(15.1,8.07,-7.2) ladder=false ground=true frozen=true dusk=true rig=true linger=0 panelHidden=false w2=0.0 w3=0.0]
+DRIVER: PASS the lamp next door stays on — the light stays [step=31 day=4 pos=(15.1,8.07,-7.2) ladder=false ground=true frozen=true dusk=true rig=true linger=0 panelHidden=false w2=0.0 w3=0.0]
+DRIVER: PASS the kid is at the corner below, on his stool
+DRIVER: PASS day 4 end lingers too [step=31 day=4 pos=(15.1,8.07,-7.2) ladder=false ground=true frozen=false dusk=true rig=false linger=1 panelHidden=true w2=0.0 w3=0.0]
+DRIVER: PASS rail: Rosa’s goodnight (day 4) [step=31 day=4 pos=(12.6,8.07,-6.8) ladder=false ground=true frozen=false dusk=true rig=false linger=2 panelHidden=true w2=0.0 w3=0.0]
+DRIVER: PASS save holds day 4 complete: $123, map=true, permit=true, stool=true
+DRIVER: PASS day 5 begins — the week’s stabilized loop opens (the seasons run to the open endgame’s turn, Dec 1, Y4 — MAX_DAY = 1179) [step=33 day=5 pos=(3.0,0.10,-5.4) ladder=false ground=true frozen=false dusk=false rig=false linger=0 panelHidden=true w2=0.0 w3=0.0]
+DRIVER: AUTOTEST OK: 0 failures, 702s
+=== SUMMARY ===
+AUTOTEST OK: 0 failures, 702s
+=== CONSOLE ERRORS ===
+(none)

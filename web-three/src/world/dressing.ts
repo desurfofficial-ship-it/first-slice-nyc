@@ -97,6 +97,64 @@ export function ambientWindowPlan(day: number): AmbientWindowPlan {
   };
 }
 
+// --------------------------------------------------------- street schedule ----
+
+/**
+ * The street's shift schedule (M4, docs/architecture/05) — ambient density
+ * keyed to time-of-day, promoted from ambientWindowPlan's instinct to a
+ * table the whole street reads. The game's honest clock is the day's two
+ * street phases: the block runs on your clock (no sim-time, the No-FOMO
+ * law), so this is a two-row table, not a minute grid. Game holds the lever
+ * (the dusk flag); World applies one row when the phase flips; the table is
+ * pure and pinned by tests — a schedule bug cannot quietly empty the street.
+ *
+ * Reference check (docs/57 §3.5): neither engineering reference schedules
+ * density by time of day — Gen City Auto's pedestrian density is spatial
+ * (hub falloff as a spawn-discard probability, a fixed target count), and
+ * Slop New York's TIME_PRESETS drive atmosphere (fog, headlights), never
+ * crowds. The two-row table is FIRST SLICE's own design; borrowed is only
+ * the shape of the ideas — a pure density read (GCA) and named presets
+ * interpolated by the phase (SNY).
+ */
+export type StreetPhase = 'day' | 'dusk';
+
+/** The ambient roster's shifts on this schedule — one role per walker, in
+ *  World's build order. The tests pin this array against the table
+ *  (tests/street-schedule.test.ts): the seven 'street' walkers are the
+ *  floor no phase may park, the garden tender is the 'park' shift, and the
+ *  last three are the dusk rush — home by day (zero draw calls at rest),
+ *  out for the evening subway draw. World's looks/paths/routines arrays
+ *  must stay in this order; an untagged new walker defaults to 'street'
+ *  (Pedestrians' `roles[i] ?? 'street'`), which is the safe side of the
+ *  floor law — the street can only grow, never quietly thin. */
+export type StreetRole = 'street' | 'park' | 'dusk';
+
+export const PEDESTRIAN_ROLES: readonly StreetRole[] = [
+  'street', 'street', 'street',             // the trio — the block's floor
+  'street', 'street', 'street', 'street',   // the Shuffle crowd (docs/51 B16)
+  'park',                                   // the garden tender — home at dusk
+  'street',                                 // the avenue shopper — always out
+  'dusk', 'dusk', 'dusk',                   // the evening rush (M4)
+];
+
+export interface StreetPlan {
+  /** How many of the dusk-shift neighbors are out on the evening rush —
+   *  the subway draw (they come on in roster order). By day they are all
+   *  still home; the shipped street is exactly the shipped street. */
+  duskShift: number;
+  /** The park's tender keeps her beds by day; once dusk lands she heads
+   *  home — the green settles with the plaza (NZ-COURT's own "when: dusk"). */
+  parkOut: boolean;
+  /** The cab's cruise multiplier — rush traffic crawls (9 → 6.3 m/s), the
+   *  one-honest-car version of a heavier avenue. */
+  cabPace: number;
+}
+
+export const STREET_PLAN: Record<StreetPhase, StreetPlan> = {
+  day:  { duskShift: 0, parkOut: true,  cabPace: 1 },
+  dusk: { duskShift: 3, parkOut: false, cabPace: 0.7 },
+};
+
 // ----------------------------------------------------------- barrier diary ----
 
 /**
