@@ -771,6 +771,70 @@ export class World {
     this.signBoard('Terminal_Sign', 'BUS TERMINAL', 5, 0.8, 0.15, 640, 96, PAL.stone, PAL.ink, 56)
       .position.set(-30, 3.4, termFaceZ);
 
+    // TERMINAL-PROD: the pre-war municipal slab gets its face. The v1.17.0
+    // audit's recorded debt ("SUB-01/terminal dressing remains the later
+    // pass's scope") — the game's OPENING FRAME is the checkpoint beside
+    // this facade (Game's default checkpoint (-30, 6.2), the step-off at
+    // (-34.2, 6.3)), and the wall was a bare PAL.bldg slab with a floating
+    // teal door. The dressing is the shipped street's own grammar — proud
+    // deco slabs (no colliders, +0 footprint; the bake fuses them) and
+    // proud window planes the fenestra collector adopts (named Terminal_Win_
+    // so WIN_NAME matches; KTN-01 reads commercial — municipal offices).
+    // Layering law: door 0.125 < frame 0.16 < piers 0.17 < crown 0.28 proud.
+    const termBase = 0x7d6c5e; // rusticated base limestone — darker than the mass
+    const termWin = this.bank.get(PAL.windowDim);
+    // 1. the plinth + rusticated stone base (the row's "stone base" style
+    //    note) — south face (z 8) and west face (x −50; the east base hides
+    //    behind the bodega's bulk, ROS-01 at y ≤ 4.5)
+    this.deco('Terminal_Plinth', ktn1.x, 0.28, 7.91, 30.2, 0.56, 0.18, termBase);
+    this.deco('Terminal_Base', ktn1.x, 1.9, 7.94, 29.8, 2.7, 0.16, termBase);
+    this.deco('Terminal_Plinth_W', -50.08, 0.28, 14, 0.18, 0.56, 12.4, termBase);
+    this.deco('Terminal_Base_W', -50.08, 1.9, 14, 0.16, 2.7, 12.0, termBase);
+    // 2. the string course that caps the base (y 3.25..3.55)
+    this.deco('Terminal_String', ktn1.x, 3.4, 7.92, 30.0, 0.3, 0.14, PAL.stone);
+    // 3. the municipal window grid — 3 m rhythm, 3 m floor pitch, taller
+    //    office panes (1.5 × 2.1). South rows skip the entry bay (the portal
+    //    owns x −33.25..−26.75 in row 1); the east face's row 1 hides behind
+    //    the bodega roof, so the east grid starts at row 2. North face stays
+    //    blind — the municipal service back.
+    const termRows = [4.9, 7.9, 10.9];
+    const termColsS = [-46.5, -43.5, -40.5, -37.5, -34.5, -31.5, -28.5, -25.5];
+    const termColsZ = [10.5, 13.5, 16.5];
+    for (let f = 0; f < termRows.length; f++) {
+      for (let c = 0; c < termColsS.length; c++) {
+        if (f === 0 && (c === 5 || c === 6)) continue; // the portal bay
+        this.decoMesh(`Terminal_Win_${f}_${c}`, new THREE.BoxGeometry(1.5, 2.1, 0.08),
+          termWin, termColsS[c], termRows[f], 7.94);
+      }
+    }
+    for (let f = 1; f < termRows.length; f++) { // east face over the bodega roof
+      for (const wz of termColsZ) {
+        this.decoMesh(`Terminal_Win_E_${f}_${wz}`, new THREE.BoxGeometry(0.08, 2.1, 1.5),
+          termWin, -20.94, termRows[f], wz);
+      }
+    }
+    for (let f = 0; f < termRows.length; f++) { // west face over the subway headhouse
+      for (const wz of termColsZ) {
+        this.decoMesh(`Terminal_Win_W_${f}_${wz}`, new THREE.BoxGeometry(0.08, 2.1, 1.5),
+          termWin, -50.06, termRows[f], wz);
+      }
+    }
+    // 4. the cornice caps the mass (the GRB crown grammar: h − 0.25, w/d + 0.2)
+    this.deco('Terminal_Cornice', ktn1.x, ktn1.h - 0.25, ktn1.z, ktn1.w + 0.2, 0.5, ktn1.d + 0.2, PAL.stone);
+    // 5. the entry portal: stone door frame (the teal leaf keeps its canon
+    //    color), flanking piers outside the sign, the crown capping them,
+    //    and two warm lanterns on the piers (nightGlow — above the bloom
+    //    threshold after dark, the bodega-neon law)
+    this.deco('Terminal_DoorJamb_W', -31.6, 1.44, 7.9, 0.12, 2.88, 0.12, PAL.stone);
+    this.deco('Terminal_DoorJamb_E', -28.4, 1.44, 7.9, 0.12, 2.88, 0.12, PAL.stone);
+    this.deco('Terminal_DoorHead', -30, 2.88, 7.9, 3.1, 0.16, 0.12, PAL.stone);
+    this.deco('Terminal_Pier_W', -32.9, 2.25, 7.93, 0.7, 4.5, 0.2, PAL.stone);
+    this.deco('Terminal_Pier_E', -27.1, 2.25, 7.93, 0.7, 4.5, 0.2, PAL.stone);
+    this.deco('Terminal_Portal_Crown', -30, 4.7, 7.86, 6.0, 0.4, 0.28, PAL.stone);
+    const lanternMat = this.nightGlow(0xffdfae, 0.1, 2.6);
+    this.decoMesh('Terminal_Lantern_W', new THREE.BoxGeometry(0.15, 0.28, 0.14), lanternMat, -32.9, 2.3, 7.83);
+    this.decoMesh('Terminal_Lantern_E', new THREE.BoxGeometry(0.15, 0.28, 0.14), lanternMat, -27.1, 2.3, 7.83);
+
     this.solid('Bldg_S_West', kts1.x, kts1.h / 2, kts1.z, kts1.w, kts1.h, kts1.d, PAL.bldg2);
     this.solid('Bldg_S_FireEscape', 13, 7, -14, 26, 14, 12, PAL.brick);
     this.solid('Bldg_S_East', kts3.x, kts3.h / 2, kts3.z, kts3.w, kts3.h, kts3.d, PAL.bldg);
