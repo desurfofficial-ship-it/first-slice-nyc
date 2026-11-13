@@ -586,6 +586,70 @@ Work Log:
 Stage Summary:
 - tsc clean; vitest 476/476; E2E AUTOTEST OK 0 failures idle (380 s) and under load (553 s, ×4.00 budgets). The flake is closed, not recorded. Gap list: Regulars arcs beyond Day 4 (design), audio outreach (business), touch hardening on real devices.
 
+Task ID: 9
+Agent: Z.ai (GLM)
+Task: Design the Regulars arc beyond Day 4 — the top unclaimed gap item, design-first per the gap list.
+
+Work Log:
+- Synced main to origin/main `d3c80a0` (the slow-machine law + B16 verdict +
+  phase-1 playtest plan had landed since the last round); tree clean, gates
+  re-run: tsc clean, vitest 476/476.
+- Read the design corpus before designing: docs/01 System 4.1 (the GDD's
+  Regulars law), docs/06 PRD-4 (phase-2 first wave: Rosa, Idris, Priya,
+  Samir, Mabel, Mrs. Chen), docs/07's scope cut ("Idris's two sugars hook
+  only"), docs/33 §4 (people law: shifts authored/flagged/permanent), the
+  living-world audit §7 rec #1 + rec #4 and §9's Wait ruling, docs/30 (the
+  permit as Day 5's inheritance), Save.ts v1-safe optional-field pattern.
+- **The finding: main already runs two proto-arcs.** Idris has a 4-beat
+  constancy run (D1 spawn note → D2 REGULAR_UNLOCKED + idris_served latch →
+  D3 "Third day. Same cup." → D4 "Fourth day.") that stops only because the
+  days stop. The early shift has two escalating rush lines (D3 → D4, "You're
+  part of the commute now.") with no `who:` of her own. The lunch parent is
+  the only count-ladder (`lunchServed` 1/2/3+). Rosa's tables are day-keyed,
+  not milestone-keyed. So the gap was never "no Regulars" — it's no ledger.
+- Landed **docs/58-regulars-arc-design.md** (design decree, zero src/):
+  the ledger definition (provable history / greeting ladder / arc beats /
+  kept-mark — all four exist in pieces on main); the **Count Law** (counts
+  derived from flags+days where honest; one optional clamped v1-safe
+  counter when not; the player never sees a number, they hear "fourth
+  day"); the corner roster — six people named by their proofs (Idris, Rosa,
+  the kid, Sal, the stranger, the early shift) with beats beyond Day 4 and
+  kept-mark payoffs; the **3+1 arc shape** (hook → shift → sixth morning →
+  kept-mark) riding the audit's Day-5 permit band; the Wait ruling restated
+  (new named cast and the 6–10 beat form stay phase 2); laws check; five
+  acceptance gates (ladder pins, Count Law determinism pin, permanence pin,
+  E2E beat, no-smuggling pin); close rule; three open questions for the
+  lead (D5 sequencing, the early shift's name deliberately unpicked —
+  Feelings-First, the kid's double kept-mark).
+- Filed **B17** in docs/51 (the queue agents actually read): "The Regulars'
+  ledger does not exist — arcs run on day rails and stop at Day 4", with
+  the doc-sourced spec, current-main evidence, close rule pointing at
+  docs/58 §9. docs/58 numbered 58 deliberately: docs/55+docs/56 reserve
+  `docs/57-` for the first playtest results analysis.
+
+Stage Summary:
+- Docs from me — zero src/ changes from this task (agent5's pass 6 arrived
+  mid-round and was merged: arrival.ts + starters tests, gates re-run green
+  on the merged tree). tsc clean; vitest 476/476 pre-merge, 484/484 merged.
+- E2E evidence, honestly: first attempt starved — one-shot pace measured
+  225 ms frames (×2.25 budgets) at startup under a sandbox load spike, and
+  the day-3 climb→postcard transition never fired ("ladder caps at the rail
+  (y=4.35)" PASS, postcard compose FAIL, full day-4 cascade, 600 s tool
+  timeout killed the run). Agent5's merged diff touches no climb/ladder/
+  postcard path — checked before suspecting the merge. Clean retry on the
+  same tree: AUTOTEST OK, 0 failures, 385 s, at ×2.18 startup pace. The
+  residual shape is now precise: the slow-machine law measures pace ONCE
+  at startup; a load spike arriving AFTER the measurement can still starve
+  the walkTo/climb path (walkTo keeps its own progress law by design).
+  Noted for a future driver pass — not fixed here, this task is docs.
+- Push: BLOCKED — no token on disk (worklog line 314 rule: fresh token per
+  push, never stored). Local main is green and 2 ahead (90fc1ec decree +
+  8f363bc merge); pushes the moment a token is provided.
+- Gap list: Regulars ledger BUILD (the wave, riding Day 5 per audit rec
+  #1), audio outreach (business), touch hardening on real devices, the
+  one-shot-pace E2E shape above. The design debt is paid; the build debt
+  is filed as B17 and now has a spec to build against.
+
 ## 2026-11-04 — agent2: the Shuffle builds — the walk to the stairs carries a crowd (docs/51 B16)
 
 The decree: "build it." Docs 01/02/07/08/10/22 had already defined the spec
@@ -1021,6 +1085,95 @@ Stage Summary:
 - The repo is one build, one pipeline, one site — and the Map now tells
   the player, in Rosa's hand, that the story waits for them. Next up
   (docs/architecture/05): M2, the district map.
+
+Task ID: 10
+Agent: Z.ai (GLM)
+Task: Merge the two arriving waves; land the rolling-pace E2E law (the one-shot-pace residual from Task 9); price the window family for B13.
+
+Work Log:
+- Merged origin/main twice across the session boundary (17 commits: B16
+  Shuffle, the underground shadow economy, B7 touch law, B14 hygiene;
+  then 15 more: the open-block roam contract, the glass-side law, the
+  figure shadow-proxy + vertex fuse, the greybox retire, beats-as-places).
+  worklog conflict once (Task 9 vs agent2/agent5 entries) — both kept.
+- The rolling-pace law (autotest.ts, the Task 9 residual): pace was
+  measured ONCE at startup, so a load spike arriving later starved every
+  budget() rider with stale budgets (Task 9's day-3 climb→postcard
+  cascade). Now rollPace() rides nextFrame and re-derives pace from every
+  60 waited frames (same formula, same ×4 cap); budget() re-reads pace on
+  each loop check, so in-flight waits stretch when the machine degrades
+  and shrink back when it recovers. pressUntil's outer budget rides pace
+  too — its six goodnight/awning sites were the only raw-wall-clock polls
+  left; the inner 600 ms volley stays wall-clock on purpose (a key-HOLD
+  duration, not a poll budget).
+- Evidence, the whole roller life cycle in one green run: ×1.94 → ×2.25
+  (startup spike) → ×1.83 → ×1.00 (recovered) → ×1.30 → ×1.00. The old
+  law would have frozen ×2.25 over the whole run.
+- The B13 window-family census (diag-window-census.mjs, committed): the
+  window/pane/glass/lit family is 28 meshes scene-wide — 16 visible at
+  PLAZA, 5 at CART_CORNER, 0 at SYCAMORE — so windows were never a
+  draw-call frontier; agent2's glass-side law verdict independently
+  confirmed. Row appended to docs/51 B13.
+- Environment note, third occurrence: the sandbox restart recycles the
+  playwright browser cache — first E2E after any restart dies with the
+  silent "Executable doesn't exist" launch error. `npx playwright install
+  chromium` is now a session-start ritual.
+
+Stage Summary:
+- main = merge 8fad16b + this commit; tsc clean · vitest 569/569 (37
+  files) · build clean · E2E AUTOTEST OK 0 failures 386 s, console clean,
+  pointer guard 6/6. Push still blocked on a token (none on disk, per the
+  fresh-token rule) — local main carries the docs/58 decree, both merges,
+  and this task. Gap list: Regulars ledger build (B17, design done),
+  audio outreach, real-device touch pass.
+
+Task ID: 11
+Agent: Z.ai (GLM)
+Task: Study the postcard end to end and raise it to its own doctrine's bar — the fridge test — study first, execution second, quality over speed.
+
+Work Log:
+- Built the study harness (diag-postcard-study.mjs): drives the game's OWN
+  compose paths on a staged dusk and saves every authored card (4 day-end,
+  4 moment, the panel, the shelf). First lesson arrived immediately: the
+  day-end card is born at the glide's END pose — the first batch judged
+  the wrong frames and was re-shot through the real chain before any
+  verdict stood.
+- The findings, at full resolution: (1) the handwriting stack ships no
+  font — three voices across the exit devices, none the game's (the
+  study's captures show the Linux serif fallback plainly); (2) the panel
+  center-crops the card: stamp beheaded, words twice (in-image strip +
+  live caption); (3) the paper grain rode Math.random() — no two prints
+  of a moment alike; (4) the stamp ellipsized long cart names; (5) the
+  towers pose parked a dead roof wedge, the fold pose let the aperture
+  drift. The day-end cards themselves are GOOD (the thumbnail "caterpillar"
+  halos were downscale aliasing — full res is soft); the corner card
+  exposed a real debt: the cart is still CartPlaceholder at 0.35 opacity
+  — filed as docs/51 B18, not patched over.
+- The execution: Caveat rides the bundle (@fontsource, OFL, main.ts) and
+  leads every stack — canvas POSTCARD_HAND_FONT + CSS --hand-font, sizes
+  retuned (30/40, strip y 1088, the six-line budget holds); a fonts.load
+  preload at import so the first card never waits on a cold swap. The
+  panel is aspect-locked to the photo region, top-anchored — stamp and
+  day tag survive, the words appear once. The grain is seeded
+  (FNV-1a identity → mulberry32): the same moment composes the same paper
+  twice. wrapStampName wraps at a space, never mid-name. Two rig
+  reframes picked from an eight-candidate experiment
+  (diag-postcard-poses.mjs renders candidates through the real pipeline;
+  losers deleted): towers lifted +0.9 m (a vista, not a wall), fold
+  stepped 0.7 m left (the doorway centered, the street waiting under the
+  tree).
+- Pinned: tests/postcard-paper.test.ts (12 checks) — the voice agrees
+  across canvas + CSS + bundle, the strip fit law, the seed laws, the
+  stamp wrap law. Plus the study/pose diagnostics committed for the next
+  pass.
+
+Stage Summary:
+- tsc clean · vitest 581/581 (38 files) · build clean (Caveat rides it) ·
+  E2E AUTOTEST OK 0 failures 408 s, console clean, pointer guard 6/6 ·
+  docs/59 (the pass's construction log) · docs/51 B18 filed. Push still
+  blocked on a token (fresh-token rule; none on disk) — local main now
+  carries Tasks 9-11. Gap list: the authored cart (B18, design-first),
+  Regulars ledger build (B17), audio outreach, real-device touch pass.
 
 ---
 Task ID: OPEN-WORLD-REFS-M3 (engineering references + the diary)
@@ -3850,6 +4003,47 @@ Work Log:
 Stage Summary:
 - The facades wear their last approximation no more: stone courses at the floor lines, coal-era soot behind them, the whole pass baked free — and the scanner that guards the map now measures the map, not the traffic. Register v1.65.0.
 
+---
+Task ID: WORLDMAP-EVIDENCE (the construction authorization's evidence tranche — docs/world-map 07 §3 items 2-5)
+Agent: Z.ai (GLM)
+Task: Merge the diverged lines, re-certify, then execute the world-map evidence package: the live screenshot set, the labelled top-down map, the 3D overview — real frames of the real game, quality first.
+
+Work Log:
+- THE MERGE: local main (7 commits: the postcard fridge-test pass, the rolling pace law, the B13 window pricing, docs/58-59) met origin/main 240 commits ahead (W8-W12 construction + the world-map design lock 01-10, registry v1.64.0). Four conflicts, all resolved with both sides preserved: worklog (Tasks 10-11 ride with the fleet's entries); Game.ts postcard poses (the fridge-test STANCES ride the remote's DOF look-at law — the union, not a side); PostcardCapture.ts (the fridge-test hand/seed/wrap features + the remote's v1.54.0 DOF pipeline — and the two RAW NUL BYTES in the grain-seed template literal became \u0000 escapes, same runtime string, a clean text file git can merge again); docs/51 followed the remote line's narrative-reboot deletion (its B13/B18 evidence lives in the worklog + docs/59). W13 (band-course + soot, v1.65.0) landed mid-session and merged clean on top.
+- THE CERTIFICATION (merged tree): tsc clean · vitest 1,701 → 1,709/1,709 (102 files) · build OK (724 ms) · validate-registry OK (178 IDs, 81 buildings, 23/23 anchors) · diag-pocket-scan deterministic (colliders 977 · spawn-comp 42,241 · traps 18 · cramped 13) · probe-city-fabric OK (DRAWS 190, dusk warmth 1.3) · probe-subway ALL PASS · probe-w12-filigree OK. The session's own 41,857/41,866 scare was W13's documented mover flip-flop — the wave's scanner-integrity repair re-baselines it honestly.
+- THE EVIDENCE (web-three/scripts/probe-world-map-evidence.mjs, one boot, ~14 frames, zero page errors): the audit §6 shot list captured from the REAL built game — the five streets at golden hour, the Juniper vanishing-point skyline fabric, the fenestra dusk district (rooms + curtains + lamp behind glass), the W12 filigree close-up (the W12 probe's own pose), the W10 terrace gate (the iron leaves + limestone lintel from the Gable north sidewalk — the gate face is the SOUTH face of VDN-DN1, z 48.5), the K-line ride (the honest walk-in board + the registry's own perform(), the aligned car's dollhouse interior with the ads and the seated passenger, staged mid-tunnel with the platform hidden the same way the machine stages the car shell), and the Times Square arrival (the real exit walk, the wow card dismissed like a player does, the canyon at evening). Plus the §3B isometric overview (inside-the-walls 3/4 at golden hour) and the y=140 north-up top-down.
+- THE RIDE FORENSICS (diag-ride-batch.mjs + three taught lessons): (1) the board is the registry's own interact — walk into the aboard band THEN near.perform() (the Space prompt's effect); (2) the batch-driven machine rides honestly (phase + scenery scroll), but the capsule stays PINNED in the car (the train never moves — the tunnel streams); (3) the exit walk needs the machine RETIRED first (step the feet off the car band, z < 13.9, and let a batch run to idle) and the player UNFROZEN — the story's own beat machine fires order/name cards on sim time and freezes the walker mid-flow; the rig stages the free the way the player's own dismiss does. The 4-frame platform-vs-canyon confusion across runs was these two laws, found and fixed before shipping.
+- THE LABELLED MAP (scripts/label_topdown.py): the top-down frame projected from the registry's own coordinates (verified against Sycamore +72 / Juniper −72), north up, 20 m scale bar, five streets + seven parks + both K stations + the named landmarks + the Times Square direction note. The frame is y=140 so the sky cards stay out of the frustum (y=200 caught their black backsides).
+- Frames land in docs/world-map/images/ (14 existing/ + the labelled map + the overview); docs/world-map/07 §3/§4 ticked to the new truth; the push rides the user's fresh token (a fine-grained PAT that authenticated but lacked the repo's Contents:write grant — reported for the user to grant; nothing stored on disk).
+
+---
+Task ID: LEDGER-TRUTH-2 (the W11 registry-truth law applied to the roadmap's open rows)
+Agent: Z.ai (GLM)
+Task: Close the open ledger rows (docs/world-map 08 §8 + world-contract/17) — verify first, flip with evidence, never overwrite.
+
+Work Log:
+- THE FIND: two of the four "open" rows were STALE TRUTH — the work had shipped, the ledger rows never flipped (the W11 drift class exactly).
+- D-3 (the money bridge): implemented in WP-4 (2203f05, sim/moneyBridge.ts — Game wraps earn/spend with the bridge's observe behind the same confirm-gates, boot syncMirror + save reconcile keep the sanctioned mirror). VERIFIED LIVE in the built game this session: probe-money-trace ALL CHECKS PASSED (E2E_SCALE=0.35 — the full-scale run exceeds this box's 540 s wall budget, the documented dilation class): genesis $87.00 on both sides, the five rush cups as +$5.00 business_revenue faucets with deterministic ids (txn:story_489_0 … txn:story_492_0), the ledger audit clean, mirror === ledger at every step, $112.00 landing. The E2E's $87→$112 math is TRANSACTIONAL.
+- The ambient-walker schedule migration: WP-3v landed 2026-11-06 (e3f1b02) — the walkers commute over the ONE Phase 3 nav graph (world/pedCommute.ts, 141 lines + the 390-line pin), Yuka kept. probe-ped-nav on the merged tree: steps 1/2/4/5/7 green (movement, district-legality 96 samples × walkers, separation, the armed machine 12/12, console clean); step 3 reads 0 completed commutes in the wall window — VERIFIED IDENTICAL on the pure remote tree (worktree at abaf938), so it is the DEF-15 dilation class on software-GL boxes, not a merge regression. The unit suite pins the machine green (inside the 1,709).
+- The band courses + soot row was already closed by W13 (v1.65.0) — noted. The fenestra atlas mip re-audit STAYS HONEST-OPEN (it needs a real GPU; this sandbox is software GL). CORNERHOUSE-INT stays the documented optional slice.
+- Rows flipped with evidence in world-contract/17 (rows 3+4) and docs/world-map/08 (§8 + §9's push-state note: the session token authenticates but lacks Contents:write — the 403 diagnosis recorded for the owner).
+
+Stage Summary:
+- The ledgers now say what the tree is: the money is transactional, the walkers commute on the graph, the map's evidence package is captured — what remains open is exactly what cannot be closed from here (a real-GPU mip audit) and what awaits the owner (the token grant, CORNERHOUSE-INT).
+
+---
+Task ID: E2E-MERGED (the merged tree's 4-day E2E — the session's instrument cap, recorded honestly)
+Agent: Z.ai (GLM)
+Task: The 4-day E2E on the merged line — the rolling pace law's live proof + the story spine's green on the union of both fleets.
+
+Work Log:
+- Full-scale run (E2E_W=480 E2E_H=360): the rolling pace law LIVES — the log rides the whole roller life cycle (×4.00 → ×2.28 → ×2.01 → ×2.90 → ×2.53, re-derived every 60 frames). 53 PASS / 9 FAIL through day 1's tail when the session's 600 s instrument cap cut the run; the 9 (the ladder grabs, the gold window + payoff lines, the shelf, the goodnight rail) are the dusk beats' wall budgets expiring at 200-600 ms frames.
+- The A/B classification (the fleet's own v1.52.0 protocol, one knob): E2E_SCALE=0.5 — 100 PASS / 0 FAIL through DAY 3 (cap-cut mid-run, recorded honestly per the W12 precedent). The day-1 failures were box dilation, not code: the same surfaces pass whole at the reduced buffer.
+- Both runs' logs land in /tmp (this box's scratch); the classification note rides this entry — the next agent with a faster box (or a 900 s-capable instrument) owns the complete re-run.
+
+Stage Summary:
+- The merged tree's story spine runs green through day 3 with zero failures at the honest scale, and the pace law proves itself in its own log. Local main now carries: the two-fleet merge, the evidence tranche, the ledger-truth closures, this E2E record — everything verified, everything committed, everything recoverable.
+
 ## 2026-11-13 — Z Agent: W14 — the DEC-8 landing wave; the last owner-gated build decision closes and Phase 8 exits with its paperwork (register v1.66.0)
 
 Task ID: W14-dec8-scoping (the owner's sign-off: "I have sign off dec 8 continue")
@@ -3858,8 +4052,9 @@ Work Log:
 - STATE ON PICKUP: main = origin/main = `2cba191` (the W13 band-soot merge, register v1.65.0), tree clean — and the remote push directive already satisfied: nothing local-only existed to push (verified HEAD == origin/main before anything moved). Tree health re-certified before anything moved: validate-registry OK · tsc clean · vitest 1697/1697 (101 files) · build OK.
 - THE QUESTION THE WAVE ANSWERS: DEC-8 — "Expansion approval. AGENTS.md §8 reserves new boroughs/scope growth for a human" — was the last owner-gated decision standing on the build side. The owner signed it, and the ruling opens the gate **within the row's own standing terms** ("Alder Heights completion only; no borough geometry"), which the risks register has carried since the decision table was first filed. What the sign-off actually unlocks is paperwork, not geometry: the Phase-8 entry line ("DEC-8 granted"), the MS-6 milestone record, and the exit checklist's final item — the borough scoping study as a document. The roadmap is explicit that the borough question itself stays the owner's ("owner decides the borough question with the scoping study in hand"); §8's gate applies again, fresh, on any design package.
 - THE WAVE (docs-only — no registry row, no geometry, no code; the registry is read, never written): (1) THE ADJUDICATION OF RECORD — `docs/production/DEC-8-EXPANSION-APPROVAL-DECISION.md` (the DEC-4 doc pattern: status table, the question stated precisely, what opens vs what stays gated, the completion audit, the boundary for the next agent, the next decision's frame). (2) THE PHASE-8 EXIT DELIVERABLE — `docs/production/BOROUGH-SCOPING-STUDY.md`: the roadmap's "document only, if approved" study, written from the shipped ledger — the canon boundary (§0 pillars verbatim, the identity guide, reference-only sourcing, NEVER ingesting OSM/NYC-Open-Data geodata); the eleven-row machinery inventory a borough would ride on (registry-driven construction · the priced-wave law · the facade kit · instancing discipline · A-1/A-2 nav + capacity · the pocket scanner · the content catalogue · THE REFERENCE-WORLD MANIFEST PATTERN (sim/reference.ts — the scoping unit for a borough's content, not just its geometry) · business ops · the rails · the probe fleet); the honest cost model (Alder Heights cost ~13 priced waves, not a decision; the first honest finding: a second district at block density does NOT fit the current 190/200 draw budget — a two-district budget needs its own DEC-2-class ruling, priced not assumed — and the study refuses to guess a number the first priced wave hasn't earned); three scope options (A Alder-Heights-only / B one chapter-structured district / C the Passport program) each with its cost class and gate; the binding-laws checklist for any future borough wave; the explicit no-geometry statement. (3) THE PAPERWORK EXECUTES: PHASE-ACCEPTANCE-CHECKLISTS §Phase 8 — entry requirements marked MET, all six exit items checked with evidence, the sign-off line annotated (the owner's gate SIGNED; workstream evidence in the register); PRODUCTION-RISKS-AND-DEPENDENCIES DEC-8 row → RULED/CLOSED; MASTER-GAME-ROADMAP Phase 8 gains the STATUS line (the objective lines' baseline counts stand as filing-date history — the DEC-4 pattern: the analysis stands as filed); PRODUCTION-STATUS-REGISTER PH-8 → VERIFIED + MS-6 → VERIFIED (the completion audit: 81 buildings / 21 interiors / 7 parks / 23 anchors — exists, reachable, purposeful, probed) + this change-log row. Same-commit law: all of it travels with the code-free wave in one commit.
+- THE RE-INTEGRATION (the wave's own find — the remote line moved AGAIN mid-wave, the C3-wave pattern): the first push was rejected (origin ahead by 11 commits — the world-map evidence tranche, the postcard fridge-test pass + B18, the B13 window pricing + rolling pace law, the ledger-truth closures, the honest E2E record). Fetched, inspected the overlap (only worklog.md — their register tops at v1.65.0, W14 takes v1.66.0, no renumber owed), merged with both sides preserved (union: the remote line's three entries first, W14 after). The integrated tree re-certified before the push (the gates below run on the MERGE, not the branch).
 - THE COMPLETION AUDIT (the Phase-8 DoD, read live from the registry at `2cba191`): exists — 81 building rows (18 canon `existing` heroes + 63 built W1–W7: W1 9 · W2 6 · W3 17 · SI-1 3 · W6 4 · W7 24), 21 interior rows (18 built + 3 canon), 7 parks, 23/23 anchors, 178 IDs; reachable — the W10 park-gate law and the pocket scanner as the standing gate (colliders 977 · spawn-comp 42,241 · traps 18 — furniture/private only · 42/42 registered POIs spawn-component · deterministic 5/5); purpose — books + staffing on the Phase-6 machinery, the interaction set regression-guarded; probe evidence — per-wave batteries W1–W13, the tip battery DRAWS 190 < 200 · 8/8 walks · probe-nav 9/9 · probe-world-sim 15/15.
-- THE GATES (docs-only wave — zero runtime path; the v1.12.0 precedent, no E2E re-run): validate-registry OK (178 IDs, 81 buildings, 23/23 anchors) · tsc clean · vitest **1697/1697** (101 files) · build OK. The shipped-world evidence stands at the W13 battery on `2cba191`.
+- THE GATES (docs-only wave — zero runtime path; the v1.12.0 precedent, no E2E re-run; re-run on the integrated tree): validate-registry OK (178 IDs, 81 buildings, 23/23 anchors) · tsc clean · vitest 1709/1709 (102 files — the integrated suite: W14's 101 files + the remote line's postcard-paper suite) · build OK.
 
 Stage Summary:
 - DEC-8 closes the way the register writes closures: the owner's sign-off recorded in an adjudication of record, the gate's own terms quoted verbatim, and the unlocked work executed in the same wave — Phase 8's exit checklist is all green with evidence, MS-6 reads VERIFIED, and the borough scoping study exists as the document the roadmap always said it should be. The borough question is now the owner's to answer with real numbers in hand; until then, Alder Heights is the world, and it is complete. Register v1.66.0.

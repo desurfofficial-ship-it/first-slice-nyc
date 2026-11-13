@@ -14,15 +14,15 @@
 
 | | |
 |---|---|
-| **Milestone** | World-map design lock + five-repo engineering reference study |
+| **Milestone** | World-map construction (W0–W13) + the evidence package (the shot list, the labelled top-down, the 3D overview) |
 | **Phase** | Vertical Slice production — narrative reboot canon (v1.0, 2026-11-06) |
-| **Registry version** | v1.64.0 (the W12 filigree wave + the merged subway-ride repair + sidewalk-color fixes, 2026-11-13) |
-| **Implementation phase** | **Complete for the vertical slice.** All 178 registry IDs built. All 21 interiors shipped. All 7 parks built. All 23 anchors placed. The walkability scanner reads clean. |
+| **Registry version** | v1.65.0 (the W13 band-course + soot wave, 2026-11-13) |
+| **Implementation phase** | **Complete for the vertical slice.** All 178 registry IDs built. All 21 interiors shipped. All 7 parks built. All 23 anchors placed. The walkability scanner reads clean and deterministic. The evidence package (the §6 shot list, the labelled top-down map, the golden-hour overview) is captured from the real built game. |
 | **Branch (local clone)** | `main` |
-| **Latest commit hash** | `44534bbb9b5b8202a5a3f88989e828bd868922ef` |
-| **Commit subject** | `Merge origin/main into main — the remote line's subway ride repair (v1.63.0) + the sidewalk-color fixes join the W12 filigree wave; the arriving wave's row RENUMBERS v1.63.0 → v1.64.0 (the C3-wave precedent — the ledger stays strictly monotonic and unique); both register/worklog sides preserved (the W9 row re-homed next to its v1.59.0 neighbor)` |
-| **Commit date** | 2026-11-13 04:09:25 +0000 |
-| **Remote** | `https://github.com/desurfofficial-ship-it/first-slice-nyc.git` (public; read-only clone needs no credentials) |
+| **Latest commit hash** | the WORLDMAP-EVIDENCE commit on top of the merged line `ae6a927` (the W13 merge) ← `6b58870` (the 240-commit merge) |
+| **Commit subject** | `feat(world-map): the evidence tranche — the §6 shot list captured from the real game (one boot, the honest ride, zero page errors), the labelled top-down map, the golden-hour overview; 07/08 ticked to the new truth` |
+| **Commit date** | 2026-11-13 (UTC) |
+| **Remote** | `https://github.com/desurfofficial-ship-it/first-slice-nyc.git` (public; read-only clone needs no credentials; the push rides the owner's fine-grained PAT — it needs the repo's Contents:write grant) |
 
 ## 2. Completed neighbourhoods
 
@@ -155,44 +155,63 @@ node scripts/diag-pocket-scan.mjs
 Carried from the W11/W12 worklog and `docs/architecture/world-contract/`'s
 ledger:
 
-1. **The D-3 money bridge** (roadmap open item). The D-1 tick valve runs in
-   `Game.frame`; the D-3 money bridge is the remaining ledger row.
-2. **The ambient-walker schedule migration** (roadmap open item). The bound
-   cast lives their clock-keyed schedules; the ambient walker schedule
-   migration is the remaining ledger row.
+1. ~~**The D-3 money bridge**~~ — **CLOSED 2026-11-13 (stale truth):** the bridge
+   shipped in WP-4 (`2203f05`, `sim/moneyBridge.ts` wired into `Game`'s
+   earn/spend behind the same confirm-gates) and is verified live in the built
+   game — `probe-money-trace` ALL CHECKS PASSED (genesis $87.00 on both sides
+   of the sanctioned mirror, the five rush cups as +$5.00 `business_revenue`
+   faucets with deterministic ids, the ledger audit clean, $112.00 landing;
+   at `E2E_SCALE=0.35` — the full-scale run exceeds this box's wall budget,
+   the documented dilation class).
+2. ~~**The ambient-walker schedule migration**~~ — **CLOSED 2026-11-13 (stale
+   truth):** WP-3v landed 2026-11-06 (`e3f1b02`) — the ambient walkers commute
+   over the ONE Phase 3 nav graph (`world/pedCommute.ts`), Yuka kept, every
+   hard guarantee kept; `ped-commute.test.ts` (390 lines) pins the state
+   machine deterministically. The probe's step-3 wall window reads 0 completed
+   commutes on this software-GL box (5 fps — the DEF-15 dilation class;
+   verified identical on the pre-merge remote tree), while the movement,
+   district-legality, separation and armed-machine steps stay green.
 3. **The fenestra atlas mip re-audit** (`docs/production/fenestra/01-FENESTRA-INTEGRATION.md`
    §7). The hardware `generateMipmap` and a hand-built per-cell chain both
    sampled into 2–4 px facade speckle on the verification rig; level-0 sampling
-   is clean. Re-check on a real GPU before enabling a chain.
-4. **The band courses + soot approximation** (`docs/slop-integration/01-SOURCE-REUSE-REPORT.md`
-   §4). The fire-escape filigree gap closed (W12); the band courses + soot stay
-   the honest approximation. A future atlas or alpha-tested pass could close
-   that gap if the visual budget allows.
+   is clean. Re-check on a real GPU before enabling a chain — this sandbox is
+   software GL, so the check stays honest-open.
+4. ~~**The band courses + soot approximation**~~ — **CLOSED (W13, register
+   v1.65.0):** the real band courses + soot plumes shipped through the
+   compliant route (469 pieces, zero colliders, +0 draw calls — the census
+   stays 190).
 5. **The optional slice: CORNERHOUSE-INT.** Documented as "stays an optional
    slice" in W11 — not a bug, a deferred option.
-6. **The live screenshot set for the world-map audit** (§6 of
-   `01-existing-world-audit.md`). The shot list is defined; the frames are not
-   yet captured. The next agent with a running dev server should capture them.
+6. ~~**The live screenshot set for the world-map audit**~~ — **CLOSED
+   2026-11-13:** all twelve frames captured from the real built game by
+   `web-three/scripts/probe-world-map-evidence.mjs`, dropped under
+   `docs/world-map/images/existing/` (§13 below).
 
 ## 9. Security notice (read before any push)
 
-**A GitHub Personal Access Token was leaked in plain text in the user's first
-message of this session.** The token string started with `github_pat_11CMJWORA…`.
-**Do not use this token.** It must be **revoked** at
-https://github.com/settings/tokens before any push is attempted.
+**A GitHub Personal Access Token has appeared in plain text in the chat**
+(the user supplies one per session; the current one starts
+`github_pat_11CMJWORA…`). **The repo's law stands:** never commit a token to
+the repository, never echo it in a commit message, a worklog entry, or a doc;
+never store it on disk (the pushes use the one-time inline URL and write no
+credential files). AGENTS.md §4 (Secrets law) is explicit.
 
-For the next push, use one of:
+**Push state 2026-11-13:** the session's token AUTHENTICATES (identity
+`desurfofficial-ship-it`, the repo GET returns `permissions.push: true`) but
+the GIT PUSH returns 403 "Permission … denied" — the fine-grained PAT was
+created without this repository's **Contents: read and write** grant (the
+public-repo read works, the write refuses). The fix is the owner's: edit the
+token at https://github.com/settings/tokens → Repository access → include
+`desurfofficial-ship-it/first-slice-nyc`, Permissions → Contents: Read and
+write — or issue a fresh token with that grant, or push manually. The local
+`main` carries all verified work (the merged line + the evidence tranche +
+the ledger-truth closures) and is recoverable regardless.
 
-- A **fresh, secret-stored PAT** (generated after revoking the leaked one),
-  stored in a secret manager or `gh auth login`, never pasted into a chat
-  prompt or a commit.
+For the next push, one of:
+
+- The same PAT with the **Contents:write grant added** (the owner edits it).
 - A **deploy key** scoped to the repository.
 - A **GitHub Actions workflow** that commits on behalf of the agent.
-
-**Never commit a token to the repository.** Never echo a token in a commit
-message, a worklog entry, or a doc. AGENTS.md §4 (Secrets law) is explicit:
-"Never hardcode tokens, keys, or credentials in any file, command that gets
-committed, or doc."
 
 ## 10. Remaining tasks
 
@@ -276,5 +295,40 @@ A new agent reading this document should be able to:
 
 The agent does **not** need the previous agent's conversation history. The repo
 is the memory.
+
+— Z.ai agent, 2026-11-13
+
+---
+
+## 13. Session addendum — the evidence tranche (2026-11-13, later)
+
+The construction-authorization session merged the two diverged agent lines
+(local: the postcard fridge-test pass + the rolling pace law; remote: W8–W13
++ this design package), re-certified the merged tree (tsc clean · vitest
+1,709/1,709 across 102 files · build OK · validate-registry OK · pocket scan
+deterministic 42,241/18/13 · city-fabric 190 draws · subway ALL PASS), and
+executed §3 items 2–5 of `07-map-completion-checklist.md`:
+
+- **The §6 shot list** — all twelve frames captured from the real built game
+  by `web-three/scripts/probe-world-map-evidence.mjs` (one boot; the honest
+  walk-in boarding + the registry's own `perform()`; the real exit walk;
+  zero page errors). Under `docs/world-map/images/existing/`.
+- **The labelled top-down map** — `images/top-down-map-labelled.png`; the
+  y=140 north-up render labelled from the registry's own coordinates
+  (`scripts/label_topdown.py`), with a 20 m scale bar.
+- **The 3D overview** — `images/overview-isometric-golden.png`; the
+  golden-hour high-angle render from inside the walls.
+
+The ride forensics the probe taught (recorded in `worklog.md`, the
+WORLDMAP-EVIDENCE entry): the board is the registry interact's `perform()`;
+the batch-driven machine rides honestly while the capsule stays pinned (the
+train never moves — the tunnel streams); the exit walk needs the machine
+retired (feet off the car band, z < 13.9) and the player unfrozen (the
+story's order/name cards fire on sim time).
+
+Remaining: the open ledger rows (§8 above) and the optional slice
+(CORNERHOUSE-INT). The push rides the owner's token — the supplied
+fine-grained PAT authenticated but lacks this repo's Contents:write grant,
+so the owner must grant it (or push manually); nothing is stored on disk.
 
 — Z.ai agent, 2026-11-13

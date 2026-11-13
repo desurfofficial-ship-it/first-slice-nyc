@@ -20,8 +20,70 @@ export interface CaptureResult {
 
 const CARD_W = 768;
 const CARD_H = 1344;         // TS-01 output size (768×1344 vertical postcard)
+export const POSTCARD_CARD_W = CARD_W;
+export const POSTCARD_CARD_H = CARD_H;
 const IMG_W = 768;
 const IMG_H = 1160;          // TS-01 offscreen render size; caption strip below
+
+/** The card's handwriting voice (docs/59): Caveat rides the bundle
+ *  (main.ts), so the caption renders the same hand on every device — the
+ *  old stack drew Bradley Hand on iPhone, Comic Sans on Windows and the
+ *  platform's default serif/sans on Android/Linux. The day tag stays
+ *  monospace on purpose: the post office prints, the owner writes. */
+export const POSTCARD_HAND_FONT = "'Caveat', 'Bradley Hand', 'Segoe Print', 'Comic Sans MS', cursive";
+/** Caption type: 30 px on a 40 px leading. Caveat runs a small x-height,
+ *  so 30 px reads like the old 27 px Bradley Hand; the strip (starting
+ *  y 1088) still holds six lines with bottom margin. */
+export const CAPTION_FONT_PX = 30;
+export const CAPTION_LINE_PX = 40;
+export const CAPTION_STRIP_Y = 1088;
+
+/** The grain seed (docs/59): the paper dots used Math.random(), so the
+ *  same moment never composed the same card twice — fridge-test reprints
+ *  differed, and no unit could pin the paper. FNV-1a over the card's own
+ *  identity (day + caption + cart name) keeps it deterministic and pure. */
+export function grainSeed(day: number, caption: string, cartName: string): number {
+  const src = `${day}\u0000${caption}\u0000${cartName}`;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < src.length; i++) {
+    h ^= src.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+/** mulberry32 — the seeded PRNG the grain rides (32-bit, dependency-free). */
+export function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** The stamp's name wraps to two lines instead of ellipsizing at 14 chars —
+ *  a cart named by its owner deserves its whole name. Greedy: break at the
+ *  last space that keeps line 1 ≤ max; an over-max tail ellipsizes. */
+export function wrapStampName(name: string, max = 14): string[] {
+  const clean = name.trim();
+  if (clean.length <= max) return [clean];
+  const cut = clean.lastIndexOf(' ', max);
+  if (cut <= 0) return [clean.slice(0, max - 1) + '…'];
+  const head = clean.slice(0, cut);
+  const tail = clean.slice(cut + 1);
+  if (tail.length <= max) return [head, tail];
+  return [head, tail.slice(0, max - 1) + '…'];
+}
+
+/** Fire the font preload once at import: the canvas can only draw a face
+ *  the document has loaded, and the first card must not wait on a cold
+ *  font swap. Idempotent, guarded for non-DOM test environments. */
+if (typeof document !== 'undefined' && typeof document.fonts?.load === 'function') {
+  void document.fonts.load('700 26px Caveat').catch(() => {});
+  void document.fonts.load(`${CAPTION_FONT_PX}px Caveat`).catch(() => {});
+}
 
 /** Render the scene from `camera` into an offscreen target and return pixels. */
 function renderPixels(
@@ -100,12 +162,16 @@ export function composePostcard(
   // paper
   ctx.fillStyle = '#FFF8F0';
   ctx.fillRect(0, 0, CARD_W, CARD_H);
-  // subtle paper grain: sparse warm dots
+  // subtle paper grain: sparse warm dots, SEEDED by the card's identity —
+  // the same moment composes the same paper twice (docs/59)
   ctx.fillStyle = 'rgba(178, 58, 72, 0.05)';
-  for (let i = 0; i < 420; i++) {
-    const x = Math.random() * CARD_W;
-    const y = Math.random() * CARD_H;
-    ctx.fillRect(x, y, 2, 2);
+  {
+    const rnd = mulberry32(grainSeed(day, caption, cartName));
+    for (let i = 0; i < 420; i++) {
+      const x = rnd() * CARD_W;
+      const y = rnd() * CARD_H;
+      ctx.fillRect(x, y, 2, 2);
+    }
   }
 
   // photo with a small margin (postcard print border)
@@ -192,28 +258,33 @@ export function composePostcard(
     ctx.stroke();
     ctx.restore();
   }
+  // the cart's name in the owner's hand — wrapped, never ellipsized mid-name
   ctx.fillStyle = '#3A3440';
-  ctx.font = '22px "Bradley Hand", "Segoe Print", cursive';
-  const name = cartName.length > 14 ? cartName.slice(0, 13) + '\u2026' : cartName;
-  ctx.fillText(name, 0, 18, stampW - 20);
+  ctx.font = `700 24px ${POSTCARD_HAND_FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const nameLines = wrapStampName(cartName);
+  nameLines.forEach((line, i) => {
+    ctx.fillText(line, 0, 14 + i * 24, stampW - 20);
+  });
   ctx.restore();
 
   // caption strip (handwriting, Doc 08 exact text, left-aligned like the reference)
   ctx.fillStyle = '#3A3440';
-  ctx.font = '27px "Bradley Hand", "Segoe Print", "Comic Sans MS", cursive';
+  ctx.font = `${CAPTION_FONT_PX}px ${POSTCARD_HAND_FONT}`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   const lines = caption.split('\n');
-  let y = photoH + my + 28;
+  let y = CAPTION_STRIP_Y;
   for (const line of lines) {
     ctx.fillText(line, mx + 8, y, CARD_W - mx * 2 - 16);
-    y += 38;
+    y += CAPTION_LINE_PX;
   }
 
   return canvas.toDataURL('image/png');
 }
 
-/** Full pipeline: scene → pixels → variance check → composed postcard data URL.
+/** Full pipeline: scene → pixels → variance check → composed postcard data URL. */
  *
  *  `opts.dof` — the authored capture's depth of field (v1.54.0):
  *  `{ focus }` in world units (camera → the pose's look-at target). The
@@ -229,7 +300,6 @@ export interface CaptureOptions {
    *  far-world silhouettes, movers) — hidden around the DOF depth bake. */
   exclude?: readonly THREE.Object3D[];
 }
-
 export function capturePostcard(
   renderer: THREE.WebGLRenderer,
   scene: THREE.Scene,
