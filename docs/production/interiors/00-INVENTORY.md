@@ -6,7 +6,7 @@
 | Method | Code audit of `web-three/src/world/World.ts` (W5 interior builders + the bodega), the furniture seam (`src/world/furniture.ts`), `tests/interiors.test.ts`, and the W5 probe (`scripts/probe-w5-interiors.mjs`) |
 | Law | Each interior gets the assets its PURPOSE demands; colliders/interactions/nav are preserved; every replacement keeps its procedural fallback |
 
-## The interior inventory (9 interiors)
+## The interior inventory (10 interiors)
 
 | # | Interior | Registry shell | Where | Fit-out state | Accessible in play |
 |---|---|---|---|---|---|
@@ -20,9 +20,12 @@
 | 8 | DINER-INT | SND-01, x 50.2..59.8, z −19.8..−8.2 | `buildW5Diner` | Stools + booth tables wear ABO; the 8 m cook line is one gray box; register/pie case is a slab | YES — corner diner, two doors |
 | 9 | CECIL-ROOM | KTS-02, x 10.2..15.8, z −14.1..−9.1, y 8.35 | `buildW5CecilRoom` | Bed/dresser/nightstand/lamp/mirror/rug wear ABO; kitchenette/bath fixtures are boxes; no radiator, no clutter | YES — top fire-escape landing |
 
+| 10 | CORNERHOUSE-INT | KTN-00W, x −59.6..−50.4, z 8.2..19.8 | `buildW14CornerHouse` | The dry-goods floor (W14, 2026-11-13 — the registry's last openDecision closed on the owner's confirmation): goods shelves down both skins, the center gondola west of the door line, counter + register (cash_register), the seasonal crates ×2 (produce_crate) at the corner pier, the detergent shelf (detergent_shelf), the soda cooler (vending_machine); display under window W; ochre wainscot identity pass | YES — the open corner-grocery band walk-in (`probe-w14-cornerhouse.mjs`, the walkability leg) |
+
 (SUB-01 platform and the arrival terminal are environment kits with their own
 identity — in scope for a later pass; this batch covers the nine furnished rooms
-and the store the story walks through every day.)
+and the store the story walks through every day. Row 10 rode in with W14 —
+the batch's own files dress it; zero new programs.)
 
 ## Deficiency → asset map (what gets built, per interior)
 

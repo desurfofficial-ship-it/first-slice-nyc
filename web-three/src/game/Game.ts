@@ -3183,6 +3183,12 @@ export class Game {
     // walks one day forward, and a replayed day never double-advances
     // (max() — the same morning twice is one morning to the calendar).
     s.calendarDay = sd !== null ? (sd.calendar_day ?? n) : Math.max(s.calendarDay, n);
+    // W16 — the season rides the calendar (the DEC-6 minimal pass): the
+    // world's dressing reads the R4 calendar's season for this day. One
+    // seam — boot (save resume) and every day transition pass here —
+    // idempotent per season; the shipped September days are autumn, the
+    // shipped look byte-identical (seasonDressing.ts).
+    this.world.applySeason(s.calendarDay);
     // day-3/4 morning state resets fresh each begin (mid-day saves resume at the morning)
     s.rushIndex = 0;
     s.brewing = false;

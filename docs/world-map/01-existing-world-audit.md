@@ -30,7 +30,7 @@ two cross-streets (Gable, Marlow), and a Times Square destination one subway rid
 west. Every building is authored and registry-driven; every interior that the
 story enters is enterable; every window on every facade is a fenestra-mapped
 room. The map is **complete for the vertical slice** — 178 registry IDs, 81
-buildings, 7 parks, 21 interiors, 23/23 anchors, all built (registry v1.64.0,
+buildings, 7 parks, 22 interiors, 23/23 anchors, all built (registry v1.66.0,
 W12 wave shipped 2026-11-13).
 
 ## 2. World boundaries (from `docs/data/world-registry.json` `bounds`)
@@ -86,7 +86,7 @@ avenue > street is preserved.
 
 - LAUNDRY-INT, BARBER-INT, PIZZA-INT, DINER-INT, BAKERY-INT, RECORD-INT,
   HALL-INT, CECIL-ROOM, MEZZ-INT — all flipped 'planned' → 'built (W5)' in the
-  W11 wave (2026-11-13). CORNERHOUSE-INT stays an optional slice (the open
+  W11 wave (2026-11-13). CORNERHOUSE-INT **built in W14 (2026-11-13)** (the open
   decision closed by the W11 reword).
 - The interior dressing: `tools3d/sandflow_eval/programs/` (32 Python programs
   generating procedural GLBs — cash register, newsrack, hydrant, streetlight,
@@ -149,7 +149,7 @@ stair-seal fix), and emerges at Times Square. The canyon sits at x ~−400
 - **The registry is the truth.** The W11 registry-truth repair flipped the
   eight W5 interior rows from 'planned' to 'built', closed the pizza
   openDecision, and reworded the MEZZ/CORNERHOUSE decision to current truth.
-  validate-registry passes: 178 IDs, 81 buildings, 7 parks, 21 interiors, 23/23
+  validate-registry passes: 179 IDs, 81 buildings, 7 parks, 22 interiors, 23/23
   anchors.
 - **The battery passes.** `npx tsc --noEmit` clean. `npx vitest run` — 1,683
   tests across 100 files. `npm run build` OK (701–739 ms). probe-subway 46/46.
@@ -180,11 +180,14 @@ stair-seal fix), and emerges at Times Square. The canyon sits at x ~−400
 ### 5.3 What is missing (the honest gaps)
 
 - **Nothing planned is unbuilt.** The registry's `constructionPhases` table
-  carries W0–W12; all 81 buildings, 21 interiors, 7 parks, 23 anchors are
-  built. The W11 wave closed the last "planned" status row.
-- **The optional slice: CORNERHOUSE-INT.** The registry's openDecision reworded
-  to "stays an optional slice" in W11 — it is not a gap, it is a documented
-  option.
+  carries W0–W14; all 81 buildings, 22 interiors, 7 parks, 23 anchors are
+  built. The W11 wave closed the last "planned" status row; W14 built the
+  Corner House interior.
+- **The optional slice: CORNERHOUSE-INT — BUILT (W14, 2026-11-13).** The
+  registry's openDecision (reworded to "stays an optional slice" in W11) is
+  CLOSED: the corner store ships a real ground floor on the owner's
+  confirmation — the open corner-grocery band, the dry-goods fit-out, the
+  named far pane, the walkability leg; 22 interiors now.
 - **The narrative-only places** (doc 04 §2, flagged for builders in doc 15):
   the Juniper storefront that houses Juniper Mutual Aid (papered window,
   folding tables), the Ascension Church on Sycamore, Masjid an-Nur on Juniper,
@@ -230,7 +233,8 @@ under `docs/world-map/images/existing/`:
 ## 7. The verdict
 
 The map is **complete for the vertical slice**. The registry's truth is the
-truth: 178 IDs, 81 buildings, 7 parks, 21 interiors, 23 anchors, all built. The
+truth: 179 IDs, 81 buildings, 7 parks, 22 interiors, 23 anchors, all built (the
+W14 Corner House interior joined; the count moved 178→179 / 21→22). The
 walkability scanner reads clean. The fenestra windows render as rooms. The
 subway ride works at any frame rate. The fire escapes wear their ironwork.
 

@@ -8,7 +8,7 @@
 > registry IDs are built. All 81 buildings, 21 interiors, 7 parks, and 23
 > anchors ship. The walkability scanner reads clean. The test battery passes
 > (1,683 / 1,683). The remaining items are the open ledger rows (system work,
-> not map construction) and the optional slice (CORNERHOUSE-INT).
+> not map construction). The optional slice (CORNERHOUSE-INT) closed in W14 (2026-11-13).
 
 ---
 
@@ -49,7 +49,7 @@
 | ROS-INT | ✅ Built (W5) | W5 |
 | HARDWARE-INT | ✅ Built (W5) | W5 |
 | The W8 strip-row interiors (FRUIT-INT, NEWS-INT, the storefront GLBs) | ✅ Built (W8) | W8 |
-| CORNERHOUSE-INT | optional slice (registry openDecision reworded in W11) | — |
+| CORNERHOUSE-INT | **built (W14)** — the open corner-grocery band + the dry-goods fit-out; the openDecision closed | `probe-w14-cornerhouse.mjs` |
 
 ### 1.4 Parks and public spaces (7 / 7 complete)
 
@@ -179,6 +179,6 @@ Acceptance"):
 **The verdict:** the map is complete for the vertical slice, and the evidence
 package is complete with it. What remains is the open ledger rows (system
 work: the D-3 money bridge, the ambient-walker schedule migration, the
-fenestra atlas mip re-audit) and the optional slice (CORNERHOUSE-INT).
+fenestra atlas mip re-audit); the optional slice (CORNERHOUSE-INT) closed in W14.
 
 — Z.ai agent, 2026-11-13

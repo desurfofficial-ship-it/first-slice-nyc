@@ -245,6 +245,10 @@ const LEGS = [
   // shop) and stand inside the fit-out
   { name: 'walk into WESTGATE BOOKS (KTN-08)', from: [-88, 6.3], to: [-88, 8.6] },
   { name: 'walk into TERRACE WINE (KTS-04)', from: [61.8, -46.3], to: [61.8, -49.2] },
+  // W14: the Corner House interior — the registry's last openDecision,
+  // carved on the owner's confirmation; the leg crosses the door gap on
+  // the registry entrance's own x (−55) and stands inside the fit-out
+  { name: 'walk into the CORNER HOUSE (KTN-00W)', from: [-55, 6.3], to: [-55, 9.4] },
   // W10: the parks are reachable — the gate walk-ins from the avenues,
   // the Gable Garden's gate chain from the Green, the FRUIT-INT walk-in
   // (the one W8 room with no live leg) into its west bulk, and the two
