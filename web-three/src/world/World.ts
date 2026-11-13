@@ -1256,7 +1256,11 @@ export class World {
     this.colliders.push(boxFromCenter(13.5, 2.2, -5.9, 0.24, 4.4, 0.24));    // lamp post
     this.registerGlbProp('hydrant', hydrant);
     void this.upgradePropWithGLB('hydrant');
-    void this.upgradePropWithGLB('mailbox');
+    // 'mailbox' wears its procedural look only: the GLB upgrade was wired
+    // before a mailbox.glb ever shipped — every boot fetched models/
+    // mailbox.glb, got the SPA's index.html back, and threw an uncaught
+    // parse error (the road-clear probe now fails on ANY asset 404, so
+    // the call stays out until the model itself lands in public/models).
     void this.upgradePropWithGLB('trashcan');
     void this.upgradePropWithGLB('streetlamp');
 
@@ -2237,7 +2241,7 @@ export class World {
       'TSS-03': this.regShell('TSS-03'),
       'TSS-04': this.regShell('TSS-04'),
       'TSS-05': this.regShell('TSS-05'),
-    });
+    }, this.signMaterials.bind(this));
     for (const c of this.timesSquare.colliders) {
       this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d));
     }
@@ -5311,10 +5315,16 @@ export class World {
    *  honest collider for the railing line. */
   private dressFarWorldSI(root: THREE.Group): void {
     const stair = makeSubwayStairNYC(this.bank, this.signMaterials.bind(this));
-    stair.position.set(-332, 0.12, 3.2);
-    stair.rotation.y = Math.PI; // the entries face the plaza's south walk
+    // ROAD-CLEAR (v1.74.0): the ported stair stood at (−332, 3.2) — its
+    // 5.6 m well spanned z 0.4..6.0 and its railed housing blocked the
+    // roadway's north lane (the owner's "subway entrance in the road").
+    // It stands on the station block plaza now, east of the headhouse
+    // slot, entry facing the street — a second entrance, like the real
+    // square's station wears. Rim 0.09 above the plaza slab (top 0.1).
+    stair.position.set(-326.5, 0.22, 11.2);
+    stair.rotation.y = Math.PI; // the entry faces the street, south
     root.add(stair);
-    this.colliders.push(boxFromCenter(-332, 0.7, 3.2, 2.0, 1.4, 5.4));
+    this.colliders.push(boxFromCenter(-326.5, 0.7, 11.2, 2.0, 1.4, 5.6));
   }
 
   private bakeStatics(): void {

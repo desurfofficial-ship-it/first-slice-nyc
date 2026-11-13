@@ -49,6 +49,21 @@
  *     menu-board cart, show-cloth banners, bleacher-striped red steps,
  *     a glass canopy, and a rooftop water tank on the Orpheum block.
  *
+ *  7. ROAD-CLEAR WAVE (the owner's street-level audit, v1.74.0): the
+ *     roadway (z −4..+4) carried STATICS — the red steps and their canopy,
+ *     the café tables and raw teal chair boxes, the raw hot-dog cart, and
+ *     the ported subway stair all stood IN the traffic lanes, the step
+ *     sitters sank into the treads (their rig y never left walk level),
+ *     and the stair-mouth threshold showed the zone void so the headhouse
+ *     read as standing in the road. The wave: steps + canopy onto the
+ *     station block plaza (the TKTS read, backs to the hoarding), café
+ *     row onto the south walk under the awnings (stools and tables with
+ *     real legs), the finished vendor cart by the east crosswalk, the
+ *     raw single-color boxes replaced by the finished kit builders
+ *     (newsrack pair, cedar planters), the apron paved, and the law
+ *     pinned by probe-tss-road-clear: the roadway carries PAINT ONLY —
+ *     zero statics, zero colliders.
+ *
  * All names carry the TSS_ prefix (bake-excluded; zone-hidden). Static
  * crowd figures ride the shared person rig; two movers walk the sidewalk
  * with the rig's own walk cycle — a crowd for the price of ten boxes.
@@ -59,6 +74,9 @@ import { PAL } from '../core/palette';
 import {
   buildArticulatedPerson, updatePersonAnim, type PersonRig,
 } from './personRig';
+import { makeNewspaperBoxes, makeStool, makeVendorCart, MatBank, type SignPairFactory } from './props';
+import { makePlanter } from './streetAssets';
+import { mulberry32 } from './dressing';
 import type { ColliderSpec } from './subway/stationKit';
 
 const TS = { xW: -380, xE: -280, zN: 8, zS: -8 } as const;
@@ -635,35 +653,6 @@ function stepsTexture(): THREE.CanvasTexture {
   });
 }
 
-function cartTexture(): THREE.CanvasTexture {
-  return canvasTex('tss:cart', 192, 128, (c) => {
-    c.fillStyle = '#F7B32B';
-    c.fillRect(0, 0, 192, 128);
-    c.fillStyle = '#3A3440';
-    c.fillRect(0, 0, 192, 26);
-    c.fillStyle = '#FFF8F0'; c.textAlign = 'center';
-    c.font = 'bold 19px Georgia, serif';
-    c.fillText('HOT DOGS', 96, 19);
-    c.font = 'bold 26px Georgia, serif';
-    c.fillText('2 for 3', 96, 62);
-    c.font = 'italic 15px Georgia, serif';
-    c.fillText('musterd · kraut · onions', 96, 88);
-    c.fillStyle = '#B23A48';
-    c.fillRect(24, 100, 144, 10);
-  });
-}
-
-function umbrellaTexture(): THREE.CanvasTexture {
-  return canvasTex('tss:umb', 128, 64, (c) => {
-    c.fillStyle = '#B23A48';
-    c.fillRect(0, 0, 128, 64);
-    c.fillStyle = '#FFF8F0';
-    for (let x = 0; x < 128; x += 32) c.fillRect(x, 0, 16, 64);
-    c.fillStyle = 'rgba(0,0,0,0.14)';
-    for (let x = 14; x < 128; x += 32) c.fillRect(x, 0, 4, 64);
-  });
-}
-
 function hoardingTexture(): THREE.CanvasTexture {
   return canvasTex('tss:hoard', 1024, 160, (c) => {
     const W = 1024, H = 160;
@@ -738,12 +727,16 @@ export function buildTimesSquare(
   parent: THREE.Group,
   M: (c: number, opts?: { emissive?: number; emissiveIntensity?: number }) => THREE.MeshLambertMaterial,
   rows: TSRegistryRows,
+  sign: SignPairFactory,
 ): TimesSquare {
   const group = new THREE.Group();
   group.name = 'TSS_Group';
   parent.add(group);
   const colliders: ColliderSpec[] = [];
   const col = (x: number, y: number, z: number, w: number, h: number, d: number) => colliders.push({ x, y, z, w, h, d });
+  // the kit bank — the finished prop builders (newsrack pair, stools,
+  // cedar planters, the vendor cart) share World's material law through it
+  const bank = new MatBank((c) => M(c));
 
   // the night-swapped facade registry + the night-glow registry (both are
   // driven by setNightBoost — field writes, never per-frame params)
@@ -813,6 +806,14 @@ export function buildTimesSquare(
   box('TSS_Walk_N_W', (TS.xW + B0) / 2, -0.05, 6, B0 - TS.xW, 0.3, 4, walkNw, { collide: false, cast: false });
   box('TSS_Walk_N_E', (B1 + TS.xE) / 2, -0.05, 6, TS.xE - B1, 0.3, 4, walkNe, { collide: false, cast: false });
   box('TSS_Walk_S', (TS.xW + TS.xE) / 2, -0.05, -6, TS.xE - TS.xW, 0.3, 4, walkS, { collide: false, cast: false });
+  // the station stair mouth's apron (ROAD-CLEAR): the walk slabs split
+  // around the stair slot (x B0..B1) — without this pad the threshold
+  // strip showed the zone void and the headhouse read as standing in the
+  // roadway from the crosswalk views. The railed pit is the entrance;
+  // the apron is the sidewalk it stands on.
+  box('TSS_Walk_StairPad', (B0 + B1) / 2, -0.05, 4.775, B1 - B0, 0.3, 1.55,
+    swapMat(pavementTexture('apn', B0, B1, [], false), pavementTexture('apn', B0, B1, [], true)),
+    { collide: false, cast: false });
   // the station block's paving (x −350..−320, z 8..20): the plaza slab that
   // keeps the surface surface — without it the tunnel ceiling below would
   // become the ground and swallow a walker (the below-grade law's one debt)
@@ -980,21 +981,24 @@ export function buildTimesSquare(
   const stepTex = stepsTexture();
   const stepMat = new THREE.MeshLambertMaterial({ map: stepTex });
   stepMat.envMapIntensity = 0.22;
+  // ROAD-CLEAR: the risers stand on the station block plaza (z 9..14,
+  // backs to the hoarding backdrop, facing the square) — the old spot
+  // (z −2..+3) put every tread in the roadway's north lane
   for (let i = 0; i < 5; i++) {
-    box(`TSS_Step_${i}`, -343, 0.175 + i * 0.35, -1.5 + i * 1.0, 6, 0.35 + i * 0.35, 1.0, stepMat);
+    box(`TSS_Step_${i}`, -343, 0.175 + i * 0.35, 9.5 + i * 1.0, 6, 0.35 + i * 0.35, 1.0, stepMat);
   }
   // glass canopy: posts + beams + two translucent panels (real glass, not
   // a solid slab — you see the boards through it from the steps)
-  for (const [px, pz] of [[-345.6, -1], [-340.4, -1], [-345.6, 3], [-340.4, 3]] as const) {
+  for (const [px, pz] of [[-345.6, 9.5], [-340.4, 9.5], [-345.6, 13.5], [-340.4, 13.5]] as const) {
     box(`TSS_StepPost_${px}_${pz}`, px, 1.4, pz, 0.14, 2.8, 0.14, 0xd8d8d8, { collide: false });
   }
-  box('TSS_StepBeam_N', -343, 2.85, -1, 5.8, 0.1, 0.14, 0x5a5a62, { collide: false });
-  box('TSS_StepBeam_S', -343, 2.85, 3, 5.8, 0.1, 0.14, 0x5a5a62, { collide: false });
+  box('TSS_StepBeam_S', -343, 2.85, 9.5, 5.8, 0.1, 0.14, 0x5a5a62, { collide: false });
+  box('TSS_StepBeam_N', -343, 2.85, 13.5, 5.8, 0.1, 0.14, 0x5a5a62, { collide: false });
   const glassMat = new THREE.MeshLambertMaterial({
     color: 0xfff8f0, transparent: true, opacity: 0.28, depthWrite: false,
   });
-  box('TSS_StepGlass_N', -343, 2.85, 0, 5.8, 0.06, 2.1, glassMat, { collide: false, cast: false });
-  box('TSS_StepGlass_S', -343, 2.85, 2, 5.8, 0.06, 2.1, glassMat, { collide: false, cast: false });
+  box('TSS_StepGlass_S', -343, 2.85, 10.5, 5.8, 0.06, 2.1, glassMat, { collide: false, cast: false });
+  box('TSS_StepGlass_N', -343, 2.85, 12.5, 5.8, 0.06, 2.1, glassMat, { collide: false, cast: false });
 
   // ---- street lights: eight posts, night-glow heads ----
   // The glow is emissive-only (no new real lights — the budget law); the
@@ -1010,16 +1014,29 @@ export function buildTimesSquare(
     box(`TSS_LampHead_S_${lx}`, lx, 4.78, -6.3, 0.44, 0.16, 0.28, glowMat(0xffc97e, 0.12, 1.8), { collide: false });
   }
 
-  // ---- plaza furniture ----
+  // ---- plaza furniture (ROAD-CLEAR: the café row stands on the south
+  //      walk, under the shop awnings — the roadway carries no statics) ----
   for (const tx of [-334, -316]) {
-    box(`TSS_Table_${tx}`, tx, 0.75, -1.5, 1.1, 0.08, 1.1, 0x8a5a3a);
-    col(tx, 0.4, -1.5, 1.1, 0.8, 1.1);
-    for (const [cx2, cz2] of [[tx - 0.9, -1.5], [tx + 0.9, -1.5], [tx, -0.6]] as const) {
-      box(`TSS_Chair_${tx}_${cx2}_${cz2}`, cx2, 0.45, cz2, 0.45, 0.9, 0.45, 0x2A9D8F);
+    box(`TSS_Table_${tx}`, tx, 0.75, -6.3, 1.1, 0.08, 1.1, 0x8a5a3a);
+    for (const [lx, lz] of [[-0.44, -0.44], [0.44, -0.44], [-0.44, 0.44], [0.44, 0.44]] as const) {
+      box(`TSS_TableLeg_${tx}_${lx}_${lz}`, tx + lx, 0.355, -6.3 + lz, 0.07, 0.71, 0.07, 0x5a3a28, { collide: false });
+    }
+    col(tx, 0.4, -6.3, 1.1, 0.8, 1.1);
+    for (const [sx2, sz2, sr] of [[-0.95, 0, 0.2], [0.95, 0, -0.2], [0, 0.9, Math.PI / 2]] as const) {
+      const stool = makeStool(bank);
+      stool.name = `TSS_Stool_${tx}_${sx2}_${sz2}`;
+      stool.position.set(tx + sx2, 0.1, -6.3 + sz2);
+      stool.rotation.y = sr;
+      group.add(stool);
+      col(tx + sx2, 0.45, -6.3 + sz2, 0.5, 0.6, 0.5);
     }
   }
   for (const nx of [-374, -349.5, -290]) {
-    box(`TSS_Newsbox_${nx}`, nx, 0.425, 6.8, 1.1, 0.85, 0.6, 0x2A9D8F);
+    const nb = makeNewspaperBoxes(bank);
+    nb.name = `TSS_Newsrack_${nx}`;
+    nb.position.set(nx, 0.1, 6.8);
+    group.add(nb);
+    col(nx + 0.31, 0.55, 6.8, 1.25, 0.9, 0.55);
   }
   // three proud awnings over the south-row shops + two lightbox signs
   const awnTex = awningTexture();
@@ -1047,21 +1064,23 @@ export function buildTimesSquare(
       banners.push(cloth);
     }
   }
+  const planterRng = mulberry32(20261114);
   for (const plx of [-376.5, -292]) {
-    box(`TSS_Planter_${plx}`, plx, 0.35, 6.9, 1.6, 0.7, 1.1, PAL.stone);
-    box(`TSS_PlanterBush_${plx}`, plx, 0.95, 6.9, 1.2, 0.7, 0.8, 0x4a7a3a, { collide: false });
+    const pl = makePlanter(bank, planterRng);
+    pl.name = `TSS_Planter_${plx}`;
+    pl.position.set(plx, 0.1, 6.9);
+    group.add(pl);
+    col(plx, 0.3, 6.9, 1.1, 0.5, 0.6);
   }
-  // hot dog cart silhouette (the corner that smells like everything)
-  const cartTex = cartTexture();
-  const cartMat = new THREE.MeshLambertMaterial({ map: cartTex });
-  cartMat.envMapIntensity = 0.22;
-  box('TSS_CartBody', -294, 0.75, -2.2, 1.9, 1.1, 1.1, cartMat);
-  const umbTex = umbrellaTexture();
-  const umbMat = new THREE.MeshLambertMaterial({ map: umbTex });
-  umbMat.envMapIntensity = 0.22;
-  box('TSS_CartUmbrella', -294, 2.35, -2.2, 2.1, 0.12, 2.1, umbMat, { collide: false });
-  box('TSS_CartPole', -294, 1.7, -2.2, 0.08, 1.0, 0.08, 0x5a5a62, { collide: false });
-  col(-294, 0.75, -2.2, 1.9, 1.5, 1.1);
+  // hot dog cart — the finished vendor cart (wheels, lid, handle, sign
+  // board, umbrella) on the south walk by the east crosswalk (ROAD-CLEAR:
+  // the raw boxes stood in the roadway, the striped umbrella read as an
+  // unfinished cube from the crosswalk)
+  const cart = makeVendorCart(bank, sign, 'HOT DOGS');
+  cart.name = 'TSS_Cart';
+  cart.position.set(-294, 0.1, -5.7);
+  group.add(cart);
+  col(-294, 0.7, -5.7, 1.7, 1.3, 0.9);
 
   // ---- skyline card: the west rim of towers + one spire (fog does the
   //      rest) — painted grids so the terminus stops reading as gray foam ----
@@ -1080,10 +1099,10 @@ export function buildTimesSquare(
   }
 
   // ---- the cast of the square ----
-  const rig = (name: string, look: Parameters<typeof buildArticulatedPerson>[0], x: number, z: number, yaw: number): PersonRig => {
+  const rig = (name: string, look: Parameters<typeof buildArticulatedPerson>[0], x: number, z: number, yaw: number, y = 0.1): PersonRig => {
     const { group: g, rig: r } = buildArticulatedPerson(look);
     g.name = name;
-    g.position.set(x, 0.1, z);
+    g.position.set(x, y, z);
     g.rotation.y = yaw;
     group.add(g);
     return r;
@@ -1100,14 +1119,14 @@ export function buildTimesSquare(
     [0xF7B32B, 0x3d4a55, 0xe8b08e, 0x453b4c],
     [0x6D4C7D, 0x3a3a42, 0xd9a06b, 0x6a4a3a],
   ];
-  const crowdSpots: Array<[number, number, number]> = [
-    [-344.5, -0.8, 0.4], [-342.8, 0.2, 2.8], [-341.2, 1.2, 0.2],   // on the steps
+  const crowdSpots: Array<[number, number, number, number?]> = [
+    [-344.5, 10.6, 0.4, 0.875], [-342.8, 12.4, 2.8, 1.925], [-341.2, 13.4, 0.2, 2.45],   // on the steps (tread tops)
     [-355, 6.2, 0.5], [-331, 6.4, 0.1], [-338, -4.8, Math.PI], [-312, -4.9, Math.PI],
   ];
   const crowdGroups: THREE.Group[] = [];
-  crowdSpots.forEach(([cx2, cz2, cy2], i) => {
+  crowdSpots.forEach(([cx2, cz2, cy2, cyFloor], i) => {
     const [j, p, s, h] = crowdLooks[i % crowdLooks.length];
-    rig(`TSS_Crowd_${i}`, { jacket: j, pants: p, skin: s, hair: h, style: i % 2 ? 'bun' : 'flat', scale: 0.93 + (i % 3) * 0.05 }, cx2, cz2, cy2);
+    rig(`TSS_Crowd_${i}`, { jacket: j, pants: p, skin: s, hair: h, style: i % 2 ? 'bun' : 'flat', scale: 0.93 + (i % 3) * 0.05 }, cx2, cz2, cy2, cyFloor ?? 0.1);
     crowdGroups.push((group.children[group.children.length - 1] as THREE.Group));
   });
   // two movers walking the north sidewalk (the rig's own walk cycle) —
@@ -1164,7 +1183,7 @@ export function buildTimesSquare(
     },
     anchors: {
       usher: { x: -352.3, y: 0.1, z: 7.25 },
-      steps: { x: -343, y: 1.75, z: 2.2 },
+      steps: { x: -343, y: 1.75, z: 11.5 },
       center: { x: -330, y: 0.1, z: 0 },
     },
     update(dt, feet, day) {
