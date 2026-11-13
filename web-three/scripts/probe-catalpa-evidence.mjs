@@ -112,7 +112,7 @@ await page.evaluate(() => {
 for (let i = 0; i < 12; i++) await sleep(120);
 
 await frame('catalpa-junction-plaza', 150, 2.1, 16.5, 155, 3.4, 6.5);
-await frame('catalpa-kestrel-east', 104, 2.4, 3.2, 130, 2.6, 0);
+await frame('catalpa-kestrel-east', 108, 2.4, -1.5, 130, 2.6, 0);
 await frame('catalpa-spur-gardens', 152, 2.2, -34, 152, 1.4, -52);
 await frame('catalpa-larch-street', 228, 2.3, -14, 228, 2.0, 12);
 await frame('catalpa-viaduct-span', 152, 3.0, -24, 152, 8.8, 4);
