@@ -776,6 +776,70 @@ export class World {
     this.signBoard('Terminal_Sign', 'BUS TERMINAL', 5, 0.8, 0.15, 640, 96, PAL.stone, PAL.ink, 56)
       .position.set(-30, 3.4, termFaceZ);
 
+    // TERMINAL-PROD: the pre-war municipal slab gets its face. The v1.17.0
+    // audit's recorded debt ("SUB-01/terminal dressing remains the later
+    // pass's scope") — the game's OPENING FRAME is the checkpoint beside
+    // this facade (Game's default checkpoint (-30, 6.2), the step-off at
+    // (-34.2, 6.3)), and the wall was a bare PAL.bldg slab with a floating
+    // teal door. The dressing is the shipped street's own grammar — proud
+    // deco slabs (no colliders, +0 footprint; the bake fuses them) and
+    // proud window planes the fenestra collector adopts (named Terminal_Win_
+    // so WIN_NAME matches; KTN-01 reads commercial — municipal offices).
+    // Layering law: door 0.125 < frame 0.16 < piers 0.17 < crown 0.28 proud.
+    const termBase = 0x7d6c5e; // rusticated base limestone — darker than the mass
+    const termWin = this.bank.get(PAL.windowDim);
+    // 1. the plinth + rusticated stone base (the row's "stone base" style
+    //    note) — south face (z 8) and west face (x −50; the east base hides
+    //    behind the bodega's bulk, ROS-01 at y ≤ 4.5)
+    this.deco('Terminal_Plinth', ktn1.x, 0.28, 7.91, 30.2, 0.56, 0.18, termBase);
+    this.deco('Terminal_Base', ktn1.x, 1.9, 7.94, 29.8, 2.7, 0.16, termBase);
+    this.deco('Terminal_Plinth_W', -50.08, 0.28, 14, 0.18, 0.56, 12.4, termBase);
+    this.deco('Terminal_Base_W', -50.08, 1.9, 14, 0.16, 2.7, 12.0, termBase);
+    // 2. the string course that caps the base (y 3.25..3.55)
+    this.deco('Terminal_String', ktn1.x, 3.4, 7.92, 30.0, 0.3, 0.14, PAL.stone);
+    // 3. the municipal window grid — 3 m rhythm, 3 m floor pitch, taller
+    //    office panes (1.5 × 2.1). South rows skip the entry bay (the portal
+    //    owns x −33.25..−26.75 in row 1); the east face's row 1 hides behind
+    //    the bodega roof, so the east grid starts at row 2. North face stays
+    //    blind — the municipal service back.
+    const termRows = [4.9, 7.9, 10.9];
+    const termColsS = [-46.5, -43.5, -40.5, -37.5, -34.5, -31.5, -28.5, -25.5];
+    const termColsZ = [10.5, 13.5, 16.5];
+    for (let f = 0; f < termRows.length; f++) {
+      for (let c = 0; c < termColsS.length; c++) {
+        if (f === 0 && (c === 5 || c === 6)) continue; // the portal bay
+        this.decoMesh(`Terminal_Win_${f}_${c}`, new THREE.BoxGeometry(1.5, 2.1, 0.08),
+          termWin, termColsS[c], termRows[f], 7.94);
+      }
+    }
+    for (let f = 1; f < termRows.length; f++) { // east face over the bodega roof
+      for (const wz of termColsZ) {
+        this.decoMesh(`Terminal_Win_E_${f}_${wz}`, new THREE.BoxGeometry(0.08, 2.1, 1.5),
+          termWin, -20.94, termRows[f], wz);
+      }
+    }
+    for (let f = 0; f < termRows.length; f++) { // west face over the subway headhouse
+      for (const wz of termColsZ) {
+        this.decoMesh(`Terminal_Win_W_${f}_${wz}`, new THREE.BoxGeometry(0.08, 2.1, 1.5),
+          termWin, -50.06, termRows[f], wz);
+      }
+    }
+    // 4. the cornice caps the mass (the GRB crown grammar: h − 0.25, w/d + 0.2)
+    this.deco('Terminal_Cornice', ktn1.x, ktn1.h - 0.25, ktn1.z, ktn1.w + 0.2, 0.5, ktn1.d + 0.2, PAL.stone);
+    // 5. the entry portal: stone door frame (the teal leaf keeps its canon
+    //    color), flanking piers outside the sign, the crown capping them,
+    //    and two warm lanterns on the piers (nightGlow — above the bloom
+    //    threshold after dark, the bodega-neon law)
+    this.deco('Terminal_DoorJamb_W', -31.6, 1.44, 7.9, 0.12, 2.88, 0.12, PAL.stone);
+    this.deco('Terminal_DoorJamb_E', -28.4, 1.44, 7.9, 0.12, 2.88, 0.12, PAL.stone);
+    this.deco('Terminal_DoorHead', -30, 2.88, 7.9, 3.1, 0.16, 0.12, PAL.stone);
+    this.deco('Terminal_Pier_W', -32.9, 2.25, 7.93, 0.7, 4.5, 0.2, PAL.stone);
+    this.deco('Terminal_Pier_E', -27.1, 2.25, 7.93, 0.7, 4.5, 0.2, PAL.stone);
+    this.deco('Terminal_Portal_Crown', -30, 4.7, 7.86, 6.0, 0.4, 0.28, PAL.stone);
+    const lanternMat = this.nightGlow(0xffdfae, 0.1, 2.6);
+    this.decoMesh('Terminal_Lantern_W', new THREE.BoxGeometry(0.15, 0.28, 0.14), lanternMat, -32.9, 2.3, 7.83);
+    this.decoMesh('Terminal_Lantern_E', new THREE.BoxGeometry(0.15, 0.28, 0.14), lanternMat, -27.1, 2.3, 7.83);
+
     this.solid('Bldg_S_West', kts1.x, kts1.h / 2, kts1.z, kts1.w, kts1.h, kts1.d, PAL.bldg2);
     this.solid('Bldg_S_FireEscape', 13, 7, -14, 26, 14, 12, PAL.brick);
     this.solid('Bldg_S_East', kts3.x, kts3.h / 2, kts3.z, kts3.w, kts3.h, kts3.d, PAL.bldg);
@@ -1197,7 +1261,11 @@ export class World {
     this.colliders.push(boxFromCenter(13.5, 2.2, -5.9, 0.24, 4.4, 0.24));    // lamp post
     this.registerGlbProp('hydrant', hydrant);
     void this.upgradePropWithGLB('hydrant');
-    void this.upgradePropWithGLB('mailbox');
+    // 'mailbox' wears its procedural look only: the GLB upgrade was wired
+    // before a mailbox.glb ever shipped — every boot fetched models/
+    // mailbox.glb, got the SPA's index.html back, and threw an uncaught
+    // parse error (the road-clear probe now fails on ANY asset 404, so
+    // the call stays out until the model itself lands in public/models).
     void this.upgradePropWithGLB('trashcan');
     void this.upgradePropWithGLB('streetlamp');
 
@@ -2178,7 +2246,7 @@ export class World {
       'TSS-03': this.regShell('TSS-03'),
       'TSS-04': this.regShell('TSS-04'),
       'TSS-05': this.regShell('TSS-05'),
-    });
+    }, this.signMaterials.bind(this));
     for (const c of this.timesSquare.colliders) {
       this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d));
     }
@@ -3588,8 +3656,12 @@ export class World {
     this.colliders.push(boxFromCenter(x0 + 0.32, 1.9, z0 + 0.32, 0.6, 3.8, 0.6));
 
     const g = this.roomKit('CORNERHOUSE');
-    // the floor: worn plank wood — the dry-goods store's own color
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(9.2, 0.06, 11.6), this.bank.get(0x8a6a48));
+    // the floor: warm cream-tan — the W14b restock pass retints the shipped
+    // mud-brown slab (it drowned the room in one brown monotone; the
+    // bodega's own identity pass retired its tan the same way). The store
+    // keeps a warmer step than the bodega's cream so the two groceries
+    // never read as the same shop.
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(9.2, 0.06, 11.6), this.bank.get(0xd2c09a));
     floor.name = 'CornerHouse_Floor';
     floor.position.set(ktw.x, 0.13, ktw.z);
     floor.receiveShadow = true;
@@ -3600,45 +3672,298 @@ export class World {
     warm.name = 'CornerHouse_Warm';
     warm.position.set(ktw.x, 1.7, z1 - 0.24);
     g.add(warm);
-    // the goods walls: two shelving units down each blind skin
-    // (west, the Juniper side; east, the KTN-01 party-wall side)
-    for (const sz of [12.2, 16.2]) {
-      this.fixture(g, `CH_Shelf_W_${sz}`, x0 + 0.625, 0.9, sz, 0.45, 1.8, 4.0, 0x6a5a44);
-      this.colliders.push(boxFromCenter(x0 + 0.625, 0.9, sz, 0.45, 1.8, 4.0));
-      this.fixture(g, `CH_Shelf_E_${sz}`, x1 - 0.625, 0.9, sz, 0.45, 1.8, 4.0, 0x5a4a3a);
-      this.colliders.push(boxFromCenter(x1 - 0.625, 0.9, sz, 0.45, 1.8, 4.0));
-    }
+    // the entrance mat — every real store grounds its door with one; the
+    // dead foreground the door-read shot exposed was bare floor to the
+    // back wall. Flat, no collider (the open band's own walk law).
+    const mat = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.025, 1.0), this.bank.get(0x3f3a44));
+    mat.name = 'CornerHouse_Mat';
+    mat.position.set(-55, 0.175, 8.95);
+    mat.receiveShadow = true;
+    g.add(mat);
+
+    // ---- the restock pass (W14b — the bodega playbook, the store's own
+    // identity). The shipped fixtures were bare brown slabs: the gondola a
+    // featureless monolith straight down the door's sight line, the wall
+    // shelves unread against their own walls, zero goods anywhere. The
+    // pass rebuilds the furniture with real shelf architecture and stocks
+    // every board, the stock merged one mesh per color (the bodega
+    // restock's own law — the row is ONE draw). Colliders are byte-
+    // identical to the shipped set; nothing gameplay-bearing moves. ----
+    const stockGeos = new Map<number, THREE.BufferGeometry[]>();
+    const pushStock = (c: number, geo: THREE.BufferGeometry): void => {
+      const arr = stockGeos.get(c);
+      if (arr) arr.push(geo); else stockGeos.set(c, [geo]);
+    };
+    const stockCan = (x: number, y: number, z: number, c: number): void =>
+      pushStock(c, new THREE.CylinderGeometry(0.032, 0.032, 0.105, 10).translate(x, y + 0.0525, z));
+    const stockBox = (x: number, y: number, z: number, w: number, h: number, d: number, c: number): void =>
+      pushStock(c, new THREE.BoxGeometry(w, h, d).translate(x, y + h / 2, z));
+    const stockJar = (x: number, y: number, z: number, c: number): void =>
+      pushStock(c, new THREE.CylinderGeometry(0.044, 0.04, 0.115, 10).translate(x, y + 0.0575, z));
+    const stockBottle = (x: number, y: number, z: number, c: number): void => {
+      pushStock(c, new THREE.CylinderGeometry(0.03, 0.034, 0.16, 10).translate(x, y + 0.08, z));
+      pushStock(c, new THREE.CylinderGeometry(0.014, 0.018, 0.06, 8).translate(x, y + 0.19, z));
+    };
+    const KRAFT = [0xb08d57, 0xc49a6c, 0x9c7a4a];
+    const CANCOLS = [PAL.coral, PAL.plum, PAL.teal, PAL.taxi];
+    // the shared shelf-architecture merges — boards, frames, plinths from
+    // the island AND the wall/back units fuse into three meshes total
+    const boardGeos: THREE.BufferGeometry[] = [];
+    const frameGeos: THREE.BufferGeometry[] = [];
+    const kickGeos: THREE.BufferGeometry[] = [];
+
     // the center gondola — the double-sided island every dry-goods floor
     // runs down its middle, seated WEST of the door line (a real corner
     // store keeps its island off the door: the pocket-scan's no-corner-cut
     // flood needs the door column a clear run north, the W10 gate law —
-    // aisles keep ≥ 1.5 m west and ~4 m east)
-    this.fixture(g, 'CH_Gondola', -56.0, 0.75, 14.4, 1.6, 1.5, 3.6, 0x7a5a3a);
+    // aisles keep ≥ 1.5 m west and ~4 m east). W14b: the shipped slab is a
+    // real double-sided gondola — center spine, boards BOTH sides at the
+    // batch's own shelf heights (the bodega_shelf program's millimetre
+    // levels at the 1.5 m scale), end frames, kick plinth — all merged
+    // into the same three architecture meshes as the wall shelves (the
+    // island costs zero extra draws for its frame). The sand3d path stays
+    // open for a later authored z-long island file; the boards-and-goods
+    // read is the bar, and it is met here without a new asset.
+    const GOND_S = 1.5 / 1.770; // the bodega_shelf program's own scale law
+    const gondShelf = (mm: number): number => 0.16 + (mm / 1000) * GOND_S;
+    const GOND = [gondShelf(130), gondShelf(567), gondShelf(947), gondShelf(1327), gondShelf(1697)];
+    // the island's frame: spine down the middle, dividers at the segment
+    // boundaries, end panels capping the run
+    frameGeos.push(new THREE.BoxGeometry(0.06, 1.5, 3.44).translate(-56.0, 0.91, 14.4));
+    for (const dz of [13.83, 14.97]) {
+      frameGeos.push(new THREE.BoxGeometry(0.06, 1.5, 0.06).translate(-56.0, 0.91, dz));
+    }
+    frameGeos.push(new THREE.BoxGeometry(1.06, 1.5, 0.06).translate(-56.0, 0.91, 12.65));
+    frameGeos.push(new THREE.BoxGeometry(1.06, 1.5, 0.06).translate(-56.0, 0.91, 16.15));
+    kickGeos.push(new THREE.BoxGeometry(0.94, 0.16, 3.40).translate(-56.0, 0.24, 14.4));
+    // the boards: base deck + four boards per side, both sides, plus the
+    // top cap — the shopper's sight line reads five levels of goods
+    for (const face of [-1, 1]) {
+      const bx = -56.0 + face * 0.24;
+      for (const gy of GOND) {
+        for (const sz of [13.2, 14.4, 15.6]) {
+          boardGeos.push(new THREE.BoxGeometry(0.42, 0.05, 1.10).translate(bx, gy, sz));
+        }
+      }
+    }
+    // the island's shelf-aware stock — both faces, on the boards' real
+    // tops. Front row rides 0.07 inside the board's face, back row a full
+    // hand deeper.
+    for (const face of [-1, 1]) {
+      const frontX = -56.0 + face * 0.38;
+      const backX = -56.0 + face * 0.18;
+      for (let i = 0; i < 3; i++) {
+        const zc = 13.2 + i * 1.2;
+        // base deck: kraft cases, one stacked — backstock reads at sight line
+        stockBox(frontX, GOND[0], zc - 0.26, 0.30, 0.22, 0.26, KRAFT[i % 3]);
+        stockBox(frontX, GOND[0], zc + 0.06, 0.32, 0.24, 0.28, KRAFT[(i + 1) % 3]);
+        stockBox(frontX, GOND[0] + 0.24, zc + 0.06, 0.26, 0.16, 0.22, KRAFT[(i + 2) % 3]);
+        // board 1: two can facings, front + back rows
+        for (let k = 0; k < 11; k++) {
+          stockCan(frontX, GOND[1], zc - 0.42 + k * 0.084, CANCOLS[(i + (face > 0 ? 1 : 0)) % 4]);
+          stockCan(backX, GOND[1], zc - 0.378 + k * 0.084, CANCOLS[(i + 2) % 4]);
+        }
+        // board 2: snack boxes, alternating heights — the middle unit keeps
+        // a gap (the shelf-talker spot)
+        const boxZs = i === 1 ? [-0.40, -0.25, 0.25, 0.40] : [-0.40, -0.25, -0.10, 0.05, 0.25, 0.40];
+        for (let k = 0; k < boxZs.length; k++) {
+          stockBox(frontX, GOND[2], zc + boxZs[k], 0.11, k % 2 === 0 ? 0.16 : 0.23, 0.07, k % 2 === 0 ? PAL.teal : PAL.gold);
+        }
+        // board 3: jars front, bottles back
+        for (let k = 0; k < 6; k++) stockJar(frontX, GOND[3], zc - 0.375 + k * 0.15, 0x6a8a5a);
+        for (let k = 0; k < 5; k++) stockBottle(backX, GOND[3], zc - 0.32 + k * 0.16, 0xb3552f);
+        // board 4 (top): a can row over the rail line + kraft cartons back
+        for (let k = 0; k < 8; k++) stockCan(frontX, GOND[4], zc - 0.35 + k * 0.10, CANCOLS[(i + 2 + (face > 0 ? 1 : 0)) % 4]);
+        for (const bz of [-0.30, -0.15, 0.30]) stockBox(backX, GOND[4], zc + bz, 0.11, 0.14, 0.07, KRAFT[1]);
+      }
+    }
+    // the island's end caps — kraft case stacks at both ends, on the floor
+    stockBox(-56.0, 0.16, 12.78, 0.34, 0.30, 0.34, KRAFT[0]);
+    stockBox(-56.0, 0.46, 12.80, 0.30, 0.26, 0.30, KRAFT[1]);
+    stockBox(-56.0, 0.16, 16.02, 0.34, 0.30, 0.34, KRAFT[2]);
+    stockBox(-56.0, 0.46, 16.04, 0.30, 0.26, 0.30, KRAFT[0]);
     this.colliders.push(boxFromCenter(-56.0, 0.75, 14.4, 1.6, 1.5, 3.6));
-    // the counter under window E — the shop counter IS the window display
-    this.fixture(g, 'CH_Counter', -52.4, 0.55, 8.62, 2.8, 1.1, 0.7, 0x4a3a52);
+    // the goods walls — REBUILT (W14b): the shipped 0.45-deep slabs read
+    // as dark blanks against their own walls. Each unit now has real
+    // shelf architecture — back panel, two front uprights, four boards,
+    // kick plinth — and every board carries stocked facings. All six
+    // units' like parts merge into ONE mesh (boards, frames, plinths),
+    // so the walls' architecture costs three draws total.
+    // west units (the Juniper side) — panel against the wall inner face,
+    // boards protruding into the room, stock two rows deep per board
+    for (const sz of [12.2, 16.2]) {
+      frameGeos.push(new THREE.BoxGeometry(0.10, 1.8, 4.0).translate(-59.55, 1.06, sz));
+      for (const uz of [sz - 1.965, sz + 1.965]) {
+        frameGeos.push(new THREE.BoxGeometry(0.30, 1.8, 0.07).translate(-59.40, 1.06, uz));
+      }
+      kickGeos.push(new THREE.BoxGeometry(0.30, 0.16, 3.9).translate(-59.42, 0.24, sz));
+      for (const by of [0.32, 0.80, 1.28, 1.76]) {
+        boardGeos.push(new THREE.BoxGeometry(0.34, 0.05, 3.9).translate(-59.365, by, sz));
+        // stock: boxes alternate colors/heights front, cans back — the
+        // dry-goods wall's own mixed facing
+        for (let k = 0; k < 12; k++) {
+          stockBox(-59.34, by + 0.025, sz - 0.92 + k * 0.16, 0.10, k % 3 === 0 ? 0.20 : 0.14, 0.12,
+            k % 3 === 0 ? KRAFT[k % 3] : (k % 3 === 1 ? PAL.teal : PAL.gold));
+          stockCan(-59.47, by + 0.025, sz - 0.88 + k * 0.16, CANCOLS[k % 4]);
+        }
+      }
+      this.colliders.push(boxFromCenter(x0 + 0.625, 0.9, sz, 0.45, 1.8, 4.0));
+    }
+    // east units (the KTN-01 party-wall side) — the same architecture,
+    // mirrored; one board leaves a display gap (the shelf-talker spot)
+    for (const sz of [12.2, 16.2]) {
+      frameGeos.push(new THREE.BoxGeometry(0.10, 1.8, 4.0).translate(-50.45, 1.06, sz));
+      for (const uz of [sz - 1.965, sz + 1.965]) {
+        frameGeos.push(new THREE.BoxGeometry(0.30, 1.8, 0.07).translate(-50.60, 1.06, uz));
+      }
+      kickGeos.push(new THREE.BoxGeometry(0.30, 0.16, 3.9).translate(-50.58, 0.24, sz));
+      for (const by of [0.32, 0.80, 1.28, 1.76]) {
+        boardGeos.push(new THREE.BoxGeometry(0.34, 0.05, 3.9).translate(-50.635, by, sz));
+        const kMax = (sz === 12.2 && by === 1.28) ? 9 : 12; // the gap by the counter
+        for (let k = 0; k < kMax; k++) {
+          stockBox(-50.66, by + 0.025, sz - 0.92 + k * 0.16, 0.10, k % 3 === 0 ? 0.20 : 0.14, 0.12,
+            k % 3 === 0 ? KRAFT[(k + 1) % 3] : (k % 3 === 1 ? PAL.coral : PAL.plum));
+          stockCan(-50.54, by + 0.025, sz - 0.88 + k * 0.16, CANCOLS[(k + 1) % 4]);
+        }
+      }
+      this.colliders.push(boxFromCenter(x1 - 0.625, 0.9, sz, 0.45, 1.8, 4.0));
+    }
+    // the back wall's two procedural flanks (the detergent GLB between
+    // them) — same architecture along x, same merged meshes
+    for (const sx of [-58.3, -52.6]) {
+      frameGeos.push(new THREE.BoxGeometry(1.7, 1.8, 0.10).translate(sx, 1.06, 19.75));
+      for (const ux of [sx - 0.815, sx + 0.815]) {
+        frameGeos.push(new THREE.BoxGeometry(0.07, 1.8, 0.30).translate(ux, 1.06, 19.60));
+      }
+      kickGeos.push(new THREE.BoxGeometry(1.6, 0.16, 0.30).translate(sx, 0.24, 19.60));
+      for (const by of [0.32, 0.80, 1.28, 1.76]) {
+        boardGeos.push(new THREE.BoxGeometry(1.6, 0.05, 0.34).translate(sx, by, 19.56));
+        for (let k = 0; k < 9; k++) {
+          stockBox(sx - 0.72 + k * 0.18, by + 0.025, 19.60, 0.12, k % 2 === 0 ? 0.18 : 0.13, 0.10,
+            k % 2 === 0 ? KRAFT[(k + (sx > -56 ? 2 : 0)) % 3] : PAL.taxi);
+          stockJar(sx - 0.66 + k * 0.18, by + 0.025, 19.48, 0x6a8a5a);
+        }
+      }
+      this.colliders.push(boxFromCenter(sx, 0.9, 19.55, 1.7, 1.8, 0.45));
+    }
+    // the merged shelf architecture — three meshes for all six units
+    const boardMesh = new THREE.Mesh(mergeGeometries(boardGeos, false)!, this.bank.get(0x9a7a4a));
+    boardMesh.name = 'CH_WallShelfBoards';
+    boardMesh.castShadow = true;
+    boardMesh.receiveShadow = true;
+    g.add(boardMesh);
+    const frameMesh = new THREE.Mesh(mergeGeometries(frameGeos, false)!, this.bank.get(0x6a5a44));
+    frameMesh.name = 'CH_WallShelfFrames';
+    frameMesh.castShadow = true;
+    frameMesh.receiveShadow = true;
+    g.add(frameMesh);
+    const kickMesh = new THREE.Mesh(mergeGeometries(kickGeos, false)!, this.bank.get(0x4a3a30));
+    kickMesh.name = 'CH_WallShelfKicks';
+    g.add(kickMesh);
+
+    // the counter under window E — the shop counter IS the window display.
+    // W14b: the store's own red (the fascia's brick — the heart color the
+    // outside sign already wears), cream top, gold trim stripe; the shipped
+    // dark-plum slab read as furniture from another shop.
+    this.fixture(g, 'CH_Counter', -52.4, 0.63, 8.62, 2.8, 0.94, 0.7, PAL.brick);
     this.colliders.push(boxFromCenter(-52.4, 0.55, 8.62, 2.8, 1.1, 0.7));
-    // the register at the counter's west end, nearest the door (GLB slot)
-    this.fixture(g, 'CH_Register', -53.3, 1.25, 8.62, 0.4, 0.3, 0.36, 0x2b2730);
+    const cTop = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.06, 0.8), this.bank.get(0xfff8f0));
+    cTop.name = 'CH_CounterTop';
+    cTop.position.set(-52.4, 1.13, 8.62);
+    cTop.castShadow = true;
+    cTop.receiveShadow = true;
+    g.add(cTop);
+    const cTrim = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.05, 0.04), this.bank.get(PAL.gold));
+    cTrim.name = 'CH_CounterTrim';
+    cTrim.position.set(-52.4, 1.03, 8.95);
+    g.add(cTrim);
+    const cKick = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.14, 0.66), this.bank.get(0x2b2730));
+    cKick.name = 'CH_CounterKick';
+    cKick.position.set(-52.4, 0.23, 8.62);
+    g.add(cKick);
+    // the register at the counter's west end, nearest the door (GLB slot) —
+    // feet on the new cream top (the shipped 1.25 center sat on the old
+    // 1.10 body top)
+    this.fixture(g, 'CH_Register', -53.3, 1.31, 8.62, 0.4, 0.3, 0.36, 0x2b2730);
+    // the impulse display at the counter's east end — the stepped candy
+    // rack every checkout works from, its candy merged one draw per color
+    const impulse = new Map<number, THREE.BufferGeometry[]>();
+    const pushImpulse = (c: number, geo: THREE.BufferGeometry): void => {
+      const arr = impulse.get(c);
+      if (arr) arr.push(geo); else impulse.set(c, [geo]);
+    };
+    for (const [ty, td] of [[1.19, 0.34], [1.27, 0.24], [1.35, 0.14]] as const) {
+      const tier = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.06, td), this.bank.get(0xfff8f0));
+      tier.name = `CH_Impulse_${ty}`;
+      tier.position.set(-51.55, ty, 8.62);
+      tier.castShadow = true;
+      g.add(tier);
+    }
+    for (let k = 0; k < 6; k++) {
+      const z = 8.47 + k * 0.06;
+      pushImpulse([PAL.coral, PAL.gold, PAL.teal, PAL.plum, PAL.taxi, PAL.brick][k],
+        new THREE.CylinderGeometry(0.025, 0.025, 0.085, 8).translate(-51.62 + (k % 2) * 0.09, 1.26, z));
+      pushImpulse([PAL.teal, PAL.gold, PAL.coral, PAL.taxi, PAL.plum, PAL.brick][k],
+        new THREE.CylinderGeometry(0.025, 0.025, 0.085, 8).translate(-51.62 + (k % 2) * 0.09, 1.34, z));
+    }
+    for (const [color, geos] of impulse) {
+      const m = new THREE.Mesh(mergeGeometries(geos, false)!, this.bank.get(color));
+      m.name = 'CH_ImpulseStock';
+      g.add(m);
+    }
+    // the paper-bag stack by the register — kraft, three stepped
+    for (const [bx, by2, bs] of [[-53.0, 1.19, 0.24], [-53.02, 1.35, 0.20], [-52.99, 1.49, 0.16]] as const) {
+      stockBox(bx, by2, 8.62, bs, 0.14, bs * 0.6, KRAFT[1]);
+    }
     // the stacked crates at the corner pier — the seasonal table the canon
     // dresses ("the world can dress per season"); two GLB slots, one file
     this.fixture(g, 'CH_Crate_A', -58.7, 0.25, 8.9, 0.8, 0.5, 0.8, 0x8e6f66);
     this.fixture(g, 'CH_Crate_B', -58.7, 0.75, 8.9, 0.8, 0.5, 0.8, 0x8e6f66);
     this.colliders.push(boxFromCenter(-58.7, 0.5, 8.9, 1.0, 1.0, 1.0));
-    // the display table under window W — the glass read from the walk
+    // the display table under window W — the glass read from the walk.
+    // W14b: folded-goods stacks on top — the window display the street
+    // reads (six colored stacks, merged per color)
     this.fixture(g, 'CH_Display', -57.3, 0.35, 8.85, 1.8, 0.7, 0.75, 0x8e6f66);
     this.colliders.push(boxFromCenter(-57.3, 0.35, 8.85, 1.8, 0.7, 0.75));
+    for (let k = 0; k < 6; k++) {
+      stockBox(-57.85 + (k % 3) * 0.55, 0.705, 8.72 + Math.floor(k / 3) * 0.28, 0.30, 0.10, 0.22,
+        [PAL.coral, PAL.teal, PAL.gold, PAL.plum, PAL.taxi, PAL.brick][k]);
+    }
     // the back wall: the detergent shelf (GLB slot — soap and household
-    // goods are dry goods) flanked by two procedural units, the soda
-    // cooler in the NE corner
+    // goods are dry goods) flanked by the rebuilt procedural units, the
+    // soda cooler in the NE corner
     this.fixture(g, 'CH_BackShelf', -55.5, 0.9, 19.55, 4, 1.8, 0.45, 0x6a5a44);
     this.colliders.push(boxFromCenter(-55.5, 0.9, 19.55, 4, 1.8, 0.45));
-    this.fixture(g, 'CH_BackShelf_W', -58.3, 0.9, 19.55, 1.7, 1.8, 0.45, 0x5a4a3a);
-    this.colliders.push(boxFromCenter(-58.3, 0.9, 19.55, 1.7, 1.8, 0.45));
-    this.fixture(g, 'CH_BackShelf_E', -52.6, 0.9, 19.55, 1.7, 1.8, 0.45, 0x5a4a3a);
-    this.colliders.push(boxFromCenter(-52.6, 0.9, 19.55, 1.7, 1.8, 0.45));
     this.fixture(g, 'CH_Cooler', -51.35, 0.9, 19.25, 0.6, 1.8, 1.0, 0x2b2730);
     this.colliders.push(boxFromCenter(-51.35, 0.9, 19.25, 0.6, 1.8, 1.0));
+    // the cooler's top wears backstock — kraft cases over the machine, the
+    // bodega's own trick (zero floor space, the corner never reads bare)
+    stockBox(-51.35, 1.80, 19.25, 0.5, 0.35, 0.7, KRAFT[0]);
+    stockBox(-51.33, 2.15, 19.27, 0.44, 0.30, 0.62, KRAFT[2]);
+
+    // the merged stock — ONE mesh per color across the whole store (the
+    // bodega restock's law: the row is ONE draw)
+    for (const [color, geos] of stockGeos) {
+      if (!geos.length) continue;
+      const m = new THREE.Mesh(mergeGeometries(geos, false)!, this.bank.get(color));
+      m.name = 'CornerHouse_Stock';
+      m.castShadow = true;
+      m.receiveShadow = true;
+      g.add(m);
+    }
+
+    // the room's voice — the goods board over the back wall run (the
+    // fascia's identity carried inside) and the household poster on the
+    // east wall's free span; both two-sided signBoards, re-parented into
+    // the room group so they toggle with it (the bodega menu's seam)
+    const goods = this.signBoard('CH_GoodsSign', 'CORNER HOUSE\nDRY GOODS · HOUSEHOLD · PANTRY',
+      5.0, 1.5, 0.06, 640, 192, 0xfff8f0, 0x3a3440, 30);
+    goods.position.set(-55.5, 2.35, 19.72);
+    g.add(goods);
+    const poster = this.signBoard('CH_Poster_Goods', 'HOUSEHOLD & PANTRY\ngoods for the block',
+      0.05, 1.0, 0.8, 320, 320, 0xf3e2c2, 0x3a3440, 26, 'x');
+    poster.position.set(-50.425, 1.85, 9.0);
+    g.add(poster);
 
     // the far state: the shipped CORNER HOUSE storefront glass (named at
     // the W1 build for exactly this seam) — extracted to scene root, the
@@ -5279,10 +5604,16 @@ export class World {
    *  honest collider for the railing line. */
   private dressFarWorldSI(root: THREE.Group): void {
     const stair = makeSubwayStairNYC(this.bank, this.signMaterials.bind(this));
-    stair.position.set(-332, 0.12, 3.2);
-    stair.rotation.y = Math.PI; // the entries face the plaza's south walk
+    // ROAD-CLEAR (v1.75.0): the ported stair stood at (−332, 3.2) — its
+    // 5.6 m well spanned z 0.4..6.0 and its railed housing blocked the
+    // roadway's north lane (the owner's "subway entrance in the road").
+    // It stands on the station block plaza now, east of the headhouse
+    // slot, entry facing the street — a second entrance, like the real
+    // square's station wears. Rim 0.09 above the plaza slab (top 0.1).
+    stair.position.set(-326.5, 0.22, 11.2);
+    stair.rotation.y = Math.PI; // the entry faces the street, south
     root.add(stair);
-    this.colliders.push(boxFromCenter(-332, 0.7, 3.2, 2.0, 1.4, 5.4));
+    this.colliders.push(boxFromCenter(-326.5, 0.7, 11.2, 2.0, 1.4, 5.6));
   }
 
   private bakeStatics(): void {

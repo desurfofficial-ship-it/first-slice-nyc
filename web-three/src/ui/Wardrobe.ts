@@ -3,7 +3,7 @@
  * First-slice-player update's React modal into the game's vanilla UI law:
  * same feature, same paper palette, zero new frameworks).
  *
- * Two laws live here:
+ * Three laws live here:
  * 1. **The lock law** (the pick is for keeps): the wardrobe is a fitting
  *    room, not a switchboard. Looking is free — the turntable spins every
  *    starter; WEARING is bound to the save. A different look can only be
@@ -15,10 +15,22 @@
  *    phone, headless probe) the room degrades to the paper lineup — every
  *    tile still previews its swatch, role and vibe, and every law above
  *    still holds.
- *
- * Rendering pauses the moment the panel closes (rAF runs only while open —
- * the at-rest-perf law); the GL context is created lazily on first open and
- * reused after, one extra context for the whole session.
+ * 3. **The viewer law** (2026-11 — the full-body redesign): the stage is a
+ *    real character-inspection camera, not a fixed movie shot. The framing
+ *    is computed from the RIG'S OWN BOUNDING BOX (head to soles, plus the
+ *    pedestal and its contact shadow), so every build of the character —
+ *    tall, short, capped, bun, skateboard on the back — lands fully in
+ *    frame with breathing room, on every stage shape. The hand spins the
+ *    CHARACTER (a turntable, full 360°, one finger or the mouse), the
+ *    vertical drag raises/lowers the inspection camera, and pinch / wheel /
+ *    buttons zoom between a face close-up and a full-silhouette pull-back.
+ *    The Front / 3/4 / Back chips glide the turntable to their angles by
+ *    the shortest arc, Spin keeps its turntable, and every control moves a
+ *    TARGET the render value damps toward — no snapping, no fights between
+ *    the greeting sway and the player's hand. All of it lives on the stage
+ *    canvas only: the street's controls are never touched, the rAF runs
+ *    only while the panel is open, and the GL context is still
+ *    one-per-session (built lazily, reused after).
  */
 
 import * as THREE from 'three';
@@ -119,6 +131,57 @@ export interface WardrobeCallbacks {
   onPick: (id: string) => void;
 }
 
+// ---------------- the inspection-camera math (pure; the suite pins it) ----
+
+/** The greeting: a 3/4 face-on anchor. The RIG faces +Z, the camera starts
+ *  at +Z rotated 0.35 rad — the FACE reads first, the silhouette follows. */
+export const HOME_YAW = 0.35;
+/** The resting elevation — a whisker above eye level, the classic
+ *  character-select angle: reads the full figure without looking down on it. */
+export const HOME_PITCH = 0.10;
+/** Orbit elevation limits — the floor law: even at the far end of the zoom
+ *  corridor the camera stays above the floor plane (sin(PITCH_MIN) bounded
+ *  against the longest dist and the lowest body center), and never gimbal-
+ *  locks over the top. */
+export const PITCH_MIN = -0.10;
+export const PITCH_MAX = 0.85;
+
+/** Shortest signed arc from `from` to `to` (−π..π). Presets and the Spin
+ *  reset use it so a Back→Front turn takes the quarter turn, not the
+ *  three-quarter one. */
+export function shortestAngleDelta(from: number, to: number): number {
+  return Math.atan2(Math.sin(to - from), Math.cos(to - from));
+}
+
+/** The distance that fits a body of `halfHeight` × `halfWidth` inside the
+ *  frustum — the bounding-box framing law, per axis: the tighter of the
+ *  vertical fit (halfHeight against the vertical fov) and the horizontal
+ *  fit (halfWidth against the horizontal fov, which the aspect decides)
+ *  wins, and `margin` buys the breathing room around the silhouette.
+ *  Per-axis (not a bounding sphere) because a standing figure's sphere is
+ *  dominated by its diagonal — sphere-fitting a tall body pushes the
+ *  camera back until the character floats small in the middle of the
+ *  frame, which is exactly the "tiny preview model" look this file exists
+ *  to kill. */
+export function fitDistanceFor(
+  halfHeight: number, halfWidth: number, fovRad: number, aspect: number, margin = 1.12,
+): number {
+  const tanV = Math.tan(fovRad / 2);
+  const tanH = tanV * Math.max(aspect, 0.2);
+  const distV = halfHeight / tanV;
+  const distW = halfWidth / tanH;
+  return Math.max(distV, distW) * margin;
+}
+
+/** The zoom corridor: in to a face close-up, out to a full-silhouette
+ *  pull-back — never through the character, never off the pedestal. */
+export function zoomRangeFor(radius: number, fitDist: number): { min: number; max: number } {
+  return {
+    min: Math.max(0.45, radius * 0.55),
+    max: Math.max(radius * 2.2, fitDist * 1.9),
+  };
+}
+
 const el = <T extends HTMLElement>(id: string): T => {
   const node = document.getElementById(id);
   if (!node) throw new Error(`#${id} missing`);
@@ -147,10 +210,27 @@ export class Wardrobe {
   private previewId = 'classic';
   private autoSpin = false;      // the Spin button's full turntable (opt-in)
   private sway = true;           // the greeting: a slow breath around the face
-  private dragging = false;
-  private lastPointerX = 0;
-  private angle = 0.35; // the 3/4 greeting — the RIG faces +Z, the camera +Z
   private pickMode = false;
+
+  // — the inspection camera: render values damp toward targets, so drag,
+  // zoom, presets and Spin all write TARGETS and never fight each other —
+  private yaw = HOME_YAW;
+  private pitch = HOME_PITCH;
+  private dist = 0;              // 0 → the very first frame glides out to full body
+  private yawTarget = HOME_YAW;
+  private pitchTarget = HOME_PITCH;
+  private distTarget = 0;
+  private homeDist = 3.8;        // the full-body fit; recomputed from the bbox
+  private minDist = 0.6;
+  private maxDist = 7;
+  private boundsCenter = new THREE.Vector3(0, 0.84, 0);
+  private headY = 1.6;           // the close-up's aim (top of the rig, eased down)
+  private userTouched = false;   // any drag/zoom/preset parks the greeting sway
+  /** One finger orbits; two fingers pinch-zoom. Each pointer tracked by id. */
+  private pointers = new Map<number, { x: number; y: number }>();
+  private dragging = false;
+  private pinchLen = 0;
+  private readonly orbitTarget = new THREE.Vector3(0, 0.84, 0);
 
   // the turntable guest (lazily built; the seam law keeps it optional)
   private renderer: THREE.WebGLRenderer | null = null;
@@ -186,37 +266,77 @@ export class Wardrobe {
       this.cb.onNewGame(this.previewId);
     });
     this.wearBtn.addEventListener('click', () => this.cb.onPick(this.previewId));
-    el<HTMLButtonElement>('wardrobe-front').addEventListener('click', () => { this.angle = 0; });
-    el<HTMLButtonElement>('wardrobe-quarter').addEventListener('click', () => { this.angle = 0.35; });
-    el<HTMLButtonElement>('wardrobe-back').addEventListener('click', () => { this.angle = Math.PI; });
+    el<HTMLButtonElement>('wardrobe-front').addEventListener('click', () => this.preset(0));
+    el<HTMLButtonElement>('wardrobe-quarter').addEventListener('click', () => this.preset(HOME_YAW));
+    el<HTMLButtonElement>('wardrobe-back').addEventListener('click', () => this.preset(Math.PI));
     const spinBtn = el<HTMLButtonElement>('wardrobe-spin');
     spinBtn.addEventListener('click', () => {
-      if (this.autoSpin) { // full turntable off → back to the gentle sway
+      if (this.autoSpin) { // full turntable off → back to the gentle greeting
         this.autoSpin = false;
         this.sway = true;
-        this.angle = 0.35;
+        this.userTouched = false;
+        this.yawTarget += shortestAngleDelta(this.yawTarget, HOME_YAW);
+        this.pitchTarget = HOME_PITCH;
+        this.distTarget = this.homeDist;
       } else {
         this.autoSpin = true;
         this.sway = false;
       }
-      spinBtn.setAttribute('aria-pressed', String(this.autoSpin));
-      spinBtn.classList.toggle('off', !this.autoSpin);
+      spinBtn.setAttribute('aria-pressed', String(this.autoSpin || this.sway));
+      spinBtn.classList.toggle('off', !this.autoSpin && !this.sway);
     });
 
-    // the turntable drag: pointer capture on the stage, one axis, slow hand
+    // zoom buttons — the touch-first path (no wheel, no pinch needed)
+    el<HTMLButtonElement>('wardrobe-zoom-in').addEventListener('click', () => this.zoomBy(0.8));
+    el<HTMLButtonElement>('wardrobe-zoom-out').addEventListener('click', () => this.zoomBy(1.25));
+    el<HTMLButtonElement>('wardrobe-zoom-fit').addEventListener('click', () => this.fitFrame());
+
+    // the inspection drag: one finger (or the mouse) orbits — yaw follows
+    // the horizontal hand, pitch the vertical; two fingers pinch to zoom.
+    // touch-action:none on the stage keeps the page out of the way, and
+    // pointer capture keeps the gesture ours even off the canvas.
     this.canvas.addEventListener('pointerdown', (e) => {
-      this.dragging = true;
-      this.lastPointerX = e.clientX;
       this.canvas.setPointerCapture(e.pointerId);
+      this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (this.pointers.size === 1) {
+        this.dragging = true;
+      } else if (this.pointers.size === 2) {
+        this.dragging = false; // two fingers: the pinch owns the gesture
+        this.pinchLen = this.pinchDistance();
+      }
     });
     this.canvas.addEventListener('pointermove', (e) => {
-      if (!this.dragging) return;
-      this.angle += (e.clientX - this.lastPointerX) * 0.015;
-      this.lastPointerX = e.clientX;
+      const p = this.pointers.get(e.pointerId);
+      if (!p) return;
+      if (this.pointers.size === 1 && this.dragging) {
+        // the hand turns the CHARACTER (the turntable law): horizontal drag
+        // spins the rig, vertical drag raises/lowers the inspection camera
+        // (drag down → the camera climbs → the top of the head shows)
+        this.yawTarget += (e.clientX - p.x) * 0.012;
+        this.pitchTarget = THREE.MathUtils.clamp(
+          this.pitchTarget + (e.clientY - p.y) * 0.006, PITCH_MIN, PITCH_MAX,
+        );
+        this.userTouched = true;
+      }
+      p.x = e.clientX;
+      p.y = e.clientY;
+      if (this.pointers.size === 2) {
+        const len = this.pinchDistance();
+        if (this.pinchLen > 0 && len > 0) this.zoomBy(this.pinchLen / len);
+        this.pinchLen = len;
+      }
     });
-    const drop = () => { this.dragging = false; };
+    const drop = (e: PointerEvent) => {
+      this.pointers.delete(e.pointerId);
+      if (this.pointers.size === 0) this.dragging = false;
+      else if (this.pointers.size === 1) { this.dragging = true; this.pinchLen = 0; }
+    };
     this.canvas.addEventListener('pointerup', drop);
     this.canvas.addEventListener('pointercancel', drop);
+    this.canvas.addEventListener('wheel', (e) => {
+      e.preventDefault(); // the page never scrolls under the inspection hand
+      this.zoomBy(Math.pow(1.0015, e.deltaY));
+    }, { passive: false });
 
     // Escape folds the room (the pocket's law, mirrored here) — never during
     // a pick: the first fit is the story's door, it cannot be escaped shut
@@ -267,12 +387,21 @@ export class Wardrobe {
   open(currentStarterId: string): void {
     this.currentStarterId = currentStarterId;
     this.previewId = currentStarterId;
-    this.angle = 0.35; // face-on 3/4 — the greeting shows the FACE first
+    // face-on 3/4 greeting, full body — the FACE and the FIT both read first
+    this.yaw = HOME_YAW;
+    this.pitch = HOME_PITCH;
+    this.yawTarget = HOME_YAW;
+    this.pitchTarget = HOME_PITCH;
+    this.userTouched = false;
+    this.sway = true;
     this.hideConfirm();
     this.renderLineup();
     this.renderMeta();
     this.panel.hidden = false;
     this.ensureStage();
+    // the greeting snaps to full body on open; the zoom corridor is set by
+    // frameCharacter() inside dressPreview() — glide only within a visit
+    this.dist = this.distTarget = this.homeDist;
     this.startLoop();
   }
 
@@ -307,7 +436,7 @@ export class Wardrobe {
     this.hint.classList.add('flash');
     window.setTimeout(() => {
       this.hint.classList.remove('flash');
-      this.hint.textContent = 'Drag to spin';
+      this.hint.textContent = 'Drag to spin · pinch or scroll to zoom';
     }, 1400);
   }
 
@@ -318,7 +447,8 @@ export class Wardrobe {
     for (const row of wardrobeLineup(this.currentStarterId)) {
       const tile = document.createElement('button');
       tile.type = 'button';
-      tile.className = 'starter-tile wardrobe-tile' + (row.isCurrent ? ' wearing' : '');
+      tile.className = 'starter-tile wardrobe-tile' + (row.isCurrent ? ' wearing' : '')
+        + (row.id === this.previewId ? ' previewing' : '');
       tile.dataset.starter = row.id;
       // FS-AUDIT-007 (hardening): the lineup is a developer-constant
       // catalogue today, but the render must not depend on that — every
@@ -332,6 +462,7 @@ export class Wardrobe {
         + (row.isCurrent && !this.pickMode ? '<span class="wardrobe-you">You</span>' : '');
       tile.addEventListener('click', () => {
         this.previewId = row.id;
+        this.renderLineup();
         this.renderMeta();
         this.dressPreview();
         if (!this.pickMode) this.cb.onSwitchRequest(row.id);
@@ -367,9 +498,9 @@ export class Wardrobe {
 
     const scene = new THREE.Scene();
     this.scene = scene;
-    this.camera = new THREE.PerspectiveCamera(35, 1, 0.1, 20);
-    this.camera.position.set(0, 1.05, 3.1);
-    this.camera.lookAt(0, 0.92, 0);
+    // near plane close enough for the face close-up, far enough for the
+    // pull-back — the zoom corridor never clips into the rig
+    this.camera = new THREE.PerspectiveCamera(34, 1, 0.05, 40);
 
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -458,15 +589,113 @@ export class Wardrobe {
     }
   }
 
-  /** Swap the previewed look — the rig law does the dressing. */
+  /** Swap the previewed look — the rig law does the dressing, the viewer
+   *  law does the framing: every swap re-fits the camera to the new body.
+   *  The old look's GPU resources are released (six swaps must not pile up
+   *  six rigs' worth of buffers). The bbox is measured on the fresh group
+   *  BEFORE it joins the spinning root — an unrotated envelope every time. */
   private dressPreview(): void {
     const root = this.charRoot;
     if (!root) return;
-    while (root.children.length > 0) root.remove(root.children[0]);
+    for (const child of [...root.children]) {
+      root.remove(child);
+      child.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (mesh.isMesh) {
+          mesh.geometry?.dispose();
+          const m = mesh.material;
+          if (Array.isArray(m)) m.forEach((x) => x.dispose());
+          else m?.dispose();
+        }
+      });
+    }
     const st = starterById(this.previewId);
     const { group } = buildArticulatedPerson(st.look);
     if (st.prop === 'skateboard') group.add(buildStarterSkateboard());
+    const box = new THREE.Box3().setFromObject(group); // local, unrotated
     root.add(group);
+    this.frameCharacter(box, true);
+  }
+
+  /** The rig's UNROTATED envelope — rotation momentarily zeroed (pure
+   *  geometry read; nothing renders inside a synchronous call) so the fit
+   *  is always measured on the body, never on a turned pose of it. */
+  private measureRig(): THREE.Box3 | null {
+    const root = this.charRoot;
+    if (!root) return null;
+    const saved = root.rotation.y;
+    root.rotation.y = 0;
+    const box = new THREE.Box3().setFromObject(root);
+    root.rotation.y = saved;
+    return box;
+  }
+
+  /** THE VIEWER LAW — framing from the rig's own bounding box. The camera
+   *  never guesses a world coordinate: every look (Ada at 0.94 scale, the
+   *  tall starters at 1.06, the board on the back) gets its own fit —
+   *  headroom above the hair, the pedestal + contact shadow inside the
+   *  bottom edge, a collar of air around the silhouette. The fit re-runs
+   *  on every stage reshape, so a new orientation never crops the body. */
+  private frameCharacter(box: THREE.Box3, reset: boolean): void {
+    const camera = this.camera;
+    if (!camera || box.isEmpty()) return;
+    box.min.y -= 0.26;        // the pedestal drum + contact shadow join the shot
+    box.expandByScalar(0.03); // the collar of air
+    box.getCenter(this.boundsCenter);
+    const size = box.getSize(new THREE.Vector3());
+    this.headY = box.max.y - Math.min(0.22, size.y * 0.12);
+    const radius = 0.5 * size.length();
+    const fov = THREE.MathUtils.degToRad(camera.fov);
+    // per-axis fit: the standing figure's height drives the distance; its
+    // widest turntable sweep (the box diagonal across x/z) guards width
+    const halfH = size.y / 2;
+    const halfW = Math.hypot(size.x, size.z) / 2;
+    const fit = fitDistanceFor(halfH, halfW, fov, Math.max(camera.aspect, 0.2));
+    this.homeDist = fit;
+    const range = zoomRangeFor(radius, fit);
+    this.minDist = range.min;
+    this.maxDist = range.max;
+    if (reset || !this.userTouched) this.distTarget = fit;
+    else this.distTarget = THREE.MathUtils.clamp(this.distTarget, this.minDist, this.maxDist);
+    if (reset) this.userTouched = false;
+  }
+
+  /** A view chip: glide to the angle, reset to the full-body framing. The
+   *  arc is the shortest way round (Back→Front turns a quarter, not ¾). */
+  private preset(yaw: number): void {
+    this.yawTarget += shortestAngleDelta(this.yawTarget, yaw);
+    this.pitchTarget = HOME_PITCH;
+    this.distTarget = this.homeDist;
+    this.userTouched = true; // a chosen framing parks the greeting sway
+  }
+
+  /** Multiplicative zoom (wheel ticks, pinch ratios, buttons) — clamped to
+   *  the corridor the bounding box set, smooth via the render damping. */
+  private zoomBy(factor: number): void {
+    this.distTarget = THREE.MathUtils.clamp(this.distTarget * factor, this.minDist, this.maxDist);
+    this.userTouched = true;
+  }
+
+  /** The Fit chip: back to the default full-body framing at the current
+   *  angle, and the greeting sway resumes — the room breathes again. */
+  private fitFrame(): void {
+    this.distTarget = this.homeDist;
+    this.pitchTarget = HOME_PITCH;
+    this.userTouched = false;
+  }
+
+  private pinchDistance(): number {
+    const pts = [...this.pointers.values()];
+    if (pts.length < 2) return 0;
+    const dx = pts[0].x - pts[1].x;
+    const dy = pts[0].y - pts[1].y;
+    return Math.hypot(dx, dy);
+  }
+
+  /** True while the greeting breath may play: no turntable, no hand on the
+   *  stage, nothing the player has aimed themselves. */
+  private get swayActive(): boolean {
+    return this.sway && !this.autoSpin && !this.dragging && !this.userTouched;
   }
 
   private resize(): void {
@@ -484,27 +713,15 @@ export class Wardrobe {
     const w = host.clientWidth || 340;
     const h = host.clientHeight || 340;
     const aspect = w / Math.max(h, 1);
-    this.camera.aspect = aspect;
-    // Consumer framing: the chosen look is the product. Wide/short stages
-    // (phone strip) get a closer, higher-aim camera so the FACE fills the
-    // frame; taller stages keep the full-body greeting shot.
-    if (aspect > 1.2) {
-      // landscape strip — upper body + face
-      this.camera.fov = 30;
-      this.camera.position.set(0, 1.32, 2.15);
-      this.camera.lookAt(0, 1.22, 0);
-    } else if (aspect > 0.95) {
-      // near-square phone stage — chest-up, face readable
-      this.camera.fov = 32;
-      this.camera.position.set(0, 1.22, 2.45);
-      this.camera.lookAt(0, 1.12, 0);
-    } else {
-      // tall / desktop column — full figure on the pedestal
-      this.camera.fov = 35;
-      this.camera.position.set(0, 1.05, 3.1);
-      this.camera.lookAt(0, 0.92, 0);
+    // A new stage shape re-fits the full-body framing (orientation flips,
+    // the on-screen keyboard, a resized window) — the character never
+    // leaves the frame just because the room changed shape.
+    if (Math.abs(this.camera.aspect - aspect) > 1e-4) {
+      this.camera.aspect = aspect;
+      this.camera.updateProjectionMatrix();
+      const box = this.measureRig();
+      if (box) this.frameCharacter(box, false);
     }
-    this.camera.updateProjectionMatrix();
     // No-op guard: setSize writes the canvas's intrinsic size — rewriting
     // the same buffer is how the ResizeObserver loop re-armed itself
     // forever (the "loop completed with undelivered notifications" toast).
@@ -530,20 +747,37 @@ export class Wardrobe {
       const now = performance.now();
       const dt = Math.min((now - this.lastTime) / 1000, 0.1);
       this.lastTime = now;
-      // the greeting law: the FACE stays in frame. The rest state is a slow
-      // breath around the 3/4 anchor (±0.3 rad, ~7 s cycle); the full
-      // turntable only runs while the Spin button holds it on.
-      let rot = this.angle;
-      if (this.autoSpin && !this.dragging) {
-        this.angle += dt * 0.45;
-        rot = this.angle;
-      } else if (this.sway && !this.dragging) {
-        rot = this.angle + Math.sin(now * 0.0009) * 0.3;
-      }
+      // the turntable: Spin advances the TARGET yaw, the damping carries
+      // the render value — a grab mid-spin hands control over smoothly
+      if (this.autoSpin && !this.dragging) this.yawTarget += dt * 0.5;
+      // damped follow: every control above only ever moved a target
+      const k = 1 - Math.exp(-dt * 9);
+      this.yaw += (this.yawTarget - this.yaw) * k;
+      this.pitch += (this.pitchTarget - this.pitch) * k;
+      this.dist += (this.distTarget - this.dist) * k;
+      // the close-up's one trick: as the camera pushes in, the aim rises
+      // from the body's center toward the face — inspecting the jacket
+      // stitching or the haircut keeps the INSPECTED thing near center
+      const zoomT = this.homeDist > this.minDist
+        ? THREE.MathUtils.clamp((this.homeDist - this.dist) / (this.homeDist - this.minDist), 0, 1)
+        : 0;
+      const targetY = THREE.MathUtils.lerp(this.boundsCenter.y, this.headY, zoomT * zoomT);
+      this.orbitTarget.set(this.boundsCenter.x, targetY, this.boundsCenter.z);
+      // THE TURNTABLE: the hand spins the CHARACTER, the camera holds its
+      // ground (fixed azimuth on +Z, elevation = pitch, distance = dist).
+      // The fitting room's lights and walls never move; the body does —
+      // and the camera can never swing behind the set and lose the figure.
+      const renderYaw = this.yaw + (this.swayActive ? Math.sin(now * 0.0009) * 0.12 : 0);
       if (this.charRoot) {
-        this.charRoot.rotation.y = rot;
+        this.charRoot.rotation.y = renderYaw;
         updatePersonAnim(this.charRoot, dt); // the idle breath sells the room
       }
+      camera.position.set(
+        this.orbitTarget.x,
+        this.orbitTarget.y + this.dist * Math.sin(this.pitch),
+        this.orbitTarget.z + this.dist * Math.cos(this.pitch),
+      );
+      camera.lookAt(this.orbitTarget);
       renderer.render(scene, camera);
       this.rafId = requestAnimationFrame(tick);
     };

@@ -16,12 +16,12 @@
 |---|---|
 | **Milestone** | World-map construction (W0–W14) + the evidence package (the shot list, the labelled top-down, the 3D overview); the concurrent line's W15–W17 wave (the DEC-6 + DEC-12 rulings, the W16 minimal seasonal pass, the W17 borough design package draft) joined by merge |
 | **Phase** | Vertical Slice production — narrative reboot canon (v1.0, 2026-11-06) |
-| **Registry version** | v1.71.0 (the register's top — W17 the borough design package draft; the monotonic-ledger law; the W14 Corner House row sits at v1.68.0, the W15 rulings at v1.69.0, the W16 seasonal pass at v1.70.0 — see `docs/production/PRODUCTION-STATUS-REGISTER.md` for the authoritative rows) |
+| **Registry version** | v1.77.0 (the register's top — W-C1 "the Junction docks", renumbered v1.74.0 → v1.77.0 at the 2026-11-14 re-integration merge: the concurrent line's TERMINAL-PROD v1.73.0, W14b v1.74.0 and ROAD-CLEAR v1.75.0 were already published while this wave waited on the owner's PAT; W18's DEC-13 approval row renumbered v1.73.0 → v1.76.0 the same merge — the monotonic-ledger law, the C3-wave/TSS-PROD precedent; see `docs/production/PRODUCTION-STATUS-REGISTER.md` for the authoritative rows) |
 | **Implementation phase** | **Complete for the vertical slice.** All 179 registry IDs built. All 22 interiors shipped (the Corner House's CORNERHOUSE-INT closed the last openDecision in W14). All 7 parks built. All 23 anchors placed. The walkability scanner reads clean and deterministic. The evidence package (the §6 shot list, the labelled top-down map, the golden-hour overview) is captured from the real built game. |
 | **Branch (local clone)** | `main` |
-| **Latest commit hash** | `e2c27b4` — the remote tip at the 2026-11-13 sync (verified `git ls-remote` == HEAD after the fast-forward); the concurrent line merged our W14 Corner House push (fade4f9, our line rides theirs as dc5200f) and landed W15/W16/W17 on top; this record rides the same push |
-| **Commit subject** | `Merge feat/wp-dec6-seasonal-borough-direction into main — the DEC-6/DEC-12 wave line (register v1.69.0–v1.71.0)` |
-| **Commit date** | 2026-11-13 (UTC) |
+| **Latest commit hash** | `de9777c` — the remote tip joined at the 2026-11-14 re-integration merge (the concurrent line's TERMINAL-PROD v1.73.0, W14b v1.74.0, ROAD-CLEAR v1.75.0 and the W18 wardrobe viewer); our W18 DEC-13 approval + W-C1 Catalpa lines ride the merge on top; this record rides the same push |
+| **Commit subject** | `Merge origin/main into main — the concurrent line's TERMINAL-PROD (v1.73.0), W14b restock (v1.74.0), ROAD-CLEAR (v1.75.0) and the W18 wardrobe viewer join the Catalpa tree; worklog both sides preserved; the v1.73.0/v1.74.0 collisions resolved by the monotonic-ledger law (W18 v1.73.0 → v1.76.0, W-C1 v1.74.0 → v1.77.0)` |
+| **Commit date** | 2026-11-14 (UTC) |
 | **Remote** | `https://github.com/desurfofficial-ship-it/first-slice-nyc.git` (public; read-only clone needs no credentials; the push rides the owner's fine-grained PAT — it needs the repo's Contents:write grant) |
 
 ## 2. Completed neighbourhoods
@@ -79,6 +79,18 @@ registry's last openDecision:
   door line, the counter + register, the seasonal crates at the corner pier,
   the detergent shelf, the soda cooler), the named far pane, the duck tower.
   `buildW14CornerHouse` + `probe-w14-cornerhouse.mjs` + the walkability leg.
+- **The W14b restock pass (2026-11-13, register v1.72.0)**: the owner's
+  "doesn't look finished nor production ready" verdict answered — the survey
+  frames (diag-ch-survey.mjs) read the shipped floor honestly (a featureless
+  gondola slab down the door's sight line, blank wall shelves, one flat mud
+  tone, zero goods), and the bodega's own production playbook rebuilt it with
+  the store's identity: the double-sided stocked island (boards both sides at
+  the batch's shelf-height law), rebuilt stocked wall units, the brick-red
+  counter with cream top + gold trim + impulse rack + bag stack, the goods
+  board + poster, the warm cream floor, the entrance mat, backstock on the
+  cooler. Stock merged one mesh per color; architecture merged three meshes;
+  colliders byte-identical; probe-city-fabric 191 byte-equal (the street
+  ledger pays nothing); five batch GLB slots unchanged; all gates green.
 
 ## 5. Systems already integrated
 
@@ -434,7 +446,9 @@ reconciliation, documents only:
   STATUS tail → DEC-13; PRODUCTION-RISKS-AND-DEPENDENCIES → the DEC-12 row
   closed out + the new DEC-13 row RULED; docs/narrative/15 → the §2 DEC-13 row
   + §6's naming registry (Catalpa Junction + the Junction spur) + §7's dated
-  ruling; register v1.73.0.
+  ruling; register v1.76.0 (renumbered v1.73.0 → v1.76.0 at the 2026-11-14
+  re-integration merge — the concurrent line's TERMINAL-PROD took v1.73.0
+  while this wave waited on the owner's PAT; the monotonic-ledger law).
 - **Zero runtime path**: docs-only wave — the registry read, never written;
   no geometry, no code. Gates (the docs-only re-certification precedent):
   validate-registry OK (179 IDs, 81 buildings, 23/23 anchors) · tsc clean ·
@@ -489,12 +503,15 @@ the design package's own §5 gates:
   vista keeps its closure 48 m further out; from the Junction the rim reads
   as the district's own west backdrop.
 - **THE LEDGER ROW (measured, probe-wc1-catalpa.mjs — the diag-tss-census
-  method, the game's own composed frames)**: shipped spawn frame **191 draws
-  with the district resident and dark — +0 standing** (probe-city-fabric
-  byte-identical ✓); the spur lit **60 draws**; the platform lit **25 draws**
-  — Catalpa's own census inside the same < 200 probe budget (S1's district
-  law). Return-to-spawn re-darkens (the renderer guarantee: invisible
-  subtrees cost zero).
+  method, the game's own composed frames)**: shipped spawn frame **193 draws
+  with the district resident and dark — the district's own delta +0 standing**
+  (the flight tree read 191 byte-identical; the concurrent line's
+  TERMINAL-PROD +2 lantern materials ride the same frame at the
+  re-integration merge — the W14b pricing-note law); the spur lit **55 draws**
+  (60 on the flight tree); the platform lit **25 draws** — Catalpa's own
+  census inside the same < 200 probe budget (S1's district law).
+  Return-to-spawn re-darkens (the renderer guarantee: invisible subtrees
+  cost zero).
 - **The battery**: validate-registry OK (189 IDs, 91 buildings, 23/23
   anchors) · tsc clean · vitest **1,734/1,734 (104 files, +15: the catalpa
   suite)** · build OK · probe-wc1-catalpa OK (the ledger above; two
@@ -522,3 +539,48 @@ the design package's own §5 gates:
   each priced first, the Alder Heights bar throughout.
 
 — Z.ai agent, 2026-11-13
+
+## 17. Session addendum — the re-integration merge (2026-11-14)
+
+The concurrent line flew four waves while the Catalpa lines waited on the
+owner's PAT; the merge joins them and re-certifies the integrated tree:
+
+- **Theirs (published, the numbers stand)**: TERMINAL-PROD v1.73.0 (the
+  Alder Heights Terminal's face, +2 lantern materials — the spawn frame's
+  honest +2), W14b v1.74.0 (the corner store's restock pass), ROAD-CLEAR
+  v1.75.0 (the Times Square roadway off the props floor), and the W18
+  wardrobe viewer (register-untouched). The SKY-TS-W rim move and the
+  roadway work auto-merged in `timesSquare.ts` (different regions); the
+  Catalpa wiring and the wardrobe viewer auto-merged in `World.ts`.
+- **The ledger collisions resolved by the monotonic-ledger law** (the
+  C3-wave/TSS-PROD renumber precedent): our W18 DEC-13 approval row
+  v1.73.0 → **v1.76.0**, our W-C1 row v1.74.0 → **v1.77.0** (both
+  RENUMBERED annotations in the rows themselves), cross-references
+  re-pointed (the header table above, §15's register citation). The W-C1
+  **pricing note is re-pointed at the integrated ledger** (the W14b
+  pricing-note law): the spawn frame reads **193** on the integrated tree
+  (the flight tree's 191 + TERMINAL-PROD's +2) — the district's own delta
+  stays **+0 standing**; the spur **55** (60 on the flight tree), the
+  platform **25** — all inside the same < 200 probe budget. The registry's
+  meta corrections array carries both sides in flight order (W14b, then
+  WC1's SKY-TS-W move).
+- **THE BATTERY (the integrated tree, this box)**: validate-registry OK
+  (189 IDs, 91 buildings, 23/23 anchors) · tsc clean · vitest
+  **1,748/1,748 (105 files)** — the flight trees' 1,734 + 1,719 join with
+  no seam · build OK · probe-city-fabric DRAWS **193** (PROBE OK) ·
+  probe-wc1-catalpa OK (spawn 193 +0 standing, spur 55, platform 25; both
+  portraits re-shot) · probe-tss-road-clear OK (their law holds here) ·
+  probe-w14-cornerhouse PASS · probe-integration 0 errors 8/8 walks ·
+  probe-world-sim **15/15 at worldclock=240** (1,427 sim-minutes in 174 s —
+  the default worldclock=120 run out-waits this box's 240 s report window;
+  the 240x parameter is the recorded form).
+- **The honest carries stand**: probe-subway's Wow-card check fails on the
+  baseline tree too (the A/B at e792abd — the wall-budget class, not a
+  wave regression); walkability's live-leg half is this box's dilation
+  class (probe-integration's 8/8 live walks stand); the full-scale 4-day
+  E2E stays the faster-box follow-up.
+- **Next**: the push publishes W18 + W-C1 + this merge; then W-C2+ under
+  the package's gates — the ride seam, the spur's businesses with books,
+  the program depth — each priced first, the Alder Heights bar throughout.
+
+— Z.ai agent, 2026-11-14
