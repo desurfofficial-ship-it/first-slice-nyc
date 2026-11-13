@@ -179,17 +179,17 @@ Standing gates for **every** phase, before any phase-specific box is checked (th
 
 ## Phase 8 — City production and expansion *(owner-gated)*
 
-**Entry requirements.** Phases 3/4/6 accepted; **DEC-2 closed**; **DEC-8 (owner approval for expansion scope) granted**; per-wave draw-call pricing exists before any geometry lands.
+**Entry requirements.** Phases 3/4/6 accepted; **DEC-2 closed**; **DEC-8 (owner approval for expansion scope) granted — RULED 2026-11-13 (owner sign-off; [DEC-8-EXPANSION-APPROVAL-DECISION.md](DEC-8-EXPANSION-APPROVAL-DECISION.md), within the row's standing terms: Alder Heights completion only, no borough geometry)**; per-wave draw-call pricing exists before any geometry lands.
 
-**Exit checklist (per construction wave).**
-- [ ] Wave priced: expected draw-call/tri delta in the ledger *before* the PR
-- [ ] Ghost gates ±0.1 m green for every new mass; registry validator green (append-only ID grammar respected)
-- [ ] Every new place has: purpose, interaction(s), probe evidence, Anti-Slop inspection
-- [ ] Business records open with the place (Phase 6 machinery)
-- [ ] E2E extended for any story-relevant place; perf ledger green after the wave
-- [ ] The borough scoping study exists **as a document** and no borough geometry has been built without the owner gate
+**Exit checklist (per construction wave) — EXECUTED 2026-11-13 (register v1.66.0).**
+- [x] Wave priced: expected draw-call/tri delta in the ledger *before* the PR — **every construction wave W1–W7 and craft wave W8–W13 recorded its pricing in the change log under the DEC-2 ledger rule** (the B13 lesson enforced: price first, build second; the fleet's own catches — e.g. probe-a3-flip refusing a 6 m defect, probe-w12's ring-rhythm shot — are the priced-gate working)
+- [x] Ghost gates ±0.1 m green for every new mass; registry validator green (append-only ID grammar respected) — **validate-registry OK at every wave's battery; the final tree reads 178 IDs / 81 buildings / 21 interiors / 7 parks / 23/23 anchors, append-only throughout (no id renamed, no row renumbered — the W11 audit's explicit discipline)**
+- [x] Every new place has: purpose, interaction(s), probe evidence, Anti-Slop inspection — **every built interior opens with books and staffing (the Phase-6 machinery, v1.58.0); walk-in probes prove the approach (the FRUIT-INT live leg, the W10 gate legs); the slop-integration wave and the terrace report §4 ledger carried the Anti-Slop rows to closure**
+- [x] Business records open with the place (Phase 6 machinery) — **the world opens with its businesses on the reference manifest's hours; the P&L derives from ledger evidence only (wc-12 rule 17)**
+- [x] E2E extended for any story-relevant place; perf ledger green after the wave — **the 4-day E2E ran 0 failures across the waves; the standing battery at the current tip `2cba191` (W13): probe-city-fabric DRAWS 190 (budget < 200), probe-integration 0 errors 8/8 walks (189 draws), probe-nav 9/9, probe-world-sim 15/15**
+- [x] The borough scoping study exists **as a document** and no borough geometry has been built without the owner gate — **[BOROUGH-SCOPING-STUDY.md](BOROUGH-SCOPING-STUDY.md) filed 2026-11-13 (reference-world manifest pattern, Slop New York reference-only, no OSM/NYC-Open-Data geodata); zero borough geometry, zero borough registry rows, zero borough code exists**
 
-**Sign-off.** WS-A lead + WS-E lead + Production Director + **owner** (the gate). Register records MS-6.
+**Sign-off.** WS-A lead + WS-E lead + Production Director + **owner** (the gate). Register records MS-6. — **The owner's gate is SIGNED (DEC-8, 2026-11-13); the workstream evidence stands in the register (PH-8/MS-6, v1.66.0) and in the per-wave change-log rows.**
 
 ## Phase 9 — Content complete and feature complete
 
