@@ -1,5 +1,5 @@
 /**
- * ROAD-CLEAR probe (v1.74.0, the owner's street-level audit) — the Times
+ * ROAD-CLEAR probe (v1.75.0, the owner's street-level audit) — the Times
  * Square roadway law, proven from the real built game (dist/):
  *
  *   THE LAW: the roadway (x −380..−280, z −4..+4) carries PAINT ONLY —

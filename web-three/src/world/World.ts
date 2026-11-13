@@ -5315,7 +5315,7 @@ export class World {
    *  honest collider for the railing line. */
   private dressFarWorldSI(root: THREE.Group): void {
     const stair = makeSubwayStairNYC(this.bank, this.signMaterials.bind(this));
-    // ROAD-CLEAR (v1.74.0): the ported stair stood at (−332, 3.2) — its
+    // ROAD-CLEAR (v1.75.0): the ported stair stood at (−332, 3.2) — its
     // 5.6 m well spanned z 0.4..6.0 and its railed housing blocked the
     // roadway's north lane (the owner's "subway entrance in the road").
     // It stands on the station block plaza now, east of the headhouse
