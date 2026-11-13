@@ -4030,3 +4030,16 @@ Work Log:
 
 Stage Summary:
 - The ledgers now say what the tree is: the money is transactional, the walkers commute on the graph, the map's evidence package is captured — what remains open is exactly what cannot be closed from here (a real-GPU mip audit) and what awaits the owner (the token grant, CORNERHOUSE-INT).
+
+---
+Task ID: E2E-MERGED (the merged tree's 4-day E2E — the session's instrument cap, recorded honestly)
+Agent: Z.ai (GLM)
+Task: The 4-day E2E on the merged line — the rolling pace law's live proof + the story spine's green on the union of both fleets.
+
+Work Log:
+- Full-scale run (E2E_W=480 E2E_H=360): the rolling pace law LIVES — the log rides the whole roller life cycle (×4.00 → ×2.28 → ×2.01 → ×2.90 → ×2.53, re-derived every 60 frames). 53 PASS / 9 FAIL through day 1's tail when the session's 600 s instrument cap cut the run; the 9 (the ladder grabs, the gold window + payoff lines, the shelf, the goodnight rail) are the dusk beats' wall budgets expiring at 200-600 ms frames.
+- The A/B classification (the fleet's own v1.52.0 protocol, one knob): E2E_SCALE=0.5 — 100 PASS / 0 FAIL through DAY 3 (cap-cut mid-run, recorded honestly per the W12 precedent). The day-1 failures were box dilation, not code: the same surfaces pass whole at the reduced buffer.
+- Both runs' logs land in /tmp (this box's scratch); the classification note rides this entry — the next agent with a faster box (or a 900 s-capable instrument) owns the complete re-run.
+
+Stage Summary:
+- The merged tree's story spine runs green through day 3 with zero failures at the honest scale, and the pace law proves itself in its own log. Local main now carries: the two-fleet merge, the evidence tranche, the ledger-truth closures, this E2E record — everything verified, everything committed, everything recoverable.
