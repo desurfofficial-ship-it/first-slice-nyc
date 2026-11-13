@@ -2078,6 +2078,10 @@ export class World {
       skips: { z0: [[87.4, 88.6]] } });
     this.dressRoom('CHEESE-INT', { wainscot: 0x8a6a3a, trim: 0xf3e2c2, light: 0xffe2c8, clear: 3.2,
       skips: { z0: [[95.4, 96.6]] } });
+    // the corner house: aged general-store ochre, cream trim — the dry-goods
+    // floor wears the store's own warmth (W14)
+    this.dressRoom('CORNERHOUSE-INT', { wainscot: 0x9a7a3a, trim: 0xf3e2c2, light: 0xffe9c4, clear: 3.2,
+      skips: { z0: [[-55.9, -54.1]] } });
 
     // the world-visual-quality pass (docs/3d-assets): crowns, gable walls,
     // sills, AC units, roof clutter, street-floor life — ALL pre-bake so
@@ -3124,6 +3128,10 @@ export class World {
     this.buildW5NewsWest();
     this.buildW5Provisions();
     this.buildW5Cheese();
+    // W14 (2026-11-13): the Corner House interior — the registry's last
+    // openDecision, built on the owner's confirmation. The W5 full-cavity
+    // pattern (FRUIT-INT's carve) applied to the block's corner store.
+    this.buildW14CornerHouse();
   }
 
   /** The W9 strip-row carve — the shared decomposition behind FRUIT-INT
@@ -3503,6 +3511,126 @@ export class World {
       id: 'CHEESE-INT', shell: { x0: 92.4, x1: 99.6, z0: -31.8, z1: -20.2 }, face: 'min',
       duck, group: g, windows: [{ from: 93.2, to: 95.0 }, { from: 97.0, to: 98.8 }],
     });
+  }
+
+  /** CORNERHOUSE-INT (KTN-00W "The Corner House": x −59.6..−50.4,
+   *  z 8.2..19.8, clear 3.2). The registry's last openDecision, built W14
+   *  (2026-11-13) on the owner's confirmation — "a dry-goods storefront the
+   *  world can dress per season". The FRUIT-INT full-cavity carve applied
+   *  to the block's corner store: the mass ducks above y 3.2, the south
+   *  facade opens on the registry entrance's own x (−55) flanked by two
+   *  shop windows, the shipped CORNER HOUSE storefront glass becomes the
+   *  far pane (the docs/47 named-glass law), and the fit-out is the dry-
+   *  goods floor — goods walls down both skins, the double-sided center
+   *  gondola, the counter + register by the door, the stacked crates at
+   *  the corner pier (the seasonal table the canon dresses), the detergent
+   *  shelf and the soda cooler at the back wall. Footprint, entrance row
+   *  and facade dressing never move (the W9 law). */
+  private buildW14CornerHouse(): void {
+    const ktw = this.regShell('KTN-00W'); // x −55, z 14, w 10, d 12, h 16
+    const x0 = ktw.x - ktw.w / 2, x1 = ktw.x + ktw.w / 2;   // −60 .. −50
+    const z0 = ktw.z - ktw.d / 2, z1 = ktw.z + ktw.d / 2;   // 8 .. 20
+    this.retireMass('KTN_00W');
+    this.retireCollider(x0, x1, z0, z1);
+    this.duckBox('KTN00W_Upper', x0, x1, 3.2, ktw.h, z0, z1, PAL.bldg2);
+    const duckUpper = this.scene.children[this.scene.children.length - 1];
+    this.roomBox('KTN00W_Wall_W', x0, x0 + 0.4, 0, 3.2, z0, z1, PAL.bldg2);
+    this.roomBox('KTN00W_Wall_E', x1 - 0.4, x1, 0, 3.2, z0, z1, PAL.bldg2);
+    this.roomBox('KTN00W_Wall_N', x0 + 0.4, x1 - 0.4, 0, 3.2, z1 - 0.2, z1, PAL.bldg2);
+    // the facade: ONE open corner-grocery band — door 2.4 m flush between
+    // the two shop windows, no door/window piers (the classic NYC open
+    // storefront under the fascia). The open band is also the pocket-scan's
+    // own truth: the 0.5 grid + capsule dilation zeroes narrower doors (the
+    // W5 rooms' 1.2 m doors are the documented grid-alias traps), and this
+    // registered public space must read reachable through its own front
+    // (the W10 law). The windows ride the W9 convention — open gaps to the
+    // lintel, no sill colliders.
+    this.wallRun('KTN00W_Facade', 'x', z0 + 0.1, x0 + 0.4, x1 - 0.4, 0, 3.2, 0.2, PAL.bldg2, [
+      { from: -58.4, to: -56.2, y1: 2.6 },           // window W (the Juniper corner run)
+      { from: -56.2, to: -53.8, y1: 2.8 },           // the open door band (the registry's own x −55 centered)
+      { from: -53.8, to: -51.6, y1: 2.6 },           // window E
+    ]);
+    // the corner-store cut's pier gains its body (the 45° chamfer was a
+    // proud deco at the SW corner since W1 — now it collides like a wall)
+    this.colliders.push(boxFromCenter(x0 + 0.32, 1.9, z0 + 0.32, 0.6, 3.8, 0.6));
+
+    const g = this.roomKit('CORNERHOUSE');
+    // the floor: worn plank wood — the dry-goods store's own color
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(9.2, 0.06, 11.6), this.bank.get(0x8a6a48));
+    floor.name = 'CornerHouse_Floor';
+    floor.position.set(ktw.x, 0.13, ktw.z);
+    floor.receiveShadow = true;
+    g.add(floor);
+    // the warm band on the north wall (the room's light source — the
+    // Laundry_Back grammar carried inward)
+    const warm = new THREE.Mesh(new THREE.BoxGeometry(9.0, 2.4, 0.06), this.roomWarmMat);
+    warm.name = 'CornerHouse_Warm';
+    warm.position.set(ktw.x, 1.7, z1 - 0.24);
+    g.add(warm);
+    // the goods walls: two shelving units down each blind skin
+    // (west, the Juniper side; east, the KTN-01 party-wall side)
+    for (const sz of [12.2, 16.2]) {
+      this.fixture(g, `CH_Shelf_W_${sz}`, x0 + 0.625, 0.9, sz, 0.45, 1.8, 4.0, 0x6a5a44);
+      this.colliders.push(boxFromCenter(x0 + 0.625, 0.9, sz, 0.45, 1.8, 4.0));
+      this.fixture(g, `CH_Shelf_E_${sz}`, x1 - 0.625, 0.9, sz, 0.45, 1.8, 4.0, 0x5a4a3a);
+      this.colliders.push(boxFromCenter(x1 - 0.625, 0.9, sz, 0.45, 1.8, 4.0));
+    }
+    // the center gondola — the double-sided island every dry-goods floor
+    // runs down its middle, seated WEST of the door line (a real corner
+    // store keeps its island off the door: the pocket-scan's no-corner-cut
+    // flood needs the door column a clear run north, the W10 gate law —
+    // aisles keep ≥ 1.5 m west and ~4 m east)
+    this.fixture(g, 'CH_Gondola', -56.0, 0.75, 14.4, 1.6, 1.5, 3.6, 0x7a5a3a);
+    this.colliders.push(boxFromCenter(-56.0, 0.75, 14.4, 1.6, 1.5, 3.6));
+    // the counter under window E — the shop counter IS the window display
+    this.fixture(g, 'CH_Counter', -52.4, 0.55, 8.62, 2.8, 1.1, 0.7, 0x4a3a52);
+    this.colliders.push(boxFromCenter(-52.4, 0.55, 8.62, 2.8, 1.1, 0.7));
+    // the register at the counter's west end, nearest the door (GLB slot)
+    this.fixture(g, 'CH_Register', -53.3, 1.25, 8.62, 0.4, 0.3, 0.36, 0x2b2730);
+    // the stacked crates at the corner pier — the seasonal table the canon
+    // dresses ("the world can dress per season"); two GLB slots, one file
+    this.fixture(g, 'CH_Crate_A', -58.7, 0.25, 8.9, 0.8, 0.5, 0.8, 0x8e6f66);
+    this.fixture(g, 'CH_Crate_B', -58.7, 0.75, 8.9, 0.8, 0.5, 0.8, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-58.7, 0.5, 8.9, 1.0, 1.0, 1.0));
+    // the display table under window W — the glass read from the walk
+    this.fixture(g, 'CH_Display', -57.3, 0.35, 8.85, 1.8, 0.7, 0.75, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-57.3, 0.35, 8.85, 1.8, 0.7, 0.75));
+    // the back wall: the detergent shelf (GLB slot — soap and household
+    // goods are dry goods) flanked by two procedural units, the soda
+    // cooler in the NE corner
+    this.fixture(g, 'CH_BackShelf', -55.5, 0.9, 19.55, 4, 1.8, 0.45, 0x6a5a44);
+    this.colliders.push(boxFromCenter(-55.5, 0.9, 19.55, 4, 1.8, 0.45));
+    this.fixture(g, 'CH_BackShelf_W', -58.3, 0.9, 19.55, 1.7, 1.8, 0.45, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-58.3, 0.9, 19.55, 1.7, 1.8, 0.45));
+    this.fixture(g, 'CH_BackShelf_E', -52.6, 0.9, 19.55, 1.7, 1.8, 0.45, 0x5a4a3a);
+    this.colliders.push(boxFromCenter(-52.6, 0.9, 19.55, 1.7, 1.8, 0.45));
+    this.fixture(g, 'CH_Cooler', -51.35, 0.9, 19.25, 0.6, 1.8, 1.0, 0x2b2730);
+    this.colliders.push(boxFromCenter(-51.35, 0.9, 19.25, 0.6, 1.8, 1.0));
+
+    // the far state: the shipped CORNER HOUSE storefront glass (named at
+    // the W1 build for exactly this seam) — extracted to scene root, the
+    // dark lit-glass look stays on the facade while the room is far
+    const farParts: THREE.Object3D[] = [];
+    const glass = this.scene.getObjectByName('CornerHouse_Glass');
+    if (glass) {
+      this.scene.attach(glass);
+      farParts.push(glass);
+    }
+    this.registerInterior({
+      id: 'CORNERHOUSE-INT', x0: x0 + 0.4, x1: x1 - 0.4, z0: z0 + 0.2, z1: z1 - 0.2,
+      // glass: the two south windows (the clear panes ride their runs)
+      glass: [
+        { axis: 'z', side: 'min', at: z0 + 0.1, a0: -58.35, a1: -56.25 },
+        { axis: 'z', side: 'min', at: z0 + 0.1, a0: -53.75, a1: -51.65 },
+      ],
+      group: g,
+      nearParts: [
+        this.facadePane('CH_Clear_W', 'x', z0 + 0.1, -58.35, -56.25, 0.55, 2.55, this.roomClearMat),
+        this.facadePane('CH_Clear_E', 'x', z0 + 0.1, -53.75, -51.65, 0.55, 2.55, this.roomClearMat),
+      ],
+      farParts, duck: [duckUpper],
+    });
+    for (const p of (this.interiorHandles[this.interiorHandles.length - 1].nearParts)) this.scene.add(p);
   }
 
   /** FRUIT-INT (TEN-02: full-width cavity, x −67.6..−60.4, z −63.7..−48.7,
@@ -6763,7 +6891,10 @@ export class World {
     // the style constants (window rhythm, insets, the 45° cut) stay code.
     const ktw = this.regShell('KTN-00W');
     this.solid('KTN_00W', ktw.x, ktw.h / 2, ktw.z, ktw.w, ktw.h, ktw.d, PAL.bldg2);
-    const ch = makeStorefront(this.bank, this.signMaterials.bind(this), 'CORNER HOUSE', PAL.brick, 8);
+    // W14: the glass face is NAMED — the docs/47 far-pane law (the carved
+    // room's far state; World extracts it before the bake and swaps it for
+    // the clear panes while the player is near the room)
+    const ch = makeStorefront(this.bank, this.signMaterials.bind(this), 'CORNER HOUSE', PAL.brick, 8, 'CornerHouse_Glass');
     ch.position.set(ktw.x, 0.05, ktw.z - ktw.d / 2 + 0.02);
     ch.rotation.y = Math.PI;
     this.scene.add(ch);

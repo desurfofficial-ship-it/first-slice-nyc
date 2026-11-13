@@ -80,6 +80,10 @@ const ROOMS = [
     cam: [52.2, 2.5, -10.8], at: [57.8, 0.9, -15.4] },
   { room: 'CECIL', x: 12.6, z: -11.0, y: 8.45,
     cam: [10.9, 10.1, -13.5], at: [14.8, 8.7, -9.8] },
+  // W14: the Corner House — the dry-goods floor from the door line, looking
+  // NW across the gondola to the west goods wall and the back shelves
+  { room: 'CORNERHOUSE', x: -55, z: 11.5, y: 0.05,
+    cam: [-53.6, 2.6, 9.4], at: [-56.5, 1.0, 16.5] },
 ];
 const ONLY = process.argv[2]; // optional: node probe-interior-dressing.mjs CECIL
 
@@ -101,6 +105,8 @@ const EXPECT = {
     'hall_kitchenette', 'hall_shelves'],
   DINER: ['diner_kitchen', 'diner_register', 'diner_coffee'],
   CECIL: ['cecil_kitchenette', 'cecil_toilet', 'cecil_sink', 'cecil_radiator'],
+  CORNERHOUSE: ['cornerhouse_register', 'cornerhouse_backshelf', 'cornerhouse_cooler',
+    'cornerhouse_crate_a', 'cornerhouse_crate_b'],
 };
 const FURNITURE_MIN = 20; // the ABO seam must land too (the shipped manifest has 34 slots)
 

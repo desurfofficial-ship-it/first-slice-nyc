@@ -111,7 +111,7 @@ The registry carries four classes:
 | HYDRANT-* | (prop, not interior) | — | — |
 | STREETLIGHT-* | (prop, not interior) | — | — |
 | ... | (the W8 strip-row interiors — the bodega, the fruit stand, the news rack, the storefront GLBs) | storefront GLB + the strip-row dressing | W8 |
-| CORNERHOUSE-INT | (optional slice) | — | optional (registry openDecision reworded in W11) |
+| CORNERHOUSE-INT | The Corner House dry-goods floor (KTN-00W) | goods walls, center gondola, counter + register, seasonal crates, detergent shelf, soda cooler | **built (W14)** — the openDecision closed on the owner's confirmation |
 
 ## 7. The building generation strategy (what the references taught)
 
