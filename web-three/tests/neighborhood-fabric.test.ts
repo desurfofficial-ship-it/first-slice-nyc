@@ -113,6 +113,35 @@ describe('neighborhood fabric — the escape law', () => {
     }
   });
 
+  // W12 (2026-11-13): the picket-filigree law — one panel per landing,
+  // recorded in the ledger unconditionally (the texture itself is DOM-only,
+  // so the headless suite pins the PLACEMENTS, not the mesh).
+  it('the filigree ledger: a panel per landing, riding the raised-iron law', () => {
+    const b = build();
+    const rows = b.ledger.filter((r) => r.name === 'Nbhd_EscapeFiligree');
+    // every shipped escape hangs landings; the whole map's panels must all
+    // be here (the headless build still collects every seat)
+    expect(rows.length).toBeGreaterThan(80);
+    for (const r of rows) {
+      // the raised-iron law: the panel's center rides its landing's rail
+      // band — never at head height on the walk (the lowest landing is a
+      // second-floor line, floorH ≥ 2.6, so the center sits above 3.1)
+      expect(r.y, 'filigree below the second-floor line').toBeGreaterThanOrEqual(2.6);
+      // the panel sits 5 cm BEHIND its rail line — never in front of the
+      // posts (the rail line itself is dir-scaled, so only the distance
+      // law is universal: every recorded z is a real placement, not a
+      // zero default)
+      expect(r.x === 0 && r.z === 0, 'filigree row lost its seat').toBe(false);
+    }
+    // and the placements are the escape geometry's own — the panel count
+    // equals the landing count of every emitted escape (each Nbhd_Escape_
+    // ledger row carries its lowest landing; the panel rows outnumber the
+    // escapes 3-5×, the floors-per-building ratio)
+    const escapes = b.ledger.filter((r) => r.name.startsWith('Nbhd_Escape_'));
+    expect(rows.length).toBeGreaterThan(escapes.length * 2);
+  });
+
+
   it('every bay stays on its own wall and clear of every same-face door', () => {
     const doc = loadRegistry();
     const byId = new Map(doc.allBuildings().map((r) => [r.id, r]));

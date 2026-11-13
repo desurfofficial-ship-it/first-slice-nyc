@@ -43,14 +43,21 @@ x ±68..76 stays avenue corridor (the registry's own roadway bands).
 
 ## 4. What the source did better (honest ledger for the next wave)
 
-- The source's escapes carry alpha-cutout picket filigree; ours are real
-  thin-box rails at a coarser rhythm (the Lambert law). A future atlas or
-  alpha-tested pass could close that gap.
+- CLOSED by W12 (2026-11-13): the escapes now carry the alpha-cutout picket
+  filigree — the compliant CanvasTexture port of the source's TSL cut-out
+  ironwork (the W8 shed-valance grammar): one instanced alpha-tested panel
+  per landing (170 panels, one draw call), 19 pickets + scroll rings at the
+  fine rhythm, 5 cm behind the rail frame, zero colliders. Evidence:
+  `web-three/shots/w12-filigree/`.
 - The source's trees are grown tubes with card canopies (~600–900 tris,
   3 species, LOD tiers); ours ride the shipped simple-row grammar — the
   canopy instancing is already excellent, the species variety is not.
+  (Species variety shipped in W8 — the copper elm + the dark pine, the
+  simple rows rolling species by a position hash.)
 - The source's facade shaders carry per-window sills, lintels, band courses
-  and soot; ours approximate with banded vc boxes.
+  and soot; ours approximate with banded vc boxes. (The sills + lintels
+  shipped in W8 on all 28 W6/W7 rows — 104 → 310 pairs; the band courses
+  and soot remain approximated.)
 
 ## 5. Files
 
