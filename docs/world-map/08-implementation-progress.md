@@ -16,7 +16,7 @@
 |---|---|
 | **Milestone** | World-map construction (W0–W14) + the evidence package (the shot list, the labelled top-down, the 3D overview) |
 | **Phase** | Vertical Slice production — narrative reboot canon (v1.0, 2026-11-06) |
-| **Registry version** | v1.66.0 (the W14 Corner House interior wave, 2026-11-13) |
+| **Registry version** | v1.68.0 (the W14 Corner House interior wave, 2026-11-13 — renumbered past the parallel line's DEC-8 v1.66.0 + the splice-fix v1.67.0, the monotonic-ledger law) |
 | **Implementation phase** | **Complete for the vertical slice.** All 179 registry IDs built. All 22 interiors shipped (the Corner House's CORNERHOUSE-INT closed the last openDecision in W14). All 7 parks built. All 23 anchors placed. The walkability scanner reads clean and deterministic. The evidence package (the §6 shot list, the labelled top-down map, the golden-hour overview) is captured from the real built game. |
 | **Branch (local clone)** | `main` |
 | **Latest commit hash** | the WORLDMAP-EVIDENCE commit on top of the merged line `ae6a927` (the W13 merge) ← `6b58870` (the 240-commit merge) |
@@ -188,7 +188,7 @@ ledger:
    compliant route (469 pieces, zero colliders, +0 draw calls — the census
    stays 190).
 5. ~~**The optional slice: CORNERHOUSE-INT.**~~ — **CLOSED (W14, register
-   v1.66.0):** built on the owner's confirmation; the openDecision ledger is
+   v1.68.0):** built on the owner's confirmation; the openDecision ledger is
    now empty of construction decisions (the street-canon and bus-body
    decisions are the lead's, not construction).
 6. ~~**The live screenshot set for the world-map audit**~~ — **CLOSED

@@ -284,14 +284,16 @@ export function composePostcard(
   return canvas.toDataURL('image/png');
 }
 
-/** Full pipeline: scene → pixels → variance check → composed postcard data URL.
+/**
+ * Full pipeline: scene → pixels → variance check → composed postcard data URL.
  *
  *  `opts.dof` — the authored capture's depth of field (v1.54.0):
  *  `{ focus }` in world units (camera → the pose's look-at target). The
  *  caller gates it on the gfx config (?fx=off / ?dof=0 never pass it).
  *  A DOF capture that fails for any reason falls back SILENTLY to today's
  *  direct render — the card must exist; the effect must never wedge the
- *  beat (the wow card's law). */
+ *  beat (the wow card's law).
+ */
 export interface CaptureOptions {
   /** Authored focus distance (camera → look-at target); aperture/maxblur
    *  are the module's tuned constants, clamped by captureDofParams. */
