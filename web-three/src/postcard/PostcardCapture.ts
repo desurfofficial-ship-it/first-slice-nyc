@@ -284,7 +284,7 @@ export function composePostcard(
   return canvas.toDataURL('image/png');
 }
 
-/** Full pipeline: scene → pixels → variance check → composed postcard data URL. */
+/** Full pipeline: scene → pixels → variance check → composed postcard data URL.
  *
  *  `opts.dof` — the authored capture's depth of field (v1.54.0):
  *  `{ focus }` in world units (camera → the pose's look-at target). The
