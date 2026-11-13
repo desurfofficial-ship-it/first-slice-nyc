@@ -120,20 +120,35 @@ These are **system work**, not map construction. The map itself is complete.
 
 ## 3. What remains (the remaining tasks)
 
-1. **Drop this `docs/world-map/` package into the project repo**, commit, push.
-   See `08-implementation-progress.md` §11 for the exact next actions.
-2. **Capture the live screenshot set** (`01-existing-world-audit.md` §6) from a
-   running dev server. Drop under `docs/world-map/images/existing/`.
-3. **Generate the top-down map** (the directive's §3A) — a bird's-eye render
-   from y = 200 looking down at the playable core.
-4. **Generate the 3D overview** (the directive's §3B) — an isometric or
-   high-angle render of the full block at golden hour.
-5. **Curate the neighbourhood visual targets** (the directive's §3D) — one
-   frame per street + the Times Square destination.
+1. ~~**Drop this `docs/world-map/` package into the project repo**, commit,
+   push.~~ **DONE 2026-11-13** — the package lives on `main` (commits
+   `8f5644c`…`abaf938`).
+2. ~~**Capture the live screenshot set** (`01-existing-world-audit.md` §6)
+   from a running dev server. Drop under `docs/world-map/images/existing/`.~~
+   **DONE 2026-11-13** — all twelve frames captured from the real built game
+   by `web-three/scripts/probe-world-map-evidence.mjs` (one boot, the honest
+   walk-in ride, zero page errors) and dropped under
+   `docs/world-map/images/existing/`.
+3. ~~**Generate the top-down map** (the directive's §3A).~~ **DONE** —
+   `images/top-down-map-labelled.png`: the y=140 north-up render of the
+   playable core, labelled with the five streets, the seven parks, the K
+   stations, the named landmarks, Times Square's direction, and a 20 m scale
+   bar (the label pass rides the registry's own coordinates —
+   `scripts/label_topdown.py`).
+4. ~~**Generate the 3D overview** (the directive's §3B).~~ **DONE** —
+   `images/overview-isometric-golden.png`, the golden-hour high-angle render
+   from inside the walls (75, 48, 88) → (−10, 5, −12): the roofscape, the
+   tanks, the green strip, the red accents read in one frame.
+5. ~~**Curate the neighbourhood visual targets** (the directive's §3D).~~
+   **DONE** — the five street frames + the Times Square pair in
+   `images/existing/` ARE the captured gameplay frames, labelled by filename
+   (the audit's own naming).
 6. **Curate the street-level reference library** (the directive's §3C and
    `06-visual-reference-library.md`) — fetch the real photographic references,
-   credit each source, label each frame.
-7. **Close the open ledger rows** (§2 above).
+   credit each source, label each frame. (Still open — the curation doc is
+   written; the fetched images are not.)
+7. **Close the open ledger rows** (§2 above) — the D-3 money bridge, the
+   ambient-walker schedule migration, the fenestra atlas mip re-audit.
 
 ## 4. The acceptance gate
 
@@ -141,26 +156,29 @@ The map-completion-checklist's acceptance gate (the directive's §7 "Final
 Acceptance"):
 
 - [x] **Screenshots of the original existing map.** The in-project evidence in
-  `docs/3d-assets/evidence/` + the §6 shot list in `01-existing-world-audit.md`
-  (to be captured by the next agent).
-- [ ] **The complete planned top-down map.** To be generated (§3 above).
-- [ ] **The three-dimensional visual target.** To be generated (§3 above).
+  `docs/3d-assets/evidence/` + the §6 shot list — **captured 2026-11-13**,
+  all twelve frames under `docs/world-map/images/existing/`.
+- [x] **The complete planned top-down map.** `images/top-down-map-labelled.png`
+  (registry-coordinate labels, north up, scale bar).
+- [x] **The three-dimensional visual target.** `images/overview-isometric-golden.png`
+  (the golden-hour block overview).
 - [x] **The neighbourhood reference library.** `06-visual-reference-library.md`
   (the curation of the actual images is §3 above).
 - [x] **The complete map design documentation.** This package (`01`–`09`).
-- [x] **The implemented world.** The shipped code at commit `44534bb`,
-  registry v1.64.0.
-- [ ] **Actual gameplay screenshots demonstrating the result.** The §6 shot
-  list (to be captured).
-- [x] **The latest GitHub commit and branch.** Commit `44534bb` on `main`
-  (the local clone; the push is the user's to make — see
-  `08-implementation-progress.md` §9 security notice).
+- [x] **The implemented world.** The shipped code — registry v1.65.0 (W13),
+  re-certified on the merged line (tsc clean · vitest 1,709/1,709 · build OK
+  · validate-registry OK · pocket scan deterministic).
+- [x] **Actual gameplay screenshots demonstrating the result.** The §6 shot
+  list — **captured 2026-11-13** (see §3.2 above).
+- [x] **The latest GitHub commit and branch.** `main` (the merged line; the
+  push rides the user's token — the fine-grained PAT needs the repo's
+  Contents:write grant; see `08-implementation-progress.md` §9).
 - [x] **A clear list of completed and outstanding work.** This document §1
   (completed) + §2 (broken / open) + §3 (remaining).
 
-**The verdict:** the map is complete for the vertical slice. The visual
-blueprint's remaining work is evidence capture (screenshots, top-down map, 3D
-overview) and the open ledger rows (system work). No new construction is
-required.
+**The verdict:** the map is complete for the vertical slice, and the evidence
+package is complete with it. What remains is the open ledger rows (system
+work: the D-3 money bridge, the ambient-walker schedule migration, the
+fenestra atlas mip re-audit) and the optional slice (CORNERHOUSE-INT).
 
 — Z.ai agent, 2026-11-13

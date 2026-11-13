@@ -14,15 +14,15 @@
 
 | | |
 |---|---|
-| **Milestone** | World-map design lock + five-repo engineering reference study |
+| **Milestone** | World-map construction (W0–W13) + the evidence package (the shot list, the labelled top-down, the 3D overview) |
 | **Phase** | Vertical Slice production — narrative reboot canon (v1.0, 2026-11-06) |
-| **Registry version** | v1.64.0 (the W12 filigree wave + the merged subway-ride repair + sidewalk-color fixes, 2026-11-13) |
-| **Implementation phase** | **Complete for the vertical slice.** All 178 registry IDs built. All 21 interiors shipped. All 7 parks built. All 23 anchors placed. The walkability scanner reads clean. |
+| **Registry version** | v1.65.0 (the W13 band-course + soot wave, 2026-11-13) |
+| **Implementation phase** | **Complete for the vertical slice.** All 178 registry IDs built. All 21 interiors shipped. All 7 parks built. All 23 anchors placed. The walkability scanner reads clean and deterministic. The evidence package (the §6 shot list, the labelled top-down map, the golden-hour overview) is captured from the real built game. |
 | **Branch (local clone)** | `main` |
-| **Latest commit hash** | `44534bbb9b5b8202a5a3f88989e828bd868922ef` |
-| **Commit subject** | `Merge origin/main into main — the remote line's subway ride repair (v1.63.0) + the sidewalk-color fixes join the W12 filigree wave; the arriving wave's row RENUMBERS v1.63.0 → v1.64.0 (the C3-wave precedent — the ledger stays strictly monotonic and unique); both register/worklog sides preserved (the W9 row re-homed next to its v1.59.0 neighbor)` |
-| **Commit date** | 2026-11-13 04:09:25 +0000 |
-| **Remote** | `https://github.com/desurfofficial-ship-it/first-slice-nyc.git` (public; read-only clone needs no credentials) |
+| **Latest commit hash** | the WORLDMAP-EVIDENCE commit on top of the merged line `ae6a927` (the W13 merge) ← `6b58870` (the 240-commit merge) |
+| **Commit subject** | `feat(world-map): the evidence tranche — the §6 shot list captured from the real game (one boot, the honest ride, zero page errors), the labelled top-down map, the golden-hour overview; 07/08 ticked to the new truth` |
+| **Commit date** | 2026-11-13 (UTC) |
+| **Remote** | `https://github.com/desurfofficial-ship-it/first-slice-nyc.git` (public; read-only clone needs no credentials; the push rides the owner's fine-grained PAT — it needs the repo's Contents:write grant) |
 
 ## 2. Completed neighbourhoods
 
@@ -276,5 +276,40 @@ A new agent reading this document should be able to:
 
 The agent does **not** need the previous agent's conversation history. The repo
 is the memory.
+
+— Z.ai agent, 2026-11-13
+
+---
+
+## 13. Session addendum — the evidence tranche (2026-11-13, later)
+
+The construction-authorization session merged the two diverged agent lines
+(local: the postcard fridge-test pass + the rolling pace law; remote: W8–W13
++ this design package), re-certified the merged tree (tsc clean · vitest
+1,709/1,709 across 102 files · build OK · validate-registry OK · pocket scan
+deterministic 42,241/18/13 · city-fabric 190 draws · subway ALL PASS), and
+executed §3 items 2–5 of `07-map-completion-checklist.md`:
+
+- **The §6 shot list** — all twelve frames captured from the real built game
+  by `web-three/scripts/probe-world-map-evidence.mjs` (one boot; the honest
+  walk-in boarding + the registry's own `perform()`; the real exit walk;
+  zero page errors). Under `docs/world-map/images/existing/`.
+- **The labelled top-down map** — `images/top-down-map-labelled.png`; the
+  y=140 north-up render labelled from the registry's own coordinates
+  (`scripts/label_topdown.py`), with a 20 m scale bar.
+- **The 3D overview** — `images/overview-isometric-golden.png`; the
+  golden-hour high-angle render from inside the walls.
+
+The ride forensics the probe taught (recorded in `worklog.md`, the
+WORLDMAP-EVIDENCE entry): the board is the registry interact's `perform()`;
+the batch-driven machine rides honestly while the capsule stays pinned (the
+train never moves — the tunnel streams); the exit walk needs the machine
+retired (feet off the car band, z < 13.9) and the player unfrozen (the
+story's order/name cards fire on sim time).
+
+Remaining: the open ledger rows (§8 above) and the optional slice
+(CORNERHOUSE-INT). The push rides the owner's token — the supplied
+fine-grained PAT authenticated but lacks this repo's Contents:write grant,
+so the owner must grant it (or push manually); nothing is stored on disk.
 
 — Z.ai agent, 2026-11-13
