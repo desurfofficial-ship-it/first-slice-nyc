@@ -32,7 +32,10 @@ const server = createServer((req, res) => {
 await new Promise((r) => server.listen(PORT, r));
 
 const browser = await chromium.launch({ args: ['use-gl=swiftshader', 'enable-unsafe-swiftshader'].map((a) => '--' + a) });
-const page = await browser.newPage({ viewport: { width: Number(process.env.E2E_W ?? 1280), height: Number(process.env.E2E_H ?? 800) } });
+// E2E_SCALE — the render buffer's scale (the e2e's own knob): a slow-machine
+// dilation valve, not a test change — the walk is honest minutes either way.
+const SCALE = Number.parseFloat(process.env.E2E_SCALE ?? '1');
+const page = await browser.newPage({ viewport: { width: Number(process.env.E2E_W ?? 1280), height: Number(process.env.E2E_H ?? 800) }, deviceScaleFactor: SCALE });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 

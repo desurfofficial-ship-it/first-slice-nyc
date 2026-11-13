@@ -42,8 +42,10 @@ const out = await page.evaluate(() => {
   const w = window.__game.world;
   const R = 0.35, STEP = 0.36, YHI = 1.7;
   const H = 0.5;                       // grid step
+  // W-C5: the grid follows the registry's grown core (x +252 — Catalpa
+  // Junction is scanned now; the standing gate grows with the map)
   const X0 = -99.75, Z0 = -63.75;
-  const NX = Math.round((99.75 - X0) / H) + 1;   // 400
+  const NX = Math.round((251.75 - X0) / H) + 1;  // 704
   const NZ = Math.round((63.75 - Z0) / H) + 1;   // 256
   const idx = (cx, cz) => cz * NX + cx;
   const cellX = (cx) => X0 + cx * H;

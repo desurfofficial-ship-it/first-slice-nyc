@@ -32,7 +32,7 @@ import { ChokepointGate, capacityForEdge, type CapacityCounters } from './capaci
  *  W7: the E–W streets grew their ends ±84 → ±100 (the Westgate/Eastgate
  *  strips are real rows now), so the walked extent follows the registry's
  *  own spanX; z stays ±48 (the strips beyond it are player-only walks). */
-const NAV_BOUNDS = { xMin: -100, xMax: 100, zMin: -48, zMax: 48 };
+const NAV_BOUNDS = { xMin: -100, xMax: 252, zMin: -48, zMax: 48 }; // W-C5: the bounds follow the registry's grown core (Catalpa Junction is walked now)
 
 export class Navigation {
   readonly graph: NavGraph;

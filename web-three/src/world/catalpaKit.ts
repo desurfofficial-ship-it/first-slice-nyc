@@ -165,14 +165,14 @@ function trackBed(di: CatalpaDI): void {
 /** The timber crossings where streets cross the bed (flush, no colliders). */
 function timberCrossings(di: CatalpaDI): void {
   const g = new GeoPush();
-  for (const cz of [0, 42, -42]) {
+  for (const cz of [0, 40, -40]) {
     for (let i = 0; i < 24; i++) {
       const x = SPUR.xMin + 0.3 + i * 0.5;
-      g.box(x, 0.025, cz, 0.44, 0.05, 12.6, i % 2 ? CJN.timber : 0x6b533a);
+      g.box(x, 0.025, cz, 0.44, 0.05, 8.6, i % 2 ? CJN.timber : 0x6b533a);
     }
     // the worn warning plates at both approaches
-    g.box(152, 0.02, cz + 7.6, 3.4, 0.04, 0.7, CJN.ironRust);
-    g.box(152, 0.02, cz - 7.6, 3.4, 0.04, 0.7, CJN.ironRust);
+    g.box(152, 0.02, cz + 5.6, 3.4, 0.04, 0.7, CJN.ironRust);
+    g.box(152, 0.02, cz - 5.6, 3.4, 0.04, 0.7, CJN.ironRust);
   }
   emit(di, true, 'Catalpa_Crossings', g.toGeometry(), false, true);
 }
@@ -259,7 +259,7 @@ function pushWindows(g: GeoPush, s: CatalpaShell, style: MassStyle, rng: () => n
 }
 
 function pushMass(di: CatalpaDI, id: string, s: CatalpaShell, style: MassStyle,
-  rng: () => number, panes: PaneCell[]): void {
+  rng: () => number, panes: PaneCell[], cols: CatalpaCollider[]): void {
   const g = new GeoPush();
   const row = di.row(id);
   const ents = row?.entrance ?? [];
@@ -269,18 +269,30 @@ function pushMass(di: CatalpaDI, id: string, s: CatalpaShell, style: MassStyle,
     // the hall variant: the ground floor is the market's carve (W-C4) —
     // the mass builds as the tower above the hall's ceiling + four ground
     // walls with the door gap in the registry's own entrance face (S).
+    // COLLIDERS: the four walls carry the street-level solidity (the door
+    // gap stays open — the hall is enterable this wave); the tower needs
+    // none (its floor is at 4 m, above every head).
     const hallH = 4.0;
-    // ground walls (the south wall carries the 2.6 m door gap at x 116)
     const doorX = 116, doorW = 2.6;
-    // south wall (z = s.z - d/2): two segments around the gap
     const szf = s.z - s.d / 2;
     const wLeft = (doorX - doorW / 2) - (s.x - s.w / 2);
     const wRight = (s.x + s.w / 2) - (doorX + doorW / 2);
-    if (wLeft > 0.05) g.box((s.x - s.w / 2) + wLeft / 2, hallH / 2, szf, wLeft, hallH, 0.3, style.tone);
-    if (wRight > 0.05) g.box((s.x + s.w / 2) - wRight / 2, hallH / 2, szf, wRight, hallH, 0.3, style.tone);
-    g.box(s.x, hallH / 2, s.z + s.d / 2, s.w, hallH, 0.3, style.tone);                    // north
-    g.box(s.x - s.w / 2, hallH / 2, s.z, 0.3, hallH, s.d, style.tone);                    // west
-    g.box(s.x + s.w / 2, hallH / 2, s.z, 0.3, hallH, s.d, style.tone);                    // east
+    if (wLeft > 0.05) {
+      g.box((s.x - s.w / 2) + wLeft / 2, hallH / 2, szf, wLeft, hallH, 0.3, style.tone);
+      cols.push({ x: (s.x - s.w / 2) + wLeft / 2, y: hallH / 2, z: szf, sx: wLeft, sy: hallH, sz: 0.3 });
+    }
+    if (wRight > 0.05) {
+      g.box((s.x + s.w / 2) - wRight / 2, hallH / 2, szf, wRight, hallH, 0.3, style.tone);
+      cols.push({ x: (s.x + s.w / 2) - wRight / 2, y: hallH / 2, z: szf, sx: wRight, sy: hallH, sz: 0.3 });
+    }
+    g.box(s.x, hallH / 2, s.z + s.d / 2, s.w, hallH, 0.3, style.tone);
+    cols.push({ x: s.x, y: hallH / 2, z: s.z + s.d / 2, sx: s.w, sy: hallH, sz: 0.3 });
+    g.box(s.x - s.w / 2, hallH / 2, s.z, 0.3, hallH, s.d, style.tone);
+    cols.push({ x: s.x - s.w / 2, y: hallH / 2, z: s.z, sx: 0.3, sy: hallH, sz: s.d });
+    g.box(s.x + s.w / 2, hallH / 2, s.z, 0.3, hallH, s.d, style.tone);
+    cols.push({ x: s.x + s.w / 2, y: hallH / 2, z: s.z, sx: 0.3, sy: hallH, sz: s.d });
+    // the hall floor (the yard slab stops at the walls) + its threshold
+    g.box(s.x, 0.05, s.z, s.w - 0.6, 0.1, s.d - 0.6, FABRIC.limestoneDark);
     // the hall ceiling = the tower's floor
     g.box(s.x, hallH + 0.15, s.z, s.w, 0.3, s.d, style.tone);
     // the tower: from the ceiling to the parapet
@@ -289,6 +301,7 @@ function pushMass(di: CatalpaDI, id: string, s: CatalpaShell, style: MassStyle,
     pushWindows(g, { ...s, z: s.z, d: s.d }, style, rng, panes, { groundOpen: true });
   } else {
     g.box(s.x, s.h / 2, s.z, s.w, s.h, s.d, style.tone);
+    cols.push({ x: s.x, y: s.h / 2, z: s.z, sx: s.w, sy: s.h, sz: s.d });
     pushWindows(g, s, style, rng, panes, {});
   }
 
@@ -334,6 +347,63 @@ function pushMass(di: CatalpaDI, id: string, s: CatalpaShell, style: MassStyle,
 
   emit(di, true, `Catalpa_Mass_${id}`, g.toGeometry(), true, true);
   LEDGER(di, `Catalpa_Mass_${id}`, s.x, s.h / 2, s.z);
+}
+
+/** W-C4: the Freight Market hall's fit-out — the registry row's own plan
+ *  list made solid (the Blueprint3D data discipline on the house carve
+ *  law): the stall rows down both side walls, the trader counter at the
+ *  north end, the center island OFF the door line, the far-pane window
+ *  band. Every fixture carries its collider; the door lane stays clear
+ *  (the pocket scan's registered-space law). The C6 winter-lights beat
+ *  dresses this room later without re-carving. */
+function freightMarketFitout(di: CatalpaDI, cols: CatalpaCollider[]): void {
+  const g = new GeoPush();
+  const rng = mulberry32(0xF4217);
+  const z1 = 28.6;
+  // the stall rows: wood counters + canopy boards + goods boxes, down both
+  // side walls (the plan's rows A and B)
+  for (const side of [-1, 1] as const) {
+    const sx = 116 + side * 8.8;
+    g.box(sx, 0.5, 20, 1.6, 1.0, 12, CJN.planter);            // the counter run
+    g.box(sx, 1.08, 20, 1.8, 0.16, 12.4, CJN.timber);         // the counter top
+    g.box(sx, 2.35, 20, 1.7, 0.12, 12.2, CJN.sign);           // the canopy board
+    for (const sz of [15.5, 20, 24.5]) {                       // the goods boxes
+      g.box(sx + side * 0.2, 1.45, sz, 1.1, 0.5, 1.4, rng() < 0.5 ? CJN.bloom : PAL.cream);
+    }
+    cols.push({ x: sx, y: 0.5, z: 20, sx: 1.6, sy: 1.0, sz: 12 });
+  }
+  // the trader counter (north end, under the far pane)
+  g.box(116, 0.55, 27.2, 8, 1.1, 1.2, CJN.planter);
+  g.box(116, 1.18, 27.2, 8.4, 0.14, 1.5, CJN.timber);
+  cols.push({ x: 116, y: 0.55, z: 27.2, sx: 8, sy: 1.1, sz: 1.2 });
+  // the center island — WEST of the door line (a real market keeps its
+  // island off the door; the W14 corner-store law)
+  g.box(114, 0.5, 21.5, 2.2, 1.0, 6, CJN.planter);
+  g.box(114, 1.08, 21.5, 2.5, 0.14, 6.4, CJN.timber);
+  cols.push({ x: 114, y: 0.5, z: 21.5, sx: 2.2, sy: 1.0, sz: 6 });
+  // the far pane: the north wall's window band (the room reads from the
+  // street through the door)
+  g.box(116, 2.6, z1 - 0.16, 12, 1.6, 0.1, CJN.glass);
+  // the hanging lamps down the middle (the hall's warm read; the emissive
+  // keeps them out of the vertex bake — two live draws, priced)
+  const lampMat = di.mat(PAL.gold, { emissive: PAL.gold, emissiveIntensity: 0.35 });
+  const lampGeos: THREE.BufferGeometry[] = [];
+  for (const lz of [14, 18.5, 23, 27]) {
+    for (const lx of [111.5, 120.5]) {
+      const b = new THREE.BoxGeometry(0.7, 0.25, 0.7);
+      b.translate(lx, 3.55, lz);
+      lampGeos.push(b);
+      const w = new THREE.BoxGeometry(0.04, 0.5, 0.04);
+      w.translate(lx, 3.9, lz);
+      lampGeos.push(w);
+    }
+  }
+  const lamps = new THREE.Mesh(mergeGeometries(lampGeos, false)!, lampMat);
+  lamps.name = 'FreightMkt_Lamps';
+  lamps.castShadow = false;
+  di.scene.add(lamps);
+  emit(di, true, 'FreightMkt_Fitout', g.toGeometry(), true, true);
+  LEDGER(di, 'FreightMkt_Fitout', 116, 1, 20);
 }
 
 // ------------------------------------------------------- 3. the viaduct ----
@@ -409,7 +479,7 @@ function gardens(di: CatalpaDI): void {
   const g = new GeoPush();
   const rng = mulberry32(0xC0DE);
   // raised beds along both bed edges, z −61..−41 — the rails read through
-  for (let z = -60.5; z <= -41; z += 3.4) {
+  for (let z = -60.5; z <= -48.5; z += 3.4) {
     for (const side of [-1, 1]) {
       const cx = 152 + side * 4.4;
       if (rng() < 0.18) continue; // a missing bed — the garden grew, not was poured
@@ -430,11 +500,11 @@ function gardens(di: CatalpaDI): void {
       }
     }
   }
-  // water barrels at the north gate
-  g.box(148.2, 0.45, -40.8, 0.7, 0.9, 0.7, CJN.planter);
-  g.box(155.8, 0.45, -40.8, 0.7, 0.9, 0.7, CJN.planter);
+  // water barrels at the north gate (south of Marlow's south walk)
+  g.box(148.2, 0.45, -47.2, 0.7, 0.9, 0.7, CJN.planter);
+  g.box(155.8, 0.45, -47.2, 0.7, 0.9, 0.7, CJN.planter);
   emit(di, true, 'Catalpa_Gardens', g.toGeometry(), true, true);
-  LEDGER(di, 'Catalpa_Gardens', 152, 0.6, -50);
+  LEDGER(di, 'Catalpa_Gardens', 152, 0.6, -54);
 }
 
 // ---------------------------------------------------- 6. street furniture ----
@@ -452,10 +522,10 @@ function trucks(di: CatalpaDI): void {
     { x: 206, z: -2.9, along: 'x', body: PAL.cream },
     { x: 225.4, z: 28, along: 'z', body: 0xb0a89c },
     { x: 230.6, z: -26, along: 'z', body: 0x9aa8b5 },
-    { x: 120, z: 39.3, along: 'x', body: PAL.cream },
-    { x: 206, z: 44.7, along: 'x', body: 0xb0a89c },
-    { x: 188, z: -44.7, along: 'x', body: 0x9aa8b5 },
-    { x: 232, z: -39.3, along: 'x', body: PAL.cream },
+    { x: 120, z: 37.3, along: 'x', body: PAL.cream },
+    { x: 206, z: 42.7, along: 'x', body: 0xb0a89c },
+    { x: 188, z: -42.7, along: 'x', body: 0x9aa8b5 },
+    { x: 232, z: -37.3, along: 'x', body: PAL.cream },
   ];
   for (const p of park) {
     if (rng() < 0.2) continue; // one spot sleeps
@@ -487,7 +557,7 @@ function bollards(di: CatalpaDI, cols: CatalpaCollider[]): void {
     g.box(x, 1.06, z, 0.34, 0.12, 0.34, CJN.ironRust);
     cols.push({ x, y: 0.5, z, sx: 0.3, sy: 1.0, sz: 0.3 });
   };
-  for (const cz of [0, 42, -42]) {
+  for (const cz of [0, 40, -40]) {
     put(SPUR.xMin - 0.4, cz - 4.9); put(SPUR.xMax + 0.4, cz - 4.9);
     put(SPUR.xMin - 0.4, cz + 4.9); put(SPUR.xMax + 0.4, cz + 4.9);
   }
@@ -642,8 +712,14 @@ export function buildCatalpaJunction(di: CatalpaDI): CatalpaCollider[] {
       continue; // an unplanned row never renders (the flip law)
     }
     const rng = mulberry32(0xCA7A ^ Math.floor(hash01(id) * 1e9));
-    pushMass(di, id, s, style, rng, panes);
+    pushMass(di, id, s, style, rng, panes, cols);
   }
+
+  // the market hall's fit-out (the registry's own plan list)
+  try {
+    di.shell('CJN-01');
+    freightMarketFitout(di, cols);
+  } catch { /* unplanned */ }
 
   // the station house (its registry row drives the little mass)
   try {

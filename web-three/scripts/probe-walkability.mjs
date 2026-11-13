@@ -92,8 +92,13 @@ const sweep = await page.evaluate((doorList) => {
   const fmt = (b) => `[${b.minX.toFixed(1)},${b.maxX.toFixed(1)}]y[${b.minY.toFixed(1)},${b.maxY.toFixed(1)}]z[${b.minZ.toFixed(1)},${b.maxZ.toFixed(1)}]`;
 
   const lanes = [];
-  for (const z of [6.5, -6.5, 35, 46.5, -34.6, -46.5]) lanes.push({ name: `EW z=${z}`, axis: 'x', from: -99, to: 99, at: z });
+  // W-C5: the E-W lanes follow the registry's grown span (Kestrel/Gable/
+  // Marlow run to x +252 — Catalpa Junction is probed now); the district's
+  // own NS lanes join the roster (the bed's walks + Larch, off the 6 m
+  // grid exactly as the nav builder walks them)
+  for (const z of [6.5, -6.5, 35, 46.5, -34.6, -46.5]) lanes.push({ name: `EW z=${z}`, axis: 'x', from: -99, to: 251, at: z });
   for (const x of [-82.5, -61.5, 61.5, 82.5]) lanes.push({ name: `NS x=${x}`, axis: 'z', from: -48, to: 48, at: x });
+  for (const x of [148, 155.5, 221.5, 234.5]) lanes.push({ name: `Catalpa NS x=${x}`, axis: 'z', from: -48, to: 48, at: x });
   // the terrace band's real walkable weave: the garden strips behind the
   // VDN backdrop rows (z ±61 — the rows own z 48.5..58.5 by design; the
   // live garden-strip legs prove the weave end to end)

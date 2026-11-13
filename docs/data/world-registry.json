@@ -183,7 +183,7 @@
       "centerline": 40,
       "spanX": [
         -100,
-        100
+        252
       ],
       "road": {
         "zMin": 36,
@@ -201,7 +201,7 @@
       "totalWidth": 16,
       "ways": "two-way, narrow residential",
       "character": "the brownstone street — stoops, tree pits, quiet",
-      "notes": "W7: spanX ±84 → ±100 — the street continues into the Westgate/Eastgate strips; the terrace bands ride its north walk to the wall line."
+      "notes": "W7: spanX ±84 → ±100 — the street continues into the Westgate/Eastgate strips; the terrace bands ride its north walk to the wall line. W-C5 amendment (2026-11-14): spanX east end +100 -> +252 — Gable Street continues into Catalpa Junction (the east continuation IS the district’s north cross street; the draft STR-ROWAN row retired — its corridor was Gable’s own)."
     },
     {
       "id": "STR-MARLOW",
@@ -210,7 +210,7 @@
       "centerline": -40,
       "spanX": [
         -100,
-        100
+        252
       ],
       "road": {
         "zMin": -44,
@@ -228,7 +228,7 @@
       "totalWidth": 16,
       "ways": "two-way, narrow residential/commercial edge",
       "character": "bakery-and-record-shop street with the playground gate",
-      "notes": "W7: spanX ±84 → ±100 — the street continues into the Westgate/Eastgate strips; the Carrow band rides its south walk to the wall line."
+      "notes": "W7: spanX ±84 → ±100 — the street continues into the Westgate/Eastgate strips; the Carrow band rides its south walk to the wall line. W-C5 amendment (2026-11-14): spanX east end +100 -> +252 — Marlow Street continues into Catalpa Junction (the draft STR-SUMAC row retired — its corridor was Marlow’s own)."
     },
     {
       "id": "STR-SPUR",
@@ -282,60 +282,6 @@
       "totalWidth": 16,
       "ways": "two-way, narrow; ends at the world's east wall",
       "character": "the east row — walk-ups, storage, quiet",
-      "notes": "W-C0: new row."
-    },
-    {
-      "id": "STR-ROWAN",
-      "name": "Rowan Street",
-      "axis": "EW",
-      "centerline": 42,
-      "spanX": [
-        100,
-        252
-      ],
-      "road": {
-        "zMin": 38,
-        "zMax": 46,
-        "width": 8
-      },
-      "walkN": {
-        "zMin": 46,
-        "zMax": 50
-      },
-      "walkS": {
-        "zMin": 34,
-        "zMax": 38
-      },
-      "totalWidth": 16,
-      "ways": "two-way, narrow",
-      "character": "the north cross street — the viaduct's shadow, walk-ups",
-      "notes": "W-C0: new row."
-    },
-    {
-      "id": "STR-SUMAC",
-      "name": "Sumac Street",
-      "axis": "EW",
-      "centerline": -42,
-      "spanX": [
-        100,
-        252
-      ],
-      "road": {
-        "zMin": -46,
-        "zMax": -38,
-        "width": 8
-      },
-      "walkN": {
-        "zMin": -38,
-        "zMax": -34
-      },
-      "walkS": {
-        "zMin": -50,
-        "zMax": -46
-      },
-      "totalWidth": 16,
-      "ways": "two-way, narrow",
-      "character": "the south cross street — the gardens' gate, sheds",
       "notes": "W-C0: new row."
     }
   ],
@@ -431,7 +377,7 @@
     {
       "id": "IX-CJN-RS",
       "streets": [
-        "STR-ROWAN",
+        "STR-GABLE",
         "STR-SPUR"
       ],
       "cornerBuildings": [
@@ -442,7 +388,7 @@
     {
       "id": "IX-CJN-RL",
       "streets": [
-        "STR-ROWAN",
+        "STR-GABLE",
         "STR-LARCH"
       ],
       "cornerBuildings": [
@@ -453,7 +399,7 @@
     {
       "id": "IX-CJN-SS",
       "streets": [
-        "STR-SUMAC",
+        "STR-MARLOW",
         "STR-SPUR"
       ],
       "cornerBuildings": [
@@ -464,7 +410,7 @@
     {
       "id": "IX-CJN-SL",
       "streets": [
-        "STR-SUMAC",
+        "STR-MARLOW",
         "STR-LARCH"
       ],
       "cornerBuildings": [
@@ -551,42 +497,168 @@
       "x": 152,
       "z": 0,
       "w": 3.4,
-      "note": "the Kestrel x Spur crossing — the junction's zebra"
+      "axis": "EW",
+      "note": "Kestrel x Spur — the junction's zebra (crosses Kestrel at the bed)"
     },
     {
-      "id": "XW-CJN-KL",
+      "id": "XW-CJN-GS",
+      "x": 152,
+      "z": 40,
+      "w": 3.4,
+      "axis": "EW",
+      "note": "Gable x Spur (under the viaduct span)"
+    },
+    {
+      "id": "XW-CJN-MS",
+      "x": 152,
+      "z": -40,
+      "w": 3.4,
+      "axis": "EW",
+      "note": "Marlow x Spur — the gardens' gate"
+    },
+    {
+      "id": "XW-CJN-SPUR-K-N",
+      "x": 152,
+      "z": 4.5,
+      "w": 3.4,
+      "axis": "NS",
+      "note": "the spur's walk lanes cross Kestrel (north landing)"
+    },
+    {
+      "id": "XW-CJN-SPUR-K-S",
+      "x": 152,
+      "z": -4.5,
+      "w": 3.4,
+      "axis": "NS",
+      "note": "the spur's walk lanes cross Kestrel (south landing)"
+    },
+    {
+      "id": "XW-CJN-SPUR-G-N",
+      "x": 152,
+      "z": 44.5,
+      "w": 3.4,
+      "axis": "NS",
+      "note": "the spur's walk lanes cross Gable (north landing)"
+    },
+    {
+      "id": "XW-CJN-SPUR-G-S",
+      "x": 152,
+      "z": 35.5,
+      "w": 3.4,
+      "axis": "NS",
+      "note": "the spur's walk lanes cross Gable (south landing)"
+    },
+    {
+      "id": "XW-CJN-SPUR-M-N",
+      "x": 152,
+      "z": -35.5,
+      "w": 3.4,
+      "axis": "NS",
+      "note": "the spur's walk lanes cross Marlow (north landing)"
+    },
+    {
+      "id": "XW-CJN-SPUR-M-S",
+      "x": 152,
+      "z": -44.5,
+      "w": 3.4,
+      "axis": "NS",
+      "note": "the spur's walk lanes cross Marlow (south landing — the gardens' gate)"
+    },
+    {
+      "id": "XW-CJN-LARCH-K-N",
       "x": 228,
+      "z": 4.5,
+      "w": 3.4,
+      "axis": "NS",
+      "note": "Larch's walks cross Kestrel (north landing)"
+    },
+    {
+      "id": "XW-CJN-LARCH-K-S",
+      "x": 228,
+      "z": -4.5,
+      "w": 3.4,
+      "axis": "NS",
+      "note": "Larch's walks cross Kestrel (south landing)"
+    },
+    {
+      "id": "XW-CJN-LARCH-G-N",
+      "x": 228,
+      "z": 44.5,
+      "w": 3.4,
+      "axis": "NS",
+      "note": "Larch's walks cross Gable (north landing)"
+    },
+    {
+      "id": "XW-CJN-LARCH-G-S",
+      "x": 228,
+      "z": 35.5,
+      "w": 3.4,
+      "axis": "NS",
+      "note": "Larch's walks cross Gable (south landing)"
+    },
+    {
+      "id": "XW-CJN-LARCH-M-N",
+      "x": 228,
+      "z": -35.5,
+      "w": 3.4,
+      "axis": "NS",
+      "note": "Larch's walks cross Marlow (north landing)"
+    },
+    {
+      "id": "XW-CJN-LARCH-M-S",
+      "x": 228,
+      "z": -44.5,
+      "w": 3.4,
+      "axis": "NS",
+      "note": "Larch's walks cross Marlow (south landing)"
+    },
+    {
+      "id": "XW-CJN-KL-W",
+      "x": 224.5,
       "z": 0,
       "w": 3.4,
-      "note": "the Kestrel x Larch crossing"
+      "axis": "EW",
+      "note": "Kestrel x Larch — the zebra at Larch's west edge"
     },
     {
-      "id": "XW-CJN-RS",
-      "x": 152,
-      "z": 42,
+      "id": "XW-CJN-KL-E",
+      "x": 231.5,
+      "z": 0,
       "w": 3.4,
-      "note": "the Rowan x Spur crossing (under the viaduct span)"
+      "axis": "EW",
+      "note": "Kestrel x Larch — the zebra at Larch's east edge"
     },
     {
-      "id": "XW-CJN-RL",
-      "x": 228,
-      "z": 42,
+      "id": "XW-CJN-GL-W",
+      "x": 224.5,
+      "z": 40,
       "w": 3.4,
-      "note": "the Rowan x Larch crossing"
+      "axis": "EW",
+      "note": "Gable x Larch — the west-edge zebra"
     },
     {
-      "id": "XW-CJN-SS",
-      "x": 152,
-      "z": -42,
+      "id": "XW-CJN-GL-E",
+      "x": 231.5,
+      "z": 40,
       "w": 3.4,
-      "note": "the Sumac x Spur crossing — the gardens' gate"
+      "axis": "EW",
+      "note": "Gable x Larch — the east-edge zebra"
     },
     {
-      "id": "XW-CJN-SL",
-      "x": 228,
-      "z": -42,
+      "id": "XW-CJN-ML-W",
+      "x": 224.5,
+      "z": -40,
       "w": 3.4,
-      "note": "the Sumac x Larch crossing"
+      "axis": "EW",
+      "note": "Marlow x Larch — the west-edge zebra"
+    },
+    {
+      "id": "XW-CJN-ML-E",
+      "x": 231.5,
+      "z": -40,
+      "w": 3.4,
+      "axis": "EW",
+      "note": "Marlow x Larch — the east-edge zebra"
     }
   ],
   "blocks": [
@@ -704,7 +776,7 @@
     },
     {
       "id": "BLK-CJN-FARN",
-      "note": "Catalpa far-north strip (z 50..64) — low walk-ups under the viaduct's shadow",
+      "note": "Catalpa far-north strip (z 50..64) — low walk-ups on the Gable east continuation, under the viaduct’s shadow",
       "buildings": [
         "CJN-13",
         "CJN-14",
@@ -714,7 +786,7 @@
     },
     {
       "id": "BLK-CJN-FARS",
-      "note": "Catalpa far-south strip (z -64..-50) — low works rows",
+      "note": "Catalpa far-south strip (z -64..-50) — low works rows on the Marlow east continuation",
       "buildings": [
         "CJN-17",
         "CJN-18",
@@ -3000,24 +3072,24 @@
       "face": "Kestrel N + Larch W",
       "block": "BLK-CJN-N",
       "footprint": {
-        "x": 220,
+        "x": 216,
         "z": 20,
         "w": 8,
         "d": 20
       },
       "height": 14,
       "floors": 4,
-      "style": "corner loft, Larch + Kestrel fronts",
+      "style": "corner loft, Larch + Kestrel fronts W-C5 amendment: the footprint pulled west (x 212..220) — the W-C0 row straddled Larch's west walk.",
       "entrance": [
         {
           "x": 220,
-          "z": 10,
-          "faces": "S"
-        },
-        {
-          "x": 224,
           "z": 20,
           "faces": "E"
+        },
+        {
+          "x": 216,
+          "z": 10,
+          "faces": "S"
         }
       ],
       "interior": null,
@@ -3172,14 +3244,14 @@
       "face": "Kestrel S",
       "block": "BLK-CJN-S",
       "footprint": {
-        "x": 216,
+        "x": 213,
         "z": -19,
-        "w": 16,
+        "w": 14,
         "d": 18
       },
       "height": 8.5,
       "floors": 1,
-      "style": "low industrial shed, freight doors",
+      "style": "low industrial shed, freight doors W-C5 amendment: x 206..220 (the W-C0 row straddled Larch's west walk).",
       "entrance": [
         {
           "x": 216,
@@ -3196,7 +3268,7 @@
       "name": "Larch Storage",
       "status": "built (W-C2)",
       "class": "C",
-      "face": "Larch W",
+      "face": "Larch E",
       "block": "BLK-CJN-S",
       "footprint": {
         "x": 243,
@@ -3206,7 +3278,7 @@
       },
       "height": 13,
       "floors": 4,
-      "style": "storage loft closing the south row's east end",
+      "style": "storage loft closing the south row's east end W-C5 amendment: moved to Larch's EAST walk frontage (the W-C0 row straddled the west walk).",
       "entrance": [
         {
           "x": 236,
@@ -3223,7 +3295,7 @@
       "name": "Rowan Walk-ups",
       "status": "built (W-C2)",
       "class": "C",
-      "face": "Rowan N",
+      "face": "Gable N",
       "block": "BLK-CJN-FARN",
       "footprint": {
         "x": 115,
@@ -3250,7 +3322,7 @@
       "name": "Viaduct Block W",
       "status": "built (W-C2)",
       "class": "C",
-      "face": "Rowan N",
+      "face": "Gable N",
       "block": "BLK-CJN-FARN",
       "footprint": {
         "x": 137,
@@ -3277,7 +3349,7 @@
       "name": "Viaduct Block E",
       "status": "built (W-C2)",
       "class": "C",
-      "face": "Rowan N",
+      "face": "Gable N",
       "block": "BLK-CJN-FARN",
       "footprint": {
         "x": 176,
@@ -3304,20 +3376,20 @@
       "name": "Rowan Works",
       "status": "built (W-C2)",
       "class": "C",
-      "face": "Rowan N",
+      "face": "Gable N",
       "block": "BLK-CJN-FARN",
       "footprint": {
-        "x": 209,
+        "x": 207,
         "z": 57,
-        "w": 30,
+        "w": 26,
         "d": 10
       },
       "height": 8,
       "floors": 2,
-      "style": "low works row at the Larch corner",
+      "style": "low works row at the Larch corner W-C5 amendment: x 194..220 (the W-C0 row straddled Larch's west walk).",
       "entrance": [
         {
-          "x": 209,
+          "x": 207,
           "z": 52,
           "faces": "S"
         }
@@ -3331,7 +3403,7 @@
       "name": "Sumac Works 1",
       "status": "built (W-C2)",
       "class": "C",
-      "face": "Sumac S",
+      "face": "Marlow S",
       "block": "BLK-CJN-FARS",
       "footprint": {
         "x": 119,
@@ -3358,7 +3430,7 @@
       "name": "Sumac Works 2",
       "status": "built (W-C2)",
       "class": "C",
-      "face": "Sumac S",
+      "face": "Marlow S",
       "block": "BLK-CJN-FARS",
       "footprint": {
         "x": 179,
@@ -3385,20 +3457,20 @@
       "name": "Sumac Works 3",
       "status": "built (W-C2)",
       "class": "C",
-      "face": "Sumac S",
+      "face": "Marlow S",
       "block": "BLK-CJN-FARS",
       "footprint": {
-        "x": 212,
+        "x": 210,
         "z": -57,
-        "w": 24,
+        "w": 20,
         "d": 10
       },
       "height": 8,
       "floors": 2,
-      "style": "low works row at the Larch corner",
+      "style": "low works row at the Larch corner W-C5 amendment: x 200..220 (the W-C0 row straddled Larch's west walk).",
       "entrance": [
         {
-          "x": 212,
+          "x": 210,
           "z": -52,
           "faces": "N"
         }
@@ -3897,9 +3969,9 @@
         "xMin": 146,
         "xMax": 158,
         "zMin": -62,
-        "zMax": -40
+        "zMax": -48
       },
-      "elements": "raised beds between the rails, sunflowers, the track reading through, the Sumac gate at z -40, water barrels",
+      "elements": "raised beds between the rails, sunflowers, the track reading through, the Sumac gate at z -40, water barrels W-C5 amendment: the bbox pulled south of Marlow’s south walk (the W-C0 row reached into the road mouth).",
       "npcZones": [
         "NZ-CJN-SPUR"
       ],
@@ -4245,31 +4317,15 @@
       },
       {
         "id": "R-SPUR-E",
-        "way": "the bed's east walk x 155.5..156.5, z -48..48"
+        "way": "the bed’s east walk x 154.5..157.5 (lane x 155.5), z -48..48"
       },
       {
         "id": "R-LARCH-W",
-        "way": "Larch west walk x 220..224 (lane x 222), z -48..48"
+        "way": "Larch west walk x 220..224 (lane x 221.5), z -48..48"
       },
       {
         "id": "R-LARCH-E",
-        "way": "Larch east walk x 232..236 (lane x 234), z -48..48"
-      },
-      {
-        "id": "R-ROWAN-N",
-        "way": "Rowan north walk z 46..50 (lane z 48), x 100..252"
-      },
-      {
-        "id": "R-ROWAN-S",
-        "way": "Rowan south walk z 34..38 (lane z 36), x 100..252"
-      },
-      {
-        "id": "R-SUMAC-N",
-        "way": "Sumac north walk z -38..-34 (lane z -36), x 100..252"
-      },
-      {
-        "id": "R-SUMAC-S",
-        "way": "Sumac south walk z -50..-46 (lane z -48), x 100..252"
+        "way": "Larch east walk x 232..236 (lane x 234.5), z -48..48"
       }
     ],
     "vehicle": [
@@ -5873,7 +5929,7 @@
     {
       "id": "FREIGHTMKT-INT",
       "building": "CJN-01",
-      "status": "planned",
+      "status": "built (W-C4)",
       "shell": {
         "xMin": 105,
         "xMax": 127,
@@ -6083,6 +6139,16 @@
       "id": "W-C2",
       "name": "Catalpa Junction — the buildings wave",
       "content": "catalpaKit.ts: the 19 CJN masses (loft conversions + industrial shells, per-row seeded bay/window/dock grammar — the Metropolis lot-band discipline on the house GeoPush law), SUB-03's headhouse + stair hood, the ghost signs (LMK-11 CATALPA IRON WORKS on CJN-04's east gable; FEDERAL WIRE & CABLE, BEACON CRATE & BOX bands), the lit panes (one InstancedMesh on the shipped skyline window material — HK3's shader-window discipline), the elevated spur viaduct (12 cast-iron columns, plate girders, the 38 m junction span — LMK-12), the preserved crane (LMK-10), the Spur Gardens, the track bed + timber crossings + bollards, the parked box trucks, the plaza string lights. Every mass via regShell (the A-3 no-invention law). Statuses flipped planned -> built (W-C2)."
+    },
+    {
+      "id": "W-C4",
+      "name": "The Freight Market interior",
+      "content": "FREIGHTMKT-INT built: CJN-01's ground floor is the market hall — the kit's hall carve (four walls with the registry's own door gap, the hall floor, the ceiling + tower above), the fit-out from the row's own plan list (stall rows A/B with canopy boards + goods boxes, the trader counter under the far pane, the center island WEST of the door line — the W14 corner-store law), the far-pane window band, the hanging lamp row (one emissive draw, priced). The mass colliders land in the same wave: every kit mass pushes its registry footprint (the hall pushes its four walls + door gap) — the player's capsule stops at Catalpa's buildings exactly as it stops at Alder's. Statuses flipped planned -> built (W-C4)."
+    },
+    {
+      "id": "W-C5",
+      "name": "Catalpa Junction — the nav + walked-extent wave",
+      "content": "The nav builder's LANES table grows the four new streets' walking lanes (validated against the registry's own walk bands — the build throws if a lane leaves its band or enters a road); NAV_BOUNDS follows the registry's grown core (x +252); the crosswalk rows carry their axis (EW legs across Kestrel/Rowan/Sumac at the spur and Larch, NS legs across the spur's track strip and Larch at the same six corners); the graph now derives Catalpa's sidewalk spines, door nodes and the Freight Market's lobby from the registry rows exactly as it derived Alder Heights'. The pocket scanner's grid grows with the map (its own gate re-run). W-C5 amendments (pre-ship, this build's own rows): the Rowan/Sumac lane offsets sit off the 6 m grid (47.5/36.5/-36.5/-47.5 — the junction law; a grid-aligned offset collides with the chain nodes and orphans the corner), the NS zebra rows sit at the gap landings (+/-0.5 off each EW road's edge — the shipped GJ pattern; a mid-gap landing hops more than the 4.5 m curb apron allows), and five CJN footprints pulled clear of Larch's west walk (CJN-05/11/16/19 narrowed, CJN-12 re-fronted onto the east walk). GEOMETRY AMENDMENT: the draft STR-ROWAN/STR-SUMAC streets retired — their corridors duplicated Gable’s and Marlow’s own (two parallel E-W streets 2 m apart read as a drawing error); Gable and Marlow continue east instead (spanX +252), the district’s cross streets ARE the shipped streets’ east ends, and all CJN geometry shifted to the true centerlines (z 40/-40). The Larch junction zebras follow the shipped XW-KJ-E/W pattern exactly: one row at each road edge (+/-0.5), whose landing hops stay inside the 4.5 m curb-apron law (a center row’s landings sat 6 m from the chain edges and hung isolated). The spur/larch lane offsets sit off the 6 m grid on BOTH axes — a junction whose x or z lands on a chain’s grid multiple collides with the chain point and the corner never connects (the 155.5/221.5/234.5 amendment)."
     }
   ],
   "openDecisions": [

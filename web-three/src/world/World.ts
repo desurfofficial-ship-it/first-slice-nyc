@@ -7227,15 +7227,16 @@ export class World {
     this.groundMerged('Catalpa_Roads', 'asphalt', [
       { x: 176, y: -0.1, z: 0, sx: 152, sy: 0.2, sz: 8 },    // Kestrel East (x 100..252)
       { x: 228, y: -0.1, z: 0, sx: 8, sy: 0.2, sz: 128 },    // Larch (z −64..64)
-      { x: 176, y: -0.1, z: 42, sx: 152, sy: 0.2, sz: 8 },   // Rowan
-      { x: 176, y: -0.1, z: -42, sx: 152, sy: 0.2, sz: 8 },  // Sumac
+      { x: 176, y: -0.1, z: 40, sx: 152, sy: 0.2, sz: 8 },   // Gable East (the continuation; centerline 40)
+      { x: 176, y: -0.1, z: -40, sx: 152, sy: 0.2, sz: 8 },  // Marlow East (centerline -40)
     ]);
     const walkSlabs: Array<{ x: number; y: number; z: number; sx: number; sy: number; sz: number }> = [];
     const XSEG: Array<[number, number]> = [[100, 145.8], [158.2, 223.8], [232.2, 252]];
     const ZSEG: Array<[number, number]> = [[-64, -46.2], [-37.8, -4.2], [4.2, 37.8], [46.2, 64]];
     for (const [a, b] of XSEG) {
       const cx = (a + b) / 2, w = b - a;
-      for (const wz of [6, -6, 48, 36, -36, -48]) {
+      // Gable's walks (44..48 / 32..36) and Marlow's (-36..-32 / -48..-44)
+      for (const wz of [6, -6, 46, 34, -34, -46]) {
         walkSlabs.push({ x: cx, y: -0.05, z: wz, sx: w, sy: 0.3, sz: 4 });
       }
     }
@@ -7252,7 +7253,7 @@ export class World {
     const curbSegs: Array<{ x: number; z: number; w: number; d: number }> = [];
     for (const [a, b] of XSEG) {
       const cx = (a + b) / 2, w = b - a;
-      for (const cz of [4.08, -4.08, 46.08, 37.92, -37.92, -46.08]) {
+      for (const cz of [4.08, -4.08, 44.08, 35.92, -35.92, -44.08]) {
         curbSegs.push({ x: cx, z: cz, w, d: 0.5 });
       }
     }
@@ -7304,15 +7305,15 @@ export class World {
       for (let i = 0; i < 6; i++) this.deco(`Catalpa_Zebra_${zebraI++}`, cx - 3.3 + i * 1.3, 0.03, cz, 0.6, 0.02, 3, PAL.cream);
     };
     zebraEW(152, 0); zebraEW(228, 0);
-    zebraEW(152, 42); zebraEW(228, 42);
-    zebraEW(152, -42); zebraEW(228, -42);
-    zebraNS(228, 0); zebraNS(228, 42); zebraNS(228, -42);
+    zebraEW(152, 40); zebraEW(228, 40);
+    zebraEW(152, -40); zebraEW(228, -40);
+    zebraNS(228, 0); zebraNS(228, 40); zebraNS(228, -40);
 
     // ---- 5. the street furniture (the house makers — all bake free) -----
     // streetlights: Kestrel East alternating curbs, the cross streets' walks
     for (const [lx, lz] of [[112, 5.2], [140, -5.2], [168, 5.2], [196, -5.2], [224, 5.2], [248, -5.2],
       [222.4, 16], [233.6, -16], [222.4, 48], [233.6, -48],
-      [120, 37.2], [172, 46.8], [224, 37.2], [120, -46.8], [172, -37.2], [224, -46.8]] as const) {
+      [120, 35.2], [172, 44.8], [224, 35.2], [120, -44.8], [172, -35.2], [224, -44.8]] as const) {
       const lamp = makeStreetlight(this.bank);
       lamp.position.set(lx, 0.05, lz);
       this.scene.add(lamp);
@@ -7322,8 +7323,8 @@ export class World {
     // every crown — buildSimpleTree registers the whole grammar)
     const treeSpots: Array<[number, number]> = [
       [222.6, 24], [222.6, 8], [233.4, -8], [233.4, 32], [222.6, -24], [233.4, 52],
-      [116, 36.6], [148, 36.6], [188, 36.6], [220, 36.6], [132, 47.4], [200, 47.4],
-      [116, -47.4], [148, -47.4], [188, -47.4], [220, -47.4], [132, -36.6], [200, -36.6],
+      [116, 34.6], [148, 34.6], [188, 34.6], [220, 34.6], [132, 46.4], [200, 46.4],
+      [116, -46.4], [148, -46.4], [188, -46.4], [220, -46.4], [132, -34.6], [200, -34.6],
     ];
     for (const [tx, tz] of treeSpots) this.buildSimpleTree(tx, tz, rng);
     // the plaza's furniture: two benches, the K globe, a hydrant, cans,

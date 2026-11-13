@@ -70,6 +70,10 @@ export interface RegistryBuilding {
 export interface RegistryStreet {
   id: string; name?: string; axis?: 'EW' | 'NS';
   centerline?: number;
+  /** W-C5: the street's own walked span (Kestrel runs −100..+252; Rowan
+   *  and Sumac exist only east of +100) — the nav spines walk THIS. */
+  spanX?: number[];
+  spanZ?: number[];
   road?: { zMin?: number; zMax?: number; xMin?: number; xMax?: number; width?: number };
   walkN?: { zMin?: number; zMax?: number; xMin?: number; xMax?: number };
   walkS?: { zMin?: number; zMax?: number; xMin?: number; xMax?: number };

@@ -40,23 +40,7 @@ const tele = await page.evaluate(() => {
 });
 console.log('teleported:', JSON.stringify(tele));
 await new Promise((r) => setTimeout(r, 1500)); // real frames run
-const report = await page.evaluate(() => {
-  const g = window.__game;
-  const out = [];
-  const w = g.world;
-  const p2 = g.player.capsule; p2.x = 150; p2.z = 2;
-  let kitAlive = 0; const kitNames = [];
-  w.scene.traverse((o) => { if (o.name && o.name.startsWith('Catalpa_')) { kitAlive++; kitNames.push(o.name); } });
-  out.push(`kit alive: ${kitAlive} — ${kitNames.join(', ')}`);
-  const v = (m) => m.geometry.getAttribute('position').count;
-  const rows = [];
-  for (const key of ['c3r1','c7r0','c7r1','c7r2','c8r0','c8r1','c8r2','c9r0','c9r1','c9r2','c10r0','c10r1','c10r2','c11r0','c11r1','c11r2']) {
-    const arr = w.districtBatches?.get(key) ?? [];
-    rows.push(`${key}:${arr.map((m) => v(m)).join('+') || '0'}`);
-  }
-  out.push('batches — ' + rows.join(' '));
-  return out;
-});
+const report = [];
 for (const r of report) console.log(r);
 await browser.close();
 server.close();

@@ -81,8 +81,10 @@ describe('nav graph build (registry-seeded)', () => {
   it('validates clean — no edge through a footprint OR a road, no orphans, in bounds', () => {
     const issues = graph.validate({
       footprints: footprintsOf(registry.doc),
-      // W7: the walked extent grew ±84 → ±100 with the registry's own spanX
-      bounds: { xMin: -100, xMax: 100, zMin: -48, zMax: 48 },
+      // W7: the walked extent grew ±84 → ±100 with the registry's own spanX.
+      // W-C5: it grew east again with Catalpa Junction (x +252) — the same
+      // registry-derived span, the same law.
+      bounds: { xMin: -100, xMax: 252, zMin: -48, zMax: 48 },
       exemptFootprintIds: PASSABLE_FOOTPRINTS,
       roads: roadRectsOf(registry.doc),
     });
