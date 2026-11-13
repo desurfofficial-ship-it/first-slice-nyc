@@ -1,3 +1,10 @@
+// The handwriting voice (Task 11, docs/59): Caveat rides the bundle, so the
+// cards' captions, the HUD notes and the Map speak one hand on EVERY device —
+// the system-font stack (Bradley Hand / Segoe Print / Comic Sans) rendered
+// three different voices across the exit devices, and plain Roboto on
+// Android. OFL-licensed, ~80 KB woff2 per weight.
+import '@fontsource/caveat/400.css';
+import '@fontsource/caveat/700.css';
 import { Game } from './game/Game';
 
 const container = document.getElementById('app');

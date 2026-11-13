@@ -54,10 +54,46 @@ export function runAutotest(game: Game): void {
     console.info(line);
   };
 
-  const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
   const waitFrames = async (n: number) => { for (let i = 0; i < n; i++) await nextFrame(); };
   const waitMs = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+  /** The measured slow-machine factor (docs/56 flake post-mortem): game
+   *  time is dt-clamped at 100 ms, so on a busy machine the wall clock and
+   *  the game clock disagree. Every wait-for-the-game budget rides `pace`.
+   *  1 = a fast machine, budgets unchanged. */
+  let pace = 1;
+  const budget = (ms: number) => Math.round(ms * pace);
+
+  /** The ROLLING slow-machine law (docs/56, second pass): pace used to be
+   *  measured ONCE at run() start — a load spike arriving after the
+   *  measurement starved every budget() rider from then on (the day-3
+   *  climb→postcard cascade: startup measured ×2.25, the spike landed
+   *  later, the dusk waits burned their stale budgets). Now every 60
+   *  frames the suite waits re-derive pace from that window — same
+   *  formula (avg frame ÷ the 100 ms clamp), same ×4 cap. Every budget()
+   *  re-reads pace on each loop check, so an in-flight wait stretches
+   *  when the machine degrades and shrinks back when it recovers. The
+   *  condition verifies; the budget only waits. */
+  let rollN = 0;
+  let rollT0 = 0;
+  let rollFirst = true;
+  const rollPace = () => {
+    const now = performance.now();
+    if (rollN === 0) { rollT0 = now; rollN = 1; return; }
+    rollN++;
+    if (rollN >= 60) {
+      const frameAvg = (now - rollT0) / rollN;
+      const next = Math.min(4, Math.max(1, frameAvg / 100));
+      if (rollFirst || Math.abs(next - pace) >= 0.25) {
+        console.info(`[pace] avg frame ${frameAvg.toFixed(1)} ms over ${rollN} — event budgets ×${next.toFixed(2)}${rollFirst ? '' : ` (was ×${pace.toFixed(2)})`}`);
+        rollFirst = false;
+      }
+      pace = next;
+      rollN = 0;
+    }
+  };
+
+  const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => { rollPace(); r(); }));
   const walkLog = new URLSearchParams(location.search).has('walklog');
 
   /** One-level detour: pick the side with open air (a capsule-padded probe
@@ -344,10 +380,15 @@ export function runAutotest(game: Game): void {
    *  volley can land on the wrong neighbor (Idris between the walker and
    *  the cart at the awning beat) or mid-fade (the goodnight volley can
    *  roll the day itself — lingerStage isn't a volley break); a human
-   *  just presses again. The condition verifies; the budget waits. */
+   *  just presses again. The condition verifies; the budget waits. The
+   *  outer budget rides pace like every other poll (the rolling law) —
+   *  the goodnight beats were the 555 s cascade's front line. The inner
+   *  600 ms volley window stays wall-clock on purpose: it is a key-HOLD
+   *  duration on the real input path, not a poll budget — dilating it
+   *  would change what the game sees, not how long we wait. */
   const pressUntil = async (cond: () => boolean, budgetMs = 20000, what = '') => {
     const t0 = performance.now();
-    while (performance.now() - t0 < budgetMs && !cond()) {
+    while (performance.now() - t0 < budget(budgetMs) && !cond()) {
       await interact();
       const inner = performance.now();
       while (performance.now() - inner < 600 && !cond()) await nextFrame();
@@ -377,14 +418,6 @@ export function runAutotest(game: Game): void {
     await waitFrames(6);
     return card.id;
   };
-
-  /** The measured slow-machine factor (docs/56 flake post-mortem): game
-   *  time is dt-clamped at 100 ms, so on a busy machine the wall clock and
-   *  the game clock disagree. `pace` is set once at run() start (measured,
-   *  capped at 4) and every wait-for-the-game budget rides it. 1 = a fast
-   *  machine, budgets unchanged. */
-  let pace = 1;
-  const budget = (ms: number) => Math.round(ms * pace);
 
   /** Poll until the toast (or the Map's pages) carries a fragment. */
   const noteSays = async (frag: string, timeout = 9000): Promise<boolean> => {
@@ -461,18 +494,13 @@ export function runAutotest(game: Game): void {
       // and a wall-clock poll starves even though nothing is wrong (the
       // 555 s red run: 31 timing-gated checks fell in a cascade from day-2
       // dusk; the clean 356 s re-run changed nothing but the load). The
-      // fix: measure the dilation once — average real frame time against
-      // the 100 ms clamp — and hand it to `budget()` (hoisted above, shared
-      // by noteSays / cabClear / holdUntil too). The condition verifies;
-      // the budget only waits.
-      {
-        const t0 = performance.now();
-        const N = 60;
-        for (let i = 0; i < N; i++) await nextFrame();
-        const frameAvg = (performance.now() - t0) / N;
-        pace = Math.min(4, Math.max(1, frameAvg / 100));
-        console.info(`[pace] avg frame ${frameAvg.toFixed(1)} ms over 60 — event budgets ×${pace.toFixed(2)}`);
-      }
+      // fix: measure the dilation — average real frame time against the
+      // 100 ms clamp — and hand it to `budget()` (hoisted above, shared
+      // by noteSays / cabClear / holdUntil too). The rolling law (second
+      // pass) re-derives pace from every 60 waited frames — the 60 here
+      // seed the first window, and a spike landing later re-measures
+      // itself. The condition verifies; the budget only waits.
+      await waitFrames(60);
 
       check(game.player.onGround && p().y < 0.2, `player stands on the sidewalk (y=${p().y.toFixed(2)})`);
       // docs/51 B6 tripwire: the occlusion buffer is sized at camera

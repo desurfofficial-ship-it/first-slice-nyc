@@ -12,7 +12,12 @@
  *      the parapet. Geometry ported from slop's fire-escapes.js (deck 3.2 m,
  *      rails ~1.0 m, flights ~2.3 m run) into the house Lambert/vertex-color
  *      grammar. Zero colliders — everything hangs at or above the second
- *      floor line, clear of every door and stoop.
+ *      floor line, clear of every door and stoop. W12 (2026-11-13): every
+ *      landing's rail frame gains the source's alpha-cutout PICKET FILIGREE
+ *      — one instanced alpha-tested canvas panel per landing (the compliant
+ *      CanvasTexture port of the source's TSL cut-out ironwork; the ledger
+ *      row is unconditional, the texture DOM-only), 5 cm behind the rails,
+ *      zero colliders, one draw call for the whole map.
  *   2. TERRACE FACE FABRIC — VDN-DN1/DS1's exposed street faces (the
  *      footprint-pinned backdrop rows the W6 walls moved behind) gain real
  *      fronts: window reveal grids per segment, segment cornices, and a lit
@@ -146,8 +151,21 @@ function rotBoxZ(g: GeoPush, cx: number, cy: number, cz: number, sx: number, sy:
  *  parapet, switchback flights between, the drop ladder, the gooseneck.
  *  Slop-newyork's dims, house grammar: deck 3.2 × 1.0, rail head 1.0 m,
  *  flight run 2.3 m, offset 0.55 m off the wall. */
+
+/** W12 (2026-11-13): one landing's picket-filigree placement — collected
+ *  while the escape geometry pushes, emitted as ONE InstancedMesh. The
+ *  source's escapes carry alpha-cutout picket filigree between their rail
+ *  frames (terrace-buildout/SOURCE-REUSE-REPORT.md §4, the honest ledger);
+ *  the source renders it with TSL/WebGPU alpha cut — off-limits here (the
+ *  compliance red line) — so the port rides the W8 shed-valance grammar:
+ *  a CanvasTexture with the pickets cut to alpha, alphaTest 0.5, one
+ *  instanced draw call for the whole map's panels. The panel sits 5 cm
+ *  BEHIND the rail line (pickets welded inside the frame the posts and
+ *  rails already own), spans the deck's clear width, and hangs zero
+ *  colliders — the fabric's only colliders stay the shed posts. */
+interface EscapePanel { x: number; y: number; z: number; dir: -1 | 1 }
 function pushEscape(g: GeoPush, x: number, faceZ: number, dir: -1 | 1, roofY: number,
-  landYs: number[]): void {
+  landYs: number[], panels?: EscapePanel[]): void {
   const IRON = FABRIC.hoist;
   const IRON_DARK = PAL.ink;
   const W = 3.2;             // deck width along the facade
@@ -158,6 +176,10 @@ function pushEscape(g: GeoPush, x: number, faceZ: number, dir: -1 | 1, roofY: nu
 
   const landing = (y: number): void => {
     g.box(x, y + 0.045, deckZ, W, 0.09, DECK_D, IRON);
+    // W12: the picket-filigree panel rides every landing's rail line — the
+    // collector records it here so ONE instanced alpha-tested mesh carries
+    // the whole map's ironwork (the escapes' zero-collider law untouched)
+    panels?.push({ x, y, z: zOut, dir });
     // open guardrail: 5 posts, top rail, mid rail (never a slab)
     for (let i = 0; i <= 4; i++) {
       const px = x - W / 2 + i * (W / 4);
@@ -279,6 +301,7 @@ const ESCAPE_JOBS: Array<{ id: string; face: 'N' | 'S'; bays: Array<{ dx: number
 
 function escapeFabric(di: NeighborhoodDI): void {
   const byId = new Map(di.buildings.map((b) => [b.id, b]));
+  const panels: EscapePanel[] = [];   // W12: every landing's filigree seat
   for (const job of ESCAPE_JOBS) {
     if (ESCAPE_SKIP.has(job.id)) continue;
     const row = byId.get(job.id);
@@ -303,12 +326,73 @@ function escapeFabric(di: NeighborhoodDI): void {
     for (const bay of job.bays) {
       const bx = s.x + bay.dx;
       if (Math.abs(bay.dx) > s.w / 2 - 1.8) continue; // a bay never leaves its wall
-      pushEscape(g, bx, faceZ, dir, s.h, landYs);
+      pushEscape(g, bx, faceZ, dir, s.h, landYs, panels);
     }
     if (!g.idx.length) continue;
     emit(di, true, `Nbhd_Escape_${job.id}`, g.toGeometry(), true, true);
     di.ledger?.push({ name: `Nbhd_Escape_${job.id}`, x: s.x, y: landYs[0], z: faceZ + dir * 0.55 });
   }
+
+  // ---- the W12 filigree emit ------------------------------------------
+  // The ledger rows are UNCONDITIONAL (the valance law: the placement is
+  // the fabric's truth headless too); the canvas texture + the instanced
+  // mesh are DOM-only (the vitest node env never builds them).
+  for (const p of panels) {
+    di.ledger?.push({
+      name: 'Nbhd_EscapeFiligree',
+      x: +p.x.toFixed(2),
+      y: +(p.y + 0.525).toFixed(3),   // the panel's center (0.11..0.94 band)
+      z: +(p.z - p.dir * 0.05).toFixed(3), // 5 cm behind the rail line
+    });
+  }
+  if (!panels.length || typeof document === 'undefined') return;
+  const PANEL_W = 3.1, PANEL_H = 0.83;
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 128;
+  const g2d = canvas.getContext('2d')!;
+  g2d.clearRect(0, 0, 512, 128);           // transparent: alphaTest cuts it
+  g2d.fillStyle = '#26262e';               // the iron (PAL.ink's neighbor)
+  g2d.strokeStyle = '#26262e';
+  // 19 pickets across 3.1 m (~0.163 m rhythm — the 'finer rhythm' the
+  // ledger asked for against the 0.8 m post spacing), 0.03 m bars
+  const pickets = 19;
+  const step = 512 / pickets;
+  for (let k = 0; k < pickets; k++) {
+    g2d.fillRect(k * step + step / 2 - 2.5, 0, 5, 128);
+  }
+  // the scrollwork: an open iron ring on alternating bays, upper third —
+  // the filigree tell (stroke, not fill: rings read, blobs don't). Ring
+  // centers ride the BAYS between pickets: bay k spans picket k..k+1, so
+  // its center sits at (k+1)*step — the full panel width gets the rhythm.
+  g2d.lineWidth = 3;
+  for (let k = 0; k < pickets - 1; k += 2) {
+    g2d.beginPath();
+    g2d.arc((k + 1) * step, 34, 9, 0, Math.PI * 2);
+    g2d.stroke();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  const filigreeMat = new THREE.MeshLambertMaterial({
+    map: tex, alphaTest: 0.5, side: THREE.DoubleSide,
+  });
+  const mesh = new THREE.InstancedMesh(
+    new THREE.PlaneGeometry(PANEL_W, PANEL_H), filigreeMat, panels.length);
+  mesh.name = 'Nbhd_EscapeFiligree';
+  const m4 = new THREE.Matrix4();
+  const rot = new THREE.Quaternion();
+  const one = new THREE.Vector3(1, 1, 1);
+  for (let k = 0; k < panels.length; k++) {
+    const p = panels[k];
+    rot.setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.dir === 1 ? 0 : Math.PI);
+    m4.compose(
+      new THREE.Vector3(p.x, p.y + 0.525, p.z - p.dir * 0.05), rot, one);
+    mesh.setMatrixAt(k, m4);
+  }
+  mesh.count = panels.length;
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.frustumCulled = false;
+  di.scene.add(mesh);
 }
 
 // ----------------------------------------------- 2. terrace face fabric ----

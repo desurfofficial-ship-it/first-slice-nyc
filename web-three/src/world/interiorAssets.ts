@@ -30,7 +30,7 @@ export interface InteriorSlot {
   /** The interior whose INT_<room> group holds the placeholder; BODEGA's
    *  fixtures live at scene root (the store is always open). */
   readonly room: 'BODEGA' | 'LAUNDRY' | 'BARBER' | 'PIZZA' | 'BAKERY'
-    | 'RECORDS' | 'HALL' | 'DINER' | 'CECIL';
+    | 'RECORDS' | 'HALL' | 'DINER' | 'CECIL' | 'CORNERHOUSE';
   /** The placeholder's name (deep-searched inside the room group). */
   readonly fixture: string;
   /** File under public/ — one program may dress many slots. */
@@ -129,6 +129,22 @@ export const INTERIOR_SLOTS: readonly InteriorSlot[] = [
     file: 'models/apartment_sink.glb' },
   { id: 'cecil_radiator', room: 'CECIL', fixture: 'Cecil_Radiator',
     file: 'models/apartment_radiator.glb' },
+  // ---- CORNERHOUSE-INT — the dry-goods floor (W14) ----
+  // The store reuses the batch's own files: the register rides the
+  // counter's west shoulder (the barber register's slot shape), the
+  // detergent shelf IS the household-goods wall (soap is dry goods), the
+  // soda cooler takes the NE corner, and the stacked crates at the corner
+  // pier are the seasonal table the canon dresses — one file worn twice.
+  { id: 'cornerhouse_register', room: 'CORNERHOUSE', fixture: 'CH_Register',
+    file: 'models/cash_register.glb' },
+  { id: 'cornerhouse_backshelf', room: 'CORNERHOUSE', fixture: 'CH_BackShelf',
+    file: 'models/detergent_shelf.glb' },
+  { id: 'cornerhouse_cooler', room: 'CORNERHOUSE', fixture: 'CH_Cooler',
+    file: 'models/vending_machine.glb' },
+  { id: 'cornerhouse_crate_a', room: 'CORNERHOUSE', fixture: 'CH_Crate_A',
+    file: 'models/produce_crate.glb' },
+  { id: 'cornerhouse_crate_b', room: 'CORNERHOUSE', fixture: 'CH_Crate_B',
+    file: 'models/produce_crate.glb' },
 ];
 
 /** The unique model files the manifest wears (probe + test convenience). */
