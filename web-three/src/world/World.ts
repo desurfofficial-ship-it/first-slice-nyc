@@ -52,6 +52,7 @@ import { makeHVACUnitNYC, makeCorniceBand,
   makeSubwayGlobePost, makeMailboxNYC, makeScaffoldShedNYC, NYC } from './nycKit';
 import { buildSkylineLandmarks } from './skylineLandmarks';
 import { LeafDrift } from './leaves';
+import { SEASON_DRESSING, seasonForCalendarDay, type Season } from './seasonDressing';
 import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
 import { buildSubwaySystem, STATION, ZONE_KEEP_RE, type SubwaySystem, type ColliderSpec } from './subway';
 import { buildTimesSquare, type TimesSquare } from './timesSquare';
@@ -4822,7 +4823,9 @@ export class World {
     for (const [lx, lz, gold, r] of [[-38, 4.6, true, 0.42], [-6, -4.6, false, 0.36], [24, 4.6, true, 0.5],
       [52, -4.6, true, 0.4], [-72, 8.2, false, 0.44], [72, -8.2, true, 0.4], [-20, 36.4, true, 0.46],
       [34, 43.6, true, 0.38], [-44, -36.4, true, 0.42], [14, -43.6, false, 0.36]] as const) {
-      vqAdd(makeLeafPile(this.bank, gold, r, lx, 0.05, lz), 'VQ_LeafPile');
+      const pile = makeLeafPile(this.bank, gold, r, lx, 0.05, lz);
+      vqAdd(pile, 'VQ_LeafPile');
+      this.leafPiles.push(pile); // W16: the season applier shows/hides these
     }
 
     // ---- 9. DOOR LAMPS — the goosenecks over five doors ------------------
@@ -6540,6 +6543,12 @@ export class World {
    *  block, main pass and shadow pass alike — the recorded Doc 07 lever
    *  (docs/47: 63 blob meshes × 2 passes → 4 × 2). */
   private canopyMeshes: Array<THREE.InstancedMesh | null> = [null, null, null, null, null, null];
+  /** W16 — the curb leaf piles (build-time registry; the season applier
+   *  toggles visibility — hidden is fewer draws, never more). */
+  private readonly leafPiles: THREE.Mesh[] = [];
+  /** W16 — the season currently applied to the dressing (idempotence
+   *  law: the same season twice re-applies nothing). */
+  private seasonApplied: Season | null = null;
   /** Per-instance fade alpha (the fade-on-occlude law: ONE tree dissolves,
    *  never the street). Simple rows stay at 1 forever (docs/47 W1 tradeoff). */
   private canopyFade: Array<THREE.InstancedBufferAttribute | null> = [null, null, null, null, null, null];
@@ -8061,6 +8070,32 @@ export class World {
     }
     this.canopyBuilt = true;
     this.updateTreeRows(0);
+  }
+
+  /** W16 — the DEC-6 minimal seasonal pass (register v1.69.0): the
+   *  existing dressing/leaf systems read the R4 calendar's season for
+   *  this `calendar_day` (core/calendar.ts — the one authority; see
+   *  seasonDressing.ts). Idempotent per season, +0 draw calls at every
+   *  season: the six instanced canopy materials recolor in place (the
+   *  W8 species slots), the LeafDrift recolors/thins (one instanced mesh,
+   *  one draw call), the leaf piles show/hide (hidden is fewer draws,
+   *  never more). The shipped days are September → autumn → the shipped
+   *  look byte-identical. Snow/rain stay the priced wave the ruling
+   *  gated; the seasonCut montage stays the chapter machinery's — this
+   *  is the world's own visual consumer of the calendar. Game calls
+   *  this from beginDay (the one seam every boot/day-transition passes). */
+  applySeason(calendarDay: number): Season {
+    const season = seasonForCalendarDay(calendarDay);
+    if (this.seasonApplied === season) return season;
+    this.seasonApplied = season;
+    const d = SEASON_DRESSING[season];
+    for (let k = 0; k < this.canopyMeshes.length; k++) {
+      const m = this.canopyMeshes[k]?.material as THREE.MeshLambertMaterial | undefined;
+      if (m) m.color.setHex(d.canopy[k]);
+    }
+    this.leaves.setSeason(d.driftTints, d.driftFraction);
+    for (const p of this.leafPiles) p.visible = d.pilesVisible;
+    return season;
   }
 
   /** Sway + place every instanced canopy blob (called from updateAmbient).

@@ -42,8 +42,17 @@ export class LeafDrift {
   readonly mesh: THREE.InstancedMesh;
   private leaves: Leaf[] = [];
   private spots: LeafSpot[];
+  private perTree: number;
+  private readonly defaultTints = [0x5d7d4a, 0x516e42, 0x516e42, 0xffb85c];
   private dummy = new THREE.Object3D();
   private color = new THREE.Color();
+  // ---- the season dressing state (W16, the DEC-6 minimal pass) ----
+  // null tints = keep each spot's own palette (the autumn identity: the
+  // turning trees drop gold first); a fraction < 1 hides the surplus
+  // instances per tree by zero-scaling them (the count never changes —
+  // one instanced mesh, one draw call, at every season).
+  private seasonTints: readonly number[] | null = null;
+  private seasonFraction = 1;
 
   /**
    * @param spots one entry per street tree: canopy center, radius, top height
@@ -51,6 +60,7 @@ export class LeafDrift {
    */
   constructor(scene: THREE.Scene, spots: LeafSpot[], perTree = 4) {
     this.spots = spots;
+    this.perTree = Math.max(1, Math.floor(perTree));
     const count = spots.length * perTree;
     const leafGeo = new THREE.BoxGeometry(0.1, 0.012, 0.14);
     const leafMat = new THREE.MeshLambertMaterial({ vertexColors: false });
@@ -64,7 +74,7 @@ export class LeafDrift {
 
     // palette-anchored default tints: the two canopy greens + a golden-hour
     // amber (spots may override with their tree's own palette)
-    const defaultTints = [0x5d7d4a, 0x516e42, 0x516e42, 0xffb85c];
+    const defaultTints = this.defaultTints;
 
     let i = 0;
     for (let s = 0; s < spots.length; s++) {
@@ -80,6 +90,35 @@ export class LeafDrift {
     if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
     this.writeMatrices();
     scene.add(this.mesh);
+  }
+
+  /** W16 — the DEC-6 minimal seasonal pass: recolor + thin this system
+   *  for a season. `tints` null restores each spot's own palette (the
+   *  autumn identity — byte-identical instanceColor with construction);
+   *  `fraction` is the share of each tree's leaves visible, clamped to
+   *  [0.15, 1] — a bare drift reads dead, restraint is the design. The
+   *  mesh count NEVER changes: one instanced mesh, one draw call, at
+   *  every season. Idempotent: the same season twice is the same look. */
+  setSeason(tints: readonly number[] | null, fraction: number): void {
+    this.seasonTints = tints;
+    this.seasonFraction = Math.min(1, Math.max(0.15, fraction));
+    this.recolor();
+    this.writeMatrices();
+  }
+
+  /** The instance colors, from the season's law: the season's own tints
+   *  cycled by index — or, for autumn, each spot's own palette with the
+   *  constructor's exact formula ((i + k) % len), so the shipped turning
+   *  trees drop their gold first, byte-identically. */
+  private recolor(): void {
+    for (let i = 0; i < this.leaves.length; i++) {
+      const s = Math.floor(i / this.perTree);
+      const k = i % this.perTree;
+      const tints = this.seasonTints ?? (this.spots[s].tints ?? this.defaultTints);
+      this.color.setHex(tints[(i + k) % tints.length]);
+      this.mesh.setColorAt(i, this.color);
+    }
+    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
   }
 
   /** The rest height under (x,z): pit soil inside the pit, slab on the
@@ -149,10 +188,14 @@ export class LeafDrift {
   }
 
   private writeMatrices(): void {
+    // the season fraction: per tree, the first `visible` leaf instances
+    // render and the surplus zero-scale (the count never changes)
+    const visible = Math.max(1, Math.round(this.perTree * this.seasonFraction));
     for (let i = 0; i < this.leaves.length; i++) {
       const L = this.leaves[i];
       this.dummy.position.set(L.x, L.y, L.z);
       this.dummy.rotation.copy(L.rot);
+      this.dummy.scale.setScalar(i % this.perTree < visible ? 1 : 0);
       this.dummy.updateMatrix();
       this.mesh.setMatrixAt(i, this.dummy.matrix);
     }
