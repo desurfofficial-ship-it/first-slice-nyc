@@ -57,7 +57,17 @@ x ±68..76 stays avenue corridor (the registry's own roadway bands).
 - The source's facade shaders carry per-window sills, lintels, band courses
   and soot; ours approximate with banded vc boxes. (The sills + lintels
   shipped in W8 on all 28 W6/W7 rows — 104 → 310 pairs; the band courses
-  and soot remain approximated.)
+  and soot remain approximated. → **CLOSED by W13 (2026-11-13)**: the band
+  courses ship as real proud string-course ledges at every mid-floor line
+  on every facade W8 dressed (131 ledges, `makeBandCourse`, PAL.stone), the
+  soot as the carbon plume rising from every dressed window head (310 fans,
+  `makeSoot`, the wear row's `soot` tone) plus the 28 cornice grime shelves
+  under the W6/W7 rooflines — 469 pieces, zero colliders, +0 draw calls
+  (the vertex-color fusion prices plain Lambert free; the census stays 190).
+  The never-crossing law holds: a band never crosses a window on its own
+  facade (the grammar's own pitch guarantees ≥ 1.3 m clearance). Evidence:
+  `web-three/shots/world-visual-quality/vq-band-soot-grb.png` and
+  `vq-band-soot-terrace.png`.)
 
 ## 5. Files
 

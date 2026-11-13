@@ -38,7 +38,7 @@ import { INTERIOR_SLOTS } from './interiorAssets';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
 import { makeCornice, makeBrickover, makeDownspout, makeRoofClutter, makeGrassTufts,
   makeLeafPile, makeManhole, makeStormDrain, makePatch, makeStopLine, makeSill,
-  makeLintel, makeGooseneck, WEAR } from './facadeKit';
+  makeLintel, makeBandCourse, makeSoot, makeGooseneck, WEAR } from './facadeKit';
 // SI (2026-11-11): the borough-character kit — architectural and street
 // details PORTED from mrdoob/slop-newyork (MIT) and rebuilt in the
 // facadeKit convention. Provenance and part-by-part mapping:
@@ -4595,12 +4595,15 @@ export class World {
     for (const regId of ['GRB-01', 'GRB-02', 'GRB-03', 'GRB-04', 'GRB-05']) {
       const reg = this.regShell(regId);
       const faceZ = reg.z + reg.d / 2 + 0.14;
+      const sootZ = reg.z + reg.d / 2 + 0.09;
       for (const wx of [reg.x - 1.7, reg.x + 1.7]) {
         vqAdd(makeSill(this.bank, 1.3, wx, 4.6 - 1.1 - 0.05, faceZ), 'VQ_Sill');
         vqAdd(makeLintel(this.bank, 1.3, wx, 4.6 + 1.1 + 0.07, faceZ), 'VQ_Lintel');
+        vqAdd(makeSoot(this.bank, 1.2, 0.65, wx, 5.7 + 0.32, sootZ), 'VQ_Soot');
         for (const wy of [7.4, 10.2]) {
           vqAdd(makeSill(this.bank, 1.1, wx, wy - 0.8 - 0.05, faceZ), 'VQ_Sill');
           vqAdd(makeLintel(this.bank, 1.1, wx, wy + 0.8 + 0.07, faceZ), 'VQ_Lintel');
+          vqAdd(makeSoot(this.bank, 1.1, 0.65, wx, wy + 0.8 + 0.32, sootZ), 'VQ_Soot');
         }
       }
     }
@@ -4613,6 +4616,7 @@ export class World {
           const wy = 3.4 + f * 2.6;
           vqAdd(makeSill(this.bank, 1.1, wx, wy - 0.8 - 0.05, ten.z + ten.d / 2 + 0.16), 'VQ_Sill');
           vqAdd(makeLintel(this.bank, 1.1, wx, wy + 0.8 + 0.07, ten.z + ten.d / 2 + 0.16), 'VQ_Lintel');
+          vqAdd(makeSoot(this.bank, 1.1, 0.65, wx, wy + 0.8 + 0.32, ten.z + ten.d / 2 + 0.11), 'VQ_Soot');
         }
       }
     }
@@ -4623,6 +4627,7 @@ export class World {
         const wx = s.x - s.w / 2 + 1.6 + c * 3.4, wy = 7.2 + f * 2.9;
         vqAdd(makeSill(this.bank, 1.2, wx, wy - 0.8 - 0.05, faceZ), 'VQ_Sill');
         vqAdd(makeLintel(this.bank, 1.2, wx, wy + 0.8 + 0.07, faceZ), 'VQ_Lintel');
+        vqAdd(makeSoot(this.bank, 1.2, 0.65, wx, wy + 0.8 + 0.32, s.z - s.d / 2 - 0.11), 'VQ_Soot');
       }
     }
     for (const regId of ['PWK-01', 'PWK-02', 'PWK-03']) {
@@ -4632,6 +4637,7 @@ export class World {
         const wx = s.x - s.w / 2 + 1.5 + c * ((s.w - 3) / 2), wy = 3.4 + f * 2.9;
         vqAdd(makeSill(this.bank, 1.1, wx, wy - 0.85 - 0.05, faceZ), 'VQ_Sill');
         vqAdd(makeLintel(this.bank, 1.1, wx, wy + 0.85 + 0.07, faceZ), 'VQ_Lintel');
+        vqAdd(makeSoot(this.bank, 1.1, 0.65, wx, wy + 0.85 + 0.32, s.z - s.d / 2 + 0.09), 'VQ_Soot');
       }
     }
 
@@ -4654,17 +4660,72 @@ export class World {
       const row = loadRegistry().building(regId);
       const ent = row?.entrance?.[0];
       const faceSign = ent?.faces === 'N' ? 1 : -1;
-      const faceZ = (ent?.faces === 'N' ? reg.z + reg.d / 2 : reg.z - reg.d / 2) + faceSign * 0.14;
+      const wallZ = ent?.faces === 'N' ? reg.z + reg.d / 2 : reg.z - reg.d / 2;
+      const faceZ = wallZ + faceSign * 0.14;
+      const sootZ = wallZ + faceSign * 0.09;
       const floors = Math.max(2, Math.round(reg.h / 3.3));
       const cols = reg.w >= 7 ? 2 : 1;
+      const pitch = (reg.h - 1.2) / floors;
       for (let f = 0; f < floors; f++) {
         for (let c = 0; c < cols; c++) {
           const wx = reg.x - reg.w / 2 + (reg.w / (cols + 1)) * (c + 1);
-          const wy = 3.4 + f * ((reg.h - 1.2) / floors);
+          const wy = 3.4 + f * pitch;
           if (wy > reg.h - 1.0) continue;
           vqAdd(makeSill(this.bank, 1.15, wx, wy - 0.8 - 0.05, faceZ), 'VQ_Sill');
           vqAdd(makeLintel(this.bank, 1.15, wx, wy + 0.8 + 0.07, faceZ), 'VQ_Lintel');
+          vqAdd(makeSoot(this.bank, 1.15, 0.65, wx, wy + 0.8 + 0.32, sootZ), 'VQ_Soot');
         }
+      }
+      // the cornice grime line — the soot shelf the rain never washes
+      if (reg.h >= 5) {
+        vqAdd(makeSoot(this.bank, reg.w - 0.6, 0.22, reg.x, reg.h - 0.7, sootZ), 'VQ_Soot_CorniceLine');
+      }
+    }
+
+    // ---- 4b. W13 (2026-11-13): BAND COURSES — the string-course ledges --
+    // The honest ledger's last approximation closes: the source's facade
+    // shaders draw band courses per facade; ours now carry the real proud
+    // ledge at every mid-floor line on every facade W8 dressed with sills
+    // (a band between each pair of window rows — never crossing a window:
+    // the mid-floor line clears the lintel zone by ≥ 0.2 m at the grammar's
+    // own pitch). Same seat law as the sills (wall plane + 0.14, the box's
+    // 0.09 depth the projection), PAL.stone — the cornice anchor. The GRB
+    // parlor's own mid-floor line (6.0) doubles as the classic base string.
+    const bandSeat = (z: number, sign: number): number => z + sign * 0.14;
+    for (const regId of ['GRB-01', 'GRB-02', 'GRB-03', 'GRB-04', 'GRB-05']) {
+      const reg = this.regShell(regId);
+      for (const by of [6.0, 8.8]) {
+        vqAdd(makeBandCourse(this.bank, reg.w - 1.0, reg.x, by, bandSeat(reg.z + reg.d / 2, 1)), 'VQ_BandCourse');
+      }
+    }
+    for (const x0 of [ten.x - ten.w / 2, ten.x + 0.5]) {
+      const cx = x0 + tenLotW / 2;
+      for (let f = 0; f < 4; f++) {
+        vqAdd(makeBandCourse(this.bank, tenLotW - 0.4, cx, 3.4 + 1.3 + f * 2.6, bandSeat(ten.z + ten.d / 2, 1)), 'VQ_BandCourse');
+      }
+    }
+    for (const regId of ['KTN-00W', 'KTN-06']) {
+      const s = this.regShell(regId);
+      for (const by of [8.65, 11.55]) {
+        vqAdd(makeBandCourse(this.bank, s.w - 1.0, s.x, by, bandSeat(s.z - s.d / 2, -1)), 'VQ_BandCourse');
+      }
+    }
+    for (const regId of ['PWK-01', 'PWK-02', 'PWK-03']) {
+      const s = this.regShell(regId);
+      for (let f = 0; f < 3; f++) {
+        vqAdd(makeBandCourse(this.bank, s.w - 1.0, s.x, 3.4 + 1.45 + f * 2.9, bandSeat(s.z - s.d / 2, -1)), 'VQ_BandCourse');
+      }
+    }
+    for (const regId of W6W7_ROWS) {
+      const reg = this.regShell(regId);
+      const row = loadRegistry().building(regId);
+      const ent = row?.entrance?.[0];
+      const faceSign = ent?.faces === 'N' ? 1 : -1;
+      const wallZ = ent?.faces === 'N' ? reg.z + reg.d / 2 : reg.z - reg.d / 2;
+      const floors = Math.max(2, Math.round(reg.h / 3.3));
+      const pitch = (reg.h - 1.2) / floors;
+      for (let f = 0; f < floors - 1; f++) {
+        vqAdd(makeBandCourse(this.bank, reg.w - 1.0, reg.x, 3.4 + (f + 0.5) * pitch, bandSeat(wallZ, faceSign)), 'VQ_BandCourse');
       }
     }
 

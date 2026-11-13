@@ -34,6 +34,8 @@ export const WEAR = {
   patchDark: 0x43404c,  // PAL.road darkened — the asphalt patch row
   stain: 0x3f3b47,      // PAL.road darkened further — oil stains
   vent: 0x6e554e,       // the stoop-door brown, re-homed as aged copper
+  soot: 0x2e2b34,       // PAL.road's deepest wear — the carbon plume
+                        // (below stain; the coal-era grime on brick)
 } as const;
 
 // ---- shared unit geometries (kit-local, lazily built) ----------------------
@@ -182,6 +184,32 @@ export function makeLintel(bank: MatBank, w: number, x: number, y: number, z: nu
   const m = place(box(), bank.get(PAL.stone), w + 0.12, 0.14, 0.12, x, y, z);
   m.rotation.y = rotY;
   m.name = 'VQ_Lintel';
+  return m;
+}
+
+/** W13: a stone band course (string course) — the proud floor-line ledge
+ *  that breaks a tall facade into floors, the pre-war tell the source's
+ *  facade shaders draw. 0.18 tall × 0.09 proud, PAL.stone — the cornice
+ *  anchor — seated ON the wall face plane like the sills (the caller
+ *  gives the seat; the box's depth is the projection). Never crosses a
+ *  window: the caller places it at the mid-floor line between rows. */
+export function makeBandCourse(bank: MatBank, len: number, x: number, y: number, z: number, rotY = 0): THREE.Mesh {
+  const m = place(box(), bank.get(PAL.stone), len, 0.18, 0.09, x, y, z);
+  m.rotation.y = rotY;
+  m.name = 'VQ_BandCourse';
+  return m;
+}
+
+/** W13: soot weathering — the carbon plume that rises from a window head
+ *  (the coal-era tell the source's shaders paint per window) or the grime
+ *  line under a cornice. A 3 cm proud plate in the wear row's soot tone;
+ *  it seats BEHIND every proud dressing (lintels project 0.12, band
+ *  courses 0.09, soot 0.03) so the layering reads: grime on the wall,
+ *  stone in front of it. Plain Lambert, non-transparent — bakeable. */
+export function makeSoot(bank: MatBank, w: number, h: number, x: number, y: number, z: number, rotY = 0): THREE.Mesh {
+  const m = place(box(), bank.get(WEAR.soot), w, h, 0.03, x, y, z);
+  m.rotation.y = rotY;
+  m.name = 'VQ_Soot';
   return m;
 }
 

@@ -50,10 +50,25 @@ const out = await page.evaluate(() => {
   const cellZ = (cz) => Z0 + cz * H;
 
   // -- mark blocked cells: dilate every blocking box by the capsule radius
+  // (2026-11-13, the W13 finding: the census must measure the MAP, not the
+  // living world's moment. The movers' own boxes — the M121's busCollider,
+  // the street cab's taxiCollider, and the seven cast bodies (Rosa, Idris,
+  // the kid, the cart customer, the stranger, Sal, the familiar face) —
+  // walk the floor at sample time: the bus at the stop pinch stranded the
+  // ~9 cells beyond it, the cast moved other cells, and the scan
+  // flip-flopped 41,857 / 41,866 run-to-run with the SAME box count, traps
+  // and POIs. The movers are excluded BY IDENTITY from here on — they are
+  // traffic and people, the map's connectivity is the map. The stateful
+  // statics (stool, barrier) stay: they are parked underground until their
+  // day makes them real, so a fresh boot reads them absent, deterministically.)
+  const MOVERS = [w.busCollider, w.taxiCollider, w.rosaCollider, w.idrisCollider, w.kidCollider,
+    w.customerCollider, w.strangerCollider, w.salCollider, w.familiarCollider,
+    ...((w.peds && w.peds.walkColliders) || [])].filter(Boolean);
   const blocked = new Uint8Array(NX * NZ);
   const boxName = new Map();           // cell -> first sealing box tag
   let nb = 0;
   for (const b of w.colliders) {
+    if (MOVERS.includes(b)) continue;
     if (b.maxY <= STEP || b.minY >= YHI) continue;
     nb++;
     const cx0 = Math.max(0, Math.floor((b.minX - R - X0) / H));
