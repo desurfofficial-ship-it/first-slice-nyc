@@ -14,13 +14,13 @@
 
 | | |
 |---|---|
-| **Milestone** | World-map construction (W0–W14) + the evidence package (the shot list, the labelled top-down, the 3D overview) |
+| **Milestone** | World-map construction (W0–W14) + the evidence package (the shot list, the labelled top-down, the 3D overview); the concurrent line's W15–W17 wave (the DEC-6 + DEC-12 rulings, the W16 minimal seasonal pass, the W17 borough design package draft) joined by merge |
 | **Phase** | Vertical Slice production — narrative reboot canon (v1.0, 2026-11-06) |
-| **Registry version** | v1.68.0 (the W14 Corner House interior wave, 2026-11-13 — renumbered past the parallel line's DEC-8 v1.66.0 + the splice-fix v1.67.0, the monotonic-ledger law) |
+| **Registry version** | v1.71.0 (the register's top — W17 the borough design package draft; the monotonic-ledger law; the W14 Corner House row sits at v1.68.0, the W15 rulings at v1.69.0, the W16 seasonal pass at v1.70.0 — see `docs/production/PRODUCTION-STATUS-REGISTER.md` for the authoritative rows) |
 | **Implementation phase** | **Complete for the vertical slice.** All 179 registry IDs built. All 22 interiors shipped (the Corner House's CORNERHOUSE-INT closed the last openDecision in W14). All 7 parks built. All 23 anchors placed. The walkability scanner reads clean and deterministic. The evidence package (the §6 shot list, the labelled top-down map, the golden-hour overview) is captured from the real built game. |
 | **Branch (local clone)** | `main` |
-| **Latest commit hash** | `bcebb6e` (PUSHED — verified `git ls-remote` == HEAD) — the W14 Corner House wave `98d87a9` + the merge `bcebb6e` (the concurrent DEC-8 line joined; the register renumbered v1.68.0 per the monotonic-ledger law) |
-| **Commit subject** | `feat(world-map): W14 — the Corner House interior (register v1.68.0): the registry's last openDecision closes on the owner's confirmation` |
+| **Latest commit hash** | `e2c27b4` — the remote tip at the 2026-11-13 sync (verified `git ls-remote` == HEAD after the fast-forward); the concurrent line merged our W14 Corner House push (fade4f9, our line rides theirs as dc5200f) and landed W15/W16/W17 on top; this record rides the same push |
+| **Commit subject** | `Merge feat/wp-dec6-seasonal-borough-direction into main — the DEC-6/DEC-12 wave line (register v1.69.0–v1.71.0)` |
 | **Commit date** | 2026-11-13 (UTC) |
 | **Remote** | `https://github.com/desurfofficial-ship-it/first-slice-nyc.git` (public; read-only clone needs no credentials; the push rides the owner's fine-grained PAT — it needs the repo's Contents:write grant) |
 
