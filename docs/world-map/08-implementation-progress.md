@@ -19,8 +19,8 @@
 | **Registry version** | v1.68.0 (the W14 Corner House interior wave, 2026-11-13 — renumbered past the parallel line's DEC-8 v1.66.0 + the splice-fix v1.67.0, the monotonic-ledger law) |
 | **Implementation phase** | **Complete for the vertical slice.** All 179 registry IDs built. All 22 interiors shipped (the Corner House's CORNERHOUSE-INT closed the last openDecision in W14). All 7 parks built. All 23 anchors placed. The walkability scanner reads clean and deterministic. The evidence package (the §6 shot list, the labelled top-down map, the golden-hour overview) is captured from the real built game. |
 | **Branch (local clone)** | `main` |
-| **Latest commit hash** | the WORLDMAP-EVIDENCE commit on top of the merged line `ae6a927` (the W13 merge) ← `6b58870` (the 240-commit merge) |
-| **Commit subject** | `feat(world-map): the evidence tranche — the §6 shot list captured from the real game (one boot, the honest ride, zero page errors), the labelled top-down map, the golden-hour overview; 07/08 ticked to the new truth` |
+| **Latest commit hash** | `bcebb6e` (PUSHED — verified `git ls-remote` == HEAD) — the W14 Corner House wave `98d87a9` + the merge `bcebb6e` (the concurrent DEC-8 line joined; the register renumbered v1.68.0 per the monotonic-ledger law) |
+| **Commit subject** | `feat(world-map): W14 — the Corner House interior (register v1.68.0): the registry's last openDecision closes on the owner's confirmation` |
 | **Commit date** | 2026-11-13 (UTC) |
 | **Remote** | `https://github.com/desurfofficial-ship-it/first-slice-nyc.git` (public; read-only clone needs no credentials; the push rides the owner's fine-grained PAT — it needs the repo's Contents:write grant) |
 
