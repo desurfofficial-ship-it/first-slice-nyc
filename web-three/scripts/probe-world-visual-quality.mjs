@@ -95,6 +95,66 @@ check('ghost signs: five painted panels', n('VQ_GhostSign') === 5, `${n('VQ_Ghos
 check('sills: 310 stone sills on the proud-window rows', n('VQ_Sill') === 310, `${n('VQ_Sill')}`);
 check('lintels: 310 stone lintels', n('VQ_Lintel') === 310, `${n('VQ_Lintel')}`);
 
+// 4b. W13 (2026-11-13) — BAND COURSES + SOOT: the honest ledger's last
+// approximation closes (the source's facade shaders draw per-window band
+// courses and soot; ours now carry the real pieces). The census mirrors
+// the window grammar exactly:
+//   soot fans     = 310 — one per dressed window (the sill census's own
+//                 number: GRB 30 + TEN 20 + corner houses 18 + walk-ups 36
+//                 + the 28 shared-grammar rows' 206);
+//   cornice lines = 28 — one grime shelf under each W6/W7 row's roofline;
+//   band courses  = 131 — one proud ledge per mid-floor line (GRB 10 +
+//                 TEN 8 + corner houses 4 + walk-ups 9 + the 28 rows' 100).
+check('soot fans: 310 carbon plumes, one per dressed window',
+  ledger.rows.filter((r) => r.name === 'VQ_Soot').length === 310,
+  `${ledger.rows.filter((r) => r.name === 'VQ_Soot').length} (the cornice lines count separately)`);
+check('cornice grime: 28 soot shelves under the W6/W7 rooflines', n('VQ_Soot_CorniceLine') === 28, `${n('VQ_Soot_CorniceLine')}`);
+check('band courses: 131 stone string-course ledges', n('VQ_BandCourse') === 131, `${n('VQ_BandCourse')}`);
+// the seat law — grime rides BEHIND the stone (soot 0.09 proud of the
+// wall plane, the sill/lintel seat 0.14): spot the GRB row's planes.
+const grbSoot = ledger.rows.find((r) => r.name === 'VQ_Soot' && r.x === -44.3 && Math.abs(r.y - 6.02) < 0.01);
+check('soot seat: the GRB parlor plume rides behind the sill plane (32.09)', grbSoot && Math.abs(grbSoot.z - 32.09) < 0.001, JSON.stringify(grbSoot));
+const grbBand = ledger.rows.find((r) => r.name === 'VQ_BandCourse' && r.x === -42.6 && r.y === 6.0);
+check('band seat: the GRB base string rides the sill plane (32.14)', grbBand && Math.abs(grbBand.z - 32.14) < 0.001, JSON.stringify(grbBand));
+// the never-crossing law — a band course may never cross a window ON ITS
+// OWN FACADE (the terrace rows share one z-plane, so the ledger's z alone
+// cannot tell rows apart — the law is mirrored from the registry instead,
+// the same grammar per row: windows at wy, bands at the mid-floor lines
+// between them; the pitch's own arithmetic guarantees ≥ 1.3 m clearance).
+const registry = JSON.parse(readFileSync(new URL('../../docs/data/world-registry.json', import.meta.url), 'utf8'));
+const shellOf = (id) => registry.buildings.find((b) => b.id === id);
+const crossing = (() => {
+  let worst = Infinity;
+  const rowOf = (id, floorsOverride) => {
+    const b = shellOf(id);
+    const h = b.height;
+    const floors = floorsOverride ?? Math.max(2, Math.round(h / 3.3));
+    const pitch = (h - 1.2) / floors;
+    const wys = [];
+    for (let f = 0; f < floors; f++) {
+      const wy = 3.4 + f * pitch;
+      if (wy > h - 1.0) continue;
+      wys.push(wy);
+    }
+    const bandYs = [];
+    for (let f = 0; f < floors - 1; f++) bandYs.push(3.4 + (f + 0.5) * pitch);
+    return { wys, bandYs };
+  };
+  const rows = [
+    ...['GRB-01', 'GRB-02', 'GRB-03', 'GRB-04', 'GRB-05'].map((id) => ({ wys: [4.61, 7.4, 10.2], bandYs: [6.0, 8.8] })),
+    ...[0, 1].map(() => rowOf('TEN-01', 5)),
+    ...['KTN-00W', 'KTN-06'].map((id) => ({ wys: [7.2, 10.1, 13.0], bandYs: [8.65, 11.55] })),
+    ...['PWK-01', 'PWK-02', 'PWK-03'].map((id) => ({ wys: [3.4, 6.3, 9.2, 12.1], bandYs: [4.85, 7.75, 10.65] })),
+    ...['GRB-06', 'GRB-07', 'TEN-02', 'KTS-04', 'GRB-08', 'GRB-09', 'GRB-10', 'GRB-11', 'GRB-12', 'GRB-13', 'GRB-14', 'GRB-15',
+      'KTN-08', 'KTN-09', 'KTN-10', 'KTN-11',
+      'KTS-05', 'KTS-06', 'KTS-07', 'KTS-08', 'KTS-09', 'KTS-10',
+      'TEN-03', 'TEN-04', 'MRW-01', 'MRW-02', 'MRW-03', 'MRW-04'].map((id) => rowOf(id)),
+  ];
+  for (const r of rows) for (const wy of r.wys) for (const by of r.bandYs) worst = Math.min(worst, Math.abs(by - wy));
+  return worst;
+})();
+check('band law: no band course crosses a window (min clearance ≥ 1.0)', crossing >= 1.0, `min clearance ${crossing.toFixed(2)}`);
+
 // 5. AC UNITS
 check('AC units: ≥ 20 hanging under verified sills', n('VQ_AC') >= 20, `${n('VQ_AC')}`);
 
@@ -149,6 +209,11 @@ const shots = [
   ['vq-roofline.png', [-10, 22, 8], [30, 4, -14]],
   ['vq-juniper-ghost.png', [-64, 2.6, 0], [-72, 2.0, 14]],
   ['vq-marlow-row.png', [-40, 2.2, -40.5], [-24, 2.6, -30]],
+  // W13 (2026-11-13): the band-course + soot evidence — the GRB row's
+  // north face reads string courses at the floor lines, the soot plumes
+  // rising from the window heads behind them, the stone in front.
+  ['vq-band-soot-grb.png', [-42.6, 4.2, 41], [-42.6, 6.5, 32]],
+  ['vq-band-soot-terrace.png', [-64, 5.5, 41], [-64, 7.5, 48.4]],
 ];
 for (const [out, cam, look] of shots) {
   await page.evaluate(({ cam, look }) => {
