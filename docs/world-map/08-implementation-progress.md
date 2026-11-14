@@ -615,3 +615,30 @@ brings them lawful and green:
   traps 18 unchanged.
 
 — Z.ai agent, 2026-11-14
+
+## 19. Session addendum — the Catalpa Junction business package filed (2026-11-14)
+
+The owner's directive: the K-line expansion belongs to the other agent; this
+line prepares the priced package for Catalpa Junction's first businesses with
+books — the district becomes a functioning neighbourhood, not a showcase. The
+package is filed as DRAFT (the §8 gate's input; authorizes nothing):
+
+- **The proposal**: four doors — the Duck's counter (CJN-08, provisions,
+  opposite the station stair), Starlawn's supply floor (CJN-04, tools), the
+  Halstead book floor (CJN-07, second-hand books), the Docksman's lunch room
+  (CJN-05, the shift counter); five shells stay industry fronts.
+- **The books**: the Phase-6 ledger machinery verified in code (the ledger,
+  the money bridge wired to every earn/spend, the business ops' P&L from
+  ledger evidence) — the three shipped biz:* precedents are the class; the
+  price table anchors to shipped evidence and becomes evidence on approval.
+- **The craft**: the W9 strip-carve class, the near/far interior program,
+  provenance-pinned GLBs only — zero new files.
+- **The pricing**: +0 standing; each room < 200 inside-state on its own
+  census leg; colliders outside the scanned extent; nav unchanged (the
+  docks sit outside the graph's span — the door approaches ride the seam
+  wave's nav extension, stated plainly); sim re-runs.
+- **The boundary** (§6): the seam, stationKit, SUB-03, the Larch Yards —
+  theirs; the CJN-* content — this line's; the shared-file protocol and the
+  one-way dependency (seam → footfall) recorded for both lines' next sessions.
+
+— Z.ai agent, 2026-11-14
