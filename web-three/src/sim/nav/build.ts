@@ -55,9 +55,13 @@ const LANES: Record<string, Array<{ side: 'N' | 'S' | 'W' | 'E'; off: number }>>
   // from the registry, the lane law validates against its bands)
   'STR-SPUR': [{ side: 'W', off: 148 }, { side: 'E', off: 155.5 }],      // R-SPUR-W/E: the bed's walk lanes (the track strip owns 151..153; off the 6 m grid — the junction law)
   'STR-LARCH': [{ side: 'W', off: 221.5 }, { side: 'E', off: 234.5 }],   // R-LARCH-W/E (off the 6 m grid)
+  // W-N1 (2026-11-14): the Willow Rows' lanes (the registry's R-WILLOW-*/
+  // R-CHESTNUT-* rows; off the 6 m grid — the junction law)
+  'STR-WILLOW': [{ side: 'W', off: -238 }, { side: 'E', off: -226 }],    // R-WILLOW-W/E
+  'STR-CHESTNUT': [{ side: 'W', off: -154 }, { side: 'E', off: -142 }],  // R-CHESTNUT-W/E
 };
 
-const X_SPAN: [number, number] = [-100, 252]; // EW lanes' extent (registry spanX — W7 grew the ends ±84 → ±100; W-C5 Kestrel runs to Catalpa's Larch end)
+const X_SPAN: [number, number] = [-280, 252]; // EW lanes' extent (registry spanX — W-N1 grew the west end −100 → −280: the Willow Rows are walked)
 const Z_SPAN: [number, number] = [-48, 48];  // NS spines' extent (the district's content extent; the W6/W7 strips beyond ±48 stay player-only — the shipped law)
 const GRID_STEP = 6;          // spine node spacing (m)
 const WALKER_CLEAR = 0.55;    // lane-vs-footprint clearance (m)

@@ -32,7 +32,7 @@ import { ChokepointGate, capacityForEdge, type CapacityCounters } from './capaci
  *  W7: the E–W streets grew their ends ±84 → ±100 (the Westgate/Eastgate
  *  strips are real rows now), so the walked extent follows the registry's
  *  own spanX; z stays ±48 (the strips beyond it are player-only walks). */
-const NAV_BOUNDS = { xMin: -100, xMax: 252, zMin: -48, zMax: 48 }; // W-C5: the bounds follow the registry's grown core (Catalpa Junction is walked now)
+const NAV_BOUNDS = { xMin: -280, xMax: 252, zMin: -48, zMax: 48 }; // W-N1: the bounds follow the registry's grown core west (the Willow Rows are walked; the canyon + the docks keep no lanes — no registry streets there, the walkers stay east of −280, the PLAYER walks everywhere)
 
 export class Navigation {
   readonly graph: NavGraph;

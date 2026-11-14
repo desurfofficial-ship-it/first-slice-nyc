@@ -156,3 +156,32 @@ its phase row's content. Follow the same discipline.
 > recorded in the fenestra doc §9). §2's next task is now the
 > M121/taxi routes east (the W-C6 wave completed the eastbound ride and
 > re-pointed §2 itself).
+
+> **ADDENDUM (2026-11-14, the West Reach wave — register v1.83.0):**
+> the master continuation directive's corridor is BUILT — the Willow Rows
+> (x −280..−100), the Junction Mews (the docks' surface door) and the
+> transit east (the M121's east leg + the taxi's east rail). **The world
+> is ONE walkable surface now: the docks ⇄ Times Square ⇄ the Willow
+> Rows ⇄ Alder Heights ⇄ the Larch Yards** (the pocket scan's spawn
+> component spans x −448..+250; the walk probe crosses it end to end).
+> Read docs/world-building/west-reach-design.md (the district's own
+> specification) + BUILD_STATUS's W-N0..N3 record first. The laws this
+> wave added: **the bake-center pricing law** (a mesh bakes into its
+> CENTER's column — the corridor's masses bake west of column 4; the
+> spawn-lit garden band carries only the garden's own batches, no
+> bank-material furniture); **the axis law** (a crosswalk row that
+> crosses an avenue carries `axis: 'NS'` — the nav crossing derivation
+> reads it; a missing axis splits the graph); **the ground-pair law**
+> (each district keeps its OWN merged paving pair — small bounding
+> spheres let frustum culling drop the far district's ground for free;
+> a spine-wide merge measured +2 standing and reverted); **the sign
+> law** (canvas signs ride their lattice columns via
+> registerDistrictObject — mapped materials leave the bake, the district
+> pass must own their visibility); **the boot-pose law** (a leg
+> insertion re-indexes busState's boot leg — the shipped frame stays
+> byte-identical). §2's next priced wave: the corridor's ambient walker
+> loops (the WP-EAST pattern; the lanes exist), then the K-line's west
+> platform stub ride (the CJN-SUB seam — the K-line agent's territory,
+> coordinate first). The fences close the docks' walk band at z −56/52
+> (the zone's own edges) — do not remove them without extending the
+> catalpaSurface zone with them.

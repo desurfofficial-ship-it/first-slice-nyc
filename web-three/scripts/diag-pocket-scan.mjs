@@ -44,8 +44,11 @@ const out = await page.evaluate(() => {
   const H = 0.5;                       // grid step
   // W-C5: the grid follows the registry's grown core (x +252 — Catalpa
   // Junction is scanned now; the standing gate grows with the map)
-  const X0 = -99.75, Z0 = -63.75;
-  const NX = Math.round((251.75 - X0) / H) + 1;  // 704
+  // W-N1/W-N2: the core grew west to x −450 — the Willow Rows corridor +
+  // the canyon + the docks are one walkable surface now (the mews connects
+  // them); the scan prices the whole walked world
+  const X0 = -449.75, Z0 = -63.75;
+  const NX = Math.round((251.75 - X0) / H) + 1;  // 1404
   const NZ = Math.round((63.75 - Z0) / H) + 1;   // 256
   const idx = (cx, cz) => cz * NX + cx;
   const cellX = (cx) => X0 + cx * H;

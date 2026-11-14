@@ -321,7 +321,12 @@ const SKY_ROWS: SkyRow[] = [
   // the old ground (the district spans x +100..+252); the row that stood at
   // +122 was standing IN the district's blocks. The registry's own
   // bounds.skylineCards row led the move; the fabric follows it.
-  { key: 'W', axis: 'z', at: -122, from: -64, to: 64, faceSign: +1, seed: 0x51C9, glassBias: 0.22, boostMid: true },
+  // W-N1 (2026-11-14): the W row moves −122 → −466 the same way — the
+  // Willow Rows took the old ground (the corridor spans x −280..−100);
+  // −466 sits behind the Catalpa docks' west faces, 10 m east of the
+  // SKY-TS-W rim: from Alder the west horizon reads above the docks'
+  // rooflines, and the row never stands inside built content.
+  { key: 'W', axis: 'z', at: -466, from: -64, to: 64, faceSign: +1, seed: 0x51C9, glassBias: 0.22, boostMid: true },
   { key: 'E', axis: 'z', at: +262, from: -64, to: 64, faceSign: -1, seed: 0x52C9, glassBias: 0.22, boostMid: true },
   { key: 'S', axis: 'x', at: -88, from: -140, to: 96, faceSign: +1, seed: 0x53C9, glassBias: 0.45, boostMid: false },
   { key: 'N', axis: 'x', at: +104, from: -80, to: 80, faceSign: -1, seed: 0x54C9, glassBias: 0.3, boostMid: false },

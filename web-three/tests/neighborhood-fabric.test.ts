@@ -311,7 +311,11 @@ describe('neighborhood fabric — the W7 gate-row fabric (docs/production/westga
       expect(b!.entrance?.length ?? 0).toBeGreaterThan(0);
     }
     const bounds = (doc.doc.bounds ?? {}) as { playableCore?: { xMin: number; xMax: number; zMin: number; zMax: number } };
-    expect(bounds.playableCore?.xMin).toBe(-100);
+    // W-N1 (2026-11-14): the core grew west to x −450 — the Willow Rows
+    // corridor + Times Square + the Catalpa docks are one walkable surface
+    // now (the master continuation directive). The old W7 pin (xMin −100)
+    // grew with the map, the W-C0 east precedent.
+    expect(bounds.playableCore?.xMin).toBe(-450);
     // W-C0 (2026-11-14): the core grew east to x +252 — Catalpa Junction is
     // real rows now (the DEC-12 district, the owner's master build
     // authorization). The old W7 pin (xMax 100) grew with the map.

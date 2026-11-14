@@ -264,8 +264,12 @@ describe('the armed roster (headless, real graph, real walkers)', () => {
     // the world's epoch at arm time
     const e0 = ctx.epoch();
     expect(peds.commuteStateOf(0)!.epoch).toBe(e0);
-    // ~90 s of ambient time: walkers route across the block and arrive
-    run(peds, 2700);
+    // ~3 min of ambient time: walkers route across the block and arrive.
+    // W-N1: the block grew west (the Willow Rows corridor, x −280) — the
+    // destination set grew with the graph, a seeded pick can now be a
+    // ~300 m corridor commute, and the shipped 90 s window no longer
+    // guarantees an arrival. The window grows with the world it proves.
+    run(peds, 5400);
     const walked = peds.commutesWalked();
     expect(walked).toBeGreaterThan(0); // somebody actually arrived somewhere
     const states = [0, 1, 2].map((i) => peds.commuteStateOf(i)!);

@@ -4427,3 +4427,22 @@ Stage Summary:
   freight bed between the viaduct's columns, a local on the Kestrel East
   walk with the crane behind — both evidence-shot, both law-pinned, the
   spawn census byte-identical, 1,783 tests green.
+---
+Task ID: master-west-reach
+Agent: Lead Open-World Architect (Z.ai)
+Task: the master continuation directive — "COMPLETE THE OPEN WORLD — FULL GEOGRAPHICAL EXPANSION AND INTEGRATION" (the owner's 2026-11-14 directive + the mid-session confirmation: "You have broad authorisation to continue geographical construction without waiting for me between districts").
+
+Work Log:
+- M0 audit on the integrated tree: registry v1.82.0, census 192/200, battery 1,783/1,783; the geography mapped (the docks zone-gated, Times Square ride-only, x −280..−100 void); the governance read (DEC-8/12/13, AGENTS.md §8 — the directive IS the fresh gate).
+- W-N0: scripts/world_building/wn0_registry.py — the self-verifying registry patch (two self-check catches before the write; the crosswalk axis law learned from a nine-component nav graph).
+- W-N1: westReachKit.ts + the lattice growth (20 cols) + the walls + the far-read pair + the sky far-plane fix (the shipped-latent west-sky clip).
+- W-N2: buildJunctionMews — the docks' surface door (zone-owned, +0 standing).
+- W-N3: wn3_transit.py + the M121's east out-and-back + the taxi's east rail + the boot-pose re-index.
+- The pricing loop: 202 → attribution (the hide-test sweep) → 194. The bus's boot pose, the sign gating, the garden's vc furniture, the reverted ground merge.
+- The evidence: probe-westreach-evidence.mjs — six censuses + the 166-step walk leg (Alder → docks in the real game) + 13 frames.
+
+Stage Summary:
+- The world is ONE walkable surface: the docks ⇄ Times Square ⇄ the Willow Rows ⇄ Alder Heights ⇄ the Larch Yards; the pocket scan's spawn component spans x −448..+250.
+- The battery: 1,784/1,784 · DRAWS 194 · traps 19 (unchanged) · probe-nav 9/9 · probe-westreach OK · probe-wc1-catalpa byte-identical.
+- Docs: west-reach-design.md + BUILD_STATUS/AGENT_HANDOVER/IMPLEMENTATION_LOG addenda + the v1.83.0 ledger row.
+- Next: the corridor's ambient walker loops (the lanes exist), the K-line's west platform stub ride (the K-line agent's territory — coordinate).

@@ -126,9 +126,22 @@ const STOP_BUS03_A = 72.2 - 59.5;  // 12.7 — the door at the Sycamore/Diner po
 const STOP_BUS01_A = 72.2 + 26.5;  // 98.7 — the door at the Kestrel/West pole
 const STOP_BAY_A = 72.2 + 35.9;    // 108.1 — parked inside the terminal bay
 
+// W-N3 (2026-11-14, the West Reach wave's transit leg — AGENT_HANDOVER §2's
+// documented next priced wave): the loop grows its EAST leg — the Junction
+// Plaza stop on Kestrel East (BUS-05, the registry's pole-stop pattern),
+// served on an out-and-back: the bus lays over at the bay, runs east to the
+// plaza, dwells, returns west, and the shipped loop continues unchanged.
+// The east streets are Kestrel's own continuation (spanX −280..+252) — the
+// rail the loop rides is registry truth, not invention.
+const EAST_OX = -71.6;             // the bay corner (l0's own end)
+const BUS05_POLE_X = 138;          // the Junction Plaza pole (north walk)
+const STOP_BUS05_A = (BUS05_POLE_X - 2) - EAST_OX - 4.8; // 59.6 — nose 2 m short of the pole, door 2 m behind the nose
+const EAST_LEN = BUS05_POLE_X - 2 - 4.8 - EAST_OX;       // 59.6... computed below
+
 /** The M121 loop, built once. Read it as the registry's own sentence:
  *  terminal lay-over → (Juniper) → Gable St → Sycamore Ave → Kestrel St →
- *  (BUS-03, XW-COURT, XW-CANON, BUS-01, BUS-02) → terminal. */
+ *  (BUS-03, XW-COURT, XW-CANON, BUS-01, BUS-02) → terminal — and W-N3's
+ *  east leg: → Kestrel East (BUS-05 the Junction Plaza) → back → terminal. */
 export function buildM121(): BusLeg[] {
   // leg 0 — Kestrel westbound: the Sycamore turn → the bay → the Juniper turn
   const l0: BusLeg = {
@@ -188,7 +201,40 @@ export function buildM121(): BusLeg[] {
     stops: [],
   };
 
-  return [l0, l1, l2, l3];
+  // leg 4 — Kestrel EASTBOUND (W-N3): the bay corner → the Junction Plaza
+  // (a = x + 71.6, l = z − 0.8). Eastbound holds at each zone's WEST edge
+  // (the Gable-east pattern). The courtesy span covers the roadway plus a
+  // stride (l −5.4..3.8, the l0 law).
+  const l4: BusLeg = {
+    name: 'Kestrel east',
+    frame: { ox: EAST_OX, oz: KESTREL_LANE, ax: 1, az: 0, lx: 0, lz: 1, len: EAST_LEN },
+    zones: [
+      // (the Kestrel×Juniper box pins no zone — the leg STARTS inside it,
+      // the shipped l0 convention: only approached zones carry holds)
+      { a0: -8.5 + 71.6, a1: -1.5 + 71.6, l0: -5.4, l1: 3.8 },    // XW-CANON (a 63.1..70.1)
+      { a0: 30.75 + 71.6, a1: 39.25 + 71.6, l0: -5.4, l1: 3.8 },  // XW-COURT (a 102.35..110.85)
+      { a0: 66.5 + 71.6, a1: 77.5 + 71.6, l0: -5.4, l1: 3.8 },    // Kestrel×Sycamore box (a 138.1..149.1)
+    ],
+    stops: [
+      { id: 'BUS-05', a: STOP_BUS05_A, lateral: BAY_PULL, dwell: 5 },
+    ],
+  };
+
+  // leg 5 — Kestrel WESTBOUND return (W-N3): the plaza → the bay corner
+  // (a = 131.2 − x, l = z − 0.8). Westbound holds at each zone's EAST edge
+  // (the l0 law). The spur crossing sits east of the halt — never traversed.
+  const l5: BusLeg = {
+    name: 'Kestrel west return',
+    frame: { ox: EAST_OX + EAST_LEN, oz: KESTREL_LANE, ax: -1, az: 0, lx: 0, lz: 1, len: EAST_LEN },
+    zones: [
+      { a0: 133.2 - 39.25, a1: 133.2 - 30.75, l0: -5.4, l1: 3.8 }, // XW-COURT (a 93.95..102.45)
+      { a0: 133.2 - (-1.5), a1: 133.2 - (-8.5), l0: -5.4, l1: 3.8 }, // XW-CANON (a 134.7..141.7)
+      { a0: 133.2 - 77.5, a1: 133.2 - 66.5, l0: -5.4, l1: 3.8 },   // Kestrel×Sycamore box (a 55.7..66.7)
+    ],
+    stops: [],
+  };
+
+  return [l0, l4, l5, l1, l2, l3];
 }
 
 /** The cab's Kestrel courtesy zones — the W4 extension of the shipped
@@ -201,6 +247,10 @@ export const KESTREL_COURTESY_ZONES: ReadonlyArray<{ xMin: number; xMax: number 
   { xMin: 30.75, xMax: 39.25 },  // XW-COURT (registry crosswalks: x 35, w 3.4)
   { xMin: -77.5, xMax: -66.5 },  // Kestrel×Juniper box
   { xMin: 66.5, xMax: 77.5 },    // Kestrel×Sycamore box
+  // W-N3: the east streets carry the cab — its own yields ride the east
+  // crossings (the LRY zebras' corners; each box spans both legs + the road)
+  { xMin: 141.5, xMax: 162.5 },  // Kestrel×Spur box (the Junction Plaza crossing)
+  { xMin: 220.5, xMax: 235.5 },  // Kestrel×Larch box
 ];
 
 // ---- leg-space transforms (allocation-free: write into a target) ----------

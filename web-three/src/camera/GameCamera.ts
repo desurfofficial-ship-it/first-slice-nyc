@@ -192,7 +192,14 @@ export class GameCamera {
   private rigLook = new THREE.Vector3();
 
   constructor(aspect: number, colliders?: AABB[], canopies?: CanopySphere[]) {
-    this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 500);
+    // W-N1: far 500 → 1200. The sky dome (radius 560, centered at the
+    // origin) sat up to 1,010 m from the west wall — inside the old far
+    // plane's clip everywhere west of about x −60, the west sky read as a
+    // black wedge (the shipped-latent bug the Willow Rows' frames caught:
+    // the pre-corridor world never pointed a camera west at the dome).
+    // The dome and the fog-exempt skyline rows are the only geometry past
+    // 500 m; fog hides the ground long before that.
+    this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1200);
     this.camera.position.set(-30, 7, -3);
     this.boxes = colliders ?? null;
     this.canopies = canopies ?? null;

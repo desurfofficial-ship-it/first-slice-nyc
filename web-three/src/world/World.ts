@@ -57,7 +57,7 @@ import { SEASON_DRESSING, seasonForCalendarDay, type Season } from './seasonDres
 import { Pedestrians, type PedLook, type RoadRect, type RoutineStop } from './peds';
 import { buildSubwaySystem, STATION, ZONE_KEEP_RE, type SubwaySystem, type ColliderSpec } from './subway';
 import { buildTimesSquare, type TimesSquare } from './timesSquare';
-import { buildCatalpaJunction, type CatalpaJunction } from './catalpaJunction';
+import { buildCatalpaJunction, buildJunctionMews, type CatalpaJunction } from './catalpaJunction';
 import { buildArrivalBus, BUS04_RECT, playerOccupiesBus04, type ArrivalBus } from './arrivalBus';
 import { buildCityFabric, GeoPush } from './cityFabric';
 import { groundMaterial, metricBoxUVs } from './groundTex';
@@ -73,6 +73,7 @@ import { EnvSky } from '../render/envsky';
 import { sampleDayCycle, keyframeState, freshDayState, CANON_MINUTES, type DayState, type DayPin } from '../render/daycycle';
 import { buildNeighborhoodFabric, NEIGH, TERRACE_GATES } from './neighborhoodFabric';
 import { buildLarchYards, larchYardsPlazaLights } from './larchYardsKit';
+import { buildWestReach, willowRowsSilhouette } from './westReachKit';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay,
   skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH,
   STREET_PLAN, PEDESTRIAN_ROLES, type StreetPlan } from './dressing';
@@ -187,7 +188,10 @@ export class World {
    *  the old boot-in-bay parked the loop body on top of BUS-04 (docs/47
    *  "the terminal bay, made honest"). */
   private readonly busState = {
-    leg: 3, a: 10, lat: 0,
+    // W-N3: the east out-and-back rides legs 1-2, so the shipped boot pose
+    // (Sycamore south, a 10 — the bus mid-block on the quiet avenue) is
+    // leg 5 now. The pose is byte-identical with the shipped boot frame.
+    leg: 5, a: 10, lat: 0,
     dwell: 0, laps: 0, yaw: Math.PI / 2, night: false, servedStop: null as string | null,
     baySkipped: false,
   };
@@ -422,18 +426,21 @@ export class World {
   // block's east half at boot (the aerial-census blob the probe caught).
   // The standing draw census stays bounded as the map grows: the
   // streamed-city law on an authored budget.
-  private static readonly DIST_COL_W = 28;   // x: −84..+252 in 12 columns (W-C0; the old W7 strips clamp into c0)
+  private static readonly DIST_COL_W = 28;   // x: −308..+252 in 20 columns (W-N1; the West Reach grew the origin west — the corridor streams like the east)
   private static readonly DIST_ROW_H = 32;   // z: −48..48 in 3 rows (W6 strips clamp into r0/r2)
-  private static readonly DIST_COLS = 12;
+  private static readonly DIST_COLS = 20;
   private static readonly DIST_ROWS = 3;
   /** The fog-law sight window (m, column-center distance). 130 covers the
    *  spawn view through c6 (|98−(−30)| = 128) and reads 6–8 columns from
-   *  anywhere on the map. */
+   *  anywhere on the map. W-N1: the corridor's columns 5-6 (centers −154/
+   *  −126) sit inside the spawn window — the corridor keeps its cheap
+   *  garden band there and prices its masses west of column 4 (the
+   *  design doc §5; probe-city-fabric re-reads the census). */
   private static readonly SIGHT_M = 130;
   private static readonly ROW_RING = 1;
   /** A column's center x (the sight window's measure). */
   private static colCenterX(c: number): number {
-    return -84 + c * World.DIST_COL_W + World.DIST_COL_W / 2;
+    return -308 + c * World.DIST_COL_W + World.DIST_COL_W / 2;
   }
   /** Baked meshes keyed by district (c<col>r<row>). */
   private readonly districtBatches = new Map<string, THREE.Mesh[]>();
@@ -445,8 +452,11 @@ export class World {
   private lastDistrict = '';
   /** W-C1b: the Catalpa far-read group — the silhouette underlay + the lit
    *  panes. Visible while the district's tiles are unlit; the ring pass
-   *  flips it when Catalpa enters the sight window. */
+   *  flips it when Catalpa enters the sight window.
+   *  W-N1: the west twin — the Willow Rows' far read for east Alder (the
+   *  mirrored law: visible while the corridor's columns are unlit). */
   private catalpaFar: THREE.Object3D[] = [];
+  private westFar: THREE.Object3D[] = [];
 
   // ---- the shadow follow (docs/47 lever 1 — Doc 07's reaching lever) ----
   // The sun's shadow camera was a FIXED ±60 m box over the whole street:
@@ -485,7 +495,7 @@ export class World {
 
   /** A baked mesh's district from its world position (mesh center). */
   private static districtKey(x: number, z: number): string {
-    const col = Math.max(0, Math.min(World.DIST_COLS - 1, Math.floor((x + 84) / World.DIST_COL_W)));
+    const col = Math.max(0, Math.min(World.DIST_COLS - 1, Math.floor((x + 308) / World.DIST_COL_W)));
     const row = Math.max(0, Math.min(World.DIST_ROWS - 1, Math.floor((z + 48) / World.DIST_ROW_H)));
     return `c${col}r${row}`;
   }
@@ -519,15 +529,19 @@ export class World {
    *  silhouette shows while the district is unlit (the far read), the
    *  panes show only with their buildings. */
   private updateDistricts(px: number, pz: number): void {
-    const col = Math.max(0, Math.min(World.DIST_COLS - 1, Math.floor((px + 84) / World.DIST_COL_W)));
+    const col = Math.max(0, Math.min(World.DIST_COLS - 1, Math.floor((px + 308) / World.DIST_COL_W)));
     const row = Math.max(0, Math.min(World.DIST_ROWS - 1, Math.floor((pz + 48) / World.DIST_ROW_H)));
     const key = `c${col}r${row}`;
     if (key === this.lastDistrict) return;
     this.lastDistrict = key;
     let catalpaLit = false;
+    let westLit = false;
+    let westDeepLit = false;
     for (let c = 0; c < World.DIST_COLS; c++) {
       const colIn = Math.abs(World.colCenterX(c) - px) <= World.SIGHT_M;
-      if (colIn && c >= 7) catalpaLit = true;
+      if (colIn && c >= 15) catalpaLit = true;  // the east district's first column (center +126 — the shipped law's own number)
+      if (colIn && c <= 7) westLit = true;      // the corridor's columns (the mirrored law; col 7 center −98)
+      if (colIn && c <= 4) westDeepLit = true;  // the corridor's windowed columns — the lit panes ride these (the spawn-lit garden band carries no windows: the panes would draw for hidden-column instances)
       for (let r = 0; r < World.DIST_ROWS; r++) {
         const inRing = colIn && Math.abs(r - row) <= World.ROW_RING;
         const dk = `c${c}r${r}`;
@@ -538,6 +552,16 @@ export class World {
     if (this.catalpaFar.length) {
       for (const o of this.catalpaFar) {
         o.visible = o.name === 'LarchYards_LitPanes' ? catalpaLit : !catalpaLit;
+      }
+    }
+    // W-N1: the west twin — the Willow Rows' silhouette shows while the
+    // corridor's columns are unlit; the panes ride their BUILDINGS' columns
+    // (the deep-west law — from the spawn the garden band's real lit
+    // batches show and the panes stay off, a draw for hidden-column
+    // instances otherwise)
+    if (this.westFar.length) {
+      for (const o of this.westFar) {
+        o.visible = o.name === 'WillowRows_LitPanes' ? westDeepLit : !westLit;
       }
     }
   }
@@ -1544,10 +1568,16 @@ export class World {
     // The east wall follows the registry's own playableCore; the N/S walls
     // re-span the grown length (center x +76, 352 m). The west wall keeps
     // its shipped post (Times Square stays one RIDE west, never a walk).
-    this.colliders.push(boxFromCenter(-100, 5, 0, 1, 20, 128));
+    // W-N1 (2026-11-14, the West Reach): the west wall RETIRES its x −100
+    // post — the Willow Rows corridor + Times Square + the Catalpa docks
+    // are one walkable surface now (the master continuation directive:
+    // "one coherent open world"). The west wall moves to the world edge
+    // (x −450, the docks' own boundary); the N/S walls re-span the full
+    // west reach (center x −99, length 702).
+    this.colliders.push(boxFromCenter(-450, 5, 0, 1, 20, 128)); // W-N1: the west wall follows the registry's grown core
     this.colliders.push(boxFromCenter(252, 5, 0, 1, 20, 128)); // W-C0: the east wall follows the registry's grown core
-    this.colliders.push(boxFromCenter(76, 6, -64, 352, 24, 1)); // south wall behind the Carrow terrace + Sumac works (W-C0 re-span)
-    this.colliders.push(boxFromCenter(76, 6, 64, 352, 24, 1));  // north wall behind the Larkin terrace + Rowan works (W-C0 re-span)
+    this.colliders.push(boxFromCenter(-99, 6, -64, 702, 24, 1)); // south wall behind the Carrow terrace + the Marlow west works (W-N1 re-span)
+    this.colliders.push(boxFromCenter(-99, 6, 64, 702, 24, 1));  // north wall behind the Larkin terrace + the Gable west walk-ups (W-N1 re-span)
 
     // zones
     this.crosswalkZone = boxFromCenter(-5, 1, 0, 3.4, 2, 7.5);
@@ -2171,6 +2201,10 @@ export class World {
     // master build authorization) — streets, yards, masses, the viaduct, the
     // public realm. All pre-bake so the merge swallows the statics.
     this.buildLarchYards();
+    // W-N1: the Willow Rows (the West Reach, the master continuation
+    // directive) — the corridor's streets, yards, masses, garden, theater.
+    // Pre-bake like every district; the grown lattice owns its columns.
+    this.buildWillowRows();
     // W4 part 1: the district's static life — zone figures, parked cars,
     // the BUS-03 stop — all pre-bake so the W0 merge swallows them (the
     // perf law: the zones cost merges, not draw calls).
@@ -2340,6 +2374,12 @@ export class World {
       'CJN-SUB': this.regFootprint('CJN-SUB'),
     });
     for (const c of this.catalpa.colliders) {
+      this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d));
+    }
+    // W-N2: the Junction Mews — the surface connection between the canyon
+    // and the docks (the master continuation directive's "one coherent
+    // open world"). Same zone-owned group, same +0 standing law.
+    for (const c of buildJunctionMews(this.catalpa.group, (c2, opts) => this.mat(c2, opts))) {
       this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d));
     }
     this.arrivalBus = buildArrivalBus((c, opts) => this.mat(c, opts));
@@ -5855,7 +5895,11 @@ export class World {
       // district ring's own law (visible while the district's tiles are
       // unlit) — a baked silhouette would be ring-owned and vanish exactly
       // when needed
-      'LarchYards_Silhouette']);
+      'LarchYards_Silhouette',
+      // W-N1: the Willow Rows' far-read pair rides the ring law like the
+      // Larch twin — baked, they would be ring-owned and vanish exactly
+      // when needed
+      'WillowRows_Silhouette']);
     const excluded = (o: THREE.Object3D): boolean => {
       for (let p: THREE.Object3D | null = o; p !== null; p = p.parent) {
         if (skip.has(p) || NAMED_SKIP.has(p.name)) return true;
@@ -7384,15 +7428,23 @@ export class World {
     const rng = seededRng(20261114);
     const CURB = 0x8f8a82;
 
-    // ---- 1. the paving: two merged mapped draws (the W-C1 pricing law) --
-    // Roads at the shipped levels (top 0.0); walks + the bed at the walk
-    // level (top 0.1); every slab split around every road mouth (the W1
-    // walk-cut law, generalized — roads own their mouths).
+    // ---- 1. the paving: TWO merged mapped draws FOR THE WHOLE SPINE ------
+    // W-N1 pricing repair: the corridor's paving merges into the Larch's own
+    // pair (the two-draw ground law, spine edition — one asphalt + one
+    // concrete mesh carry Kestrel Willow→Larch, Gable/Marlow both reaches,
+    // Willow and Chestnut; two separate pairs would cost four draws where
+    // two do the whole spine's work). Roads at the shipped levels (top 0.0);
+    // walks at the walk level (top 0.1); every walk split around every road
+    // mouth (the W1 walk-cut law).
+    // W-N1 pricing note: each district carries its OWN ground pair — the
+    // meshes' small bounding spheres let frustum culling drop the far
+    // district's paving for free (a spine-wide merged pair would draw at
+    // every rig: the merge attempt measured +2 standing and reverted).
     this.groundMerged('LarchYards_Roads', 'asphalt', [
       { x: 176, y: -0.1, z: 0, sx: 152, sy: 0.2, sz: 8 },    // Kestrel East (x 100..252)
       { x: 228, y: -0.1, z: 0, sx: 8, sy: 0.2, sz: 128 },    // Larch (z −64..64)
       { x: 176, y: -0.1, z: 40, sx: 152, sy: 0.2, sz: 8 },   // Gable East (the continuation; centerline 40)
-      { x: 176, y: -0.1, z: -40, sx: 152, sy: 0.2, sz: 8 },  // Marlow East (centerline -40)
+      { x: 176, y: -0.1, z: -40, sx: 152, sy: 0.2, sz: 8 },  // Marlow East (centerline −40)
     ]);
     const walkSlabs: Array<{ x: number; y: number; z: number; sx: number; sy: number; sz: number }> = [];
     const XSEG: Array<[number, number]> = [[100, 145.8], [158.2, 223.8], [232.2, 252]];
@@ -7558,6 +7610,17 @@ export class World {
     const mail = makeMailboxNYC(this.bank, 0.1, 159.6, 14.2, Math.PI / 2); this.scene.add(mail);
     const steam1 = makeSteamVentNYC(this.bank, 172, -6.4); this.scene.add(steam1);
     const steam2 = makeSteamVentNYC(this.bank, 149.8, 30); this.scene.add(steam2);
+    // the BUS-05 flag (W-N3: the M121's Junction Plaza stop — the handover's
+    // documented transit wave). The BUS-03 pattern: bay paint on the north
+    // curb + the rollsign pole at the registry's own pin (138, 7.35); the
+    // nose halt (136) clears the spur mouth (146) by 10 m.
+    this.deco('BUS05_Bay', 133.2, 0.02, 3.4, 12, 0.02, 0.5, PAL.taxi, {});
+    const m121p = makePoleSign(this.bank, this.signMaterials.bind(this), 'M121', { w: 0.8, h: 0.3, y: 3.0 });
+    m121p.position.set(138, 0.05, 7.35);
+    this.scene.add(m121p);
+    // the east district's columns sit dark at the spawn — the pole rides
+    // its lattice column like the corridor signs (the pricing law)
+    this.registerDistrictObject(m121p, 138, 7.35);
     // loading-dock bollard pairs read from the kit; the docks' pallets:
     const pallets = new GeoPush();
     for (const [px, pz] of [[131.5, 8.6], [141.5, 8.6], [204.5, 8.6], [219.5, -8.6], [161.5, -13.4], [226.5, -31.4]] as const) {
@@ -7574,6 +7637,159 @@ export class World {
     palletMesh.position.set(pc.x, pc.y, pc.z);
     palletMesh.castShadow = true; palletMesh.receiveShadow = true;
     this.scene.add(palletMesh);
+  }
+
+  /** W-N1: the Willow Rows — the West Reach corridor (x −280..−100), the
+   *  master continuation directive's connection district. The build reads
+   *  the Larch recipe (the two-draw ground law, the yard solids, the kit's
+   *  vertex-colored masses, the house furniture makers): the corridor is
+   *  the SAME city discipline on the west side. The masses bake into the
+   *  grown lattice's columns (origin −308, 20 columns); the spawn-lit
+   *  columns 5-6 carry only the garden band (the pricing law). */
+  private buildWillowRows(): void {
+    const rng = seededRng(0x5711);
+    const WR = {
+      walk: 0x8f8a82,
+      curb: 0x8f8a82,
+    };
+
+    // ---- 1. the paving: the corridor's own merged pair (the two-draw
+    // ground law; the small bounding spheres let frustum culling drop the
+    // whole pair at rigs that don't face it — the spawn census's friend)
+    const XSEG: Array<[number, number]> = [[-280, -238.2], [-225.8, -154.2], [-141.8, -100]];
+    const ZSEG: Array<[number, number]> = [[-64, -44.2], [-35.8, -4.2], [4.2, 35.8], [44.2, 64]];
+    this.groundMerged('WillowRows_Roads', 'asphalt', [
+      { x: -190, y: -0.1, z: 0, sx: 180, sy: 0.2, sz: 8 },   // Kestrel West (x −280..−100)
+      { x: -190, y: -0.1, z: 40, sx: 180, sy: 0.2, sz: 8 },  // Gable West
+      { x: -190, y: -0.1, z: -40, sx: 180, sy: 0.2, sz: 8 }, // Marlow West
+      { x: -232, y: -0.1, z: 0, sx: 8, sy: 0.2, sz: 128 },   // Willow (z −64..64)
+      { x: -148, y: -0.1, z: 0, sx: 8, sy: 0.2, sz: 128 },   // Chestnut
+    ]);
+    const walkSlabs: Array<{ x: number; y: number; z: number; sx: number; sy: number; sz: number }> = [];
+    for (const [a, b] of XSEG) {
+      const cx = (a + b) / 2, w = b - a;
+      for (const wz of [6, -6, 46, 34, -34, -46]) {
+        walkSlabs.push({ x: cx, y: -0.05, z: wz, sx: w, sy: 0.3, sz: 4 });
+      }
+    }
+    for (const [a, b] of ZSEG) {
+      const cz = (a + b) / 2, d = b - a;
+      walkSlabs.push({ x: -238, y: -0.05, z: cz, sx: 4, sy: 0.3, sz: d });
+      walkSlabs.push({ x: -226, y: -0.05, z: cz, sx: 4, sy: 0.3, sz: d });
+      walkSlabs.push({ x: -154, y: -0.05, z: cz, sx: 4, sy: 0.3, sz: d });
+      walkSlabs.push({ x: -142, y: -0.05, z: cz, sx: 4, sy: 0.3, sz: d });
+    }
+    this.groundMerged('WillowRows_Walks', 'concrete', walkSlabs);
+
+    // the curbs (deco, no colliders — the shipped curb grammar), split
+    // around the mouths exactly like the slabs above
+    let curbI = 0;
+    for (const [a, b] of XSEG) {
+      if (a > -200) continue; // W-N1 pricing: the east approach reads as the garden's apron (the Westgate's curbs resume at x −100)
+      const cx = (a + b) / 2, w = b - a;
+      for (const cz of [4.08, -4.08, 44.08, 35.92, -35.92, -44.08]) {
+        this.deco(`WillowRows_Curb_${curbI++}`, cx, 0.065, cz, w, 0.13, 0.5, WR.curb);
+      }
+    }
+    for (const [a, b] of ZSEG) {
+      const cz = (a + b) / 2, d = b - a;
+      for (const cx of [-236.08, -227.92, -152.08, -143.92]) {
+        this.deco(`WillowRows_Curb_${curbI++}`, cx, 0.065, cz, 0.5, 0.13, d, WR.curb);
+      }
+    }
+
+    // ---- 2. the block yards (vc solids — the bake fuses them free) ------
+    // W-N1 pricing: the EAST segment's yards (x −141.8..−100 — the garden
+    // band, cols 5-6) stay OFF — the garden reads on its own gravel over
+    // the implicit grade (the beds/fence carry the read; a concrete apron
+    // under a garden reads wrong anyway). The spawn-lit columns carry only
+    // the garden's own batches (the design doc §5's pricing law).
+    for (const [a, b] of XSEG) {
+      if (a > -200) continue; // the east segment skips (the garden band)
+      const cx = (a + b) / 2, w = b - a;
+      this.solid('WillowRows_Yard_N1', cx, -0.05, 21, w, 0.3, 24, WR.walk, { receive: true, cast: false });
+      this.solid('WillowRows_Yard_S1', cx, -0.05, -21, w, 0.3, 24, WR.walk, { receive: true, cast: false });
+      this.solid('WillowRows_Yard_N2', cx, -0.05, 57, w, 0.3, 14, WR.walk, { receive: true, cast: false });
+      this.solid('WillowRows_Yard_S2', cx, -0.05, -57, w, 0.3, 14, WR.walk, { receive: true, cast: false });
+    }
+
+    // ---- 3. the district fabric (the kit: masses, marquee, signs, garden)
+    const { cols: kitColliders, signs: kitSigns } = buildWestReach({
+      scene: this.scene,
+      vc: this.vcMaterial.bind(this),
+      shell: this.regShell.bind(this),
+      row: (id) => loadRegistry().building(id),
+      skylineWinMat: this.skylineWinMat,
+      sign: this.signBoard.bind(this),
+      ledger: this.vqLedger,
+    });
+    for (const c of kitColliders) {
+      this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.sx, c.sy, c.sz));
+    }
+    // the canvas signs ride their lattice columns (the pricing law: mapped
+    // materials leave the bake, so the district pass must own their
+    // visibility — a sign 480 m west costs draws at spawn otherwise)
+    for (const name of kitSigns) {
+      const g = this.scene.getObjectByName(name);
+      if (g) {
+        const p = g.position;
+        this.registerDistrictObject(g, p.x, p.z);
+      }
+    }
+
+    // ---- 4. the zebras (the continental crosswalks at the six corners) --
+    this.zebra('XW_WLR_KW_E', -228.5, 0, 'acrossEW');
+    this.zebra('XW_WLR_KW_W', -235.5, 0, 'acrossEW');
+    this.zebra('XW_WLR_KC_E', -144.5, 0, 'acrossEW');
+    this.zebra('XW_WLR_KC_W', -151.5, 0, 'acrossEW');
+    this.zebra('XW_WLR_GW_S', -232, 35.5, 'acrossNS');
+    this.zebra('XW_WLR_GW_N', -232, 44.5, 'acrossNS');
+    this.zebra('XW_WLR_GC_S', -148, 35.5, 'acrossNS');
+    this.zebra('XW_WLR_GC_N', -148, 44.5, 'acrossNS');
+    this.zebra('XW_WLR_MW_S', -232, -44.5, 'acrossNS');
+    this.zebra('XW_WLR_MW_N', -232, -35.5, 'acrossNS');
+    this.zebra('XW_WLR_MC_S', -148, -44.5, 'acrossNS');
+    this.zebra('XW_WLR_MC_N', -148, -35.5, 'acrossNS');
+
+    // ---- 5. the street furniture (the house makers — all bake free) -----
+    // streetlights: Kestrel West alternating curbs, the cross streets' walks
+    for (const [lx, lz] of [[-116, 5.2], [-144, -5.2], [-172, 5.2], [-200, -5.2], [-228, 5.2], [-252, -5.2],
+      [-238.4, 16], [-225.6, -16], [-238.4, 48], [-225.6, -48],
+      [-154.4, 16], [-141.6, -16], [-154.4, 48], [-141.6, -48],
+      [-124, 35.2], [-176, 44.8], [-228, 35.2], [-124, -44.8], [-176, -35.2], [-228, -44.8]] as const) {
+      const lamp = makeStreetlight(this.bank);
+      lamp.position.set(lx, 0.05, lz);
+      this.scene.add(lamp);
+      this.colliders.push(boxFromCenter(lx, 2.6, lz, 0.22, 5.2, 0.22));
+    }
+    // street trees (the instanced canopy owns every crown)
+    const treeSpots: Array<[number, number]> = [
+      [-238.6, 24], [-238.6, 12], [-225.4, -12], [-225.4, 28], [-238.6, -24], [-225.4, 52],
+      [-154.6, 24], [-154.6, 12], [-141.4, -12], [-141.4, 28], [-154.6, -24], [-141.4, 52],
+      [-124, 34.6], [-164, 34.6], [-212, 34.6], [-252, 34.6], [-136, 46.4], [-204, 46.4],
+      [-124, -46.4], [-164, -46.4], [-212, -46.4], [-252, -46.4], [-136, -34.6], [-204, -34.6],
+    ];
+    for (const [tx, tz] of treeSpots) this.buildSimpleTree(tx, tz, rng);
+    // the theater forecourt: benches + a can + the hydrant (the district's
+    // breath, at its own wonder beat)
+    const fb1 = makeBench(this.bank); fb1.position.set(-203.5, 0.1, 6.4); this.scene.add(fb1);
+    const fb2 = makeBench(this.bank); fb2.position.set(-220.5, 0.1, 6.4); this.scene.add(fb2);
+    this.colliders.push(boxFromCenter(-203.5, 0.35, 6.4, 1.7, 0.7, 0.6));
+    this.colliders.push(boxFromCenter(-220.5, 0.35, 6.4, 1.7, 0.7, 0.6));
+    const fhyd = makeHydrant(this.bank); fhyd.position.set(-199.4, 0.1, 4.9); this.scene.add(fhyd);
+    const fcan = makeTrashCan(this.bank); fcan.position.set(-224.6, 0.1, 4.9); this.scene.add(fcan);
+    // the garden's benches + drum ride the garden's own vc mesh (the
+    // pricing law: no bank-material batches in the spawn-lit band); the
+    // mailbox stands at the theater forecourt (col 3-4 — hidden at spawn)
+    const gmail = makeMailboxNYC(this.bank, 0.1, -218, 4.9, Math.PI / 2); this.scene.add(gmail);
+    const gsteam = makeSteamVentNYC(this.bank, -188, -6.4); this.scene.add(gsteam);
+
+    // ---- 6. the far-read pair (the Larch twin, mirrored) ----------------
+    willowRowsSilhouette({ scene: this.scene, vc: this.vcMaterial.bind(this), shell: this.regShell.bind(this) });
+    this.westFar = [];
+    this.scene.traverse((o) => {
+      if (o.name === 'WillowRows_Silhouette' || o.name === 'WillowRows_LitPanes') this.westFar.push(o);
+    });
   }
 
   private buildAlderHeightsW1(): void {
@@ -10120,7 +10336,11 @@ export class World {
     const limit = noseLimit(noseX, pool, n, CAB.laneZ, CAB.halfWid);
     const wantedNose = noseX + dt * speed;
     road.x += Math.min(wantedNose, limit) - noseX;
-    if (road.x > 84) road.x = -84; // the district's edge: the rail wraps (W4 p2: was ±46)
+    // the district's edge: the rail wraps (W4 p2: was ±46; W7: ±84).
+    // W-N3: the rail grows EAST with Kestrel's own continuation — the cab
+    // serves the Larch Yards (the east wrap at the wall line minus a nose),
+    // the west end keeps its shipped post.
+    if (road.x > 246) road.x = -84;
     this.taxiCollider.minX = road.x - CAB.halfLen;
     this.taxiCollider.maxX = road.x + CAB.halfLen;
 

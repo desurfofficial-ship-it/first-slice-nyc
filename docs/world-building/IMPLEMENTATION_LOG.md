@@ -224,3 +224,67 @@ deterministic (one component x −98..250, traps 18 unchanged, colliders
 1018 → 1233 the honest +215 below grade).
 
 > **ADDENDUM (2026-11-14, the Catalpa/Junction line — the §8 gate's input verified):** the Catalpa Junction **business package is FILED** ([CATALPA-JUNCTION-BUSINESS-PACKAGE-DRAFT.md](../production/CATALPA-JUNCTION-BUSINESS-PACKAGE-DRAFT.md), register v1.79.0 — docs-only, authorizes nothing) and **awaits the owner's §8 ruling**: four first businesses with books (the provisions store CJN-08, the supply floor CJN-04, the book floor CJN-07, the lunch counter CJN-05), each priced, each riding shipped machinery. **Nothing of CB1 exists** — no registry rows, no geometry, no code — and none may begin until the owner opens the gate. The package's factual claims were re-verified against the integrated code line by line: the ten CJN rows exact (names, heights, door coordinates and faces), the Phase-6 ledger machinery at its cited lines, `catalpaSurface` x −450..−378, the west wall x −100, the nav graph's `NAV_BOUNDS` x −100..+252 (the docks sit outside it), the pocket scan's x −99.75 origin, LRY-01's `business` field, the census numbers (bodega 194, records 109–110, bakery 93–94, diner 239), and both quoted sources — **one number corrected** (§3's slot-library count; the true manifest counts are 32 interior programs + 24 ABO + 14 gifted). The battery re-certified fresh on the integrated tree at `1717a59`: validate-registry OK (256 IDs, 111 buildings, 23/23 anchors; 1 KNOWN — the recorded LRY-03 ↔ SUB-03 overlap) · tsc clean · vitest 1,751/1,751 (105 files) · build OK · probe-city-fabric DRAWS 192 · probe-wc1-catalpa OK (spawn 192 +0 standing, spur 53, platform 23). Reading note for §1 above: its body was written pre-repair — "20 building rows (CJN-*)" for this district's masses reads as **LRY-***; the canon map after the repair is **Alder Heights' canon rows + the Larch Yards LRY-* + Catalpa Junction CJN-*** (the west-reach docks among them). The owner's two gifted furniture packs wear 14 new interior slots additively (the K-line's wave, merged): the book floor may take the gifted bookshelf (`sc_bookshelf`) under the package's dated amendment. Coordination: no new work upstream — the remote's `feat/catalpa-junction-world` is the old master-assignment pointer (tip `d166ba3`), already an ancestor of `main`.
+
+---
+
+## 2026-11-14 — the West Reach (W-N0..N3) — the corridor, the mews, the transit east
+
+**The task:** the master continuation directive ("COMPLETE THE OPEN WORLD —
+FULL GEOGRAPHICAL EXPANSION AND INTEGRATION"). The audit (M0) read the
+integrated tree first: registry v1.82.0, draw census 192/200, the battery
+1,783/1,783 — and named the standing incompleteness: Times Square and
+Alder Heights shared a subway seam but no surface; the Catalpa docks were
+zone-gated and walk-unreachable; the handover's next priced wave (the
+transit east) was documented but unbuilt.
+
+**How it built:**
+
+1. **W-N0 (the data wave)** — `scripts/world_building/wn0_registry.py`
+   (self-verifying: overlaps, NS-road clearance, block membership, and
+   the bake-center pricing rule all check before the file writes; it
+   refuses to double-apply). Two failed self-checks caught real design
+   errors BEFORE the registry saw them (four masses baking into the
+   spawn-lit column 5; one intersection row referencing a park as a
+   corner building). One validator pass caught the intersection repair.
+   The crosswalk axis law was learned the hard way: the first battery
+   read the nav graph at NINE components — the NS-leg rows carried no
+   `axis: 'NS'`, the crossing derivation bridged the wrong lanes, and
+   the graph split at Willow and Chestnut. The fix rode the same patch
+   script; the graph reads ONE component x −276..+252.
+2. **W-N1 (the build)** — `westReachKit.ts` copies the larchYardsKit
+   discipline (the re-centering law verbatim, GeoPush vertex colors, the
+   per-row seeded streams); World.ts grows the lattice (20 columns,
+   origin −308), re-spans the walls, builds the ground pair, the zebras,
+   the furniture, the far-read pair. The first evidence frames caught
+   TWO bugs the compile could never: the probe's screenshot raced the
+   game's RAF (the frames captured the game camera mid-teleport — the
+   "fog wash" and the black blob were the chase cam's own views), and
+   **the sky was genuinely broken west of x −60** — the camera far (500)
+   clipped the 560-radius dome; the shipped evidence had never pointed a
+   camera west at the dome since W-C1 grew it. Far 500 → 1200. The
+   marquee's name board read edge-on until the sign dims were re-axed
+   (width along x — the Terminal_Sign convention).
+3. **The pricing loop** — the first transit-wave census read 202 (over
+   budget). The hide-test attribution (reset-per-render, hide-one-
+   object) found: the bus's boot pose had re-indexed onto the new west
+   return leg (the bus stood in the Larch Yards at boot — +7 draws and
+   its shadow), the canvas signs drew un-gated at 480 m, the dome cost
+   its honest +1. The fixes: the boot leg re-index (the shipped frame
+   byte-identical), the signs registered to their lattice columns, the
+   garden's furniture folded into the garden's own vc mesh, the spawn-
+   lit band's yard slabs and east curbs dropped (the apron read), the
+   ground-merge experiment measured +2 and REVERTED (the per-district
+   pairs let frustum culling drop the far district's ground for free).
+   Final: **194.**
+4. **W-N2** — the Junction Mews in catalpaJunction.ts (additive export;
+   the zone law untouched); the fence closures at the docks walk band's
+   zone edges.
+5. **W-N3** — `wn3_transit.py` (BUS-05 + the loop sentence + V-CAB +
+   the WN3 phase row), the two east legs in busRoute.ts (the door law's
+   own nose marks; the Juniper box pins no zone on the east leg — the
+   shipped l0 convention), the taxi's east rail, the courtesy boxes.
+
+**The verification:** the battery table in BUILD_STATUS §the West Reach.
+The walk leg is the wave's own acceptance test: the player walks Alder →
+corridor → canyon → mews → docks in the real game, 166 steps, zero
+stalls, zero page errors.

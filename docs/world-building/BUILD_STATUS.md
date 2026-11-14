@@ -188,3 +188,76 @@
   caught; pinned in tests/crowd.test.ts).
 - Battery: 1,783 tests, DRAWS 192, traps 19 (trap-neutral), all district
   probes green; evidence in shots/polyfork/east-*.png.
+
+---
+
+## 2026-11-14 — the West Reach (W-N0..N3): the Willow Rows + the Junction Mews + the transit east
+
+**The directive:** the master continuation ("COMPLETE THE OPEN WORLD") names
+the standing incompleteness this wave closes: Times Square and Alder Heights
+shared a subway seam but no surface — x −280..−100 was void. The world is
+ONE walkable surface now: **the Catalpa docks ⇄ Times Square ⇄ the Willow
+Rows ⇄ Alder Heights ⇄ the Larch Yards**, 702 m wall to wall.
+
+- **W-N0 (the data wave):** two NS streets (STR-WILLOW x −232,
+  STR-CHESTNUT x −148), eight BLK-WLR-* blocks, seventeen WLR-* masses
+  (shells only — the W-C1 scope law), PRK-CHESTNUT the community garden,
+  LMK-14 the Willow marquee, LMK-15 the Ansel & Sons ghost sign, six
+  intersections, twelve crosswalks (the axis law: NS-leg rows carry
+  `axis: 'NS'` — the nav builder reads it), four pedestrian route rows,
+  the three EW spans grown west (the continuation law, west edition),
+  `playableCore.xMin` −100 → **−450**, SKY-W moved −122 → **−466** (the
+  corridor took the old ground; the row reads above the docks' rooflines).
+- **W-N1 (the build):** `westReachKit.ts` (the larchYardsKit discipline —
+  vertex-colored masses, re-centered emits, per-row seeded streams), the
+  district's ground pair, the garden's fit-out, the theater's marquee +
+  bulbs, the ghost sign, the Bijou blade, the far-read pair
+  (WillowRows_Silhouette + LitPanes — the Larch twin, mirrored). **The
+  lattice grew: origin −84 → −308, 12 → 20 columns** (the corridor streams
+  like the east). **The pricing law:** the district bake files a mesh by
+  its CENTER; columns 5-6 sit inside the spawn's SIGHT_M window, so every
+  mass bakes west of column 4 and the garden band is the cheap content.
+  The west wall retired its x −100 post → **−450**; the N/S walls re-span
+  (center −99, 702 m). NAV_BOUNDS xMin −280; the corridor's lanes ride the
+  registry (off the 6 m grid). **The shipped-latent sky bug fixed:** the
+  camera far (500) clipped the 560 dome everywhere west of ~x −60 — the
+  west sky read as a black wedge; far 500 → 1200 (the dome and the
+  fog-exempt rows are the only geometry past 500).
+- **W-N2 (the docks' surface door):** `buildJunctionMews` in
+  catalpaJunction.ts — the served alley east of the canyon's close-wall
+  (x −388..−380) + the south reach (x −400..−380, z −56..−23) + the depot's
+  fences at the walk band's ends + the lamp row, bollards, pallets, wall
+  lamps. Zone-owned (catalpaSurface covers it): +0 standing preserved.
+  The seam check: the mews mouth sits inside BOTH zones — no dark seam.
+- **W-N3 (the transit east — the handover's documented next wave):** the
+  M121's loop grows its east leg (the out-and-back: legs "Kestrel east" +
+  "Kestrel west return", BUS-05 the Junction Plaza pole at the registry's
+  own pin (138, 7.35), the door law's nose marks, the courtesy zones at
+  the east crossings), the taxi's rail grows east (x −84..246), the
+  BUS-05 pole + bay paint render. The bus's boot pose re-indexed
+  (Sycamore south, a 10 — leg 5 now; the shipped frame byte-identical).
+  The canvas signs ride their lattice columns (the pricing law: mapped
+  materials leave the bake — the district pass owns their visibility).
+
+**The battery (all re-run on the final tree):**
+
+| Gate | Result |
+|---|---|
+| `npx tsc --noEmit` | clean |
+| `npx vitest run` | **1,784 / 1,784 across 106 files** (the east-leg chain pin joined the bus suite) |
+| `npm run build` | OK |
+| `probe-city-fabric` | **DRAWS 194** (< 200; the honest +2: the sky dome renders now — the far-plane fix — and the Westgate strip's batches re-keyed into true col 7) |
+| `diag-pocket-scan` (the full core, 359,424 cells) | **one spawn component x −448..+250; traps 19 (the shipped known set, unchanged); cramped 13 (unchanged)** |
+| `probe-nav` | 9/9 |
+| `probe-subway` | 45/46 — the one failure is the documented baseline Wow-card carry |
+| `probe-wc1-catalpa` | spawn 194 (+0 standing), spur 59, platform 29 — byte-identical with the pre-wave tree |
+| `probe-westreach-evidence` (new) | **OK — six standing censuses (spawn 192, corridor 60, garden 61, canyon 134, mews 50, docks 59 — every position < 200) + THE WALK LEG: the player walked Alder → corridor → canyon → mews → docks (166 steps, zero stalls, never below grade) + 13 evidence frames, zero page errors** |
+| Evidence | `docs/world-building/images/westreach/` — the aerial, the isometric roofscape, the theater marquee, the garden, Kestrel West both ways, the canyon mouth, the mews, the docks from the mews, the far read |
+
+**Honest carries:** the Wow-card baseline fail (box drift, documented);
+the 18 off-spawn POI reads and the walk-legs dilation class (the
+software-GL box's own class — the shipped 18 verified identical on the
+pre-wave tree); the corridor's east approach reads curbless by pricing
+(the garden's apron; the Westgate's curbs resume at x −100); the canyon
+and the docks keep no nav lanes (no registry streets there — the walkers
+stay east of −280, the PLAYER walks everywhere).

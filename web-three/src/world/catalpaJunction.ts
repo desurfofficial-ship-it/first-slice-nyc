@@ -484,3 +484,89 @@ export function buildCatalpaJunction(
 
   return { group, colliders };
 }
+
+// ---------------------------------------------------------------------------
+// W-N2: the Junction Mews — the surface connection the master continuation
+// directive names ("one coherent open world"). The Times Square canyon's
+// west close-wall keeps its vista; the served alley east of it (between the
+// east dock rows' east faces at x −388 and the wall at −380) and the south
+// reach (x −400..−380, z −56..−23) gain paving, a lamp row, bollards and
+// the depot's own fences at the walk band's ends. The player walks the
+// canyon's SW corner south around the wall onto the spur walk — the docks
+// become reachable on foot, the K-line ride stays as transit.
+//
+// THE ZONE LAW (unchanged): everything here parents to CJN_Group via the
+// passed group — it lights only inside catalpaSurface, +0 standing by
+// construction. The seam check: the mews mouth (x −381) sits inside BOTH
+// zones (tsSurface −420..−280, catalpaSurface −450..−378) — no dark seam.
+export function buildJunctionMews(
+  group: THREE.Group,
+  M: (c: number, opts?: { emissive?: number; emissiveIntensity?: number }) => THREE.MeshLambertMaterial,
+): ColliderSpec[] {
+  const colliders: ColliderSpec[] = [];
+  const col = (x: number, y: number, z: number, w: number, h: number, d: number) =>
+    colliders.push({ x, y, z, w, h, d });
+  const box = (name: string, x: number, y: number, z: number, w: number, h: number, d: number, color: number) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M(color));
+    m.name = name;
+    m.position.set(x, y, z);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    group.add(m);
+    return m;
+  };
+
+  // ---- the paving: the alley strip + the south reach (top 0.1, the walk
+  // level — flush with the canyon's south walk and the spur paving) -------
+  box('CJN_Mews_Alley', -384, -0.05, -31, 8, 0.3, 46, CJ.paving);   // x −388..−380, z −54..−8
+  box('CJN_Mews_Alley_N', -385.5, -0.05, 0, 5, 0.3, 16, CJ.paving); // z −8..8, x −388..−383 (the clear alley east of the close-wall's −383..−380)
+  box('CJN_Mews_Reach', -394, -0.05, -39.5, 12, 0.3, 33, CJ.paving); // x −400..−388, z −56..−23
+  col(-384, -0.05, -31, 8, 0.3, 46);   // the alley z −54..−8
+  col(-385.5, -0.05, 0, 5, 0.3, 16);   // the mouth strip z −8..8
+  col(-394, -0.05, -39.5, 12, 0.3, 33); // the reach
+  // the fences: the depot closes its yard at the walk band's ends (the
+  // zone's own z edges) — the walk reads as ending at a fence, not a void
+  box('CJN_Mews_Fence_S', -411, 0.9, -55.7, 46, 1.8, 0.12, CJ.iron); // z −56, x −434..−388
+  box('CJN_Mews_Fence_S_Rail', -411, 1.6, -55.7, 46, 0.1, 0.14, CJ.ironDark);
+  col(-411, 0.9, -55.7, 46, 1.8, 0.12);
+  box('CJN_Mews_Fence_N', -405, 0.9, 51.7, 34, 1.8, 0.12, CJ.iron);  // z 52, x −422..−388
+  box('CJN_Mews_Fence_N_Rail', -405, 1.6, 51.7, 34, 0.1, 0.14, CJ.ironDark);
+  col(-405, 0.9, 51.7, 34, 1.8, 0.12);
+  // the alley's north closure behind the close-wall (the depot backs read
+  // as fenced, never as an unfinished edge)
+  box('CJN_Mews_Fence_Back', -385.5, 0.9, 7.7, 5, 1.8, 0.12, CJ.iron);
+  col(-385.5, 0.9, 7.7, 5, 1.8, 0.12);
+
+  // ---- the mews' own life: the lamp row, the bollards at the mouth, ------
+  // the dock-side details on the east rows' east faces (the mews side
+  // reads as the backs of working buildings, not blank brick)
+  box('CJN_Mews_LampPost', -381.8, 2.4, -30, 0.16, 4.8, 0.16, CJ.lampPole);
+  box('CJN_Mews_LampArm', -382.4, 4.7, -30, 1.2, 0.1, 0.1, CJ.lampPole);
+  box('CJN_Mews_LampHead', -383, 4.55, -30, 0.5, 0.28, 0.34, CJ.yellow);
+  col(-381.8, 2.4, -30, 0.16, 4.8, 0.16);
+  box('CJN_Mews_LampPost2', -396.2, 2.4, -46, 0.16, 4.8, 0.16, CJ.lampPole);
+  box('CJN_Mews_LampHead2', -396.2, 4.82, -46, 0.4, 0.24, 0.4, CJ.yellow);
+  col(-396.2, 2.4, -46, 0.16, 4.8, 0.16);
+  for (const bz of [-11, -15, -19]) {
+    box(`CJN_Mews_Bollard_${bz}`, -379.2, 0.55, bz, 0.22, 1.1, 0.22, CJ.bollard);
+    col(-379.2, 0.55, bz, 0.22, 1.1, 0.22);
+  }
+  // the pallets + drums against the east rows' backs (hash-seeded, the
+  // dock grammar's own read)
+  const places: Array<[number, number, number]> = [
+    [-387.2, -12.5, 0], [-387.2, -13.8, 1], [-387.0, -26.5, 2], [-393.5, -50.5, 3], [-399.5, -44.0, 4],
+  ];
+  for (const [px, pz, i] of places) {
+    box(`CJN_Mews_Pallet_${i}`, px, 0.09, pz, 1.2, 0.14, 1.0, 0x8a6f4d);
+    if (i % 2 === 0) box(`CJN_Mews_Stock_${i}`, px, 0.44, pz, 0.9, 0.5, 0.8, CJ.plank);
+  }
+  box('CJN_Mews_Drum_A', -399.6, 0.55, -35.5, 0.6, 1.1, 0.6, CJ.rust);
+  box('CJN_Mews_Drum_B', -398.8, 0.55, -35.9, 0.6, 1.1, 0.6, CJ.rust);
+  col(-399.2, 0.55, -35.7, 1.5, 1.1, 1.0);
+  // the wall lamps on the east rows' mews faces (the backs wake up too)
+  for (const [lx, lz] of [[-387.9, -5.5], [-387.9, -18.5], [-393.6, -30.5]] as const) {
+    box(`CJN_Mews_WallLamp_${lz}`, lx, 3.4, lz, 0.24, 0.2, 0.5, CJ.yellow);
+  }
+
+  return colliders;
+}

@@ -47,16 +47,35 @@ describe('the loop closes (registry: terminal → Gable → Sycamore → Kestrel
     }
   });
 
-  it("runs the four authored legs in the registry order", () => {
+  it("runs the six authored legs in the registry order", () => {
     expect(legs.map((l) => l.name)).toEqual([
-      'Kestrel west', 'Juniper north', 'Gable east', 'Sycamore south',
+      // W-N3: the east leg rides the loop as an out-and-back from the bay —
+      // the Junction Plaza stop on Kestrel East, then the west return.
+      'Kestrel west', 'Kestrel east', 'Kestrel west return', 'Juniper north', 'Gable east', 'Sycamore south',
     ]);
   });
 
-  it("the full lap is the district north half — about 362 m", () => {
+  it("the full lap is the district north half plus the east out-and-back — about 777 m", () => {
     const total = legs.reduce((s, l) => s + l.frame.len, 0);
-    expect(total).toBeGreaterThan(350);
-    expect(total).toBeLessThan(375);
+    // shipped loop 362 + the east out-and-back (2 × 202.8) = 767.6
+    expect(total).toBeGreaterThan(760);
+    expect(total).toBeLessThan(790);
+  });
+
+  it("the east leg chains: the bay corner out, the plaza halt, the bay corner back", () => {
+    // l0 ends at the bay corner (−71.6, 0.8); l4 (east) starts there and
+    // ends at the halt (131.2, 0.8); l5 (west return) starts there and ends
+    // back at the bay corner — the chain law, pinned at the new legs.
+    const l0 = legs[0], l4 = legs[1], l5 = legs[2];
+    const end = (l: typeof l0) => ({ x: l.frame.ox + l.frame.ax * l.frame.len, z: l.frame.oz });
+    expect(end(l0).x).toBeCloseTo(l4.frame.ox, 6);
+    expect(end(l4).x).toBeCloseTo(l5.frame.ox, 6);
+    expect(end(l5).x).toBeCloseTo(legs[3].frame.ox, 6); // Juniper north's start
+    // the BUS-05 halt: the door at the pole (nose 136 = pole 138 − 2)
+    const stop = l4.stops[0];
+    expect(stop.id).toBe('BUS-05');
+    const haltCenterX = l4.frame.ox + stop.a;
+    expect(haltCenterX + 4.8).toBeCloseTo(136, 6);
   });
 });
 
@@ -88,13 +107,13 @@ describe('lane discipline — the drive lanes never touch a parked car', () => {
   });
 
   it("the avenue lanes clear the curb-hugging parked cars (the Juniper law)", () => {
-    const l1 = legs[1]; // Juniper north, the car at (−68.98, 14)
+    const l1 = legs[3]; // Juniper north (W-N3 index), the car at (−68.98, 14)
     const p = { x: 0, z: 0 };
     legToWorld(14 - l1.frame.oz, 0, l1.frame, p); // center abreast the car
     const body = bodyRectAt(p.x, p.z, travelYaw(0, 1));
     expect(overlap(body, parkedCarRect(PARKED_CAR_RECTS[6]))).toBe(false);
 
-    const l3 = legs[3]; // Sycamore south, the cars at x 68.98
+    const l3 = legs[5]; // Sycamore south (W-N3 index), the cars at x 68.98
     legToWorld(l3.frame.oz - 10, 0, l3.frame, p); // center abreast z 10
     const body3 = bodyRectAt(p.x, p.z, travelYaw(0, -1));
     expect(overlap(body3, parkedCarRect(PARKED_CAR_RECTS[4]))).toBe(false);
@@ -181,7 +200,8 @@ describe('leg-space transforms', () => {
   it("aabbToLeg maps the Juniper parked car to its known advance/lateral span", () => {
     const z: BusZone = { a0: 0, a1: 0, l0: 0, l1: 0 };
     const r = parkedCarRect(PARKED_CAR_RECTS[6]); // (−68.98, 14) alongZ
-    aabbToLeg(r.minX, r.maxX, r.minZ, r.maxZ, legs[1].frame, z);
+    // W-N3: Juniper north is legs[3] now (the east out-and-back rides 1..2)
+    aabbToLeg(r.minX, r.maxX, r.minZ, r.maxZ, legs[3].frame, z);
     expect(z.a0).toBeCloseTo(11.0, 6);   // z 11.8 − 0.8
     expect(z.a1).toBeCloseTo(15.4, 6);   // z 16.2 − 0.8
     expect(z.l0).toBeCloseTo(1.645, 6);  // x −69.955 + 71.6

@@ -84,7 +84,9 @@ describe('nav graph build (registry-seeded)', () => {
       // W7: the walked extent grew ±84 → ±100 with the registry's own spanX.
       // W-C5: it grew east again with Catalpa Junction (x +252) — the same
       // registry-derived span, the same law.
-      bounds: { xMin: -100, xMax: 252, zMin: -48, zMax: 48 },
+      // W-N1: it grew west with the Willow Rows (x −280) — the corridor's
+      // lanes and crossings live in the same one-component world.
+      bounds: { xMin: -280, xMax: 252, zMin: -48, zMax: 48 },
       exemptFootprintIds: PASSABLE_FOOTPRINTS,
       roads: roadRectsOf(registry.doc),
     });

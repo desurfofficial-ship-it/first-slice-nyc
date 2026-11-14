@@ -15,7 +15,8 @@
    "W14b (2026-11-13): the corner store's restock pass — the owner's \"doesn't look finished nor production ready\" verdict answered with the bodega playbook, the store's own identity. CORNERHOUSE-INT's dressing rebuilds: the center gondola a real double-sided island (spine, boards both sides, end frames, kick) fully stocked (merged one mesh per color), the four wall units + two back flanks rebuilt with real shelf architecture and stocked facings, the counter in the fascia's brick red + cream top + gold trim with the impulse rack and bag stack, the goods board + household poster (the store's inside voice), the floor warm cream-tan, the entrance mat, backstock on the cooler. The five batch GLB slots unchanged; no id, footprint, entrance, shell or anchor value moved; colliders byte-identical (aisle law, pocket scan, walkability leg untouched); probe-city-fabric 191 byte-equal (the street ledger pays nothing — the room's dressing is band-gated).",
    "WC1 (2026-11-13, the re-integration merge): SKY-TS-W card row moved x −428 → −476 (timesSquare.ts rim + this line) — the Catalpa Junction rows took the old ground; no canon building row touched (the W7 SKY-W/E move precedent)",
    "CJN restoration (2026-11-14, the registry-discipline repair): the two agent lines independently took the CJN prefix (the DEC-13 west-reach docks committed 2026-11-13; the master-assignment east build's W-C0 data wave drafted the same ids), and the integration reconciliation renamed the west-reach rows CJN-01..09 + CJN-SUB → CDK-* to break the collision. On the integrated tree the collision no longer exists (the east district rows are LRY-*), so the canon prefix restores: the ten west-reach rows renumber CDK-* → CJN-* (DEC-13's approved canon — the name Catalpa Junction + the CJN-* prefix accepted canon; the registry's own law — IDs are permanent, never renumber). Code, tests, the validator's pin block and the probes re-point in the same commit. No id text moved geometry: footprints, heights, statuses, entrances and anchors are byte-identical; the east LRY rows untouched. Schema completion rides the same repair (the W11 data-truth class): the four BLK-LRY-* block rows gain the bbox fields the validator's block-membership check reads (computed from their own contained buildings), and SUB-03's dangling block reference (BLK-CJN-N — a pre-rename draft id that never existed as a row) re-points to the appended BLK-LRY-STN block row carrying the headhouse's own footprint. The validator reads green on the integrated tree for the first time since the merge.",
-   "W-C6 (2026-11-14): the eastbound ride ships — the K line grows its east reach. SUB-03's housing re-cuts around the stair shaft (the SUB-01 law: the shaft is the hole; the colliders split with it, dollhouse-tagged) and its north face trims 1 m (z 5..11 → 5..10) — the KNOWN 'OVERLAP LRY-03 <-> SUB-03' entry the registry-discipline repair recorded CLOSES here: the trim is exactly the repair that entry named for this session, the validator's entry retires, the canon loft row is untouched. The SUB-03-PLAT row appends (the underground platform band, the SUB-TS pattern at SUB-03's own axis — class A h 0); the transit tunnel span grows xMax −20 → 182 (the east reach beyond the portal); station C's cx READS SUB-03's row (the A-3 no-double-truth law, pinned in the acceptance suite) and ride.ts's STATION_C_X stays pinned equal. The yard splits around the open cut's L-shape (LRY-03's ground stays — the station's east half runs under the loft, no float), the plaza deck trims to the cut's west face, and the transfer car at Alder Heights hangs both ride doors (east = westbound, west = eastbound, 6.2 m apart). No id moved; one row appended; canon rows untouched. THE MERGE NOTE: this delta landed on the CJN-restored base (the registry-discipline repair's own) — their BLK-LRY-STN block claim and the pedestrianized flag stand as the authority; this wave's independent twin repairs (the bboxes, the flag, the street-anchor resolver) unify with theirs in the merge."
+   "W-C6 (2026-11-14): the eastbound ride ships — the K line grows its east reach. SUB-03's housing re-cuts around the stair shaft (the SUB-01 law: the shaft is the hole; the colliders split with it, dollhouse-tagged) and its north face trims 1 m (z 5..11 → 5..10) — the KNOWN 'OVERLAP LRY-03 <-> SUB-03' entry the registry-discipline repair recorded CLOSES here: the trim is exactly the repair that entry named for this session, the validator's entry retires, the canon loft row is untouched. The SUB-03-PLAT row appends (the underground platform band, the SUB-TS pattern at SUB-03's own axis — class A h 0); the transit tunnel span grows xMax −20 → 182 (the east reach beyond the portal); station C's cx READS SUB-03's row (the A-3 no-double-truth law, pinned in the acceptance suite) and ride.ts's STATION_C_X stays pinned equal. The yard splits around the open cut's L-shape (LRY-03's ground stays — the station's east half runs under the loft, no float), the plaza deck trims to the cut's west face, and the transfer car at Alder Heights hangs both ride doors (east = westbound, west = eastbound, 6.2 m apart). No id moved; one row appended; canon rows untouched. THE MERGE NOTE: this delta landed on the CJN-restored base (the registry-discipline repair's own) — their BLK-LRY-STN block claim and the pedestrianized flag stand as the authority; this wave's independent twin repairs (the bboxes, the flag, the street-anchor resolver) unify with theirs in the merge.",
+   "W-N0 (2026-11-14): the three EW street spans grew their west ends -100 -> -280 (the continuation law, west edition — the W-C5 east-amendment precedent); playableCore.xMin -100 -> -450; SKY-W moved -122 -> -466. Zero canon rows edited."
   ],
   "coordSystem": {
    "axes": "x = east(+)/west(−), z = north(+)/south(−), y = up. Identical to the live web-three world; the origin does not move.",
@@ -52,11 +53,11 @@
    "note": "xMin extended for the far world (docs/50): the K tunnel, 42 St-Times Square, and the Times Square canyon sit one ride west of Alder Heights. xMax extended in W7: the Eastgate strip and the SKY-E skyline fabric row live east of the old ±96 edge. 2026-11-14 (W-C0, the master build assignment): xMax +136 -> +268 for the Catalpa Junction district (x +100..+252) and the moved SKY-E skyline cards (x +262)."
   },
   "playableCore": {
-   "xMin": -100,
+   "xMin": -450,
    "xMax": 252,
    "zMin": -64,
    "zMax": 64,
-   "note": "W7 (2026-11-12): grown from x ±84 under the standing owner authorization (\"expand the game map is not a problem here\", 2026-11-11 — DEC-8, in-register). The strips beyond the Juniper/Sycamore avenues are real rows now — the E–W streets grow their west and east ends and the terrace bands continue to the wall line. Sky cards SKY-W/E move ∓110 → ∓122 so the new walls keep ≥ 10 m from the skyline fabric. W-C0 (2026-11-14): grown east to x +252 — Catalpa Junction is real rows now (DEC-12 district; the owner's 2026-11-14 master build authorization). SKY-E moves +122 -> +262 to keep >= 10 m from the new wall line."
+   "note": "W7 (2026-11-12): grown from x ±84 under the standing owner authorization (\"expand the game map is not a problem here\", 2026-11-11 — DEC-8, in-register). The strips beyond the Juniper/Sycamore avenues are real rows now — the E–W streets grow their west and east ends and the terrace bands continue to the wall line. Sky cards SKY-W/E move ∓110 → ∓122 so the new walls keep ≥ 10 m from the skyline fabric. W-C0 (2026-11-14): grown east to x +252 — Catalpa Junction is real rows now (DEC-12 district; the owner's 2026-11-14 master build authorization). SKY-E moves +122 -> +262 to keep >= 10 m from the new wall line. W-N0 (2026-11-14, the West Reach): grown west to x -450 — the Willow Rows corridor (x -280..-100) + Times Square + the Catalpa docks are one walkable surface now (the master continuation directive: \"one coherent open world\"). The K line's ride remains alongside the walk — transit, not the only door."
   },
   "currentShippedWalls": {
    "xMin": -48,
@@ -73,8 +74,8 @@
    },
    {
     "id": "SKY-W",
-    "line": "x = −122 card row",
-    "role": "Juniper Avenue vanishing point (moved ∓110 → ∓122 in W7 — the Westgate rows took the old ground, the skyline fabric keeps its clearance)"
+    "line": "x = −466 card row",
+    "role": "the west vanishing point behind the Catalpa docks (moved −122 → −466 in W-N0: the Willow Rows took the old ground; the row reads above the docks' rooflines from Alder, 10 m east of the SKY-TS-W rim — the west horizon keeps its closure)"
    },
    {
     "id": "SKY-S",
@@ -106,7 +107,7 @@
    "axis": "EW",
    "centerline": 0,
    "spanX": [
-    -100,
+    -280,
     252
    ],
    "road": {
@@ -125,7 +126,7 @@
    "totalWidth": 16,
    "ways": "two-way, one 4 m lane each direction (evidence: cab drives eastbound in the south lane z = −2, right-hand traffic; the GOLDEN ORCHARD van parks nose-west on the north curb against the westbound lane)",
    "character": "the story street — mixed-use row, awnings, the cart corner",
-   "notes": "Existing geometry is canon: road/sidewalk slabs span x −50..50 today and extend to ±84 in phase W1 with identical materials and y-levels. W7: spanX ±84 → ±100 — the street continues into the Westgate/Eastgate strips (butt-jointed slabs, same levels). W-C0 (2026-11-14): spanX east end +100 -> +252 — Kestrel continues into Catalpa Junction (butt-jointed slabs, same levels; the district's connecting spine)."
+   "notes": "Existing geometry is canon: road/sidewalk slabs span x −50..50 today and extend to ±84 in phase W1 with identical materials and y-levels. W7: spanX ±84 → ±100 — the street continues into the Westgate/Eastgate strips (butt-jointed slabs, same levels). W-C0 (2026-11-14): spanX east end +100 -> +252 — Kestrel continues into Catalpa Junction (butt-jointed slabs, same levels; the district's connecting spine). W-N0 (2026-11-14, the West Reach): spanX west end -100 -> -280 — the street continues into the Willow Rows (butt-jointed slabs, same levels; the continuation law, west edition). Kestrel runs Willow->Larch: 532 m of continuous frontage."
   },
   {
    "id": "STR-JUNIPER",
@@ -185,7 +186,7 @@
    "axis": "EW",
    "centerline": 40,
    "spanX": [
-    -100,
+    -280,
     252
    ],
    "road": {
@@ -204,7 +205,7 @@
    "totalWidth": 16,
    "ways": "two-way, narrow residential",
    "character": "the brownstone street — stoops, tree pits, quiet",
-   "notes": "W7: spanX ±84 → ±100 — the street continues into the Westgate/Eastgate strips; the terrace bands ride its north walk to the wall line. W-C5 amendment (2026-11-14): spanX east end +100 -> +252 — Gable Street continues into Catalpa Junction (the east continuation IS the district’s north cross street; the draft STR-ROWAN row retired — its corridor was Gable’s own)."
+   "notes": "W7: spanX ±84 → ±100 — the street continues into the Westgate/Eastgate strips; the terrace bands ride its north walk to the wall line. W-C5 amendment (2026-11-14): spanX east end +100 -> +252 — Gable Street continues into Catalpa Junction (the east continuation IS the district’s north cross street; the draft STR-ROWAN row retired — its corridor was Gable’s own). W-N0 (2026-11-14, the West Reach): spanX west end -100 -> -280 — the street continues into the Willow Rows (butt-jointed slabs, same levels; the continuation law, west edition). The brownstone street's west reach."
   },
   {
    "id": "STR-MARLOW",
@@ -212,7 +213,7 @@
    "axis": "EW",
    "centerline": -40,
    "spanX": [
-    -100,
+    -280,
     252
    ],
    "road": {
@@ -231,7 +232,7 @@
    "totalWidth": 16,
    "ways": "two-way, narrow residential/commercial edge",
    "character": "bakery-and-record-shop street with the playground gate",
-   "notes": "W7: spanX ±84 → ±100 — the street continues into the Westgate/Eastgate strips; the Carrow band rides its south walk to the wall line. W-C5 amendment (2026-11-14): spanX east end +100 -> +252 — Marlow Street continues into Catalpa Junction (the draft STR-SUMAC row retired — its corridor was Marlow’s own)."
+   "notes": "W7: spanX ±84 → ±100 — the street continues into the Westgate/Eastgate strips; the Carrow band rides its south walk to the wall line. W-C5 amendment (2026-11-14): spanX east end +100 -> +252 — Marlow Street continues into Catalpa Junction (the draft STR-SUMAC row retired — its corridor was Marlow’s own). W-N0 (2026-11-14, the West Reach): spanX west end -100 -> -280 — the street continues into the Willow Rows (butt-jointed slabs, same levels; the continuation law, west edition). The quiet south reach."
   },
   {
    "id": "STR-SPUR",
@@ -288,6 +289,60 @@
    "ways": "two-way, narrow; ends at the world's east wall",
    "character": "the east row — walk-ups, storage, quiet",
    "notes": "W-C0: new row."
+  },
+  {
+   "id": "STR-WILLOW",
+   "name": "Willow Street",
+   "axis": "NS",
+   "centerline": -232,
+   "spanZ": [
+    -64,
+    64
+   ],
+   "road": {
+    "xMin": -236,
+    "xMax": -228,
+    "width": 8
+   },
+   "walkW": {
+    "xMin": -240,
+    "xMax": -236
+   },
+   "walkE": {
+    "xMin": -228,
+    "xMax": -224
+   },
+   "totalWidth": 16,
+   "ways": "two-way, narrow",
+   "character": "the tenement avenue — walk-ups, the Willow Theater corner, the print works",
+   "notes": "W-N0 (2026-11-14, the West Reach): the corridor's west avenue. The K line does not run here — the subway stays on its own z 12..20 tunnel band (the zone table's tunnel span already covers the corridor)."
+  },
+  {
+   "id": "STR-CHESTNUT",
+   "name": "Chestnut Street",
+   "axis": "NS",
+   "centerline": -148,
+   "spanZ": [
+    -64,
+    64
+   ],
+   "road": {
+    "xMin": -152,
+    "xMax": -144,
+    "width": 8
+   },
+   "walkW": {
+    "xMin": -156,
+    "xMax": -152
+   },
+   "walkE": {
+    "xMin": -144,
+    "xMax": -140
+   },
+   "totalWidth": 16,
+   "ways": "two-way, narrow",
+   "character": "the garden's street — the Chestnut Garden's east edge, quiet",
+   "notes": "W-N0 (2026-11-14, the West Reach): the corridor's east avenue, the garden's front."
   }
  ],
  "intersections": [
@@ -425,6 +480,72 @@
    "cornerBuildings": [
     "LRY-19",
     "LRY-12"
+   ]
+  },
+  {
+   "id": "IX-WLR-KW",
+   "streets": [
+    "STR-KESTREL",
+    "STR-WILLOW"
+   ],
+   "cornerBuildings": [
+    "WLR-02",
+    "WLR-03"
+   ]
+  },
+  {
+   "id": "IX-WLR-KC",
+   "streets": [
+    "STR-KESTREL",
+    "STR-CHESTNUT"
+   ],
+   "cornerBuildings": [
+    "WLR-05",
+    "WLR-11"
+   ]
+  },
+  {
+   "id": "IX-WLR-GW",
+   "streets": [
+    "STR-GABLE",
+    "STR-WILLOW"
+   ],
+   "cornerBuildings": [
+    "WLR-12",
+    "WLR-13"
+   ]
+  },
+  {
+   "id": "IX-WLR-GC",
+   "streets": [
+    "STR-GABLE",
+    "STR-CHESTNUT"
+   ],
+   "cornerBuildings": [
+    "WLR-13",
+    "WLR-14"
+   ]
+  },
+  {
+   "id": "IX-WLR-MW",
+   "streets": [
+    "STR-MARLOW",
+    "STR-WILLOW"
+   ],
+   "cornerBuildings": [
+    "WLR-15",
+    "WLR-16"
+   ]
+  },
+  {
+   "id": "IX-WLR-MC",
+   "streets": [
+    "STR-MARLOW",
+    "STR-CHESTNUT"
+   ],
+   "cornerBuildings": [
+    "WLR-16",
+    "WLR-17"
    ]
   }
  ],
@@ -668,6 +789,102 @@
    "w": 3.4,
    "axis": "EW",
    "note": "Marlow x Larch — the east-edge zebra"
+  },
+  {
+   "id": "XW-WLR-KW-E",
+   "x": -228.5,
+   "z": 0,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "Kestrel×Willow, east leg (across Kestrel)"
+  },
+  {
+   "id": "XW-WLR-KW-W",
+   "x": -235.5,
+   "z": 0,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "Kestrel×Willow, west leg (across Kestrel)"
+  },
+  {
+   "id": "XW-WLR-KC-E",
+   "x": -144.5,
+   "z": 0,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "Kestrel×Chestnut, east leg (across Kestrel)"
+  },
+  {
+   "id": "XW-WLR-KC-W",
+   "x": -151.5,
+   "z": 0,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "Kestrel×Chestnut, west leg (across Kestrel)"
+  },
+  {
+   "id": "XW-WLR-GW-S",
+   "x": -232,
+   "z": 35.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "Gable×Willow, south leg (across Willow)"
+  },
+  {
+   "id": "XW-WLR-GW-N",
+   "x": -232,
+   "z": 44.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "Gable×Willow, north leg (across Willow)"
+  },
+  {
+   "id": "XW-WLR-GC-S",
+   "x": -148,
+   "z": 35.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "Gable×Chestnut, south leg (across Chestnut)"
+  },
+  {
+   "id": "XW-WLR-GC-N",
+   "x": -148,
+   "z": 44.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "Gable×Chestnut, north leg (across Chestnut)"
+  },
+  {
+   "id": "XW-WLR-MW-S",
+   "x": -232,
+   "z": -44.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "Marlow×Willow, south leg (across Willow)"
+  },
+  {
+   "id": "XW-WLR-MW-N",
+   "x": -232,
+   "z": -35.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "Marlow×Willow, north leg (across Willow)"
+  },
+  {
+   "id": "XW-WLR-MC-S",
+   "x": -148,
+   "z": -44.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "Marlow×Chestnut, south leg (across Chestnut)"
+  },
+  {
+   "id": "XW-WLR-MC-N",
+   "x": -148,
+   "z": -35.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "Marlow×Chestnut, north leg (across Chestnut)"
   }
  ],
  "blocks": [
@@ -848,6 +1065,86 @@
    "buildings": [
     "SUB-03"
    ]
+  },
+  {
+   "id": "BLK-WLR-A",
+   "bbox": {
+    "xMin": -278,
+    "xMax": -244,
+    "zMin": 8,
+    "zMax": 32
+   },
+   "note": "the Willow Rows north block A (x -278..-244) — the print works + the Ivy walk-ups"
+  },
+  {
+   "id": "BLK-WLR-B",
+   "bbox": {
+    "xMin": -224,
+    "xMax": -160,
+    "zMin": 8,
+    "zMax": 32
+   },
+   "note": "the Willow Rows north block B — the Willow Theater, the supply house, the Chestnut Lofts"
+  },
+  {
+   "id": "BLK-WLR-C",
+   "bbox": {
+    "xMin": -136,
+    "xMax": -104,
+    "zMin": 8,
+    "zMax": 32
+   },
+   "note": "the Willow Rows north block C — the Chestnut Garden (the breath between the rows and Alder Heights)"
+  },
+  {
+   "id": "BLK-WLR-D",
+   "bbox": {
+    "xMin": -278,
+    "xMax": -244,
+    "zMin": -32,
+    "zMax": -8
+   },
+   "note": "the Willow Rows south block D — the Kestrel Diner row + Willow Court walk-ups"
+  },
+  {
+   "id": "BLK-WLR-E",
+   "bbox": {
+    "xMin": -224,
+    "xMax": -160,
+    "zMin": -32,
+    "zMax": -8
+   },
+   "note": "the Willow Rows south block E — the Bijou, the cabinet works, the Column Yard"
+  },
+  {
+   "id": "BLK-WLR-F",
+   "bbox": {
+    "xMin": -136,
+    "xMax": -104,
+    "zMin": -32,
+    "zMax": -8
+   },
+   "note": "the Willow Rows south block F — the garden's shed row (the cheap column band, the design doc §5)"
+  },
+  {
+   "id": "BLK-WLR-FARN",
+   "bbox": {
+    "xMin": -274,
+    "xMax": -150,
+    "zMin": 52,
+    "zMax": 62
+   },
+   "note": "the Willow Rows far-north strip (z 52..62) — low walk-ups on the Gable west continuation"
+  },
+  {
+   "id": "BLK-WLR-FARS",
+   "bbox": {
+    "xMin": -274,
+    "xMax": -150,
+    "zMin": -62,
+    "zMax": -52
+   },
+   "note": "the Willow Rows far-south strip (z -62..-52) — low works rows on the Marlow west continuation"
   }
  ],
  "buildings": [
@@ -3882,6 +4179,431 @@
    "interior": "MEZZ-LY",
    "storyRole": "the eastbound terminus — one ride from Alder Heights, the yards' own front step (W-C6)",
    "collider": true
+  },
+  {
+   "id": "WLR-01",
+   "name": "Ansel & Sons Print Works",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Kestrel S",
+   "block": "BLK-WLR-A",
+   "footprint": {
+    "x": -265,
+    "z": 20,
+    "w": 22,
+    "d": 20
+   },
+   "height": 13,
+   "floors": 4,
+   "style": "print-works loft: warm brick, painted tin cornice, the ANSEL & SONS ghost sign on the west gable (LMK-15)",
+   "entrance": [
+    {
+     "x": -265,
+     "z": 10,
+     "faces": "S"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "WLR-02",
+   "name": "The Ivy Walk-ups",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Kestrel S",
+   "block": "BLK-WLR-A",
+   "footprint": {
+    "x": -248,
+    "z": 20,
+    "w": 8,
+    "d": 18
+   },
+   "height": 16,
+   "floors": 5,
+   "style": "tenement walk-up pair: dark brick, fire-escape bay, sills and lintels",
+   "entrance": [
+    {
+     "x": -248,
+     "z": 11,
+     "faces": "S"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "WLR-03",
+   "name": "The Willow Theater",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Kestrel S",
+   "block": "BLK-WLR-B",
+   "footprint": {
+    "x": -212,
+    "z": 20,
+    "w": 24,
+    "d": 20
+   },
+   "height": 14,
+   "floors": 3,
+   "style": "the neighborhood house: cream brick, the THE WILLOW marquee on the Kestrel face (LMK-14), poster cases, forecourt benches",
+   "entrance": [
+    {
+     "x": -212,
+     "z": 10,
+     "faces": "S"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "WLR-04",
+   "name": "Hawthorne & Varn Supply",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Kestrel S",
+   "block": "BLK-WLR-B",
+   "footprint": {
+    "x": -186,
+    "z": 20,
+    "w": 20,
+    "d": 18
+   },
+   "height": 11,
+   "floors": 2,
+   "style": "supply house: painted fascia band, wide shopfront, horse-walk lintel",
+   "entrance": [
+    {
+     "x": -186,
+     "z": 11,
+     "faces": "S"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "WLR-05",
+   "name": "The Chestnut Lofts",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Kestrel S",
+   "block": "BLK-WLR-B",
+   "footprint": {
+    "x": -170,
+    "z": 20,
+    "w": 12,
+    "d": 18
+   },
+   "height": 15,
+   "floors": 4,
+   "style": "loft row: party wall to the supply house, tall studio windows, cornice",
+   "entrance": [
+    {
+     "x": -170,
+     "z": 11,
+     "faces": "S"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "WLR-06",
+   "name": "The Kestrel Diner (shell)",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Kestrel S",
+   "block": "BLK-WLR-D",
+   "footprint": {
+    "x": -266,
+    "z": -20,
+    "w": 20,
+    "d": 20
+   },
+   "height": 10,
+   "floors": 1,
+   "style": "low commercial row: striped awning read, plate glass, the door faces N (Kestrel S band)",
+   "entrance": [
+    {
+     "x": -266,
+     "z": -10,
+     "faces": "N"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "WLR-07",
+   "name": "Willow Court Walk-ups",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Kestrel S",
+   "block": "BLK-WLR-D",
+   "footprint": {
+    "x": -249,
+    "z": -20,
+    "w": 10,
+    "d": 18
+   },
+   "height": 15,
+   "floors": 5,
+   "style": "walk-up row: brick, stoop reads, cornice",
+   "entrance": [
+    {
+     "x": -249,
+     "z": -11,
+     "faces": "N"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "WLR-08",
+   "name": "The Bijou",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Kestrel S",
+   "block": "BLK-WLR-E",
+   "footprint": {
+    "x": -213,
+    "z": -20,
+    "w": 22,
+    "d": 20
+   },
+   "height": 12,
+   "floors": 2,
+   "style": "small second house: painted brick, the BIJOU blade sign, stage door on the west flank",
+   "entrance": [
+    {
+     "x": -213,
+     "z": -10,
+     "faces": "N"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "WLR-09",
+   "name": "Pell & Sons Cabinet Works",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Kestrel S",
+   "block": "BLK-WLR-E",
+   "footprint": {
+    "x": -187,
+    "z": -20,
+    "w": 22,
+    "d": 18
+   },
+   "height": 12,
+   "floors": 3,
+   "style": "cabinet works: brick, loading lintel, sawtooth monitor read",
+   "entrance": [
+    {
+     "x": -187,
+     "z": -11,
+     "faces": "N"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "WLR-10",
+   "name": "The Column Yard",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Kestrel S",
+   "block": "BLK-WLR-E",
+   "footprint": {
+    "x": -170,
+    "z": -20,
+    "w": 12,
+    "d": 18
+   },
+   "height": 14,
+   "floors": 3,
+   "style": "storage loft: iron shutters read, cornice",
+   "entrance": [
+    {
+     "x": -170,
+     "z": -11,
+     "faces": "N"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "WLR-11",
+   "name": "The Chestnut Shed",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Kestrel S",
+   "block": "BLK-WLR-F",
+   "footprint": {
+    "x": -120,
+    "z": -20,
+    "w": 24,
+    "d": 16
+   },
+   "height": 6,
+   "floors": 1,
+   "style": "the garden's shed row: timber, lean-to roofs, low",
+   "entrance": [
+    {
+     "x": -120,
+     "z": -12,
+     "faces": "N"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "WLR-12",
+   "name": "Willow West Walk-up",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Gable S",
+   "block": "BLK-WLR-FARN",
+   "footprint": {
+    "x": -258,
+    "z": 57,
+    "w": 24,
+    "d": 10
+   },
+   "height": 9,
+   "floors": 2,
+   "style": "low walk-up on the Gable west continuation: brick, cornice",
+   "entrance": [
+    {
+     "x": -258,
+     "z": 52,
+     "faces": "S"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "WLR-13",
+   "name": "The Gable Pair",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Gable S",
+   "block": "BLK-WLR-FARN",
+   "footprint": {
+    "x": -212,
+    "z": 57,
+    "w": 20,
+    "d": 10
+   },
+   "height": 8,
+   "floors": 2,
+   "style": "low pair: brick, cornice",
+   "entrance": [
+    {
+     "x": -212,
+     "z": 52,
+     "faces": "S"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "WLR-14",
+   "name": "Chestnut North Works",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Gable S",
+   "block": "BLK-WLR-FARN",
+   "footprint": {
+    "x": -172,
+    "z": 57,
+    "w": 28,
+    "d": 10
+   },
+   "height": 9,
+   "floors": 2,
+   "style": "small works row: brick, freight door",
+   "entrance": [
+    {
+     "x": -172,
+     "z": 52,
+     "faces": "S"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "WLR-15",
+   "name": "Marlow West Works",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Marlow N",
+   "block": "BLK-WLR-FARS",
+   "footprint": {
+    "x": -259,
+    "z": -57,
+    "w": 22,
+    "d": 10
+   },
+   "height": 8,
+   "floors": 2,
+   "style": "low works row: brick, freight door",
+   "entrance": [
+    {
+     "x": -259,
+     "z": -52,
+     "faces": "N"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "WLR-16",
+   "name": "The Marlow Pair",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Marlow N",
+   "block": "BLK-WLR-FARS",
+   "footprint": {
+    "x": -214,
+    "z": -57,
+    "w": 20,
+    "d": 10
+   },
+   "height": 9,
+   "floors": 2,
+   "style": "low pair: brick, cornice",
+   "entrance": [
+    {
+     "x": -214,
+     "z": -52,
+     "faces": "N"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "WLR-17",
+   "name": "Chestnut South Shed",
+   "status": "built (W-N0)",
+   "class": "C",
+   "face": "Marlow N",
+   "block": "BLK-WLR-FARS",
+   "footprint": {
+    "x": -172,
+    "z": -57,
+    "w": 28,
+    "d": 10
+   },
+   "height": 8,
+   "floors": 1,
+   "style": "low shed: timber, lean-to",
+   "entrance": [
+    {
+     "x": -172,
+     "z": -52,
+     "faces": "N"
+    }
+   ],
+   "collider": true
   }
  ],
  "parks": [
@@ -4353,6 +5075,67 @@
     "NZ-LRY-SPUR"
    ],
    "notes": "W-C0: new row (built W-C3). The community claiming the freight line."
+  },
+  {
+   "id": "PRK-CHESTNUT",
+   "name": "The Chestnut Garden",
+   "status": "built (W-N0)",
+   "bbox": {
+    "xMin": -136,
+    "xMax": -104,
+    "zMin": 8,
+    "zMax": 32
+   },
+   "layout": {
+    "lawn": {
+     "xMin": -134,
+     "xMax": -106,
+     "zMin": 10,
+     "zMax": 30
+    },
+    "gravelPath": {
+     "from": [
+      -120,
+      10.5
+     ],
+     "to": [
+      -120,
+      29.5
+     ],
+     "width": 1.4
+    },
+    "gates": [
+     {
+      "x": -120,
+      "z": 8,
+      "type": "Kestrel St gate"
+     },
+     {
+      "x": -120,
+      "z": 32,
+      "type": "Gable St gate"
+     }
+    ],
+    "benches": [
+     {
+      "x": -113,
+      "z": 16
+     },
+     {
+      "x": -113,
+      "z": 24
+     },
+     {
+      "x": -127,
+      "z": 16
+     },
+     {
+      "x": -127,
+      "z": 24
+     }
+    ]
+   },
+   "notes": "W-N0 (the West Reach): the community garden that fills the corridor's east half-block — the breath between the rows and Alder Heights, and the priced cheap content of the lattice's spawn-lit columns 5-6 (the design doc §5)."
   }
  ],
  "landmarks": [
@@ -4433,6 +5216,18 @@
    "name": "The Catalpa Junction globe",
    "anchor": "SUB-03",
    "reason": "the K's east globe lamp — 'by the globe' now works in two districts"
+  },
+  {
+   "id": "LMK-14",
+   "name": "The Willow marquee",
+   "anchor": "WLR-03",
+   "reason": "the neighborhood house's light-box marquee — THE WILLOW in bulb letters over the Kestrel face; the corridor's own wonder beat, the transition into the square's lights"
+  },
+  {
+   "id": "LMK-15",
+   "name": "The Ansel & Sons ghost sign",
+   "anchor": "WLR-01",
+   "reason": "FINE PRINTING — EST. 1919 whitewashed on the print works' west gable; the painted-brick read the corridor shares with the Iron Works across the map"
   }
  ],
  "transit": {
@@ -4463,7 +5258,7 @@
   },
   "bus": {
    "route": "M121",
-   "loop": "terminal lay-over → Gable St → Sycamore Ave → Kestrel St → Juniper Ave → terminal",
+   "loop": "terminal lay-over → Kestrel East (the Junction Plaza, BUS-05) → Gable St → Sycamore Ave → Kestrel St → Juniper Ave → terminal (W-N3: the east leg is an out-and-back from the bay — east to the plaza, dwell, west return, then the shipped loop continues)",
    "stops": [
     {
      "id": "BUS-01",
@@ -4485,6 +5280,14 @@
      "x": 61.5,
      "z": 2,
      "status": "planned"
+    },
+    {
+     "id": "BUS-05",
+     "name": "Junction Plaza (Kestrel East)",
+     "x": 138,
+     "z": 7.35,
+     "status": "planned (W-N3)",
+     "note": "the M121's east-leg pole (W-N3, 2026-11-14 — AGENT_HANDOVER §2's documented next priced wave): the nose halts at x 136 (2 m short of the pole, the door law), 10 m west of the spur mouth (146); the out-and-back serves the plaza between the bay lay-over and the shipped loop's Juniper turn."
     }
    ],
    "schedule": "off-camera between player-visible arrivals; day-keyed, deterministic (existing law)",
@@ -4703,12 +5506,28 @@
    {
     "id": "R-LARCH-E",
     "way": "Larch east walk x 232..236 (lane x 234.5), z -48..48"
+   },
+   {
+    "id": "R-WILLOW-W",
+    "way": "west sidewalk x -239..-238, z -48..48 (W-N0: the corridor's lanes, off the 6 m grid)"
+   },
+   {
+    "id": "R-WILLOW-E",
+    "way": "east sidewalk x -227..-226, z -48..48"
+   },
+   {
+    "id": "R-CHESTNUT-W",
+    "way": "west sidewalk x -155..-154, z -48..48"
+   },
+   {
+    "id": "R-CHESTNUT-E",
+    "way": "east sidewalk x -143..-142, z -48..48"
    }
   ],
   "vehicle": [
    {
     "id": "V-CAB",
-    "way": "Kestrel south lane z = −2 eastbound, x −46..46 (existing; extends to ±84 phase W4)"
+    "way": "Kestrel south lane z = −2 eastbound, x −84..246 (W-N3: the rail grows east with Kestrel's own continuation — the cab serves the Larch Yards; the west end keeps its shipped post; the courtesy boxes ride the east crossings)"
    },
    {
     "id": "V-JUNIPER",
@@ -6532,6 +7351,16 @@
    "name": "The Junction docks — Catalpa Junction's first priced slice",
    "content": "The owner-approved district's first wave (DEC-13: the design package APPROVED as filed, scenario S1 transit-gated, W-C1 authorized; the Narrative Director's reconciliation rode first — the hall stays on the Alder Works parcel, Catalpa Junction is the open endgame's district). Nine registry rows on the K line's west reach past 42 ST (x −450..−378, the registry's free band — the district the freight industry built): the spur's two dock rows (CJN-01..05 west doors east, CJN-06..09 east doors west), the Iron Works ghost-sign shell, the loft row's roofline, and CJN-SUB the K-line platform stub (the SUB-TS slot-row precedent, h 0). All zone-owned: CJN_Group lights only inside its catalpaSurface/catalpaPlatform zones (the tsSurface law), NAMED_SKIP keeps it out of every district tile, ROOF_SKIP keeps the fabric off the far world's roofs — the shipped Alder Heights rigs stay byte-identical (+0 standing), and the district's own census prices in the wave's probe. No ride-seam machine change (the ride stays A↔B); no interiors, businesses, residents, or story content (each its own priced wave). [RENAMED at the integrated tree (2026-11-14): the dock rows ride CJN-* — the east district’s build took the draft CJN ids first; the rename honors the uniqueness law without touching either geometry.]",
    "unlocks": "the second district's first slice, priced: the spur walk, the dock rows, the platform stub — visible when the ride seam wave opens the zone"
+  },
+  {
+   "id": "WN0",
+   "name": "The West Reach — the Willow Rows data wave",
+   "content": "The owner's 2026-11-14 master continuation directive (\"COMPLETE THE OPEN WORLD\"): the corridor between Alder Heights and Times Square (x -280..-100) is real rows now. Two NS streets (Willow, Chestnut), eight blocks, seventeen WLR-* masses (shells only — the W-C1 scope law), PRK-CHESTNUT the community garden, LMK-14 the Willow marquee, LMK-15 the Ansel ghost sign, six intersections, twelve crosswalks, four pedestrian route rows. The three EW streets grow their west ends (the continuation law, west edition). Geometry is the W-N1 wave; the lattice pricing law (masses west of x -176) is data-checked here. See docs/world-building/west-reach-design.md."
+  },
+  {
+   "id": "WN3",
+   "name": "The West Reach — the transit extension",
+   "content": "AGENT_HANDOVER §2's documented next priced wave, built under the master continuation directive: the M121's loop grows its east leg (the Junction Plaza stop on Kestrel East, BUS-05, the out-and-back from the bay — legs \"Kestrel east\" + \"Kestrel west return\", the door law's own nose marks, the courtesy zones at the east crossings), the taxi's rail grows east (x −84..246, the cab serves the Larch Yards, the courtesy boxes ride the spur and Larch corners), the BUS-05 pole + bay paint render at the registry's own pin. Priced: the bus shell +0 standing draws (dynamic, the shipped census law), the cab +0 (dynamic), the pole + bay pre-bake (+0 — the merge swallows them)."
   }
  ],
  "openDecisions": [
