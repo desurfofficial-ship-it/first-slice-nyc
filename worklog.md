@@ -4264,6 +4264,72 @@ Work Log:
 Stage Summary:
 - The repo's memory held: two agent lines, two owner rulings (DEC-13's package gate, the master assignment's complete-world command), zero overwritten work, one coherent registry. The world now ships TWO named districts beyond Alder Heights — Catalpa Junction (the west docks, canon, zone-gated) and the Larch Yards (the east district, walked, one nav world) — plus Times Square, inside one draw budget.
 
+---
+## 2026-11-14 — Z Agent: the GIFTED FURNITURE PACKS — the owner's two asset packs placed additively into four interiors (14 new GLB slots; every ABO slot untouched)
+
+Task ID: GIFTED-PACKS (the owner uploaded lowpoly_furniture_pack.zip — the
+warm-pastel Scandinavian starter set, 10 pieces, first-party — and
+modern-interior-lowpoly-free-v1.0.zip — LM Scenova Studios' Modern Interior
+FREE SAMPLE, 8 pieces, embed-in-project license — with "place these assets in
+their corresponding place in the game").
+
+Work Log:
+- READ THE SEAM FIRST: the docs/57 furniture manifest (src/world/furniture.ts)
+  and World.upgradeFurnitureWithGLB's laws — one placeholder one slot, the
+  footprint guard (0.5–1.9x), the hide-siblings law, the rest law (rooms draw
+  only when shown), and the probe's texture law (bed/sofa/stool wrappers must
+  carry a texture map). That law set decides the shape of the work: pack-one
+  files are untextured, so SWAPPING any probed ABO slot is forbidden; the
+  integration is ADDITIVE — new placeholders for pieces whose place was free,
+  and the already-occupied kinds (a second bed, a second three-seat sofa, the
+  modular floor/wall kit) stay in the packs for future rooms, exactly like the
+  ABO pack's own 141-model precedent.
+- THE ASSETS: assets/packs/lowpoly-furniture (the full first-party pack:
+  models + previews + generator sources + manifest) and
+  assets/packs/modern-interior (LICENSE.txt + README + ONLY the five GLBs the
+  game wears — the license forbids redistribution, so no FBX/OBJ/previews
+  ship). 14 files renamed into public/models/furniture/ (sc_* scandi, mi_*
+  modern-interior); provenance in the new GIFTED_PACK_PROVENANCE with
+  byte-identity tests against the pack copies; the license credited in
+  THIRD-PARTY-NOTICES.md; the furniture suite grew two law rows (source
+  partition + gifted byte-identity).
+- THE 14 SLOTS (manifest rows + authored placeholders + colliders in
+  World.ts): CECIL works — the sc_ diary desk under the prints, the sc_
+  wardrobe on the S wall, the mi_ desk chair facing it, the mi_ herb pot on
+  the kitchen shelf (the floor cushion yielded the S wall, tucked to the
+  bed's foot corner). HALL gains its second half — the sc_ lounge sofa (back
+  to the notice wall) + mi_ lounge table at its seat side, the mi_ armchair
+  completing the living circle, the sc_ tall plant at the circle's shoulder,
+  the sc_ lending shelf on the E wall, the sc_ break nook backing the E wall
+  by the kitchenette (chair pulled out facing the table). BARBER wears the
+  sc_ step stool at the counter's south shoulder and the mi_ lamp at the SW
+  waiting corner. RECORDS' listening corner gains the sc_ corner table and
+  the sc_ floor lamp in the deep SW corner.
+- THE YAW REVIEW CHAIN (new probes, kept as tools): probe-furniture-gifted.mjs
+  (census + rest law + 10 aimed walk-ins), probe-furniture-gifted-iso.mjs
+  (pause-pose-render isometrics, ducks hidden per the cutaway law — the
+  CECIL tower's above-room masses taught that one), probe-furniture-gifted-
+  top.mjs (straight-down north-up renders; the screen-projection math in the
+  log settled the room-anchor reading). The chain caught exactly one
+  authoring error — the lounge table first sat behind the sofa's backrest —
+  and verified every other yaw against the anchor walls.
+- THE BATTERY: tsc clean · vitest 1,751/1,751 (105 files) · build OK ·
+  DRAWS 192 (< 200; zero gifted draws at rest — the rooms stay hidden) ·
+  probe-furniture census settles 54/54 (its stale fixed wait replaced with
+  the settle-poll — a probe-timing fix, the game code untouched) ·
+  probe-integration 0 errors, 8/8 walks · diag-pocket-scan traps 19: the
+  HALL's documented door-alias pocket split in two by the new furniture (the
+  W5 1.2 m doors zero on the 0.5 grid — the known alias class the handover
+  records; BARBER/RECORDS unchanged; the walk-in probe passes all four
+  rooms, so zero real-walkability change).
+
+Stage Summary:
+- The owner's furniture is IN the game: Cecil's room works (desk, wardrobe,
+  chair, herb pot), the communal hall has a lounge and a break nook, the
+  barbershop and the record store wear their last pieces — 14 new seams, all
+  provenance-pinned, all license-honest, the ABO identity untouched, the draw
+  budget untouched, the suite at 1,751 green.
+
 ## 2026-11-14 — Z Agent: W-C6 — the K line eastbound: the handover's exact next priced wave (the second district becomes a ride away)
 
 Task ID: W-C6-eastbound-ride (AGENT_HANDOVER §2's own task, executed verbatim; the priced ledger row rode the wave — the DEC-2 law).
@@ -4278,3 +4344,4 @@ Work Log:
 
 Stage Summary:
 - The K line is a real three-station line now: the westbound teach and the eastbound hop both ride, the transfer car at Alder Heights hangs both doors, and the Larch Yards' front door is the headhouse that always promised a stair. The registry grew its below-grade band honestly (SUB-03-PLAT, the SUB-TS pattern), the merged tree's block-law gaps got their repair, and the pocket scan's one-component law held throughout. Register v1.78.0.
+

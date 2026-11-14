@@ -102,6 +102,43 @@ export const FURNITURE_SLOTS: readonly FurnitureSlot[] = [
   { id: 'listening_chair', room: 'RECORDS', fixture: 'Records_Chair', height: 0.97, rotateY: Math.PI },
   { id: 'shop_counter', room: 'RECORDS', fixture: 'Records_Counter', height: 1.1 },
   { id: 'corner_rug', room: 'RECORDS', fixture: 'Records_Rug', height: 0.02, fitBy: 'footprint' },
+  // ---- THE GIFTED PACKS (2026-11-14) — the owner's two furniture packs,
+  //  placed additively: every piece whose room lacked that piece wears a
+  //  NEW placeholder; the ABO slots above keep their curated models (the
+  //  probe's texture law — pack-one files carry no texture maps — and the
+  //  shipped room identities both hold). The sc_/mi_ ids namespace the two
+  //  sources (provenance: GIFTED_PACK_PROVENANCE below):
+  //    sc_ — the warm-pastel Scandinavian starter set (first-party,
+  //          assets/packs/lowpoly-furniture, generated with headless Blender)
+  //    mi_ — Modern Interior Low-Poly FREE SAMPLE v1.0 by LM Scenova
+  //          Studios (license: embed-in-project only — assets/packs/modern-
+  //          interior carries the LICENSE.txt and only the GLBs the game wears)
+  //  Pieces whose corresponding place was already occupied (a second bed,
+  //  a second three-seat sofa, the modular floor/wall kit) stay in the
+  //  packs for future rooms — the ABO pack's own 141-model precedent.
+  // ---- CECIL — his room works now: the diary desk under the prints, the
+  //  wardrobe on the S wall, the desk chair, and a herb pot on the shelf
+  { id: 'sc_desk', room: 'CECIL', fixture: 'Cecil_Desk', height: 0.84 },
+  { id: 'sc_wardrobe', room: 'CECIL', fixture: 'Cecil_Wardrobe', height: 2.03 },
+  { id: 'mi_chair', room: 'CECIL', fixture: 'Cecil_DeskChair', height: 0.85, rotateY: Math.PI },
+  { id: 'mi_plant_pot', room: 'CECIL', fixture: 'Cecil_HerbPot', height: 0.5 },
+  // ---- HALL — the communal room's second half: the lounge sofa + table
+  //  by the notice wall, the armchair completing the living circle, the
+  //  tall plant at the circle's shoulder, the lending shelf on the E wall,
+  //  the break nook by the kitchenette
+  { id: 'sc_sofa', room: 'HALL', fixture: 'Hall_LoungeSofa', height: 0.85, rotateY: Math.PI },
+  { id: 'mi_coffee_table', room: 'HALL', fixture: 'Hall_LoungeTable', height: 0.4 },
+  { id: 'mi_armchair', room: 'HALL', fixture: 'Hall_Armchair', height: 0.84, rotateY: Math.PI / 2 },
+  { id: 'sc_potted_plant', room: 'HALL', fixture: 'Hall_Plant', height: 1.4 },
+  { id: 'sc_bookshelf', room: 'HALL', fixture: 'Hall_LendShelf', height: 1.9, rotateY: -Math.PI / 2 },
+  { id: 'sc_dining_set', room: 'HALL', fixture: 'Hall_NookSet', height: 0.88, rotateY: -Math.PI / 2 },
+  // ---- BARBER — the counter's step stool and a lamp at the waiting corner
+  { id: 'sc_stool', room: 'BARBER', fixture: 'Barber_StepStool', height: 0.46 },
+  { id: 'mi_floor_lamp', room: 'BARBER', fixture: 'Barber_Lamp', height: 1.6 },
+  // ---- RECORDS — the listening corner warms: the corner table by the
+  //  chair, the floor lamp in the deep SW corner
+  { id: 'sc_coffee_table', room: 'RECORDS', fixture: 'Records_CornerTable', height: 0.54 },
+  { id: 'sc_floor_lamp', room: 'RECORDS', fixture: 'Records_Lamp', height: 1.55 },
 ];
 
 /** The unique model files the manifest wears (probe + test convenience). */
@@ -137,4 +174,38 @@ export const FURNITURE_PROVENANCE: Readonly<Record<string, string>> = {
   shop_mirror: 'B073WHZKBF',
   waiting_bench: 'B07C8DHX43',
   waiting_chair: 'B075ZZYH4B',
+};
+
+/**
+ * The gifted packs' provenance — the sc_/mi_ files' source law. Every
+ * non-ABO file the game ships is pinned here to its reference copy in
+ * assets/packs/ (the byte-identity test reads it):
+ *   - scandi: the warm-pastel Scandinavian starter set — first-party
+ *     (owner-supplied, generated with headless Blender 4.2; no external
+ *     license applies). `ref` is the generator's piece name.
+ *   - modern-interior: Modern Interior Low-Poly FREE SAMPLE v1.0 by
+ *     LM Scenova Studios — embed-in-project license (no redistribution);
+ *     assets/packs/modern-interior carries the LICENSE.txt and only the
+ *     five GLBs the game wears. `ref` is the pack's file stem.
+ */
+export type GiftedPackSource = 'scandi' | 'modern-interior';
+
+export const GIFTED_PACK_PROVENANCE: Readonly<Record<string, {
+  pack: GiftedPackSource;
+  ref: string;
+}>> = {
+  sc_sofa: { pack: 'scandi', ref: 'sofa' },
+  sc_desk: { pack: 'scandi', ref: 'desk' },
+  sc_wardrobe: { pack: 'scandi', ref: 'wardrobe' },
+  sc_dining_set: { pack: 'scandi', ref: 'dining_set' },
+  sc_bookshelf: { pack: 'scandi', ref: 'bookshelf' },
+  sc_floor_lamp: { pack: 'scandi', ref: 'floor_lamp' },
+  sc_stool: { pack: 'scandi', ref: 'stool' },
+  sc_potted_plant: { pack: 'scandi', ref: 'potted_plant' },
+  sc_coffee_table: { pack: 'scandi', ref: 'coffee_table' },
+  mi_armchair: { pack: 'modern-interior', ref: 'SM_Living_Armchair' },
+  mi_coffee_table: { pack: 'modern-interior', ref: 'SM_Living_CoffeeTable' },
+  mi_floor_lamp: { pack: 'modern-interior', ref: 'SM_Living_FloorLamp' },
+  mi_plant_pot: { pack: 'modern-interior', ref: 'SM_Living_PlantPot' },
+  mi_chair: { pack: 'modern-interior', ref: 'SM_Kitchen_DiningChair' },
 };

@@ -14,7 +14,8 @@
    "W14 (2026-11-13): the Corner House interior ships — the openDecision \"CORNERHOUSE-INT remains an optional slice\" closes on the owner’s confirmation (\"build corner house\"). CORNERHOUSE-INT joins interiors (built (W14), shell x −59.6..−50.4 / z 8.2..19.8, clear 3.2) and W14 joins constructionPhases. KTN-00W’s interior field flips to built. No id, footprint, entrance, shell position or anchor value moved — append-only discipline held.",
    "W14b (2026-11-13): the corner store's restock pass — the owner's \"doesn't look finished nor production ready\" verdict answered with the bodega playbook, the store's own identity. CORNERHOUSE-INT's dressing rebuilds: the center gondola a real double-sided island (spine, boards both sides, end frames, kick) fully stocked (merged one mesh per color), the four wall units + two back flanks rebuilt with real shelf architecture and stocked facings, the counter in the fascia's brick red + cream top + gold trim with the impulse rack and bag stack, the goods board + household poster (the store's inside voice), the floor warm cream-tan, the entrance mat, backstock on the cooler. The five batch GLB slots unchanged; no id, footprint, entrance, shell or anchor value moved; colliders byte-identical (aisle law, pocket scan, walkability leg untouched); probe-city-fabric 191 byte-equal (the street ledger pays nothing — the room's dressing is band-gated).",
    "WC1 (2026-11-13, the re-integration merge): SKY-TS-W card row moved x −428 → −476 (timesSquare.ts rim + this line) — the Catalpa Junction rows took the old ground; no canon building row touched (the W7 SKY-W/E move precedent)",
-   "W-C6 (2026-11-14): the eastbound ride ships — the K line grows its east reach. SUB-03's housing re-cuts around the stair shaft (the SUB-01 law: the shaft is the hole; the colliders split with it, dollhouse-tagged); the SUB-03-PLAT row appends (the underground platform band, the SUB-TS pattern at SUB-03's own axis — class A h 0); the transit tunnel span grows xMax −20 → 182 (the east reach beyond the portal); station C's cx READS SUB-03's row (the A-3 no-double-truth law, pinned in the acceptance suite) and ride.ts's STATION_C_X stays pinned equal. The yard slab splits around the open cut (zero draw delta — the ground merges on), the plaza deck trims to the cut's west face, and the transfer car at Alder Heights hangs both ride doors (east = westbound, west = eastbound, 6.2 m apart). No id moved; one row appended; canon rows untouched. THE W-C6 REPAIRS (found on the integrated tree, fixed here): the four BLK-LRY-* block rows gain the bbox their own notes declare (the rename shipped notes without the field — the validator's block check reads bbox); SUB-03's dangling BLK-CJN-N claim becomes null (the rename missed the station-house row; headhouses are block-less street furniture per the SUB-01 law). No footprint, id or canon value moved. THE SPUR FLAG: STR-SPUR gains pedestrian: true (its road rect IS the disused track bed — the W-C3 parks ride it by design; the validator’s asphalt checks now skip pedestrian streets’ road rects, and LMK-12’s street anchor resolves). THE HOUSING TRIM: SUB-03’s footprint trims z 5..11 → 5..10 (the W-C0 loft row LRY-03 owns z 10..30 at the same x band — the W-C2 shells interpenetrated 5×1 m; the canon loft row is untouched, the housing’s north block reads z 8..10)."
+   "CJN restoration (2026-11-14, the registry-discipline repair): the two agent lines independently took the CJN prefix (the DEC-13 west-reach docks committed 2026-11-13; the master-assignment east build's W-C0 data wave drafted the same ids), and the integration reconciliation renamed the west-reach rows CJN-01..09 + CJN-SUB → CDK-* to break the collision. On the integrated tree the collision no longer exists (the east district rows are LRY-*), so the canon prefix restores: the ten west-reach rows renumber CDK-* → CJN-* (DEC-13's approved canon — the name Catalpa Junction + the CJN-* prefix accepted canon; the registry's own law — IDs are permanent, never renumber). Code, tests, the validator's pin block and the probes re-point in the same commit. No id text moved geometry: footprints, heights, statuses, entrances and anchors are byte-identical; the east LRY rows untouched. Schema completion rides the same repair (the W11 data-truth class): the four BLK-LRY-* block rows gain the bbox fields the validator's block-membership check reads (computed from their own contained buildings), and SUB-03's dangling block reference (BLK-CJN-N — a pre-rename draft id that never existed as a row) re-points to the appended BLK-LRY-STN block row carrying the headhouse's own footprint. The validator reads green on the integrated tree for the first time since the merge.",
+   "W-C6 (2026-11-14): the eastbound ride ships — the K line grows its east reach. SUB-03's housing re-cuts around the stair shaft (the SUB-01 law: the shaft is the hole; the colliders split with it, dollhouse-tagged) and its north face trims 1 m (z 5..11 → 5..10) — the KNOWN 'OVERLAP LRY-03 <-> SUB-03' entry the registry-discipline repair recorded CLOSES here: the trim is exactly the repair that entry named for this session, the validator's entry retires, the canon loft row is untouched. The SUB-03-PLAT row appends (the underground platform band, the SUB-TS pattern at SUB-03's own axis — class A h 0); the transit tunnel span grows xMax −20 → 182 (the east reach beyond the portal); station C's cx READS SUB-03's row (the A-3 no-double-truth law, pinned in the acceptance suite) and ride.ts's STATION_C_X stays pinned equal. The yard splits around the open cut's L-shape (LRY-03's ground stays — the station's east half runs under the loft, no float), the plaza deck trims to the cut's west face, and the transfer car at Alder Heights hangs both ride doors (east = westbound, west = eastbound, 6.2 m apart). No id moved; one row appended; canon rows untouched. THE MERGE NOTE: this delta landed on the CJN-restored base (the registry-discipline repair's own) — their BLK-LRY-STN block claim and the pedestrianized flag stand as the authority; this wave's independent twin repairs (the bboxes, the flag, the street-anchor resolver) unify with theirs in the merge."
   ],
   "coordSystem": {
    "axes": "x = east(+)/west(−), z = north(+)/south(−), y = up. Identical to the live web-three world; the origin does not move.",
@@ -236,7 +237,6 @@
    "id": "STR-SPUR",
    "name": "The Spur",
    "axis": "NS",
-   "pedestrian": true,
    "centerline": 152,
    "spanZ": [
     -64,
@@ -258,7 +258,9 @@
    "totalWidth": 12,
    "ways": "the freight spur gone pedestrian — disused track bed, weeds in the rails, timber crossings at each street; the elevated freight line crosses above it (the viaduct)",
    "character": "the district's spine — loft fronts, loading docks, the Junction Plaza at Kestrel, the Spur Gardens at its south end",
-   "notes": "W-C0: new row (the DEC-12 district). The bed is a public walk; the track strips (x 151..153) are the only 'road' — flush rails <= 3 cm proud, walkable through by design."
+   "notes": "W-C0: new row (the DEC-12 district). The bed is a public walk; the track strips (x 151..153) are the only 'road' — flush rails <= 3 cm proud, walkable through by design.",
+   "pedestrianized": true,
+   "pedestrianizedNote": "the freight spur gone pedestrian (the east build W-C1..C3): track bed, flush rails, timber crossings — the Yards Plaza cobbles and the Spur Gardens raised beds stand ON the bed by design; the validator's park-on-road check reads this flag (the control-house-exempt precedent)"
   },
   {
    "id": "STR-LARCH",
@@ -777,10 +779,10 @@
     "LRY-06"
    ],
    "bbox": {
-    "xMin": 100,
-    "xMax": 252,
-    "zMin": 8,
-    "zMax": 34
+    "xMin": 104.0,
+    "xMax": 250.0,
+    "zMin": 10.0,
+    "zMax": 30.0
    }
   },
   {
@@ -795,10 +797,10 @@
     "LRY-12"
    ],
    "bbox": {
-    "xMin": 100,
-    "xMax": 252,
-    "zMin": -34,
-    "zMax": -8
+    "xMin": 104.0,
+    "xMax": 250.0,
+    "zMin": -34.0,
+    "zMax": -10.0
    }
   },
   {
@@ -811,10 +813,10 @@
     "LRY-16"
    ],
    "bbox": {
-    "xMin": 100,
-    "xMax": 252,
-    "zMin": 50,
-    "zMax": 64
+    "xMin": 104.0,
+    "xMax": 220.0,
+    "zMin": 52.0,
+    "zMax": 62.0
    }
   },
   {
@@ -826,11 +828,26 @@
     "LRY-19"
    ],
    "bbox": {
-    "xMin": 100,
-    "xMax": 252,
-    "zMin": -64,
-    "zMax": -50
+    "xMin": 104.0,
+    "xMax": 220.0,
+    "zMin": -62.0,
+    "zMax": -52.0
    }
+  },
+  {
+   "id": "BLK-LRY-STN",
+   "name": "the Larch Yards station house block",
+   "identity": "the K line's eastbound headhouse standing alone on the spur's east face",
+   "bbox": {
+    "xMin": 160.0,
+    "xMax": 168.0,
+    "zMin": 5.0,
+    "zMax": 11.0
+   },
+   "note": "appended by the registry-discipline repair (2026-11-14): SUB-03's draft block id BLK-CJN-N never existed; the headhouse gets its own one-building block, the canon schema",
+   "buildings": [
+    "SUB-03"
+   ]
   }
  ],
  "buildings": [
@@ -3524,7 +3541,7 @@
    "status": "built (W-C2; W-C6 housing re-cut)",
    "class": "B",
    "face": "The Spur E",
-   "block": null,
+   "block": "BLK-LRY-STN",
    "footprint": {
     "x": 164,
     "z": 7.5,
@@ -3533,7 +3550,7 @@
    },
    "height": 3.8,
    "floors": 1,
-   "style": "the K line's eastbound headhouse — iron globe lamp, the station's name band, and the stair shaft it always promised: the housing opens around the kit's own slot band (two piers, an open 2.6 m mouth, a header, the treads descending inside — the SUB-01 law: the shaft is the hole, no solid over it). W-C1 amendment: the footprint moved north (z 5..11) — headhouses stand ON the walk. W-C6: the housing re-cut around the shaft; the colliders split with it (dollhouse-tagged — they lift with the cutaway).",
+   "style": "the K line's eastbound headhouse — iron globe lamp, the station's name band, and the stair shaft it always promised: the housing opens around the kit's own slot band (two piers, an open 2.6 m mouth, a header, the treads descending inside — the SUB-01 law: the shaft is the hole, no solid over it). W-C1 amendment: the footprint moved north (z 5..11) — headhouses stand ON the walk. W-C6: the housing re-cut around the shaft (the colliders split with it, dollhouse-tagged) and the north face trims 1 m (z 5..10) — the LRY-03 <-> SUB-03 overlap their KNOWN entry recorded is closed by this trim; the canon loft row is untouched.",
    "entrance": [
     {
      "x": 164,
@@ -3542,12 +3559,12 @@
     }
    ],
    "interior": "the eastbound platform (station C): the kit's own geometry translated — platform, trench, fare bank, LARCH YARDS name band, gold accent; the platform band rides the SUB-03-PLAT row. The eastbound ride is live (W-C6).",
-   "storyRole": "The junction's front door (LMK-13's globe). One stop east of Alder Heights on the K — and now the way there: the eastbound ride's terminus (W-C6).",
+   "storyRole": "The junction's front door (LMK-13's globe). One stop east of Alder Heights on the K.",
    "collider": true,
-   "sitsOn": " Block-less by the SUB-01 law: headhouses are sidewalk structures (the BLK-CJN-N claim was the CJN rename's dangling ref — repaired W-C6). W-C6: the north face trims 1 m (z 5..10) — the W-C0 loft row LRY-03 owns z 10..30 at the same x band; the masses no longer interpenetrate."
+   "sitsOn": " W-C6: the north face trims 1 m (z 5..10) — the KNOWN LRY-03 overlap closes."
   },
   {
-   "id": "CDK-01",
+   "id": "CJN-01",
    "name": "Catalpa Terminal Warehouse (the Catalpa Docks — the west reach)",
    "status": "built (WC1)",
    "class": "B",
@@ -3576,7 +3593,7 @@
    "collider": true
   },
   {
-   "id": "CDK-02",
+   "id": "CJN-02",
    "name": "Corbin & Sons Wholesale (the Catalpa Docks — the west reach)",
    "status": "built (WC1)",
    "class": "C",
@@ -3605,7 +3622,7 @@
    "collider": true
   },
   {
-   "id": "CDK-03",
+   "id": "CJN-03",
    "name": "Catalpa Iron Works (the Catalpa Docks — the west reach)",
    "status": "built (WC1)",
    "class": "B",
@@ -3634,7 +3651,7 @@
    "collider": true
   },
   {
-   "id": "CDK-04",
+   "id": "CJN-04",
    "name": "Starlawn Fork & Tool (the Catalpa Docks — the west reach)",
    "status": "built (WC1)",
    "class": "C",
@@ -3663,7 +3680,7 @@
    "collider": true
   },
   {
-   "id": "CDK-05",
+   "id": "CJN-05",
    "name": "The Docksman (the Catalpa Docks — the west reach)",
    "status": "built (WC1)",
    "class": "B",
@@ -3692,7 +3709,7 @@
    "collider": true
   },
   {
-   "id": "CDK-06",
+   "id": "CJN-06",
    "name": "Meridian Lumber (the Catalpa Docks — the west reach)",
    "status": "built (WC1)",
    "class": "C",
@@ -3721,7 +3738,7 @@
    "collider": true
   },
   {
-   "id": "CDK-07",
+   "id": "CJN-07",
    "name": "Halstead Lofts (the Catalpa Docks — the west reach)",
    "status": "built (WC1)",
    "class": "B",
@@ -3750,7 +3767,7 @@
    "collider": true
   },
   {
-   "id": "CDK-08",
+   "id": "CJN-08",
    "name": "United Cotton Duck (the Catalpa Docks — the west reach)",
    "status": "built (WC1)",
    "class": "C",
@@ -3779,7 +3796,7 @@
    "collider": true
   },
   {
-   "id": "CDK-09",
+   "id": "CJN-09",
    "name": "The Junction Depot (the Catalpa Docks — the west reach)",
    "status": "built (WC1)",
    "class": "B",
@@ -3808,7 +3825,7 @@
    "collider": true
   },
   {
-   "id": "CDK-SUB",
+   "id": "CJN-SUB",
    "name": "Catalpa Junction station (K) (the Catalpa Docks — the west reach)",
    "status": "built (WC1)",
    "class": "A",
@@ -3843,7 +3860,7 @@
    "class": "A",
    "face": "N",
    "block": null,
-   "sitsOn": "under the Junction plaza walk — the open-cut station band (the SUB-TS pattern translated; the yard slab splits around it and the plaza deck ends at its west face)",
+   "sitsOn": "under the Junction plaza walk — the open-cut station band (the SUB-TS pattern translated; the yard splits around its L-shaped cut and the plaza deck ends at its west face; its east half runs under LRY-03 like every subway under a building)",
    "footprint": {
     "x": 164,
     "z": 13.9,
@@ -3853,7 +3870,7 @@
    "height": 0,
    "floors": 1,
    "style": "subway station — stationKit.buildStation translated to SUB-03's own axis (cx 164 = STATION_C_X, pinned equal by the A-3 suite); platform z 8..14.2, trench to 17.45, fare bank, LARCH YARDS name band, gold accent",
-   "exterior": "open-cut platform under the yard; the housing (SUB-03) carries the stair shaft; the underground camera reads the cutaway through the open cut (the yard slab's own gap + the lifted cap)",
+   "exterior": "open-cut platform under the yard; the housing (SUB-03) carries the stair shaft; the underground camera reads the cutaway through the open cut (the yard’s own gap + the lifted caps)",
    "entrance": [
     {
      "x": 164,
@@ -6513,13 +6530,8 @@
   {
    "id": "WC1",
    "name": "The Junction docks — Catalpa Junction's first priced slice",
-   "content": "The owner-approved district's first wave (DEC-13: the design package APPROVED as filed, scenario S1 transit-gated, W-C1 authorized; the Narrative Director's reconciliation rode first — the hall stays on the Alder Works parcel, Catalpa Junction is the open endgame's district). Nine registry rows on the K line's west reach past 42 ST (x −450..−378, the registry's free band — the district the freight industry built): the spur's two dock rows (CDK-01..05 west doors east, CDK-06..09 east doors west), the Iron Works ghost-sign shell, the loft row's roofline, and CDK-SUB the K-line platform stub (the SUB-TS slot-row precedent, h 0). All zone-owned: CJN_Group lights only inside its catalpaSurface/catalpaPlatform zones (the tsSurface law), NAMED_SKIP keeps it out of every district tile, ROOF_SKIP keeps the fabric off the far world's roofs — the shipped Alder Heights rigs stay byte-identical (+0 standing), and the district's own census prices in the wave's probe. No ride-seam machine change (the ride stays A↔B); no interiors, businesses, residents, or story content (each its own priced wave). [RENAMED at the integrated tree (2026-11-14): the dock rows ride CDK-* — the east district’s build took the draft CJN ids first; the rename honors the uniqueness law without touching either geometry.]",
+   "content": "The owner-approved district's first wave (DEC-13: the design package APPROVED as filed, scenario S1 transit-gated, W-C1 authorized; the Narrative Director's reconciliation rode first — the hall stays on the Alder Works parcel, Catalpa Junction is the open endgame's district). Nine registry rows on the K line's west reach past 42 ST (x −450..−378, the registry's free band — the district the freight industry built): the spur's two dock rows (CJN-01..05 west doors east, CJN-06..09 east doors west), the Iron Works ghost-sign shell, the loft row's roofline, and CJN-SUB the K-line platform stub (the SUB-TS slot-row precedent, h 0). All zone-owned: CJN_Group lights only inside its catalpaSurface/catalpaPlatform zones (the tsSurface law), NAMED_SKIP keeps it out of every district tile, ROOF_SKIP keeps the fabric off the far world's roofs — the shipped Alder Heights rigs stay byte-identical (+0 standing), and the district's own census prices in the wave's probe. No ride-seam machine change (the ride stays A↔B); no interiors, businesses, residents, or story content (each its own priced wave). [RENAMED at the integrated tree (2026-11-14): the dock rows ride CJN-* — the east district’s build took the draft CJN ids first; the rename honors the uniqueness law without touching either geometry.]",
    "unlocks": "the second district's first slice, priced: the spur walk, the dock rows, the platform stub — visible when the ride seam wave opens the zone"
-  },
-  {
-   "id": "W-C6",
-   "name": "the K line eastbound — the ride wave",
-   "content": "The handover's exact next priced wave (AGENT_HANDOVER §2), built on the priced ledger row. RIDE: the machine grows a route param — beginRide(s, from, route): W (the shipped 22 s teach, A↔B) / E (the short hop, A↔C, close 1.2 / swap 4.5 / arrive 9.5, its own two beats, the announcement on the destination car); illegal station/route pairs are no-ops (the guard law); the swap math is route-aware (RIDE_SWAP_DX_E = +208, STATION_C_X pinned equal to SUB-03's row); the transfer car at Alder Heights hangs BOTH ride doors (east door westbound — shipped spot, west door eastbound — the two stand 6.2 m apart inside one car, the bench splits around both). GEOMETRY: station C = the parameterized station translated to SUB-03's axis (cx reads the row); the tunnel grows its east reach (registry SUB-TRACK's own span amendment) with station C's portal band; the trains carry a third parked pair; the fare banks grow the third window. THE SURFACE: SUB-03's housing re-cuts around the shaft (the SUB-01 law — the shaft is the hole, the colliders split with it, dollhouse-tagged); the yard slab splits around the open cut (x 158.2..172.15, z 8..20.2 — the SUB-TS open-cut law, zero draw delta after the merge) and a collider cap (flush, top 0.1) walks the cut at the surface, lifting with the dollhouse; the plaza deck trims to the cut's west face. THE DOLLHOUSE: terminalShell collects over the east band too (the housing, the cut's props, the dock trucks); the tagged housing colliders + the cap lift/restore with the flip. THE TESTS (issue→guard): 17 new pins — the E constants (8–10 s law), the E beats in order (no W teach), the seam end C once, the home ride end A, the seam math (+208 / −208, W untouched), the illegal-pair guards, the E doors chain, bit-for-bit E repeatability, the E wall-time law at the 1 s cap, the two-door bench law, the third fare window, station C's zone edges (below-grade + stair mouth + rooftop refusal), and the A-3 no-double-truth pin (STATION_C_X === SUB-03.x, cx reads the row, no literal)."
   }
  ],
  "openDecisions": [

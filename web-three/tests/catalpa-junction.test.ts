@@ -2,13 +2,13 @@
  * W-C1 — Catalpa Junction's first priced slice (the Junction docks).
  *
  * The laws the wave ships with, pinned so they cannot rot:
- *   1. THE REGISTRY BAND LAW — ten `CDK-*` rows (DEC-13's append-only
+ *   1. THE REGISTRY BAND LAW — ten `CJN-*` rows (DEC-13's append-only
  *      slice), all inside the free band west of Times Square
  *      (x −450..−378), non-overlapping, status 'built (WC1)', shells only
  *      (no interiors — W-C1's own scope law).
  *   2. THE A-3 LAW — every mass READS its registry row (World.ts's
  *      regShell greps; the flip never invents geometry).
- *   3. THE ZONE LAW — CDK_Group lights only inside its zones: the group
+ *   3. THE ZONE LAW — CJN_Group lights only inside its zones: the group
  *      never joins a district tile (NAMED_SKIP), cityFabric never roofs
  *      it (ROOF_SKIP), and the builder never touches the scene directly.
  *      The shipped Alder Heights rigs read +0 standing by construction.
@@ -33,8 +33,8 @@ const CATALPA = read('web-three/src/world/catalpaJunction.ts');
 const SUBWAY = read('web-three/src/world/subway/index.ts');
 
 const CJN_IDS = [
-  'CDK-01', 'CDK-02', 'CDK-03', 'CDK-04', 'CDK-05',
-  'CDK-06', 'CDK-07', 'CDK-08', 'CDK-09', 'CDK-SUB',
+  'CJN-01', 'CJN-02', 'CJN-03', 'CJN-04', 'CJN-05',
+  'CJN-06', 'CJN-07', 'CJN-08', 'CJN-09', 'CJN-SUB',
 ] as const;
 
 // the zone defs' bounds, grepped from the subway's own table (the
@@ -100,11 +100,11 @@ describe('W-C1 — the A-3 law (the masses read their rows)', () => {
   it('World.ts reads every CJN shell through the flip', () => {
     // the nine mass rows through regShell (the height floor holds)
     for (const id of CJN_IDS) {
-      if (id === 'CDK-SUB') continue;
+      if (id === 'CJN-SUB') continue;
       expect(WORLD_TS).toContain(`this.regShell('${id}')`);
     }
     // the h-0 slot row through regFootprint (the ALY-02/SUB-TS law)
-    expect(WORLD_TS).toContain("this.regFootprint('CDK-SUB')");
+    expect(WORLD_TS).toContain("this.regFootprint('CJN-SUB')");
     expect(WORLD_TS).toContain("buildCatalpaJunction(cjnRoot");
   });
 
@@ -113,8 +113,8 @@ describe('W-C1 — the A-3 law (the masses read their rows)', () => {
     // row reads its footprint only)
     expect(CATALPA).toContain('const massRows = rows as Record<string, CJMassShell>');
     expect(CATALPA).toContain('reg.x, reg.h / 2, reg.z, reg.w, reg.h, reg.d');
-    // the station reads the CDK-SUB row's own footprint
-    expect(CATALPA).toContain("rows['CDK-SUB']");
+    // the station reads the CJN-SUB row's own footprint
+    expect(CATALPA).toContain("rows['CJN-SUB']");
     expect(CATALPA).toContain('const stX = st.x');
   });
 
@@ -128,12 +128,12 @@ describe('W-C1 — the A-3 law (the masses read their rows)', () => {
 });
 
 describe('W-C1 — the zone law (the far band stays dark until it is home)', () => {
-  it('CDK_Group is bake-excluded (NAMED_SKIP) and zone-built (no scene.add)', () => {
-    expect(WORLD_TS).toContain("'CDK_Group'");
+  it('CJN_Group is bake-excluded (NAMED_SKIP) and zone-built (no scene.add)', () => {
+    expect(WORLD_TS).toContain("'CJN_Group'");
     expect(WORLD_TS).toContain('this.catalpa.group,'); // the zone bake owns the group
     // the builder never touches the scene — everything parents to the group
     expect(CATALPA).not.toContain('scene.add');
-    expect(CATALPA).toContain("group.name = 'CDK_Group'");
+    expect(CATALPA).toContain("group.name = 'CJN_Group'");
   });
 
   it('cityFabric never roofs the CJN rows (the far world dresses itself)', () => {
@@ -186,7 +186,7 @@ describe('W-C1 — the stub law (the slot rows price; W-C6 grew the machine)', (
 
   it('the stub is a slot row the way SUB-TS is — h 0, class A', () => {
     const reg = loadRegistry();
-    const sub = reg.allBuildings().find((b) => b.id === 'CDK-SUB');
+    const sub = reg.allBuildings().find((b) => b.id === 'CJN-SUB');
     expect(sub!.height).toBe(0);
     expect(sub!.class).toBe('A');
     expect(sub!.footprint!.z).toBeCloseTo(15.95, 2); // the K line's own z

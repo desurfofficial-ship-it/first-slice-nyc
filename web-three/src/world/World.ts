@@ -2306,26 +2306,26 @@ export class World {
     // ---- W-C1: Catalpa Junction, the second district's first priced slice
     // (DEC-13: the design package APPROVED as filed, scenario S1 governing).
     // The district lives west of Times Square (x −450..−378, the registry's
-    // free band), zone-owned like every far-world root: CDK_Group lights
+    // free band), zone-owned like every far-world root: CJN_Group lights
     // only inside its catalpaSurface/catalpaPlatform zones, never joins a
     // district tile (NAMED_SKIP), never takes city-fabric roofs (ROOF_SKIP).
     // The masses READ their registry rows — the flip never invents geometry.
     const cjnRoot = new THREE.Group();
-    cjnRoot.name = 'CDK_Group';
+    cjnRoot.name = 'CJN_Group';
     this.scene.add(cjnRoot);
     this.catalpa = buildCatalpaJunction(cjnRoot, (c, opts) => this.mat(c, opts), {
-      'CDK-01': this.regShell('CDK-01'),
-      'CDK-02': this.regShell('CDK-02'),
-      'CDK-03': this.regShell('CDK-03'),
-      'CDK-04': this.regShell('CDK-04'),
-      'CDK-05': this.regShell('CDK-05'),
-      'CDK-06': this.regShell('CDK-06'),
-      'CDK-07': this.regShell('CDK-07'),
-      'CDK-08': this.regShell('CDK-08'),
-      'CDK-09': this.regShell('CDK-09'),
+      'CJN-01': this.regShell('CJN-01'),
+      'CJN-02': this.regShell('CJN-02'),
+      'CJN-03': this.regShell('CJN-03'),
+      'CJN-04': this.regShell('CJN-04'),
+      'CJN-05': this.regShell('CJN-05'),
+      'CJN-06': this.regShell('CJN-06'),
+      'CJN-07': this.regShell('CJN-07'),
+      'CJN-08': this.regShell('CJN-08'),
+      'CJN-09': this.regShell('CJN-09'),
       // the h-0 slot row rides regFootprint (the ALY-02/SUB-TS law —
       // regShell's height floor would refuse it)
-      'CDK-SUB': this.regFootprint('CDK-SUB'),
+      'CJN-SUB': this.regFootprint('CJN-SUB'),
     });
     for (const c of this.catalpa.colliders) {
       this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d));
@@ -4292,6 +4292,13 @@ export class World {
     this.fixture(g, 'Barber_Pow_S_b', 38.45, 1.2, 17.4, 0.8, 2.4, 0.1, PAL.stone);
     this.colliders.push(boxFromCenter(37.3, 1.2, 18.4, 0.12, 2.4, 2.0));
     this.colliders.push(boxFromCenter(38.05, 1.2, 17.4, 1.6, 2.4, 0.12));
+    // the gifted packs (2026-11-14, manifest: src/world/furniture.ts) — the
+    // step stool tucked at the counter's south shoulder (solid — a real
+    // step stool you brush against), and a warm lamp at the SW waiting
+    // corner (thin pole decor, no collider — the corner is off the walk line)
+    this.fixture(g, 'Barber_StepStool', 38.3, 0.39, 15.45, 0.35, 0.46, 0.35, PAL.teal);
+    this.colliders.push(boxFromCenter(38.3, 0.39, 15.45, 0.36, 0.46, 0.36));
+    this.fixture(g, 'Barber_Lamp', 34.65, 0.96, 9.5, 0.4, 1.6, 0.4, 0x8e6f66);
 
     const farParts: THREE.Object3D[] = [];
     const glass = this.scene.getObjectByName('Barber_Glass');
@@ -4549,6 +4556,13 @@ export class World {
     // west-wall LP shelving (sand3d ADD — the browse wall the crates face)
     this.fixture(g, 'Records_WallShelf', -27.6, 1.26, -26.5, 0.4, 2.2, 4.0, PAL.bldg2);
     this.colliders.push(boxFromCenter(-27.6, 1.1, -26.5, 0.4, 2.2, 4.0));
+    // the gifted packs (2026-11-14, manifest: src/world/furniture.ts) — the
+    // listening corner warms: a low corner table at the chair's shoulder
+    // (solid, the coffee-while-listening spot) and the floor lamp in the
+    // deep SW corner (pole decor, no collider — behind the speaker line)
+    this.fixture(g, 'Records_CornerTable', -25.55, 0.43, -29.4, 1.0, 0.54, 0.6, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-25.55, 0.43, -29.4, 1.0, 0.54, 0.6));
+    this.fixture(g, 'Records_Lamp', -27.42, 0.935, -31.35, 0.42, 1.55, 0.42, 0x8e6f66);
 
     const farParts: THREE.Object3D[] = [];
     const glass = this.scene.getObjectByName('Records_Glass');
@@ -4656,6 +4670,28 @@ export class World {
     this.fixture(g, 'Hall_FloorLamp', -48.75, 0.735, 24.75, 0.35, 1.47, 0.35, 0x8e6f66);
     this.fixture(g, 'Hall_Ottoman', -50.2, 0.23, 27.1, 0.7, 0.46, 0.5, PAL.teal);
     this.colliders.push(boxFromCenter(-50.2, 0.23, 27.1, 0.7, 0.46, 0.5));
+    // the gifted packs (2026-11-14, manifest: src/world/furniture.ts) — the
+    // communal room's second half. The lounge (sofa + low table by the
+    // notice wall) gives the S-W quadrant a reason; the armchair completes
+    // the living circle's conversation set; the tall plant sits the circle's
+    // NW shoulder (no collider — foliage corner, off the walk lanes); the
+    // lending shelf takes the E wall south of the sofa; the break nook backs
+    // the E wall by the kitchenette. Colliders authored here; the GLB swap
+    // is visual-only.
+    this.fixture(g, 'Hall_LoungeSofa', -54.5, 0.585, 22.9, 2.1, 0.85, 0.95, PAL.teal);
+    this.colliders.push(boxFromCenter(-54.5, 0.6, 22.9, 2.1, 0.88, 0.95));
+    // the table rides the sofa's SEAT side (the sc_ model's own facing put
+    // the backrest at the notice wall — the yaw review shot moved the table
+    // from the first authoring spot behind that backrest to here)
+    this.fixture(g, 'Hall_LoungeTable', -54.5, 0.36, 23.75, 1.0, 0.4, 0.55, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-54.5, 0.36, 23.75, 1.0, 0.4, 0.55));
+    this.fixture(g, 'Hall_Armchair', -51.7, 0.58, 26.0, 0.8, 0.84, 0.82, PAL.teal);
+    this.colliders.push(boxFromCenter(-51.7, 0.58, 26.0, 0.8, 0.84, 0.82));
+    this.fixture(g, 'Hall_Plant', -51.7, 0.86, 27.7, 0.7, 1.4, 0.7, 0x4a7a4a);
+    this.fixture(g, 'Hall_LendShelf', -48.38, 1.11, 22.6, 0.34, 1.9, 0.9, PAL.bldg2);
+    this.colliders.push(boxFromCenter(-48.38, 1.06, 22.6, 0.34, 1.8, 0.9));
+    this.fixture(g, 'Hall_NookSet', -48.84, 0.6, 28.5, 1.28, 0.88, 1.5, 0x8e6f66);
+    this.colliders.push(boxFromCenter(-48.84, 0.6, 28.5, 1.28, 0.88, 1.5));
     // the hall's tall windows: single warm translucent panes, always on —
     // lit from the street, see-through up close (the swap-free pane)
     for (const wz of [22.8, 29.2]) {
@@ -4903,13 +4939,28 @@ export class World {
       book.castShadow = true;
       g.add(book);
     }
-    // a floor cushion by the bed (the honest student-nightchair)
+    // a floor cushion by the bed's foot corner (the honest student-nightchair;
+    // moved off the S wall 2026-11-14 — the gifted-packs desk + wardrobe own
+    // that wall now, the cushion tucks between the bed and the bath front)
     const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.14, 0.5), this.bank.get(0x6a8a5a));
     cushion.name = 'Cecil_FloorCushion';
-    cushion.position.set(13.5, 8.48, -13.55);
+    cushion.position.set(13.5, 8.48, -11.75);
     cushion.castShadow = true;
     cushion.receiveShadow = true;
     g.add(cushion);
+    // the gifted packs (2026-11-14, manifest: src/world/furniture.ts) — his
+    // room works now: the diary desk on the S wall under the prints, the
+    // wardrobe beside it, the desk chair, and a herb pot on the kitchen
+    // shelf. Colliders authored here; the GLB swap is visual-only.
+    this.fixture(g, 'Cecil_Desk', 11.6, 8.82, -13.72, 1.3, 0.84, 0.65, 0x8e6f66);
+    this.colliders.push(boxFromCenter(11.6, 8.82, -13.72, 1.3, 0.84, 0.65));
+    this.fixture(g, 'Cecil_Wardrobe', 13.5, 9.42, -13.71, 1.26, 2.03, 0.66, 0x8e6f66);
+    this.colliders.push(boxFromCenter(13.5, 9.42, -13.71, 1.26, 2.03, 0.66));
+    this.fixture(g, 'Cecil_DeskChair', 11.6, 8.825, -13.05, 0.44, 0.85, 0.51, 0x2b2730);
+    this.colliders.push(boxFromCenter(11.6, 8.825, -13.05, 0.44, 0.85, 0.51));
+    // the herb pot rides the kitchen shelf's top (no collider — on-shelf
+    // decor, the KShelf below owns the footprint)
+    this.fixture(g, 'Cecil_HerbPot', 10.55, 10.7, -11.9, 0.36, 0.5, 0.36, 0x4a7a4a);
     this.registerInterior({
       id: 'CECIL-ROOM', x0: 10.2, x1: 15.8, z0: -14.1, z1: -9.1,
       yBand: [7.8, 12.0],
@@ -5731,7 +5782,7 @@ export class World {
       // dollhouse; baked, the name lookup would find nothing and the
       // cutaway would stare at brick
       'LarchYards_Sub03',
-      'SkylineFabric', 'SkylineFabricWindows', 'CDK_Group',
+      'SkylineFabric', 'SkylineFabricWindows', 'CJN_Group',
       // W-C1 (this tree): the Larch Yards silhouette underlay rides the
       // district ring's own law (visible while the district's tiles are
       // unlit) — a baked silhouette would be ring-owned and vanish exactly

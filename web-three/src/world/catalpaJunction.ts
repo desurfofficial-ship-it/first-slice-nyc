@@ -7,7 +7,7 @@
  * registry slice on the K line's west reach past 42 ST — x −450..−378,
  * the registry's free band west of Times Square: nine dock rows on the
  * freight spur gone pedestrian, the Iron Works ghost-sign shell, the
- * loft row's roofline, and CDK-SUB, the K-line platform stub (the
+ * loft row's roofline, and CJN-SUB, the K-line platform stub (the
  * SUB-TS slot-row precedent, h 0). The ride stays A↔B — the stub prices
  * the platform, the ride-seam machine is its own later wave (DEC-13 §2.3).
  *
@@ -16,7 +16,7 @@
  * catalpaSurface / catalpaPlatform zones (subway/index.ts's zone table;
  * World.ts owns the group and reads the subway's lit set). Nothing leaks
  * to the global collectors: the shells never join a district tile
- * (NAMED_SKIP 'CDK_Group'), cityFabric's roof fabric skips the CDK rows
+ * (NAMED_SKIP 'CJN_Group'), cityFabric's roof fabric skips the CJN rows
  * (ROOF_SKIP — the far world dresses itself), and the builder never
  * touches `scene` directly. The shipped Alder Heights rigs therefore read
  * +0 standing, byte-identical — S1's price.
@@ -44,10 +44,10 @@ export interface CJMassShell { x: number; z: number; w: number; d: number; h: nu
 export interface CJSlotShell { x: number; z: number; w: number; d: number }
 
 export type CJRegistryRows = Record<
-  'CDK-01' | 'CDK-02' | 'CDK-03' | 'CDK-04' | 'CDK-05'
-  | 'CDK-06' | 'CDK-07' | 'CDK-08' | 'CDK-09',
+  'CJN-01' | 'CJN-02' | 'CJN-03' | 'CJN-04' | 'CJN-05'
+  | 'CJN-06' | 'CJN-07' | 'CJN-08' | 'CJN-09',
   CJMassShell
-> & { 'CDK-SUB': CJSlotShell };
+> & { 'CJN-SUB': CJSlotShell };
 
 export interface CatalpaJunction {
   group: THREE.Group;
@@ -59,7 +59,7 @@ export interface CatalpaJunction {
  *  x −400 — a 22 m walk, the district's whole public space this wave). */
 const SPUR = { xW: -422, xE: -400, zN: 52, zS: -56 } as const;
 
-/** The K line's west-end station constants (the stub reads CDK-SUB's row;
+/** The K line's west-end station constants (the stub reads CJN-SUB's row;
  *  the platform level mirrors the kit's floorTop so the ride seam wave
  *  inherits a familiar floor). */
 const CJN_STATION = { floorTop: -3.2, trackZ: 15.95 } as const;
@@ -68,7 +68,7 @@ const CJN_STATION = { floorTop: -3.2, trackZ: 15.95 } as const;
 const CJ = {
   brickDark: 0x6e3f39,   // the dark warehouse brick
   brickRed: 0x8e3d47,    // loftRed — the commercial loft brick
-  brickPaint: 0x9c6f5a,  // the painted-brick tone (CDK-01's conversion)
+  brickPaint: 0x9c6f5a,  // the painted-brick tone (CJN-01's conversion)
   cornice: 0x4a3c38,     // freight cornice
   iron: 0x3d3a40,        // the spur's ironwork (FABRIC.hoist's warm cousin)
   ironDark: 0x2e2c31,    // bridge trusses
@@ -119,24 +119,24 @@ interface RowStyle {
 /** The nine dock rows' style table — the registry rows carry the story,
  *  this carries the paint. Lettering reads on the spur-facing facade. */
 const ROW_STYLE: Record<string, RowStyle> = {
-  'CDK-01': { brick: CJ.brickPaint, lettering: 'CATALPA TERMINAL WAREHOUSE', sub: 'LOFTS', litSeed: 11 },
-  'CDK-02': { brick: CJ.brickDark, lettering: 'CORBIN & SONS', sub: 'WHOLESALE', litSeed: 23 },
-  'CDK-03': { brick: CJ.brickDark, lettering: 'CATALPA IRON WORKS', sub: 'STRUCTURAL · ORNAMENTAL · EST. 1911', ghost: true, litSeed: 37 },
-  'CDK-04': { brick: CJ.brickRed, lettering: 'STARLAWN', sub: 'FORK & TOOL', litSeed: 41 },
-  'CDK-05': { brick: CJ.brickDark, lettering: 'THE DOCKSMAN', sub: 'WAREHOUSE', litSeed: 53 },
-  'CDK-06': { brick: CJ.brickRed, lettering: 'MERIDIAN LUMBER', sub: 'DOCK SALES', litSeed: 67 },
-  'CDK-07': { brick: CJ.brickDark, lettering: 'HALSTEAD LOFTS', sub: 'STUDIOS', litSeed: 71 },
-  'CDK-08': { brick: CJ.brickPaint, lettering: 'UNITED COTTON DUCK', sub: 'DRY GOODS', litSeed: 83 },
-  'CDK-09': { brick: CJ.brickDark, lettering: 'JUNCTION FREIGHT DEPOT', sub: 'EST. 1908', litSeed: 97 },
+  'CJN-01': { brick: CJ.brickPaint, lettering: 'CATALPA TERMINAL WAREHOUSE', sub: 'LOFTS', litSeed: 11 },
+  'CJN-02': { brick: CJ.brickDark, lettering: 'CORBIN & SONS', sub: 'WHOLESALE', litSeed: 23 },
+  'CJN-03': { brick: CJ.brickDark, lettering: 'CATALPA IRON WORKS', sub: 'STRUCTURAL · ORNAMENTAL · EST. 1911', ghost: true, litSeed: 37 },
+  'CJN-04': { brick: CJ.brickRed, lettering: 'STARLAWN', sub: 'FORK & TOOL', litSeed: 41 },
+  'CJN-05': { brick: CJ.brickDark, lettering: 'THE DOCKSMAN', sub: 'WAREHOUSE', litSeed: 53 },
+  'CJN-06': { brick: CJ.brickRed, lettering: 'MERIDIAN LUMBER', sub: 'DOCK SALES', litSeed: 67 },
+  'CJN-07': { brick: CJ.brickDark, lettering: 'HALSTEAD LOFTS', sub: 'STUDIOS', litSeed: 71 },
+  'CJN-08': { brick: CJ.brickPaint, lettering: 'UNITED COTTON DUCK', sub: 'DRY GOODS', litSeed: 83 },
+  'CJN-09': { brick: CJ.brickDark, lettering: 'JUNCTION FREIGHT DEPOT', sub: 'EST. 1908', litSeed: 97 },
 };
 
 /** The rows' construction names — literal, not derived (the evidence
  *  law: the catalogue's tokens grep these verbatim, so the builder's
  *  mesh names cannot drift away from the shipped ledger). */
 const ROW_NAMES: Record<string, string> = {
-  'CDK-01': 'CDK_01', 'CDK-02': 'CDK_02', 'CDK-03': 'CDK_03',
-  'CDK-04': 'CDK_04', 'CDK-05': 'CDK_05', 'CDK-06': 'CDK_06',
-  'CDK-07': 'CDK_07', 'CDK-08': 'CDK_08', 'CDK-09': 'CDK_09',
+  'CJN-01': 'CJN_01', 'CJN-02': 'CJN_02', 'CJN-03': 'CJN_03',
+  'CJN-04': 'CJN_04', 'CJN-05': 'CJN_05', 'CJN-06': 'CJN_06',
+  'CJN-07': 'CJN_07', 'CJN-08': 'CJN_08', 'CJN-09': 'CJN_09',
 };
 
 /** The spur-facing facade canvas: brick courses, the window grid, the
@@ -241,7 +241,7 @@ export function buildCatalpaJunction(
   rows: CJRegistryRows,
 ): CatalpaJunction {
   const group = new THREE.Group();
-  group.name = 'CDK_Group';
+  group.name = 'CJN_Group';
   parent.add(group);
   const colliders: ColliderSpec[] = [];
   const col = (x: number, y: number, z: number, w: number, h: number, d: number) =>
@@ -281,10 +281,10 @@ export function buildCatalpaJunction(
   };
 
   // ---- the nine dock rows: masses READ their registry rows (the A-3 law)
-  const westIds = ['CDK-01', 'CDK-02', 'CDK-03', 'CDK-04', 'CDK-05'];
-  const eastIds = ['CDK-06', 'CDK-07', 'CDK-08', 'CDK-09'];
+  const westIds = ['CJN-01', 'CJN-02', 'CJN-03', 'CJN-04', 'CJN-05'];
+  const eastIds = ['CJN-06', 'CJN-07', 'CJN-08', 'CJN-09'];
   for (const id of [...westIds, ...eastIds]) {
-    // the mass loop reads mass shells only (CDK-SUB's slot shell has no h
+    // the mass loop reads mass shells only (CJN-SUB's slot shell has no h
     // to read — the A-3 law keeps the two shapes honest)
     const massRows = rows as Record<string, CJMassShell>;
     const reg = massRows[id];
@@ -323,10 +323,10 @@ export function buildCatalpaJunction(
       cyl(`${key}_TankCap`, tx, reg.h + 4.0, tz, 0.35, 0.9, CJ.ironDark, 8);
       box(`${key}_TankLegs`, tx, reg.h + 0.45, tz, 2.0, 0.9, 2.0, CJ.iron);
     }
-    if (id === 'CDK-03') {
+    if (id === 'CJN-03') {
       // the Iron Works' stack — the district's vertical mark
-      cyl('CDK_03_Stack', reg.x - reg.w / 4, reg.h + 2.6, reg.z - reg.d / 4, 0.85, 5.2, CJ.brickDark, 12);
-      cyl('CDK_03_StackCap', reg.x - reg.w / 4, reg.h + 5.35, reg.z - reg.d / 4, 1.05, 0.5, CJ.ironDark, 12);
+      cyl('CJN_03_Stack', reg.x - reg.w / 4, reg.h + 2.6, reg.z - reg.d / 4, 0.85, 5.2, CJ.brickDark, 12);
+      cyl('CJN_03_StackCap', reg.x - reg.w / 4, reg.h + 5.35, reg.z - reg.d / 4, 1.05, 0.5, CJ.ironDark, 12);
     }
   }
 
@@ -335,13 +335,13 @@ export function buildCatalpaJunction(
   const spurCX = (SPUR.xW + SPUR.xE) / 2;
   const spurCZ = (SPUR.zN + SPUR.zS) / 2;
   const paving = new THREE.Mesh(new THREE.PlaneGeometry(SPUR.xE - SPUR.xW, spurLen), M(CJ.paving));
-  paving.name = 'CDK_Spur_Paving';
+  paving.name = 'CJN_Spur_Paving';
   paving.rotation.x = -Math.PI / 2;
   paving.position.set(spurCX, 0.015, spurCZ);
   paving.receiveShadow = true;
   group.add(paving);
-  box('CDK_Spur_CurbW', SPUR.xW + 0.4, 0.06, spurCZ, 0.8, 0.12, spurLen, CJ.curb);
-  box('CDK_Spur_CurbE', SPUR.xE - 0.4, 0.06, spurCZ, 0.8, 0.12, spurLen, CJ.curb);
+  box('CJN_Spur_CurbW', SPUR.xW + 0.4, 0.06, spurCZ, 0.8, 0.12, spurLen, CJ.curb);
+  box('CJN_Spur_CurbE', SPUR.xE - 0.4, 0.06, spurCZ, 0.8, 0.12, spurLen, CJ.curb);
   // the dead rails — the spur's memory, kept as the walk's centerline
   box('CJN_Rail_W', spurCX - 0.9, 0.05, spurCZ, 0.09, 0.1, spurLen, CJ.rust);
   box('CJN_Rail_E', spurCX + 0.9, 0.05, spurCZ, 0.09, 0.1, spurLen, CJ.rust);
@@ -393,12 +393,12 @@ export function buildCatalpaJunction(
     box(`CJN_Bridge_${bi}_AbutE`, SPUR.xE + 4.2, deckY - 2.6, bz, 1.2, 5.2, 3.4, CJ.concrete);
   }
 
-  // ---- the K-line platform stub (CDK-SUB, the SUB-TS precedent)
-  const st = rows['CDK-SUB'];
+  // ---- the K-line platform stub (CJN-SUB, the SUB-TS precedent)
+  const st = rows['CJN-SUB'];
   const stX = st.x;
   const floor = CJN_STATION.floorTop;
   // the platform slab, south of the track
-  box('CDK_Station_Slab', stX, floor - 0.15, 12.9, st.w, 0.3, 5.0, CJ.concrete);
+  box('CJN_Station_Slab', stX, floor - 0.15, 12.9, st.w, 0.3, 5.0, CJ.concrete);
   col(stX, floor - 0.15, 12.9, st.w, 0.3, 5.0);
   box('CJN_Station_Edge', stX, floor + 0.02, 15.15, st.w, 0.06, 0.5, CJ.yellow);
   // the cut's walls — the south wall opens around the headhouse stair
@@ -439,7 +439,7 @@ export function buildCatalpaJunction(
     c.fillStyle = '#cdbf9f';
     c.fillText('K LINE · WEST END', 256, 76);
   });
-  textured('CDK_NameBand', band, st.w - 2, 1.1, stX, floor + 2.3, 9.82, 0);
+  textured('CJN_NameBand', band, st.w - 2, 1.1, stX, floor + 2.3, 9.82, 0);
   // the stairs up to the headhouse: from the platform's south edge rising
   // southward to the surface entrance (x −410, z 8 — the registry's own row)
   for (let i = 0; i < 10; i++) {
@@ -462,7 +462,7 @@ export function buildCatalpaJunction(
     c.textAlign = 'center';
     c.fillText('CATALPA JUNCTION', 256, 58);
   });
-  textured('CDK_KioskBand', kiosk, 3.2, 0.6, stX, 3.62, 6.5, Math.PI);
+  textured('CJN_KioskBand', kiosk, 3.2, 0.6, stX, 3.62, 6.5, Math.PI);
   // the K bullet over the walk-facing wall (the line's own mark)
   textured('CJN_Kiosk_Bullet', bulletTexture(), 1.1, 1.1, stX + 1.05, 3.62, 6.55, Math.PI);
   // the bullet's twin faces the platform below

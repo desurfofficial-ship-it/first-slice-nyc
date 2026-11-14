@@ -21,12 +21,13 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { FURNITURE_SLOTS, FURNITURE_FILES, FURNITURE_PROVENANCE } from '../src/world/furniture';
+import { FURNITURE_SLOTS, FURNITURE_FILES, FURNITURE_PROVENANCE, GIFTED_PACK_PROVENANCE } from '../src/world/furniture';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..', '..');
 const GAME_DIR = join(HERE, '..', 'public', 'models', 'furniture');
 const PACK_DIR = join(ROOT, 'assets', 'furniture');
+const GIFTED_DIR = join(ROOT, 'assets', 'packs');
 
 const worldTs = readFileSync(join(HERE, '..', 'src', 'world', 'World.ts'), 'utf8');
 const curated = JSON.parse(readFileSync(join(ROOT, 'docs', 'data', 'abo-curated.json'), 'utf8')) as
@@ -64,15 +65,27 @@ describe('ABO furniture manifest (docs/57)', () => {
     for (const id of FURNITURE_FILES) {
       expect(existsSync(join(GAME_DIR, `${id}.glb`)), `${id}.glb missing`).toBe(true);
     }
-    // provenance is total: every file the game ships has a known ASIN
+    // provenance is total: every file the game ships has a known source —
+    // an ABO ASIN or a gifted-pack reference
     const shipped = readdirSync(GAME_DIR).filter((f) => f.endsWith('.glb')).map((f) => f.replace('.glb', ''));
     for (const id of shipped) {
-      expect(FURNITURE_PROVENANCE[id], `${id} has no provenance`).toBeTruthy();
+      const sourced = FURNITURE_PROVENANCE[id] || GIFTED_PACK_PROVENANCE[id];
+      expect(sourced, `${id} has no provenance`).toBeTruthy();
+    }
+  });
+
+  it('the two manifest sources partition cleanly (no id in both)', () => {
+    for (const id of Object.keys(GIFTED_PACK_PROVENANCE)) {
+      expect(FURNITURE_PROVENANCE[id], `${id} claimed by both sources`).toBeUndefined();
+    }
+    for (const s of FURNITURE_SLOTS) {
+      const known = FURNITURE_PROVENANCE[s.id] || GIFTED_PACK_PROVENANCE[s.id];
+      expect(known, `slot ${s.id} has no provenance`).toBeTruthy();
     }
   });
 
   it('game files are the dataset lod1 GLBs, byte-identical to the pack', () => {
-    for (const id of FURNITURE_FILES) {
+    for (const id of Object.keys(FURNITURE_PROVENANCE)) {
       const asin = FURNITURE_PROVENANCE[id];
       const rec = curated.find((c) => c.id === asin);
       expect(rec, `${asin} (${id}) is in the curated pack`).toBeTruthy();
@@ -81,6 +94,28 @@ describe('ABO furniture manifest (docs/57)', () => {
       expect(game.equals(pack), `${id}.glb == pack copy`).toBe(true);
       expect(game.length, `${id}.glb matches the recorded lod1_bytes`).toBe(rec!.lod1_bytes);
     }
+  });
+
+  it('gifted-pack files are byte-identical to their pack references', () => {
+    for (const [id, prov] of Object.entries(GIFTED_PACK_PROVENANCE)) {
+      const game = readFileSync(join(GAME_DIR, `${id}.glb`));
+      const refPath = prov.pack === 'scandi'
+        ? join(GIFTED_DIR, 'lowpoly-furniture', 'models', `${prov.ref}.glb`)
+        : join(GIFTED_DIR, 'modern-interior', 'exports', 'glb', `${prov.ref}.glb`);
+      expect(existsSync(refPath), `reference copy ${refPath} missing`).toBe(true);
+      const ref = readFileSync(refPath);
+      expect(game.equals(ref), `${id}.glb == ${prov.pack}/${prov.ref}.glb`).toBe(true);
+    }
+  });
+
+  it('the gifted packs carry their license/provenance files', () => {
+    // pack one — first-party (owner-generated): manifest + README + sources
+    expect(existsSync(join(GIFTED_DIR, 'lowpoly-furniture', 'manifest.json'))).toBe(true);
+    expect(existsSync(join(GIFTED_DIR, 'lowpoly-furniture', 'README.md'))).toBe(true);
+    // pack two — LM Scenova Studios, embed-in-project license
+    expect(existsSync(join(GIFTED_DIR, 'modern-interior', 'LICENSE.txt'))).toBe(true);
+    const notices = readFileSync(join(ROOT, 'THIRD-PARTY-NOTICES.md'), 'utf8');
+    expect(notices).toContain('LM Scenova Studios');
   });
 
   it('the curated pack is credited (CC-BY-4.0 attribution)', () => {

@@ -48,13 +48,19 @@ page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 
 await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'load' });
 await page.waitForFunction(() => !!window.__game, null, { timeout: 30000 });
-// the furniture fetches ride boot — give them a wall-time window (software
-// GL runs the clock slow; poll, never assume)
-await page.waitForFunction(() => {
-  const w = window.__game?.world;
-  return w && w.furnitureUpgrades && w.furnitureUpgrades.size >= 19;
-}, null, { timeout: 60000 }).catch(() => {});
-await page.waitForTimeout(1500);
+// the furniture fetches ride boot — the census is 54 files now (the ABO
+// 40 + the gifted packs' 14), so a fixed early threshold stalls short on
+// software GL. Poll until the census SETTLES (the diag-furniture-boot law):
+// no new landing for 3 s, or the 54/54 ceiling.
+let last = -1, stable = 0;
+for (let i = 0; i < 90; i++) {
+  await page.waitForTimeout(1000);
+  const n = await page.evaluate(() => window.__game.world.furnitureUpgrades?.size ?? -1);
+  if (n === last) stable++; else stable = 0;
+  last = n;
+  if (stable >= 3 || n >= 54) break;
+}
+console.log('FURNITURE CENSUS SETTLED AT', last);
 
 let fails = 0;
 const check = (name, ok, detail = '') => {

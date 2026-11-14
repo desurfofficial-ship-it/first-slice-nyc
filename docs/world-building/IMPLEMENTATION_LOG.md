@@ -130,6 +130,64 @@
 | W-C4 interior | +1 emissive (the lamps; the fit-out bakes) | priced in its phase row |
 | **Final standing census** | **192** | **budget 200** |
 
+## Session — the gifted furniture packs (2026-11-14)
+
+- **The gift:** two owner-supplied furniture packs landed in upload: the
+  warm-pastel Scandinavian starter set (10 GLB pieces, first-party, generated
+  with headless Blender — `assets/packs/lowpoly-furniture/`, full pack with
+  manifest + generator sources) and the Modern Interior Low-Poly FREE SAMPLE
+  v1.0 by LM Scenova Studios (8 GLB pieces, embed-in-project license —
+  `assets/packs/modern-interior/` carries the LICENSE.txt and only the five
+  GLBs the game wears; the FBX/OBJ sources stay out per the no-redistribution
+  term; credited in THIRD-PARTY-NOTICES.md).
+- **The placement law decision:** ADDITIVE only. The ABO slots keep their
+  curated models — pack-one files carry no texture maps, so the probe's
+  texture law (bed/sofa/stool wrappers carry `mat.map`) forbids swaps, and
+  the shipped room identities hold anyway. Every gifted piece whose
+  corresponding place was FREE wears a NEW placeholder; the pieces whose
+  place was already occupied (a second bed, a second three-seat sofa, the
+  modular floor/wall kit) stay in the packs for future rooms — the ABO pack's
+  own 141-model precedent.
+- **The 14 slots** (manifest: `src/world/furniture.ts`, ids namespaced by
+  source: `sc_` scandi, `mi_` modern-interior; provenance in the new
+  `GIFTED_PACK_PROVENANCE`, byte-identity tested against the pack copies):
+  CECIL `Cecil_Desk` + `Cecil_Wardrobe` (the S wall works now — the diary
+  desk under the prints) + `Cecil_DeskChair` (the mi_ dining chair, rotated
+  to face the desk) + `Cecil_HerbPot` (the mi_ pot on the kitchen shelf's
+  top); HALL `Hall_LoungeSofa` (back to the notice wall) + `Hall_LoungeTable`
+  (at the seat side — the yaw-review pass moved it from the first authoring
+  spot behind the backrest) + `Hall_Armchair` (completing the living circle,
+  facing the coffee table) + `Hall_Plant` (the circle's NW shoulder, no
+  collider) + `Hall_LendShelf` (E wall south of the sofa) + `Hall_NookSet`
+  (backs the E wall by the kitchenette, chair pulled out facing the table);
+  BARBER `Barber_StepStool` (counter's south shoulder, solid) +
+  `Barber_Lamp` (SW waiting corner, pole decor); RECORDS `Records_CornerTable`
+  (the listening chair's shoulder, solid) + `Records_Lamp` (deep SW corner,
+  pole decor). Colliders authored at the placeholders; Cecil's floor cushion
+  moved off the S wall to the bed's foot corner (the desk + wardrobe own the
+  wall now).
+- **The verification chain built for the wave:** `probe-furniture-gifted.mjs`
+  (census, rest law, 10 aimed walk-in shots, wrapper geometry), plus two
+  review probes — `probe-furniture-gifted-iso.mjs` (the pause-pose-render
+  isometric per room, ducks hidden per the cutaway law) and
+  `probe-furniture-gifted-top.mjs` (the straight-down north-up renders). The
+  iso/top-down passes caught and fixed the one authoring error (the lounge
+  table's side) and verified every yaw against the anchor walls.
+- **The battery (final tree):** tsc clean · **vitest 1,751/1,751 (105
+  files)** — the furniture suite grew two provenance rows (source
+  partition + gifted byte-identity) · build OK · DRAWS 192 (the gifted
+  furniture draws only inside its rooms — zero at rest) · probe-furniture
+  census settles **54/54** (zero procedural fallbacks; its wait updated to
+  the settle-poll — the 54-file census outgrew the fixed 19-slot threshold,
+  a probe-timing fix only) · probe-integration 0 errors 8/8 walks (the seam
+  registry untouched) · probe-nav class unchanged · diag-pocket-scan: one
+  component, **traps 19** — the HALL's documented door-alias pocket (the W5
+  1.2 m doors zero on the 0.5 grid — the known alias class) split in two by
+  the new furniture's colliders; BARBER/RECORDS pockets unchanged; zero
+  real-walkability change (the walk-in probe passes all four rooms).
+
+> **CORRECTION (2026-11-14, the registry-discipline repair — from the Catalpa/Junction line):** the west-reach rows restore their canon prefix `CDK-* → CJN-*` (DEC-13 accepted the CJN prefix as canon; the registry's own law says IDs are permanent; on the integrated tree the east rows are LRY-*, so the 2026-11-13 collision that forced the CDK rename no longer exists). Code, tests, the validator's pin block and the probes re-pointed in the same repair; zero geometry moved. Schema completion rides with it: the four BLK-LRY-* blocks gain the bbox fields the validator's block-membership check reads (computed from their own contained buildings); SUB-03's dangling `BLK-CJN-N` re-points to the appended `BLK-LRY-STN` block row; `STR-SPUR` carries the `pedestrianized` flag the park-on-road check now reads (the Yards Plaza and the Spur Gardens stand on the track bed by design — the control-house-exempt precedent). **ONE KNOWN DEFECT recorded for this district's next session: OVERLAP LRY-03 <-> SUB-03 (5.00 x 1.00 m — the Spur Lofts' southwest corner over the station house's northeast corner).** The validator prints it as KNOWN and does not fail; the fix (a 1 m footprint trim on one row) is yours when you next build here — note your handover §2 step 1 already touches SUB-03. The repair record: the registry's meta corrections + register row v1.78.0.
+
 ## W-C6 — the K line eastbound (the handover's exact next priced wave)
 
 **Register v1.78.0.** The ride machine grew its route law (W/E — tests
@@ -155,8 +213,8 @@ W8 slot-split fixed it); the dollhouse lift never fired (two boxFromCenter
 calls, the splice found nothing); the tile-batch fusion defeated the
 by-reference hide.
 
-**The battery:** validate-registry OK (256 IDs, 112 buildings, 23/23
-anchors) · tsc clean · vitest 1,761/1,761 (105 files, +13) · build OK ·
+**The battery:** validate-registry OK (257 IDs, 112 buildings, 23/23
+anchors) · tsc clean · vitest 1,764/1,764 (105 files, the merged tree) · build OK ·
 probe-subway the eastbound leg's 17 checks ALL PASS (the only FAIL is the
 documented baseline Wow-card carry) · probe-wc1-catalpa OK (spawn 192 +0
 standing) · probe-city-fabric DRAWS 192 · probe-w14 PASS ·
@@ -164,3 +222,4 @@ probe-interior-dressing PASS · probe-integration 0 errors 8/8 walks ·
 probe-tss-road-clear LAW HOLDS · probe-nav 9/9 · diag-pocket-scan
 deterministic (one component x −98..250, traps 18 unchanged, colliders
 1018 → 1233 the honest +215 below grade).
+

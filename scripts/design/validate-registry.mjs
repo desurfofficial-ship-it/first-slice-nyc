@@ -14,6 +14,23 @@ const R = JSON.parse(readFileSync(join(ROOT, 'docs/data/world-registry.json'), '
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
 
+// The named-defect register (2026-11-14, the registry-discipline repair):
+// findings listed here print as KNOWN — recorded, dated, owned — and do not
+// fail the run; ANY unlisted finding still fails. A known entry must carry its
+// own repair record in the register/worklog. Nothing passes silently.
+const KNOWN_DEFECTS = [
+  // (retired 2026-11-14, W-C6): 'OVERLAP LRY-03 <-> SUB-03 (5.00 x 1.00 m)'
+  // — recorded in the registry-discipline repair, fixed by the very session
+  // its entry named: W-C6's 1 m footprint trim on SUB-03 (z 5..11 → 5..10;
+  // the canon loft row untouched). The merged tree measures no overlap; the
+  // entry retires with its repair record in the register v1.80.0 row.
+];
+const report = (msg) => {
+  const known = KNOWN_DEFECTS.find((k) => msg.startsWith(k.split(' — ')[0]));
+  if (known) console.log(`  KNOWN (recorded, does not fail): ${msg}\n    ↳ ${known.slice(known.indexOf(' — ') + 3)}`);
+  else problems.push(msg);
+};
+
 // ---------- 1. ID uniqueness across every id-bearing entity ----------
 const ids = new Map();
 const claim = (id, what) => {
@@ -60,19 +77,14 @@ for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) {
   const a = fp(bs[i].footprint), c = fp(bs[j].footprint);
   const ox = Math.min(a.x1, c.x1) - Math.max(a.x0, c.x0);
   const oz = Math.min(a.z1, c.z1) - Math.max(a.z0, c.z0);
-  if (ox > 0.01 && oz > 0.01) problems.push(`OVERLAP ${bs[i].id} <-> ${bs[j].id} (${ox.toFixed(2)} x ${oz.toFixed(2)} m)`);
+  if (ox > 0.01 && oz > 0.01) report(`OVERLAP ${bs[i].id} <-> ${bs[j].id} (${ox.toFixed(2)} x ${oz.toFixed(2)} m)`);
 }
 
-// ---------- 5. Buildings stay off the roadways (control house exempt) ----------
-// pedestrian streets (STR-SPUR: the freight spur gone pedestrian — its
-// "road" rect IS the disused track bed) carry parks by design; their road
-// rects stay out of the asphalt checks (the W-C6 repair; the row's own
-// `pedestrian: true` flag is the data authority)
+// ---------- 5. Buildings stay off the roadways (control house exempt; pedestrianized corridors exempt for parks — the spur's track bed IS the plaza ground, recorded on the street row) ----------
 const roads = [];
 for (const s of R.streets) {
-  if (s.pedestrian) continue;
-  if (s.axis === 'EW') roads.push({ x0: -84, x1: 84, z0: s.road.zMin, z1: s.road.zMax, name: s.name });
-  else roads.push({ x0: s.road.xMin, x1: s.road.xMax, z0: -64, z1: 64, name: s.name });
+  if (s.axis === 'EW') roads.push({ x0: -84, x1: 84, z0: s.road.zMin, z1: s.road.zMax, name: s.name, ped: !!s.pedestrianized });
+  else roads.push({ x0: s.road.xMin, x1: s.road.xMax, z0: -64, z1: 64, name: s.name, ped: !!s.pedestrianized });
 }
 for (const b of bs) {
   const f = fp(b.footprint);
@@ -180,11 +192,11 @@ for (const [id, x, z, w, d, h] of w7) {
 // and height pinned, every status 'built (WC1)', every id inside the free
 // band west of Times Square (x −450..−378 — bounds.world's west reach).
 const wc1 = [
-  ['CDK-01', -429, 40, 14, 16, 13], ['CDK-02', -429, 20, 14, 14, 12],
-  ['CDK-03', -429, -4, 14, 20, 15], ['CDK-04', -429, -24, 14, 14, 11],
-  ['CDK-05', -429, -46, 14, 14, 14], ['CDK-06', -394, 42, 12, 14, 12],
-  ['CDK-07', -394, 26, 12, 12, 18], ['CDK-08', -394, 8, 12, 16, 11],
-  ['CDK-09', -394, -16, 12, 14, 13], ['CDK-SUB', -410, 15.95, 12, 13, 0],
+  ['CJN-01', -429, 40, 14, 16, 13], ['CJN-02', -429, 20, 14, 14, 12],
+  ['CJN-03', -429, -4, 14, 20, 15], ['CJN-04', -429, -24, 14, 14, 11],
+  ['CJN-05', -429, -46, 14, 14, 14], ['CJN-06', -394, 42, 12, 14, 12],
+  ['CJN-07', -394, 26, 12, 12, 18], ['CJN-08', -394, 8, 12, 16, 11],
+  ['CJN-09', -394, -16, 12, 14, 13], ['CJN-SUB', -410, 15.95, 12, 13, 0],
 ];
 for (const [id, x, z, w, d, h] of wc1) {
   const b = R.buildings.find((y) => y.id === id);
@@ -194,7 +206,7 @@ for (const [id, x, z, w, d, h] of wc1) {
     ok(f.x === x && f.z === z && f.w === w && f.d === d && b.height === h,
       `WC1 DRIFT ${id}: registry (${f.x},${f.z},${f.w},${f.d},h${b.height}) != plan (${x},${z},${w},${d},h${h})`);
     ok(b.status === 'built (WC1)', `${id} must be status 'built (WC1)'`);
-    ok(id === 'CDK-SUB' || b.height > 0, `${id} — only the platform slot row may ride h 0`);
+    ok(id === 'CJN-SUB' || b.height > 0, `${id} — only the platform slot row may ride h 0`);
     ok(!b.interior, `WC1 ${id} carries no interior — shells only this wave (W-C1's own scope law)`);
   }
 }
@@ -238,7 +250,7 @@ for (const p of R.parks) {
   for (const rd of roads) {
     const ox = Math.min(p.bbox.xMax, rd.x1) - Math.max(p.bbox.xMin, rd.x0);
     const oz = Math.min(p.bbox.zMax, rd.z1) - Math.max(p.bbox.zMin, rd.z0);
-    if (ox > 0.01 && oz > 0.01) problems.push(`PARK ON ROAD ${p.id} (${rd.name})`);
+    if (ox > 0.01 && oz > 0.01 && !rd.ped) report(`PARK ON ROAD ${p.id} (${rd.name})`);
   }
 }
 
@@ -248,9 +260,7 @@ for (const ix of R.intersections) for (const cb of (ix.cornerBuildings ?? []))
 for (const l of R.landmarks) {
   const m = l.anchor.match(/[A-Z]+-[0-9A-Za-z]+/);
   if (m && !['EST'].includes(m[0])) {
-    const found = R.buildings.some((b) => b.id === m[0]) || R.parks.some((p) => p.id === m[0])
-      || R.streets.some((s) => s.id === m[0]) // a landmark may anchor to a street (LMK-12: the elevated spur)
-      || /water towers|SUB-/.test(l.anchor);
+    const found = R.buildings.some((b) => b.id === m[0]) || R.parks.some((p) => p.id === m[0]) || R.streets.some((st) => st.id === m[0]) || /water towers|SUB-/.test(l.anchor);
     if (!found && !/water tower/.test(l.anchor)) problems.push(`LANDMARK ${l.id} anchor ${m[0]} unresolved`);
   }
 }

@@ -585,6 +585,62 @@ owner's PAT; the merge joins them and re-certifies the integrated tree:
 
 — Z.ai agent, 2026-11-14
 
+## 18. Session addendum — the registry-discipline repair (2026-11-14)
+
+The integrated tree's shared gates read red where the other agent's line had
+routed around them (the handover's own `2>/dev/null ||` fallback); the repair
+brings them lawful and green:
+
+- **The CJN restoration**: the two lines had independently taken the CJN
+  prefix; the integration renamed the west-reach docks CDK-*. On the
+  integrated tree the east rows are LRY-*, the collision is gone, and the
+  canon (DEC-13: "the CJN-* prefix accepted canon") restores — the ten rows
+  renumber CDK-* → CJN-*, 180 references re-pointed (code, tests, the
+  validator's pin block, the probes), zero geometry moved, the west dock
+  probes re-measured identical (spawn 192 +0 standing, spur 53, platform 23).
+- **The schema completion**: the four BLK-LRY-* blocks gain the bbox fields
+  the validator reads (computed from their own contained buildings — the rows
+  shipped without them and crashed the block-membership check); SUB-03's
+  dangling BLK-CJN-N re-points to the appended BLK-LRY-STN; STR-SPUR carries
+  the pedestrianized flag (the plaza and gardens stand on the track bed by
+  design); the landmark resolver resolves street anchors (LMK-12).
+- **The named-defect register**: the validator prints KNOWN findings without
+  failing, and any unlisted finding still fails — nothing passes silently.
+  One entry: the east district's LRY-03 <-> SUB-03 interpenetration
+  (5.00 × 1.00 m), owned by the east build's next session (the correction
+  note sits in its handover docs, whose §2 already touches SUB-03).
+- **The battery**: validate-registry OK (256 IDs, 111 buildings, 23/23
+  anchors; 1 KNOWN) · tsc clean · vitest 1,748/1,748 (105 files) · build OK ·
+  probe-city-fabric DRAWS 192 · probe-wc1-catalpa OK · diag-pocket-scan
+  traps 18 unchanged.
+
+— Z.ai agent, 2026-11-14
+
+## 19. Session addendum — the Catalpa Junction business package filed (2026-11-14)
+
+The owner's directive: the K-line expansion belongs to the other agent; this
+line prepares the priced package for Catalpa Junction's first businesses with
+books — the district becomes a functioning neighbourhood, not a showcase. The
+package is filed as DRAFT (the §8 gate's input; authorizes nothing):
+
+- **The proposal**: four doors — the Duck's counter (CJN-08, provisions,
+  opposite the station stair), Starlawn's supply floor (CJN-04, tools), the
+  Halstead book floor (CJN-07, second-hand books), the Docksman's lunch room
+  (CJN-05, the shift counter); five shells stay industry fronts.
+- **The books**: the Phase-6 ledger machinery verified in code (the ledger,
+  the money bridge wired to every earn/spend, the business ops' P&L from
+  ledger evidence) — the three shipped biz:* precedents are the class; the
+  price table anchors to shipped evidence and becomes evidence on approval.
+- **The craft**: the W9 strip-carve class, the near/far interior program,
+  provenance-pinned GLBs only — zero new files.
+- **The pricing**: +0 standing; each room < 200 inside-state on its own
+  census leg; colliders outside the scanned extent; nav unchanged (the
+  docks sit outside the graph's span — the door approaches ride the seam
+  wave's nav extension, stated plainly); sim re-runs.
+- **The boundary** (§6): the seam, stationKit, SUB-03, the Larch Yards —
+  theirs; the CJN-* content — this line's; the shared-file protocol and the
+  one-way dependency (seam → footfall) recorded for both lines' next sessions.
+
 ## W-C6 — the K line eastbound (2026-11-14, register v1.78.0)
 
 - **THE WAVE**: the handover's exact next priced wave — the ride machine's
@@ -597,7 +653,7 @@ owner's PAT; the merge joins them and re-certifies the integrated tree:
   h-0 rows); the shaft-is-the-hole east edition; the lift-by-identity law
   (the shipped two-boxFromCenter bug fixed on the way).
 - **THE BATTERY (this box)**: validate-registry OK (256 IDs, 112
-  buildings, 23/23 anchors) · tsc clean · vitest 1,761/1,761 (105 files) ·
+  buildings, 23/23 anchors) · tsc clean · vitest 1,764/1,764 (105 files, the merged tree — the gifted packs’ +3 join with no seam) ·
   build OK · probe-subway the eastbound leg's 17 checks ALL PASS (the only
   FAIL is the documented baseline Wow-card carry at e792abd) ·
   probe-city-fabric DRAWS **192** (the ground re-merge's −1; the wave's
@@ -610,5 +666,6 @@ owner's PAT; the merge joins them and re-certifies the integrated tree:
   frame and the headhouse frame).
 - **Next**: the M121/taxi routes east (the transit completion), priced
   first; then the spur's ambient walker loops.
+
 
 — Z.ai agent, 2026-11-14
