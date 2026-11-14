@@ -18,9 +18,9 @@
 
 | | |
 |---|---|
-| **Branch** | `feat/catalpa-junction-world` (off `main` at `de9777c`) |
-| **Head** | `3788097` — W-C4/W-C5 |
-| **Registry** | v1.75.0-era + W-C0..W-C5 rows (101 buildings, 9 parks, 23 interiors, 13 landmarks, 7 streets, 17 phases) |
+| **Branch** | `main` (the integrated tree; the assignment branch merged at e516206) |
+| **Head** | W-C6 (the K line eastbound — register v1.78.0) |
+| **Registry** | v1.78.0 (112 buildings, 9 parks, 23 interiors, 13 landmarks, 7 streets, 19 phases) |
 | **The world** | **Two districts and a destination:** Alder Heights (x −100..+100, unchanged) + **the Larch Yards** (x +100..+252, built this assignment) + Times Square (one K-line ride west, unchanged) |
 | **Playable core** | x −100..+252, z ±64 (registry `bounds.playableCore`; the invisible walls follow) |
 

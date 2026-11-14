@@ -16,11 +16,11 @@
 |---|---|
 | **Milestone** | World-map construction (W0–W14) + the evidence package (the shot list, the labelled top-down, the 3D overview); the concurrent line's W15–W17 wave (the DEC-6 + DEC-12 rulings, the W16 minimal seasonal pass, the W17 borough design package draft) joined by merge |
 | **Phase** | Vertical Slice production — narrative reboot canon (v1.0, 2026-11-06) |
-| **Registry version** | v1.79.0 (the register's top — the Catalpa Junction business package FILED, docs-only; v1.78.0 before it was the registry-discipline repair that restored the CJN-* canon prefix and re-pointed 180 references; W-C1's row is v1.77.0, renumbered v1.74.0 → v1.77.0 at the 2026-11-14 re-integration merge — the monotonic-ledger law, the C3-wave/TSS-PROD precedent; see `docs/production/PRODUCTION-STATUS-REGISTER.md` for the authoritative rows) |
+| **Registry version** | v1.80.0 (the register's top — W-C6 "the K line eastbound", renumbered v1.78.0 → v1.80.0 at the concurrent line's re-integration merge: the eastbound A⇄C leg rides, station C stands at SUB-03's own axis, the LRY-03 ↔ SUB-03 KNOWN defect RETIRES with its 1 m footprint trim, the validator reads no KNOWN findings; the ledger beneath: v1.79.0 the business package filed, v1.78.0 the CJN-* canon restore, v1.77.0 W-C1 — see `docs/production/PRODUCTION-STATUS-REGISTER.md` for the authoritative rows) |
 | **Implementation phase** | **Complete for the vertical slice.** All 179 registry IDs built. All 22 interiors shipped (the Corner House's CORNERHOUSE-INT closed the last openDecision in W14). All 7 parks built. All 23 anchors placed. The walkability scanner reads clean and deterministic. The evidence package (the §6 shot list, the labelled top-down map, the golden-hour overview) is captured from the real built game. |
 | **Branch (local clone)** | `main` |
-| **Latest commit hash** | `1717a59` — the concurrent K-line's gifted furniture packs joined at the 2026-11-14 merge (14 new interior slots wearing the owner's two packs, additive; the business package gained its dated amendment the same merge); the west-reach docks, the registry-discipline repair and the business package filed ride beneath it; this record (§20, the claims re-verification pass) rides the next commit |
-| **Commit subject** | `Merge origin/main into main — the concurrent K-line's gifted furniture packs (14 new interior slots wearing the owner's two packs, additive; the seam law: pack files carry no texture maps, no curated ABO slot swapped) join the Catalpa tree; worklog both sides preserved; no register delta on their side, the ledger stands` |
+| **Latest commit hash** | `3ded020` — the concurrent line's W-C6 eastbound ride joins at their re-integration merge (the ride seam's first leg: A⇄C, the transfer car's two doors, station C at the Larch Yards, the shaft-is-the-hole housing, the KNOWN defect retired; the register renumbers W-C6 v1.78.0 → v1.80.0, the monotonic-ledger law); this record rides the integration merge that adds the claims-verification wave (§20) and the package's W-C6 amendment on top |
+| **Commit subject** | `Merge origin/main into main — the concurrent line's W-C6 eastbound ride (register v1.80.0) joins the claims-verification tree; worklog both sides preserved (their W-C6 session between §19 and §20, chronological); the business package's §1 carries its dated W-C6 amendment (the seam's first leg landed — the Catalpa west leg stays future; the reachability conclusion unchanged)` |
 | **Commit date** | 2026-11-14 (UTC) |
 | **Remote** | `https://github.com/desurfofficial-ship-it/first-slice-nyc.git` (public; read-only clone needs no credentials; the push rides the owner's fine-grained PAT — it needs the repo's Contents:write grant) |
 
@@ -640,6 +640,33 @@ package is filed as DRAFT (the §8 gate's input; authorizes nothing):
 - **The boundary** (§6): the seam, stationKit, SUB-03, the Larch Yards —
   theirs; the CJN-* content — this line's; the shared-file protocol and the
   one-way dependency (seam → footfall) recorded for both lines' next sessions.
+
+## W-C6 — the K line eastbound (2026-11-14, register v1.78.0)
+
+- **THE WAVE**: the handover's exact next priced wave — the ride machine's
+  route law (W/E), the transfer car's two doors, station C under the Larch
+  Yards (SUB-03-PLAT, the SUB-TS pattern at SUB-03's own axis), the
+  tunnel's east reach (SUB-TRACK's span amendment −20 → 182), the
+  shaft-is-the-hole housing re-cut, the open cut's L-shape (LRY-03's ground
+  stays), the third fare window, the eastbound beats.
+- **THE LAWS ADDED**: the underground-is-not-a-wall (footprintsOf skips
+  h-0 rows); the shaft-is-the-hole east edition; the lift-by-identity law
+  (the shipped two-boxFromCenter bug fixed on the way).
+- **THE BATTERY (this box)**: validate-registry OK (256 IDs, 112
+  buildings, 23/23 anchors) · tsc clean · vitest 1,764/1,764 (105 files, the merged tree — the gifted packs’ +3 join with no seam) ·
+  build OK · probe-subway the eastbound leg's 17 checks ALL PASS (the only
+  FAIL is the documented baseline Wow-card carry at e792abd) ·
+  probe-city-fabric DRAWS **192** (the ground re-merge's −1; the wave's
+  standing delta +0) · probe-wc1-catalpa OK (spawn 192 +0 standing, spur
+  53, platform 23) · probe-w14-cornerhouse PASS · probe-interior-dressing
+  PASS · probe-integration 0 errors 8/8 walks · probe-tss-road-clear THE
+  LAW HOLDS · probe-nav 9/9 · diag-pocket-scan deterministic (one
+  component x −98..250, traps 18 unchanged, colliders 1018 → 1233 the
+  honest +215 below grade) · probe-world-map-evidence OK (+ the arrival
+  frame and the headhouse frame).
+- **Next**: the M121/taxi routes east (the transit completion), priced
+  first; then the spur's ambient walker loops.
+
 
 — Z.ai agent, 2026-11-14
 
