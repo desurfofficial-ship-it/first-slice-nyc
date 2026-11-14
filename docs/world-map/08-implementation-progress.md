@@ -584,3 +584,31 @@ owner's PAT; the merge joins them and re-certifies the integrated tree:
   the program depth — each priced first, the Alder Heights bar throughout.
 
 — Z.ai agent, 2026-11-14
+
+## W-C6 — the K line eastbound (2026-11-14, register v1.78.0)
+
+- **THE WAVE**: the handover's exact next priced wave — the ride machine's
+  route law (W/E), the transfer car's two doors, station C under the Larch
+  Yards (SUB-03-PLAT, the SUB-TS pattern at SUB-03's own axis), the
+  tunnel's east reach (SUB-TRACK's span amendment −20 → 182), the
+  shaft-is-the-hole housing re-cut, the open cut's L-shape (LRY-03's ground
+  stays), the third fare window, the eastbound beats.
+- **THE LAWS ADDED**: the underground-is-not-a-wall (footprintsOf skips
+  h-0 rows); the shaft-is-the-hole east edition; the lift-by-identity law
+  (the shipped two-boxFromCenter bug fixed on the way).
+- **THE BATTERY (this box)**: validate-registry OK (256 IDs, 112
+  buildings, 23/23 anchors) · tsc clean · vitest 1,761/1,761 (105 files) ·
+  build OK · probe-subway the eastbound leg's 17 checks ALL PASS (the only
+  FAIL is the documented baseline Wow-card carry at e792abd) ·
+  probe-city-fabric DRAWS **192** (the ground re-merge's −1; the wave's
+  standing delta +0) · probe-wc1-catalpa OK (spawn 192 +0 standing, spur
+  53, platform 23) · probe-w14-cornerhouse PASS · probe-interior-dressing
+  PASS · probe-integration 0 errors 8/8 walks · probe-tss-road-clear THE
+  LAW HOLDS · probe-nav 9/9 · diag-pocket-scan deterministic (one
+  component x −98..250, traps 18 unchanged, colliders 1018 → 1233 the
+  honest +215 below grade) · probe-world-map-evidence OK (+ the arrival
+  frame and the headhouse frame).
+- **Next**: the M121/taxi routes east (the transit completion), priced
+  first; then the spur's ambient walker loops.
+
+— Z.ai agent, 2026-11-14

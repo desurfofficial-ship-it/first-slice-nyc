@@ -129,3 +129,38 @@
 | W-C2 masses/kit | inside the tiles (the bake owns them) | the VC law |
 | W-C4 interior | +1 emissive (the lamps; the fit-out bakes) | priced in its phase row |
 | **Final standing census** | **192** | **budget 200** |
+
+## W-C6 — the K line eastbound (the handover's exact next priced wave)
+
+**Register v1.78.0.** The ride machine grew its route law (W/E — tests
+first, 16 pins watched failing before implementation); the transfer car at
+Alder Heights hangs both ride doors (the east door westbound, the west door
+eastbound — 6.2 m apart inside one car, the bench split around both);
+station C = the parameterized station translated to SUB-03's own axis (the
+cx reads the row, the A-3 pin holds); the tunnel grew its east reach
+(registry SUB-TRACK's span amendment); the surface opened SUB-03's housing
+around the shaft (the SUB-01 law) and split the yard around the open cut's
+L-shape (LRY-03's ground stays — the station's east half runs under the
+loft). The nav learned that the underground is not a wall (footprintsOf
+skips h-0 rows); the dollhouse learned to lift by identity (the shipped
+two-boxFromCenter bug) and by name east of the river (LarchYards_Sub03
+joins NAMED_SKIP). The registry repairs: SUB-03-PLAT appended (the SUB-TS
+pattern), the four BLK-LRY-* bboxes, the dangling BLK-CJN-N claim nulled,
+STR-SPUR's pedestrian flag, LMK-12's street anchor, the h-0 overlap
+exemption.
+
+Found and fixed on the way: the east walk slab roofed the shaft (the exit
+walk oscillated at tread 4 — the diag's trace caught the limit cycle; the
+W8 slot-split fixed it); the dollhouse lift never fired (two boxFromCenter
+calls, the splice found nothing); the tile-batch fusion defeated the
+by-reference hide.
+
+**The battery:** validate-registry OK (256 IDs, 112 buildings, 23/23
+anchors) · tsc clean · vitest 1,761/1,761 (105 files, +13) · build OK ·
+probe-subway the eastbound leg's 17 checks ALL PASS (the only FAIL is the
+documented baseline Wow-card carry) · probe-wc1-catalpa OK (spawn 192 +0
+standing) · probe-city-fabric DRAWS 192 · probe-w14 PASS ·
+probe-interior-dressing PASS · probe-integration 0 errors 8/8 walks ·
+probe-tss-road-clear LAW HOLDS · probe-nav 9/9 · diag-pocket-scan
+deterministic (one component x −98..250, traps 18 unchanged, colliders
+1018 → 1233 the honest +215 below grade).

@@ -52,7 +52,10 @@ for (const b of R.buildings) {
 }
 
 // ---------- 4. Building-vs-building overlap (touching allowed) ----------
-const bs = R.buildings.filter((b) => b.footprint && b.class !== 'D');
+// height-0 rows (the SUB-TS pattern: below-grade platform bands) don't
+// compete with surface masses for ground — a station band and its own
+// headhouse legitimately share XZ. The bands still pass bounds + blocks.
+const bs = R.buildings.filter((b) => b.footprint && b.class !== 'D' && b.height !== 0);
 for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) {
   const a = fp(bs[i].footprint), c = fp(bs[j].footprint);
   const ox = Math.min(a.x1, c.x1) - Math.max(a.x0, c.x0);
@@ -61,8 +64,13 @@ for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) {
 }
 
 // ---------- 5. Buildings stay off the roadways (control house exempt) ----------
+// pedestrian streets (STR-SPUR: the freight spur gone pedestrian — its
+// "road" rect IS the disused track bed) carry parks by design; their road
+// rects stay out of the asphalt checks (the W-C6 repair; the row's own
+// `pedestrian: true` flag is the data authority)
 const roads = [];
 for (const s of R.streets) {
+  if (s.pedestrian) continue;
   if (s.axis === 'EW') roads.push({ x0: -84, x1: 84, z0: s.road.zMin, z1: s.road.zMax, name: s.name });
   else roads.push({ x0: s.road.xMin, x1: s.road.xMax, z0: -64, z1: 64, name: s.name });
 }
@@ -240,7 +248,9 @@ for (const ix of R.intersections) for (const cb of (ix.cornerBuildings ?? []))
 for (const l of R.landmarks) {
   const m = l.anchor.match(/[A-Z]+-[0-9A-Za-z]+/);
   if (m && !['EST'].includes(m[0])) {
-    const found = R.buildings.some((b) => b.id === m[0]) || R.parks.some((p) => p.id === m[0]) || /water towers|SUB-/.test(l.anchor);
+    const found = R.buildings.some((b) => b.id === m[0]) || R.parks.some((p) => p.id === m[0])
+      || R.streets.some((s) => s.id === m[0]) // a landmark may anchor to a street (LMK-12: the elevated spur)
+      || /water towers|SUB-/.test(l.anchor);
     if (!found && !/water tower/.test(l.anchor)) problems.push(`LANDMARK ${l.id} anchor ${m[0]} unresolved`);
   }
 }

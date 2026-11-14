@@ -197,6 +197,7 @@ const run = await page.evaluate(async () => {
   });
   censusDiagram(g.world.subway.groups.trainA);
   censusDiagram(g.world.subway.groups.trainB);
+  censusDiagram(g.world.subway.groups.trainC);
   out.diagramMeshes = diagramTotal;
   out.diagramUpAtBeat = diagramTotal > 0 && diagramUp === diagramTotal;
   // aboard, the car is the room: roof AND platform-side face stand down
@@ -207,7 +208,7 @@ const run = await page.evaluate(async () => {
     g.world.subway.groups.trainA.traverse((o) => {
       if (o.name === 'SUB_CarRoof_-44.2') roof = o.visible;
       if (o.name === 'SUB_CarBodyS_-44.2_1') body = o.visible;
-      if (o.name === 'SUB_DoorLeaf_-44.2_a') leaf = o.visible;
+      if (o.name === 'SUB_DoorLeaf_-44.2_e_a') leaf = o.visible; // W-C6: leaves carry their side
     });
     return roof === false && body === false && leaf === false;
   };
@@ -247,6 +248,7 @@ const run = await page.evaluate(async () => {
   });
   censusDown(g.world.subway.groups.trainA);
   censusDown(g.world.subway.groups.trainB);
+  censusDown(g.world.subway.groups.trainC);
   out.diagramDownAtRest = diagramTotal > 0 && diagramDown === diagramTotal;
 
   // 6b. the left-behind law (bug-hunt fix): a player on the PLATFORM when
@@ -339,6 +341,85 @@ const run = await page.evaluate(async () => {
   out.homeX = +p.x.toFixed(1);
   out.rideHome = g.world.subway.ride.at === 'A';
 
+  // 13b. THE EASTBOUND HOP (W-C6): the transfer car's WEST door rides east —
+  // the short hop to the Larch Yards, its own beat set, the seam at +208.
+  // The same walk-in law as leg 5 (no teleports through doors).
+  tp(-47.3, -3.1, 12.6, 0);
+  await sleep(400);
+  g.input.injectKey('KeyW', true);
+  const t0East = Date.now();
+  while (Date.now() - t0East < 8000 && !aboard(p.z)) await sleep(80);
+  g.input.injectKey('KeyW', false);
+  await sleep(300);
+  out.eastWalkInAboard = aboard(p.z);
+  const nearEast = g.registry.nearest(p, g.state, { state: g.state, game: g });
+  out.eastPrompt = nearEast ? nearEast.id : null;
+  if (nearEast && nearEast.id === 'trainEast') {
+    for (const e of nearEast.perform({ state: g.state, game: g })) g.applyEffect(e);
+  }
+  out.eastBoarded = g.world.subway.ride.phase === 'closing'
+    && g.world.subway.ride.route === 'E';
+  batch(12); // close 1.2 + the hop (swap 4.5, arrive 9.5) + margin
+  out.eastAtC = g.world.subway.ride.at === 'C';
+  out.eastLandedX = +p.x.toFixed(1); // the west door -47.3 → +208 = 160.7
+  out.eastDoorsOpen = g.world.subway.doorsOpen;
+  out.eastPhase = g.world.subway.ride.phase;
+  // the C platform holds; the station wears its own name
+  tp(164, -3.1, 12.0);
+  await sleep(400);
+  out.eastPlatformY = +p.y.toFixed(2);
+  out.eastStationLit = g.world.subway.groups.stationC.visible;
+  let bandC = null, waiterC = null;
+  g.world.subway.groups.stationC.traverse((o) => {
+    if (o.name === 'SUB_NameBand_C') bandC = o;
+    if (o.name === 'SUB_Wait_C1') waiterC = o;
+  });
+  out.eastBand = !!bandC;
+  out.eastWaiter = !!waiterC && waiterC.visible;
+  // the third fare window: step over the east hub's base crossing FARE_Z
+  let armBefore = null;
+  g.world.subway.groups.stationC.traverse((o) => {
+    if (o.name.startsWith('SUB_TurnstileArm_C_164.65')) armBefore = o.rotation.y;
+  });
+  tp(164.65, -3.1, 9.4);
+  await sleep(200);
+  await walkUntil(keyToward(true), () => p.z > 11.0, 12000);
+  let armAfter = null;
+  g.world.subway.groups.stationC.traverse((o) => {
+    if (o.name.startsWith('SUB_TurnstileArm_C_164.65')) armAfter = o.rotation.y;
+  });
+  out.eastFareSpin = armBefore !== null && armAfter !== null
+    && Math.abs(armAfter - armBefore) > 0.5;
+  // the REAL walk out: the pocket, the slot, the treads, the housing mouth —
+  // the seal law's east edition (the housing opens, the street receives)
+  tp(164, -3.1, 9.4, Math.PI);
+  await sleep(400);
+  await walkUntil(keyToward(false), () => p.y > -1.9, 25000);
+  await walkUntil(keyToward(false), () => p.y > 0.05, 40000);
+  await sleep(400);
+  out.eastSurfaceY = +p.y.toFixed(2);
+  out.eastUndergroundOff = g.world.subway.underground === false;
+  // you are standing IN the district: the far-read silhouette stands down
+  let sil = null;
+  g.world.scene.traverse((o) => { if (o.name === 'LarchYards_Silhouette') sil = o; });
+  out.eastDistrictLit = !!sil && sil.visible === false;
+  // the ride home from C: walk into the car door (the same walk-in law)
+  tp(166.9, -3.1, 12.6, 0);
+  await sleep(400);
+  g.input.injectKey('KeyW', true);
+  const t0HomeE = Date.now();
+  while (Date.now() - t0HomeE < 8000 && !aboard(p.z)) await sleep(80);
+  g.input.injectKey('KeyW', false);
+  await sleep(300);
+  const nearC = g.registry.nearest(p, g.state, { state: g.state, game: g });
+  out.eastHomePrompt = nearC ? nearC.id : null;
+  if (nearC && nearC.id === 'trainC') {
+    for (const e of nearC.perform({ state: g.state, game: g })) g.applyEffect(e);
+  }
+  batch(12);
+  out.eastHomeAt = g.world.subway.ride.at === 'A';
+  out.eastHomeX = +p.x.toFixed(1); // C door 166.9 - 208 = -41.1
+
   // 14. THE STARVATION LAW (the field report "ride to Times Square doesn't
   // work"): the ride must land on the REAL frame loop — no batching. The
   // machine is fed TRUE elapsed time (Game.frame trueDt), so even at the
@@ -404,7 +485,7 @@ check(run.leftBehindKeptX === true, 'the seam does NOT teleport a player on the 
 check(run.leftBehindStillRiding === true, 'the ride continues without the stowaway');
 check(run.leftBehindReleased === true, 'the arrival releases them: idle, doors open');
 check(run.busker === true, 'the busker plays the 42nd St platform');
-check(run.diagramMeshes === 8, `the chalk strokes built in both cars (${run.diagramMeshes})`);
+check(run.diagramMeshes === 12, `the chalk strokes built in every aligned car (${run.diagramMeshes})`);
 check(run.diagramUpAtBeat === true, 'the teach beat draws the diagram (priya-lines)');
 check(run.diagramDownAtRest === true, 'the chalk rides only its ride (fresh car at rest)');
 check(run.retired === true, 'stepping off retires the ride');
@@ -417,6 +498,23 @@ check(run.usher === 'usher', 'the usher holds the Orpheum door');
 check(Math.abs(run.busFloorY - 0.55) < 0.06, `the M121 floor holds (y ${run.busFloorY})`);
 check(run.inBus, 'the bus interior is enterable');
 check(run.rideHome === true, 'the ride home lands at Alder Heights');
+check(run.eastWalkInAboard === true, `the eastbound walk-in reaches the aisle (W-C6)`);
+check(run.eastPrompt === 'trainEast', 'the west door prompts the eastbound ride (trainEast)');
+check(run.eastBoarded === true, 'the eastbound boarding closes the doors on route E');
+check(run.eastAtC === true, 'the E seam lands the ride at the Larch Yards');
+check(Math.abs(run.eastLandedX - 160.7) < 1.5, `the E seam translated the player +208 (x ${run.eastLandedX})`);
+check(run.eastDoorsOpen === true, 'the doors reopen at the Larch Yards');
+check(Math.abs(run.eastPlatformY - (-3.2)) < 0.05, `the east platform floor holds (y ${run.eastPlatformY})`);
+check(run.eastStationLit === true, 'station C lights its zone');
+check(run.eastBand === true, 'the LARCH YARDS name band hangs in station C');
+check(run.eastWaiter === true, 'the east platform waiter stands his post');
+check(run.eastFareSpin === true, 'the third fare window spins its hub');
+check(Math.abs(run.eastSurfaceY - 0.1) < 0.25, `the eastbound stair climbs into the housing mouth (y ${run.eastSurfaceY})`);
+check(run.eastUndergroundOff === true, 'the surface takes the underground state back');
+check(run.eastDistrictLit === true, 'the district silhouette stands down — you are IN the Larch Yards');
+check(run.eastHomePrompt === 'trainC', 'the Larch Yards car prompts the ride home (trainC)');
+check(run.eastHomeAt === true, 'the eastbound ride home lands at Alder Heights');
+check(Math.abs(run.eastHomeX - (-41.1)) < 1.5, `the home leg translated the player -208 (x ${run.eastHomeX})`);
 check(errors.length === 0, `console stays clean (${errors.length} errors)`);
 
 await page.screenshot({ path: 'shots/subway-probe-final.png' });

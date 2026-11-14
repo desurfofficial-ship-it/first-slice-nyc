@@ -240,9 +240,9 @@ export function clockTexture(): THREE.CanvasTexture {
  *  OWN translation `dx = cx − SLOT_CX` — the shipped bug built B's slot
  *  walls at A's x band: invisible meshes at A's platform, duplicate
  *  colliders, and a naked exit slot at B. */
-export function buildStair(ctx: KitCtx, cx: number): void {
+export function buildStair(ctx: KitCtx, cx: number, tagOverride?: 'A' | 'B' | 'C'): void {
   const w = 1.8;
-  const tag = cx > -100 ? 'A' : 'B';
+  const tag = tagOverride ?? (cx > -100 ? 'A' : 'B');
   const SLOT_CX = (STAIR_SLOT.minX + STAIR_SLOT.maxX) / 2;
   const dx = cx - SLOT_CX; // the station's own slot translation (0 for A)
   const z0 = STAIR_SLOT.minZ + 0.15;
@@ -286,7 +286,7 @@ export function buildStair(ctx: KitCtx, cx: number): void {
 // ---------------------------------------------------------------- the station
 
 export interface StationOpts {
-  /** Station center x (A: -44, B: -332). */
+  /** Station center x (A: -44, B: -332, C: SUB-03's own axis). */
   cx: number;
   name: string;
   accent: string;
@@ -295,12 +295,16 @@ export interface StationOpts {
   /** True for the home station (Priya's platform). */
   home: boolean;
   /** The stair slot's x translation for THIS station (0 for A, RIDE_SWAP_DX
-   *  for B). The slot is a fixed feature of the parameterized station — the
-   *  south-wall opening MUST bracket the station's own slot, or the wall
-   *  seals it: the shipped bug built B's opening from A's slot band and a
-   *  291 m wall covered B's stair mouth (the field report "ride to Times
-   *  Square doesn't work" — you rode there and could never leave). */
+   *  for B, STAIR_C_CX − SLOT_CX for C). The slot is a fixed feature of the
+   *  parameterized station — the south-wall opening MUST bracket the
+   *  station's own slot, or the wall seals it: the shipped bug built B's
+   *  opening from A's slot band and a 291 m wall covered B's stair mouth
+   *  (the field report "ride to Times Square doesn't work" — you rode there
+   *  and could never leave). */
   slotDx?: number;
+  /** Mesh-name tag (A/B/C). Defaults home?'A':'B' — C passes 'C' so its
+   *  keep-set names stay distinct from A's (the bake contract reads names). */
+  tag?: 'A' | 'B' | 'C';
 }
 
 /** Meshes that live systems hold by reference and mutate per-frame — the
@@ -370,7 +374,7 @@ export function buildStation(ctx: KitCtx, opts: StationOpts): StationResult {
   const { cx } = opts;
   const S = STATION;
   const slotDx = opts.slotDx ?? 0; // the station's own stair slot (see StationOpts)
-  const tag = opts.home ? 'A' : 'B';
+  const tag = opts.tag ?? (opts.home ? 'A' : 'B');
   const dressing = new THREE.Group();
   dressing.name = `SUB_Dressing_${tag}`;
   ctx.g.add(dressing);

@@ -394,6 +394,14 @@ describe('A-3 registry flip — the flipped bands answer to the registry', () =>
     const m = rideTs.match(/STATION_B_X = (-?[\d.]+)/);
     expect(m, 'STATION_B_X literal').toBeTruthy();
     expect(Number(m![1]), 'STATION_B_X === SUB-TS.x').toBe(reg.building('SUB-TS')!.footprint!.x);
+    // THE EASTBOUND PIN (W-C6): station C reads its row the same way —
+    // SUB-03's own axis — and ride.ts's E-leg constant stays pinned equal
+    expect(subwayIdx.includes("find((b) => b.id === 'SUB-03')")).toBe(true);
+    expect(subwayIdx.includes('cx: sub03.footprint.x')).toBe(true);
+    expect(subwayIdx.includes('cx: 164')).toBe(false);
+    const mC = rideTs.match(/STATION_C_X = (-?[\d.]+)/);
+    expect(mC, 'STATION_C_X literal').toBeTruthy();
+    expect(Number(mC![1]), 'STATION_C_X === SUB-03.x').toBe(reg.building('SUB-03')!.footprint!.x);
   });
 
   it('regShell would refuse a planned row (the law, at the data level: a planned row must never render)', () => {

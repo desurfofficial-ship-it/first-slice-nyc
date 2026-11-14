@@ -310,11 +310,15 @@ function countComponents(g: NavGraph): number {
   return comps;
 }
 
-/** The document's building footprints (non-backdrop), for validation. */
+/** The document's building footprints (non-backdrop), for validation.
+ *  height-0 rows (the SUB-TS pattern: below-grade platform bands) are
+ *  invisible to the street-level world — they bend no lane, seed no door,
+ *  block no walker (the W-C6 law: the underground is not a wall). */
 export function footprintsOf(doc: RegistryDoc): Array<{ id: string; fp: RegistryFootprint }> {
   const out: Array<{ id: string; fp: RegistryFootprint }> = [];
   for (const b of doc.buildings ?? []) {
     if (b.class === 'D') continue; // skyline masses — outside the walk world
+    if (b.height === 0) continue; // below-grade bands — outside the street level
     if (b.footprint) out.push({ id: b.id, fp: b.footprint });
   }
   return out;
