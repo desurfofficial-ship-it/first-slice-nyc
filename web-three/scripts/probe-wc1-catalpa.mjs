@@ -2,14 +2,14 @@
  * Probe: W-C1 — Catalpa Junction's own census (the Junction docks).
  *
  * The wave's priced ledger row, measured — never promised (the DEC-2 law;
- * DEC-13's §4 gate 1). The district is zone-owned (CDK_Group lights only
+ * DEC-13's §4 gate 1). The district is zone-owned (CJN_Group lights only
  * inside catalpaSurface/catalpaPlatform), so the probe boots the built
  * page at the spawn plaza — where the district must read DARK and the
  * draw census must byte-match the shipped ledger (+0 standing) — then
  * teleports into the spur (the diag-tss-census method) and into the
  * platform stub, pricing each on its own frame:
  *
- *   1. THE BOOT LAW — CDK_Group invisible at spawn; the boot census is
+ *   1. THE BOOT LAW — CJN_Group invisible at spawn; the boot census is
  *      the shipped 191-class number (no district draws anywhere).
  *   2. THE SPUR CENSUS — feet at (−410, 0.05, 0): the group lights, the
  *      nine shells stand (their construction names present), the ghost
@@ -68,18 +68,18 @@ const boot = await page.evaluate(() => {
     groupExists: !!grp,
     visible: grp.visible,
     facades: names.filter((n) => /_Facade$/.test(n)).length,
-    batches: names.filter((n) => /^ZoneBake_CDK_Group_/.test(n)).length,
-    hasBand: names.includes('CDK_NameBand'),
-    hasKiosk: names.includes('CDK_KioskBand'),
-    hasSpur: names.includes('CDK_Spur_Paving'),
-    hasGhost: names.includes('CDK_03_Facade'),
+    batches: names.filter((n) => /^ZoneBake_CJN_Group_/.test(n)).length,
+    hasBand: names.includes('CJN_NameBand'),
+    hasKiosk: names.includes('CJN_KioskBand'),
+    hasSpur: names.includes('CJN_Spur_Paving'),
+    hasGhost: names.includes('CJN_03_Facade'),
     meshes: names.length,
     draws: g.renderer.info.render.calls,
   };
 });
 console.log('BOOT:', JSON.stringify(boot));
-if (!boot.groupExists) fails.push('CDK_Group missing from the scene');
-if (boot.visible !== false) fails.push(`CDK_Group must be DARK at spawn (visible=${boot.visible})`);
+if (!boot.groupExists) fails.push('CJN_Group missing from the scene');
+if (boot.visible !== false) fails.push(`CJN_Group must be DARK at spawn (visible=${boot.visible})`);
 if (boot.facades !== 9) fails.push(`the nine facades must exist: ${boot.facades}`);
 if (boot.batches < 2) fails.push(`the zone bake must own the untextured district: ${boot.batches} batches`);
 if (!boot.hasBand || !boot.hasKiosk || !boot.hasSpur || !boot.hasGhost) fails.push('a named landmark mesh is missing (band/kiosk/spur/ghost)');
@@ -105,10 +105,10 @@ const censusAt = async (x, y, z) => {
       visible: grp.visible,
       draws: g.renderer.info.render.calls,
       facades: names.filter((n) => /_Facade$/.test(n)).length,
-      batches: names.filter((n) => /^ZoneBake_CDK_Group_/.test(n)).length,
-      hasBand: names.includes('CDK_NameBand'),
-      hasKiosk: names.includes('CDK_KioskBand'),
-      hasGhost: names.includes('CDK_03_Facade'),
+      batches: names.filter((n) => /^ZoneBake_CJN_Group_/.test(n)).length,
+      hasBand: names.includes('CJN_NameBand'),
+      hasKiosk: names.includes('CJN_KioskBand'),
+      hasGhost: names.includes('CJN_03_Facade'),
     };
   });
 };
@@ -116,7 +116,7 @@ const censusAt = async (x, y, z) => {
 // ---- 2. THE SPUR CENSUS ----
 const spur = await censusAt(-410, 0.05, 0);
 console.log('SPUR:', JSON.stringify(spur));
-if (spur.visible !== true) fails.push('CDK_Group must LIGHT on the spur (catalpaSurface)');
+if (spur.visible !== true) fails.push('CJN_Group must LIGHT on the spur (catalpaSurface)');
 if (spur.facades !== 9) fails.push(`the nine facades must render: ${spur.facades}`);
 if (!spur.hasGhost) fails.push('the Iron Works ghost facade missing');
 if (!spur.hasKiosk) fails.push('the headhouse kiosk band missing');
@@ -161,7 +161,7 @@ console.log('SHOT: wc1-platform-portrait');
 // ---- 4. THE RETURN LAW ----
 const back = await censusAt(2, 0.1, 20);
 console.log('RETURN:', JSON.stringify(back));
-if (back.visible !== false) fails.push('CDK_Group must go DARK again at the spawn plaza');
+if (back.visible !== false) fails.push('CJN_Group must go DARK again at the spawn plaza');
 // The frame-cost note is informational — ambient walkers move during the
 // teleports and the frame's composition shifts with them. The LAW is the
 // renderer guarantee: visible === false means three.js skips the subtree

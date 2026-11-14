@@ -23,7 +23,7 @@ await page.waitForSelector('#hud:not([hidden])', { timeout: 60000 });
 await page.waitForTimeout(2000);
 const dump = await page.evaluate(() => {
   const g = window.__game;
-  const outer = g.world.scene.getObjectByName('CDK_Group');
+  const outer = g.world.scene.getObjectByName('CJN_Group');
   const inner = g.world.catalpa.group;
   const names = [];
   inner.traverse((o) => { if (o.isMesh) names.push(`${o.name} [${o.geometry?.type ?? '?'}]`); });

@@ -185,7 +185,7 @@ export function buildSubwaySystem(
     // W-C1: Catalpa Junction (the second district's first priced slice,
     // DEC-13). The district sits west of Times Square (x −450..−378) and
     // lights like the tsSurface law: surface zone for the docks walk,
-    // below-grade zone for the CDK-SUB platform stub (the stations' own
+    // below-grade zone for the CJN-SUB platform stub (the stations' own
     // maxFeetY law). The player cannot walk there yet — the ride stays
     // A↔B; the probe teleports in to price the district's own census.
     { name: 'catalpaSurface', minX: -450, maxX: -378, minZ: -56, maxZ: 52, minFeetY: -0.45, slack: 6 },

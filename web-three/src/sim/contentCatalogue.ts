@@ -146,7 +146,7 @@ function builderOf(b: RegistryBuildingJson): string {
       return 'World.ts (the DIRTY WATER DOGS cart)';
     default:
       if (b.id?.startsWith('TSS')) return 'world/timesSquare (authored block)';
-      if (b.id?.startsWith('CDK')) return 'world/catalpaJunction (authored block)';
+      if (b.id?.startsWith('CJN')) return 'world/catalpaJunction (authored block)';
       if (b.id?.startsWith('LRY')) return 'world/larchYardsKit (authored block)';
       return 'World.ts (authored mass)';
   }
@@ -246,16 +246,16 @@ export const BUILDING_EVIDENCE: Record<string, { file: 'World.ts' | 'timesSquare
   // district's first priced slice — the construction names in
   // world/catalpaJunction.ts (the zone-owned far band; the A-3 law holds —
   // every mass reads its registry row via World.ts's regShell)
-  'CDK-01': { file: 'catalpaJunction.ts', tokens: ['CDK_01'] },
-  'CDK-02': { file: 'catalpaJunction.ts', tokens: ['CDK_02'] },
-  'CDK-03': { file: 'catalpaJunction.ts', tokens: ['CDK_03'] },
-  'CDK-04': { file: 'catalpaJunction.ts', tokens: ['CDK_04'] },
-  'CDK-05': { file: 'catalpaJunction.ts', tokens: ['CDK_05'] },
-  'CDK-06': { file: 'catalpaJunction.ts', tokens: ['CDK_06'] },
-  'CDK-07': { file: 'catalpaJunction.ts', tokens: ['CDK_07'] },
-  'CDK-08': { file: 'catalpaJunction.ts', tokens: ['CDK_08'] },
-  'CDK-09': { file: 'catalpaJunction.ts', tokens: ['CDK_09'] },
-  'CDK-SUB': { file: 'catalpaJunction.ts', tokens: ['CDK_Station_Slab'] },
+  'CJN-01': { file: 'catalpaJunction.ts', tokens: ['CJN_01'] },
+  'CJN-02': { file: 'catalpaJunction.ts', tokens: ['CJN_02'] },
+  'CJN-03': { file: 'catalpaJunction.ts', tokens: ['CJN_03'] },
+  'CJN-04': { file: 'catalpaJunction.ts', tokens: ['CJN_04'] },
+  'CJN-05': { file: 'catalpaJunction.ts', tokens: ['CJN_05'] },
+  'CJN-06': { file: 'catalpaJunction.ts', tokens: ['CJN_06'] },
+  'CJN-07': { file: 'catalpaJunction.ts', tokens: ['CJN_07'] },
+  'CJN-08': { file: 'catalpaJunction.ts', tokens: ['CJN_08'] },
+  'CJN-09': { file: 'catalpaJunction.ts', tokens: ['CJN_09'] },
+  'CJN-SUB': { file: 'catalpaJunction.ts', tokens: ['CJN_Station_Slab'] },
 };
 
 /**

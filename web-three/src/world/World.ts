@@ -2301,26 +2301,26 @@ export class World {
     // ---- W-C1: Catalpa Junction, the second district's first priced slice
     // (DEC-13: the design package APPROVED as filed, scenario S1 governing).
     // The district lives west of Times Square (x −450..−378, the registry's
-    // free band), zone-owned like every far-world root: CDK_Group lights
+    // free band), zone-owned like every far-world root: CJN_Group lights
     // only inside its catalpaSurface/catalpaPlatform zones, never joins a
     // district tile (NAMED_SKIP), never takes city-fabric roofs (ROOF_SKIP).
     // The masses READ their registry rows — the flip never invents geometry.
     const cjnRoot = new THREE.Group();
-    cjnRoot.name = 'CDK_Group';
+    cjnRoot.name = 'CJN_Group';
     this.scene.add(cjnRoot);
     this.catalpa = buildCatalpaJunction(cjnRoot, (c, opts) => this.mat(c, opts), {
-      'CDK-01': this.regShell('CDK-01'),
-      'CDK-02': this.regShell('CDK-02'),
-      'CDK-03': this.regShell('CDK-03'),
-      'CDK-04': this.regShell('CDK-04'),
-      'CDK-05': this.regShell('CDK-05'),
-      'CDK-06': this.regShell('CDK-06'),
-      'CDK-07': this.regShell('CDK-07'),
-      'CDK-08': this.regShell('CDK-08'),
-      'CDK-09': this.regShell('CDK-09'),
+      'CJN-01': this.regShell('CJN-01'),
+      'CJN-02': this.regShell('CJN-02'),
+      'CJN-03': this.regShell('CJN-03'),
+      'CJN-04': this.regShell('CJN-04'),
+      'CJN-05': this.regShell('CJN-05'),
+      'CJN-06': this.regShell('CJN-06'),
+      'CJN-07': this.regShell('CJN-07'),
+      'CJN-08': this.regShell('CJN-08'),
+      'CJN-09': this.regShell('CJN-09'),
       // the h-0 slot row rides regFootprint (the ALY-02/SUB-TS law —
       // regShell's height floor would refuse it)
-      'CDK-SUB': this.regFootprint('CDK-SUB'),
+      'CJN-SUB': this.regFootprint('CJN-SUB'),
     });
     for (const c of this.catalpa.colliders) {
       this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d));
@@ -5721,7 +5721,7 @@ export class World {
       // rows live OUTSIDE every district tile (x ±110 / z −88 / z +104) —
       // a tile ring that drops them would blink the horizon out of view
       'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121', 'Yard_N',
-      'SkylineFabric', 'SkylineFabricWindows', 'CDK_Group',
+      'SkylineFabric', 'SkylineFabricWindows', 'CJN_Group',
       // W-C1 (this tree): the Larch Yards silhouette underlay rides the
       // district ring's own law (visible while the district's tiles are
       // unlit) — a baked silhouette would be ring-owned and vanish exactly

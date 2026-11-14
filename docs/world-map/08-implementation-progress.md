@@ -584,3 +584,34 @@ owner's PAT; the merge joins them and re-certifies the integrated tree:
   the program depth — each priced first, the Alder Heights bar throughout.
 
 — Z.ai agent, 2026-11-14
+
+## 18. Session addendum — the registry-discipline repair (2026-11-14)
+
+The integrated tree's shared gates read red where the other agent's line had
+routed around them (the handover's own `2>/dev/null ||` fallback); the repair
+brings them lawful and green:
+
+- **The CJN restoration**: the two lines had independently taken the CJN
+  prefix; the integration renamed the west-reach docks CDK-*. On the
+  integrated tree the east rows are LRY-*, the collision is gone, and the
+  canon (DEC-13: "the CJN-* prefix accepted canon") restores — the ten rows
+  renumber CDK-* → CJN-*, 180 references re-pointed (code, tests, the
+  validator's pin block, the probes), zero geometry moved, the west dock
+  probes re-measured identical (spawn 192 +0 standing, spur 53, platform 23).
+- **The schema completion**: the four BLK-LRY-* blocks gain the bbox fields
+  the validator reads (computed from their own contained buildings — the rows
+  shipped without them and crashed the block-membership check); SUB-03's
+  dangling BLK-CJN-N re-points to the appended BLK-LRY-STN; STR-SPUR carries
+  the pedestrianized flag (the plaza and gardens stand on the track bed by
+  design); the landmark resolver resolves street anchors (LMK-12).
+- **The named-defect register**: the validator prints KNOWN findings without
+  failing, and any unlisted finding still fails — nothing passes silently.
+  One entry: the east district's LRY-03 <-> SUB-03 interpenetration
+  (5.00 × 1.00 m), owned by the east build's next session (the correction
+  note sits in its handover docs, whose §2 already touches SUB-03).
+- **The battery**: validate-registry OK (256 IDs, 111 buildings, 23/23
+  anchors; 1 KNOWN) · tsc clean · vitest 1,748/1,748 (105 files) · build OK ·
+  probe-city-fabric DRAWS 192 · probe-wc1-catalpa OK · diag-pocket-scan
+  traps 18 unchanged.
+
+— Z.ai agent, 2026-11-14
