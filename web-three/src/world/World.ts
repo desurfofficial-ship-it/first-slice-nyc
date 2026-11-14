@@ -2394,6 +2394,13 @@ export class World {
       { jacket: 0x6e4f3a, pants: 0x32363e, skin: 0xd9a06b, hair: 0x2b2730, style: 'cap', shoe: 0x3a3028, scale: 1.04 },
       { jacket: 0x715671, pants: 0x3b3f4a, skin: 0x8a5a3b, hair: 0x14141c, style: 'bun', shoe: 0x33291f, scale: 0.94 },
       { jacket: 0x4a5a6e, pants: 0x443f4a, skin: 0xe8b08e, hair: 0x3a2c22, style: 'flat', shoe: 0x2e2a33, scale: 1.06 },
+      // WP-EAST — the east pair (AGENT_HANDOVER §4's "2 new loops on the
+      // spur/Kestrel East"): the Yards' workwear read, Doc-04 identity,
+      // bank-shared materials. Their loops live outside every Alder sight
+      // line — the district tiles gate their draws, the spawn frame reads
+      // +0 — but the east streets carry their own floor now.
+      { jacket: 0x5a4a3a, pants: 0x2e3236, skin: 0xc98e5a, hair: 0x3a2c22, style: 'flat', shoe: 0x3a3028, scale: 1.02 },
+      { jacket: 0x4a5568, pants: 0x3b3f4a, skin: 0x8a5a3b, hair: 0x14141c, style: 'bun', shoe: 0x33291f, scale: 0.96 },
     ];
     const pedPaths: Array<Array<[number, number]>> = [
       // the commuter: full block, crossing only at the crosswalk (x ≈ -6.5,
@@ -2450,6 +2457,24 @@ export class World {
       [[-21.5, 6.28], [-40, 6.28], [-40, 6.6], [-21.5, 6.6]],    // the rush weaver
       [[-23.5, 6.24], [-36, 6.24], [-36, 6.72], [-23.5, 6.72]],  // the bench local
       [[-27, 6.3], [-38.5, 6.3], [-38.5, 6.58], [-27, 6.58]],    // the stair weaver
+      // WP-EAST — the east pair (AGENT_HANDOVER §4): the Larch Yards' own
+      // ambient floor. THE SPAWN LAW holds by construction: neither loop
+      // crosses a street except at the spur's own timber crossings (z 0 and
+      // −40 — the flush, designed rail crossings), so pts[0] is reachable
+      // legally from every point.
+      // the spur walker: the pedestrianized freight bed's west walk down
+      // and the east walk back, crossing the dead rails at the timber
+      // crossings only (z 0 and −40). Lanes x 149.0/155.0: a full metre
+      // off the viaduct's column lines (147.8/156.2 — probe-solid's gate
+      // is 0.42) and clear of the plaza's furniture (the crane pedestal
+      // and benches live north of z 5 — this loop stays south of the
+      // Kestrel crossing entirely).
+      [[149.0, 0], [149.0, -40], [155.0, -40], [155.0, 0]],
+      // the Kestrel East local: the north walk's out-and-back on the
+      // shipped walk-band grammar (z 6.1–6.75, the Alder north-walk's own
+      // lanes), x 102..144 — the turnaround parks 2 m west of the spur's
+      // west edge (146) and clear of the bollard line. No street crossings.
+      [[102, 6.1], [144, 6.1], [144, 6.75], [102, 6.75]],
     ];
     // ---- their routines (Phase 4, Doc 37 §3E): the day's small beats ------
     // Every trigger sits OFF the walk lanes (at the building line or the
@@ -2533,6 +2558,20 @@ export class World {
       [
         { x: -19.1, z: 6.95, faceTo: [-18.5, 7.55], dwell: 3.5 }, // one more glance at the bodega
       ],
+      // WP-EAST — the east pair's beats: off the walk lanes, same law as
+      // every routine above (the trigger stands beside the lane, never in it).
+      [
+        // the spur walker: the Spur Gardens' beds south of the Kestrel
+        // crossing, and the south crossing's view down the dead rails
+        { x: 149.0, z: -20.5, faceTo: [152.0, -24.0], dwell: 4.0 },
+        { x: 155.0, z: -2.0, faceTo: [152.0, -8.0], dwell: 2.5 },
+      ],
+      [
+        // the Kestrel East local: the Junction Plaza's crane from the walk,
+        // and the block face east of the Sycamore junction
+        { x: 143.0, z: 6.9, faceTo: [152.0, 7.5], dwell: 4.0 },
+        { x: 112.0, z: 6.9, faceTo: [112.0, 9.5], dwell: 2.5 },
+      ],
     ];
     this.peds = new Pedestrians(
       this.scene, pedLooks, 20261030, pedPaths,
@@ -2596,6 +2635,17 @@ export class World {
         { x: -7.6, z: 27, r: 0.9 }, { x: -4, z: 27, r: 0.9 },
         { x: 2, z: 28.5, r: 1.4 }, { x: 1, z: 22.5, r: 0.9 },      // shed, garden bench
         { x: -10, z: -28.5, r: 1.2 }, { x: -4.5, z: -27.5, r: 1.6 }, // swings, sandbox
+        // WP-EAST — the east pair's bow circles: the viaduct's twelve
+        // column feet (the walk bands' own residents), the Junction Plaza's
+        // crane pedestal + bench pair, and the parked truck the Kestrel
+        // East local walks past. Without these the loops' walkers would
+        // read straight through the district's iron.
+        ...[[147.8, -58], [147.8, -31], [147.8, -19], [147.8, 19], [147.8, 31], [147.8, 58],
+            [156.2, -58], [156.2, -31], [156.2, -19], [156.2, 19], [156.2, 31], [156.2, 58]]
+           .map(([x, z]) => ({ x, z, r: 0.5 })),                   // viaduct columns
+        { x: 152, z: 7.5, r: 1.8 },                                // the crane pedestal
+        { x: 149.2, z: 12.5, r: 0.95 }, { x: 154.8, z: 12.5, r: 0.95 }, // the plaza benches
+        { x: 107.5, z: 2.9, r: 2.0 },                              // the parked box truck (Kestrel N curb)
       ],
       pedRoutines,
       // W4: the district's five road rectangles — ground truth for every
@@ -2606,6 +2656,12 @@ export class World {
         { xMin: -100, xMax: 100, zMin: -44, zMax: -36 }, // Marlow Street (W7)
         { xMin: -76, xMax: -68, zMin: -64, zMax: 64 },   // Juniper Avenue
         { xMin: 68, xMax: 76, zMin: -64, zMax: 64 },     // Sycamore Avenue
+        // WP-EAST — the east pair's ground truth (the registry's own spans):
+        { xMin: 100, xMax: 252, zMin: -4, zMax: 4 },     // Kestrel Street east (STR-KESTREL spanX 252)
+        { xMin: 146, xMax: 158, zMin: -64, zMax: 64 },   // the spur (STR-SPUR, pedestrianized —
+                                                         // feet ride y 0 on the flush bed;
+                                                         // its timber crossings are the
+                                                         // loop's only rail contacts)
       ] as RoadRect[],
       // M4: each walker's shift on the street schedule — the dusk shift
       // boots home (the game boots into the day phase)

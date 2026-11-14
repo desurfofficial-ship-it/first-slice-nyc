@@ -135,6 +135,11 @@ export const PEDESTRIAN_ROLES: readonly StreetRole[] = [
   'park',                                   // the garden tender — home at dusk
   'street',                                 // the avenue shopper — always out
   'dusk', 'dusk', 'dusk',                   // the evening rush (M4)
+  'street', 'street',                       // WP-EAST — the east pair: the spur
+                                            // walker + the Kestrel East local,
+                                            // always out (the east districts'
+                                            // own floor; the district tiles gate
+                                            // their draws — no Alder cost)
 ];
 
 export interface StreetPlan {

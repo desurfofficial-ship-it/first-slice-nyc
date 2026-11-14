@@ -175,3 +175,16 @@
   byte-identical · probe-nav 9/9 · probe-fenestra ALL PASS.
 - **The seam**: `?polyfork=0` returns the shipped world byte-for-byte.
 - **The docs**: docs/production/polyfork/01..04.
+
+### 2026-11-14 — WP-EAST (register v1.82.0)
+
+- The east pair: the spur walker + the Kestrel East local (loops, looks,
+  beats, roles), the east road rects (feet law), the viaduct/crane/bench
+  bow circles.
+- The sight law: walkers beyond SIGHT_M hide (render only) — the spawn
+  census 192 byte-identical with 13 walkers on the street.
+- The band core grew to the walked extent (x −98..250) — the W7 ±100
+  clamp had inverted every east band (the regression the wave's own dump
+  caught; pinned in tests/crowd.test.ts).
+- Battery: 1,783 tests, DRAWS 192, traps 19 (trap-neutral), all district
+  probes green; evidence in shots/polyfork/east-*.png.

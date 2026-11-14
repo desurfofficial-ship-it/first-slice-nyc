@@ -106,7 +106,7 @@ East (the ped-commute roster's own grammar; the lanes already exist).
 | Item | Where it stands |
 |---|---|
 | Catalpa business books | Phase-6 economy machinery, later phase (the design package's own scope) |
-| Ambient walker loops east | 2 new loops on the spur/Kestrel East — small, safe |
+| Ambient walker loops east | **DONE (WP-EAST, register v1.82.0)** — the spur walker + the Kestrel East local, the sight law pricing them, the band core grown to x −98..250 |
 | The M121/taxi routes east | Documented next wave; parked trucks dress the docks meanwhile |
 | The Map sketch growth | Deliberately unchanged (the Roam law; the first-session frame) |
 | The fenestra atlas mip re-audit | Carried from the shipped ledger (honest-open; needs a real GPU) |

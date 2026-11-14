@@ -168,12 +168,25 @@ describe('per-walker band (bandOfLoop — the W4 law, proved where it lives)', (
     expect(pulledX).toBeGreaterThan(0); // stays on its own block
   });
 
-  it('the band never escapes the playable core (x ±100, z ±64 — the W7 world extent)', () => {
-    const far = bandOfLoop([[-200, -80], [200, 80]]);
-    expect(far.minX).toBe(-100); // W7: the core grew ±84 → ±100 (the registry's own bounds)
-    expect(far.maxX).toBe(100);
+  it('the band never escapes the playable core (x −98..250, z ±64 — the walked extent, WP-EAST)', () => {
+    const far = bandOfLoop([[-200, -80], [300, 80]]);
+    expect(far.minX).toBe(-98);  // the walked core: W7 grew ±84 → ±100, WP-EAST grew −100 → −98 / 100 → 250
+    expect(far.maxX).toBe(250);
     expect(far.minZ).toBe(-64);
     expect(far.maxZ).toBe(64);
+  });
+
+  it('the east loops\u2019 bands stay upright (a band narrower than its loop would invert and pin the walker)', () => {
+    // the WP-EAST regression: the spur loop (x 149..155) under the old ±100
+    // core read minX 147.4 > maxX 100 — the clamp pinned the walker at the
+    // seam. The grown core keeps every east band upright.
+    const spur = bandOfLoop([[149, 0], [149, -40], [155, -40], [155, 0]]);
+    expect(spur.minX).toBeLessThan(spur.maxX);
+    expect(spur.minX).toBeCloseTo(147.4, 1);
+    expect(spur.maxX).toBeCloseTo(156.6, 1);
+    const kestrelEast = bandOfLoop([[102, 6.1], [144, 6.1], [144, 6.75], [102, 6.75]]);
+    expect(kestrelEast.minX).toBeCloseTo(100.4, 1);
+    expect(kestrelEast.maxX).toBeCloseTo(145.6, 1);
   });
 
   it("the home trio's band keeps the shipped ±7.5 z-discipline", () => {

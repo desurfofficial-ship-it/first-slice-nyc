@@ -106,7 +106,10 @@ const MAX_PUSH = 0.25;    // per-frame cap — nobody slingshots, ever
 /** W4: a walker's own clamp band — the bbox of its loop, inflated 1.6 m
  *  laterally (curb-yield room) and 0.65 m in z, then held inside the
  *  playable core (the registry's own bounds; W7 grew it x ±84 → ±100 —
- *  the shipped ±7.5 z-discipline). Per-walker on
+ *  the shipped ±7.5 z-discipline; WP-EAST grows it again to the world's
+ *  walked extent x −98..250 — the pocket scan's one-component law — now
+ *  that the east pair walks the Larch Yards; the Catalpa docks stay
+ *  outside the walked core and outside every loop). Per-walker on
  *  purpose: a district walker pushed off Gable can never be clamped into
  *  Juniper — the pre-W4 bug clamped every zone to the block's band, so
  *  off-block walkers teleported to the home street's corner every frame
@@ -131,9 +134,13 @@ export function bandOfLoop(
   // shrank to its middle 15 m). The street trio is unaffected: their
   // authored lanes top out at |z| 6.85, so inflation alone reproduces
   // the ±7.5 line exactly, and every other street lane stays under it.
-  // The ±64 net is the district's own extent — a typo net, not a wall.
+  // The ±64 net is the district's own z extent — a typo net, not a wall.
+  // The x core is the world's WALKED extent (the pocket scan's one
+  // component, x −98..250): a band narrower than a loop's own bbox would
+  // INVERT (minX > maxX) and pin the walker to the edge — the exact
+  // frozen-walker class the garden tender's z cap once produced.
   return {
-    minX: Math.max(-100, minX - 1.6), maxX: Math.min(100, maxX + 1.6),
+    minX: Math.max(-98, minX - 1.6), maxX: Math.min(250, maxX + 1.6),
     minZ: Math.max(-64, minZ - 0.65), maxZ: Math.min(64, maxZ + 0.65),
   };
 }
@@ -967,6 +974,13 @@ export class Pedestrians {
       const tierDist = player ? Math.hypot(v.x - player.x, v.z - player.z) : 0;
       const far = player !== undefined && tierDist >= 90;
       const mid = player !== undefined && tierDist >= 45;
+      // the sight law (the district ring's own discipline — World.SIGHT_M,
+      // WP-EAST): a walker beyond SIGHT_M of the player is beyond the fog —
+      // their draw is waste, and the east pair must never price a spawn
+      // frame they cannot be seen from. The sim runs on (deterministic,
+      // steering + schedules untouched); only the RENDER gates. A home
+      // walker keeps the schedule's own visibility word.
+      if (!p.home) p.group.visible = tierDist < 130;
       p.animTick = (p.animTick + 1) & 1;
       // dwelling: face the beat — or a neighbor who stopped beside you
       // (two dwelling walkers within CHAT_RANGE face each other: the

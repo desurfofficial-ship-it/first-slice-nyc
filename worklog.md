@@ -4395,3 +4395,35 @@ Stage Summary:
   tests green (17 new guards), all district probes byte-identical,
   licences credited three ways. The docks stopped being empty; the
   block's furniture lines closed; the placeholder trucks became real.
+
+## 2026-11-14 — Z Agent: WP-EAST — the east pair, the sight law, and the grown band core (register v1.82.0)
+
+Task ID: WP-EAST-AMBIENT (AGENT_HANDOVER §4's own "2 new loops on the
+spur/Kestrel East — small, safe", taken after the M121/taxi routes east
+were re-priced as their own session).
+
+Work Log:
+- Authored the two loops on the registry's own ground truth: the spur
+  walker (west walk down, east walk back, the timber crossings at z
+  0/−40 the only rail contacts, lanes a metre off the column lines) and
+  the Kestrel East local (the north walk's out-and-back, z 6.1–6.75,
+  x 102..144). Two looks (the Yards' workwear read), two beat pairs,
+  the roles table's east 'street' pair.
+- Grew the feet law: Kestrel East + the spur join the road-rect list
+  (flush bed feet); the bow circles grew the viaduct's twelve columns,
+  the crane pedestal, the plaza benches, the parked truck.
+- Found and fixed on the way (the wave's own catch): the W7-era band
+  core (x ±100) INVERTED every east band — the in-engine dump showed
+  both east walkers pinned at the x 100 seam (minX 147.4 > maxX 100,
+  the garden-tender frozen-walker class exactly). bandOfLoop's core
+  grew to the walked extent x −98..250; the regression is pinned in
+  tests/crowd.test.ts (upright east bands + the far core).
+- Added the sight law: a walker beyond SIGHT_M hides (render only — the
+  sim runs on), so the east pair never prices a spawn frame; pinned by
+  the far-hide/near-show guard with the body staying the truth.
+
+Stage Summary:
+- The east districts carry their own ambient floor now: a walker on the
+  freight bed between the viaduct's columns, a local on the Kestrel East
+  walk with the crane behind — both evidence-shot, both law-pinned, the
+  spawn census byte-identical, 1,783 tests green.
