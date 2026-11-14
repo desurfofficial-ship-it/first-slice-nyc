@@ -246,3 +246,43 @@ Every room color derives from `PAL` (Doc 04) shades — brick, teal, amber,
 plum, cream, stone, the bodega's interior tan. No new hue enters the scene.
 The windows' night palette is the amber's warm read plus a cool fluorescent
 minority — the same two lamps the shipped world already uses.
+
+## 9. Re-certification on the integrated tree (2026-11-14, register v1.80.0)
+
+The three-fenestra directive (the owner, 2026-11-14) asked for
+evaluation, integration, before/after evidence, draw-call and
+performance measurements, and multi-distance visual inspection. The
+integration itself shipped at v1.50.0 and repaired at v1.58.0 (§4, §6);
+this wave RE-CERTIFIED it on the fully integrated tree (Alder Heights +
+the Larch Yards + Catalpa Junction + the gifted furniture packs) and
+answered the directive's remaining question — where it should expand:
+
+- `scripts/probe-fenestra.mjs` — **ALL PASS (22 checks)** on the
+  integrated tree: 484 windows live on the composer path, the atlas
+  mip chain pinned, the sim clock reaching the materials
+  (nightK pinned at midday/dusk/night by `?tod`), the A/B toggle
+  moving the draw count, console clean on every boot path, the
+  `?fenestra=0` before-frame shot. The evidence shots re-took
+  (day street/close/far, dusk street/terrace, night street/close/far,
+  the phone-condition boot).
+- **Draw calls**: the system's price stands at **2 draw calls** (one
+  per family) — measured inside probe-city-fabric's 192-draw spawn
+  census, unchanged by this wave's other work.
+- **Expansion decision (the directive's "expand if results justify")**:
+  the collector's grammar reads PROUD window deco-meshes
+  (`*_Win_*`, `Window_*`, `BrownstoneWin_*`…) — the Alder block's
+  30 registry buildings wear them and are covered. The Larch Yards and
+  Catalpa Junction masses paint their windows onto facade canvases and
+  dress their dusk with the lit-pane impostor (the district kits' own
+  §4 discipline) — there are NO proud window meshes to collect, and
+  bolting interior-mapping planes onto painted windows would need real
+  geometry windows on those facades: a district-craft wave of its own,
+  priced separately, NOT this directive's work. The shipped coverage
+  (271 planes, 30 buildings) is the correct coverage for the proud-
+  window grammar; the far districts keep their impostors per the
+  distance law (§7.4).
+- The directive's restrictions hold as shipped: the shader rooms are
+  not represented as accessible interiors (transparent-material filter,
+  §2), the real W5 interiors stay untouched, no simulation system was
+  modified, and the performance budget is unchanged (§6's honest A/B
+  numbers stand, software-GL class).

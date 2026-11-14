@@ -39,6 +39,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { PAL } from '../core/palette';
 import { FABRIC, GeoPush, hash01, type FabricLedgerEntry } from './cityFabric';
 import { mulberry32 } from './dressing';
+import { PolyforkAcc, placePolyforkTruck, polyforkEnabled } from './polyforkKit';
 
 // ------------------------------------------------------------- palette ----
 
@@ -510,7 +511,6 @@ function gardens(di: LarchYardsDI): void {
 // ---------------------------------------------------- 6. street furniture ----
 
 function trucks(di: LarchYardsDI): void {
-  const g = new GeoPush();
   const rng = mulberry32(0x1E7C1);
   // parked box trucks at the CURBS — clear of every walking lane (the
   // sidewalk law), clear of the bed, clear of every crossing; the taxi's
@@ -527,6 +527,22 @@ function trucks(di: LarchYardsDI): void {
     { x: 188, z: -42.7, along: 'x', body: 0x9aa8b5 },
     { x: 232, z: -37.3, along: 'x', body: PAL.cream },
   ];
+  if (polyforkEnabled()) {
+    // THE POLYFORK SWAP (docs/production/polyfork): the docks' box-truck
+    // placeholders wear the kit's real delivery truck at the SAME spots
+    // (rear -z, nose +z; `along` mirrors the table's axis). The rng's
+    // sleep roll consumes in the same order both branches — one spot
+    // sleeps either way, the district stays deterministic.
+    const acc = new PolyforkAcc();
+    for (const p of park) {
+      if (rng() < 0.2) continue; // one spot sleeps
+      placePolyforkTruck(acc, p.x, p.z, p.along);
+    }
+    emit(di, true, 'LarchYards_Trucks', acc.toGeometry(), true, true);
+    LEDGER(di, 'LarchYards_Trucks', 152, 1.2, 0);
+    return;
+  }
+  const g = new GeoPush();
   for (const p of park) {
     if (rng() < 0.2) continue; // one spot sleeps
     const W = 2.3;

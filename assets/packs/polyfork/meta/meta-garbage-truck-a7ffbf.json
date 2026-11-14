@@ -1,0 +1,287 @@
+{
+    "id": "garbage-truck-a7ffbf",
+    "title": "Garbage Truck",
+    "class": "vehicle",
+    "triangles": 2036,
+    "kit": "nyc-city-kit-fbca88",
+    "free": true,
+    "plan": "free",
+    "price_usd": 0,
+    "price_note": "free: every low poly model is. The /cdn links need no account and no key (an account adds the ready-to-serve zip). The HD edition, where `hd` is not null, comes with Pro",
+    "owned": true,
+    "page": "https://polyfork.dev/asset/garbage-truck-a7ffbf",
+    "thumbnail": "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/hero.png",
+    "preview_glb": "https://polyfork.dev/cdn/garbage-truck-a7ffbf-preview.glb",
+    "hd": {
+        "plan": "pro",
+        "page": "https://polyfork.dev/asset/garbage-truck-a7ffbf?edition=hd",
+        "kind": "its own high poly program with pbr materials",
+        "triangles": 6588,
+        "preview_glb": "https://polyfork.dev/cdn/garbage-truck-a7ffbf-hd-preview.glb",
+        "files": "https://polyfork.dev/dl/garbage-truck-a7ffbf-hd.zip (Pro, with a key)"
+    },
+    "preview_triangles": 2036,
+    "preview_fidelity": 1,
+    "preview_rigged": true,
+    "preview_rig": "pivots",
+    "preview_pivots": [
+        "steer-fl",
+        "wheel-fl",
+        "steer-fr",
+        "wheel-fr",
+        "wheel-rl",
+        "wheel-rr"
+    ],
+    "preview_note": "This preview keeps its pivots named (preview_pivots), so they turn as rigged_parts describes; its normals are stripped for flat shading. This model is free, so build with `download.glb`: the authored file, normals and node names as built.",
+    "has_rig": true,
+    "remixable": true,
+    "has_night": true,
+    "has_decals": false,
+    "has_ik": false,
+    "ik_type": null,
+    "has_skeleton": false,
+    "size_m": {
+        "x": 2.88,
+        "y": 3.49,
+        "z": 7.99
+    },
+    "origin_y": 0,
+    "mass_kg": 14000,
+    "download": {
+        "glb": "https://polyfork.dev/cdn/garbage-truck-a7ffbf.glb",
+        "mjs": "https://polyfork.dev/cdn/garbage-truck-a7ffbf.mjs",
+        "auth": "none"
+    },
+    "export_formats": {
+        "fbx": {
+            "url": "https://polyfork.dev/dl/garbage-truck-a7ffbf.fbx",
+            "for": "Unity, Unreal, Maya, 3ds Max",
+            "available": true
+        },
+        "usdz": {
+            "url": "https://polyfork.dev/dl/garbage-truck-a7ffbf.usdz",
+            "for": "iOS AR Quick Look, Omniverse; with UsdPhysics collision and mass",
+            "available": true
+        },
+        "usda": {
+            "url": "https://polyfork.dev/dl/garbage-truck-a7ffbf.usda",
+            "for": "Isaac Sim, Omniverse, Blender, usdview; with UsdPhysics collision and mass",
+            "available": true
+        },
+        "obj": {
+            "url": "https://polyfork.dev/dl/garbage-truck-a7ffbf.obj",
+            "for": "universal, geometry only, no pivots",
+            "available": true,
+            "also_fetch": "https://polyfork.dev/dl/garbage-truck-a7ffbf.mtl",
+            "also_fetch_note": "save it beside the .obj as garbage-truck-a7ffbf.mtl: the model names that exact file and imports white without it"
+        }
+    },
+    "export_note": "vertex colours become NAMED MATERIALS on export, named after this asset's own colour knobs; a plain format conversion would arrive white, because only three.js reads our COLOR_0. Built on first request (about a second), cached after. This model is free: these download with no account and no key (only its .mjs source asks for a free account).",
+    "night": {
+        "frontLamps": {
+            "color": "#fff3d6",
+            "intensity": 1,
+            "albedo": null,
+            "findable": false,
+            "describe": "the two pale blocks set outboard in the grille recess burning as the truck's headlamps \u2014 hard, near-white with a warm cast"
+        },
+        "marker": {
+            "color": "#ffab2e",
+            "intensity": 0.6,
+            "albedo": "#e0a63a",
+            "findable": true,
+            "describe": "every amber lens glowing soft: the front corner and cab roof markers, the two cab side markers, the five-lamp row across the top of the tailgate and the two rear indicators \u2014 the running lights a municipal truck leaves on while it works"
+        },
+        "tailLamps": {
+            "color": "#ff3a2c",
+            "intensity": 0.55,
+            "albedo": "#b63735",
+            "findable": true,
+            "describe": "the two outboard rear lenses glowing dim red on the dark rear light panel"
+        }
+    },
+    "night_note": "each zone is found by its ALBEDO in COLOR_0: match those vertices exactly, make them emissive at the zone colour and intensity, and drop your scene lights. That is the whole night look. NOT frontLamps: that colour is not in this asset's geometry as it ships (default settings), so there is nothing to match and the zone cannot be lit this way. Skip it rather than guessing at a nearby colour.",
+    "params_url": "https://polyfork.dev/cdn/garbage-truck-a7ffbf-params.json",
+    "real_scale": {
+        "at_real_size": true,
+        "real_m": [
+            7,
+            10
+        ],
+        "real_dimension": "length",
+        "as_built_m": 7.99,
+        "scale_to_real": 1,
+        "note": "built at real size: its largest dimension, 7.99 m, is inside the typical real 7-10 m (an estimate)."
+    },
+    "physics": {
+        "mass_kg": 14000,
+        "mass_source": "estimated",
+        "material": "metal",
+        "body": "dynamic",
+        "dimensions_m": {
+            "x": 2.876,
+            "y": 3.49,
+            "z": 7.995
+        },
+        "up_axis": "Y",
+        "meters_per_unit": 1,
+        "volume_m3": 56.6684,
+        "collision": {
+            "approximation": "convexHull",
+            "parts": 23,
+            "colliders_url": "https://polyfork.dev/cdn/garbage-truck-a7ffbf-colliders.json"
+        },
+        "note": "For the default knob settings; a size knob changes all of it. dimensions_m and the colliders are measured from the model; mass_kg and material are an estimate of what the real object weighs. body \"static\" means fixed in place (give it a collider, no rigid body); \"dynamic\" means it moves. collision.approximation uses UsdPhysics terms: \"convexHull\" = one hull is a good fit, \"convexDecomposition\" = use the per-part hulls in colliders_url (the one hull would fill a gap, like the space under a table). Model space, metres, Y up, origin as the model ships."
+    },
+    "simready_metadata": {
+        "simready_metadata_mass": 14000,
+        "simready_metadata_rigid_body_count": 1,
+        "usd_dimensions": [
+            2.876,
+            7.995,
+            3.49
+        ],
+        "usd_up_axis": "Z",
+        "usd_meters_per_unit": 1,
+        "simready_metadata_validation__profile": null
+    },
+    "materials": 1,
+    "draw_calls": 5,
+    "description": "City refuse truck, 8m long, white cab with a ribbed steel blue hopper body and a sloped rear loader; knobs for rear loader state (down, raised) and a body colorway.",
+    "palette": [
+        {
+            "hex": "#322d2c",
+            "share": 0.448
+        },
+        {
+            "hex": "#7b8b8f",
+            "share": 0.108
+        },
+        {
+            "hex": "#e4dcd0",
+            "share": 0.108
+        },
+        {
+            "hex": "#211f1d",
+            "share": 0.079
+        },
+        {
+            "hex": "#45525f",
+            "share": 0.077
+        },
+        {
+            "hex": "#e0a63a",
+            "share": 0.077
+        }
+    ],
+    "style": "low-poly, flat-shaded vertex colors, no textures, single shared material, so any set of these merges to one draw call; shares palette and scale with its kit",
+    "origin": "ground level (minY = 0): the model sits on y=0 as-is",
+    "rigged_parts": {
+        "wheel-fl": {
+            "axis": "x",
+            "range": [
+                0,
+                135
+            ]
+        },
+        "wheel-fr": {
+            "axis": "x",
+            "range": [
+                0,
+                135
+            ]
+        },
+        "wheel-rl": {
+            "axis": "x",
+            "range": [
+                0,
+                135
+            ]
+        },
+        "wheel-rr": {
+            "axis": "x",
+            "range": [
+                0,
+                135
+            ]
+        },
+        "steer-fl": {
+            "axis": "y",
+            "range": [
+                0,
+                32
+            ]
+        },
+        "steer-fr": {
+            "axis": "y",
+            "range": [
+                0,
+                32
+            ]
+        }
+    },
+    "detachable_parts": [],
+    "animation": "rigged parts are named groups with the pivot at the hinge/axle: obj.getObjectByName(part) then rotation[axis] (rotate, degrees) or position[axis] (slide, meters). 0 is the pose the model is built in, which is not always shut: `range` is all the travel the part has from there, and outside it the part passes through the body. Whether the range opens or closes is in that knob's describe in params_url",
+    "published_at": "2026-08-15 15:38:53",
+    "renders": [
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/back.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/close.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/compare.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/detail.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/front.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/hero-crop.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/hero.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/left.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/low-back.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/low.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/pose-steer-fl.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/pose-steer-fr.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/pose-wheel-fl.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/pose-wheel-fr.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/pose-wheel-rl.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/pose-wheel-rr.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/proofs.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/right.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/top.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/under.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/variant-beacon-true.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/variant-bodyHeight-0.86.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/variant-bodyHeight-1.1.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/variant-bodyLength-0.82.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/variant-bodyLength-1.15.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/variant-colorway-city-grey.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/variant-colorway-municipal-red.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/variant-colorway-slate-fleet.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/variant-colorway-works-brown.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/variant-loaderState-raised.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/variant-wheelFacets-12.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/variant-wheelFacets-8.png",
+        "https://polyfork.dev/files/garbage-truck-a7ffbf/renders/views.png"
+    ],
+    "license": "Mesh files (GLB, FBX, USD, OBJ): CC BY 4.0 with the line in `credit`, or the Polyfork licence with no credit and no redistribution, your choice. The .mjs source and the HD edition: Polyfork licence only, commercial use, no attribution, no redistribution. https://polyfork.dev/licensing",
+    "credit": "Garbage Truck by Polyfork (https://polyfork.dev/asset/garbage-truck-a7ffbf), CC BY 4.0",
+    "access": {
+        "as": "anonymous",
+        "remix_bakes_per_hour": 40,
+        "remix_bakes_left_this_hour": 40,
+        "remix_note": "The budget is on generating NEW geometry. Variations anyone has already baked are served to everybody and never counted, so re-fetching a variant you or anyone else has made costs nothing.",
+        "remix_bakes_per_month": 100,
+        "remix_bakes_left_this_month": 100,
+        "remix_allowance_resets": "2026-12-01",
+        "remix_allowance_note": "Anonymous callers are counted per IP address, so other sessions from the same address share this. A free account raises it to 300 a WEEK on its own budget, and costs an email address.",
+        "a_free_account_adds": {
+            "how": "Authorization: Bearer <key>, created at https://polyfork.dev/account. Costs an email address.",
+            "remix_bakes_per_hour": 100,
+            "remix_bakes_per_week": 300,
+            "downloads": "every low poly model's .mjs program and a ready-to-serve zip from /dl, and any kit as one zip (/dl/kit-<id>.zip). The .glb, .fbx, .usdz, .usda and .obj need no key"
+        },
+        "pro_adds": {
+            "url": "https://polyfork.dev/pricing",
+            "usd_per_year": 149,
+            "hd_editions": "the HD edition of a model: the same program built finer, high poly with PBR materials generated in code, every knob still working. 1,848 models have one. Free accounts get its public preview (/cdn/<id>-hd-preview.glb) only",
+            "cdn": "a per-account /c/<token>/ path for the HD files you can hotlink from a shipped build; it keeps up when an asset is rebuilt, and the token is not the API key",
+            "remix_bakes_per_hour": 900,
+            "remix_bakes_per_week": "uncapped: a free account gets a weekly allowance, Pro does not"
+        }
+    }
+}

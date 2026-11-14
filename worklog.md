@@ -4329,3 +4329,54 @@ Stage Summary:
   barbershop and the record store wear their last pieces — 14 new seams, all
   provenance-pinned, all license-honest, the ABO identity untouched, the draw
   budget untouched, the suite at 1,751 green.
+
+## 2026-11-14 — Z Agent: the POLYFORK STREETS WAVE — the NYC City Kit's selected parts enter as build-time vertex data (register v1.80.0)
+
+Task ID: AGENT-POLYFORK-STREETS
+Task: the owner's 2026-11-14 directive — study Polyfork's NYC City Kit
+(82 parts), select what complements the shipped world, integrate it,
+verify it in the running game; no blind imports, reuse first, the kit
+must not dictate the look.
+
+Work Log:
+- Read the kit's developer instructions + kit API (82 parts inventoried:
+  triangles, real-world size_m, palette, has_night, credit); inspected
+  16 GLBs at the byte level (face-split meshes, sequential indices,
+  flat per-face COLOR_0 in linear, zero textures — the exact shape the
+  world's vertex-color bake wants).
+- Audited the shipped world's prop classes first (props.ts,
+  streetAssets.ts, nycKit.ts, cityFabric.ts): the gaps were sidewalk
+  infrastructure, real dock vehicles, and the Catalpa docks' emptiness.
+  Six candidate classes rejected by the reuse law (tree, manhole, cab,
+  cruiser/fire-engine/bus/hatch/town-car, all 20 kit buildings, all 10
+  kit characters); ten parts selected.
+- Built tools3d/polyfork/extract_polyfork.py (deterministic GLB →
+  vertex-data extractor: node matrices both encodings, atmosphere-node
+  exclusion, invariants asserted, re-center, uint16/uint8 quantization)
+  → web-three/src/world/polyforkData.ts (277 KB / 10 assets / 9,978
+  tris, byte-identical rebuilds) → web-three/src/world/polyforkKit.ts
+  (decoder + GeoPush-shaped accumulator + the re-centering emit +
+  the ?polyfork=0 module-init seam).
+- Found and fixed on the way: the extractor's flat-slice interleaved
+  colors into positions (the probe's evidence shots showed rainbow
+  shards — the A/B shots caught it; the per-tri split + a ground-truth
+  diff against the GLB pinned it), and the zone bake's missing
+  vertexColors capture would have baked the fleet white (the main
+  bakeStatics' law mirrored into the zone edition).
+- Placed: the Alder street kit (three baked batches, eight solids —
+  the guard test caught the first draft's north curb meter violating
+  the minZ ≥ 7.28 lane law and it moved south), the Catalpa dock fleet
+  (five vehicles backed into the dock faces, one zone-owned mesh,
+  bollard/slab/kiosk clearances guard-tested), the Larch truck swap
+  (same spots, same rng order, procedural boxes behind the seam).
+- Evidence: four before/after pairs (shots/polyfork/) — the fleet at
+  the dock faces, the kit truck on Kestrel's curb, the newsstand +
+  meters line, the payphone at Rosa's.
+
+Stage Summary:
+- The kit rides the bake: spawn 192 draws kit ON and OFF (the +0
+  standing law, measured A/B), the Catalpa zone batch +9,186 fleet
+  tris with batch count unchanged, scene +27,244 tris total, 1,768
+  tests green (17 new guards), all district probes byte-identical,
+  licences credited three ways. The docks stopped being empty; the
+  block's furniture lines closed; the placeholder trucks became real.

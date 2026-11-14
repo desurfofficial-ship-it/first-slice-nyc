@@ -36,6 +36,7 @@ import { fuseFlatParts } from './vertexFuse';
 import { FURNITURE_SLOTS, type FurnitureSlot } from './furniture';
 import { INTERIOR_SLOTS } from './interiorAssets';
 import { makeUtilityPole, makeSpanWires, makePoleSign, makePlanter, makeFireEscapeDeco, makeTrafficSignal } from './streetAssets';
+import { buildPolyforkStreetKit } from './polyforkKit';
 import { makeCornice, makeBrickover, makeDownspout, makeRoofClutter, makeGrassTufts,
   makeLeafPile, makeManhole, makeStormDrain, makePatch, makeStopLine, makeSill,
   makeLintel, makeBandCourse, makeSoot, makeGooseneck, WEAR } from './facadeKit';
@@ -1831,6 +1832,17 @@ export class World {
     this.colliders.push(boxFromCenter(34, 0.425, -4.75, 0.45, 0.85, 0.45));     // hydrant
     for (const [lx, lz] of lights) {
       this.colliders.push(boxFromCenter(lx, 2.6, lz, 0.24, 5.2, 0.24));         // lamp posts
+    }
+
+    // ---- the Polyfork street kit (docs/production/polyfork) ----
+    // The block's missing sidewalk furniture — bike racks, curb meters,
+    // a payphone, a fire-alarm call box, a newsstand, a hot-dog cart, two
+    // cellar hatches — three baked batches (the district bake files them
+    // for free) plus the solids the furniture lines own. ?polyfork=0
+    // returns the shipped block byte-for-byte (the A/B seam).
+    const polyforkKit = buildPolyforkStreetKit(this.scene, (fog) => this.vcMaterial(fog));
+    for (const c of polyforkKit.colliders) {
+      this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.w, c.h, c.d));
     }
 
     // ---- street trees in tree pits (seeded; never in front of a door) ----
@@ -6049,13 +6061,23 @@ export class World {
         if (!b) batches.set(key, b = { srcs: [], cast: o.castShadow, receive: o.receiveShadow, mat: emissive ? mat : this.vcMaterial(mat.fog) });
         if (!emissive) {
           c.deleteAttribute('uv');
-          const pos = c.attributes.position;
-          const arr = new Float32Array(pos.count * 3);
-          const col = mat.color;
-          for (let i = 0; i < pos.count; i++) {
-            arr[i * 3] = col.r; arr[i * 3 + 1] = col.g; arr[i * 3 + 2] = col.b;
+          // per-vertex palettes ARE the product (the main bake's law): a
+          // vertexColors source — the Polyfork fleet's kit livery — keeps
+          // its own color attribute; a flat-color source's material color
+          // becomes the attribute. Before this capture the zone edition
+          // flattened kit liveries to the material's white.
+          const srcColor = o.geometry.attributes.color;
+          if (srcColor) {
+            c.setAttribute('color', srcColor.clone());
+          } else {
+            const pos = c.attributes.position;
+            const arr = new Float32Array(pos.count * 3);
+            const col = mat.color;
+            for (let i = 0; i < pos.count; i++) {
+              arr[i * 3] = col.r; arr[i * 3 + 1] = col.g; arr[i * 3 + 2] = col.b;
+            }
+            c.setAttribute('color', new THREE.BufferAttribute(arr, 3));
           }
-          c.setAttribute('color', new THREE.BufferAttribute(arr, 3));
         }
         b.srcs.push({ geo: c, mesh: o });
       });

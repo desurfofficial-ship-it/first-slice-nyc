@@ -129,3 +129,26 @@ The companion warm-pastel Scandinavian furniture set
 (`assets/packs/lowpoly-furniture/`, `sc_*` slots) is first-party,
 owner-supplied content generated with headless Blender — no third-party
 license applies.
+
+## Polyfork — NYC City Kit (selected parts)
+
+The Polyfork streets wave (docs/production/polyfork/, register v1.80.0)
+wears ten parts of Polyfork's NYC City Kit
+(https://polyfork.dev/kit/nyc-city-kit-fbca88) as build-time vertex data
+extracted from the kit's GLBs by tools3d/polyfork/extract_polyfork.py.
+The free kit's mesh files are **CC BY 4.0**; the reference GLBs and their
+API metadata travel in `assets/packs/polyfork/` and the per-part credit
+fields travel in the generated data module
+(`web-three/src/world/polyforkData.ts`). The `.mjs` modules and any HD
+editions are **not** used and **not** redistributed.
+
+Placed parts and their credits (all "… by Polyfork (https://polyfork.dev/)",
+CC BY 4.0):
+
+- Bike Rack · Delivery Truck · Fire Alarm Call Box · Food Truck ·
+  Garbage Truck · Hot Dog Cart · Newsstand · Parking Meter ·
+  Payphone Stand · Sidewalk Cellar Hatch
+
+The extraction is a modification (per-tri flat-color vertex data,
+re-centered, quantized) permitted by CC BY 4.0; this notice and the
+per-asset `credit` fields are the required attribution.

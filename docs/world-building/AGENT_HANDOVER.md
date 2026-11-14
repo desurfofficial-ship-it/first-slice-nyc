@@ -129,3 +129,21 @@ its phase row's content. Follow the same discipline.
 — Lead Open-World Engineer agent, 2026-11-14
 
 > **CORRECTION (2026-11-14, the registry-discipline repair — from the Catalpa/Junction line):** the west-reach rows restore their canon prefix `CDK-* → CJN-*` (DEC-13 accepted the CJN prefix as canon; the registry's own law says IDs are permanent; on the integrated tree the east rows are LRY-*, so the 2026-11-13 collision that forced the CDK rename no longer exists). Code, tests, the validator's pin block and the probes re-pointed in the same repair; zero geometry moved. Schema completion rides with it: the four BLK-LRY-* blocks gain the bbox fields the validator's block-membership check reads (computed from their own contained buildings); SUB-03's dangling `BLK-CJN-N` re-points to the appended `BLK-LRY-STN` block row; `STR-SPUR` carries the `pedestrianized` flag the park-on-road check now reads (the Yards Plaza and the Spur Gardens stand on the track bed by design — the control-house-exempt precedent). **ONE KNOWN DEFECT recorded for this district's next session: OVERLAP LRY-03 <-> SUB-03 (5.00 x 1.00 m — the Spur Lofts' southwest corner over the station house's northeast corner).** The validator prints it as KNOWN and does not fail; the fix (a 1 m footprint trim on one row) is yours when you next build here — note your handover §2 step 1 already touches SUB-03. The repair record: the registry's meta corrections + register row v1.78.0.
+
+> **ADDENDUM (2026-11-14, the Polyfork streets wave — register v1.80.0):**
+> the owner's asset directive landed between sessions: Polyfork's NYC
+> City Kit is now a sanctioned source, TEN parts are in the world (the
+> Alder sidewalk furniture, the Catalpa dock fleet, the Larch truck
+> swap) as build-time vertex data riding the district bake at +0 draws.
+> Read docs/production/polyfork/01..04 before touching
+> polyforkData.ts (GENERATED — rebuild with
+> `python3 tools3d/polyfork/extract_polyfork.py`; byte-identical) or
+> polyforkKit.ts (the placements' laws are guard-tested in
+> tests/polyfork.test.ts — the north lane law, the cart-corner apron,
+> the fleet's bollard clearances). `?polyfork=0` is the A/B seam. The
+> kit's remaining 72 parts stay catalogued for future districts —
+> buildings and characters are REJECTED classes (the A-3 law; the sim
+> boundary). The fenestra system re-certified on this tree the same
+> day (probe-fenestra ALL PASS, 22 checks; the expansion decision
+> recorded in the fenestra doc §9). Your §2 next task (the K-line
+> eastbound ride) is unchanged.
