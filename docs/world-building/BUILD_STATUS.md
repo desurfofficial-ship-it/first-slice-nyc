@@ -69,21 +69,40 @@
 - **The far world:** the skyline fabric's E-row moved +122 → +262 (it stood
   inside the district's blocks); the east horizon reads as the low-industrial
   far city.
+- **The gifted-packs furniture wave (2026-11-14, this session):** the
+  owner-supplied furniture packs are IN the world — 14 new GLB slots in four
+  interiors, all additive (every curated ABO slot keeps its model):
+  **CECIL-ROOM** works now (the sc_ diary desk under the prints, the sc_
+  wardrobe on the S wall, the mi_ desk chair, the mi_ herb pot on the kitchen
+  shelf); **HALL-INT** gains its second half (the sc_ lounge sofa + mi_ table
+  by the notice wall, the mi_ armchair completing the living circle, the sc_
+  tall plant at its shoulder, the sc_ lending shelf on the E wall, the sc_
+  break nook by the kitchenette); **BARBER-INT** wears the sc_ step stool at
+  the counter shoulder and the mi_ lamp at the waiting corner; **RECORD-INT**'s
+  listening corner gains the sc_ corner table and the sc_ floor lamp. Sources:
+  `assets/packs/lowpoly-furniture` (first-party, sc_*) and
+  `assets/packs/modern-interior` (LM Scenova Studios, mi_* — embed-in-project
+  license, credited in THIRD-PARTY-NOTICES.md). The manifest carries the two
+  new sources with byte-identity provenance (`GIFTED_PACK_PROVENANCE`); the
+  texture law, the rest law and the footprint guard all held.
 
 ## 2. The verification record (all re-run on the final tree)
 
 | Gate | Result |
 |---|---|
 | `npx tsc --noEmit` | clean |
-| `npx vitest run` | **1,733 / 1,733 across 104 files** |
+| `npx vitest run` | **1,751 / 1,751 across 105 files** (the two gifted-provenance rows joined the furniture suite) |
 | `npm run build` | OK (~720 ms) |
-| `probe-city-fabric` (draw budget) | **DRAWS 192** (< 200) |
-| `diag-pocket-scan` (grown grid, 180,224 cells) | **one walkable component x −98..250 (88,767 cells); traps 18 — unchanged from the shipped map (zero new traps from Catalpa)** |
+| `probe-city-fabric` (draw budget) | **DRAWS 192** (< 200; the gifted furniture draws only inside its rooms — zero at rest) |
+| `diag-pocket-scan` (grown grid, 180,224 cells) | **one walkable component x −98..250; traps 19** — the HALL's documented door-alias pocket (the W5 1.2 m doors zero on the 0.5 grid, the known alias class) **split in two by the gifted furniture's own colliders; BARBER/RECORDS pockets unchanged; zero real-walkability change** (the walk-in probe passes all four rooms) |
 | `probe-nav` | **9/9 steps** (with the e2e's own `E2E_SCALE` dilation valve added to the browser probes) |
 | `probe-walkability` | 3/3 placement gates (spawn pocket, 67 lane blocks all bypassed in-band, 25/25 door approaches); the walk-legs sweep exceeds this box's wall budget — the documented dilation class (see §4) |
 | `probe-subway` | 45/46 — the one failure (the Wow-card window sample) **reproduced on the base commit `de9777c`**: box drift, not this tree |
 | `scripts/e2e.mjs` (0.2 scale) | 108 driver passes reaching **Day 4's opening beat**; the box's wall budget cut it there (the shipped full-scale record stands) |
 | Evidence | 9 Catalpa frames + the 12 Alder world-map frames, captured from the built game, zero page errors — `docs/world-building/images/` |
+| `probe-furniture` (the ABO seam gate) | **census settles 54/54** (40 ABO + 14 gifted — zero procedural fallbacks); the texture law, the hide law and the rest law all hold; probe wait updated to the settle-poll (the 54-file census outgrew the fixed early threshold) |
+| `probe-furniture-gifted` (new, this session) | **14/14 gifted slots landed wearing their sc_/mi_ files; zero gifted draws at rest; 10 aimed walk-in shots + wrapper geometry checks clean** — `web-three/shots/gifted-*.png` |
+| `probe-integration` | **0 errors, 8/8 walks** (the seam registry untouched by the gifted wave) |
 
 ## 3. What is NOT built (honest, named)
 
