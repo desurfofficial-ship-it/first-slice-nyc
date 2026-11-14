@@ -512,24 +512,38 @@ function gardens(di: LarchYardsDI): void {
 
 // ---------------------------------------------------- 6. street furniture ----
 
+/** The district's parked box trucks — the ONE list the kit renders from and
+ *  busRoute declares its yield rects from (the A-3 no-double-truth law: one
+ *  table, two readers). W-C7 moved the Kestrel and Gable trucks to the NORTH
+ *  curbs and onto the curb line z 3.25: the south curb is the cab's road now
+ *  (the rail grew the east reach), the bus's Kestrel lane needs its 15 cm of
+ *  air, and the eastbound Gable lane rides z 38 — the kit's own parked-here
+ *  comment ("the taxi's lane ends at x 46 so the east curbs carry no yield
+ *  debt") was a debt against this exact wave, now paid. The two Larch spots
+ *  keep their coordinates (the PRNG's draw count must not move — the sleep
+ *  is deterministic: spots 4 and 5 sleep, seed 0x1E7C1). */
+export const TRUCK_SPOTS: ReadonlyArray<{ x: number; z: number; along: 'x' | 'z'; body: number }> = [
+  { x: 107.5, z: 3.25, along: 'x', body: PAL.cream },      // Kestrel N curb (was z 2.9)
+  { x: 118,   z: 3.25, along: 'x', body: 0xb0a89c },       // Kestrel N curb (was the S curb at 127.5)
+  { x: 199,   z: 3.25, along: 'x', body: 0x9aa8b5 },       // Kestrel N curb (was z 2.9)
+  { x: 217,   z: 3.25, along: 'x', body: PAL.cream },      // Kestrel N curb (was the S curb at 206)
+  { x: 225.4, z: 28,   along: 'z', body: 0xb0a89c },       // Larch W curb — SLEEPS (the PRNG's draw 4)
+  { x: 230.6, z: -26,  along: 'z', body: 0x9aa8b5 },       // Larch E curb — SLEEPS (the PRNG's draw 5)
+  { x: 120,   z: 42.7, along: 'x', body: PAL.cream },      // Gable N curb (was the S curb at 37.3)
+  { x: 206,   z: 42.7, along: 'x', body: 0xb0a89c },       // Gable N curb (shipped)
+  { x: 188,   z: -42.7, along: 'x', body: 0x9aa8b5 },      // Marlow S curb (shipped)
+  { x: 232,   z: -37.3, along: 'x', body: PAL.cream },     // Marlow N curb (shipped)
+];
+
 function trucks(di: LarchYardsDI): void {
   const g = new GeoPush();
   const rng = mulberry32(0x1E7C1);
   // parked box trucks at the CURBS — clear of every walking lane (the
-  // sidewalk law), clear of the bed, clear of every crossing; the taxi's
-  // lane ends at x 46 so the east curbs carry no yield debt
-  const park: Array<{ x: number; z: number; along: 'x' | 'z'; body: number }> = [
-    { x: 107.5, z: 2.9, along: 'x', body: PAL.cream },
-    { x: 127.5, z: -2.9, along: 'x', body: 0xb0a89c },
-    { x: 199, z: 2.9, along: 'x', body: 0x9aa8b5 },
-    { x: 206, z: -2.9, along: 'x', body: PAL.cream },
-    { x: 225.4, z: 28, along: 'z', body: 0xb0a89c },
-    { x: 230.6, z: -26, along: 'z', body: 0x9aa8b5 },
-    { x: 120, z: 37.3, along: 'x', body: PAL.cream },
-    { x: 206, z: 42.7, along: 'x', body: 0xb0a89c },
-    { x: 188, z: -42.7, along: 'x', body: 0x9aa8b5 },
-    { x: 232, z: -37.3, along: 'x', body: PAL.cream },
-  ];
+  // sidewalk law), clear of the bed, clear of every crossing; since W-C7 the
+  // movers run the east streets, so the spots live on TRUCK_SPOTS (the north
+  // curbs; busRoute declares the rendered spots' yield rects from the same
+  // list — one table, two readers).
+  const park = TRUCK_SPOTS;
   for (const p of park) {
     if (rng() < 0.2) continue; // one spot sleeps
     const W = 2.3;

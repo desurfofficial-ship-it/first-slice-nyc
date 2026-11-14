@@ -11,16 +11,29 @@ import * as THREE from 'three';
 import {
   buildM121, travelYaw, worldToLeg, legToWorld, aabbToLeg,
   PARKED_CAR_RECTS, parkedCarRect, KESTREL_COURTESY_ZONES, BUS_BODY, BUS_BAY_ID,
+  LANE_X_KESTREL_WEST_END,
   type BusZone,
 } from '../src/engine/busRoute';
 import { buildArrivalBus, BUS04_STEP, playerOccupiesBus04 } from '../src/world/arrivalBus';
+import { TRUCK_SPOTS } from '../src/world/larchYardsKit';
+import { mulberry32 } from '../src/world/dressing';
 
 const legs = buildM121();
-const KESTREL = { xMin: -84, xMax: 84, zMin: -4, zMax: 4 };
-const GABLE = { xMin: -84, xMax: 84, zMin: 36, zMax: 44 };
+// The registry streets' own road rects (STR-KESTREL/STR-GABLE spanX grew east
+// in W-C0; STR-LARCH is the W-C0 row) — the grown loop's lanes live in these.
+const KESTREL = { xMin: -100, xMax: 252, zMin: -4, zMax: 4 };
+const GABLE = { xMin: -100, xMax: 252, zMin: 36, zMax: 44 };
 const JUNIPER = { xMin: -76, xMax: -68, zMin: -64, zMax: 64 };
 const SYCAMORE = { xMin: 68, xMax: 76, zMin: -64, zMax: 64 };
-const ROADWAYS = [KESTREL, GABLE, JUNIPER, SYCAMORE];
+const LARCH = { xMin: 224, xMax: 232, zMin: -64, zMax: 64 };
+const ROADWAYS = [KESTREL, GABLE, JUNIPER, SYCAMORE, LARCH];
+
+/** The kit's truck PRNG, re-run: which spots render (the sleep is dressing
+ *  variance; a sleeping spot must have NO yield rect — no ghost braking). */
+function renderedTruckSpots() {
+  const rng = mulberry32(0x1E7C1);
+  return TRUCK_SPOTS.filter(() => rng() >= 0.2);
+}
 
 /** The bus's world AABB when its center sits at (x,z) facing yaw — the
  *  OBB→AABB superset the collider uses (|cos|·hl + |sin|·hw per axis). */
@@ -36,7 +49,7 @@ function overlap(a: { minX: number; maxX: number; minZ: number; maxZ: number },
   return a.minX < b.maxX && a.maxX > b.minX && a.minZ < b.maxZ && a.maxZ > b.minZ;
 }
 
-describe('the loop closes (registry: terminal → Gable → Sycamore → Kestrel → Juniper → terminal)', () => {
+describe('the loop closes (registry: terminal → Gable → Larch → Kestrel East → Kestrel → Juniper → terminal)', () => {
   it("each leg ends exactly where the next begins, and leg 3 wraps to leg 0", () => {
     const p = { x: 0, z: 0 };
     for (let i = 0; i < legs.length; i++) {
@@ -49,14 +62,22 @@ describe('the loop closes (registry: terminal → Gable → Sycamore → Kestrel
 
   it("runs the four authored legs in the registry order", () => {
     expect(legs.map((l) => l.name)).toEqual([
-      'Kestrel west', 'Juniper north', 'Gable east', 'Sycamore south',
+      'Kestrel west', 'Juniper north', 'Gable east', 'Larch south',
     ]);
   });
 
-  it("the full lap is the district north half — about 362 m", () => {
+  it("the full lap is the two-district north half — about 674 m (the W-C7 east leg)", () => {
     const total = legs.reduce((s, l) => s + l.frame.len, 0);
-    expect(total).toBeGreaterThan(350);
-    expect(total).toBeLessThan(375);
+    expect(total).toBeGreaterThan(660);
+    expect(total).toBeLessThan(685);
+  });
+
+  it("the east leg reaches the Larch Yards: leg 0 starts at the Larch corner, leg 2 ends there", () => {
+    expect(legs[0].frame.ox).toBeCloseTo(LANE_X_KESTREL_WEST_END, 6);
+    expect(LANE_X_KESTREL_WEST_END).toBeGreaterThan(224); // inside Larch's road band
+    const p = { x: 0, z: 0 };
+    legToWorld(legs[2].frame.len, 0, legs[2].frame, p);
+    expect(p.x).toBeCloseTo((LARCH.xMin + LARCH.xMax) / 2, 6); // the centerline 228
   });
 });
 
@@ -78,7 +99,7 @@ describe('lane discipline — the drive lanes never touch a parked car', () => {
     const l0 = legs[0];
     const p = { x: 0, z: 0 };
     for (const cx of [51, -44]) { // the two Kestrel N curb cars (east past the court, docs/49 reconciliation)
-      const noseA = 72.2 - cx;    // the advance where the nose reaches the car
+      const noseA = LANE_X_KESTREL_WEST_END - cx; // the advance where the nose reaches the car
       const centerA = noseA + BUS_BODY.halfLen; // the car is then under the body
       legToWorld(centerA, 0, l0.frame, p);
       const body = bodyRectAt(p.x, p.z, Math.PI);
@@ -93,32 +114,93 @@ describe('lane discipline — the drive lanes never touch a parked car', () => {
     legToWorld(14 - l1.frame.oz, 0, l1.frame, p); // center abreast the car
     const body = bodyRectAt(p.x, p.z, travelYaw(0, 1));
     expect(overlap(body, parkedCarRect(PARKED_CAR_RECTS[6]))).toBe(false);
+  });
 
-    const l3 = legs[3]; // Sycamore south, the cars at x 68.98
-    legToWorld(l3.frame.oz - 10, 0, l3.frame, p); // center abreast z 10
-    const body3 = bodyRectAt(p.x, p.z, travelYaw(0, -1));
-    expect(overlap(body3, parkedCarRect(PARKED_CAR_RECTS[4]))).toBe(false);
-    expect(overlap(body3, parkedCarRect(PARKED_CAR_RECTS[5]))).toBe(false);
+  it("the grown east lanes clear every declared box truck (the W-C7 debt the kit's own comment named)", () => {
+    const trucks = PARKED_CAR_RECTS.filter((c) => c.truck);
+    expect(trucks.length).toBe(8); // the kit renders 8 of its 10 spots (two sleep)
+    const p = { x: 0, z: 0 };
+    for (const t of trucks) {
+      // the Gable north-curb trucks (z 42.7) ride legs[2]; the Kestrel
+      // north-curb trucks (z 3.25) ride legs[0]; the Marlow trucks have no
+      // mover on their street — no lane law to test (they stay declared for
+      // the pool's honesty, the one-list law).
+      const onGable = t.z > 20 && t.z < 50;
+      const onKestrel = t.z > -10 && t.z < 10;
+      if (!onGable && !onKestrel) continue;
+      const leg = onGable ? legs[2] : legs[0];
+      const noseA = onGable
+        ? (t.x - leg.frame.ox)                  // Gable east: a = x + 71.6
+        : LANE_X_KESTREL_WEST_END - t.x;        // Kestrel west: a = 228 − x
+      const centerA = noseA + BUS_BODY.halfLen; // the truck then sits under the body
+      legToWorld(centerA, 0, leg.frame, p);
+      const yaw = travelYaw(leg.frame.ax, leg.frame.az);
+      const body = bodyRectAt(p.x, p.z, yaw);
+      const rect = parkedCarRect(t);
+      expect(overlap(body, rect), `truck at (${t.x}, ${t.z}) under the ${leg.name} lane`)
+        .toBe(false);
+    }
+  });
+
+  it("every rendered kit truck has a declared yield rect; no sleeping spot carries one (no ghost braking)", () => {
+    const rendered = renderedTruckSpots();
+    expect(rendered.length).toBe(8);
+    const rects = PARKED_CAR_RECTS.filter((c) => c.truck);
+    for (const s of rendered) {
+      const hit = rects.find((r) => r.x === s.x && r.z === s.z);
+      expect(hit, `truck spot (${s.x}, ${s.z}) must be declared`).toBeDefined();
+    }
+    for (const s of TRUCK_SPOTS) {
+      if (rendered.includes(s)) continue;
+      expect(rects.find((r) => r.x === s.x && r.z === s.z),
+        `sleeping spot (${s.x}, ${s.z}) must NOT be declared`)
+        .toBeUndefined();
+    }
+  });
+
+  it("the cab's eastbound lane (z −2) clears the moved trucks — every Kestrel truck parks on the NORTH curb", () => {
+    for (const r of PARKED_CAR_RECTS.filter((c) => c.truck && c.z > -10 && c.z < 20)) {
+      expect(r.z).toBeGreaterThan(0); // the south curb is the cab's road (the Marlow trucks are off the cab's street)
+    }
   });
 });
 
 describe('the stops land where the registry pins them', () => {
-  it("BUS-03 / BUS-01 / BUS-02 ride leg 0 in order, bay last and longest", () => {
+  it("BUS-05 / BUS-03 / BUS-01 / BUS-02 ride leg 0 in order, bay last and longest", () => {
     const stops = legs[0].stops;
-    expect(stops.map((s) => s.id)).toEqual(['BUS-03', 'BUS-01', BUS_BAY_ID]);
+    expect(stops.map((s) => s.id)).toEqual(['BUS-05', 'BUS-03', 'BUS-01', BUS_BAY_ID]);
     for (let i = 1; i < stops.length; i++) expect(stops[i].a).toBeGreaterThan(stops[i - 1].a);
-    expect(stops[2].dwell).toBeGreaterThan(stops[0].dwell);
-    expect(stops[2].dwell).toBeGreaterThanOrEqual(8); // a real lay-over
+    expect(stops[3].dwell).toBeGreaterThan(stops[0].dwell);
+    expect(stops[3].dwell).toBeGreaterThanOrEqual(8); // a real lay-over
+    expect(stops[0].dwell).toBeGreaterThanOrEqual(3); // a real stop, not a ghost
   });
 
   it("the bay halt parks the body inside the terminal bay paint (x -36..-24)", () => {
-    const bay = legs[0].stops[2];
+    const bay = legs[0].stops[3];
     const p = { x: 0, z: 0 };
     // at the halt the nose sits at the mark on the pulled-out line
     legToWorld(bay.a, bay.lateral, legs[0].frame, p);
     const body = bodyRectAt(p.x + BUS_BODY.halfLen, p.z, Math.PI); // center is halfLen east
     expect(body.minX).toBeGreaterThanOrEqual(-36);
     expect(body.maxX).toBeLessThanOrEqual(-24);
+  });
+
+  it("the Junction Plaza bay parks the body inside its paint (the BUS-04 pattern, lateral 1.2)", () => {
+    const plaza = legs[0].stops[0]; // BUS-05, the W-C7 bay
+    expect(plaza.lateral).toBeCloseTo(1.2, 6); // the park-in-the-paint line
+    const p = { x: 0, z: 0 };
+    legToWorld(plaza.a, plaza.lateral, legs[0].frame, p);
+    const body = bodyRectAt(p.x + BUS_BODY.halfLen, p.z, Math.PI);
+    expect(body.minX).toBeGreaterThanOrEqual(154.5); // the paint's west edge
+    expect(body.maxX).toBeLessThanOrEqual(166.5);    // the paint's east edge
+  });
+
+  it("the Junction Plaza bay's tail never stands in the Spur zebra (x 150.3..153.7) or its zone (x 150..154)", () => {
+    const plaza = legs[0].stops[0];
+    const p = { x: 0, z: 0 };
+    legToWorld(plaza.a, plaza.lateral, legs[0].frame, p);
+    const body = bodyRectAt(p.x + BUS_BODY.halfLen, p.z, Math.PI);
+    expect(body.minX).toBeGreaterThan(154); // the whole body east of the zone's west edge
   });
 
   it("every mark has a hold line on its own leg and a pull-out toward the curb", () => {
@@ -145,21 +227,48 @@ describe('courtesy zones — the bus and the cab yield at the same paint', () =>
   });
 
   it("leg 0 zones are the cab's Kestrel zones the bus actually approaches", () => {
-    // westbound: a = 72.2 − x, so a zone's east edge is its hold line a0.
-    // The bus approaches three of the cab's four: XW-COURT, XW-CANON and the
-    // Juniper box. The Sycamore box is intentionally ABSENT — the bus turns
-    // west INSIDE that junction (its hold line would sit at a0 = 72.2 − 77.5
-    // < 0, behind the leg), while the eastbound cab crosses it and yields.
+    // westbound: a = 228 − x, so a zone's east edge is its hold line a0.
+    // The grown loop rides Kestrel STRAIGHT through the Sycamore junction now
+    // (the W-C7 east leg — Sycamore Ave leaves the loop), so the Sycamore box
+    // is PRESENT; the LARCH box is the absent one — the bus turns south INSIDE
+    // that junction (its hold line would sit behind the leg; the shipped
+    // Sycamore-corner law, east edition).
     const zones = legs[0].zones;
-    expect(zones).toHaveLength(3);
+    expect(zones).toHaveLength(5);
     const mapped = KESTREL_COURTESY_ZONES
-      .filter((k) => 72.2 - k.xMax > 0)
-      .sort((k1, k2) => (72.2 - k1.xMax) - (72.2 - k2.xMax)); // travel order
-    expect(mapped).toHaveLength(3);
+      .filter((k) => LANE_X_KESTREL_WEST_END - k.xMax > 0)
+      .sort((k1, k2) => (LANE_X_KESTREL_WEST_END - k1.xMax) - (LANE_X_KESTREL_WEST_END - k2.xMax));
+    expect(mapped).toHaveLength(5);
     zones.forEach((z, i) => {
-      expect(z.a0).toBeCloseTo(72.2 - mapped[i].xMax, 6);
-      expect(z.a1).toBeCloseTo(72.2 - mapped[i].xMin, 6);
+      expect(z.a0).toBeCloseTo(LANE_X_KESTREL_WEST_END - mapped[i].xMax, 6);
+      expect(z.a1).toBeCloseTo(LANE_X_KESTREL_WEST_END - mapped[i].xMin, 6);
     });
+  });
+
+  it("the cab's courtesy list grew the east junctions (the Spur + Larch boxes)", () => {
+    expect(KESTREL_COURTESY_ZONES.some((k) => k.xMin === 150 && k.xMax === 154)).toBe(true);
+    expect(KESTREL_COURTESY_ZONES.some((k) => k.xMin === 222.5 && k.xMax === 233.5)).toBe(true);
+  });
+
+  it("leg 2 grew the Gable×Spur box and the GL-W straight-through leg (the shipped pre-corner law)", () => {
+    const zones = legs[2].zones;
+    expect(zones).toHaveLength(4);
+    // a = x + 71.6 eastbound: the box's WEST edge is its hold line a0
+    expect(zones[2].a0).toBeCloseTo(150 + 71.6, 6);   // the Spur box
+    expect(zones[2].a1).toBeCloseTo(154 + 71.6, 6);
+    expect(zones[3].a0).toBeCloseTo(222.5 + 71.6, 6); // the GL-W crosswalk
+    expect(zones[3].a1).toBeCloseTo(226.5 + 71.6, 6);
+  });
+
+  it("the Larch leg rides the avenue-centerline law with no stops and no zones (both ends are turn corners)", () => {
+    const l3 = legs[3];
+    expect(l3.frame.ox).toBeCloseTo(228, 6);
+    expect(l3.frame.oz).toBeCloseTo(38, 6);
+    expect(l3.frame.ax).toBe(0);
+    expect(l3.frame.az).toBe(-1);
+    expect(l3.stops).toHaveLength(0);
+    expect(l3.zones).toHaveLength(0);
+    expect(l3.frame.len).toBeCloseTo(37.2, 6);
   });
 });
 

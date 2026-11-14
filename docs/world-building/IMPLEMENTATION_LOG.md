@@ -223,3 +223,70 @@ probe-tss-road-clear LAW HOLDS · probe-nav 9/9 · diag-pocket-scan
 deterministic (one component x −98..250, traps 18 unchanged, colliders
 1018 → 1233 the honest +215 below grade).
 
+
+## W-C7 — the M121/taxi routes east (the handover's exact next priced wave, register v1.81.0)
+
+AGENT_HANDOVER §2's task executed verbatim, its own priced estimate riding
+first (the DEC-2 law), built tests-first: 9 net new/rewritten pins watched
+FAILING before a line of implementation — the leg order, the 674 m lap, the
+east reach, the truck lane clearances, the render/yield correspondence, the
+BUS-05 bay containment, the Spur zebra clearance, the zone maps.
+
+**The loop grows east.** The M121's rectangle turns at the Larch corner now:
+leg 0 Kestrel westbound extends x 72.2 → 228 (the east origin is one exported
+constant, `LANE_X_KESTREL_WEST_END`; World's BUS-04 hold line derives from it
+— no second 72.2 anywhere), leg 2 Gable eastbound extends to the corner, leg
+3 Larch southbound replaces Sycamore south (the avenue-centerline law — both
+ends turn corners, no stops, no zones). Sycamore Ave leaves the loop — it
+carried no stop, and the bus now rides Kestrel STRAIGHT through the Sycamore
+junction, so its box courtesy zone joins leg 0 (the shipped loop turned
+inside it and could not honor it). The straight-through junctions zone
+honestly: the Spur boxes on both legs, the GL-W pre-corner leg (the shipped
+pre-corner law). Lap 362 → 673.6 m; all four shipped stops keep serving.
+
+**BUS-05 'Junction Plaza'** appends to transit.bus.stops — the BUS-04 bay
+pattern east: park-in-the-paint (lateral 1.2, the body inside the curb
+strip), the tail clear of the Spur zebra AND the junction zone (the mark
+halts the nose 1 m east of the zone line; a walker in the paint holds the bus
+short of the bay, then it noses in), the pole at (157, 7.35) at the plaza's
+east edge, the door law's 2 m. Paint + pole pre-bake — the merge swallows
+them; the pole's canvas face is the visit-cost singleton.
+
+**The taxi** grows the east reach: x −84..252, Kestrel East's own south lane,
+wrapping at the east wall; the courtesy list grows the Spur and Kestrel×Larch
+boxes; the cab passes the parked bay body 1.875 m clear.
+
+**The debt paid.** The kit's parked-here comment ("the taxi's lane ends at
+x 46 so the east curbs carry no yield debt") was a debt against this exact
+wave: the east box trucks move to the north curbs — TRUCK_SPOTS exported,
+one table two readers (the kit renders from it, the movers' yield list
+declares from it; the test pairs the lists); the two south-curb trucks move
+north (the south curb is the cab's road), the north trucks step to z 3.25
+(the bus lane's 15 cm of air), the Gable south truck moves north; the two
+Larch spots sleep exactly as shipped (the PRNG's draw count untouched) and
+carry NO rect — no ghost braking, pinned. parkedCarRect generalizes (trucks
+7.0 × 2.3); the yield pools grow 32/30 → 48/48.
+
+**The probes, re-timed.** The east reach blew the wall-clock budgets (the lap
+× the dt clamp ≈ 16 min, past this box's shell cap): probe-w4-bus now drives
+the sim (the taxi-locate manual-update precedent — deterministic, no
+machine-mercy budgets) and grows the east checks; probe-taxi-locate grows the
+east witness (x > 100 + the frame) and drives the sim too (the 1280×720 wall
+window was the dt-clamp's casualty — the max-x 84.0 artifact diagnosed by
+trace: wrapper ≡ collider, the rail honest).
+
+**The battery:** validate-registry OK (258 IDs, 112 buildings, 23/23
+anchors) · tsc clean · vitest 1,773/1,773 (105 files, +9 net) · build OK ·
+probe-city-fabric DRAWS 192 (byte-identical — the standing delta +0) ·
+probe-w4-bus 14/14 (the east reach max x 228, the plaza dwell at 160, 2 laps
+in 196 s sim, 0 coexistence) · probe-taxi-locate the east crossing witnessed
+at x 106.5 · probe-subway 45/46 (the documented baseline Wow-card carry) ·
+probe-nav 9/9 · probe-integration 0 errors 8/8 · probe-interior-dressing
+PASS · probe-w14 PASS · probe-wc1-catalpa OK (spawn 192 +0) ·
+probe-tss-road-clear LAW HOLDS · probe-catalpa-evidence 0 errors ·
+diag-pocket-scan one component x −98..250, traps 19 unchanged (colliders
+1233 → 1243: the gifted furniture's own +10, this wave 0). The honest
+carries: probe-world-sim's "no report" FAIL reproduced identically on the
+base commit `3ded020` (the box class); the partial E2E's ladder-grab fails
+reproduce on the base commit — the full-scale E2E stays the faster-box
+follow-up.
