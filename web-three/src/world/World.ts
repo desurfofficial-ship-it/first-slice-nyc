@@ -18,6 +18,7 @@ import { approachSpeed, bodyConflictsWithCab, noseLimit, pedestrianSpeedCap, typ
 import {
   buildM121, travelYaw, worldToLeg, legToWorld, aabbToLeg,
   PARKED_CAR_RECTS, parkedCarRect, BUS_BODY, BUS_BAY_ID, KESTREL_COURTESY_ZONES,
+  LANE_X_KESTREL_WEST_END,
   type BusZone, type LegCoords,
 } from '../engine/busRoute';
 import { buildArticulatedPerson, updatePersonAnim, PERSON_SHADOW_LAYER } from './personRig';
@@ -181,17 +182,15 @@ export class World {
    *  (0 = drive lane, + = the curb pull-out), the stop dwell left, laps
    *  done, the eased yaw, and the night flag (the bay dwells through the
    *  night — the dusk law). Deterministic: authored dwells, no randomness.
-   *  BOOT: leg 3 a 10 — the bus wakes mid-lap on Sycamore Ave, ~26 game-s
-   *  from its first bay visit. It does NOT boot in the bay: the bay holds
-   *  the registry's enterable BUS-04 (the bus that delivered you), and
-   *  probe-subway's fixed-time boarding must always find it standing —
-   *  the old boot-in-bay parked the loop body on top of BUS-04 (docs/47
-   *  "the terminal bay, made honest"). */
+   *  BOOT: leg 3 a 10 — the bus wakes mid-lap on Larch St (the W-C7 east
+   *  leg; the shipped boot woke on Sycamore), ~54 game-s from its first bay
+   *  visit (the east reach grew the lap). It does NOT boot in the bay: the
+   *  bay holds the registry's enterable BUS-04 (the bus that delivered
+   *  you), and probe-subway's fixed-time boarding must always find it
+   *  standing — the old boot-in-bay parked the loop body on top of BUS-04
+   *  (docs/47 "the terminal bay, made honest"). */
   private readonly busState = {
-    // W-N3: the east out-and-back rides legs 1-2, so the shipped boot pose
-    // (Sycamore south, a 10 — the bus mid-block on the quiet avenue) is
-    // leg 5 now. The pose is byte-identical with the shipped boot frame.
-    leg: 5, a: 10, lat: 0,
+    leg: 3, a: 10, lat: 0,
     dwell: 0, laps: 0, yaw: Math.PI / 2, night: false, servedStop: null as string | null,
     baySkipped: false,
   };
@@ -2853,6 +2852,21 @@ export class World {
     const m121b = makePoleSign(this.bank, this.signMaterials.bind(this), 'M121', { w: 0.8, h: 0.3, y: 3.0 });
     m121b.position.set(61.5, 0.05, 2);
     this.scene.add(m121b);
+
+    // ---- BUS-05, Junction Plaza (registry transit.bus.stops, W-C7) -------
+    // The grown loop's east stop: the BUS-04 bay pattern on Kestrel East's
+    // north curb — the loop parks INSIDE the paint (lateral 1.2, body
+    // 155..164.6 inside 154.5..166.5, the tail clear of the Spur zebra),
+    // the pole stands the walk at the plaza's east edge (the bollard pair
+    // keeps 2.4 m; the headhouse SUB-03 begins 3 m further east), the door
+    // law's 2 m between nose and pole. Paint + pole are pre-bake statics —
+    // the merge swallows them (the W4 life law: zones cost merges, not
+    // draw calls; the pole's canvas face stays its own singleton, the
+    // BUS-03 precedent).
+    this.deco('BUS05_Bay', 160.5, 0.02, 3.4, 12, 0.02, 0.5, PAL.taxi, {});
+    const m121c = makePoleSign(this.bank, this.signMaterials.bind(this), 'M121', { w: 0.8, h: 0.3, y: 3.0 });
+    m121c.position.set(157, 0.05, 7.35);
+    this.scene.add(m121c);
   }
 
   // ------------------------------------------------------- W4, part 2 -----
@@ -3072,13 +3086,14 @@ export class World {
   /** W4 part 2 assembly (see the block comment above buildBus). */
   private buildAlderHeightsW4Traffic(): void {
     this.busGroup = this.buildBus();
-    // the boot pose = the boot state (leg 3 a 10 lat 0): mid-lap on
-    // Sycamore Ave, ~26 game-s from the first bay visit — the bay itself
-    // holds BUS-04 (the registry's enterable M121) until the loop arrives.
-    this.busGroup.position.set(72.2, 0, 28);
+    // the boot pose = the boot state (leg 3 a 10 lat 0): mid-lap on Larch
+    // St (the W-C7 east leg), ~54 game-s from the first bay visit — the bay
+    // itself holds BUS-04 (the registry's enterable M121) until the loop
+    // arrives.
+    this.busGroup.position.set(LANE_X_KESTREL_WEST_END, 0, 28);
     this.busGroup.rotation.y = Math.PI / 2; // travelYaw(0, −1), leg 3 south
     this.scene.add(this.busGroup);
-    this.busCollider = boxFromCenter(72.2, 1.3, 28, 9.6, 2.6, 2.3);
+    this.busCollider = boxFromCenter(LANE_X_KESTREL_WEST_END, 1.3, 28, 9.6, 2.6, 2.3);
     this.colliders.push(this.busCollider);
 
     this.courtDusk = this.buildCourtDuskPair();
@@ -7610,17 +7625,6 @@ export class World {
     const mail = makeMailboxNYC(this.bank, 0.1, 159.6, 14.2, Math.PI / 2); this.scene.add(mail);
     const steam1 = makeSteamVentNYC(this.bank, 172, -6.4); this.scene.add(steam1);
     const steam2 = makeSteamVentNYC(this.bank, 149.8, 30); this.scene.add(steam2);
-    // the BUS-05 flag (W-N3: the M121's Junction Plaza stop — the handover's
-    // documented transit wave). The BUS-03 pattern: bay paint on the north
-    // curb + the rollsign pole at the registry's own pin (138, 7.35); the
-    // nose halt (136) clears the spur mouth (146) by 10 m.
-    this.deco('BUS05_Bay', 133.2, 0.02, 3.4, 12, 0.02, 0.5, PAL.taxi, {});
-    const m121p = makePoleSign(this.bank, this.signMaterials.bind(this), 'M121', { w: 0.8, h: 0.3, y: 3.0 });
-    m121p.position.set(138, 0.05, 7.35);
-    this.scene.add(m121p);
-    // the east district's columns sit dark at the spawn — the pole rides
-    // its lattice column like the corridor signs (the pricing law)
-    this.registerDistrictObject(m121p, 138, 7.35);
     // loading-dock bollard pairs read from the kit; the docks' pallets:
     const pallets = new GeoPush();
     for (const [px, pz] of [[131.5, 8.6], [141.5, 8.6], [204.5, 8.6], [219.5, -8.6], [161.5, -13.4], [226.5, -31.4]] as const) {
@@ -10230,7 +10234,7 @@ export class World {
   /** Preallocated yield bodies — the scan runs every frame; nothing in it
    *  may allocate (perf rule: no per-frame garbage). Each slot owns its rect
    *  object so the bus's leg-space pool can reuse the same pattern. */
-  private readonly trafficPool: TrafficBody[] = Array.from({ length: 30 }, () => ({ x: 0, z: 0, r: 0, rect: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 } }));
+  private readonly trafficPool: TrafficBody[] = Array.from({ length: 48 }, () => ({ x: 0, z: 0, r: 0, rect: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 } }));
   private readonly cabRectScratch: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
   private readonly sweepRectScratch: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
 
@@ -10336,11 +10340,7 @@ export class World {
     const limit = noseLimit(noseX, pool, n, CAB.laneZ, CAB.halfWid);
     const wantedNose = noseX + dt * speed;
     road.x += Math.min(wantedNose, limit) - noseX;
-    // the district's edge: the rail wraps (W4 p2: was ±46; W7: ±84).
-    // W-N3: the rail grows EAST with Kestrel's own continuation — the cab
-    // serves the Larch Yards (the east wrap at the wall line minus a nose),
-    // the west end keeps its shipped post.
-    if (road.x > 246) road.x = -84;
+    if (road.x > 252) road.x = -84; // the east wall: the rail wraps (W-C7: was ±84 — the rail runs Kestrel East into the Larch Yards now)
     this.taxiCollider.minX = road.x - CAB.halfLen;
     this.taxiCollider.maxX = road.x + CAB.halfLen;
 
@@ -10380,7 +10380,7 @@ export class World {
     haltEps: 0.02,
   } as const;
 
-  private readonly busPool: TrafficBody[] = Array.from({ length: 32 }, () => ({ x: 0, z: 0, r: 0, rect: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 } }));
+  private readonly busPool: TrafficBody[] = Array.from({ length: 48 }, () => ({ x: 0, z: 0, r: 0, rect: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 } }));
   private readonly busFootScratch: RectXZ = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
   private readonly busSweepScratch: RectXZ = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
   private readonly busWorldRectScratch: AABB = { minX: 0, maxX: 0, minY: 0, maxY: 0, minZ: 0, maxZ: 0 };
@@ -10473,7 +10473,7 @@ export class World {
       // approach is committed: roll through and try again next lap
       // (baySkipped also keeps the pull-out from driving through the paint).
       if (stop.id === BUS_BAY_ID && player && this.playerInsideArrival(player)) {
-        if (noseA < 72.2 + BUS04_RECT.maxX) {
+        if (noseA < LANE_X_KESTREL_WEST_END + BUS04_RECT.maxX) {
           speed = 0;
         } else {
           st.servedStop = stop.id;

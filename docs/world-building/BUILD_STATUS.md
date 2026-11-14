@@ -19,8 +19,8 @@
 | | |
 |---|---|
 | **Branch** | `main` (the integrated tree; the assignment branch merged at e516206) |
-| **Head** | W-C6 (the K line eastbound — register v1.78.0) |
-| **Registry** | v1.78.0 (112 buildings, 9 parks, 23 interiors, 13 landmarks, 7 streets, 19 phases) |
+| **Head** | W-C7 (the M121/taxi routes east — register v1.81.0) |
+| **Registry** | v1.81.0 (112 buildings, 9 parks, 23 interiors, 13 landmarks, 7 streets, 20 phases) |
 | **The world** | **Two districts and a destination:** Alder Heights (x −100..+100, unchanged) + **the Larch Yards** (x +100..+252, built this assignment) + Times Square (one K-line ride west, unchanged) |
 | **Playable core** | x −100..+252, z ±64 (registry `bounds.playableCore`; the invisible walls follow) |
 
@@ -85,15 +85,31 @@
   license, credited in THIRD-PARTY-NOTICES.md). The manifest carries the two
   new sources with byte-identity provenance (`GIFTED_PACK_PROVENANCE`); the
   texture law, the rest law and the footprint guard all held.
+- **The transit-completion wave (W-C7, 2026-11-14):** the M121's loop grows
+  its east leg — the rectangle turns at the Larch corner now (leg 0 Kestrel
+  westbound x 72.2 → 228, leg 2 Gable east to the corner, leg 3 Larch south
+  replaces Sycamore south — Sycamore leaves the loop, it carried no stop);
+  **BUS-05 'Junction Plaza'** opens on Kestrel East (the BUS-04 bay pattern:
+  the loop parks inside the paint, the pole on the walk at the plaza's east
+  edge); the taxi's rail grows the east reach (x −84..252, Kestrel East's
+  south lane, wrapping at the east wall); the east box trucks move to the
+  north curbs (`TRUCK_SPOTS` — one table, two readers: the kit renders from
+  it, the movers' yield list declares from it; the two sleeping spots carry
+  no rect); the straight-through junctions zone honestly (the Spur boxes on
+  both legs, the Sycamore box — the bus no longer turns inside it, the GL-W
+  pre-corner leg). Lap 362 → 673.6 m; the deterministic-arrival law
+  unchanged; DRAWS byte-identical (192).
 
 ## 2. The verification record (all re-run on the final tree)
 
 | Gate | Result |
 |---|---|
 | `npx tsc --noEmit` | clean |
-| `npx vitest run` | **1,751 / 1,751 across 105 files** (the two gifted-provenance rows joined the furniture suite) |
-| `npm run build` | OK (~720 ms) |
-| `probe-city-fabric` (draw budget) | **DRAWS 192** (< 200; the gifted furniture draws only inside its rooms — zero at rest) |
+| `npx vitest run` | **1,773 / 1,773 across 105 files** (the grown-loop pins: the leg order, the 674 m lap, the east reach, the truck lane clearances, the render/yield correspondence, the BUS-05 bay containment, the zone maps) |
+| `npm run build` | OK (~780 ms) |
+| `probe-city-fabric` (draw budget) | **DRAWS 192** (< 200; byte-identical — the W-C7 standing delta +0: the BUS-05 bay paint merges pre-bake, the pole's canvas face is a visit-cost singleton beyond the spawn frustum) |
+| `probe-w4-bus` | **14/14 PASS** — the grown loop end to end: boot leg 3 x 228 (Larch), the bay lay-over armed/departed, the XW-COURT rest 46.9 at the line's 46.85, the yield stall Δa 0.00, all four legs (Larch south among them), the east reach max x 228.0, 2 laps in 196 s sim, dwells at 160/65/−21/−31 (the four registry stops), 0 bay coexistence, 0 page errors. The probe drives the sim now (the east reach blew the wall-clock budgets — the dt-clamp class; the taxi-locate manual-update precedent) |
+| `probe-taxi-locate` | **the east crossing witnessed at x 106.5** — the rail runs Kestrel East; the closeup + `wc7_taxi_east.png` land |
 | `diag-pocket-scan` (grown grid, 180,224 cells) | **one walkable component x −98..250; traps 19** — the HALL's documented door-alias pocket (the W5 1.2 m doors zero on the 0.5 grid, the known alias class) **split in two by the gifted furniture's own colliders; BARBER/RECORDS pockets unchanged; zero real-walkability change** (the walk-in probe passes all four rooms) |
 | `probe-nav` | **9/9 steps** (with the e2e's own `E2E_SCALE` dilation valve added to the browser probes) |
 | `probe-walkability` | 3/3 placement gates (spawn pocket, 67 lane blocks all bypassed in-band, 25/25 door approaches); the walk-legs sweep exceeds this box's wall budget — the documented dilation class (see §4) |
@@ -118,9 +134,11 @@
    graph is one world), but the ambient walkers' authored loops still live on
    the shipped five streets. Extending two loops onto the spur/Kestrel East is
    a small, safe follow-up.
-4. **Dynamic traffic east.** The M121 and the taxi keep their authored routes;
-   Kestrel East carries parked vehicles only. The route's eastward extension
-   is a documented next wave.
+4. **Dynamic traffic east — BUILT (W-C7).** The M121's loop grew its east
+   leg (the Larch corner; BUS-05 the Junction Plaza bay) and the taxi's rail
+   grew the east reach (x −84..252, the east-wall wrap). What remains is
+   capacity, not reach: the spur/Kestrel East ambient walker loops are the
+   small safe follow-up.
 5. **The Map's sketch** stays the first-session Kestrel heart (SKETCH_BOUNDS
    unchanged) — Catalpa is discovered by walking it, per the Roam law.
 
@@ -144,7 +162,7 @@
 | Buildings and environmental assets integrated | ✅ 101 registry buildings render from their rows |
 | Consistent visual quality | ✅ the house grammar everywhere; evidence frames attached |
 | Essential locations accessible | ✅ the market hall enterable; the plaza/gardens/spur walkable end to end |
-| Existing systems compatible | ✅ 1,733 tests; the Day 1–4 E2E advances to Day 4; the cast, cart, subway, M121 untouched |
+| Existing systems compatible | ✅ 1,773 tests; the Day 1–4 E2E advances to Day 4; the cast, cart, subway, M121 untouched |
 | No known critical environmental defects | ✅ the pocket scan reads clean; the walls follow the registry |
 | Performance tested and acceptable | ✅ 192 / 200 draws standing; the pricing ledger holds |
 | Final screenshots demonstrate the implemented world | ✅ `docs/world-building/images/` |

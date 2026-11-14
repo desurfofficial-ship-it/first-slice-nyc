@@ -37,23 +37,35 @@ BUILD_STATUS §2.
 
 ## 2. The exact next implementation task
 
-**~~The K-line eastbound ride~~ — DONE (W-C6, register v1.78.0):** the
+**~~The K-line eastbound ride~~ — DONE (W-C6, register v1.80.0):** the
 route law, the transfer car's two doors, station C under SUB-03's axis, the
 tunnel's east reach, the shaft-is-the-hole housing, the open cut's
 L-shape. The eastbound leg rides in probe-subway (17 checks) and the
 arrival evidence frame hangs.
 
-**The next priced wave: the M121/taxi routes east** — the transit
-completion: the M121's loop grows its east leg (the Junction Plaza stop on
-Kestrel East; the registry's BUS-04 bay pattern), the taxi's roam grows the
-east streets (the cab's own routes table). Priced estimate from the shipped
-ledger: the bus shell +1-2 draws resident, the cab +0 (dynamic), ~4
-registry rows (the bus stops + the route rows), ~2 probe legs
-(probe-bus/probe-taxi extensions). Do not start without the priced ledger
-row (the DEC-2 law).
+**~~The M121/taxi routes east~~ — DONE (W-C7, register v1.81.0):** the
+loop grew its east leg (the rectangle turns at the Larch corner; Sycamore
+leaves the loop, it carried no stop; the straight-through junctions zone
+honestly), **BUS-05 'Junction Plaza'** opened on Kestrel East (the BUS-04
+bay pattern — park-in-the-paint, the pole at the plaza's east edge), the
+taxi's rail grew the east reach (x −84..252, the east-wall wrap), and the
+kit's parked-truck yield debt was paid (TRUCK_SPOTS — one table, two
+readers; the south curb is the cab's road). probe-w4-bus 14/14 (the east
+reach max x 228, the plaza dwell at 160, 2 laps); probe-taxi-locate
+witnessed the east crossing at x 106.5. DRAWS byte-identical (192).
 
-**The small safe alternative:** 2 ambient walker loops on the spur/Kestrel
-East (the ped-commute roster's own grammar; the lanes already exist).
+**~~The spur/Kestrel East ambient walker loops~~ — DONE (WP-EAST, register
+v1.82.0, the concurrent line):** the spur walker + the Kestrel East local
+rode the same integration window this wave merged with; their sight-law
+pricing and band-core growth stand on the merged tree.
+
+**§2's ledger is now clear.** What remains is not buildable by an agent
+unilaterally: the Catalpa business books are the §8-gated CB1 (the owner's
+ruling stands open — the package filed, two dated amendments, nothing
+begins until it opens); the fenestra mip re-audit and the full-scale E2E
+are the real-hardware carries. The next priced wave needs scoping against
+complete-world-master-plan.md's milestones with the DEC-2 row first — do
+not start without it.
 
 ## 3. The laws this build added (they bind you)
 
@@ -106,8 +118,8 @@ East (the ped-commute roster's own grammar; the lanes already exist).
 | Item | Where it stands |
 |---|---|
 | Catalpa business books | Phase-6 economy machinery, later phase (the design package's own scope) |
-| Ambient walker loops east | **DONE (WP-EAST, register v1.82.0)** — the spur walker + the Kestrel East local, the sight law pricing them, the band core grown to x −98..250 |
-| The M121/taxi routes east | Documented next wave; parked trucks dress the docks meanwhile |
+| Ambient walker loops east | **DONE (WP-EAST, register v1.82.0, the concurrent line)** — the spur walker + the Kestrel East local, the sight law pricing them, the band core grown to x −98..250 |
+| The M121/taxi routes east | **DONE (W-C7, register v1.83.0, renumbered from v1.81.0 on the integration merge)** — the loop's east leg, BUS-05 the Junction Plaza bay, the taxi's east reach to the east wall; the parked trucks moved to the north curbs with their yield rects declared (both renders covered — the polyfork beam rides the same spots) |
 | The Map sketch growth | Deliberately unchanged (the Roam law; the first-session frame) |
 | The fenestra atlas mip re-audit | Carried from the shipped ledger (honest-open; needs a real GPU) |
 | The walk-legs sweep + full-scale E2E | Exceed this box's wall budget — the documented dilation class; run on real hardware |

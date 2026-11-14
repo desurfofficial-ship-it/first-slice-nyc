@@ -5258,7 +5258,7 @@
   },
   "bus": {
    "route": "M121",
-   "loop": "terminal lay-over → Kestrel East (the Junction Plaza, BUS-05) → Gable St → Sycamore Ave → Kestrel St → Juniper Ave → terminal (W-N3: the east leg is an out-and-back from the bay — east to the plaza, dwell, west return, then the shipped loop continues)",
+   "loop": "terminal lay-over → Gable St → Larch St → Kestrel East (Junction Plaza) → Kestrel St → Juniper Ave → terminal. W-C7 (2026-11-14): the loop grows its east leg — the rectangle turns at the Larch corner now and the bus rides Kestrel STRAIGHT through the Sycamore junction (its box courtesy zone rides leg 0 for the straight-through; the Larch box stays the turn corner). Sycamore Ave leaves the loop — it carried no stop (BUS-03's pole is on Kestrel, x 61.5) and keeps its service. Lap 362 m → 673.6 m; the deterministic-arrival law unchanged.",
    "stops": [
     {
      "id": "BUS-01",
@@ -5283,11 +5283,17 @@
     },
     {
      "id": "BUS-05",
-     "name": "Junction Plaza (Kestrel East)",
-     "x": 138,
+     "name": "Junction Plaza",
+     "x": 157,
      "z": 7.35,
-     "status": "planned (W-N3)",
-     "note": "the M121's east-leg pole (W-N3, 2026-11-14 — AGENT_HANDOVER §2's documented next priced wave): the nose halts at x 136 (2 m short of the pole, the door law), 10 m west of the spur mouth (146); the out-and-back serves the plaza between the bay lay-over and the shipped loop's Juniper turn."
+     "status": "built (W-C7)",
+     "bay": {
+      "x": 160.5,
+      "z": 2,
+      "len": 12,
+      "width": 2.5,
+      "note": "The W-C7 curb bay on Kestrel East's north curb, the BUS-04 pattern: the loop parks INSIDE the paint (lateral 1.2 — body center z 2.0, 0.85..3.15 inside 0.75..3.25; nose x 155, body 155..164.6 inside the curb strip's x 154.5..166.5), the tail clear of the Spur zebra (150.3..153.7) and the junction courtesy zone (150..154). The pole stands the walk at the plaza's east edge (157, 7.35) — the door law's 2 m between nose and pole — 2.4 m off the plaza bollard (156.6, 5) and 3 m west of SUB-03's west face (160). Paint + pole pre-bake statics (the W4 life law)."
+     }
     }
    ],
    "schedule": "off-camera between player-visible arrivals; day-keyed, deterministic (existing law)",
@@ -5312,7 +5318,7 @@
    }
   },
   "taxi": {
-   "rail": "existing: lane z = −2, x −46..46, eastbound, yield rules unchanged",
+   "rail": "existing: lane z = −2, eastbound, yield rules unchanged; W4 extended to ±84; W-C7: the rail grows the east reach — x −84..252, Kestrel East's own south lane through the Larch Yards, wrapping at the east wall (the cab is a district-crossing mover now). The courtesy list grew the east junctions (the Spur box x 150..154, the Kestrel×Larch box x 222.5..233.5); the east box trucks park the north curb — the south curb is the cab's road.",
    "phaseW4": "rail extends to ±84 through both intersections; crosswalk courtesy zones gain XW-COURT and the intersection legs"
   },
   "parkedCars": [
@@ -5527,7 +5533,7 @@
   "vehicle": [
    {
     "id": "V-CAB",
-    "way": "Kestrel south lane z = −2 eastbound, x −84..246 (W-N3: the rail grows east with Kestrel's own continuation — the cab serves the Larch Yards; the west end keeps its shipped post; the courtesy boxes ride the east crossings)"
+    "way": "Kestrel south lane z = −2 eastbound, x −46..46 (existing; ±84 phase W4; W-C7: east reach x −84..252 — Kestrel East's south lane, the cab rides into the Larch Yards and wraps at the east wall)"
    },
    {
     "id": "V-JUNIPER",
@@ -5539,7 +5545,7 @@
    },
    {
     "id": "V-BUS",
-    "way": "M121 loop per transit.bus; bus is a rail mover like the cab with a longer body and the same yield brain"
+    "way": "M121 loop per transit.bus; bus is a rail mover like the cab with a longer body and the same yield brain; W-C7: the loop grows its east leg (Gable → Larch → Kestrel East; the Junction Plaza bay BUS-05; Sycamore Ave leaves the loop — it carried no stop)"
    }
   ]
  },
@@ -7353,14 +7359,16 @@
    "unlocks": "the second district's first slice, priced: the spur walk, the dock rows, the platform stub — visible when the ride seam wave opens the zone"
   },
   {
+   "id": "W-C7",
+   "name": "The M121/taxi routes east — the transit completion (AGENT_HANDOVER §2's next priced wave)",
+   "content": "The handover's exact next task, built tests-first (9 net new/rewritten pins watched FAILING first). THE LOOP GROWS EAST: the M121's rectangle turns at the Larch corner now — leg 0 Kestrel westbound extends x 72.2 → 228 (the east origin = LANE_X_KESTREL_WEST_END, one exported constant, no second 72.2 anywhere; the BUS-04 hold line derives from it), leg 2 Gable eastbound extends to the Larch corner, leg 3 Larch southbound replaces Sycamore south (the avenue-centerline law, both ends turn corners — no stops, no zones; Sycamore leaves the loop, it carried no stop). Lap 362 → 673.6 m, all four shipped stops keep serving, the straight-through junctions zone honestly: leg 0 grows the Spur box (a 74..78) and — because the bus now rides Kestrel STRAIGHT through the Sycamore junction — the Sycamore box (a 150.5..161.5, the shipped loop turned inside it); leg 2 grows the Gable×Spur box (a 221.6..225.6) and the GL-W straight-through leg (a 294.1..298.1, the shipped pre-corner law). THE EAST STOP: BUS-05 'Junction Plaza' appends (registry transit.bus.stops) — the BUS-04 bay pattern on Kestrel East's north curb: park-in-the-paint (lateral 1.2, body 155..164.6 inside the strip 154.5..166.5, the tail clear of the Spur zebra and the junction zone), the pole at (157, 7.35) at the plaza's east edge (2.4 m off the bollard, 3 m west of SUB-03), dwell 4; paint + pole pre-bake (the merge swallows them). THE TAXI: the rail grows the east reach x −84..252 (the east wall wrap; was ±84), the courtesy list grows the Spur + Larch junction boxes. THE DEBT PAID: the kit's parked box trucks moved to the north curbs (TRUCK_SPOTS exported — one table, two readers: the kit renders from it, busRoute declares the rendered spots' yield rects from it; the two sleeping Larch spots carry NO rect — no ghost braking; the south curb is the cab's road; Kestrel trucks z 2.9 → 3.25 for the bus lane's 15 cm of air; the Gable south truck → the north curb z 42.7 for the eastbound lane z 38; the PRNG's draw count untouched — spots 4/5 sleep, seed 0x1E7C1, byte-identical dressing). The yield pools grow 32/30 → 48/48 (the declared rect count 9 → 17 + peds; preallocated, no per-frame garbage). Registry delta: bus.loop re-worded, BUS-05 appended, taxi.rail re-worded, V-BUS/V-CAB re-worded, this phase row. No building row moved; no street row moved.",
+   "unlocks": "The two districts are one transit system: the M121 serves the Junction Plaza bay and the cab roams Kestrel East to the east wall — the Larch Yards is reachable by ride, walk, and now bus & cab.",
+   "pricing": "Estimated in AGENT_HANDOVER §2 from the shipped ledger (bus shell +1-2 draws resident, cab +0 dynamic, ~4 registry rows, ~2 probe legs); MEASURED on the built tree: probe-city-fabric DRAWS (the wave's own run records it — the paint deco + the pole's canvas singleton are the only candidates), vitest 1,773/1,773 (105 files, +9 net), tsc clean, build OK."
+  },
+  {
    "id": "WN0",
    "name": "The West Reach — the Willow Rows data wave",
    "content": "The owner's 2026-11-14 master continuation directive (\"COMPLETE THE OPEN WORLD\"): the corridor between Alder Heights and Times Square (x -280..-100) is real rows now. Two NS streets (Willow, Chestnut), eight blocks, seventeen WLR-* masses (shells only — the W-C1 scope law), PRK-CHESTNUT the community garden, LMK-14 the Willow marquee, LMK-15 the Ansel ghost sign, six intersections, twelve crosswalks, four pedestrian route rows. The three EW streets grow their west ends (the continuation law, west edition). Geometry is the W-N1 wave; the lattice pricing law (masses west of x -176) is data-checked here. See docs/world-building/west-reach-design.md."
-  },
-  {
-   "id": "WN3",
-   "name": "The West Reach — the transit extension",
-   "content": "AGENT_HANDOVER §2's documented next priced wave, built under the master continuation directive: the M121's loop grows its east leg (the Junction Plaza stop on Kestrel East, BUS-05, the out-and-back from the bay — legs \"Kestrel east\" + \"Kestrel west return\", the door law's own nose marks, the courtesy zones at the east crossings), the taxi's rail grows east (x −84..246, the cab serves the Larch Yards, the courtesy boxes ride the spur and Larch corners), the BUS-05 pole + bay paint render at the registry's own pin. Priced: the bus shell +0 standing draws (dynamic, the shipped census law), the cab +0 (dynamic), the pole + bay pre-bake (+0 — the merge swallows them)."
   }
  ],
  "openDecisions": [
