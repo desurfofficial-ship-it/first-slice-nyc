@@ -37,6 +37,7 @@
 
 import * as THREE from 'three';
 import type { ColliderSpec } from './subway/stationKit';
+import { buildCatalpaDockFleet } from './polyforkKit';
 
 export interface CJMassShell { x: number; z: number; w: number; d: number; h: number }
 /** The h-0 slot row (the SUB-TS law): regFootprint's own shape — no height
@@ -467,6 +468,19 @@ export function buildCatalpaJunction(
   textured('CJN_Kiosk_Bullet', bulletTexture(), 1.1, 1.1, stX + 1.05, 3.62, 6.55, Math.PI);
   // the bullet's twin faces the platform below
   textured('CJN_Station_Bullet', bulletTexture(), 1.1, 1.1, stX + 1.4, floor + 2.3, 9.82, 0);
+
+  // ---- the Polyfork dock fleet (docs/production/polyfork) ----
+  // Five vehicles backed into the dock faces the W-C1 district built
+  // with none — one zone-owned vertex-colored mesh (the group is dark
+  // until catalpaSurface, so the spawn census reads +0), the solids
+  // joining the district's collider list. ?polyfork=0 leaves the docks
+  // exactly as W-C1 shipped (the A/B seam).
+  let fleetMat: THREE.MeshLambertMaterial | null = null;
+  const fleetMaterial = (): THREE.MeshLambertMaterial => {
+    fleetMat ??= new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, envMapIntensity: 0.18 });
+    return fleetMat;
+  };
+  for (const c of buildCatalpaDockFleet(group, fleetMaterial())) colliders.push(c);
 
   return { group, colliders };
 }

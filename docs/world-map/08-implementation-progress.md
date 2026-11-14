@@ -16,11 +16,11 @@
 |---|---|
 | **Milestone** | World-map construction (W0–W14) + the evidence package (the shot list, the labelled top-down, the 3D overview); the concurrent line's W15–W17 wave (the DEC-6 + DEC-12 rulings, the W16 minimal seasonal pass, the W17 borough design package draft) joined by merge |
 | **Phase** | Vertical Slice production — narrative reboot canon (v1.0, 2026-11-06) |
-| **Registry version** | v1.77.0 (the register's top — W-C1 "the Junction docks", renumbered v1.74.0 → v1.77.0 at the 2026-11-14 re-integration merge: the concurrent line's TERMINAL-PROD v1.73.0, W14b v1.74.0 and ROAD-CLEAR v1.75.0 were already published while this wave waited on the owner's PAT; W18's DEC-13 approval row renumbered v1.73.0 → v1.76.0 the same merge — the monotonic-ledger law, the C3-wave/TSS-PROD precedent; see `docs/production/PRODUCTION-STATUS-REGISTER.md` for the authoritative rows) |
+| **Registry version** | v1.80.0 (the register's top — W-C6 "the K line eastbound", renumbered v1.78.0 → v1.80.0 at the concurrent line's re-integration merge: the eastbound A⇄C leg rides, station C stands at SUB-03's own axis, the LRY-03 ↔ SUB-03 KNOWN defect RETIRES with its 1 m footprint trim, the validator reads no KNOWN findings; the ledger beneath: v1.79.0 the business package filed, v1.78.0 the CJN-* canon restore, v1.77.0 W-C1 — see `docs/production/PRODUCTION-STATUS-REGISTER.md` for the authoritative rows) |
 | **Implementation phase** | **Complete for the vertical slice.** All 179 registry IDs built. All 22 interiors shipped (the Corner House's CORNERHOUSE-INT closed the last openDecision in W14). All 7 parks built. All 23 anchors placed. The walkability scanner reads clean and deterministic. The evidence package (the §6 shot list, the labelled top-down map, the golden-hour overview) is captured from the real built game. |
 | **Branch (local clone)** | `main` |
-| **Latest commit hash** | `de9777c` — the remote tip joined at the 2026-11-14 re-integration merge (the concurrent line's TERMINAL-PROD v1.73.0, W14b v1.74.0, ROAD-CLEAR v1.75.0 and the W18 wardrobe viewer); our W18 DEC-13 approval + W-C1 Catalpa lines ride the merge on top; this record rides the same push |
-| **Commit subject** | `Merge origin/main into main — the concurrent line's TERMINAL-PROD (v1.73.0), W14b restock (v1.74.0), ROAD-CLEAR (v1.75.0) and the W18 wardrobe viewer join the Catalpa tree; worklog both sides preserved; the v1.73.0/v1.74.0 collisions resolved by the monotonic-ledger law (W18 v1.73.0 → v1.76.0, W-C1 v1.74.0 → v1.77.0)` |
+| **Latest commit hash** | `3ded020` — the concurrent line's W-C6 eastbound ride joins at their re-integration merge (the ride seam's first leg: A⇄C, the transfer car's two doors, station C at the Larch Yards, the shaft-is-the-hole housing, the KNOWN defect retired; the register renumbers W-C6 v1.78.0 → v1.80.0, the monotonic-ledger law); this record rides the integration merge that adds the claims-verification wave (§20) and the package's W-C6 amendment on top |
+| **Commit subject** | `Merge origin/main into main — the concurrent line's W-C6 eastbound ride (register v1.80.0) joins the claims-verification tree; worklog both sides preserved (their W-C6 session between §19 and §20, chronological); the business package's §1 carries its dated W-C6 amendment (the seam's first leg landed — the Catalpa west leg stays future; the reachability conclusion unchanged)` |
 | **Commit date** | 2026-11-14 (UTC) |
 | **Remote** | `https://github.com/desurfofficial-ship-it/first-slice-nyc.git` (public; read-only clone needs no credentials; the push rides the owner's fine-grained PAT — it needs the repo's Contents:write grant) |
 
@@ -667,5 +667,80 @@ package is filed as DRAFT (the §8 gate's input; authorizes nothing):
 - **Next**: the M121/taxi routes east (the transit completion), priced
   first; then the spur's ambient walker loops.
 
+
+— Z.ai agent, 2026-11-14
+
+## 20. Session addendum — the package verified against the code, the tree re-certified (2026-11-14)
+
+With the business package filed (§19) and the gifted-packs join merged (the
+K-line's additive wave), this session did the two things the §8 gate's input
+deserves before the owner reads it — and nothing the gate forbids (zero
+registry rows, zero geometry, zero code; the register stands at v1.79.0,
+this wave register-untouched, the W18 precedent).
+
+**(1) The claims re-verification pass** — every factual claim in
+`CATALPA-JUNCTION-BUSINESS-PACKAGE-DRAFT.md` read against the integrated
+code, one by one:
+
+- **The ten CJN rows verified exact** (`docs/data/world-registry.json`):
+  all names, heights (CJN-07's 18 m roofline), door coordinates and faces
+  match §2's tables — CJN-08's door (−400, 8) faces W, CJN-04's (−422, −24)
+  faces E, CJN-07's (−400, 26) faces W, CJN-05's (−422, −46) faces E;
+  CJN-SUB's stair row (−410, 8) faces S; all ten `built (WC1)`. The five
+  industry fronts are the five rows §2 says stay fronts.
+- **The ledger machinery verified in code**: `EconomyLedger`
+  (`src/sim/economy.ts:92`), `businessDayReport`/`monthRollDetail`
+  (`src/sim/businessOps.ts:111/189`), `BusinessState`/`businessIsOpen`
+  (`src/sim/entities.ts:92/242`), the MoneyBridge wired at
+  `src/game/Game.ts:493–498` (the package's "Game.ts:491–513" — true to the
+  wiring block), the three shipped `biz:*` precedents in
+  `src/sim/reference.ts` (rosas_deli, corner_slice, fade_king).
+- **The geography claims verified**: `catalpaSurface` x −450..−378
+  (`src/world/subway/index.ts:191`); the west wall at x −100 with the
+  "one RIDE west, never a walk" comment at `src/world/World.ts:1540` and the
+  collider the package cites at :1541; the nav graph's `NAV_BOUNDS`
+  x −100..+252 (`src/sim/nav/index.ts:37` — the docks sit outside it, §4's
+  nav claim exact); the pocket scan's grid origin x −99.75
+  (`scripts/diag-pocket-scan.mjs:47`); LRY-01 carries the `business` field
+  ("The Catalpa Freight Market (stalls — books open in a later phase)") —
+  §5's LRY-01 field precedent real; FREIGHTMKT-INT dressed and unbooked.
+- **The census numbers verified against their shipped sources**: bodega
+  inside 194 (the W14b row), records 109–110 and bakery 93–94 (the asset
+  audit's A/B table, `docs/production/asset-audit/00-FULL-GAME-ASSET-AUDIT.md`
+  §Performance A/B), diner family 239 (the W14b row's dressing-probe family);
+  the "shipped 75" is the dressing probe's 75 GLB placements.
+- **The quotes verified**: the borough package §2's "5–7 places that open
+  with books" and BUILD_STATUS's "the market and wholesalers are PLACES …
+  not ledgers" both read verbatim in their files.
+- **ONE NUMBER CORRECTED** — §3's "every slot above exists in the shipped
+  51 + 24 files": the 24 (the ABO pinned files) is true, but 51 matched no
+  manifest. The true counts, resolved at runtime from the shipped manifests:
+  `INTERIOR_FILES` 32 unique programs, `FURNITURE_FILES` 38 unique (24 ABO
+  + 14 gifted), 52 interior + 54 furniture slot entries resolving to those
+  70 pinned files. §3 now states those counts with a dated correction
+  marker. Every program §2 names exists — the correction fixes the
+  denominator, not the claim.
+
+**(2) The battery re-run on the current checkout** (`1717a59`, the
+integrated tree, this session's own legs — the same numbers the merge
+recorded, re-measured fresh): `validate-registry` OK (256 IDs, 111
+buildings, 23/23 anchors; 1 KNOWN — the recorded LRY-03 ↔ SUB-03 overlap)
+· tsc clean · vitest **1,751/1,751 (105 files)** · build OK ·
+probe-city-fabric **DRAWS 192** · probe-wc1-catalpa OK (**spawn 192 +0
+standing, spur 53, platform 23** — byte-identical with the merge's
+re-measurement; budget < 200 stands).
+
+**(3) The coordination check** — `git fetch` reads no new work from the
+other line: the only new remote branch (`feat/catalpa-junction-world`) is
+the old master-assignment pointer whose tip (`d166ba3`) is already an
+ancestor of `main`. The K-line's gifted-packs session is merged with both
+sides' records preserved; nothing upstream awaits integration.
+
+**State of the §8 gate:** the package (v1.79.0, as amended) awaits the
+owner's ruling. Nothing of CB1 exists — no registry rows, no geometry, no
+code, no interactions — and none may begin until the owner opens the gate
+(§5 gate 1). The next concrete work on this line is either CB1 (on
+approval) or the seam wave's integration duties (on the K-line agent's
+landing), whichever comes first.
 
 — Z.ai agent, 2026-11-14

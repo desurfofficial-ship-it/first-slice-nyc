@@ -122,7 +122,7 @@ describe('lane discipline — the drive lanes never touch a parked car', () => {
     const p = { x: 0, z: 0 };
     for (const t of trucks) {
       // the Gable north-curb trucks (z 42.7) ride legs[2]; the Kestrel
-      // north-curb trucks (z 3.25) ride legs[0]; the Marlow trucks have no
+      // north-curb trucks (z 3.4) ride legs[0]; the Marlow trucks have no
       // mover on their street — no lane law to test (they stay declared for
       // the pool's honesty, the one-list law).
       const onGable = t.z > 20 && t.z < 50;

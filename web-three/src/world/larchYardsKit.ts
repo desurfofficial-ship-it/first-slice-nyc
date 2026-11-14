@@ -39,6 +39,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { PAL } from '../core/palette';
 import { FABRIC, GeoPush, hash01, type FabricLedgerEntry } from './cityFabric';
 import { mulberry32 } from './dressing';
+import { PolyforkAcc, placePolyforkTruck, polyforkEnabled } from './polyforkKit';
 
 // ------------------------------------------------------------- palette ----
 
@@ -523,10 +524,10 @@ function gardens(di: LarchYardsDI): void {
  *  keep their coordinates (the PRNG's draw count must not move — the sleep
  *  is deterministic: spots 4 and 5 sleep, seed 0x1E7C1). */
 export const TRUCK_SPOTS: ReadonlyArray<{ x: number; z: number; along: 'x' | 'z'; body: number }> = [
-  { x: 107.5, z: 3.25, along: 'x', body: PAL.cream },      // Kestrel N curb (was z 2.9)
-  { x: 118,   z: 3.25, along: 'x', body: 0xb0a89c },       // Kestrel N curb (was the S curb at 127.5)
-  { x: 199,   z: 3.25, along: 'x', body: 0x9aa8b5 },       // Kestrel N curb (was z 2.9)
-  { x: 217,   z: 3.25, along: 'x', body: PAL.cream },      // Kestrel N curb (was the S curb at 206)
+  { x: 107.5, z: 3.4, along: 'x', body: PAL.cream },      // Kestrel N curb (was z 2.9)
+  { x: 118,   z: 3.4, along: 'x', body: 0xb0a89c },       // Kestrel N curb (was the S curb at 127.5)
+  { x: 199,   z: 3.4, along: 'x', body: 0x9aa8b5 },       // Kestrel N curb (was z 2.9)
+  { x: 217,   z: 3.4, along: 'x', body: PAL.cream },      // Kestrel N curb (was the S curb at 206)
   { x: 225.4, z: 28,   along: 'z', body: 0xb0a89c },       // Larch W curb — SLEEPS (the PRNG's draw 4)
   { x: 230.6, z: -26,  along: 'z', body: 0x9aa8b5 },       // Larch E curb — SLEEPS (the PRNG's draw 5)
   { x: 120,   z: 42.7, along: 'x', body: PAL.cream },      // Gable N curb (was the S curb at 37.3)
@@ -536,14 +537,32 @@ export const TRUCK_SPOTS: ReadonlyArray<{ x: number; z: number; along: 'x' | 'z'
 ];
 
 function trucks(di: LarchYardsDI): void {
-  const g = new GeoPush();
   const rng = mulberry32(0x1E7C1);
   // parked box trucks at the CURBS — clear of every walking lane (the
   // sidewalk law), clear of the bed, clear of every crossing; since W-C7 the
   // movers run the east streets, so the spots live on TRUCK_SPOTS (the north
   // curbs; busRoute declares the rendered spots' yield rects from the same
-  // list — one table, two readers).
+  // list — one table, two readers). The W-C7/merge amendment: the curb line
+  // rides z 3.4 and the declared envelopes widen to 2.7 — the polyfork
+  // delivery truck (bbox 2.62 wide) wears the same spots when the kit is ON,
+  // and both renders must keep the bus lane's air AND the yield rects' truth.
   const park = TRUCK_SPOTS;
+  if (polyforkEnabled()) {
+    // THE POLYFORK SWAP (docs/production/polyfork): the docks' box-truck
+    // placeholders wear the kit's real delivery truck at the SAME spots
+    // (rear -z, nose +z; `along` mirrors the table's axis). The rng's
+    // sleep roll consumes in the same order both branches — one spot
+    // sleeps either way, the district stays deterministic.
+    const acc = new PolyforkAcc();
+    for (const p of park) {
+      if (rng() < 0.2) continue; // one spot sleeps
+      placePolyforkTruck(acc, p.x, p.z, p.along);
+    }
+    emit(di, true, 'LarchYards_Trucks', acc.toGeometry(), true, true);
+    LEDGER(di, 'LarchYards_Trucks', 152, 1.2, 0);
+    return;
+  }
+  const g = new GeoPush();
   for (const p of park) {
     if (rng() < 0.2) continue; // one spot sleeps
     const W = 2.3;

@@ -1,0 +1,288 @@
+{
+    "id": "delivery-truck-a9537e",
+    "title": "Delivery Truck",
+    "class": "vehicle",
+    "triangles": 1528,
+    "kit": "nyc-city-kit-fbca88",
+    "free": true,
+    "plan": "free",
+    "price_usd": 0,
+    "price_note": "free: every low poly model is. The /cdn links need no account and no key (an account adds the ready-to-serve zip). The HD edition, where `hd` is not null, comes with Pro",
+    "owned": true,
+    "page": "https://polyfork.dev/asset/delivery-truck-a9537e",
+    "thumbnail": "https://polyfork.dev/files/delivery-truck-a9537e/renders/hero.png",
+    "preview_glb": "https://polyfork.dev/cdn/delivery-truck-a9537e-preview.glb",
+    "hd": {
+        "plan": "pro",
+        "page": "https://polyfork.dev/asset/delivery-truck-a9537e?edition=hd",
+        "kind": "its own high poly program with pbr materials",
+        "triangles": 5654,
+        "preview_glb": "https://polyfork.dev/cdn/delivery-truck-a9537e-hd-preview.glb",
+        "files": "https://polyfork.dev/dl/delivery-truck-a9537e-hd.zip (Pro, with a key)"
+    },
+    "preview_triangles": 1528,
+    "preview_fidelity": 1,
+    "preview_rigged": true,
+    "preview_rig": "pivots",
+    "preview_pivots": [
+        "steer-fl",
+        "wheel-fl",
+        "steer-fr",
+        "wheel-fr",
+        "wheel-rl",
+        "wheel-rr"
+    ],
+    "preview_note": "This preview keeps its pivots named (preview_pivots), so they turn as rigged_parts describes; its normals are stripped for flat shading. This model is free, so build with `download.glb`: the authored file, normals and node names as built.",
+    "has_rig": true,
+    "remixable": true,
+    "has_night": true,
+    "has_decals": false,
+    "has_ik": false,
+    "ik_type": null,
+    "has_skeleton": false,
+    "size_m": {
+        "x": 2.62,
+        "y": 2.7,
+        "z": 6
+    },
+    "origin_y": 0,
+    "mass_kg": 8000,
+    "download": {
+        "glb": "https://polyfork.dev/cdn/delivery-truck-a9537e.glb",
+        "mjs": "https://polyfork.dev/cdn/delivery-truck-a9537e.mjs",
+        "auth": "none"
+    },
+    "export_formats": {
+        "fbx": {
+            "url": "https://polyfork.dev/dl/delivery-truck-a9537e.fbx",
+            "for": "Unity, Unreal, Maya, 3ds Max",
+            "available": true
+        },
+        "usdz": {
+            "url": "https://polyfork.dev/dl/delivery-truck-a9537e.usdz",
+            "for": "iOS AR Quick Look, Omniverse; with UsdPhysics collision and mass",
+            "available": true
+        },
+        "usda": {
+            "url": "https://polyfork.dev/dl/delivery-truck-a9537e.usda",
+            "for": "Isaac Sim, Omniverse, Blender, usdview; with UsdPhysics collision and mass",
+            "available": true
+        },
+        "obj": {
+            "url": "https://polyfork.dev/dl/delivery-truck-a9537e.obj",
+            "for": "universal, geometry only, no pivots",
+            "available": true,
+            "also_fetch": "https://polyfork.dev/dl/delivery-truck-a9537e.mtl",
+            "also_fetch_note": "save it beside the .obj as delivery-truck-a9537e.mtl: the model names that exact file and imports white without it"
+        }
+    },
+    "export_note": "vertex colours become NAMED MATERIALS on export, named after this asset's own colour knobs; a plain format conversion would arrive white, because only three.js reads our COLOR_0. Built on first request (about a second), cached after. This model is free: these download with no account and no key (only its .mjs source asks for a free account).",
+    "night": {
+        "frontLamps": {
+            "color": "#fff1cf",
+            "intensity": 1,
+            "albedo": "#e8a825",
+            "findable": true,
+            "describe": "the lens cluster at each end of the grille recess burning as the truck's headlamps \u2014 hard, near-white with a warm cast; the two cab side markers share the zone and glow with them"
+        },
+        "tailLamps": {
+            "color": "#ff3a2c",
+            "intensity": 0.55,
+            "albedo": "#a34a38",
+            "findable": true,
+            "describe": "the two outboard rear lenses glowing dim red on the dark rear light panel"
+        },
+        "rearLamps": {
+            "color": "#ffa62b",
+            "intensity": 0.5,
+            "albedo": "#e6a623",
+            "findable": true,
+            "describe": "the two inboard rear indicators glowing soft amber, dimmer than the forward lamps"
+        }
+    },
+    "night_note": "each zone is found by its ALBEDO in COLOR_0: match those vertices exactly, make them emissive at the zone colour and intensity, and drop your scene lights. That is the whole night look.",
+    "params_url": "https://polyfork.dev/cdn/delivery-truck-a9537e-params.json",
+    "real_scale": {
+        "at_real_size": true,
+        "real_m": [
+            6,
+            8.5
+        ],
+        "real_dimension": "length",
+        "as_built_m": 6,
+        "scale_to_real": 1,
+        "note": "built at real size: its largest dimension, 6 m, is inside the typical real 6-8.5 m (an estimate)."
+    },
+    "physics": {
+        "mass_kg": 8000,
+        "mass_source": "estimated",
+        "material": "metal",
+        "body": "dynamic",
+        "dimensions_m": {
+            "x": 2.62,
+            "y": 2.7,
+            "z": 6
+        },
+        "up_axis": "Y",
+        "meters_per_unit": 1,
+        "volume_m3": 24.792401,
+        "collision": {
+            "approximation": "convexDecomposition",
+            "parts": 16,
+            "colliders_url": "https://polyfork.dev/cdn/delivery-truck-a9537e-colliders.json"
+        },
+        "note": "For the default knob settings; a size knob changes all of it. dimensions_m and the colliders are measured from the model; mass_kg and material are an estimate of what the real object weighs. body \"static\" means fixed in place (give it a collider, no rigid body); \"dynamic\" means it moves. collision.approximation uses UsdPhysics terms: \"convexHull\" = one hull is a good fit, \"convexDecomposition\" = use the per-part hulls in colliders_url (the one hull would fill a gap, like the space under a table). Model space, metres, Y up, origin as the model ships."
+    },
+    "simready_metadata": {
+        "simready_metadata_mass": 8000,
+        "simready_metadata_rigid_body_count": 1,
+        "usd_dimensions": [
+            2.62,
+            6,
+            2.7
+        ],
+        "usd_up_axis": "Z",
+        "usd_meters_per_unit": 1,
+        "simready_metadata_validation__profile": null
+    },
+    "materials": 1,
+    "draw_calls": 5,
+    "description": "City delivery box truck, 6m long, off white cab, gray box body with a rear roll door as relief.",
+    "palette": [
+        {
+            "hex": "#3f4247",
+            "share": 0.471
+        },
+        {
+            "hex": "#ece5d3",
+            "share": 0.128
+        },
+        {
+            "hex": "#3b3e43",
+            "share": 0.105
+        },
+        {
+            "hex": "#b1aa9c",
+            "share": 0.084
+        },
+        {
+            "hex": "#b7b0a2",
+            "share": 0.079
+        },
+        {
+            "hex": "#b5aea0",
+            "share": 0.047
+        }
+    ],
+    "style": "low-poly, flat-shaded vertex colors, no textures, single shared material, so any set of these merges to one draw call; shares palette and scale with its kit",
+    "origin": "ground level (minY = 0): the model sits on y=0 as-is",
+    "rigged_parts": {
+        "wheel-fl": {
+            "axis": "x",
+            "range": [
+                0,
+                135
+            ]
+        },
+        "wheel-fr": {
+            "axis": "x",
+            "range": [
+                0,
+                135
+            ]
+        },
+        "wheel-rl": {
+            "axis": "x",
+            "range": [
+                0,
+                135
+            ]
+        },
+        "wheel-rr": {
+            "axis": "x",
+            "range": [
+                0,
+                135
+            ]
+        },
+        "steer-fl": {
+            "axis": "y",
+            "range": [
+                0,
+                32
+            ]
+        },
+        "steer-fr": {
+            "axis": "y",
+            "range": [
+                0,
+                32
+            ]
+        }
+    },
+    "detachable_parts": [],
+    "animation": "rigged parts are named groups with the pivot at the hinge/axle: obj.getObjectByName(part) then rotation[axis] (rotate, degrees) or position[axis] (slide, meters). 0 is the pose the model is built in, which is not always shut: `range` is all the travel the part has from there, and outside it the part passes through the body. Whether the range opens or closes is in that knob's describe in params_url",
+    "published_at": "2026-07-22 07:44:31",
+    "renders": [
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/back.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/close.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/compare.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/detail.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/front.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/hero-crop.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/hero.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/left.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/low-back.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/low.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/night-back.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/night-front.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/pose-steer-fl.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/pose-steer-fr.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/pose-wheel-fl.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/pose-wheel-fr.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/pose-wheel-rl.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/pose-wheel-rr.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/proofs.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/right.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/top.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/under.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/variant-airDeflector-true.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/variant-boxHeight-0.8.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/variant-boxHeight-1.15.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/variant-boxLength-0.8.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/variant-boxLength-1.15.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/variant-colorway-express-red.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/variant-colorway-fleet-green.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/variant-colorway-parcel-brown.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/variant-colorway-taxi-yellow.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/variant-wheelFacets-12.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/variant-wheelFacets-8.png",
+        "https://polyfork.dev/files/delivery-truck-a9537e/renders/views.png"
+    ],
+    "license": "Mesh files (GLB, FBX, USD, OBJ): CC BY 4.0 with the line in `credit`, or the Polyfork licence with no credit and no redistribution, your choice. The .mjs source and the HD edition: Polyfork licence only, commercial use, no attribution, no redistribution. https://polyfork.dev/licensing",
+    "credit": "Delivery Truck by Polyfork (https://polyfork.dev/asset/delivery-truck-a9537e), CC BY 4.0",
+    "access": {
+        "as": "anonymous",
+        "remix_bakes_per_hour": 40,
+        "remix_bakes_left_this_hour": 40,
+        "remix_note": "The budget is on generating NEW geometry. Variations anyone has already baked are served to everybody and never counted, so re-fetching a variant you or anyone else has made costs nothing.",
+        "remix_bakes_per_month": 100,
+        "remix_bakes_left_this_month": 100,
+        "remix_allowance_resets": "2026-12-01",
+        "remix_allowance_note": "Anonymous callers are counted per IP address, so other sessions from the same address share this. A free account raises it to 300 a WEEK on its own budget, and costs an email address.",
+        "a_free_account_adds": {
+            "how": "Authorization: Bearer <key>, created at https://polyfork.dev/account. Costs an email address.",
+            "remix_bakes_per_hour": 100,
+            "remix_bakes_per_week": 300,
+            "downloads": "every low poly model's .mjs program and a ready-to-serve zip from /dl, and any kit as one zip (/dl/kit-<id>.zip). The .glb, .fbx, .usdz, .usda and .obj need no key"
+        },
+        "pro_adds": {
+            "url": "https://polyfork.dev/pricing",
+            "usd_per_year": 149,
+            "hd_editions": "the HD edition of a model: the same program built finer, high poly with PBR materials generated in code, every knob still working. 1,848 models have one. Free accounts get its public preview (/cdn/<id>-hd-preview.glb) only",
+            "cdn": "a per-account /c/<token>/ path for the HD files you can hotlink from a shipped build; it keeps up when an asset is rebuilt, and the token is not the API key",
+            "remix_bakes_per_hour": 900,
+            "remix_bakes_per_week": "uncapped: a free account gets a weekly allowance, Pro does not"
+        }
+    }
+}

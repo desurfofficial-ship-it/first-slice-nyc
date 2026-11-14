@@ -54,12 +54,18 @@ readers; the south curb is the cab's road). probe-w4-bus 14/14 (the east
 reach max x 228, the plaza dwell at 160, 2 laps); probe-taxi-locate
 witnessed the east crossing at x 106.5. DRAWS byte-identical (192).
 
-**The next priced wave: the spur/Kestrel East ambient walker loops** — the
-small safe alternative §2 named: 2 ambient walker loops on the spur/Kestrel
-East (the ped-commute roster's own grammar; the lanes already exist). Price
-it from the shipped ledger first (the DEC-2 law) — the walkers are +0
-draws (the roster is dynamic), the nav lanes exist, the work is the two
-roster entries + their commute pins.
+**~~The spur/Kestrel East ambient walker loops~~ — DONE (WP-EAST, register
+v1.82.0, the concurrent line):** the spur walker + the Kestrel East local
+rode the same integration window this wave merged with; their sight-law
+pricing and band-core growth stand on the merged tree.
+
+**§2's ledger is now clear.** What remains is not buildable by an agent
+unilaterally: the Catalpa business books are the §8-gated CB1 (the owner's
+ruling stands open — the package filed, two dated amendments, nothing
+begins until it opens); the fenestra mip re-audit and the full-scale E2E
+are the real-hardware carries. The next priced wave needs scoping against
+complete-world-master-plan.md's milestones with the DEC-2 row first — do
+not start without it.
 
 ## 3. The laws this build added (they bind you)
 
@@ -112,8 +118,8 @@ roster entries + their commute pins.
 | Item | Where it stands |
 |---|---|
 | Catalpa business books | Phase-6 economy machinery, later phase (the design package's own scope) |
-| Ambient walker loops east | 2 new loops on the spur/Kestrel East — small, safe |
-| The M121/taxi routes east | **DONE (W-C7, register v1.81.0)** — the loop's east leg, BUS-05 the Junction Plaza bay, the taxi's east reach to the east wall; the parked trucks moved to the north curbs with their yield rects declared |
+| Ambient walker loops east | **DONE (WP-EAST, register v1.82.0, the concurrent line)** — the spur walker + the Kestrel East local, the sight law pricing them, the band core grown to x −98..250 |
+| The M121/taxi routes east | **DONE (W-C7, register v1.83.0, renumbered from v1.81.0 on the integration merge)** — the loop's east leg, BUS-05 the Junction Plaza bay, the taxi's east reach to the east wall; the parked trucks moved to the north curbs with their yield rects declared (both renders covered — the polyfork beam rides the same spots) |
 | The Map sketch growth | Deliberately unchanged (the Roam law; the first-session frame) |
 | The fenestra atlas mip re-audit | Carried from the shipped ledger (honest-open; needs a real GPU) |
 | The walk-legs sweep + full-scale E2E | Exceed this box's wall budget — the documented dilation class; run on real hardware |
@@ -141,3 +147,24 @@ its phase row's content. Follow the same discipline.
 — Lead Open-World Engineer agent, 2026-11-14
 
 > **CORRECTION (2026-11-14, the registry-discipline repair — from the Catalpa/Junction line):** the west-reach rows restore their canon prefix `CDK-* → CJN-*` (DEC-13 accepted the CJN prefix as canon; the registry's own law says IDs are permanent; on the integrated tree the east rows are LRY-*, so the 2026-11-13 collision that forced the CDK rename no longer exists). Code, tests, the validator's pin block and the probes re-pointed in the same repair; zero geometry moved. Schema completion rides with it: the four BLK-LRY-* blocks gain the bbox fields the validator's block-membership check reads (computed from their own contained buildings); SUB-03's dangling `BLK-CJN-N` re-points to the appended `BLK-LRY-STN` block row; `STR-SPUR` carries the `pedestrianized` flag the park-on-road check now reads (the Yards Plaza and the Spur Gardens stand on the track bed by design — the control-house-exempt precedent). **ONE KNOWN DEFECT recorded for this district's next session: OVERLAP LRY-03 <-> SUB-03 (5.00 x 1.00 m — the Spur Lofts' southwest corner over the station house's northeast corner).** The validator prints it as KNOWN and does not fail; the fix (a 1 m footprint trim on one row) is yours when you next build here — note your handover §2 step 1 already touches SUB-03. The repair record: the registry's meta corrections + register row v1.78.0.
+
+> **ADDENDUM (2026-11-14, the Catalpa/Junction line — the §8 gate's input verified):** the Catalpa Junction **business package is FILED** ([CATALPA-JUNCTION-BUSINESS-PACKAGE-DRAFT.md](../production/CATALPA-JUNCTION-BUSINESS-PACKAGE-DRAFT.md), register v1.79.0 — docs-only, authorizes nothing) and **awaits the owner's §8 ruling**: four first businesses with books (the provisions store CJN-08, the supply floor CJN-04, the book floor CJN-07, the lunch counter CJN-05), each priced, each riding shipped machinery. **Nothing of CB1 exists** — no registry rows, no geometry, no code — and none may begin until the owner opens the gate. The package's factual claims were re-verified against the integrated code line by line: the ten CJN rows exact (names, heights, door coordinates and faces), the Phase-6 ledger machinery at its cited lines, `catalpaSurface` x −450..−378, the west wall x −100, the nav graph's `NAV_BOUNDS` x −100..+252 (the docks sit outside it), the pocket scan's x −99.75 origin, LRY-01's `business` field, the census numbers (bodega 194, records 109–110, bakery 93–94, diner 239), and both quoted sources — **one number corrected** (§3's slot-library count; the true manifest counts are 32 interior programs + 24 ABO + 14 gifted). The battery re-certified fresh on the integrated tree at `1717a59`: validate-registry OK (256 IDs, 111 buildings, 23/23 anchors; 1 KNOWN — the recorded LRY-03 ↔ SUB-03 overlap) · tsc clean · vitest 1,751/1,751 (105 files) · build OK · probe-city-fabric DRAWS 192 · probe-wc1-catalpa OK (spawn 192 +0 standing, spur 53, platform 23). Reading note for §1 above: its body was written pre-repair — "20 building rows (CJN-*)" for this district's masses reads as **LRY-***; the canon map after the repair is **Alder Heights' canon rows + the Larch Yards LRY-* + Catalpa Junction CJN-*** (the west-reach docks among them). The owner's two gifted furniture packs wear 14 new interior slots additively (the K-line's wave, merged): the book floor may take the gifted bookshelf (`sc_bookshelf`) under the package's dated amendment. Coordination: no new work upstream — the remote's `feat/catalpa-junction-world` is the old master-assignment pointer (tip `d166ba3`), already an ancestor of `main`.
+
+> **ADDENDUM (2026-11-14, the Polyfork streets wave — register v1.80.0):**
+> the owner's asset directive landed between sessions: Polyfork's NYC
+> City Kit is now a sanctioned source, TEN parts are in the world (the
+> Alder sidewalk furniture, the Catalpa dock fleet, the Larch truck
+> swap) as build-time vertex data riding the district bake at +0 draws.
+> Read docs/production/polyfork/01..04 before touching
+> polyforkData.ts (GENERATED — rebuild with
+> `python3 tools3d/polyfork/extract_polyfork.py`; byte-identical) or
+> polyforkKit.ts (the placements' laws are guard-tested in
+> tests/polyfork.test.ts — the north lane law, the cart-corner apron,
+> the fleet's bollard clearances). `?polyfork=0` is the A/B seam. The
+> kit's remaining 72 parts stay catalogued for future districts —
+> buildings and characters are REJECTED classes (the A-3 law; the sim
+> boundary). The fenestra system re-certified on this tree the same
+> day (probe-fenestra ALL PASS, 22 checks; the expansion decision
+> recorded in the fenestra doc §9). §2's next task is now the
+> M121/taxi routes east (the W-C6 wave completed the eastbound ride and
+> re-pointed §2 itself).

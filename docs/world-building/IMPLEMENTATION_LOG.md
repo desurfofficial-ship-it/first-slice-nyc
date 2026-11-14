@@ -223,8 +223,10 @@ probe-tss-road-clear LAW HOLDS · probe-nav 9/9 · diag-pocket-scan
 deterministic (one component x −98..250, traps 18 unchanged, colliders
 1018 → 1233 the honest +215 below grade).
 
+> **ADDENDUM (2026-11-14, the Catalpa/Junction line — the §8 gate's input verified):** the Catalpa Junction **business package is FILED** ([CATALPA-JUNCTION-BUSINESS-PACKAGE-DRAFT.md](../production/CATALPA-JUNCTION-BUSINESS-PACKAGE-DRAFT.md), register v1.79.0 — docs-only, authorizes nothing) and **awaits the owner's §8 ruling**: four first businesses with books (the provisions store CJN-08, the supply floor CJN-04, the book floor CJN-07, the lunch counter CJN-05), each priced, each riding shipped machinery. **Nothing of CB1 exists** — no registry rows, no geometry, no code — and none may begin until the owner opens the gate. The package's factual claims were re-verified against the integrated code line by line: the ten CJN rows exact (names, heights, door coordinates and faces), the Phase-6 ledger machinery at its cited lines, `catalpaSurface` x −450..−378, the west wall x −100, the nav graph's `NAV_BOUNDS` x −100..+252 (the docks sit outside it), the pocket scan's x −99.75 origin, LRY-01's `business` field, the census numbers (bodega 194, records 109–110, bakery 93–94, diner 239), and both quoted sources — **one number corrected** (§3's slot-library count; the true manifest counts are 32 interior programs + 24 ABO + 14 gifted). The battery re-certified fresh on the integrated tree at `1717a59`: validate-registry OK (256 IDs, 111 buildings, 23/23 anchors; 1 KNOWN — the recorded LRY-03 ↔ SUB-03 overlap) · tsc clean · vitest 1,751/1,751 (105 files) · build OK · probe-city-fabric DRAWS 192 · probe-wc1-catalpa OK (spawn 192 +0 standing, spur 53, platform 23). Reading note for §1 above: its body was written pre-repair — "20 building rows (CJN-*)" for this district's masses reads as **LRY-***; the canon map after the repair is **Alder Heights' canon rows + the Larch Yards LRY-* + Catalpa Junction CJN-*** (the west-reach docks among them). The owner's two gifted furniture packs wear 14 new interior slots additively (the K-line's wave, merged): the book floor may take the gifted bookshelf (`sc_bookshelf`) under the package's dated amendment. Coordination: no new work upstream — the remote's `feat/catalpa-junction-world` is the old master-assignment pointer (tip `d166ba3`), already an ancestor of `main`.
 
-## W-C7 — the M121/taxi routes east (the handover's exact next priced wave, register v1.81.0)
+
+## W-C7 — the M121/taxi routes east (the handover's exact next priced wave, register v1.83.0 — renumbered from v1.81.0 on the integration merge; the concurrent line's Polyfork v1.81.0 and WP-EAST v1.82.0 took their slots)
 
 AGENT_HANDOVER §2's task executed verbatim, its own priced estimate riding
 first (the DEC-2 law), built tests-first: 9 net new/rewritten pins watched
@@ -290,3 +292,11 @@ carries: probe-world-sim's "no report" FAIL reproduced identically on the
 base commit `3ded020` (the box class); the partial E2E's ladder-grab fails
 reproduce on the base commit — the full-scale E2E stays the faster-box
 follow-up.
+
+**The merge amendment (the polyfork base):** their trucks() polyfork branch reads this
+wave's TRUCK_SPOTS — one table, two readers holds through the third integration; the curb
+line rides z 3.4 and the declared envelopes widen to 2.7 because the polyfork delivery
+truck's 2.62 beam wears the same spots when the kit is ON (both renders keep the bus
+lane's air AND the yield rects' truth — a 2.3 rect under a 2.62 body would leave 0.16 m
+undeclared). Their WP-EAST walker loops joined the same tree.
+

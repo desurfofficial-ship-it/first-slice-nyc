@@ -4345,8 +4345,90 @@ Work Log:
 Stage Summary:
 - The K line is a real three-station line now: the westbound teach and the eastbound hop both ride, the transfer car at Alder Heights hangs both doors, and the Larch Yards' front door is the headhouse that always promised a stair. The registry grew its below-grade band honestly (SUB-03-PLAT, the SUB-TS pattern), the merged tree's block-law gaps got their repair, and the pocket scan's one-component law held throughout. Register v1.78.0.
 
+## 2026-11-14 — Z Agent: the POLYFORK STREETS WAVE — the NYC City Kit's selected parts enter as build-time vertex data (register v1.81.0, renumbered v1.80.0 → v1.81.0 at the W-C6 re-integration merge — the monotonic-ledger law)
 
-## 2026-11-14 — Z Agent: W-C7 — the M121/taxi routes east: the handover's exact next priced wave (the two districts become one transit system)
+Task ID: AGENT-POLYFORK-STREETS
+Task: the owner's 2026-11-14 directive — study Polyfork's NYC City Kit
+(82 parts), select what complements the shipped world, integrate it,
+verify it in the running game; no blind imports, reuse first, the kit
+must not dictate the look.
+
+Work Log:
+- Read the kit's developer instructions + kit API (82 parts inventoried:
+  triangles, real-world size_m, palette, has_night, credit); inspected
+  16 GLBs at the byte level (face-split meshes, sequential indices,
+  flat per-face COLOR_0 in linear, zero textures — the exact shape the
+  world's vertex-color bake wants).
+- Audited the shipped world's prop classes first (props.ts,
+  streetAssets.ts, nycKit.ts, cityFabric.ts): the gaps were sidewalk
+  infrastructure, real dock vehicles, and the Catalpa docks' emptiness.
+  Six candidate classes rejected by the reuse law (tree, manhole, cab,
+  cruiser/fire-engine/bus/hatch/town-car, all 20 kit buildings, all 10
+  kit characters); ten parts selected.
+- Built tools3d/polyfork/extract_polyfork.py (deterministic GLB →
+  vertex-data extractor: node matrices both encodings, atmosphere-node
+  exclusion, invariants asserted, re-center, uint16/uint8 quantization)
+  → web-three/src/world/polyforkData.ts (277 KB / 10 assets / 9,978
+  tris, byte-identical rebuilds) → web-three/src/world/polyforkKit.ts
+  (decoder + GeoPush-shaped accumulator + the re-centering emit +
+  the ?polyfork=0 module-init seam).
+- Found and fixed on the way: the extractor's flat-slice interleaved
+  colors into positions (the probe's evidence shots showed rainbow
+  shards — the A/B shots caught it; the per-tri split + a ground-truth
+  diff against the GLB pinned it), and the zone bake's missing
+  vertexColors capture would have baked the fleet white (the main
+  bakeStatics' law mirrored into the zone edition).
+- Placed: the Alder street kit (three baked batches, eight solids —
+  the guard test caught the first draft's north curb meter violating
+  the minZ ≥ 7.28 lane law and it moved south), the Catalpa dock fleet
+  (five vehicles backed into the dock faces, one zone-owned mesh,
+  bollard/slab/kiosk clearances guard-tested), the Larch truck swap
+  (same spots, same rng order, procedural boxes behind the seam).
+- Evidence: four before/after pairs (shots/polyfork/) — the fleet at
+  the dock faces, the kit truck on Kestrel's curb, the newsstand +
+  meters line, the payphone at Rosa's.
+
+Stage Summary:
+- The kit rides the bake: spawn 192 draws kit ON and OFF (the +0
+  standing law, measured A/B), the Catalpa zone batch +9,186 fleet
+  tris with batch count unchanged, scene +27,244 tris total, 1,768
+  tests green (17 new guards), all district probes byte-identical,
+  licences credited three ways. The docks stopped being empty; the
+  block's furniture lines closed; the placeholder trucks became real.
+
+## 2026-11-14 — Z Agent: WP-EAST — the east pair, the sight law, and the grown band core (register v1.82.0)
+
+Task ID: WP-EAST-AMBIENT (AGENT_HANDOVER §4's own "2 new loops on the
+spur/Kestrel East — small, safe", taken after the M121/taxi routes east
+were re-priced as their own session).
+
+Work Log:
+- Authored the two loops on the registry's own ground truth: the spur
+  walker (west walk down, east walk back, the timber crossings at z
+  0/−40 the only rail contacts, lanes a metre off the column lines) and
+  the Kestrel East local (the north walk's out-and-back, z 6.1–6.75,
+  x 102..144). Two looks (the Yards' workwear read), two beat pairs,
+  the roles table's east 'street' pair.
+- Grew the feet law: Kestrel East + the spur join the road-rect list
+  (flush bed feet); the bow circles grew the viaduct's twelve columns,
+  the crane pedestal, the plaza benches, the parked truck.
+- Found and fixed on the way (the wave's own catch): the W7-era band
+  core (x ±100) INVERTED every east band — the in-engine dump showed
+  both east walkers pinned at the x 100 seam (minX 147.4 > maxX 100,
+  the garden-tender frozen-walker class exactly). bandOfLoop's core
+  grew to the walked extent x −98..250; the regression is pinned in
+  tests/crowd.test.ts (upright east bands + the far core).
+- Added the sight law: a walker beyond SIGHT_M hides (render only — the
+  sim runs on), so the east pair never prices a spawn frame; pinned by
+  the far-hide/near-show guard with the body staying the truth.
+
+Stage Summary:
+- The east districts carry their own ambient floor now: a walker on the
+  freight bed between the viaduct's columns, a local on the Kestrel East
+  walk with the crane behind — both evidence-shot, both law-pinned, the
+  spawn census byte-identical, 1,783 tests green.
+
+## 2026-11-14 — Z Agent: W-C7 — the M121/taxi routes east: the handover's exact next priced wave (the two districts become one transit system; register v1.83.0 — renumbered from v1.81.0 on the integration merge)
 
 Task ID: W-C7-m121-taxi-east (AGENT_HANDOVER §2's own task, executed verbatim; the handover's own priced estimate rode first — the DEC-2 law — and the register row carries estimate → measured).
 
@@ -4361,3 +4443,13 @@ Work Log:
 
 Stage Summary:
 - The two districts are one transit system now: the M121 serves the Junction Plaza bay (the bus parks inside the paint while the plaza's crane and string lights stand over it), the cab roams Kestrel East to the east wall, and the kit's own "no yield debt" note is paid with one table and two readers. The registry grew BUS-05 and the W-C7 phase row honestly; the draw census stands byte-identical at 192. Register v1.81.0.
+
+## 2026-11-14 — Z Agent: the W-C7 integration — the concurrent line's Polyfork + WP-EAST waves join the M121/taxi tree (the third east integration)
+
+Work Log:
+- The push found the remote moved (bcbf32c — their WP-EAST walker loops, register v1.82.0; beneath it the Polyfork streets wave, renumbered v1.81.0, and the claims-verification merges): the monotonic-ledger law renumbers this wave's row v1.81.0 → v1.83.0 (the C3-wave/TSS-PROD precedent, the RENUMBERED annotation on the row).
+- THE MERGE RESOLUTIONS: the kit's trucks() — their polyfork swap branch reads this wave's TRUCK_SPOTS (one table, two readers holds through the third integration); the curb line rides z 3.4 and the declared envelopes widen 2.3 → 2.7 because the polyfork delivery truck's 2.62 beam wears the same spots when the kit is ON (a 2.3 rect under a 2.62 body would leave 0.16 m undeclared — both renders keep the bus lane's air AND the yield rects' truth); the docs both-sides (their sessions first, the W-C7 wave last — the d6aa2a1 precedent); the register: their v1.81.0/v1.82.0 stand, the W-C7 row renumbered on top; the handover §2/§4 both-tasks-DONE (the coordination closed loop: they took §4's walker loops while this line took §2's transit completion — both shipped in one window; §2's ledger is now clear: what remains is the §8-gated CB1, the real-hardware carries, and the next wave's own scoping).
+- THE MERGED-TREE BATTERY: validate-registry OK (258 IDs, 112 buildings, 23/23 anchors) · tsc clean · vitest 1,792/1,792 (106 files — the polyfork suite's 19 join with no seam) · build OK · probe-city-fabric DRAWS 192 (byte-identical through the third integration) · probe-w4-bus 14/14 (identical verdicts — the east reach max x 228, the plaza dwell at 160, 2 laps in 204 s sim) · probe-taxi-locate the east crossing at x 106.5 · probe-polyfork ALL PASS (kit ON/OFF spawn 192 both) · probe-nav 9/9 · probe-integration 0 errors 8/8 · probe-wc1-catalpa OK (spawn 192 +0, spur 53, platform 23) · probe-subway 45/46 (the documented baseline carry) · diag-pocket-scan one component x −98.25..250.25 (88,695 cells — their band-core growth), traps 19 unchanged, colliders 1,258 (their waves' +15; this wave's +0 stands).
+
+Stage Summary:
+- One tree, both §2/§4 tasks shipped: the M121/taxi east (this line) and the ambient walker loops (their line), the polyfork kit's trucks wearing the same north-curb spots the yield rects declare. The two districts are one transit system with a lived-in street floor. Register v1.83.0.

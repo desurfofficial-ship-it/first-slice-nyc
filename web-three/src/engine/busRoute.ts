@@ -105,15 +105,17 @@ export const PARKED_CAR_RECTS: ReadonlyArray<ParkedRect> = [
   { x: 43, z: 25, alongZ: false },        // W2 strip stall west
   // ---- the W-C7 east box trucks (larchYardsKit TRUCK_SPOTS, moved to the
   // north curbs: the south curb is the cab's road; z 3.25 clears the bus
-  // lane by 15 cm; the two sleeping Larch spots carry NO rect) -------------
-  { x: 107.5, z: 3.25, alongZ: false, len: 7.0, wid: 2.3, truck: true }, // Kestrel N curb
-  { x: 118,   z: 3.25, alongZ: false, len: 7.0, wid: 2.3, truck: true }, // Kestrel N curb (was the south curb at 127.5 — the cab's lane)
-  { x: 199,   z: 3.25, alongZ: false, len: 7.0, wid: 2.3, truck: true }, // Kestrel N curb
-  { x: 217,   z: 3.25, alongZ: false, len: 7.0, wid: 2.3, truck: true }, // Kestrel N curb (was the south curb at 206 — the cab's lane)
-  { x: 120,   z: 42.7, alongZ: false, len: 7.0, wid: 2.3, truck: true }, // Gable N curb (was the south curb at 37.3 — the bus's eastbound lane)
-  { x: 206,   z: 42.7, alongZ: false, len: 7.0, wid: 2.3, truck: true }, // Gable N curb (shipped)
-  { x: 188,   z: -42.7, alongZ: false, len: 7.0, wid: 2.3, truck: true },// Marlow S curb (no mover on Marlow)
-  { x: 232,   z: -37.3, alongZ: false, len: 7.0, wid: 2.3, truck: true },// Marlow N curb (no mover on Marlow)
+  // lane's air with BOTH renders covered (the placeholder 2.3 and the
+  // polyfork kit's 2.62 beam — the merge amendment: z 3.4 / wid 2.7); the
+  // two sleeping Larch spots carry NO rect) -------------
+  { x: 107.5, z: 3.4, alongZ: false, len: 7.0, wid: 2.7, truck: true }, // Kestrel N curb
+  { x: 118,   z: 3.4, alongZ: false, len: 7.0, wid: 2.7, truck: true }, // Kestrel N curb (was the south curb at 127.5 — the cab's lane)
+  { x: 199,   z: 3.4, alongZ: false, len: 7.0, wid: 2.7, truck: true }, // Kestrel N curb
+  { x: 217,   z: 3.4, alongZ: false, len: 7.0, wid: 2.7, truck: true }, // Kestrel N curb (was the south curb at 206 — the cab's lane)
+  { x: 120,   z: 42.7, alongZ: false, len: 7.0, wid: 2.7, truck: true }, // Gable N curb (was the south curb at 37.3 — the bus's eastbound lane)
+  { x: 206,   z: 42.7, alongZ: false, len: 7.0, wid: 2.7, truck: true }, // Gable N curb (shipped)
+  { x: 188,   z: -42.7, alongZ: false, len: 7.0, wid: 2.7, truck: true },// Marlow S curb (no mover on Marlow)
+  { x: 232,   z: -37.3, alongZ: false, len: 7.0, wid: 2.7, truck: true },// Marlow N curb (no mover on Marlow)
 ];
 
 /** Parked vehicle footprint in world AABB (alongX: len in x; alongZ: len in

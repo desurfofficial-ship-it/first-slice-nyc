@@ -1,0 +1,227 @@
+{
+    "id": "fire-alarm-call-box-56d332",
+    "title": "Fire Alarm Call Box",
+    "class": "prop",
+    "triangles": 730,
+    "kit": "nyc-city-kit-fbca88",
+    "free": true,
+    "plan": "free",
+    "price_usd": 0,
+    "price_note": "free: every low poly model is. The /cdn links need no account and no key (an account adds the ready-to-serve zip). The HD edition, where `hd` is not null, comes with Pro",
+    "owned": true,
+    "page": "https://polyfork.dev/asset/fire-alarm-call-box-56d332",
+    "thumbnail": "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/hero.png",
+    "preview_glb": "https://polyfork.dev/cdn/fire-alarm-call-box-56d332-preview.glb",
+    "hd": {
+        "plan": "pro",
+        "page": "https://polyfork.dev/asset/fire-alarm-call-box-56d332?edition=hd",
+        "kind": "its own high poly program with pbr materials",
+        "triangles": 2142,
+        "preview_glb": "https://polyfork.dev/cdn/fire-alarm-call-box-56d332-hd-preview.glb",
+        "files": "https://polyfork.dev/dl/fire-alarm-call-box-56d332-hd.zip (Pro, with a key)"
+    },
+    "preview_triangles": 730,
+    "preview_fidelity": 1,
+    "preview_rigged": true,
+    "preview_rig": "pivots",
+    "preview_pivots": [
+        "door"
+    ],
+    "preview_note": "This preview keeps its pivots named (preview_pivots), so they turn as rigged_parts describes; its normals are stripped for flat shading. This model is free, so build with `download.glb`: the authored file, normals and node names as built.",
+    "has_rig": true,
+    "remixable": true,
+    "has_night": true,
+    "has_decals": true,
+    "has_ik": false,
+    "ik_type": null,
+    "has_skeleton": false,
+    "size_m": {
+        "x": 0.58,
+        "y": 2.48,
+        "z": 0.58
+    },
+    "origin_y": 0,
+    "mass_kg": 2500,
+    "download": {
+        "glb": "https://polyfork.dev/cdn/fire-alarm-call-box-56d332.glb",
+        "mjs": "https://polyfork.dev/cdn/fire-alarm-call-box-56d332.mjs",
+        "auth": "none"
+    },
+    "export_formats": {
+        "fbx": {
+            "url": "https://polyfork.dev/dl/fire-alarm-call-box-56d332.fbx",
+            "for": "Unity, Unreal, Maya, 3ds Max",
+            "available": true
+        },
+        "usdz": {
+            "url": "https://polyfork.dev/dl/fire-alarm-call-box-56d332.usdz",
+            "for": "iOS AR Quick Look, Omniverse; with UsdPhysics collision and mass",
+            "available": true
+        },
+        "usda": {
+            "url": "https://polyfork.dev/dl/fire-alarm-call-box-56d332.usda",
+            "for": "Isaac Sim, Omniverse, Blender, usdview; with UsdPhysics collision and mass",
+            "available": true
+        },
+        "obj": {
+            "url": "https://polyfork.dev/dl/fire-alarm-call-box-56d332.obj",
+            "for": "universal, geometry only, no pivots",
+            "available": true,
+            "also_fetch": "https://polyfork.dev/dl/fire-alarm-call-box-56d332.mtl",
+            "also_fetch_note": "save it beside the .obj as fire-alarm-call-box-56d332.mtl: the model names that exact file and imports white without it"
+        }
+    },
+    "export_note": "vertex colours become NAMED MATERIALS on export, named after this asset's own colour knobs; a plain format conversion would arrive white, because only three.js reads our COLOR_0. Built on first request (about a second), cached after. This model is free: these download with no account and no key (only its .mjs source asks for a free account).",
+    "night": {
+        "globe": {
+            "color": "#ff8a3c",
+            "intensity": 0.8,
+            "albedo": "#c25a3d",
+            "findable": true,
+            "describe": "The orange glass globe, lit warm after dark to mark the alarm box."
+        }
+    },
+    "night_note": "each zone is found by its ALBEDO in COLOR_0: match those vertices exactly, make them emissive at the zone colour and intensity, and drop your scene lights. That is the whole night look.",
+    "decals": [
+        {
+            "name": "box-number",
+            "size": [
+                0.28,
+                0.3
+            ],
+            "at": [
+                0,
+                1.705,
+                -0.199
+            ],
+            "normal": [
+                0,
+                0,
+                -1
+            ],
+            "describe": "Back face of the alarm head, where a box number or FIRE ALARM lettering is painted."
+        }
+    ],
+    "decals_note": "flat areas you can print your own logo, sign, number or stencil on. `at` is the centre in model space (metres), `normal` points out of the surface, `up` is which way is up in the artwork, `size` is [width, height]. In three.js: bake art with https://polyfork.dev/cdn/sdf.mjs and place it with https://polyfork.dev/cdn/decal.mjs. In any other engine, a `plate` area takes a quad at `at` + `normal` * 0.002; a `projected` area is on a curved face `relief_mm` deep and the mark has to be projected onto the geometry. `albedo` is the colour of the surface underneath, so you can pick art that contrasts. Measured on the DEFAULT build: a geometry knob (a remix, a get_variant result) can move the surface by a few centimetres, and decal.mjs follows it because it raycasts the model you hand it; anywhere else, re-measure or keep the defaults.",
+    "params_url": "https://polyfork.dev/cdn/fire-alarm-call-box-56d332-params.json",
+    "real_scale": null,
+    "physics": {
+        "mass_kg": 2500,
+        "mass_source": "estimated",
+        "material": "metal",
+        "body": "static",
+        "dimensions_m": {
+            "x": 0.58,
+            "y": 2.481,
+            "z": 0.58
+        },
+        "up_axis": "Y",
+        "meters_per_unit": 1,
+        "volume_m3": 0.330247,
+        "collision": {
+            "approximation": "convexDecomposition",
+            "parts": 17,
+            "colliders_url": "https://polyfork.dev/cdn/fire-alarm-call-box-56d332-colliders.json"
+        },
+        "note": "For the default knob settings; a size knob changes all of it. dimensions_m and the colliders are measured from the model; mass_kg and material are an estimate of what the real object weighs. body \"static\" means fixed in place (give it a collider, no rigid body); \"dynamic\" means it moves. collision.approximation uses UsdPhysics terms: \"convexHull\" = one hull is a good fit, \"convexDecomposition\" = use the per-part hulls in colliders_url (the one hull would fill a gap, like the space under a table). Model space, metres, Y up, origin as the model ships."
+    },
+    "simready_metadata": {
+        "simready_metadata_mass": 2500,
+        "simready_metadata_rigid_body_count": 0,
+        "usd_dimensions": [
+            0.58,
+            0.58,
+            2.481
+        ],
+        "usd_up_axis": "Z",
+        "usd_meters_per_unit": 1,
+        "simready_metadata_validation__profile": null
+    },
+    "materials": 2,
+    "draw_calls": 3,
+    "description": "Street fire alarm call box, 2.6m tall, a red cast-iron pillar on a fluted square base, a boxy alarm head near the top with a hinged pull door and a small instruction plate as relief, crowned by a round orange-red glass lamp globe on a short finial.",
+    "palette": [
+        {
+            "hex": "#b83833",
+            "share": 0.564
+        },
+        {
+            "hex": "#7d4530",
+            "share": 0.164
+        },
+        {
+            "hex": "#c25a3d",
+            "share": 0.123
+        },
+        {
+            "hex": "#b58941",
+            "share": 0.101
+        },
+        {
+            "hex": "#1b1b1e",
+            "share": 0.03
+        },
+        {
+            "hex": "#cbbaaa",
+            "share": 0.014
+        }
+    ],
+    "style": "low-poly, flat-shaded vertex colors, no textures, 2 materials: the shared opaque one plus a distinct surface (glass, water or chrome), which stays its own mesh through mergeAssets rather than merging into the rest; shares palette and scale with its kit",
+    "origin": "ground level (minY = 0): the model sits on y=0 as-is",
+    "rigged_parts": {
+        "door": {
+            "axis": "y",
+            "range": [
+                0,
+                150
+            ]
+        }
+    },
+    "detachable_parts": [],
+    "animation": "rigged parts are named groups with the pivot at the hinge/axle: obj.getObjectByName(part) then rotation[axis] (rotate, degrees) or position[axis] (slide, meters). 0 is the pose the model is built in, which is not always shut: `range` is all the travel the part has from there, and outside it the part passes through the body. Whether the range opens or closes is in that knob's describe in params_url",
+    "published_at": "2026-11-03 15:58:59",
+    "renders": [
+        "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/back.png",
+        "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/close.png",
+        "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/compare.png",
+        "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/detail.png",
+        "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/front.png",
+        "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/hero-crop.png",
+        "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/hero.png",
+        "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/left.png",
+        "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/low-back.png",
+        "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/low.png",
+        "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/pose-door.png",
+        "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/proofs.png",
+        "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/right.png",
+        "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/top.png",
+        "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/under.png",
+        "https://polyfork.dev/files/fire-alarm-call-box-56d332/renders/views.png"
+    ],
+    "license": "Mesh files (GLB, FBX, USD, OBJ): CC BY 4.0 with the line in `credit`, or the Polyfork licence with no credit and no redistribution, your choice. The .mjs source and the HD edition: Polyfork licence only, commercial use, no attribution, no redistribution. https://polyfork.dev/licensing",
+    "credit": "Fire Alarm Call Box by Polyfork (https://polyfork.dev/asset/fire-alarm-call-box-56d332), CC BY 4.0",
+    "access": {
+        "as": "anonymous",
+        "remix_bakes_per_hour": 40,
+        "remix_bakes_left_this_hour": 40,
+        "remix_note": "The budget is on generating NEW geometry. Variations anyone has already baked are served to everybody and never counted, so re-fetching a variant you or anyone else has made costs nothing.",
+        "remix_bakes_per_month": 100,
+        "remix_bakes_left_this_month": 100,
+        "remix_allowance_resets": "2026-12-01",
+        "remix_allowance_note": "Anonymous callers are counted per IP address, so other sessions from the same address share this. A free account raises it to 300 a WEEK on its own budget, and costs an email address.",
+        "a_free_account_adds": {
+            "how": "Authorization: Bearer <key>, created at https://polyfork.dev/account. Costs an email address.",
+            "remix_bakes_per_hour": 100,
+            "remix_bakes_per_week": 300,
+            "downloads": "every low poly model's .mjs program and a ready-to-serve zip from /dl, and any kit as one zip (/dl/kit-<id>.zip). The .glb, .fbx, .usdz, .usda and .obj need no key"
+        },
+        "pro_adds": {
+            "url": "https://polyfork.dev/pricing",
+            "usd_per_year": 149,
+            "hd_editions": "the HD edition of a model: the same program built finer, high poly with PBR materials generated in code, every knob still working. 1,848 models have one. Free accounts get its public preview (/cdn/<id>-hd-preview.glb) only",
+            "cdn": "a per-account /c/<token>/ path for the HD files you can hotlink from a shipped build; it keeps up when an asset is rebuilt, and the token is not the API key",
+            "remix_bakes_per_hour": 900,
+            "remix_bakes_per_week": "uncapped: a free account gets a weekly allowance, Pro does not"
+        }
+    }
+}

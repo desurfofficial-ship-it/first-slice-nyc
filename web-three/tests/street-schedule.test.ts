@@ -51,6 +51,7 @@ describe('the schedule table (world/dressing)', () => {
       'park',                                   // the garden tender
       'street',                                 // the avenue shopper
       'dusk', 'dusk', 'dusk',                   // the evening rush
+      'street', 'street',                       // WP-EAST — the east pair
     ]);
   });
 
@@ -77,8 +78,8 @@ describe('the schedule table (world/dressing)', () => {
       }
       return n;
     };
-    expect(count('day')).toBe(9);   // the shipped street, unchanged
-    expect(count('dusk')).toBe(11); // the rush: +3 on the Shuffle stretch, −1 park
+    expect(count('day')).toBe(11);  // the shipped nine + the east pair (WP-EAST)
+    expect(count('dusk')).toBe(13); // the rush: +3 on the Shuffle stretch, −1 park
     expect(count('dusk')).toBeGreaterThan(count('day'));
   });
 });
@@ -188,6 +189,19 @@ describe('the schedule mechanism (world/peds — a home walker is off stage)', (
     for (let f = 0; f < 30; f++) peds.update(0.05, { x: 100, z: 100 });
     const moved = Math.hypot(park.vehicle.position.x - x, park.vehicle.position.z - z);
     expect(moved).toBeGreaterThan(0.2); // the loop resumed
+  });
+
+  it('the sight law: a walker beyond SIGHT_M hides (render only), and returns with the player', () => {
+    const peds = scheduledCrowd(); // one loop at (2..10, 6)
+    const floor = internals(peds)[0];
+    // far: the walker is 190+ m from the player — beyond the fog, hidden
+    for (let f = 0; f < 10; f++) peds.update(0.05, { x: 200, z: 6 });
+    expect(floor.home).toBe(false); // the schedule still owns them — out
+    expect(floor.group.visible).toBe(false); // the render gates
+    expect(floor.box.minY).toBe(0); // the body stays the truth (no ghost pocket)
+    // near: the player walks up — the walker renders again
+    for (let f = 0; f < 10; f++) peds.update(0.05, { x: 6, z: 6 });
+    expect(floor.group.visible).toBe(true);
   });
 
   it('a home walker never yields to (or blocks) the cab', () => {
