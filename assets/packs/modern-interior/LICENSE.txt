@@ -1,0 +1,26 @@
+Modern Interior — Low-Poly 3D Pack
+Copyright (c) 2026 LM Scenova Studios. All rights reserved, except as granted below.
+
+By purchasing or downloading this asset pack you receive a non-exclusive, worldwide, perpetual license
+to use its contents ("the Assets": 3D models, textures, source .blend files and the demo scene) under
+these terms.
+
+YOU MAY
+  ✦ Use the Assets in unlimited personal and commercial projects: games, apps, prototypes, videos,
+    animations, renders, marketing material for your project.
+  ✦ Modify the Assets in any way (recolor, edit, combine, re-texture).
+  ✦ Ship the Assets inside your finished project (compiled, packaged or embedded), as long as they are
+    part of that project and not offered as standalone files.
+  ✦ Credit is optional. If you want to: "Modern Interior Low-Poly Pack by LM Scenova Studios".
+
+YOU MAY NOT
+  ✦ Resell, sublicense, share or redistribute the Assets, in original or modified form, on their own or
+    as part of another asset pack, library, template, marketplace listing or download.
+  ✦ Claim the Assets as your own creation.
+  ✦ Use the Assets in a way that lets third parties extract and reuse them outside your project
+    (for example, by publishing the source files publicly).
+
+The Assets are provided "as is", without warranty of any kind. In no event shall the author be liable
+for any claim, damages or other liability arising from the use of the Assets.
+
+Questions about a specific use? Contact LM Scenova Studios through the itch.io page.

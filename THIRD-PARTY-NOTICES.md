@@ -107,3 +107,25 @@ palette. The full analysis lives in
 [docs/production/fenestra/01-FENESTRA-INTEGRATION.md](docs/production/fenestra/01-FENESTRA-INTEGRATION.md)
 and the study ledger [docs/57-engineering-references.md](docs/57-engineering-references.md)
 (§3.8).
+
+## Modern Interior — Low-Poly 3D Pack (embedded assets)
+
+The gifted-packs furniture wave (2026-11-14) wears five models from the
+**Modern Interior — Low-Poly 3D Pack · FREE SAMPLE v1.0** by **LM Scenova
+Studios** inside the game's interiors (`web-three/public/models/furniture/
+mi_*.glb`, slots `mi_armchair`, `mi_coffee_table`, `mi_floor_lamp`,
+`mi_plant_pot`, `mi_chair` in `web-three/src/world/furniture.ts`).
+
+The pack's license permits shipping the assets embedded in a finished
+project but **does not permit redistribution of the assets themselves**.
+Accordingly this repository carries only the five GLB files the game loads
+(plus their reference copies under `assets/packs/modern-interior/`, which are
+the same embedded game files pinned by the byte-identity test) and the
+pack's own LICENSE.txt. The pack's FBX/OBJ exports, previews and source
+files are **not** included. Credit per the license's optional term:
+"Modern Interior Low-Poly Pack by LM Scenova Studios".
+
+The companion warm-pastel Scandinavian furniture set
+(`assets/packs/lowpoly-furniture/`, `sc_*` slots) is first-party,
+owner-supplied content generated with headless Blender — no third-party
+license applies.

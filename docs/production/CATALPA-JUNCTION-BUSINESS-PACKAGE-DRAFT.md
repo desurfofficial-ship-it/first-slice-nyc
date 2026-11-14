@@ -54,6 +54,8 @@ Four doors, one rule: **purpose + interaction + books per place, at Alder Height
 
 **Architecture and interior.** The strip carve with a glazed shopfront on the registry entrance (−400, 26); Interior id `CJN-BOOKS-INT`, clearH 3.4. Fit-out: ABO `bookcase` ×2 (the shipped furniture file), `bodega_shelf` boards carrying **canvas book-spine rows** (the TSS-PROD facade-texture craft — authored spines, seeded wear, no new files), `record_bin` as the browse bin (its third shipped wear), `cafe_table` + `counter_stool` as the reading table, `cash_register`, the `LightStrip` warm band.
 
+> **AMENDED 2026-11-14 (rides the gifted-packs merge):** the owner's two gifted furniture packs shipped on the integrated tree (the K-line agent's additive wave — 14 slots; `bookshelf.glb`, the diary desk and the desk chair among them). They join the shipped library CB1 wears from: the book floor's fit-out may take the gifted `bookshelf` as a slot alongside the ABO bookcase, the zero-new-files law unchanged; the supply floor gains the gifted desk/chair class as counter-furniture options.
+
 ### 2.4 The Docksman's lunch room — the shift counter · CJN-05 The Docksman (west row, z −46, door east onto the spur)
 
 **Identity and purpose.** The south end's anchor: the dockworkers' lunch room under the Docksman name — hot plates, coffee, the shift-trade chatter point. Not a tavern: the shipped asset library has no wet-bar programs (§5), and a working dock runs on lunch counters, not taps. The diner's machinery class (counter coffee, booth-adjacent sits) carried to the spur's own register of hours.
