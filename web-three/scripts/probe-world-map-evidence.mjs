@@ -283,6 +283,32 @@ await frame('existing-times-square-arrival', -338, 4.5, 9, -418, 10, 0);
 // bonus: the red steps / Orpheum block
 await frame('existing-times-square-steps', -362, 2.8, 8, -349, 4.5, 2);
 
+// 11. THE EASTBOUND ARRIVAL (W-C6): the doors just opened at the Larch
+// Yards — the camera stands where the rider stands (aboard the aligned car,
+// the shell stood down) looking across their platform: the fare bank, the
+// band, the waiter, the housing's stair opening in the south wall
+await page.evaluate(async () => {
+  const g = window.__game;
+  const p = g.player.capsule;
+  p.x = 164; p.y = -3.1; p.z = 15.9; p.radius = 0.35; p.height = 1.75;
+  g.player.vy = 0; g.player.ladder = null;
+  g.running = true;
+  await new Promise((r) => setTimeout(r, 1400)); // the zone lights + the shell stand-down settle
+});
+await frame('larch-yards-station-arrival', 166.2, -1.8, 13.8, 163.6, -2.2, 7.6);
+// the housing's surface read: the mouth, the piers, the band, the hood —
+// the shaft-is-the-hole law's own evidence (from across Kestrel, the rig
+// stepped aside so the mouth reads)
+await page.evaluate(async () => {
+  const g = window.__game;
+  const p = g.player.capsule;
+  p.x = 170.5; p.y = 0.1; p.z = 5.5;
+  g.player.vy = 0; g.player.ladder = null;
+  g.running = true;
+  await new Promise((r) => setTimeout(r, 1200));
+});
+await frame('larch-yards-headhouse', 164, 3.4, -3, 164, 1.5, 6.8);
+
 // the HUD rides again (the evidence run is done)
 await page.evaluate(() => {
   const hud = document.getElementById('hud');

@@ -291,6 +291,11 @@ export class World {
    *  no naming cooperation. */
   private readonly terminalShell: THREE.Mesh[] = [];
   private dollhouseOn = false;
+  /** The east station's dollhouse colliders (W-C6): the housing band + the
+   *  open cut's surface cap. They lift with the shell on the underground
+   *  flip — the cutaway camera stands inside their band when the lens
+   *  opens (the terminalCollider law, east edition). */
+  private readonly terminalCollidersC: AABB[] = [];
   /** The terminal mass's collider — lifted with the dollhouse (the boom
    *  ray-cast must see the cutaway the lens sees, and the player below
    *  grade never needs a building's collision anyway). */
@@ -5784,6 +5789,11 @@ export class World {
       // rows live OUTSIDE every district tile (x ±110 / z −88 / z +104) —
       // a tile ring that drops them would blink the horizon out of view
       'Bldg_N_West', 'SUB_Root', 'TSS_Group', 'BUS_M121', 'Yard_N',
+      // W-C6 (east edition of the Yard_N law): the station housing roofs the
+      // eastbound shaft — collectTerminalShell lifts it BY NAME with the
+      // dollhouse; baked, the name lookup would find nothing and the
+      // cutaway would stare at brick
+      'LarchYards_Sub03',
       'SkylineFabric', 'SkylineFabricWindows', 'CJN_Group',
       // W-C1 (this tree): the Larch Yards silhouette underlay rides the
       // district ring's own law (visible while the district's tiles are
@@ -6016,7 +6026,7 @@ export class World {
    *  the door gap is wall geometry — both survive the merge. The driver
    *  rig breathes, so it rides the animated exclusion by name. */
   private bakeZoneStatics(groups: THREE.Group[] = [
-    this.subway.groups.stationA, this.subway.groups.stationB,
+    this.subway.groups.stationA, this.subway.groups.stationB, this.subway.groups.stationC,
     this.subway.groups.tunnel, this.subway.groups.scenery,
     this.timesSquare.group, this.catalpa.group,
   ]): void {
@@ -7331,11 +7341,23 @@ export class World {
     const walkSlabs: Array<{ x: number; y: number; z: number; sx: number; sy: number; sz: number }> = [];
     const XSEG: Array<[number, number]> = [[100, 145.8], [158.2, 223.8], [232.2, 252]];
     const ZSEG: Array<[number, number]> = [[-64, -46.2], [-37.8, -4.2], [4.2, 37.8], [46.2, 64]];
+    // the station's shaft band (W-C6): the kit's slot, translated to the
+    // housing's axis — the middle segment's north walk splits around it
+    // (the W8 law, east edition: the mouth is a hole in the walk, the
+    // curb-side corridor z 4..5.55 stays the through-path)
+    const SHAFT = { x0: 162.7, x1: 165.3, z0: 5.55, z1: 8.0 };
     for (const [a, b] of XSEG) {
       const cx = (a + b) / 2, w = b - a;
-      // Gable's walks (44..48 / 32..36) and Marlow's (-36..-32 / -48..-44)
       for (const wz of [6, -6, 46, 34, -34, -46]) {
-        walkSlabs.push({ x: cx, y: -0.05, z: wz, sx: w, sy: 0.3, sz: 4 });
+        // the Kestrel north walk (z 4..8) of the middle segment splits
+        // around the shaft band
+        if (wz === 6 && a > 150 && a < 160) {
+          walkSlabs.push({ x: (a + SHAFT.x0) / 2, y: -0.05, z: wz, sx: SHAFT.x0 - a, sy: 0.3, sz: 4 });
+          walkSlabs.push({ x: (SHAFT.x1 + b) / 2, y: -0.05, z: wz, sx: b - SHAFT.x1, sy: 0.3, sz: 4 });
+          walkSlabs.push({ x: (SHAFT.x0 + SHAFT.x1) / 2, y: -0.05, z: (wz - 2 + SHAFT.z0) / 2, sx: SHAFT.x1 - SHAFT.x0, sy: 0.3, sz: SHAFT.z0 - (wz - 2) });
+        } else {
+          walkSlabs.push({ x: cx, y: -0.05, z: wz, sx: w, sy: 0.3, sz: 4 });
+        }
       }
     }
     for (const [a, b] of ZSEG) {
@@ -7364,16 +7386,41 @@ export class World {
     for (const c of curbSegs) this.deco(`LarchYards_Curb_${curbI++}`, c.x, 0.065, c.z, c.w, 0.13, c.d, CURB);
 
     // ---- 2. the block yards (vc solids — the bake fuses them free) ------
+    // W-C6: the middle segment's north yard is REPLACED below by two pieces
+    // split around the station's open cut (x 158.2..172.15, z 8..20.2) —
+    // the open-cut law; the other three bands build whole.
     for (const [a, b] of XSEG) {
       const cx = (a + b) / 2, w = b - a;
-      this.solid('LarchYards_Yard_N1', cx, -0.05, 21, w, 0.3, 26, PAL.walk, { receive: true, cast: false });
+      // only the middle segment (x 158.2..223.8) skips the whole N1 — the
+      // cut pieces two lines down carry its north yard instead
+      const overTheCut = b > 158.2 && a < 172.15;
+      if (!overTheCut) {
+        this.solid('LarchYards_Yard_N1', cx, -0.05, 21, w, 0.3, 26, PAL.walk, { receive: true, cast: false });
+      }
       this.solid('LarchYards_Yard_S1', cx, -0.05, -21, w, 0.3, 26, PAL.walk, { receive: true, cast: false });
       this.solid('LarchYards_Yard_N2', cx, -0.05, 57, w, 0.3, 14, PAL.walk, { receive: true, cast: false });
       this.solid('LarchYards_Yard_S2', cx, -0.05, -57, w, 0.3, 14, PAL.walk, { receive: true, cast: false });
     }
+    // the middle segment's N1 yard, split around the open cut — the L-shape
+    // law: the cut EXCLUDES LRY-03's footprint (x 163..185, z 10..30 — the
+    // canon loft row owns its ground; the station's east half runs under it
+    // like every subway under a building). The yard is five pieces:
+    // east of the cut: x 172.15..223.8, z 8..34
+    this.solid('LarchYards_Yard_N1_cutE', (172.15 + 223.8) / 2, -0.05, 21, 223.8 - 172.15, 0.3, 26, PAL.walk, { receive: true, cast: false });
+    // north of the cut: x 158.2..172.15, z 20.2..34
+    this.solid('LarchYards_Yard_N1_cutN', (158.2 + 172.15) / 2, -0.05, (20.2 + 34) / 2, 172.15 - 158.2, 0.3, 34 - 20.2, PAL.walk, { receive: true, cast: false });
+    // west strip: x 158.2..163, z 8..20.2
+    this.solid('LarchYards_Yard_N1_cutW', (158.2 + 163) / 2, -0.05, (8 + 20.2) / 2, 163 - 158.2, 0.3, 20.2 - 8, PAL.walk, { receive: true, cast: false });
+    // south sliver: x 163..172.15, z 8..10
+    this.solid('LarchYards_Yard_N1_cutS', (163 + 172.15) / 2, -0.05, 9, 172.15 - 163, 0.3, 2, PAL.walk, { receive: true, cast: false });
+    // the LRY-03 under-slab stays: x 163..172.15, z 10..20.2 (the building
+    // keeps its ground; no float)
+    this.solid('LarchYards_Yard_N1_cutKeep', (163 + 172.15) / 2, -0.05, (10 + 20.2) / 2, 172.15 - 163, 0.3, 20.2 - 10, PAL.walk, { receive: true, cast: false });
     // the Junction Plaza's cobble deck (the plaza square, north of the
-    // crossing — the bed's own surface carries the south half)
-    this.deco('LarchYards_PlazaDeck', 152, 0.115, 10.1, 12, 0.03, 11.8, PAL.stone);
+    // crossing — the bed's own surface carries the south half). W-C6: the
+    // deck ends at the open cut's west edge (x 155.85 = the platform's
+    // west face) — the cut's coping reads clean from the walk.
+    this.deco('LarchYards_PlazaDeck', 150.925, 0.115, 10.1, 9.7, 0.03, 11.8, PAL.stone);
 
     // ---- 3. the district fabric (the kit: masses, viaduct, crane, ....) -
     const kitColliders = buildLarchYards({
@@ -7386,7 +7433,22 @@ export class World {
       sign: this.signBoard.bind(this),
       ledger: this.vqLedger,
     });
-    for (const c of kitColliders) this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.sx, c.sy, c.sz));
+    for (const c of kitColliders) {
+      const box = boxFromCenter(c.x, c.y, c.z, c.sx, c.sy, c.sz);
+      this.colliders.push(box);
+      // the SAME object rides both arrays — the dollhouse lift splices by
+      // identity, and two boxFromCenter calls would build two unequal-by-
+      // reference boxes (the shipped lift bug: the splice found nothing)
+      if (c.dollhouse) this.terminalCollidersC.push(box);
+    }
+    // the open cut over the platform (the SUB-TS law: "open-cut platform
+    // under the station block"): the yard splits around the station band —
+    // the L-shape west strip + south sliver (LRY-03's ground stays) — and
+    // these collider CAPS (top 0.1, flush with the yard) let the player walk
+    // the cut at the surface; they lift with the shell so the underground
+    // camera descends through them
+    this.terminalCollidersC.push(boxFromCenter((158.2 + 163) / 2, -0.05, (8 + 20.2) / 2, 163 - 158.2, 0.3, 20.2 - 8));
+    this.terminalCollidersC.push(boxFromCenter((163 + 172.15) / 2, -0.05, 9, 172.15 - 163, 0.3, 2));
     larchYardsPlazaLights({ scene: this.scene, vc: this.vcMaterial.bind(this) });
     // the far-read pair rides the ring law together (see updateDistricts)
     this.catalpaFar = [];
@@ -9732,6 +9794,18 @@ export class World {
         } else if (!this.dollhouseOn && this.terminalCollider && !this.colliders.includes(this.terminalCollider)) {
           this.colliders.push(this.terminalCollider);
         }
+        // the east station's band (W-C6): the housing + the cut's surface
+        // cap lift and restore with the same flip
+        if (this.dollhouseOn) {
+          for (const c of this.terminalCollidersC) {
+            const i = this.colliders.indexOf(c);
+            if (i >= 0) this.colliders.splice(i, 1);
+          }
+        } else {
+          for (const c of this.terminalCollidersC) {
+            if (!this.colliders.includes(c)) this.colliders.push(c);
+          }
+        }
       }
       this.timesSquare.group.visible = this.subway.lit.has('tsSurface')
         || this.subway.lit.has('catalpaSurface'); // the shared-sky law (W-C1): the Junction reads the same city — the square's towers east, the west rim behind its own rooflines
@@ -9796,12 +9870,18 @@ export class World {
       S.groups.trainA, -39.6, STATION.floorTop, 16.5, -Math.PI / 2);
     place('SUB_Wait_B1', { jacket: 0x2A9D8F, pants: 0x473e50, skin: 0xd9a06b, hair: 0x1a1a22, style: 'flat' },
       S.groups.stationB, -327.2, STATION.floorTop, 11.6, Math.PI);
+    // the east platform's waiter (W-C6): one rig at the bench, the yards'
+    // own pause — the platform reads lived-in from the ride's doors
+    place('SUB_Wait_C1', { jacket: 0x35323a, pants: 0x473e50, skin: 0xe8b08e, hair: 0x453b4c, style: 'cap' },
+      S.groups.stationC, 167.8, STATION.floorTop, 11.6, Math.PI);
   }
 
   /** Terminal-dressing collection for the dollhouse: every mesh whose
-   *  position sits over the station box (x -50.5..-20.5, z 7.7..20.2,
-   *  above grade) lifts off with the terminal mass. Zone groups manage
-   *  their own visibility and are skipped outright. */
+   *  position sits over a station box — A (x -50.5..-20.5, z 7.7..20.2) or
+   *  the east station C (W-C6: x 152.5..176, z 7.7..20.2 — the housing, the
+   *  cut's props, the dock trucks) — above grade, lifts off with the
+   *  terminal mass. Zone groups manage their own visibility and are skipped
+   *  outright. */
   private collectTerminalShell(): void {
     const SKIP = new Set(['SUB_Root', 'TSS_Group', 'BUS_M121']);
     const inZone = (o: THREE.Object3D): boolean => {
@@ -9814,6 +9894,12 @@ export class World {
       if (!(o instanceof THREE.Mesh) || !inZone(o)) return;
       const p = o.position;
       if (p.x > -50.5 && p.x < -20.5 && p.z > 7.7 && p.z < 20.2 && p.y > -0.2) {
+        this.terminalShell.push(o);
+      }
+      // the east station's band (W-C6): the housing (position rides the
+      // re-centered emit), the cut's coping props, the dock trucks over the
+      // platform — the cutaway lens must see through them all
+      if (p.x > 152.5 && p.x < 176 && p.z > 7.7 && p.z < 20.2 && p.y > -0.2) {
         this.terminalShell.push(o);
       }
       // the north yard slab roofs the whole block (x −60..60, z 8..32) —

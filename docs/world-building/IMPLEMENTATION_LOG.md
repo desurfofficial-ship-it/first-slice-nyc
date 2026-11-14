@@ -187,3 +187,39 @@
   real-walkability change (the walk-in probe passes all four rooms).
 
 > **CORRECTION (2026-11-14, the registry-discipline repair — from the Catalpa/Junction line):** the west-reach rows restore their canon prefix `CDK-* → CJN-*` (DEC-13 accepted the CJN prefix as canon; the registry's own law says IDs are permanent; on the integrated tree the east rows are LRY-*, so the 2026-11-13 collision that forced the CDK rename no longer exists). Code, tests, the validator's pin block and the probes re-pointed in the same repair; zero geometry moved. Schema completion rides with it: the four BLK-LRY-* blocks gain the bbox fields the validator's block-membership check reads (computed from their own contained buildings); SUB-03's dangling `BLK-CJN-N` re-points to the appended `BLK-LRY-STN` block row; `STR-SPUR` carries the `pedestrianized` flag the park-on-road check now reads (the Yards Plaza and the Spur Gardens stand on the track bed by design — the control-house-exempt precedent). **ONE KNOWN DEFECT recorded for this district's next session: OVERLAP LRY-03 <-> SUB-03 (5.00 x 1.00 m — the Spur Lofts' southwest corner over the station house's northeast corner).** The validator prints it as KNOWN and does not fail; the fix (a 1 m footprint trim on one row) is yours when you next build here — note your handover §2 step 1 already touches SUB-03. The repair record: the registry's meta corrections + register row v1.78.0.
+
+## W-C6 — the K line eastbound (the handover's exact next priced wave)
+
+**Register v1.78.0.** The ride machine grew its route law (W/E — tests
+first, 16 pins watched failing before implementation); the transfer car at
+Alder Heights hangs both ride doors (the east door westbound, the west door
+eastbound — 6.2 m apart inside one car, the bench split around both);
+station C = the parameterized station translated to SUB-03's own axis (the
+cx reads the row, the A-3 pin holds); the tunnel grew its east reach
+(registry SUB-TRACK's span amendment); the surface opened SUB-03's housing
+around the shaft (the SUB-01 law) and split the yard around the open cut's
+L-shape (LRY-03's ground stays — the station's east half runs under the
+loft). The nav learned that the underground is not a wall (footprintsOf
+skips h-0 rows); the dollhouse learned to lift by identity (the shipped
+two-boxFromCenter bug) and by name east of the river (LarchYards_Sub03
+joins NAMED_SKIP). The registry repairs: SUB-03-PLAT appended (the SUB-TS
+pattern), the four BLK-LRY-* bboxes, the dangling BLK-CJN-N claim nulled,
+STR-SPUR's pedestrian flag, LMK-12's street anchor, the h-0 overlap
+exemption.
+
+Found and fixed on the way: the east walk slab roofed the shaft (the exit
+walk oscillated at tread 4 — the diag's trace caught the limit cycle; the
+W8 slot-split fixed it); the dollhouse lift never fired (two boxFromCenter
+calls, the splice found nothing); the tile-batch fusion defeated the
+by-reference hide.
+
+**The battery:** validate-registry OK (257 IDs, 112 buildings, 23/23
+anchors) · tsc clean · vitest 1,764/1,764 (105 files, the merged tree) · build OK ·
+probe-subway the eastbound leg's 17 checks ALL PASS (the only FAIL is the
+documented baseline Wow-card carry) · probe-wc1-catalpa OK (spawn 192 +0
+standing) · probe-city-fabric DRAWS 192 · probe-w14 PASS ·
+probe-interior-dressing PASS · probe-integration 0 errors 8/8 walks ·
+probe-tss-road-clear LAW HOLDS · probe-nav 9/9 · diag-pocket-scan
+deterministic (one component x −98..250, traps 18 unchanged, colliders
+1018 → 1233 the honest +215 below grade).
+

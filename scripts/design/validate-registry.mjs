@@ -19,7 +19,11 @@ const ok = (cond, msg) => { if (!cond) problems.push(msg); };
 // fail the run; ANY unlisted finding still fails. A known entry must carry its
 // own repair record in the register/worklog. Nothing passes silently.
 const KNOWN_DEFECTS = [
-  'OVERLAP LRY-03 <-> SUB-03 (5.00 x 1.00 m) — the east district\'s built masses interpenetrate at the Spur Lofts\' southwest corner / the station house\'s northeast corner (built W-C1..C3 / W-C2); the east build\'s own repair record; named 2026-11-14 in the registry-discipline repair; the fix (a 1 m footprint trim on one row) rides the east district\'s next session with its build eyes on it',
+  // (retired 2026-11-14, W-C6): 'OVERLAP LRY-03 <-> SUB-03 (5.00 x 1.00 m)'
+  // — recorded in the registry-discipline repair, fixed by the very session
+  // its entry named: W-C6's 1 m footprint trim on SUB-03 (z 5..11 → 5..10;
+  // the canon loft row untouched). The merged tree measures no overlap; the
+  // entry retires with its repair record in the register v1.80.0 row.
 ];
 const report = (msg) => {
   const known = KNOWN_DEFECTS.find((k) => msg.startsWith(k.split(' — ')[0]));
@@ -65,7 +69,10 @@ for (const b of R.buildings) {
 }
 
 // ---------- 4. Building-vs-building overlap (touching allowed) ----------
-const bs = R.buildings.filter((b) => b.footprint && b.class !== 'D');
+// height-0 rows (the SUB-TS pattern: below-grade platform bands) don't
+// compete with surface masses for ground — a station band and its own
+// headhouse legitimately share XZ. The bands still pass bounds + blocks.
+const bs = R.buildings.filter((b) => b.footprint && b.class !== 'D' && b.height !== 0);
 for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) {
   const a = fp(bs[i].footprint), c = fp(bs[j].footprint);
   const ox = Math.min(a.x1, c.x1) - Math.max(a.x0, c.x0);

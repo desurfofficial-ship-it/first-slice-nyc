@@ -1216,7 +1216,9 @@ export const DIARY_NOTE_TEXT: Record<DiaryFamily, string> = {
 // it's a lesson, no save fields anywhere.
 
 /** The ride's teach beats, in order (ride.ts pins the times). Priya's
- *  lesson rides the tunnel; Map's crooked copy rides right behind it. */
+ *  lesson rides the tunnel; Map's crooked copy rides right behind it. The
+ *  eastbound hop carries its own two beats (ride.ts RIDE_BEATS_E) — no
+ *  teach the second time, just the yards showing themselves. */
 export const RIDE_BEAT_TEXT: Record<string, string> = {
   'priya-uptown':
     'Priya: "Rules of the road. Trains go two ways \u2014 uptown and downtown. Downtown is where everything new happens."',
@@ -1226,6 +1228,10 @@ export const RIDE_BEAT_TEXT: Record<string, string> = {
     'Map copies her lines badly. She taps the crooked copy anyway: "See? You already can read it."',
   'announce':
     'The speaker crackles: "42nd Street\u2013Times Square." The doors open on a saxophone.',
+  'east-window':
+    'The lights run faster out here, and shorter. Map\u2019s nose is on the glass: "That\u2019s the spur. That\u2019s ALL of it?"',
+  'announce-east':
+    'The speaker crackles: "Larch Yards." The doors open on creosote, iron, and morning.',
 };
 
 /** The sync beat — Doc 02's wonder beat #1, word for word where it counts. */

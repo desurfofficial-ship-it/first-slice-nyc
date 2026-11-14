@@ -65,27 +65,35 @@ export interface TrainDoors {
 /**
  * The south bench's x-spans for one car. The interactive door's doorway
  * must open onto the AISLE — a bench across it stops the walk-in 6 cm
- * short of the seam's aboard band (ride.ts CAR_Z_MIN 14.55), the player
+ * short of the seam's aboard band (ride.ts CAR_Z_MIN 14.45), the player
  * presses "Ride to Times Square" from the doorway and the ride leaves
  * without them (probe diag-ride-walkin: max z 14.494 < 14.55). Real cars
  * hang a short seat east of the door and the long run west of it; the
  * nub east of the doorway here would be 0.55 m of orphan — it is simply
  * not built. Pure so tests/subway.test.ts can pin the boarding law.
+ * `doorRels` carries EVERY interactive door (W-C6: the transfer car hangs
+ * two — west door rides east, east door rides west); null = no interactive
+ * door (the shuttered car keeps its full-length bench).
  * @param cx car center x
- * @param doorRel interactive door x relative to cx (null = no interactive
- *               door — the shuttered car keeps its full-length bench)
+ * @param doorRels interactive door x relative to cx (array, single, or null)
  */
 export function southBenchSpans(
-  cx: number, doorRel: number | null,
+  cx: number, doorRels: number | number[] | null,
 ): Array<{ a: number; b: number }> {
   const west = cx - 4.4, east = cx + 4.4; // the full bench's run
-  if (doorRel === null) return [{ a: west, b: east }];
-  const dx = cx + doorRel;
-  const gapL = dx - 1.3 / 2 - 0.1; // doorW + a hand's margin each side
-  const gapR = dx + 1.3 / 2 + 0.1;
+  if (doorRels === null) return [{ a: west, b: east }];
+  const rels = Array.isArray(doorRels) ? doorRels : [doorRels];
+  // the no-go bands: each door ± (half width + a hand's margin)
+  const blocked = rels
+    .map((rel) => ({ a: cx + rel - 1.3 / 2 - 0.1, b: cx + rel + 1.3 / 2 + 0.1 }))
+    .sort((p, q) => p.a - q.a);
   const spans: Array<{ a: number; b: number }> = [];
-  if (gapL - west > 0.3) spans.push({ a: west, b: gapL });
-  if (east - gapR > 0.3) spans.push({ a: gapR, b: east });
+  let cursor = west;
+  for (const band of blocked) {
+    if (band.a - cursor > 0.3) spans.push({ a: cursor, b: band.a });
+    cursor = Math.max(cursor, band.b);
+  }
+  if (east - cursor > 0.3) spans.push({ a: cursor, b: east });
   return spans;
 }
 
@@ -102,11 +110,12 @@ function box(
   return m;
 }
 
-/** One parked car. `interactiveDoorRel` (±3.1 or null): the one opening
- *  whose leaves the world animates; every other opening ships shuttered. */
+/** One parked car. `interactiveDoorRels` (each ±3.1, possibly several —
+ *  W-C6's transfer car hangs two): the openings whose leaves the world
+ *  animates; every other opening ships shuttered. */
 function buildCar(
-  ctx: KitCtx, cx: number, interactiveDoorRel: number | null,
-): TrainDoors | null {
+  ctx: KitCtx, cx: number, interactiveDoorRels: number[],
+): CarHandle {
   const C = CAR;
   const shell = 0x9aa0a6;
   const stripe = 0xF7B32B;
@@ -152,7 +161,7 @@ function buildCar(
   // the trick (the cars are twins — the diagram rides both). Box segments
   // with small kinks: hand-drawn in the house lowpoly voice, chalk-gold
   // (the stripe's color) and river-teal, no new palette entries.
-  if (interactiveDoorRel !== null) {
+  if (interactiveDoorRels.length > 0) {
     const wz = zN - 0.07; // the car side of the middle window's glass
     const chalk = (name: string, mx: number, my: number, len: number, rot: number, color: number) => {
       const m = box(ctx, name, cx + mx, my, wz, len, 0.05, 0.02, color, { collide: false, emissive: color, ei: 0.4 });
@@ -179,11 +188,11 @@ function buildCar(
   }
 
   // interior: lengthwise benches both sides (solid — the aisle is the walk),
-  // poles, handrail. The SOUTH bench splits around the interactive door —
-  // the doorway must open onto the aisle, or the ride leaves without its
-  // passenger (southBenchSpans; the boarding-law test pins the gap).
+  // poles, handrail. The SOUTH bench splits around EVERY interactive door —
+  // each doorway must open onto the aisle, or the ride leaves without its
+  // passenger (southBenchSpans; the boarding-law test pins the gaps).
   const zB = zS + 0.42;
-  for (const seg of southBenchSpans(cx, interactiveDoorRel)) {
+  for (const seg of southBenchSpans(cx, interactiveDoorRels)) {
     box(ctx, `SUB_CarBench_${cx}_s_${seg.a.toFixed(1)}`, (seg.a + seg.b) / 2, C.floorTop + 0.25, zB,
       seg.b - seg.a, 0.5, 0.55, 0x8a5a3a);
   }
@@ -193,23 +202,26 @@ function buildCar(
   }
   box(ctx, `SUB_CarRail_${cx}`, cx, C.roofBottom - 0.18, STATION.trackZ, 10.5, 0.05, 0.05, 0xd8d8d8, { collide: false });
 
-  // door openings: leaves for the interactive one, shutters for the rest
-  let doors: TrainDoors | null = null;
+  // door openings: leaves for the interactive ones, shutters for the rest.
+  // Every interactive door returns its own TrainDoors (the roof and the
+  // south face are the CAR's — shared refs, the shells list toggles them
+  // once per car).
+  const doors: TrainDoors[] = [];
   for (const rel2 of [-C.doorRel, C.doorRel]) {
     const dx = cx + rel2;
-    const interactive = interactiveDoorRel !== null && Math.abs(rel2 - interactiveDoorRel) < 0.01;
+    const interactive = interactiveDoorRels.some((r) => Math.abs(rel2 - r) < 0.01);
     if (interactive) {
       const leafY = C.floorTop + C.doorH / 2;
-      const l1 = box(ctx, `SUB_DoorLeaf_${cx}_a`, dx - C.doorW / 4, leafY, zS + 0.02, C.doorW / 2, C.doorH, 0.08, 0xB23A48, { collide: false });
-      const l2 = box(ctx, `SUB_DoorLeaf_${cx}_b`, dx + C.doorW / 4, leafY, zS + 0.02, C.doorW / 2, C.doorH, 0.08, 0xB23A48, { collide: false });
+      const l1 = box(ctx, `SUB_DoorLeaf_${cx}_${rel2 > 0 ? 'e' : 'w'}_a`, dx - C.doorW / 4, leafY, zS + 0.02, C.doorW / 2, C.doorH, 0.08, 0xB23A48, { collide: false });
+      const l2 = box(ctx, `SUB_DoorLeaf_${cx}_${rel2 > 0 ? 'e' : 'w'}_b`, dx + C.doorW / 4, leafY, zS + 0.02, C.doorW / 2, C.doorH, 0.08, 0xB23A48, { collide: false });
       southFace.push(l1, l2);
-      doors = {
+      doors.push({
         leaves: [l1, l2],
         closedX: [dx - C.doorW / 4, dx + C.doorW / 4],
         collider: { x: dx, y: leafY, z: zS + 0.02, w: C.doorW, h: C.doorH, d: 0.1 },
         roof,
         southFace,
-      };
+      });
     } else {
       const shut = box(ctx, `SUB_DoorShut_${cx}_${rel2 > 0 ? 'e' : 'w'}`, dx, C.floorTop + C.doorH / 2, zS + 0.02, C.doorW, C.doorH, 0.08, 0xB23A48);
       southFace.push(shut);
@@ -220,7 +232,16 @@ function buildCar(
   for (const bx of [cx - 4.2, cx + 4.2]) {
     box(ctx, `SUB_CarBogie_${cx}_${bx.toFixed(1)}`, bx, -3.75, STATION.trackZ, 2.4, 0.55, 1.8, 0x3a3a42, { collide: false });
   }
-  return doors;
+  return { roof, southFace, doors };
+}
+
+/** One aligned car's live handles: the shell the world stands down while
+ *  the rider is aboard (roof + platform-side face) and one TrainDoors per
+ *  interactive door (W-C6: the transfer car carries two). */
+export interface CarHandle {
+  roof: THREE.Mesh;
+  southFace: THREE.Mesh[];
+  doors: TrainDoors[];
 }
 
 /**
@@ -228,26 +249,29 @@ function buildCar(
  * interactive door faces it), the east car sits shuttered in the tunnel.
  * Station B's pair is built with the same call at the translated center —
  * pixel-identical around the player by law (the swap seam depends on it).
+ * `interactiveDoorRels`: one rel per interactive door of the ALIGNED car.
  */
 export function buildTrainPair(
-  ctx: KitCtx, alignedCarCx: number, interactiveDoorRel: number,
-): TrainDoors {
-  const doors = buildCar(ctx, alignedCarCx, interactiveDoorRel);
-  buildCar(ctx, alignedCarCx + 13, null); // the east car — shuttered
-  if (!doors) throw new Error('train: interactive door missing');
-  return doors;
+  ctx: KitCtx, alignedCarCx: number, interactiveDoorRels: number[],
+): CarHandle {
+  const car = buildCar(ctx, alignedCarCx, interactiveDoorRels);
+  buildCar(ctx, alignedCarCx + 13, []); // the east car — shuttered
+  if (car.doors.length === 0) throw new Error('train: interactive door missing');
+  return car;
 }
 
 // ------------------------------------------------------------------ tunnel
 
 /** The tunnel between (and beyond) the stations: continuous north wall,
- *  ceiling and rails; the south wall is interrupted by the two platform
+ *  ceiling and rails; the south wall is interrupted by the platform
  *  openings. Light strips ride the north wall — the scenery the ride
- *  scrolls past the windows. */
+ *  scrolls past the windows. W-C6: the tube grows its east reach to the
+ *  Larch Yards (registry SUB-TRACK's own span amendment) — the south wall
+ *  gains station C's portal band, the strips and ribs run the full tube. */
 export function buildTunnel(ctx: KitCtx, scenery: THREE.Group): void {
   const S = STATION;
   const xFrom = -350;
-  const xTo = -20;
+  const xTo = 182;
   const cy = (S.trenchTop + -0.8) / 2;            // -2.65
   const h = -0.8 - S.trenchTop;                   // 3.7
 
@@ -258,13 +282,14 @@ export function buildTunnel(ctx: KitCtx, scenery: THREE.Group): void {
     box(ctx, `SUB_Rail_${rz.toFixed(2)}`, (xFrom + xTo) / 2, -4.375, rz, xTo - xFrom, 0.15, 0.12, 0x6a6a72, { collide: false });
   }
 
-  // south wall segments (platform openings at A: -52.15..-35.85, B: -340.15..-323.85)
-  for (const [a, b] of [[xFrom, -340.15], [-323.85, -52.15], [-35.85, xTo]] as const) {
+  // south wall segments (platform openings at A: -52.15..-35.85,
+  // B: -340.15..-323.85, C: 155.85..172.15 — each station's own span)
+  for (const [a, b] of [[xFrom, -340.15], [-323.85, -52.15], [-35.85, 155.85], [172.15, xTo]] as const) {
     if (b - a <= 0.01) continue;
     box(ctx, `SUB_TunnelS_${a.toFixed(0)}`, (a + b) / 2, cy, S.zPlatformEdge + 0.125, b - a, h, 0.25, 0x4a4550);
   }
   // floor segments (the stations own their trench floors)
-  for (const [a, b] of [[xFrom, -340.15], [-323.85, -52.15], [-35.85, xTo]] as const) {
+  for (const [a, b] of [[xFrom, -340.15], [-323.85, -52.15], [-35.85, 155.85], [172.15, xTo]] as const) {
     if (b - a <= 0.01) continue;
     box(ctx, `SUB_TunnelFloor_${a.toFixed(0)}`, (a + b) / 2, S.trenchTop - 0.05, S.trackZ, b - a, 0.1, S.zTrenchN - S.zPlatformEdge, 0x3e3a46, { collide: false });
   }

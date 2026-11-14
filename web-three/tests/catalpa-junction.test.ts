@@ -169,13 +169,19 @@ describe('W-C1 — the zone law (the far band stays dark until it is home)', () 
   });
 });
 
-describe('W-C1 — the no-ride law (the stub prices; the machine rides later)', () => {
-  it('the ride machine keeps two stations — no third ride end', () => {
+describe('W-C1 — the stub law (the slot rows price; W-C6 grew the machine)', () => {
+  it('the ride machine now carries three ends under the route law (the no-ride stub superseded by W-C6)', () => {
+    // The W-C1 wave pinned "no third ride end" while the docks were a stub —
+    // its own header said "the machine rides later". W-C6 is later: the
+    // eastbound hop exists, the third end is the route law's own (E flips
+    // A↔C; B never boards an E ride), and the seam math stays registry-pinned.
     const ride = read('web-three/src/world/subway/ride.ts');
     expect(ride).toContain("'A'");
     expect(ride).toContain("'B'");
-    expect(ride).not.toContain("'C'");
+    expect(ride).toContain("'C'");
     expect(ride).toContain('RIDE_SWAP_DX');
+    expect(ride).toContain("route: RideRoute = 'W'");
+    expect(ride).toContain('RIDE_SWAP_DX_E');
   });
 
   it('the stub is a slot row the way SUB-TS is — h 0, class A', () => {

@@ -87,8 +87,11 @@ export interface LarchYardsDI {
   ledger?: FabricLedgerEntry[];
 }
 
-/** A collider the world must own (columns, the crane pedestal, dock edges). */
-export interface LarchYardsCollider { x: number; y: number; z: number; sx: number; sy: number; sz: number }
+/** A collider the world must own (columns, the crane pedestal, dock edges).
+ *  `dollhouse: true` marks the station-housing band (W-C6): World lifts
+ *  these with the shell on the underground flip — the cutaway camera
+ *  stands inside their band when the lens opens. */
+export interface LarchYardsCollider { x: number; y: number; z: number; sx: number; sy: number; sz: number; dollhouse?: boolean }
 
 const LEDGER = (di: LarchYardsDI, name: string, x: number, y: number, z: number): void => {
   di.ledger?.push({ name, x, y, z });
@@ -737,19 +740,45 @@ export function buildLarchYards(di: LarchYardsDI): LarchYardsCollider[] {
     freightMarketFitout(di, cols);
   } catch { /* unplanned */ }
 
-  // the station house (its registry row drives the little mass)
+  // the station house (its registry row drives the little mass). W-C6: the
+  // headhouse becomes the stair housing it always promised — the shaft
+  // (the kit's own slot band, translated to the house's axis) opens THROUGH
+  // the shell, the SUB-01 law ("no solid collider — the shaft is the
+  // hole"). The envelope is unchanged: same footprint, same height, same
+  // roof cap, same hood — the silhouette byte-equal, the surface read now
+  // honest: two piers, an open mouth (2.6 m, the kit's slot width), a
+  // header over it, and the treads descending inside.
   try {
     const ss = di.shell('SUB-03');
     const g = new GeoPush();
-    g.box(ss.x, ss.h / 2, ss.z, ss.w, ss.h, ss.d, PAL.bldg2);
+    // the mouth band = the kit's stair slot, translated to the house axis
+    const slotHalfW = 1.3; // the slot's 2.6 m band, half
+    const mouthX0 = ss.x - slotHalfW, mouthX1 = ss.x + slotHalfW;
+    const SLOT_MAXZ = 8.0; // the kit's slot band's north edge (the housing split line)
+    // north block: z 8..11, full width (the platform-side half of the house)
+    g.box(ss.x, ss.h / 2, (SLOT_MAXZ + (ss.z + ss.d / 2)) / 2, ss.w, ss.h, (ss.z + ss.d / 2) - SLOT_MAXZ, PAL.bldg2);
+    // west pier: x 160..mouth, z 5..8
+    g.box((ss.x - ss.w / 2 + mouthX0) / 2, ss.h / 2, (ss.z - ss.d / 2 + SLOT_MAXZ) / 2, mouthX0 - (ss.x - ss.w / 2), ss.h, SLOT_MAXZ - (ss.z - ss.d / 2), PAL.bldg2);
+    // east pier: x mouth..168, z 5..8
+    g.box((mouthX1 + ss.x + ss.w / 2) / 2, ss.h / 2, (ss.z - ss.d / 2 + SLOT_MAXZ) / 2, (ss.x + ss.w / 2) - mouthX1, ss.h, SLOT_MAXZ - (ss.z - ss.d / 2), PAL.bldg2);
+    // the header over the mouth (the house's south face above the opening;
+    // 2.4 m clear — the head sign at y 1.55 and the globes clear under it)
+    g.box(ss.x, ss.h - (ss.h - 2.4) / 2, ss.z - ss.d / 2 + 0.15, mouthX1 - mouthX0, ss.h - 2.4, 0.3, PAL.bldg2);
+    // roof cap (unchanged — the shaft's own lid, like SUB-01's housing)
     g.box(ss.x, ss.h + 0.14, ss.z, ss.w + 0.2, 0.28, ss.d + 0.2, PAL.ink);
-    // the stair hood on its north face (the future platform's stair)
+    // the stair hood on its north face (unchanged — the platform's canopy)
     g.box(ss.x, 1.5, ss.z + ss.d / 2 + 0.9, 3.2, 3.0, 1.6, FABRIC.limestoneDark);
     g.box(ss.x, 3.15, ss.z + ss.d / 2 + 0.9, 3.6, 0.22, 2.0, PAL.ink);
     emit(di, true, 'LarchYards_Sub03', g.toGeometry(), true, true);
     LEDGER(di, 'LarchYards_Sub03', ss.x, ss.h / 2, ss.z);
-    cols.push({ x: ss.x, y: ss.h / 2, z: ss.z, sx: ss.w, sy: ss.h, sz: ss.d });
-    cols.push({ x: ss.x, y: 1.5, z: ss.z + ss.d / 2 + 0.9, sx: 3.2, sy: 3.0, sz: 1.6 });
+    // the housing's colliders, SPLIT around the shaft (the hole is real) —
+    // tagged dollhouse: World lifts them with the shell on the underground
+    // flip (the cutaway camera stands inside this band when the lens opens)
+    const tagC = { dollhouse: true } as const;
+    cols.push({ x: ss.x, y: ss.h / 2, z: (SLOT_MAXZ + (ss.z + ss.d / 2)) / 2, sx: ss.w, sy: ss.h, sz: (ss.z + ss.d / 2) - SLOT_MAXZ, ...tagC });
+    cols.push({ x: (ss.x - ss.w / 2 + mouthX0) / 2, y: ss.h / 2, z: (ss.z - ss.d / 2 + SLOT_MAXZ) / 2, sx: mouthX0 - (ss.x - ss.w / 2), sy: ss.h, sz: SLOT_MAXZ - (ss.z - ss.d / 2), ...tagC });
+    cols.push({ x: (mouthX1 + ss.x + ss.w / 2) / 2, y: ss.h / 2, z: (ss.z - ss.d / 2 + SLOT_MAXZ) / 2, sx: (ss.x + ss.w / 2) - mouthX1, sy: ss.h, sz: SLOT_MAXZ - (ss.z - ss.d / 2), ...tagC });
+    cols.push({ x: ss.x, y: 1.5, z: ss.z + ss.d / 2 + 0.9, sx: 3.2, sy: 3.0, sz: 1.6, ...tagC });
     stationSign(di);
   } catch { /* unplanned — never renders */ }
 

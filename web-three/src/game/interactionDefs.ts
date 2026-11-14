@@ -420,6 +420,43 @@ const trainB: Interaction = {
   },
 };
 
+/** The transfer car's WEST door (W-C6): the eastbound hop's spot — 6.2 m
+ *  from the westbound door inside the same car, the boarding law's own
+ *  pins. Same 1.05 radius law: the prompt must mean "you are at THIS
+ *  door" — the two prompts never overlap (6.2 m apart, 1.05 radii). */
+const trainEast: Interaction = {
+  id: 'trainEast',
+  pos: () => ({ ...SUBWAY_SPOTS.rideEast }),
+  radius: 1.05,
+  yBand: 2.2,
+  enabled: (_s, ctx) => {
+    const sub = farSubway(ctx);
+    return !!sub && sub.doorsOpen && sub.ride.phase === 'idle';
+  },
+  prompt: () => 'Ride to the Larch Yards',
+  perform: (ctx) => {
+    ctx.game.world.subway?.requestRide('A', 'E');
+    return [];
+  },
+};
+
+/** Inside the aligned car at the Larch Yards (W-C6): press to ride home. */
+const trainC: Interaction = {
+  id: 'trainC',
+  pos: () => ({ ...SUBWAY_SPOTS.rideC }),
+  radius: 1.05,
+  yBand: 2.2,
+  enabled: (_s, ctx) => {
+    const sub = farSubway(ctx);
+    return !!sub && sub.doorsOpen && sub.ride.phase === 'idle';
+  },
+  prompt: () => 'Ride back to Alder Heights',
+  perform: (ctx) => {
+    ctx.game.world.subway?.requestRide('C', 'E');
+    return [];
+  },
+};
+
 /** Priya — the conductor's platform line, day-keyed (Doc 02's teach). */
 const priya: Interaction = {
   id: 'priya',
@@ -766,7 +803,7 @@ const eastMenu: Interaction = {
 
 export function freeRoamInteractions(src: InteractionSources): Interaction[] {
   return [bench, parkBench, court, hotdog, barber, alley, washerFree, board, newsbox, subway,
-    trainA, trainB, priya, busker, buskerCoin, usher, driver, duffel,
+    trainA, trainEast, trainB, trainC, priya, busker, buskerCoin, usher, driver, duffel,
     // W5 — the rooms (docs/41): every loop anchored inside its registry shell
     dryer, pizza, dinerCoffee, dinerBooth, pieCase, hallNotice, hallWorkshop, bakery, recordBin, recordListen, cecilGaze, cecilCorkboard,
     // the C0 pack's neighbors (narrative/14 §7 step 6 — doc 11): Eddie's

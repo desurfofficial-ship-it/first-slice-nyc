@@ -10,7 +10,9 @@ import { southWallPieces, turnstileHubAt, ZONE_KEEP_RE, STAIR_SLOT } from '../sr
 import { CAR_BODY, southBenchSpans } from '../src/world/subway/trainKit';
 import {
   aboardCar, beginRide, createRide, endRide, CAR_Z_MAX, CAR_Z_MIN,
-  RIDE_BEATS, RIDE_SWAP_DX, RIDE_T, swapFeet, tickRide, type RideEvent,
+  RIDE_BEATS, RIDE_BEATS_E, RIDE_SWAP_DX, RIDE_SWAP_DX_E, RIDE_T, RIDE_T_E,
+  STATION_A_X, STATION_B_X, STATION_C_X, swapFeet, tickRide,
+  type RideEvent,
 } from '../src/world/subway/ride';
 
 // ---------------------------------------------------------------- zones
@@ -18,8 +20,11 @@ import {
 const ZONES: ZoneDef[] = [
   { name: 'stationA', minX: -58, maxX: -30, minZ: 3, maxZ: 22, maxFeetY: 0.45, slack: 2 },
   { name: 'stationB', minX: -346, maxX: -318, minZ: 3, maxZ: 22, maxFeetY: 0.45, slack: 2 },
-  { name: 'tunnel', minX: -352, maxX: -18, minZ: 12, maxZ: 20, maxFeetY: 0, slack: 0,
-    linkedTo: ['stationA', 'stationB'] },
+  // the east district's station (W-C6): the same below-grade law translated
+  { name: 'stationC', minX: 155.5, maxX: 172.5, minZ: 7.5, maxZ: 20.5, maxFeetY: 0.45, slack: 2 },
+  { name: 'stairC', minX: 162.4, maxX: 165.6, minZ: 3.6, maxZ: 8.2, maxFeetY: 0.2, slack: 0.4 },
+  { name: 'tunnel', minX: -352, maxX: 190, minZ: 12, maxZ: 20, maxFeetY: 0, slack: 0,
+    linkedTo: ['stationA', 'stationB', 'stationC', 'stairC'] },
   { name: 'tsSurface', minX: -420, maxX: -280, minZ: -32, maxZ: 32, minFeetY: -0.45, slack: 6 },
 ];
 
@@ -59,6 +64,15 @@ describe('zone visibility (the far-district law)', () => {
   it('home street lights nothing (the district tiles own that)', () => {
     const lit = litAt(0, 0.1, 0);
     expect(lit.size).toBe(0);
+  });
+
+  it('station C lights below grade and links the tunnel (the eastbound law, W-C6)', () => {
+    const lit = litAt(164, -3.2, 12);
+    expect(lit.has('stationC')).toBe(true);
+    expect(lit.has('tunnel')).toBe(true); // linked
+    expect(litAt(60, -3.2, 16).has('tunnel')).toBe(true); // mid-E-ride
+    expect(litAt(164, 0.6, 12).has('stationC')).toBe(false); // the rooftop law
+    expect(litAt(164, 0.1, 6.9).has('stairC')).toBe(true); // the stair mouth reads lit
   });
 });
 
@@ -142,6 +156,130 @@ describe('the ride machine (deterministic seam)', () => {
   });
 });
 
+// ---------------------------------------------------- the eastbound route
+
+function runRideRoute(seconds: number, from: 'A' | 'B' | 'C', route: 'W' | 'E', dt = 0.1): { s: ReturnType<typeof createRide>; events: RideEvent[] } {
+  const s = createRide();
+  const events = beginRide(s, from, route);
+  for (let t = 0; t < seconds; t += dt) events.push(...tickRide(s, dt));
+  return { s, events };
+}
+
+describe('the eastbound ride (route E — Alder Heights ⇄ the Larch Yards, W-C6)', () => {
+  it('rides are westbound by default (the shipped calls never change)', () => {
+    const s = createRide();
+    expect(s.route).toBe('W');
+    const events = beginRide(s, 'A');
+    expect(events).toEqual([{ type: 'doors', open: false }]);
+    expect(s.route).toBe('W');
+  });
+
+  it('is a short hop: the E constants sit inside the 8–10 s law', () => {
+    expect(RIDE_T_E.arrive).toBeGreaterThanOrEqual(8);
+    expect(RIDE_T_E.arrive).toBeLessThanOrEqual(10);
+    expect(RIDE_T_E.close).toBe(RIDE_T.close); // the same door machine
+    expect(RIDE_T_E.depart).toBe(RIDE_T.depart);
+    // the seam crosses once, well inside the shut window
+    expect(RIDE_T_E.swap).toBeGreaterThan(RIDE_T_E.close + 1);
+    expect(RIDE_T_E.swap).toBeLessThan(RIDE_T_E.arrive - 1);
+  });
+
+  it('plays the E beats in order at their pinned times (its own beat set)', () => {
+    const { events } = runRideRoute(RIDE_T_E.arrive + 0.2, 'A', 'E');
+    const notes = events.filter((e) => e.type === 'note').map((e) => e.beat);
+    expect(notes).toEqual(RIDE_BEATS_E.map((b) => b.key));
+    // the E set never fires the W teach — Priya's lesson rides the westbound only
+    expect(notes).not.toContain('priya-uptown');
+    expect(notes).not.toContain('priya-lines');
+    // the announcement lands on the destination car (after the seam)
+    const swapT = RIDE_T_E.swap;
+    const announce = RIDE_BEATS_E.find((b) => b.key === 'announce-east');
+    expect(announce!.t).toBeGreaterThan(swapT);
+  });
+
+  it('crosses the swap seam exactly once, end C, while the doors are shut', () => {
+    const { s, events } = runRideRoute(RIDE_T_E.close + RIDE_T_E.arrive + 0.2, 'A', 'E');
+    const swaps = events.filter((e) => e.type === 'swap');
+    expect(swaps).toHaveLength(1);
+    expect(swaps[0].end).toBe('C');
+    expect(s.at).toBe('C');
+    expect(s.phase).toBe('arrived');
+  });
+
+  it('rides home from C by the same law (end A, westbound over the seam)', () => {
+    const { s, events } = runRideRoute(RIDE_T_E.arrive + 0.2, 'C', 'E');
+    const swaps = events.filter((e) => e.type === 'swap');
+    expect(swaps).toHaveLength(1);
+    expect(swaps[0].end).toBe('A');
+    expect(s.at).toBe('A');
+  });
+
+  it('moves the player one east-length, preserving the seam math', () => {
+    expect(STATION_A_X).toBe(-44);
+    expect(STATION_B_X).toBe(-332);
+    expect(STATION_C_X).toBe(164); // SUB-03's own axis (the A-3 pin lives in the sim-registry suite)
+    expect(RIDE_SWAP_DX_E).toBe(208);
+    expect(swapFeet(-47.3, 'A', 'E')).toBeCloseTo(160.7, 5);
+    expect(swapFeet(167.1, 'C', 'E')).toBeCloseTo(-40.9, 5);
+    // the W math is untouched
+    expect(swapFeet(-41.4, 'A', 'W')).toBeCloseTo(-329.4, 5);
+    expect(swapFeet(-41.4, 'A')).toBeCloseTo(-329.4, 5); // the default route
+  });
+
+  it('never boards an illegal station/route pair (the guard law)', () => {
+    const b = createRide();
+    expect(beginRide(b, 'B', 'E')).toHaveLength(0); // B is not on the E route
+    expect(b.phase).toBe('idle');
+    const c = createRide();
+    expect(beginRide(c, 'C', 'W')).toHaveLength(0); // C is not on the W route
+    expect(c.phase).toBe('idle');
+    // the state is untouched — no half-opened doors
+    expect(c.at).toBe('A');
+  });
+
+  it('opens the doors only on arrival, and retires through departing (route E)', () => {
+    const { s, events } = runRideRoute(RIDE_T_E.close + RIDE_T_E.arrive + 0.2, 'A', 'E');
+    expect(s.phase).toBe('arrived');
+    endRide(s);
+    for (let t = 0; t <= RIDE_T_E.depart + 0.1; t += 0.1) events.push(...tickRide(s, 0.1));
+    expect(s.phase).toBe('idle');
+    expect(s.at).toBe('C');
+    expect(events.filter((e) => e.type === 'doors')).toEqual([
+      { type: 'doors', open: false },
+      { type: 'doors', open: true },
+      { type: 'doors', open: true },
+    ]);
+  });
+
+  it('is bit-for-bit repeatable on the E route (the ballSim law)', () => {
+    const a = runRideRoute(RIDE_T_E.arrive + 0.2, 'A', 'E').events;
+    const b = runRideRoute(RIDE_T_E.arrive + 0.2, 'A', 'E').events;
+    expect(a).toEqual(b);
+  });
+
+  it('holds the wall-time law at the 1 s cap on the E route', () => {
+    const s = createRide();
+    beginRide(s, 'A', 'E');
+    const events: RideEvent[] = [];
+    let arrived = -1;
+    for (let i = 0; i < 30 && arrived < 0; i++) {
+      for (const e of tickRide(s, 1.0)) {
+        events.push(e);
+        if (e.type === 'arrived') arrived = i + 1;
+      }
+    }
+    expect(arrived).toBeGreaterThanOrEqual(RIDE_T_E.arrive);
+    // threshold steps quantize: each phase may overshoot by one step at the
+    // 1 s cap (closing's 1.2 lands at step 2; riding's 9.5 lands at step 10
+    // of the riding clock) — the W law's +1.0 bound assumed integer-aligned
+    // thresholds; the honest bound is one step per phase
+    expect(arrived).toBeLessThanOrEqual(RIDE_T_E.close + RIDE_T_E.arrive + 2.0);
+    expect(events.filter((e) => e.type === 'note').map((e) => e.beat))
+      .toEqual(RIDE_BEATS_E.map((b) => b.key)); // each once, in order
+    expect(events.filter((e) => e.type === 'swap')).toHaveLength(1);
+  });
+});
+
 // docs/50 §4.6, paid — the turnstile spin needs an honest trigger. The law:
 // a pass is a strict z sign-change across the fare line INSIDE a hub's gate
 // (±0.55); the open lane and the platforms cross free; standing still and
@@ -174,6 +312,12 @@ describe('turnstile pass detection (stationKit.turnstileHubAt)', () => {
 
   it('station B detects through its own translated hubs', () => {
     expect(turnstileHubAt(9.9, 10.5, -332 + 0.65, -332)).toBe(1);
+  });
+
+  it('station C detects through its own hubs (the third fare window, W-C6)', () => {
+    expect(turnstileHubAt(9.9, 10.5, 164 + 0.65, 164)).toBe(1);
+    expect(turnstileHubAt(10.5, 9.9, 164 - 4.55, 164)).toBe(0);
+    expect(turnstileHubAt(9.9, 10.5, 164 - 1.9, 164)).toBe(-1); // the open lane
   });
 });
 
@@ -255,6 +399,27 @@ describe('the boarding law — the doorway opens onto the aisle (2026-11-12)', (
     const spans = southBenchSpans(-31.2, null);
     expect(spans).toHaveLength(1);
     expect(spans[0].b - spans[0].a).toBeCloseTo(8.8, 5);
+  });
+
+  it('the transfer car\u2019s two doors both open onto the aisle (W-C6: west door rides east)', () => {
+    // Station A's aligned car carries BOTH ride doors: the east door is the
+    // westbound ride (shipped), the west door is the eastbound hop — the two
+    // stand 6.2 m apart inside one car (real cars hang doors in pairs). The
+    // bench splits around BOTH; neither span may cross a door.
+    const rels = [CAR_BODY.doorRel, -CAR_BODY.doorRel];
+    expect(rels[1] - rels[0]).toBeCloseTo(-6.2, 5); // "the two car doors stand 6 m apart"
+    const spans = southBenchSpans(-44.2, rels);
+    for (const rel of rels) {
+      const doorSpan = { a: rel - CAR_BODY.doorW / 2, b: rel + CAR_BODY.doorW / 2 };
+      for (const seg of spans) {
+        const clears = seg.b <= doorSpan.a - 0.1 || seg.a >= doorSpan.b + 0.1;
+        expect(clears).toBe(true);
+      }
+    }
+    // and the aisle between the doors stays walkable: the aboard band covers it
+    expect(CAR_Z_MIN).toBeLessThanOrEqual(
+      CAR_BODY.benchZSouth + CAR_BODY.benchDepth / 2 - CAR_BODY.playerRadius - 0.001,
+    );
   });
 
   function doorwayStandZ(): number {

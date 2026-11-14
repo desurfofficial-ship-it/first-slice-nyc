@@ -37,33 +37,25 @@ BUILD_STATUS §2.
 
 ## 2. The exact next implementation task
 
-**The K-line eastbound ride (the design package's own next priced wave).**
-The station kit is parameterized (`world/subway/stationKit.ts` — station B
-already builds from the registry's SUB-TS row). The work:
+**~~The K-line eastbound ride~~ — DONE (W-C6, register v1.78.0):** the
+route law, the transfer car's two doors, station C under SUB-03's axis, the
+tunnel's east reach, the shaft-is-the-hole housing, the open cut's
+L-shape. The eastbound leg rides in probe-subway (17 checks) and the
+arrival evidence frame hangs.
 
-1. Registry: SUB-03 gains its underground shell row (the platform band under
-   the headhouse — the kit's own geometry, priced).
-2. `stationKit.buildStation` for station C at cx ≈ 152+ (under the plaza —
-   the stair hood already sits at SUB-03's north face).
-3. `ride.ts`: the ride machine gains a route — `beginRide(s, from, route)`
-   where route ∈ 'W' (Alder Heights ⇄ Times Square, the shipped beats) or
-   'E' (Alder Heights ⇄ the Larch Yards, a short hop ~8-10 s, its own beat
-   set). `RIDE_T` gains the E-leg constants; `swapFeet` gains the E delta
-   (STATION_C_X − STATION_A_X). The state machine stays pure — pin the new
-   transitions in `ride.test.ts` first (the issue→guard law).
-4. The route choice: the ride interaction at station A presents BOTH
-   destinations (the two car doors stand 6 m apart — westbound car and
-   eastbound car; the spots already exist as SUBWAY_SPOTS entries to add).
-5. `subway/index.ts`: station C's build + zones (mirror station B's zone
-   pattern) + the third car + the fare check's third window.
-6. Probes: extend `probe-subway` (the eastbound ride's 46-check class) and
-   `probe-world-map-evidence` (the Catalpa arrival frame). Re-run
-   `diag-pocket-scan` (the platform is below grade — the scan's y-band
-   already skips it) and `probe-city-fabric` (the platform's draw price).
+**The next priced wave: the M121/taxi routes east** — the transit
+completion: the M121's loop grows its east leg (the Junction Plaza stop on
+Kestrel East; the registry's BUS-04 bay pattern), the taxi's roam grows the
+east streets (the cab's own routes table). Priced estimate from the shipped
+ledger: the bus shell +1-2 draws resident, the cab +0 (dynamic), ~4
+registry rows (the bus stops + the route rows), ~2 probe legs
+(probe-bus/probe-taxi extensions). Do not start without the priced ledger
+row (the DEC-2 law).
 
-**Priced estimate from the shipped ledger:** station B's class ≈ +6-9 draws
-below grade (zone-gated, +0 standing), ~9 registry rows, ~2 new probe legs.
-Do not start without the priced ledger row (the DEC-2 law).
+**The small safe alternative:** 2 ambient walker loops on the spur/Kestrel
+East (the ped-commute roster's own grammar; the lanes already exist).
+
+## 3. The laws this build added (they bind you)
 
 ## 3. The laws this build added (they bind you)
 
@@ -94,6 +86,20 @@ Do not start without the priced ledger row (the DEC-2 law).
    asphalt + ONE concrete mesh (`World.groundMerged`, metric UVs preserved)
    — mapped materials leave the bake, so per-slab meshes would cost a draw
    each.
+7. **The underground-is-not-a-wall law (W-C6):** height-0 rows (the SUB-TS
+   pattern: below-grade bands) bend no lane, seed no door, block no walker
+   (`footprintsOf` skips them) — a platform band inside the walked extent
+   would bend the east lanes and shift every seeded commute.
+8. **The shaft-is-the-hole law (W-C6, the SUB-01 law east edition):** a
+   headhouse over a stair shaft opens around the kit's own slot band; the
+   colliders split with the geometry; the walk splits around the mouth (the
+   W8 law); the bake keeps the housing standalone (NAMED_SKIP) so the
+   dollhouse can lift it by name — a baked housing strands the cutaway
+   staring at brick.
+9. **The lift-by-identity law (W-C6):** a collider that rides two arrays
+   (the world's + the dollhouse's lift list) must be ONE object — two
+   `boxFromCenter` calls build two unequal-by-reference boxes and the
+   splice finds nothing (the shipped-lift bug).
 
 ## 4. What remains open (beyond §2)
 
@@ -145,5 +151,6 @@ its phase row's content. Follow the same discipline.
 > buildings and characters are REJECTED classes (the A-3 law; the sim
 > boundary). The fenestra system re-certified on this tree the same
 > day (probe-fenestra ALL PASS, 22 checks; the expansion decision
-> recorded in the fenestra doc §9). Your §2 next task (the K-line
-> eastbound ride) is unchanged.
+> recorded in the fenestra doc §9). §2's next task is now the
+> M121/taxi routes east (the W-C6 wave completed the eastbound ride and
+> re-pointed §2 itself).
