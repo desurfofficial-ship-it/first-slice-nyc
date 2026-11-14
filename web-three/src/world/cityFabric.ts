@@ -62,6 +62,7 @@ export const ROOF_SKIP = new Set([
   'TSS-01', 'TSS-02', 'TSS-03', 'TSS-04', 'TSS-05', // the far world dresses itself
   'CJN-01', 'CJN-02', 'CJN-03', 'CJN-04', 'CJN-05', // Catalpa Junction dresses itself
   'CJN-06', 'CJN-07', 'CJN-08', 'CJN-09', 'CJN-SUB', // (W-C1: the zone-owned far band — the fabric never touches it)
+  'LNH-08',                 // the gas holder frames itself (W-N4: the kit owns the iron)
 ]);
 
 /** The VQ pass's roof-clutter rows (World.ts) — bulkhead+vents already live
@@ -326,10 +327,17 @@ const SKY_ROWS: SkyRow[] = [
   // −466 sits behind the Catalpa docks' west faces, 10 m east of the
   // SKY-TS-W rim: from Alder the west horizon reads above the docks'
   // rooflines, and the row never stands inside built content.
+  // W-N4 (2026-11-14): the N row moves +104 → +250 — Linden Hill took the
+  // old ground (the band spans z 64..160); the row that stood at z 104 was
+  // standing IN the green's south half. The merged north tower row
+  // (SkylineNorth, z 230) keeps its post in front; the depth row reads
+  // behind it, 90 m beyond the new wall (z 160) — the evidence probe
+  // caught the first 185 seat looming over the green like a local tower,
+  // so the row sits at the S row's own read distance from the band.
   { key: 'W', axis: 'z', at: -466, from: -64, to: 64, faceSign: +1, seed: 0x51C9, glassBias: 0.22, boostMid: true },
   { key: 'E', axis: 'z', at: +262, from: -64, to: 64, faceSign: -1, seed: 0x52C9, glassBias: 0.22, boostMid: true },
   { key: 'S', axis: 'x', at: -88, from: -140, to: 96, faceSign: +1, seed: 0x53C9, glassBias: 0.45, boostMid: false },
-  { key: 'N', axis: 'x', at: +104, from: -80, to: 80, faceSign: -1, seed: 0x54C9, glassBias: 0.3, boostMid: false },
+  { key: 'N', axis: 'x', at: +250, from: -80, to: 80, faceSign: -1, seed: 0x54C9, glassBias: 0.3, boostMid: false },
 ];
 
 function pushSkyBuilding(

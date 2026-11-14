@@ -19,10 +19,10 @@
 | | |
 |---|---|
 | **Branch** | `main` (the integrated tree; the assignment branch merged at e516206) |
-| **Head** | W-C7 (the M121/taxi routes east — register v1.81.0) |
-| **Registry** | v1.81.0 (112 buildings, 9 parks, 23 interiors, 13 landmarks, 7 streets, 20 phases) |
-| **The world** | **Two districts and a destination:** Alder Heights (x −100..+100, unchanged) + **the Larch Yards** (x +100..+252, built this assignment) + Times Square (one K-line ride west, unchanged) |
-| **Playable core** | x −100..+252, z ±64 (registry `bounds.playableCore`; the invisible walls follow) |
+| **Head** | **W-N4..N6 — Linden Hill, the North Depth (register v1.85.0)** — this wave |
+| **Registry** | v1.85.0 (143 buildings, 12 parks, 23 interiors, 17 landmarks, 11 streets, 21 phases; 382 IDs) |
+| **The world** | **Three districts, a corridor and a destination:** Alder Heights (x −100..+100) + the Larch Yards (x +100..+252) + **Linden Hill (x −100..+252, z 64..160 — the North Depth, this wave)** + the Willow Rows corridor (x −280..−100) + Times Square (one K-line ride west) |
+| **Playable core** | x −450..+252, z −64..**+160** (registry `bounds.playableCore`; the invisible walls follow — the north wall split: the band's edge at z 160, the void west of x −100 keeps its z-64 edge) |
 
 ## 1. What is BUILT (verified in the running game)
 
@@ -208,6 +208,85 @@
   probes green; evidence in shots/polyfork/east-*.png.
 
 ---
+
+## 2026-11-14 — the North Depth (W-N4..N6): Linden Hill (register v1.85.0)
+
+The master build directive's next major expansion — **the city's second
+dimension**. The world was a strip: 702 m long, 128 m deep, two block-rows
+everywhere, invisible walls at z ±64. The north band over Alder Heights and
+the Larch Yards (**x −100..+252, z 64..160**, +33,792 m² of playable
+geography, +38%) is real rows now — see
+`docs/world-building/linden-hill-design.md` (the district's specification).
+
+- **W-N4 (the data wave):** two E-W streets (Hazel z 68..76, Mulberry
+  z 116..124, spanX −100..252), the four NS avenues' north ends (Juniper/
+  Sycamore/Spur/Larch spanZ +64 → +160 — the continuation law, north
+  edition), twelve blocks, fourteen `LNH-*` masses (shells only — the W-C1
+  scope law), the green in two halves (PRK-LINDEN + PRK-LINDEN-NORTH —
+  Mulberry crosses between them), LMK-16 the school's stone, LMK-17 the
+  gas holder, eight intersections, thirty-two crosswalks (four per corner,
+  the GJ/GS pattern), bounds (world zMax 176, playableCore zMax 160, SKY-N
+  z 230). The patch script self-checks overlaps, road clearance, block
+  membership, the at-spawn pricing rule (every band mass bakes into rows
+  7..9) and the far-row occlusion check (the band hides behind the z 48..64
+  rows' rooflines from the spine — three masses trimmed to h 13 by the
+  check before the file was written).
+- **W-N5 (the lattice):** `DIST_ROWS` 3 → **10** (origin −144 — the Day-1
+  spawn keeps its middle row), `ROW_RING` 1 → **2** (a five-row, 160 m
+  window; the spawn-lit set stays byte-identical), the W6 strips' clamp
+  law restored on the new grid (the per-column fusion preserved), the
+  north wall split (the band's edge z 160; the void west of x −100 keeps
+  its z-64 edge), the west/east walls re-spanned z −64..160, NAV_BOUNDS
+  zMax 152, the skyline re-seats (SkylineNorth the merged deco tower row
+  z 230; the fabric N row z 250; the six landmark silhouettes z 226..232
+  merged into one fog-exempt mesh — the evidence probe caught all three
+  layers standing inside the band before the moves).
+- **W-N6 (the kit):** `lindenHillKit.ts` (the westReachKit discipline) —
+  the masses, the green (hedges, gates, paths, benches, the playground,
+  the park house), the school's stone + flagpole + PUBLIC SCHOOL 27 sign,
+  the reading room's stepped arches + sign, the gas holder's iron frame,
+  Osier's timber yard, the viaduct's north reach (deck, parapets, column
+  pairs z 84/110/134/156 clear of every right-of-way, the crossing spans'
+  deep girders), the bed's north reach (rails, sleepers, weeds, timber
+  crossings), the lit panes (one InstancedMesh on the shipped dusk
+  material, registered to row 7). The band's ground pair split WEST/EAST,
+  each half registered to its own row-7 tile (the registration law: a
+  352 m mesh cannot ride one column's ring — the first attempt lit the
+  pair only within col 13's window; unregistered, the east half's sphere
+  grazed the spawn frustum). The seam dressing (fence line, bins,
+  clothesline posts along the far rows' north rears).
+
+**The laws this wave added:** the junction off-grid law (north edition — an
+on-grid lane offset lands the corner junctions on the avenue chains' own
+base nodes and the dedup strands them as trap nodes); the per-street NS
+span law (`laneSpanZ` — the W-C5 `laneSpanX` twin; the Willow/Chestnut
+spans stay ±64, no phantom lanes over the corridor's void); the no-skirt
+chain-break law (a blocked span with no passable skirt breaks the lane
+chain — no silent edge through the footprint); the singles law (unmerged
+single-source batches join their tile's district — the streamed-city law
+is total; the old behavior left them always-visible, a leak the band's
+rows 7-9 masses exposed); the skyline re-seat law (when a band takes the
+ground, every far-row seat moves beyond the band's DEPTH and merges into
+always-visible fog-exempt meshes); the ground-pair registration law (north
+edition).
+
+**The pricing (measured):** spawn DRAWS **196** (< 200; +2 the wave's own
+re-seat accounting — the merged north tower row and the ground pair's
+east-half registration), the band's own censuses 43-79 (the streamed-city
+law working in z: the rows light as the player arrives), the graph ONE
+component x −276..252 z −48..150, the pocket scan's spawn component grown
+to x −448..+250 z −62..+159.75 (460,066 cells — the band's floor joins;
+traps 19 unchanged; cramped 22 in 4 clusters identical to the base tree).
+
+**The battery:** validate-registry OK (382 IDs, 143 buildings, 11 streets,
+12 parks, 17 landmarks, 23/23 anchors) · tsc clean · vitest **1,792/1,792**
+(106 files) · build OK · probe-city-fabric 196 · probe-nav 9/9 ·
+probe-subway 45/46 (the documented baseline Wow-card carry) ·
+probe-wc1-catalpa OK (boot 196, +0 standing) · probe-w4-bus 14/14 ·
+probe-taxi-locate OK (the east crossing witnessed) · probe-fenestra ALL
+PASS · **probe-linden-evidence OK** (15 frames + 7 censuses + the walk
+leg: Kestrel → Juniper north → Hazel → Mulberry → Sycamore south, 209
+steps, 0 stalls, the avenues are streets now).
 
 ## 2026-11-14 — the West Reach (W-N0..N3): the Willow Rows + the Junction Mews + the transit east
 

@@ -59,6 +59,31 @@ v1.82.0, the concurrent line):** the spur walker + the Kestrel East local
 rode the same integration window this wave merged with; their sight-law
 pricing and band-core growth stand on the merged tree.
 
+**~~The next major geographical expansion~~ — DONE (W-N4..N6, register
+v1.85.0): Linden Hill, the North Depth.** The city's second dimension: the
+north band over Alder Heights and the Larch Yards (x −100..+252,
+z 64..160) — two E-W streets, the four avenues' north ends, fourteen
+masses, the green, the civic pair, the holder, the viaduct's north reach.
+The lattice grew 3 → 10 rows (ROW_RING 2) — **the z-depth infrastructure
+every future band reuses unchanged**. Read
+`docs/world-building/linden-hill-design.md` + BUILD_STATUS's W-N4..N6
+record first.
+
+**§2's next priced wave (the handover's own order):** pick ONE —
+
+1. **The band's ambient walker loops** (the WP-EAST pattern; the lanes
+   exist — Z_SPAN −48..152, the crossings splice; the loops price their
+   sight-law draws first).
+2. **The M121's north leg / the taxi's north rail** (the W-N3/W-C7
+   pattern; the loop's rectangle grows a north reach — the boot-pose law
+   applies, the probes re-time).
+3. **The south depth** (z −64..−160, the mirror band — the 10-row lattice
+   is already in place; rows 0..1 are empty and waiting; the W6 strip
+   clamp law mirrors to the south edge).
+4. **The Willow north band** (x −280..−100, z 64..160 — the corridor's
+   avenues Willow/Chestnut continue north; the wall segment west of the
+   band moves with it).
+
 **§2's ledger is now clear.** What remains is not buildable by an agent
 unilaterally: the Catalpa business books are the §8-gated CB1 (the owner's
 ruling stands open — the package filed, two dated amendments, nothing

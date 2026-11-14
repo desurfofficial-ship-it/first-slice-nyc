@@ -48,8 +48,10 @@ const out = await page.evaluate(() => {
   // the canyon + the docks are one walkable surface now (the mews connects
   // them); the scan prices the whole walked world
   const X0 = -449.75, Z0 = -63.75;
+  // W-N4: the core grew north with Linden Hill (z 160) — the scan prices
+  // the whole walked world, the standing gate grows with the map
   const NX = Math.round((251.75 - X0) / H) + 1;  // 1404
-  const NZ = Math.round((63.75 - Z0) / H) + 1;   // 256
+  const NZ = Math.round((159.75 - Z0) / H) + 1;  // 448
   const idx = (cx, cz) => cz * NX + cx;
   const cellX = (cx) => X0 + cx * H;
   const cellZ = (cz) => Z0 + cz * H;

@@ -2,8 +2,10 @@
  * The far-skyline landmark silhouettes — construction techniques ported
  * from mrdoob/slop-newyork's custom landmark builds (MIT, Copyright (c)
  * 2026 Mr.doob — see THIRD-PARTY-NOTICES.md (repo root)) and re-scaled for
- * FIRST SLICE's skyline card (World.ts:1037, the z 90 band north of the
- * grid, fog:false, deco-only, zero colliders).
+ * FIRST SLICE's skyline card (the far north band — W-N5 moved the seats
+ * z 88..95 -> z 226..232: the North Depth took the old ground and the
+ * landmark silhouettes stood IN Linden Hill's green; they read from the
+ * merged far row now, fog:false, deco-only, zero colliders).
  *
  * Ported techniques (docs/slop-integration/01-SOURCE-REUSE-REPORT.md):
  *   - stepped-setback art-deco tower .. js/landmarks.js 193–311 (the Empire
@@ -63,7 +65,7 @@ export function buildSkylineLandmarks(
   // ---- 1. the stepped-setback deco tower (the ESB construction) ---------
   // podium 20 → tier 16 → tier 12 → shaft → deck → mast → dome → spire
   {
-    const g = silhouetteRoot(scene, matStone, 'SKY_LMK_Decow', -58, 91);
+    const g = silhouetteRoot(scene, matStone, 'SKY_LMK_Decow', -58, 228);
     const h = 58; // silhouette scale (the source's 443 m towers read ~80 here)
     const podium = 12;
     g.add(place(box(), matStone, 11, podium, 7, 0, podium / 2, 0));
@@ -83,7 +85,7 @@ export function buildSkylineLandmarks(
   }
   // ---- 2. the terraced-crown tower (the Chrysler construction) ----------
   {
-    const g = silhouetteRoot(scene, matStone, 'SKY_LMK_Crown', 64, 90);
+    const g = silhouetteRoot(scene, matStone, 'SKY_LMK_Crown', 64, 232);
     const h = 52;
     g.add(place(box(), matStone, 9, h * 0.62, 6.5, 0, h * 0.31, 0));
     // the terraced crown: six shrinking arcs stacked into the needle
@@ -106,7 +108,7 @@ export function buildSkylineLandmarks(
   }
   // ---- 3. the glass sliver pair (the curtain-wall preset tones) ---------
   {
-    const g = silhouetteRoot(scene, matGlass, 'SKY_LMK_Glass', 78, 93);
+    const g = silhouetteRoot(scene, matGlass, 'SKY_LMK_Glass', 78, 230);
     g.add(place(box(), matGlass, 5.5, 78, 5.5, 0, 39, 0));
     g.add(place(box(), matTrim, 6.1, 1.4, 6.1, 0, 78.6, 0));
     g.add(place(box(), matGlass, 4.2, 64, 4.2, -5.4, 32, 0));
@@ -114,7 +116,7 @@ export function buildSkylineLandmarks(
   }
   // ---- 4. the wedge tower (the Flatiron prism) ---------------------------
   {
-    const g = silhouetteRoot(scene, matStone, 'SKY_LMK_Wedge', -76, 88);
+    const g = silhouetteRoot(scene, matStone, 'SKY_LMK_Wedge', -76, 226);
     const w = 5.5;
     const h = 34;
     // a squared prism with a chamfered prow reads as the wedge at distance
@@ -124,11 +126,11 @@ export function buildSkylineLandmarks(
   }
   // ---- 5. two mid-band masonry masses to knit the row together ----------
   {
-    const g = silhouetteRoot(scene, matStone, 'SKY_LMK_Midband', -36, 94);
+    const g = silhouetteRoot(scene, matStone, 'SKY_LMK_Midband', -36, 231);
     g.add(place(box(), matStone, 8, 26, 6, 0, 13, 0));
     g.add(place(box(), matStone, 6, 38, 5, 0.5, 19 + 6, 0.5));
     g.add(place(box(), matTrim, 6.5, 0.6, 5.5, 0.5, 44.2, 0.5));
-    const g2 = silhouetteRoot(scene, matStone, 'SKY_LMK_Midband2', 46, 95);
+    const g2 = silhouetteRoot(scene, matStone, 'SKY_LMK_Midband2', 46, 229);
     g2.add(place(box(), matStone, 7, 22, 6, 0, 11, 0));
     g2.add(place(box(), matGlass, 5, 30, 4.6, 0, 22 + 15, 0));
   }

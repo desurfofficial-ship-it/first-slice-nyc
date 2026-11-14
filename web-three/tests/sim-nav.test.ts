@@ -86,7 +86,9 @@ describe('nav graph build (registry-seeded)', () => {
       // registry-derived span, the same law.
       // W-N1: it grew west with the Willow Rows (x −280) — the corridor's
       // lanes and crossings live in the same one-component world.
-      bounds: { xMin: -280, xMax: 252, zMin: -48, zMax: 48 },
+      // W-N4: it grew north with Linden Hill (z 152) — the band's lanes and
+      // crossings live in the same one-component world.
+      bounds: { xMin: -280, xMax: 252, zMin: -48, zMax: 152 },
       exemptFootprintIds: PASSABLE_FOOTPRINTS,
       roads: roadRectsOf(registry.doc),
     });

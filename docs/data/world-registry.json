@@ -16,7 +16,8 @@
    "WC1 (2026-11-13, the re-integration merge): SKY-TS-W card row moved x −428 → −476 (timesSquare.ts rim + this line) — the Catalpa Junction rows took the old ground; no canon building row touched (the W7 SKY-W/E move precedent)",
    "CJN restoration (2026-11-14, the registry-discipline repair): the two agent lines independently took the CJN prefix (the DEC-13 west-reach docks committed 2026-11-13; the master-assignment east build's W-C0 data wave drafted the same ids), and the integration reconciliation renamed the west-reach rows CJN-01..09 + CJN-SUB → CDK-* to break the collision. On the integrated tree the collision no longer exists (the east district rows are LRY-*), so the canon prefix restores: the ten west-reach rows renumber CDK-* → CJN-* (DEC-13's approved canon — the name Catalpa Junction + the CJN-* prefix accepted canon; the registry's own law — IDs are permanent, never renumber). Code, tests, the validator's pin block and the probes re-point in the same commit. No id text moved geometry: footprints, heights, statuses, entrances and anchors are byte-identical; the east LRY rows untouched. Schema completion rides the same repair (the W11 data-truth class): the four BLK-LRY-* block rows gain the bbox fields the validator's block-membership check reads (computed from their own contained buildings), and SUB-03's dangling block reference (BLK-CJN-N — a pre-rename draft id that never existed as a row) re-points to the appended BLK-LRY-STN block row carrying the headhouse's own footprint. The validator reads green on the integrated tree for the first time since the merge.",
    "W-C6 (2026-11-14): the eastbound ride ships — the K line grows its east reach. SUB-03's housing re-cuts around the stair shaft (the SUB-01 law: the shaft is the hole; the colliders split with it, dollhouse-tagged) and its north face trims 1 m (z 5..11 → 5..10) — the KNOWN 'OVERLAP LRY-03 <-> SUB-03' entry the registry-discipline repair recorded CLOSES here: the trim is exactly the repair that entry named for this session, the validator's entry retires, the canon loft row is untouched. The SUB-03-PLAT row appends (the underground platform band, the SUB-TS pattern at SUB-03's own axis — class A h 0); the transit tunnel span grows xMax −20 → 182 (the east reach beyond the portal); station C's cx READS SUB-03's row (the A-3 no-double-truth law, pinned in the acceptance suite) and ride.ts's STATION_C_X stays pinned equal. The yard splits around the open cut's L-shape (LRY-03's ground stays — the station's east half runs under the loft, no float), the plaza deck trims to the cut's west face, and the transfer car at Alder Heights hangs both ride doors (east = westbound, west = eastbound, 6.2 m apart). No id moved; one row appended; canon rows untouched. THE MERGE NOTE: this delta landed on the CJN-restored base (the registry-discipline repair's own) — their BLK-LRY-STN block claim and the pedestrianized flag stand as the authority; this wave's independent twin repairs (the bboxes, the flag, the street-anchor resolver) unify with theirs in the merge.",
-   "W-N0 (2026-11-14): the three EW street spans grew their west ends -100 -> -280 (the continuation law, west edition — the W-C5 east-amendment precedent); playableCore.xMin -100 -> -450; SKY-W moved -122 -> -466. Zero canon rows edited."
+   "W-N0 (2026-11-14): the three EW street spans grew their west ends -100 -> -280 (the continuation law, west edition — the W-C5 east-amendment precedent); playableCore.xMin -100 -> -450; SKY-W moved -122 -> -466. Zero canon rows edited.",
+   "W-N4 (2026-11-14, the North Depth): the north band over Alder Heights and the Larch Yards (x -100..+252, z 64..160) is real rows — two EW streets (Hazel, Mulberry), four NS span amendments (Juniper/Sycamore/Spur/Larch north ends +64 -> +160, the continuation law north edition — the W-N0 west edition precedent), twelve blocks, fourteen LNH-* masses (shells only — the W-C1 scope law), PRK-LINDEN + PRK-LINDEN-NORTH the green (Mulberry crosses between the halves), LMK-16 the school's stone, LMK-17 the gas holder, eight intersections, thirty-two crosswalks (four per corner — the GJ/GS pattern). Bounds grow (world zMax 176, playableCore zMax 160, SKY-N z 170). Geometry is the W-N5/W-N6 waves; the lattice pricing law (every band mass bakes into rows 7..9 — dark at spawn) and the far-row occlusion check are data-checked here. See docs/world-building/linden-hill-design.md."
   ],
   "coordSystem": {
    "axes": "x = east(+)/west(−), z = north(+)/south(−), y = up. Identical to the live web-three world; the origin does not move.",
@@ -49,15 +50,15 @@
    "xMin": -450,
    "xMax": 268,
    "zMin": -64,
-   "zMax": 64,
-   "note": "xMin extended for the far world (docs/50): the K tunnel, 42 St-Times Square, and the Times Square canyon sit one ride west of Alder Heights. xMax extended in W7: the Eastgate strip and the SKY-E skyline fabric row live east of the old ±96 edge. 2026-11-14 (W-C0, the master build assignment): xMax +136 -> +268 for the Catalpa Junction district (x +100..+252) and the moved SKY-E skyline cards (x +262)."
+   "zMax": 176,
+   "note": "xMin extended for the far world (docs/50): the K tunnel, 42 St-Times Square, and the Times Square canyon sit one ride west of Alder Heights. xMax extended in W7: the Eastgate strip and the SKY-E skyline fabric row live east of the old ±96 edge. 2026-11-14 (W-C0, the master build assignment): xMax +136 -> +268 for the Catalpa Junction district (x +100..+252) and the moved SKY-E skyline cards (x +262). W-N4 (2026-11-14, the North Depth): zMax +64 -> +176 — Linden Hill (x -100..+252, z 64..160) is real rows now (the master build directive)."
   },
   "playableCore": {
    "xMin": -450,
    "xMax": 252,
    "zMin": -64,
-   "zMax": 64,
-   "note": "W7 (2026-11-12): grown from x ±84 under the standing owner authorization (\"expand the game map is not a problem here\", 2026-11-11 — DEC-8, in-register). The strips beyond the Juniper/Sycamore avenues are real rows now — the E–W streets grow their west and east ends and the terrace bands continue to the wall line. Sky cards SKY-W/E move ∓110 → ∓122 so the new walls keep ≥ 10 m from the skyline fabric. W-C0 (2026-11-14): grown east to x +252 — Catalpa Junction is real rows now (DEC-12 district; the owner's 2026-11-14 master build authorization). SKY-E moves +122 -> +262 to keep >= 10 m from the new wall line. W-N0 (2026-11-14, the West Reach): grown west to x -450 — the Willow Rows corridor (x -280..-100) + Times Square + the Catalpa docks are one walkable surface now (the master continuation directive: \"one coherent open world\"). The K line's ride remains alongside the walk — transit, not the only door."
+   "zMax": 160,
+   "note": "W7 (2026-11-12): grown from x ±84 under the standing owner authorization (\"expand the game map is not a problem here\", 2026-11-11 — DEC-8, in-register). The strips beyond the Juniper/Sycamore avenues are real rows now — the E–W streets grow their west and east ends and the terrace bands continue to the wall line. Sky cards SKY-W/E move ∓110 → ∓122 so the new walls keep ≥ 10 m from the skyline fabric. W-C0 (2026-11-14): grown east to x +252 — Catalpa Junction is real rows now (DEC-12 district; the owner's 2026-11-14 master build authorization). SKY-E moves +122 -> +262 to keep >= 10 m from the new wall line. W-N0 (2026-11-14, the West Reach): grown west to x -450 — the Willow Rows corridor (x -280..-100) + Times Square + the Catalpa docks are one walkable surface now (the master continuation directive: \"one coherent open world\"). The K line's ride remains alongside the walk — transit, not the only door. W-N4 (2026-11-14, the North Depth): grown north to z +160 — the band over Alder Heights and the Larch Yards is real rows now."
   },
   "currentShippedWalls": {
    "xMin": -48,
@@ -69,8 +70,8 @@
   "skylineCards": [
    {
     "id": "SKY-N",
-    "line": "z = 90 (existing tower row + spire)",
-    "role": "north backdrop, fog-exempt"
+    "line": "z = 230 card row",
+    "role": "north backdrop, fog-exempt (moved z 90 -> 230 in W-N4: the band took the old ground; the skyline fabric keeps its closure 70 m beyond the new wall, the far-backdrop read from inside the band)"
    },
    {
     "id": "SKY-W",
@@ -135,7 +136,7 @@
    "centerline": -72,
    "spanZ": [
     -64,
-    64
+    160
    ],
    "road": {
     "xMin": -76,
@@ -152,7 +153,8 @@
    },
    "totalWidth": 24,
    "ways": "two-way with MTA bus lay-over at the terminal; the K subway runs beneath (rumble is a sanctioned Doc 33 §2.5 effect)",
-   "character": "the local avenue — terminal, subway, community hall, tenements"
+   "character": "the local avenue — terminal, subway, community hall, tenements",
+   "notes": "W-N4 (2026-11-14, the North Depth): spanZ north end +64 -> +160 — Juniper continues into Linden Hill (butt-jointed slabs, same levels; the continuation law, north edition). The local avenue's north reach."
   },
   {
    "id": "STR-SYCAMORE",
@@ -161,7 +163,7 @@
    "centerline": 72,
    "spanZ": [
     -64,
-    64
+    160
    ],
    "road": {
     "xMin": 68,
@@ -178,7 +180,8 @@
    },
    "totalWidth": 24,
    "ways": "the busier commercial avenue; future phase-W4 vehicle rail x = +70 northbound",
-   "character": "storefronts with apartments above, the diner's corner sign, window-shopping walkers"
+   "character": "storefronts with apartments above, the diner's corner sign, window-shopping walkers",
+   "notes": "W-N4 (2026-11-14, the North Depth): spanZ north end +64 -> +160 — Sycamore continues into Linden Hill (the continuation law, north edition)."
   },
   {
    "id": "STR-GABLE",
@@ -241,7 +244,7 @@
    "centerline": 152,
    "spanZ": [
     -64,
-    64
+    160
    ],
    "road": {
     "xMin": 151,
@@ -259,7 +262,7 @@
    "totalWidth": 12,
    "ways": "the freight spur gone pedestrian — disused track bed, weeds in the rails, timber crossings at each street; the elevated freight line crosses above it (the viaduct)",
    "character": "the district's spine — loft fronts, loading docks, the Junction Plaza at Kestrel, the Spur Gardens at its south end",
-   "notes": "W-C0: new row (the DEC-12 district). The bed is a public walk; the track strips (x 151..153) are the only 'road' — flush rails <= 3 cm proud, walkable through by design.",
+   "notes": "W-C0: new row (the DEC-12 district). The bed is a public walk; the track strips (x 151..153) are the only 'road' — flush rails <= 3 cm proud, walkable through by design. W-N4 (2026-11-14, the North Depth): spanZ north end +64 -> +160 — the spur bed continues under the viaduct's north reach (the continuation law, north edition).",
    "pedestrianized": true,
    "pedestrianizedNote": "the freight spur gone pedestrian (the east build W-C1..C3): track bed, flush rails, timber crossings — the Yards Plaza cobbles and the Spur Gardens raised beds stand ON the bed by design; the validator's park-on-road check reads this flag (the control-house-exempt precedent)"
   },
@@ -270,7 +273,7 @@
    "centerline": 228,
    "spanZ": [
     -64,
-    64
+    160
    ],
    "road": {
     "xMin": 224,
@@ -288,7 +291,7 @@
    "totalWidth": 16,
    "ways": "two-way, narrow; ends at the world's east wall",
    "character": "the east row — walk-ups, storage, quiet",
-   "notes": "W-C0: new row."
+   "notes": "W-C0: new row. W-N4 (2026-11-14, the North Depth): spanZ north end +64 -> +160 — Larch Street continues into Linden Hill (the continuation law, north edition)."
   },
   {
    "id": "STR-WILLOW",
@@ -343,6 +346,60 @@
    "ways": "two-way, narrow",
    "character": "the garden's street — the Chestnut Garden's east edge, quiet",
    "notes": "W-N0 (2026-11-14, the West Reach): the corridor's east avenue, the garden's front."
+  },
+  {
+   "id": "STR-HAZEL",
+   "name": "Hazel Street",
+   "axis": "EW",
+   "centerline": 72,
+   "spanX": [
+    -100,
+    252
+   ],
+   "road": {
+    "zMin": 68,
+    "zMax": 76,
+    "width": 8
+   },
+   "walkN": {
+    "zMin": 76,
+    "zMax": 80
+   },
+   "walkS": {
+    "zMin": 64,
+    "zMax": 68
+   },
+   "totalWidth": 16,
+   "ways": "two-way, narrow",
+   "character": "the band's south street — the school's front, the tenements' stoops, the green's gate",
+   "notes": "W-N4 (2026-11-14, the North Depth): the north band over Alder Heights and the Larch Yards (x -100..+252, z 64..160) — the city's second dimension (docs/world-building/linden-hill-design.md)."
+  },
+  {
+   "id": "STR-MULBERRY",
+   "name": "Mulberry Street",
+   "axis": "EW",
+   "centerline": 120,
+   "spanX": [
+    -100,
+    252
+   ],
+   "road": {
+    "zMin": 116,
+    "zMax": 124,
+    "width": 8
+   },
+   "walkN": {
+    "zMin": 124,
+    "zMax": 128
+   },
+   "walkS": {
+    "zMin": 112,
+    "zMax": 116
+   },
+   "totalWidth": 16,
+   "ways": "two-way, narrow",
+   "character": "the quiet north street — the green's north half, the holder's fence, the works' dock doors",
+   "notes": "W-N4 (2026-11-14, the North Depth): the band's north street."
   }
  ],
  "intersections": [
@@ -547,6 +604,86 @@
     "WLR-16",
     "WLR-17"
    ]
+  },
+  {
+   "id": "IX-HZJ",
+   "streets": [
+    "STR-HAZEL",
+    "STR-JUNIPER"
+   ],
+   "x": -72,
+   "z": 72,
+   "cornerBuildings": []
+  },
+  {
+   "id": "IX-HZS",
+   "streets": [
+    "STR-HAZEL",
+    "STR-SYCAMORE"
+   ],
+   "x": 72,
+   "z": 72,
+   "cornerBuildings": []
+  },
+  {
+   "id": "IX-HZP",
+   "streets": [
+    "STR-HAZEL",
+    "STR-SPUR"
+   ],
+   "x": 152,
+   "z": 72,
+   "cornerBuildings": []
+  },
+  {
+   "id": "IX-HZL",
+   "streets": [
+    "STR-HAZEL",
+    "STR-LARCH"
+   ],
+   "x": 228,
+   "z": 72,
+   "cornerBuildings": []
+  },
+  {
+   "id": "IX-MBJ",
+   "streets": [
+    "STR-MULBERRY",
+    "STR-JUNIPER"
+   ],
+   "x": -72,
+   "z": 120,
+   "cornerBuildings": []
+  },
+  {
+   "id": "IX-MBS",
+   "streets": [
+    "STR-MULBERRY",
+    "STR-SYCAMORE"
+   ],
+   "x": 72,
+   "z": 120,
+   "cornerBuildings": []
+  },
+  {
+   "id": "IX-MBP",
+   "streets": [
+    "STR-MULBERRY",
+    "STR-SPUR"
+   ],
+   "x": 152,
+   "z": 120,
+   "cornerBuildings": []
+  },
+  {
+   "id": "IX-MLL",
+   "streets": [
+    "STR-MULBERRY",
+    "STR-LARCH"
+   ],
+   "x": 228,
+   "z": 120,
+   "cornerBuildings": []
   }
  ],
  "crosswalks": [
@@ -885,6 +1022,262 @@
    "w": 3.4,
    "axis": "NS",
    "note": "Marlow×Chestnut, north leg (across Chestnut)"
+  },
+  {
+   "id": "XW-LNH-HZJ-E",
+   "x": -68.5,
+   "z": 72,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "HZJ, east leg (across the E-W street)"
+  },
+  {
+   "id": "XW-LNH-HZJ-W",
+   "x": -75.5,
+   "z": 72,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "HZJ, west leg (across the E-W street)"
+  },
+  {
+   "id": "XW-LNH-HZJ-N",
+   "x": -72,
+   "z": 76.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "HZJ, north leg (across the avenue)"
+  },
+  {
+   "id": "XW-LNH-HZJ-S",
+   "x": -72,
+   "z": 67.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "HZJ, south leg (across the avenue)"
+  },
+  {
+   "id": "XW-LNH-HZS-E",
+   "x": 75.5,
+   "z": 72,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "HZS, east leg (across the E-W street)"
+  },
+  {
+   "id": "XW-LNH-HZS-W",
+   "x": 68.5,
+   "z": 72,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "HZS, west leg (across the E-W street)"
+  },
+  {
+   "id": "XW-LNH-HZS-N",
+   "x": 72,
+   "z": 76.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "HZS, north leg (across the avenue)"
+  },
+  {
+   "id": "XW-LNH-HZS-S",
+   "x": 72,
+   "z": 67.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "HZS, south leg (across the avenue)"
+  },
+  {
+   "id": "XW-LNH-HZP-E",
+   "x": 155.5,
+   "z": 72,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "HZP, east leg (across the E-W street)"
+  },
+  {
+   "id": "XW-LNH-HZP-W",
+   "x": 148.5,
+   "z": 72,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "HZP, west leg (across the E-W street)"
+  },
+  {
+   "id": "XW-LNH-HZP-N",
+   "x": 152,
+   "z": 76.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "HZP, north leg (across the avenue)"
+  },
+  {
+   "id": "XW-LNH-HZP-S",
+   "x": 152,
+   "z": 67.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "HZP, south leg (across the avenue)"
+  },
+  {
+   "id": "XW-LNH-HZL-E",
+   "x": 231.5,
+   "z": 72,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "HZL, east leg (across the E-W street)"
+  },
+  {
+   "id": "XW-LNH-HZL-W",
+   "x": 224.5,
+   "z": 72,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "HZL, west leg (across the E-W street)"
+  },
+  {
+   "id": "XW-LNH-HZL-N",
+   "x": 228,
+   "z": 76.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "HZL, north leg (across the avenue)"
+  },
+  {
+   "id": "XW-LNH-HZL-S",
+   "x": 228,
+   "z": 67.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "HZL, south leg (across the avenue)"
+  },
+  {
+   "id": "XW-LNH-MBJ-E",
+   "x": -68.5,
+   "z": 120,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "MBJ, east leg (across the E-W street)"
+  },
+  {
+   "id": "XW-LNH-MBJ-W",
+   "x": -75.5,
+   "z": 120,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "MBJ, west leg (across the E-W street)"
+  },
+  {
+   "id": "XW-LNH-MBJ-N",
+   "x": -72,
+   "z": 124.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "MBJ, north leg (across the avenue)"
+  },
+  {
+   "id": "XW-LNH-MBJ-S",
+   "x": -72,
+   "z": 115.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "MBJ, south leg (across the avenue)"
+  },
+  {
+   "id": "XW-LNH-MBS-E",
+   "x": 75.5,
+   "z": 120,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "MBS, east leg (across the E-W street)"
+  },
+  {
+   "id": "XW-LNH-MBS-W",
+   "x": 68.5,
+   "z": 120,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "MBS, west leg (across the E-W street)"
+  },
+  {
+   "id": "XW-LNH-MBS-N",
+   "x": 72,
+   "z": 124.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "MBS, north leg (across the avenue)"
+  },
+  {
+   "id": "XW-LNH-MBS-S",
+   "x": 72,
+   "z": 115.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "MBS, south leg (across the avenue)"
+  },
+  {
+   "id": "XW-LNH-MBP-E",
+   "x": 155.5,
+   "z": 120,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "MBP, east leg (across the E-W street)"
+  },
+  {
+   "id": "XW-LNH-MBP-W",
+   "x": 148.5,
+   "z": 120,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "MBP, west leg (across the E-W street)"
+  },
+  {
+   "id": "XW-LNH-MBP-N",
+   "x": 152,
+   "z": 124.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "MBP, north leg (across the avenue)"
+  },
+  {
+   "id": "XW-LNH-MBP-S",
+   "x": 152,
+   "z": 115.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "MBP, south leg (across the avenue)"
+  },
+  {
+   "id": "XW-LNH-MLL-E",
+   "x": 231.5,
+   "z": 120,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "MLL, east leg (across the E-W street)"
+  },
+  {
+   "id": "XW-LNH-MLL-W",
+   "x": 224.5,
+   "z": 120,
+   "w": 3.4,
+   "axis": "EW",
+   "note": "MLL, west leg (across the E-W street)"
+  },
+  {
+   "id": "XW-LNH-MLL-N",
+   "x": 228,
+   "z": 124.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "MLL, north leg (across the avenue)"
+  },
+  {
+   "id": "XW-LNH-MLL-S",
+   "x": 228,
+   "z": 115.5,
+   "w": 3.4,
+   "axis": "NS",
+   "note": "MLL, south leg (across the avenue)"
   }
  ],
  "blocks": [
@@ -1145,6 +1538,126 @@
     "zMax": -52
    },
    "note": "the Willow Rows far-south strip (z -62..-52) — low works rows on the Marlow west continuation"
+  },
+  {
+   "id": "BLK-LNH-A",
+   "bbox": {
+    "xMin": -100,
+    "xMax": -84,
+    "zMin": 82,
+    "zMax": 112
+   },
+   "note": "the west strip row 1 — LNH-01 (face E to Juniper)"
+  },
+  {
+   "id": "BLK-LNH-B",
+   "bbox": {
+    "xMin": -100,
+    "xMax": -84,
+    "zMin": 130,
+    "zMax": 158
+   },
+   "note": "the west strip row 2 — LNH-02"
+  },
+  {
+   "id": "BLK-LNH-PK",
+   "bbox": {
+    "xMin": -60,
+    "xMax": 60,
+    "zMin": 80,
+    "zMax": 112
+   },
+   "note": "the green's south half — PRK-LINDEN (Mulberry crosses between the halves)"
+  },
+  {
+   "id": "BLK-LNH-PN",
+   "bbox": {
+    "xMin": -60,
+    "xMax": 60,
+    "zMin": 128,
+    "zMax": 158
+   },
+   "note": "the green's north half — PRK-LINDEN-NORTH"
+  },
+  {
+   "id": "BLK-LNH-G",
+   "bbox": {
+    "xMin": 84,
+    "xMax": 100,
+    "zMin": 82,
+    "zMax": 112
+   },
+   "note": "the Sycamore east strip row 1 — LNH-03 (face W)"
+  },
+  {
+   "id": "BLK-LNH-H",
+   "bbox": {
+    "xMin": 84,
+    "xMax": 100,
+    "zMin": 130,
+    "zMax": 158
+   },
+   "note": "the Sycamore east strip row 2 — LNH-04"
+  },
+  {
+   "id": "BLK-LNH-I",
+   "bbox": {
+    "xMin": 100,
+    "xMax": 146,
+    "zMin": 82,
+    "zMax": 112
+   },
+   "note": "the civic row — LNH-05 the school + LNH-06 the reading room (face S to Hazel)"
+  },
+  {
+   "id": "BLK-LNH-J",
+   "bbox": {
+    "xMin": 100,
+    "xMax": 146,
+    "zMin": 130,
+    "zMax": 158
+   },
+   "note": "the yards' last works — LNH-07 Osier Timber & Sash + LNH-08 the holder"
+  },
+  {
+   "id": "BLK-LNH-K",
+   "bbox": {
+    "xMin": 158,
+    "xMax": 220,
+    "zMin": 82,
+    "zMax": 112
+   },
+   "note": "the yards row 1 east — LNH-09 + LNH-10"
+  },
+  {
+   "id": "BLK-LNH-L",
+   "bbox": {
+    "xMin": 158,
+    "xMax": 220,
+    "zMin": 130,
+    "zMax": 158
+   },
+   "note": "the yards row 2 east — LNH-11 + LNH-12"
+  },
+  {
+   "id": "BLK-LNH-M",
+   "bbox": {
+    "xMin": 236,
+    "xMax": 252,
+    "zMin": 82,
+    "zMax": 112
+   },
+   "note": "the Larch east strip row 1 — LNH-13 (face W to Larch)"
+  },
+  {
+   "id": "BLK-LNH-N",
+   "bbox": {
+    "xMin": 236,
+    "xMax": 252,
+    "zMin": 130,
+    "zMax": 158
+   },
+   "note": "the Larch east strip row 2 — LNH-14"
   }
  ],
  "buildings": [
@@ -4604,6 +5117,356 @@
     }
    ],
    "collider": true
+  },
+  {
+   "id": "LNH-01",
+   "name": "The Alder Walk-ups",
+   "status": "built (W-N4)",
+   "class": "C",
+   "face": "Juniper E",
+   "block": "BLK-LNH-A",
+   "footprint": {
+    "x": -92,
+    "z": 95,
+    "w": 12,
+    "d": 18
+   },
+   "height": 13,
+   "floors": 4,
+   "style": "tenement walk-up: warm brick, the fire-escape bay over the Hazel walk, cornice line",
+   "entrance": [
+    {
+     "x": -86,
+     "z": 95,
+     "faces": "E"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "LNH-02",
+   "name": "The Alder Walk-ups (north)",
+   "status": "built (W-N4)",
+   "class": "C",
+   "face": "Juniper E",
+   "block": "BLK-LNH-B",
+   "footprint": {
+    "x": -92,
+    "z": 145,
+    "w": 12,
+    "d": 18
+   },
+   "height": 15,
+   "floors": 5,
+   "style": "tenement walk-up: the party-wall twin, its stoop to Juniper, laundry lines behind",
+   "entrance": [
+    {
+     "x": -86,
+     "z": 145,
+     "faces": "E"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "LNH-03",
+   "name": "The Sycamore Walk-ups",
+   "status": "built (W-N4)",
+   "class": "C",
+   "face": "Sycamore W",
+   "block": "BLK-LNH-G",
+   "footprint": {
+    "x": 92,
+    "z": 95,
+    "w": 14,
+    "d": 18
+   },
+   "height": 13,
+   "floors": 4,
+   "style": "tenement walk-up: the fire escape over the Hazel walk and the corner-store awning on Sycamore",
+   "entrance": [
+    {
+     "x": 85,
+     "z": 95,
+     "faces": "W"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "LNH-04",
+   "name": "The Sycamore Walk-ups (north)",
+   "status": "built (W-N4)",
+   "class": "C",
+   "face": "Sycamore W",
+   "block": "BLK-LNH-H",
+   "footprint": {
+    "x": 92,
+    "z": 145,
+    "w": 14,
+    "d": 18
+   },
+   "height": 15,
+   "floors": 5,
+   "style": "tenement walk-up: the north twin, the rear yard to the green's fence",
+   "entrance": [
+    {
+     "x": 85,
+     "z": 145,
+     "faces": "W"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "LNH-05",
+   "name": "The Linden School",
+   "status": "built (W-N4)",
+   "class": "C",
+   "face": "Hazel S",
+   "block": "BLK-LNH-I",
+   "footprint": {
+    "x": 115,
+    "z": 96,
+    "w": 22,
+    "d": 20
+   },
+   "height": 11,
+   "floors": 3,
+   "style": "the public school: pale brick with a stone base and date-stone (LMK-16), tall 12-over-12 windows, the flagpole at the walk line",
+   "entrance": [
+    {
+     "x": 115,
+     "z": 86,
+     "faces": "S"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "LNH-06",
+   "name": "The Linden Reading Room",
+   "status": "built (W-N4)",
+   "class": "C",
+   "face": "Hazel S",
+   "block": "BLK-LNH-I",
+   "footprint": {
+    "x": 136,
+    "z": 96,
+    "w": 16,
+    "d": 18
+   },
+   "height": 9,
+   "floors": 2,
+   "style": "the branch library: pressed brick, three arched windows on the Hazel face, stone sill course, the LINDEN READING ROOM sign over the door",
+   "entrance": [
+    {
+     "x": 136,
+     "z": 87,
+     "faces": "S"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "LNH-07",
+   "name": "Osier Timber & Sash",
+   "status": "built (W-N4)",
+   "class": "C",
+   "face": "Mulberry S",
+   "block": "BLK-LNH-J",
+   "footprint": {
+    "x": 114,
+    "z": 146,
+    "w": 24,
+    "d": 18
+   },
+   "height": 8,
+   "floors": 2,
+   "style": "the timber yard: shed line with clerestory, the OSIER TIMBER & SASH fascia, stacked stock in the yard (the kit dresses it)",
+   "entrance": [
+    {
+     "x": 108,
+     "z": 137,
+     "faces": "S"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "LNH-08",
+   "name": "The Linden Gas Works holder",
+   "status": "built (W-N4)",
+   "class": "C",
+   "face": "Mulberry S",
+   "block": "BLK-LNH-J",
+   "footprint": {
+    "x": 136,
+    "z": 146,
+    "w": 18,
+    "d": 18
+   },
+   "height": 20,
+   "floors": 1,
+   "style": "the frame gas holder: open iron columns, ring bands, the guide frame — the north silhouette's beat (LMK-17); ROOF_SKIP (the fabric never dresses it)",
+   "entrance": [
+    {
+     "x": 136,
+     "z": 137,
+     "faces": "S"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "LNH-09",
+   "name": "Mulberry Storage",
+   "status": "built (W-N4)",
+   "class": "C",
+   "face": "Hazel S",
+   "block": "BLK-LNH-K",
+   "footprint": {
+    "x": 179,
+    "z": 96,
+    "w": 34,
+    "d": 20
+   },
+   "height": 12,
+   "floors": 4,
+   "style": "storage loft: dark brick, loading face south, painted ghost band",
+   "entrance": [
+    {
+     "x": 172,
+     "z": 86,
+     "faces": "S"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "LNH-10",
+   "name": "The Mulberry Loft",
+   "status": "built (W-N4)",
+   "class": "C",
+   "face": "Hazel S",
+   "block": "BLK-LNH-K",
+   "footprint": {
+    "x": 209,
+    "z": 96,
+    "w": 14,
+    "d": 20
+   },
+   "height": 13,
+   "floors": 4,
+   "style": "loft conversion: window grid reglazed, cornice, roof bulkhead",
+   "entrance": [
+    {
+     "x": 209,
+     "z": 86,
+     "faces": "S"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "LNH-11",
+   "name": "North Storage",
+   "status": "built (W-N4)",
+   "class": "C",
+   "face": "Mulberry S",
+   "block": "BLK-LNH-L",
+   "footprint": {
+    "x": 181,
+    "z": 147,
+    "w": 36,
+    "d": 18
+   },
+   "height": 10,
+   "floors": 2,
+   "style": "storage shed: corrugated read, dock aprons, the north fence line",
+   "entrance": [
+    {
+     "x": 174,
+     "z": 138,
+     "faces": "S"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "LNH-12",
+   "name": "The Holder Walk-ups",
+   "status": "built (W-N4)",
+   "class": "C",
+   "face": "Mulberry S",
+   "block": "BLK-LNH-L",
+   "footprint": {
+    "x": 209,
+    "z": 147,
+    "w": 14,
+    "d": 18
+   },
+   "height": 15,
+   "floors": 5,
+   "style": "tenement walk-up: the holder's neighbor — fire escape over the Mulberry walk",
+   "entrance": [
+    {
+     "x": 209,
+     "z": 138,
+     "faces": "S"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "LNH-13",
+   "name": "Larch North Walk-up",
+   "status": "built (W-N4)",
+   "class": "C",
+   "face": "Larch W",
+   "block": "BLK-LNH-M",
+   "footprint": {
+    "x": 244,
+    "z": 96,
+    "w": 12,
+    "d": 18
+   },
+   "height": 13,
+   "floors": 4,
+   "style": "walk-up: the east row's north end, stoop to Larch",
+   "entrance": [
+    {
+     "x": 238,
+     "z": 96,
+     "faces": "W"
+    }
+   ],
+   "collider": true
+  },
+  {
+   "id": "LNH-14",
+   "name": "Larch North Storage",
+   "status": "built (W-N4)",
+   "class": "C",
+   "face": "Larch W",
+   "block": "BLK-LNH-N",
+   "footprint": {
+    "x": 244,
+    "z": 147,
+    "w": 12,
+    "d": 18
+   },
+   "height": 12,
+   "floors": 3,
+   "style": "storage row: the world's northeast corner, quiet brick",
+   "entrance": [
+    {
+     "x": 238,
+     "z": 147,
+     "faces": "W"
+    }
+   ],
+   "collider": true
   }
  ],
  "parks": [
@@ -5136,6 +5999,178 @@
     ]
    },
    "notes": "W-N0 (the West Reach): the community garden that fills the corridor's east half-block — the breath between the rows and Alder Heights, and the priced cheap content of the lattice's spawn-lit columns 5-6 (the design doc §5)."
+  },
+  {
+   "id": "PRK-LINDEN",
+   "name": "Linden Green",
+   "status": "built (W-N4)",
+   "bbox": {
+    "xMin": -60,
+    "xMax": 60,
+    "zMin": 80,
+    "zMax": 112
+   },
+   "layout": {
+    "lawn": {
+     "xMin": -52,
+     "xMax": 52,
+     "zMin": 86,
+     "zMax": 106
+    },
+    "paths": [
+     {
+      "from": [
+       0,
+       82
+      ],
+      "to": [
+       0,
+       110
+      ],
+      "width": 2.2
+     },
+     {
+      "from": [
+       -52,
+       96
+      ],
+      "to": [
+       52,
+       96
+      ],
+      "width": 1.8
+     }
+    ],
+    "gates": [
+     {
+      "x": 0,
+      "z": 80,
+      "type": "Hazel St gate"
+     },
+     {
+      "x": -60,
+      "z": 96,
+      "type": "Juniper Ave gate"
+     },
+     {
+      "x": 60,
+      "z": 96,
+      "type": "Sycamore Ave gate"
+     }
+    ],
+    "playground": {
+     "x": -44,
+     "z": 98,
+     "note": "swing set + sandbox (the house makers), SW corner"
+    },
+    "benches": [
+     {
+      "x": -14,
+      "z": 102
+     },
+     {
+      "x": 14,
+      "z": 102
+     },
+     {
+      "x": -30,
+      "z": 90
+     },
+     {
+      "x": 30,
+      "z": 90
+     },
+     {
+      "x": 0,
+      "z": 92
+     }
+    ]
+   },
+   "notes": "W-N4 (2026-11-14, the North Depth): the district's lungs, south half — the playground SW, the lawn and the cross paths. Mulberry crosses between the halves; the crossings splice the paths. The instanced canopy owns its trees."
+  },
+  {
+   "id": "PRK-LINDEN-NORTH",
+   "name": "Linden Green (north)",
+   "status": "built (W-N4)",
+   "bbox": {
+    "xMin": -60,
+    "xMax": 60,
+    "zMin": 128,
+    "zMax": 158
+   },
+   "layout": {
+    "lawn": {
+     "xMin": -52,
+     "xMax": 52,
+     "zMin": 134,
+     "zMax": 152
+    },
+    "paths": [
+     {
+      "from": [
+       0,
+       130
+      ],
+      "to": [
+       0,
+       156
+      ],
+      "width": 2.2
+     },
+     {
+      "from": [
+       -52,
+       143
+      ],
+      "to": [
+       52,
+       143
+      ],
+      "width": 1.8
+     }
+    ],
+    "gates": [
+     {
+      "x": 0,
+      "z": 128,
+      "type": "Mulberry St gate"
+     },
+     {
+      "x": -60,
+      "z": 143,
+      "type": "Juniper Ave gate"
+     },
+     {
+      "x": 60,
+      "z": 143,
+      "type": "Sycamore Ave gate"
+     }
+    ],
+    "parkHouse": {
+     "x": 40,
+     "z": 146,
+     "note": "the green shed with its tool wall, NE corner"
+    },
+    "benches": [
+     {
+      "x": -14,
+      "z": 148
+     },
+     {
+      "x": 14,
+      "z": 148
+     },
+     {
+      "x": -30,
+      "z": 138
+     },
+     {
+      "x": 30,
+      "z": 138
+     }
+    ]
+   },
+   "notes": "W-N4 (2026-11-14, the North Depth): the green's north half — the park house NE, the quiet lawn. The two halves read as one park Mulberry crosses."
   }
  ],
  "landmarks": [
@@ -5228,6 +6263,18 @@
    "name": "The Ansel & Sons ghost sign",
    "anchor": "WLR-01",
    "reason": "FINE PRINTING — EST. 1919 whitewashed on the print works' west gable; the painted-brick read the corridor shares with the Iron Works across the map"
+  },
+  {
+   "id": "LMK-16",
+   "name": "The Linden School's stone",
+   "anchor": "LNH-05",
+   "reason": "the date-stone and flagpole over the Hazel entrance — the north's civic beat, the flag the band reads its weather by"
+  },
+  {
+   "id": "LMK-17",
+   "name": "The gas holder",
+   "anchor": "LNH-08",
+   "reason": "the frame tank on the yards' north rows — the north silhouette's signature, the iron landmark the spine reads above the far rows"
   }
  ],
  "transit": {
@@ -7369,6 +8416,11 @@
    "id": "WN0",
    "name": "The West Reach — the Willow Rows data wave",
    "content": "The owner's 2026-11-14 master continuation directive (\"COMPLETE THE OPEN WORLD\"): the corridor between Alder Heights and Times Square (x -280..-100) is real rows now. Two NS streets (Willow, Chestnut), eight blocks, seventeen WLR-* masses (shells only — the W-C1 scope law), PRK-CHESTNUT the community garden, LMK-14 the Willow marquee, LMK-15 the Ansel ghost sign, six intersections, twelve crosswalks, four pedestrian route rows. The three EW streets grow their west ends (the continuation law, west edition). Geometry is the W-N1 wave; the lattice pricing law (masses west of x -176) is data-checked here. See docs/world-building/west-reach-design.md."
+  },
+  {
+   "id": "WN4",
+   "name": "The North Depth — the Linden Hill data wave",
+   "content": "The 2026-11-14 master build directive's next major expansion: the city's second dimension. Two EW streets (Hazel, Mulberry), the four NS avenues' north ends (the continuation law, north edition), twelve blocks, fourteen LNH-* masses (shells only), the green in two halves, LMK-16/17, eight intersections, thirty-two crosswalks. Bounds grow north (world zMax 176, playableCore zMax 160, SKY-N z 170). Geometry is the W-N5/W-N6 waves; the spawn-pricing law (masses in rows 7..9) and the far-row occlusion check are data-checked here. See docs/world-building/linden-hill-design.md."
   }
  ],
  "openDecisions": [

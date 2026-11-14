@@ -274,7 +274,8 @@ describe('neighborhood fabric — the registry law', () => {
     // the playable core grew with the walls (the W6 bounds law)
     const bounds = (doc.doc.bounds ?? {}) as { world?: unknown; playableCore?: { zMin: number; zMax: number } };
     expect(bounds.playableCore?.zMin).toBe(-64);
-    expect(bounds.playableCore?.zMax).toBe(64);
+    // W-N4: the core grew north with Linden Hill (z 160) — the wave it records
+    expect(bounds.playableCore?.zMax).toBe(160);
   });
 
   it('the anchors live on or near their masses (the validate law, mirrored)', () => {
@@ -321,7 +322,8 @@ describe('neighborhood fabric — the W7 gate-row fabric (docs/production/westga
     // authorization). The old W7 pin (xMax 100) grew with the map.
     expect(bounds.playableCore?.xMax).toBe(252);
     expect(bounds.playableCore?.zMin).toBe(-64);
-    expect(bounds.playableCore?.zMax).toBe(64);
+    // W-N4: the core grew north with Linden Hill (z 160) — the wave it records
+    expect(bounds.playableCore?.zMax).toBe(160);
   });
 
   it('three sidewalk sheds hang where the source hangs them (deck ~3.8, spanning the walk band)', () => {

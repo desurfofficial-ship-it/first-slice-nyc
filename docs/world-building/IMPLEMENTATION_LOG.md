@@ -362,3 +362,91 @@ line rides z 3.4 and the declared envelopes widen to 2.7 because the polyfork de
 truck's 2.62 beam wears the same spots when the kit is ON (both renders keep the bus
 lane's air AND the yield rects' truth — a 2.3 rect under a 2.62 body would leave 0.16 m
 undeclared). Their WP-EAST walker loops joined the same tree.
+
+## W-N4..N6 — Linden Hill, the North Depth (register v1.85.0)
+
+The master build directive's next major expansion: **the city's second
+dimension**. The audit's own words named the gap ("one district is not an
+open world"); the West Reach closed the x gap; the north band closes the z
+gap — the strip became a piece of grid city. Design:
+`docs/world-building/linden-hill-design.md`.
+
+**W-N4 — the data wave.** `scripts/world_building/wn4_registry.py` (the
+wn0 discipline, self-verifying): two EW streets (Hazel, Mulberry), four NS
+span amendments (the continuation law, north edition), twelve blocks, fourteen
+LNH-* masses (shells only), the green in two halves, LMK-16/17, eight
+intersections, thirty-two crosswalks, bounds grown north. The self-checks
+caught and fixed three real defects before the file was written: three
+masses poking above the far rows' roofline from the spine (trimmed h 15/14
+→ 13 — the massing now steps UP going north), a park bbox crossing Mulberry
+(the green split into two halves — the street crosses it, the paths splice
+at the crossings), and two intersection ids colliding with the Marlow
+corners (the HZJ/MBJ tags). The validator: OK (382 IDs, 143 buildings,
+23/23 anchors).
+
+**W-N5 — the lattice.** DIST_ROWS 3 → 10 (ROW_ORIGIN −144: the spawn keeps
+its middle row — the byte-identical standing law), ROW_RING 1 → 2, the W6
+strips' clamp restored (the fusion the first 10-row keying split — the
+census caught the +6), the walls (the north wall split; the west/east walls
+re-spanned z −64..160), NAV_BOUNDS zMax 152, the skyline re-seats
+(SkylineNorth z 230; the fabric N row z 250; the landmark silhouettes
+z 226..232 — each caught standing inside the band by the evidence probe
+before the move).
+
+**W-N6 — the kit.** `lindenHillKit.ts` — the masses (per-row seeded bay
+grammar), the green, the civic pair, the holder, Osier's yard, the viaduct's
+north reach, the bed's north reach, the lit panes. The ground pair split
+WEST/EAST registered to their own row-7 tiles. The seam dressing. The
+fire-escape jobs (five S-face bays, the shipped bay law). ROOF_SKIP grew
+LNH-08 (the holder frames itself).
+
+**The bugs the battery caught, and the laws they became:**
+
+1. **The graph split 27 ways** — the crossings formed islands and the
+   Willow/Chestnut lanes grew phantom segments z 64..152. Two root causes:
+   (a) the Hazel/Mulberry lane offsets sat ON the 6 m grid — the corner
+   junction nodes deduped out of the avenue chains (the junction off-grid
+   law, the Willow lanes' own precedent); (b) Z_SPAN grew globally — each
+   NS lane now walks ITS OWN street's spanZ (the laneSpanZ map, the W-C5
+   laneSpanX twin), and the junction law requires BOTH lanes' spans to
+   reach the corner (the W-C5 both-spans law, completed).
+2. **An edge through GRB-06** — the grown Juniper lane met the shipped
+   terrace's blocked span, whose skirt search fails; the old chain JUMPED
+   it. The no-skirt chain-break law: a blocked span with no passable skirt
+   breaks the chain (the walkers route around; the graph stays one
+   component).
+3. **DRAWS 200** — the re-keyed far strips split their per-column fusions
+   (+6). The W6 strips' clamp law restored on the new grid (z ±48..64 bake
+   into the inner rows' tiles) → 196.
+4. **The band's rows 7-9 drew at spawn** — three single-source batch
+   groups (LNH-04, the viaduct, the bed — each the lone signature in its
+   tile) were never registered, always visible. The singles law: unmerged
+   singles join their tile's district (the streamed-city law is total).
+5. **The purple wall over the playground** — the skyline landmark
+   silhouettes (the ESB/Crown/Glass/Wedge/Midband groups) still seated at
+   z 88..95, INSIDE the green. Moved z 226..232 and merged into one
+   fog-exempt mesh ('SkylineNorthLandmarks', the SkylineNorth law — baked,
+   the ring would blink the north's own landmarks out exactly when the
+   band is unlit).
+
+**The evidence (probe-linden-evidence, this wave's own probe):** 15 frames
+(the aerial, the isometric with the far skyline properly seated, the school
+front with its flag, the reading room, the green both halves, the holder's
+iron, Osier's yard, the viaduct's north reach over the timber crossing, the
+Larch north end, the transition, the dusk frame) + 7 censuses (spawn 198;
+hazel_juniper 79; green 56; mulberry 57; the holder 45; larch_north 45;
+the north wall 47 — the band costs less than half the budget anywhere
+inside it) + the walk leg (Kestrel → Juniper north to z 148 → Mulberry east
+to x 72 → Sycamore south to z 0: 209 steps, 0 stalls, minY 0.05 — the
+avenues are streets now, not dead ends).
+
+**The battery (the final tree):** validate-registry OK (382 IDs, 143
+buildings, 11 streets, 12 parks, 17 landmarks, 23/23 anchors) · tsc clean ·
+vitest **1,792/1,792** (106 files — the bounds pins and the nav validation
+bounds grew with the map, the W-C0 bookkeeping precedent) · build OK ·
+probe-city-fabric **DRAWS 196** (< 200; +2 the wave's own re-seat
+accounting) · probe-nav 9/9 · probe-subway 45/46 (the documented baseline
+Wow-card carry) · probe-wc1-catalpa OK (boot 196, +0 standing) ·
+probe-w4-bus 14/14 · probe-taxi-locate OK · probe-fenestra ALL PASS ·
+diag-pocket-scan the spawn component x −448..+250, z −62..+159.75 (460,066
+cells), traps 19 unchanged, cramped clusters identical to the base tree.

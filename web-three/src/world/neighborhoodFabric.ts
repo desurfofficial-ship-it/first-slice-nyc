@@ -311,6 +311,14 @@ const ESCAPE_JOBS: Array<{ id: string; face: 'N' | 'S'; bays: Array<{ dx: number
   { id: 'MRW-01', face: 'S', bays: [{ dx: +2.2, railMeters: 15 }] },
   { id: 'MRW-02', face: 'S', bays: [{ dx: +2.2, railMeters: 17 }] },
   { id: 'MRW-04', face: 'S', bays: [{ dx: +2.2, railMeters: 15 }] },
+  // the Linden Hill walk-ups (W-N4: the band's tenements; the escapes ride
+  // the S faces — over the Hazel/Mulberry walks, the classic NYC read; the
+  // bay keeps 2.2 m clear of every door, the shipped bay law)
+  { id: 'LNH-01', face: 'S', bays: [{ dx: +2.2, railMeters: 13 }] },
+  { id: 'LNH-02', face: 'S', bays: [{ dx: +2.2, railMeters: 13 }] },
+  { id: 'LNH-03', face: 'S', bays: [{ dx: +2.2, railMeters: 14 }] },
+  { id: 'LNH-04', face: 'S', bays: [{ dx: +2.2, railMeters: 14 }] },
+  { id: 'LNH-12', face: 'S', bays: [{ dx: +2.2, railMeters: 14 }] },
 ];
 
 function escapeFabric(di: NeighborhoodDI): void {

@@ -28,6 +28,21 @@
 
 ---
 
+> **ADDENDUM (2026-11-14, W-N4..N6 — the North Depth):** this plan's
+> "two districts and a destination" was the W-C0 lock; the owner's master
+> build directives superseded it twice since — the West Reach (the Willow
+> Rows corridor, register v1.83.0) and now **Linden Hill** (register
+> v1.85.0): the north band over Alder Heights and the Larch Yards
+> (x −100..+252, z 64..160), the city's second dimension. The playable
+> core is x −450..+252, z −64..+160 (~103,600 m²). The lattice grew
+> 3 → 10 rows — the z-depth infrastructure this plan's remaining bands
+> (the south depth, the Willow north) reuse unchanged. The district's own
+> specification: `linden-hill-design.md`. The plan's other laws (the
+> compact-district scale, the append-only registry, the priced waves)
+> stand.
+
+---
+
 ## 1. The complete world in one paragraph
 
 FIRST SLICE's complete playable world is **two districts and a destination,

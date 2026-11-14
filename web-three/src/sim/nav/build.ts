@@ -59,10 +59,16 @@ const LANES: Record<string, Array<{ side: 'N' | 'S' | 'W' | 'E'; off: number }>>
   // R-CHESTNUT-* rows; off the 6 m grid — the junction law)
   'STR-WILLOW': [{ side: 'W', off: -238 }, { side: 'E', off: -226 }],    // R-WILLOW-W/E
   'STR-CHESTNUT': [{ side: 'W', off: -154 }, { side: 'E', off: -142 }],  // R-CHESTNUT-W/E
+  // W-N4 (2026-11-14): Linden Hill's lanes (the registry's R-HAZEL-*/
+  // R-MULBERRY-* rows; OFF the 6 m grid — the junction off-grid law: an
+  // on-grid lane offset lands the corner junctions on the avenue chain's
+  // own base nodes and the dedup strands them as trap nodes)
+  'STR-HAZEL': [{ side: 'N', off: 77.6 }, { side: 'S', off: 66.4 }],     // R-HAZEL-N/S (off the 6 m grid)
+  'STR-MULBERRY': [{ side: 'N', off: 125.6 }, { side: 'S', off: 114.4 }], // R-MULBERRY-N/S (off the 6 m grid)
 };
 
 const X_SPAN: [number, number] = [-280, 252]; // EW lanes' extent (registry spanX — W-N1 grew the west end −100 → −280: the Willow Rows are walked)
-const Z_SPAN: [number, number] = [-48, 48];  // NS spines' extent (the district's content extent; the W6/W7 strips beyond ±48 stay player-only — the shipped law)
+const Z_SPAN: [number, number] = [-48, 152]; // NS spines' GLOBAL walked extent (W-N4: the north end grows 48 → 152 — Linden Hill is registry streets now); each NS lane walks ITS OWN street's spanZ inside it (the W-C5 laneSpanX law, north edition — the Willow/Chestnut spans stay ±64, no phantom lanes over the corridor's void)
 const GRID_STEP = 6;          // spine node spacing (m)
 const WALKER_CLEAR = 0.55;    // lane-vs-footprint clearance (m)
 const WALK_WIDTH = 2.5;       // sidewalk corridor width
@@ -114,6 +120,15 @@ export function buildNavGraph(registry: WorldRegistry): NavBuildResult {
   const footprints = footprintsOf(doc);
 
   // ---- 1. the lanes (validated against the registry bands) ---------------
+  // W-N4: the NS twin — each NS street's own spanZ (Willow/Chestnut ±64,
+  // the avenues −64..160; the global Z_SPAN stays the walked-extent clamp)
+  const laneSpanZ = new Map<string, [number, number]>();
+  for (const st of doc.streets ?? []) {
+    if (st.axis === 'NS' && st.spanZ && st.spanZ.length === 2
+      && typeof st.spanZ[0] === 'number' && typeof st.spanZ[1] === 'number') {
+      laneSpanZ.set(st.id, [st.spanZ[0], st.spanZ[1]]);
+    }
+  }
   const lanes: LaneWork[] = [];
   for (const street of doc.streets ?? []) {
     const laneDefs = LANES[street.id];
@@ -136,7 +151,12 @@ export function buildNavGraph(registry: WorldRegistry): NavBuildResult {
           throw new Error(`nav lane ${street.id}/${def.side} z ${def.off} inside the road band`);
         }
       } else {
-        bandLo = Z_SPAN[0]; bandHi = Z_SPAN[1];
+        // W-N4: each NS lane walks ITS OWN street's spanZ (the W-C5
+        // laneSpanX law, north edition) clamped to the global walked
+        // extent — the Willow/Chestnut spans stay ±64, no phantom lanes
+        // over the corridor's void; the avenues reach z 152
+        const own = laneSpanZ.get(street.id) ?? Z_SPAN;
+        bandLo = Math.max(own[0], Z_SPAN[0]); bandHi = Math.min(own[1], Z_SPAN[1]);
         const road = street.road;
         if (road?.xMin !== undefined && road?.xMax !== undefined
           && def.off > road.xMin - 0.05 && def.off < road.xMax + 0.05) {
@@ -169,7 +189,7 @@ export function buildNavGraph(registry: WorldRegistry): NavBuildResult {
         lane.gaps.push({ a0: r.xMin, a1: r.xMax });
       } else {
         if (other.axis === 'NS' || r.zMin === undefined || r.zMax === undefined) continue;
-        if (r.zMax <= Z_SPAN[0] || r.zMin >= Z_SPAN[1]) continue;
+        if (r.zMax <= lane.bandLo || r.zMin >= lane.bandHi) continue;
         lane.gaps.push({ a0: r.zMin, a1: r.zMax });
       }
     }
@@ -220,11 +240,14 @@ export function buildNavGraph(registry: WorldRegistry): NavBuildResult {
   // Rowan/Sumac exist only east of x 100, and intersecting their LINES
   // with Juniper/Sycamore created junctions in mid-air (orphan nodes).
   const ewSpan = (id: string): [number, number] => laneSpanX.get(id) ?? X_SPAN;
+  const nsSpanOf = (id: string): [number, number] => laneSpanZ.get(id) ?? Z_SPAN;
   for (const ew of lanes.filter((l) => l.axis === 'EW')) {
     const [elo, ehi] = ewSpan(ew.streetId);
     for (const ns of lanes.filter((l) => l.axis === 'NS')) {
       const jx = ns.lane, jz = ew.lane;
       if (jx < elo - 0.01 || jx > ehi + 0.01) continue; // the NS lane's x never reaches this EW lane's span
+      const [nlo, nhi] = nsSpanOf(ns.streetId);
+      if (jz < nlo - 0.01 || jz > nhi + 0.01) continue; // W-N4: the EW lane's z never reaches this NS street's span (the W-C5 both-spans law, complete)
       if (!pointClear(jx, jz, footprints, 0.3)) continue;
       const jid = `nav:jx:${ns.streetId}:${ns.side}:${ew.streetId}:${ew.side}`;
       pushSplice(ew, { along: jx, across: jz, id: jid, kind: 'sidewalk', surface: 'sidewalk' });
@@ -241,7 +264,12 @@ export function buildNavGraph(registry: WorldRegistry): NavBuildResult {
   }
 
   // ---- 4. assemble the lane chains ----------------------------------------
-  for (const lane of lanes) assembleLane(lane, splices.get(lane) ?? [], footprints, graph, notes, laneSpanX.get(lane.streetId) ?? X_SPAN);
+  for (const lane of lanes) {
+    const span: [number, number] = lane.axis === 'EW'
+      ? (laneSpanX.get(lane.streetId) ?? X_SPAN)
+      : (laneSpanZ.get(lane.streetId) ?? Z_SPAN);
+    assembleLane(lane, splices.get(lane) ?? [], footprints, graph, notes, span);
+  }
 
   // crossing edges: crossing node ↔ its two endpoints
   for (const xw of crossings) {
@@ -449,7 +477,7 @@ function assembleLane(
   footprints: Array<{ id: string; fp: RegistryFootprint }>,
   graph: NavGraph,
   notes: string[],
-  spanX: [number, number],
+  span: [number, number],
 ): void {
   // collect blocked spans along this lane
   const blocked: Array<{ a0: number; a1: number; z0: number; z1: number }> = [];
@@ -459,10 +487,10 @@ function assembleLane(
     const fz0 = fp.z - fp.d / 2, fz1 = fp.z + fp.d / 2;
     if (work.axis === 'EW') {
       if (work.lane > fz0 - WALKER_CLEAR && work.lane < fz1 + WALKER_CLEAR
-        && fx1 > spanX[0] && fx0 < spanX[1]) {
+        && fx1 > span[0] && fx0 < span[1]) {
         // clip the blocked span to the lane's own walked extent (W-C5: a
         // west-side terrace must not skirt a lane that starts at x 100)
-        blocked.push({ a0: Math.max(fx0, spanX[0]), a1: Math.min(fx1, spanX[1]), z0: fz0, z1: fz1 });
+        blocked.push({ a0: Math.max(fx0, span[0]), a1: Math.min(fx1, span[1]), z0: fz0, z1: fz1 });
       }
     } else {
       if (work.lane > fx0 - WALKER_CLEAR && work.lane < fx1 + WALKER_CLEAR
@@ -471,6 +499,12 @@ function assembleLane(
       }
     }
   }
+
+  // W-N4: blocked spans with NO passable skirt BREAK the chain — the old
+  // behavior (the span outside every lane's extent) never met this case;
+  // the grown lanes do, and a silent jump would draw an edge straight
+  // through the blocking footprint (the validation's own law)
+  const noSkirt: Array<{ a0: number; a1: number }> = [];
 
   // ordered construction: every point belongs to an atomic RUN (a base
   // point, a splice, or a 4-point bend weave) — runs sort by along-lane
@@ -484,9 +518,8 @@ function assembleLane(
   // walked extent) — Rowan and Sumac exist only east of x 100, and the
   // old global X_SPAN start dragged their spines to x −100.55 (out of
   // bounds, orphaned ends). Kestrel keeps the full −100..252 span.
-  const ownSpan = (work.axis === 'EW' ? spanX : Z_SPAN) as [number, number];
-  const [lo, hi] = [Math.max(ownSpan[0], work.axis === 'EW' ? X_SPAN[0] : Z_SPAN[0]),
-    Math.min(ownSpan[1], work.axis === 'EW' ? X_SPAN[1] : Z_SPAN[1])];
+  const [lo, hi] = [Math.max(span[0], work.axis === 'EW' ? X_SPAN[0] : Z_SPAN[0]),
+    Math.min(span[1], work.axis === 'EW' ? X_SPAN[1] : Z_SPAN[1])];
   // the grid anchors at the first multiple of GRID_STEP inside the span —
   // W7 grew X_SPAN ±84 → ±100, and anchoring at −96/96 keeps EVERY shipped
   // node (the old ±84 grid was multiples of 6; a bare `lo` start would have
@@ -504,6 +537,7 @@ function assembleLane(
     const skirt = skirtFor(work, b, footprints);
     if (skirt === null) {
       notes.push(`lane ${work.streetId}/${work.side}: blocked span ${round2(b.a0)}..${round2(b.a1)} has no passable skirt`);
+      noSkirt.push({ a0: b.a0 - WALKER_CLEAR, a1: b.a1 + WALKER_CLEAR });
       continue;
     }
     // a skirt must not carry the chain through a road gap either (the
@@ -511,6 +545,7 @@ function assembleLane(
     // gate; a future curb-adjacent building must revisit the skirt law)
     if (work.gaps.some((g) => b.a0 - WALKER_CLEAR < g.a1 && b.a1 + WALKER_CLEAR > g.a0)) {
       notes.push(`lane ${work.streetId}/${work.side}: blocked span ${round2(b.a0)}..${round2(b.a1)} at a road mouth — no skirt`);
+      noSkirt.push({ a0: b.a0 - WALKER_CLEAR, a1: b.a1 + WALKER_CLEAR });
       continue;
     }
     runs.push({
@@ -544,7 +579,10 @@ function assembleLane(
     if (!graph.hasNode(id)) {
       graph.addNode({ id, x, z, kind: p.kind, surface: p.surface, places: p.places ?? [] });
     }
-    if (prevId !== null && prevId !== id && !gapBridges(work, prevAlong, p.along, prevId, id)) {
+    const crossesNoSkirt = noSkirt.some((s2) =>
+      Math.min(prevAlong, p.along) < s2.a1 && Math.max(prevAlong, p.along) > s2.a0);
+    if (prevId !== null && prevId !== id && !crossesNoSkirt
+      && !gapBridges(work, prevAlong, p.along, prevId, id)) {
       graph.addEdge(prevId, id, edgeKindFor(work), WALK_WIDTH);
     }
     prevId = id;

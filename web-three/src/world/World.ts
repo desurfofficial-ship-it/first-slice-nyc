@@ -75,6 +75,7 @@ import { sampleDayCycle, keyframeState, freshDayState, CANON_MINUTES, type DaySt
 import { buildNeighborhoodFabric, NEIGH, TERRACE_GATES } from './neighborhoodFabric';
 import { buildLarchYards, larchYardsPlazaLights } from './larchYardsKit';
 import { buildWestReach, willowRowsSilhouette } from './westReachKit';
+import { buildLindenHill } from './lindenHillKit';
 import { ambientWindowPlan, barrierDiary, flyerSlipForDay, hallNoticeForDay,
   skylineWindowMask, skylineDiaryIndices, skylineDiaryWarmth, SKYLINE_WARMTH,
   STREET_PLAN, PEDESTRIAN_ROLES, type StreetPlan } from './dressing';
@@ -426,9 +427,14 @@ export class World {
   // The standing draw census stays bounded as the map grows: the
   // streamed-city law on an authored budget.
   private static readonly DIST_COL_W = 28;   // x: −308..+252 in 20 columns (W-N1; the West Reach grew the origin west — the corridor streams like the east)
-  private static readonly DIST_ROW_H = 32;   // z: −48..48 in 3 rows (W6 strips clamp into r0/r2)
+  private static readonly DIST_ROW_H = 32;   // z: −144..176 in 10 rows (W-N5; the North Depth grew the grid — the row formula's origin −144 keeps the Day-1 spawn in the middle row exactly as the 3-row lattice did)
   private static readonly DIST_COLS = 20;
-  private static readonly DIST_ROWS = 3;
+  private static readonly DIST_ROWS = 10;
+  /** The row grid's z origin: row r covers z ∈ [r·32 − 144, (r+1)·32 − 144).
+   *  The spawn (z 0) sits in row 4 (−16..16) — the shipped 3-row lattice's
+   *  own middle row — so every existing mesh re-keys onto the same lit
+   *  set the census was tuned to (the byte-identical standing law). */
+  private static readonly ROW_ORIGIN = -144;
   /** The fog-law sight window (m, column-center distance). 130 covers the
    *  spawn view through c6 (|98−(−30)| = 128) and reads 6–8 columns from
    *  anywhere on the map. W-N1: the corridor's columns 5-6 (centers −154/
@@ -436,7 +442,14 @@ export class World {
    *  garden band there and prices its masses west of column 4 (the
    *  design doc §5; probe-city-fabric re-reads the census). */
   private static readonly SIGHT_M = 130;
-  private static readonly ROW_RING = 1;
+  /** W-N5 (the North Depth): the row window is TWO rows each way — a
+   *  five-row, 160 m lit band. The spawn-lit set stays today's exactly
+   *  (rows 2..6 = z −80..112 = the far strips, the spine, the inner
+   *  blocks; rows 7..9 — Linden Hill — stay dark at spawn, hidden behind
+   *  the far rows' rooflines). Ring-edge pops sit ≥ 80 m behind the
+   *  walking player: the columns' own fog-law class, one frame, mostly
+   *  occluded by the street canyons. */
+  private static readonly ROW_RING = 2;
   /** A column's center x (the sight window's measure). */
   private static colCenterX(c: number): number {
     return -308 + c * World.DIST_COL_W + World.DIST_COL_W / 2;
@@ -493,9 +506,18 @@ export class World {
   private undergroundShadow = false;
 
   /** A baked mesh's district from its world position (mesh center). */
-  private static districtKey(x: number, z: number): string {
+  private static districtKey(x: number, zRaw: number): string {
     const col = Math.max(0, Math.min(World.DIST_COLS - 1, Math.floor((x + 308) / World.DIST_COL_W)));
-    const row = Math.max(0, Math.min(World.DIST_ROWS - 1, Math.floor((z + 48) / World.DIST_ROW_H)));
+    // the W6 strips' clamp law, north edition: the legacy strip band
+    // (z ±48..64, the Westgate/Eastgate/Larch far rows) bakes into the
+    // INNER rows' tiles — the shipped 3-row lattice clamped it into
+    // r0/r2 and the per-column fusion priced it free; on the 10-row grid
+    // the strip's own rows would split every fusion (+6 standing, the
+    // census measured it). The band's rows (7..9) key normally.
+    let z = zRaw;
+    if (z > 48 && z <= 64) z = 47;
+    else if (z < -48 && z >= -64) z = -47;
+    const row = Math.max(0, Math.min(World.DIST_ROWS - 1, Math.floor((z - World.ROW_ORIGIN) / World.DIST_ROW_H)));
     return `c${col}r${row}`;
   }
 
@@ -529,7 +551,7 @@ export class World {
    *  panes show only with their buildings. */
   private updateDistricts(px: number, pz: number): void {
     const col = Math.max(0, Math.min(World.DIST_COLS - 1, Math.floor((px + 308) / World.DIST_COL_W)));
-    const row = Math.max(0, Math.min(World.DIST_ROWS - 1, Math.floor((pz + 48) / World.DIST_ROW_H)));
+    const row = Math.max(0, Math.min(World.DIST_ROWS - 1, Math.floor((pz - World.ROW_ORIGIN) / World.DIST_ROW_H)));
     const key = `c${col}r${row}`;
     if (key === this.lastDistrict) return;
     this.lastDistrict = key;
@@ -1482,12 +1504,38 @@ export class World {
     this.fourthGlow.position.set(goldGridX + 9, 9, goldFaceZ - 0.34);
     this.scene.add(this.fourthGlow);
 
-    // ---------------- skyline card (far north-east, above the low building) -
+    // ---------------- skyline card (far north-east, above the low building)
+    // W-N5 (the North Depth): the band took the old ground (z 64..160), so
+    // the tower row moves 90 → 230 — and OUT of the bake. At z 90 the row
+    // clamped into the 3-row lattice's always-lit edge tile; the 10-row
+    // grid gives it row 7 — Linden Hill's own rows — and the ring would
+    // blink the horizon out exactly when the band is unlit. The row now
+    // merges into ONE always-visible fog-exempt mesh ('SkylineNorth',
+    // NAMED_SKIP — the SkylineFabric law): one draw, the north horizon
+    // keeps its closure above the new wall. The 230 seat (70 m beyond the
+    // wall, not the first 170): from inside the band the towers must read
+    // as the far backdrop — the evidence probe caught the 170 seat looming
+    // over the green's playground like a local tower.
     const heights = [38, 62, 45, 80, 52, 70, 40, 58];
-    for (let i = 0; i < heights.length; i++) {
-      this.deco(`Tower_${i}`, -10 + i * 7, heights[i] / 2, 90, 6, heights[i], 6, PAL.skyline, { fog: false });
+    {
+      const parts: THREE.BufferGeometry[] = [];
+      for (let i = 0; i < heights.length; i++) {
+        const g = new THREE.BoxGeometry(6, heights[i], 6);
+        g.translate(-10 + i * 7, heights[i] / 2, 230);
+        parts.push(g);
+      }
+      const spire = new THREE.BoxGeometry(0.6, 24, 0.6);
+      spire.translate(11, 92, 230);
+      parts.push(spire);
+      const merged = mergeGeometries(parts, false);
+      for (const p of parts) p.dispose();
+      const sky = new THREE.Mesh(merged, this.mat(PAL.skyline));
+      (sky.material as unknown as { fog?: boolean }).fog = false;
+      sky.name = 'SkylineNorth';
+      sky.castShadow = false;
+      sky.receiveShadow = false;
+      this.scene.add(sky);
     }
-    this.deco('Spire', 11, 92, 90, 0.6, 24, 0.6, PAL.skyline, { fog: false });
 
     // ---- the skyline's lit windows (GDD: beyond the single gold one) ------
     // One InstancedMesh of tiny warm panes on the towers' south faces, one
@@ -1531,9 +1579,10 @@ export class World {
       }
       const place = (mesh: THREE.InstancedMesh, list: Array<[number, number]>) => {
         // the panes face the street (the player looks north from −z)
+        // W-N5: the towers ride 90 → 170 (the band took the old ground)
         const m = new THREE.Matrix4().makeRotationY(Math.PI);
         for (let k = 0; k < list.length; k++) {
-          m.setPosition(list[k][0], list[k][1], 90 - 3.06); // just off the south face (z 87)
+          m.setPosition(list[k][0], list[k][1], 230 - 3.06); // just off the south face
           mesh.setMatrixAt(k, m);
         }
         mesh.instanceMatrix.needsUpdate = true;
@@ -1573,10 +1622,11 @@ export class World {
     // "one coherent open world"). The west wall moves to the world edge
     // (x −450, the docks' own boundary); the N/S walls re-span the full
     // west reach (center x −99, length 702).
-    this.colliders.push(boxFromCenter(-450, 5, 0, 1, 20, 128)); // W-N1: the west wall follows the registry's grown core
-    this.colliders.push(boxFromCenter(252, 5, 0, 1, 20, 128)); // W-C0: the east wall follows the registry's grown core
+    this.colliders.push(boxFromCenter(-450, 5, 48, 1, 20, 224)); // W-N1: the west wall follows the registry's grown core (W-N5: re-spanned z −64..160 — the band's west end)
+    this.colliders.push(boxFromCenter(252, 5, 48, 1, 20, 224)); // W-C0: the east wall follows the registry's grown core (W-N5: re-spanned z −64..160)
     this.colliders.push(boxFromCenter(-99, 6, -64, 702, 24, 1)); // south wall behind the Carrow terrace + the Marlow west works (W-N1 re-span)
-    this.colliders.push(boxFromCenter(-99, 6, 64, 702, 24, 1));  // north wall behind the Larkin terrace + the Gable west walk-ups (W-N1 re-span)
+    this.colliders.push(boxFromCenter(-275, 6, 64, 350, 24, 1)); // north wall, west segment — the void west of the band keeps its edge (W-N5: split)
+    this.colliders.push(boxFromCenter(76, 6, 160, 352, 24, 1));  // north wall, the band's own edge at z 160 — Linden Hill's north line (W-N5)
 
     // zones
     this.crosswalkZone = boxFromCenter(-5, 1, 0, 3.4, 2, 7.5);
@@ -2204,6 +2254,12 @@ export class World {
     // directive) — the corridor's streets, yards, masses, garden, theater.
     // Pre-bake like every district; the grown lattice owns its columns.
     this.buildWillowRows();
+    // W-N4..N6: Linden Hill (the North Depth, the master build directive's
+    // second dimension) — the band's streets, the green, the civic pair,
+    // the yards' north rows, the viaduct's north reach. Pre-bake like
+    // every district; the grown 10-row lattice owns its rows (dark at
+    // spawn, the far rows occlude the band from the spine).
+    this.buildLindenHill();
     // W4 part 1: the district's static life — zone figures, parked cars,
     // the BUS-03 stop — all pre-bake so the W0 merge swallows them (the
     // perf law: the zones cost merges, not draw calls).
@@ -5806,6 +5862,42 @@ export class World {
     const mTrim = new THREE.MeshLambertMaterial({ color: 0xb8a8c0 });
     mTrim.fog = false;
     buildSkylineLandmarks(this.scene, mStone, mGlass, mTrim);
+    // W-N5: the landmark silhouettes merge into ONE always-visible
+    // fog-exempt vc mesh ('SkylineNorthLandmarks', NAMED_SKIP — the
+    // SkylineNorth law): at z 226..232 they bake into row 9 and the ring
+    // would blink the north's own landmarks out exactly when the band is
+    // unlit; merged, they cost one draw and never leave the horizon.
+    {
+      const groups = ['SKY_LMK_Decow', 'SKY_LMK_Crown', 'SKY_LMK_Glass', 'SKY_LMK_Wedge', 'SKY_LMK_Midband', 'SKY_LMK_Midband2'];
+      const parts: THREE.BufferGeometry[] = [];
+      for (const name of groups) {
+        const g = this.scene.getObjectByName(name);
+        if (!g) continue;
+        g.updateWorldMatrix(true, true);
+        g.traverse((o) => {
+          if (!(o instanceof THREE.Mesh)) return;
+          const geo = o.geometry.clone();
+          geo.applyMatrix4(o.matrixWorld);
+          const c = (o.material as THREE.MeshLambertMaterial).color;
+          const n = geo.attributes.position.count;
+          const colors = new Float32Array(n * 3);
+          for (let i = 0; i < n; i++) { colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b; }
+          geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+          for (const attr of Object.keys(geo.attributes)) {
+            if (attr !== 'position' && attr !== 'normal' && attr !== 'color') geo.deleteAttribute(attr);
+          }
+          parts.push(geo);
+        });
+        this.scene.remove(g);
+      }
+      const merged = mergeGeometries(parts, false);
+      for (const p2 of parts) p2.dispose();
+      const lmk = new THREE.Mesh(merged, this.vcMaterial(false));
+      lmk.name = 'SkylineNorthLandmarks';
+      lmk.castShadow = false;
+      lmk.receiveShadow = false;
+      this.scene.add(lmk);
+    }
     this.vqLedger.push({ name: 'SI_SkylineLandmarks', x: 0, y: 0, z: 90 });
   }
 
@@ -5906,6 +5998,10 @@ export class World {
       // cutaway would stare at brick
       'LarchYards_Sub03',
       'SkylineFabric', 'SkylineFabricWindows', 'CJN_Group',
+      // W-N5: the north tower row's merged fog-exempt mesh — the horizon
+      // never bakes into a district tile (the SkylineFabric law, north
+      // edition; the band's rows would blink it out exactly when unlit)
+      'SkylineNorth', 'SkylineNorthLandmarks',
       // W-C1 (this tree): the Larch Yards silhouette underlay rides the
       // district ring's own law (visible while the district's tiles are
       // unlit) — a baked silhouette would be ring-owned and vanish exactly
@@ -6043,6 +6139,15 @@ export class World {
 
     // commits happen per (signature, district); a district group of 1 stays
     // as-is — merging it would save nothing
+    // W-N5: the singles (a signature's lone source in a tile) stay
+    // individual — a merge would save nothing — but they join their tile's
+    // district like every baked mesh. The streamed-city law is total: no
+    // baked-keyed mesh draws outside its ring. (The old behavior left them
+    // unmanaged — always visible, always drawn — a leak the North Depth's
+    // band masses exposed: three rows 7-9 singles drew at spawn.)
+    const singles: Array<{ mesh: THREE.Mesh; tile: string }> = [];
+
+    // geometries referenced
     const bySigTile = new Map<string, { batch: Batch; srcs: BatchSrc[] }>();
     for (const [key, b] of batches) {
       const byTile = new Map<string, BatchSrc[]>();
@@ -6053,7 +6158,12 @@ export class World {
       }
       for (const [tile, srcs] of byTile) {
         if (srcs.length >= 2) bySigTile.set(`${key}#${tile}`, { batch: b, srcs });
-        else for (const s of srcs) s.geo.dispose();
+        else {
+          for (const s of srcs) {
+            s.geo.dispose();
+            if (tile !== 'ATLAS') singles.push({ mesh: s.mesh, tile }); // the atlas owns its own visibility
+          }
+        }
       }
     }
 
@@ -6087,6 +6197,11 @@ export class World {
       let list = this.districtBatches.get(dk);
       if (!list) this.districtBatches.set(dk, list = []);
       list.push(mesh);
+    }
+    for (const s of singles) {
+      let list = this.districtBatches.get(s.tile);
+      if (!list) this.districtBatches.set(s.tile, list = []);
+      list.push(s.mesh);
     }
 
     // dynamic groups join their districts (the batch meshes above are
@@ -7794,6 +7909,164 @@ export class World {
     this.scene.traverse((o) => {
       if (o.name === 'WillowRows_Silhouette' || o.name === 'WillowRows_LitPanes') this.westFar.push(o);
     });
+  }
+
+  // ===================================================================
+  // W-N4..W-N6 — LINDEN HILL (the North Depth; the master build
+  // directive's second-dimension wave). The band over Alder Heights and
+  // the Larch Yards (x −100..+252, z 64..160): the green in two halves,
+  // the civic pair, the tenement rows, the yards' last works, the
+  // elevated spur's north reach. Every mass via regShell — the A-3 law —
+  // and every mesh through the kit's re-centering bake law. The band's
+  // rows (7..9) light with the grown lattice's ROW_RING 2 window; the
+  // far rows hide it from the spine (the registry patch's own occlusion
+  // check), so the spawn census stays byte-identical.
+  // ===================================================================
+  private buildLindenHill(): void {
+    const rng = seededRng(0x1E7C4);
+
+    // ---- 1. the paving: the band's own merged pair, split WEST/EAST, each
+    // half registered to ITS OWN row-7 tile. The registration law: a 352 m
+    // mesh cannot ride one column's ring (the first attempt lit the pair
+    // only within col 13's window — the east end's ground vanished), and
+    // the unregistered Larch law cannot serve here either (the band's east
+    // half sits INSIDE the spawn frustum's cone — the unregistered sphere
+    // grazes it and the pair drew at spawn, +2 standing). Two halves, two
+    // tiles: the pair lights with the band's rows wherever the player
+    // stands, and rows 7..9 stay dark at spawn.
+    const LXSEG: Array<[number, number]> = [[-100, -84], [-60, 60], [84, 146], [158, 220], [236, 252]];
+    const LZSEG: Array<[number, number]> = [[64, 68], [76, 116], [124, 160]];
+    const roadsW = this.groundMerged('LindenHill_Roads_W', 'asphalt', [
+      { x: -12, y: -0.1, z: 72, sx: 176, sy: 0.2, sz: 8 },      // Hazel west (x −100..76; top 0.0)
+      { x: -12, y: -0.1, z: 120, sx: 176, sy: 0.2, sz: 8 },     // Mulberry west
+      { x: -72, y: -0.105, z: 112, sx: 8, sy: 0.19, sz: 96 },   // Juniper north (z 64..160; the 5 mm dip kills the coplanar shimmer at the crossings — the W1 law)
+    ]);
+    const roadsE = this.groundMerged('LindenHill_Roads_E', 'asphalt', [
+      { x: 164, y: -0.1, z: 72, sx: 176, sy: 0.2, sz: 8 },      // Hazel east (x 76..252)
+      { x: 164, y: -0.1, z: 120, sx: 176, sy: 0.2, sz: 8 },     // Mulberry east
+      { x: 72, y: -0.105, z: 112, sx: 8, sy: 0.19, sz: 96 },    // Sycamore north
+      { x: 228, y: -0.105, z: 112, sx: 8, sy: 0.19, sz: 96 },   // Larch north
+    ]);
+    const walkW: Array<{ x: number; y: number; z: number; sx: number; sy: number; sz: number }> = [];
+    const walkE: Array<{ x: number; y: number; z: number; sx: number; sy: number; sz: number }> = [];
+    for (const [a, b] of LXSEG) {
+      const cx = (a + b) / 2, w = b - a;
+      for (const wz of [78, 66, 126, 114]) {
+        (cx < 76 ? walkW : walkE).push({ x: cx, y: -0.05, z: wz, sx: w, sy: 0.3, sz: 4 });
+      }
+    }
+    for (const [a, b] of LZSEG) {
+      const cz = (a + b) / 2, d = b - a;
+      for (const wx of [-80, -64, 64, 80, 222, 234]) {
+        (wx < 76 ? walkW : walkE).push({ x: wx, y: -0.05, z: cz, sx: 4, sy: 0.3, sz: d });
+      }
+    }
+    const walksW = this.groundMerged('LindenHill_Walks_W', 'concrete', walkW);
+    const walksE = this.groundMerged('LindenHill_Walks_E', 'concrete', walkE);
+    this.registerDistrictObject(roadsW, -12, 96);  // c10r7
+    this.registerDistrictObject(walksW, -12, 96);
+    this.registerDistrictObject(roadsE, 164, 96);  // c16r7
+    this.registerDistrictObject(walksE, 164, 96);
+
+    // ---- 1b. the seam dressing: the far rows' north rears (the W6/W7
+    // strips' yard side) meet the band here — the fence line + the bins +
+    // the clothesline posts that read the seam as rear yards, not a bare
+    // wall (the transition the directive's QA list asks for; vc deco,
+    // bake-fused into the strip's own rows)
+    {
+      const seamSegs: Array<[number, number]> = [[-96, -86], [-82, -62], [-58, 62], [86, 144], [160, 218], [238, 250]];
+      for (const [a, b] of seamSegs) {
+        const cx = (a + b) / 2, w = b - a;
+        this.solid(`LindenHill_SeamFence_${a}`, cx, 0.55, 62.6, w, 1.1, 0.14, 0x6b5a44, { collide: false, cast: false });
+      }
+      const props: Array<[number, number, number]> = [
+        [-88, 0.35, 0.35], [-40, 0.35, 0.35], [8, 0.3, 0.3], [52, 0.35, 0.35],
+        [100, 0.4, 0.4], [180, 0.35, 0.35], [244, 0.3, 0.3],
+      ];
+      let pi = 0;
+      for (const [px, pw, ph] of props) {
+        this.deco(`LindenHill_SeamBin_${pi++}`, px, 0.3, 61.6, pw * 2, ph * 2, pw * 2, 0x4a5248);
+      }
+      for (const px of [-70, -18, 34, 120, 200]) {
+        this.deco(`LindenHill_SeamPost_${px}`, px, 1.1, 61.4, 0.1, 2.2, 0.1, 0x5a4a3a);
+      }
+    }
+
+    // ---- 2. the curbs (deco, no colliders — the shipped curb grammar),
+    // split around the avenue mouths exactly like the walk slabs
+    let curbI = 0;
+    for (const [a, b] of LXSEG) {
+      const cx = (a + b) / 2, w = b - a;
+      for (const cz of [68.08, 75.92, 116.08, 123.92]) {
+        this.deco(`LindenHill_Curb_${curbI++}`, cx, 0.065, cz, w, 0.13, 0.5, 0x8f8a82);
+      }
+    }
+    for (const [a, b] of LZSEG) {
+      const cz = (a + b) / 2, d = b - a;
+      for (const cx of [-76.08, -67.92, 68.08, 75.92, 224.08, 231.92]) {
+        this.deco(`LindenHill_Curb_${curbI++}`, cx, 0.065, cz, 0.5, 0.13, d, 0x8f8a82);
+      }
+    }
+
+    // ---- 3. the district fabric (the kit: masses, the green, the holder,
+    // the viaduct's north reach, the bed) — colliders honest, signs ride
+    // their lattice columns, the panes ride row 7
+    const { cols: kitCols, signs: kitSigns, paneMesh } = buildLindenHill({
+      scene: this.scene,
+      vc: this.vcMaterial.bind(this),
+      shell: this.regShell.bind(this),
+      row: (id) => loadRegistry().building(id),
+      skylineWinMat: this.skylineWinMat,
+      sign: this.signBoard.bind(this),
+      ledger: this.vqLedger,
+    });
+    for (const c of kitCols) {
+      this.colliders.push(boxFromCenter(c.x, c.y, c.z, c.sx, c.sy, c.sz));
+    }
+    for (const name of kitSigns) {
+      const g = this.scene.getObjectByName(name);
+      if (g) {
+        const p = g.position;
+        this.registerDistrictObject(g, p.x, p.z);
+      }
+    }
+    this.registerDistrictObject(paneMesh, 76, 96);
+
+    // ---- 4. the zebras (the continental crosswalks at the eight corners,
+    // four legs each — the GJ/GS pattern, the registry's own XW-LNH rows)
+    for (const [xc, zc] of [[-72, 72], [72, 72], [152, 72], [228, 72], [-72, 120], [72, 120], [152, 120], [228, 120]] as const) {
+      this.zebra(`XW_LNH_${xc}_${zc}_E`, xc + 3.5, zc, 'acrossEW');
+      this.zebra(`XW_LNH_${xc}_${zc}_W`, xc - 3.5, zc, 'acrossEW');
+      this.zebra(`XW_LNH_${xc}_${zc}_N`, xc, zc + 4.5, 'acrossNS');
+      this.zebra(`XW_LNH_${xc}_${zc}_S`, xc, zc - 4.5, 'acrossNS');
+    }
+
+    // ---- 5. the street furniture (the house makers — all bake free) -----
+    // streetlights: Hazel/Mulberry alternating curbs, the avenues' walks
+    for (const [lx, lz] of [[-92, 78.6], [-124, 65.4], [-172, 78.6], [-212, 65.4], [-244, 78.6],
+      [-92, 126.6], [-124, 113.4], [-172, 126.6], [-212, 113.4], [-244, 126.6],
+      [-83.6, 96], [-60.4, 136], [83.6, 96], [60.4, 136],
+      [221.4, 96], [234.6, 136]] as const) {
+      const lamp = makeStreetlight(this.bank);
+      lamp.position.set(lx, 0.05, lz);
+      this.scene.add(lamp);
+      this.colliders.push(boxFromCenter(lx, 2.6, lz, 0.22, 5.2, 0.22));
+    }
+    // street trees (the instanced canopy owns every crown): the walks'
+    // pits + the green's own grove
+    const treeSpots: Array<[number, number]> = [
+      [-96, 78], [-52, 78], [-20, 78], [20, 78], [52, 78], [96, 78],
+      [-96, 126], [-52, 126], [-20, 126], [20, 126], [52, 126], [96, 126],
+      [-83.6, 88], [-83.6, 132], [83.6, 88], [83.6, 132],
+      [-34, 92], [-16, 104], [16, 92], [34, 104],
+      [-34, 140], [-16, 152], [16, 140], [34, 152],
+    ];
+    for (const [tx, tz] of treeSpots) this.buildSimpleTree(tx, tz, rng);
+    // the Hazel corner's breath: hydrant + can + mailbox at the school walk
+    const lhyd = makeHydrant(this.bank); lhyd.position.set(96.6, 0.1, 77.4); this.scene.add(lhyd);
+    const lcan = makeTrashCan(this.bank); lcan.position.set(64.4, 0.1, 77.4); this.scene.add(lcan);
+    const lmail = makeMailboxNYC(this.bank, 0.1, -64.6, 77.4, Math.PI / 2); this.scene.add(lmail);
+    const lsteam = makeSteamVentNYC(this.bank, 40, 66.4); this.scene.add(lsteam);
   }
 
   private buildAlderHeightsW1(): void {
